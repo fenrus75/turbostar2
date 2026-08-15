@@ -1,9 +1,7 @@
-#include "fs_replace_content.h"
+#include "fs_multi_replace_content.h"
 #include "fs_replace_engine.h"
 #include "fs_utils.h"
 #include <algorithm>
-#include <cstdlib>
-#include <format>
 #include <dtl/dtl.hpp>
 #include <filesystem>
 #include <fstream>
@@ -14,29 +12,29 @@
 
 namespace tools {
 
-class interaction_fs_replace_content : public agentlib::agent_interaction {
+class interaction_fs_multi_replace_content : public agentlib::agent_interaction {
 public:
-	explicit interaction_fs_replace_content(const std::string& path) {
-		call_text_ = "Applying text replacement to " + path;
+	explicit interaction_fs_multi_replace_content(const std::string &path, size_t chunk_count) {
+		call_text_ = std::format("Applying multi-chunk text replacement ({} chunks) to {}", chunk_count, path);
 	}
 
 	agentlib::interaction_type get_type() const override { return agentlib::interaction_type::action; }
 	agentlib::interaction_role get_role() const override { return agentlib::interaction_role::agent; }
 
 	bool needs_subpanel_header() const override { return true; }
-	std::string get_subpanel_label() const override { return "Applying replacement"; }
+	std::string get_subpanel_label() const override { return "Applying multi-chunk replacement"; }
 
-	void set_result(const std::string& res) {
+	void set_result(const std::string &res) {
 		result_text_ = res;
 		invalidate_cache();
 	}
 
-	void set_target_type(const std::string& path, bool is_buffer) {
+	void set_target_type(const std::string &path, bool is_buffer) {
 		(void)path;
 		(void)is_buffer;
 	}
 
-	void set_diff(const std::vector<std::string>& before, const std::vector<std::string>& after) {
+	void set_diff(const std::vector<std::string> &before, const std::vector<std::string> &after) {
 		dtl::Diff<std::string, std::vector<std::string>> d(before, after);
 		d.compose();
 		d.composeUnifiedHunks();
@@ -59,7 +57,7 @@ public:
 		if (!result_text_.empty()) {
 			raw += "\nResult: " + result_text_;
 		}
-		for (const auto& dl : diff_lines_) {
+		for (const auto &dl : diff_lines_) {
 			raw += "\n" + dl;
 		}
 		return raw;
@@ -73,7 +71,7 @@ protected:
 		if (!diff_lines_.empty()) {
 			lines.push_back({std::string(std::min(width, 20), '-'), label_color});
 
-			for (const auto& dl : diff_lines_) {
+			for (const auto &dl : diff_lines_) {
 				int color = 3; // Default Yellow on Dark Blue
 				if (dl.empty()) {
 					lines.push_back({std::string(width, ' '), color});
@@ -102,7 +100,7 @@ protected:
 			lines.insert(lines.end(), res_lines.begin(), res_lines.end());
 		}
 
-		for (auto& line : lines) {
+		for (auto &line : lines) {
 			int len = markdown_utils::display_width(line.text);
 			if (len < width) {
 				line.text += std::string(width - len, ' ');
@@ -118,46 +116,47 @@ private:
 	std::vector<std::string> diff_lines_;
 };
 
-fs_replace_content_tool::fs_replace_content_tool(fs_replace_content_args args) : args_(std::move(args)) {
-	interaction_ = std::make_shared<interaction_fs_replace_content>(args_.path);
+fs_multi_replace_content_tool::fs_multi_replace_content_tool(fs_multi_replace_content_args args)
+	: args_(std::move(args))
+{
+	interaction_ = std::make_shared<interaction_fs_multi_replace_content>(args_.path, args_.chunks.size());
 }
 
-std::shared_ptr<agentlib::agent_interaction> fs_replace_content_tool::get_interaction() const {
+std::shared_ptr<agentlib::agent_interaction> fs_multi_replace_content_tool::get_interaction() const
+{
 	return interaction_;
 }
 
-bool fs_replace_content_tool::validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const {
+bool fs_multi_replace_content_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const
+{
 	std::string path_to_use = args_.safe_path;
-	auto* vfs = ctx.fs_security.get_vfs();
+	auto *vfs = ctx.fs_security.get_vfs();
 	if (vfs && vfs->is_local_path_available(args_.safe_path)) {
 		path_to_use = vfs->get_local_path(args_.safe_path);
 	}
 	if (!std::filesystem::exists(path_to_use)) {
-		out_error = "Error: File does not exist. fs_replace_content can only edit existing files.";
+		out_error = "Error: File does not exist. fs_multi_replace_content can only edit existing files.";
+		return false;
+	}
+	if (args_.chunks.empty()) {
+		out_error = "Error: Chunks list cannot be empty.";
 		return false;
 	}
 	return true;
 }
 
-std::string fs_replace_content_tool::execute(agentlib::tool_context& ctx) {
+std::string fs_multi_replace_content_tool::execute(agentlib::tool_context &ctx)
+{
 	replace_engine_args engine_args;
 	engine_args.path = args_.path;
 	engine_args.safe_path = args_.safe_path;
 	engine_args.strict = args_.strict;
-
-	replace_chunk chunk;
-	chunk.target_content = args_.target_content;
-	chunk.replacement_content = args_.replacement_content;
-	chunk.line_hint = args_.line_hint.value_or(0);
-	chunk.function_scope = args_.function_hint.value_or("");
-	chunk.start_line = args_.start_line.value_or(0);
-	chunk.end_line = args_.end_line.value_or(0);
-	engine_args.chunks.push_back(chunk);
+	engine_args.chunks = args_.chunks;
 
 	auto result = fs_replace_engine::execute(ctx, engine_args);
 
 	if (!result.success) {
-		if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_replace_content>(interaction_)) {
+		if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_multi_replace_content>(interaction_)) {
 			custom_interaction->set_result(result.error_message);
 			if (ctx.trigger_ui_update) {
 				ctx.trigger_ui_update();
@@ -167,7 +166,7 @@ std::string fs_replace_content_tool::execute(agentlib::tool_context& ctx) {
 	}
 
 	bool is_buffer = (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path) != nullptr);
-	if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_replace_content>(interaction_)) {
+	if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_multi_replace_content>(interaction_)) {
 		custom_interaction->set_target_type(args_.path, is_buffer);
 		custom_interaction->set_diff(result.before_lines, result.after_lines);
 		custom_interaction->set_result(result.result_text);

@@ -154,6 +154,19 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
     *   `end_line` *(integer, optional)*: A 1-based end line number establishing a search window boundary for target content.
     *   `strict` *(boolean, optional)*: If true, reject (and revert) the edit when it would leave braces unbalanced, instead of applying it and only issuing a warning. Defaults to false.
 
+### `fs_multi_replace_content`
+*   **Description:** Replaces multiple non-contiguous blocks of text across a single file in a single atomic transaction. If any chunk fails to match or breaks syntax/brace-balance in strict mode, all changes are cleanly rolled back.
+*   **Arguments:**
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Path to the file to edit.
+    *   `chunks` *(array of objects, required)*: Array of replacement chunks to apply atomically.
+        *   `target_content` *(string, required)*: The exact block of text in the file to replace.
+        *   `replacement_content` *(string, required)*: The new text block that will replace `target_content`.
+        *   `line_hint` *(integer, optional)*: A 1-based line number hinting where `target_content` is located.
+        *   `function_scope` *(string, optional)*: Enclosing function/class/method name (e.g. `'validate_args_impl'`) to restrict search scope.
+        *   `start_line` *(integer, optional)*: A 1-based start line boundary for search scope.
+        *   `end_line` *(integer, optional)*: A 1-based end line boundary for search scope.
+    *   `strict` *(boolean, optional)*: If true, reject (and revert) the edits if they leave braces unbalanced. Defaults to false.
+
 ### `fs_write_file`
 *   **Description:** Creates a new file, overwrites an existing file, or safely appends content to an existing file.
 *   **Arguments:**

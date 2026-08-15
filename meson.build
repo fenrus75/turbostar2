@@ -1098,10 +1098,22 @@ test('unit_test_fs_glob', test_fs_glob, suite: 'agent')
 test_fs_replace_content = executable('test_fs_replace_content',
   ['tests/unit/test_fs_replace_content.cpp',
    'src/tools/fs_replace_content/fs_replace_content_entry.cpp',
-   'src/tools/fs_replace_content/fs_replace_content_security.cpp'],
+   'src/tools/fs_replace_content/fs_replace_content_security.cpp',
+   'src/tools/fs_replace_content/fs_replace_engine.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_fs_replace_content', test_fs_replace_content, suite: 'agent')
+
+test_fs_multi_replace_content = executable('test_fs_multi_replace_content',
+  ['tests/unit/test_fs_multi_replace_content.cpp',
+   'src/tools/fs_replace_content/fs_replace_content_entry.cpp',
+   'src/tools/fs_replace_content/fs_replace_content_security.cpp',
+   'src/tools/fs_replace_content/fs_multi_replace_content_entry.cpp',
+   'src/tools/fs_replace_content/fs_multi_replace_content_security.cpp',
+   'src/tools/fs_replace_content/fs_replace_engine.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_fs_multi_replace_content', test_fs_multi_replace_content, suite: 'agent')
 
 test_fs_mkdir = executable('test_fs_mkdir',
   ['tests/unit/test_fs_mkdir.cpp',
