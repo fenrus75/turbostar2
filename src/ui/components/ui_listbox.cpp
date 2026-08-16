@@ -1,5 +1,6 @@
 #include "ui_listbox.h"
 #include <ncurses.h>
+#include "utf8.h"
 
 ui_listbox::ui_listbox(std::string name, int x, int y, int width, int height, std::function<void(int)> on_selection_changed,
 		       std::function<void(int)> on_submit)
@@ -52,11 +53,22 @@ void ui_listbox::draw(int abs_x, int abs_y) const
 		int item_idx = scroll_top_ + i;
 		if (item_idx < (int)items_.size()) {
 			std::string display_text = items_[item_idx];
-			if (display_text.length() < (size_t)width_) {
-				display_text.append(width_ - display_text.length(), ' ');
-			} else if (display_text.length() > (size_t)width_) {
-				display_text = display_text.substr(0, width_);
+			size_t current_width = 0;
+			std::string truncated_text;
+			size_t offset = 0;
+			std::string char_str;
+			while (utf8::next_character(display_text, offset, char_str)) {
+				size_t char_w = utf8::display_width(char_str);
+				if (current_width + char_w > (size_t)width_) {
+					break;
+				}
+				truncated_text += char_str;
+				current_width += char_w;
 			}
+			if (current_width < (size_t)width_) {
+				truncated_text.append(width_ - current_width, ' ');
+			}
+			display_text = truncated_text;
 
 			if (item_idx == selected_index_) {
 				int pair = has_focus_ ? 8 : 17;
