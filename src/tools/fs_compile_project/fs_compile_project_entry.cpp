@@ -125,7 +125,7 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 				std::string system_msg = std::format("The background task 'fs_compile_project' has completed {}. I updated "
 								     "your previous tool result with the output.",
 								     status);
-				agent->inject_context("system", system_msg, true);
+				agent->inject_untrusted_context("system", system_msg, true);
 			}
 		}).detach();
 

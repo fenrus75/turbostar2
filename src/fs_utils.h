@@ -165,6 +165,10 @@ std::string wrap_prompt_untrusted_data_tag(std::string_view tag, std::string_vie
  */
 std::string unwrap_prompt_untrusted_data_tag(std::string_view content);
 /**
+ * @brief Checks if content is already enclosed within a top-level XML prompt data tag (<tag>...</tag>).
+ */
+bool is_prompt_tag_wrapped(std::string_view content) noexcept;
+/**
  * @brief Returns true if the string is safe for display in the UI (status line).	 * Rejects any string containing non-printable
  * characters or ANSI escape sequences to prevent malicious agents from spoofing UI elements.
  */

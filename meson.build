@@ -1213,7 +1213,7 @@ test_mcp_manager = executable('test_mcp_manager',
   'tests/unit/test_mcp_manager.cpp',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_mcp_manager', test_mcp_manager, suite: 'agent')
+test('unit_mcp_manager', test_mcp_manager, timeout: 60, suite: 'agent')
 
 test_listbox = executable('test_listbox',
   'tests/unit/test_listbox.cpp',

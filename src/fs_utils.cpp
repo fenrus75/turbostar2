@@ -610,6 +610,34 @@ std::string unwrap_prompt_untrusted_data_tag(std::string_view content)
 	return inner.substr(start, end - start + 1);
 }
 
+bool is_prompt_tag_wrapped(std::string_view content) noexcept
+{
+	std::string_view s = content;
+	while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front()))) {
+		s.remove_prefix(1);
+	}
+	while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back()))) {
+		s.remove_suffix(1);
+	}
+	if (s.empty() || s.front() != '<') {
+		return false;
+	}
+	size_t open_end = s.find('>');
+	if (open_end == std::string_view::npos || open_end <= 1) {
+		return false;
+	}
+	std::string_view tag_name = s.substr(1, open_end - 1);
+	if (tag_name.empty() || tag_name[0] == '/' || tag_name[0] == '!' || tag_name[0] == '?') {
+		return false;
+	}
+	std::string close_tag = std::format("</{}>", tag_name);
+	if (!s.ends_with(close_tag)) {
+		return false;
+	}
+	size_t first_close_pos = s.find(close_tag);
+	return first_close_pos != std::string_view::npos && first_close_pos == s.length() - close_tag.length();
+}
+
 std::string shorten_filename(std::string_view filepath, int max_length)
 {
 	if (filepath.length() <= static_cast<size_t>(max_length)) {

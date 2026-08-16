@@ -59,9 +59,10 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 						document_provider *doc_provider);
 	~ai_agent();
 
-	void submit_prompt(const std::string &prompt_text);
-	void inject_context(const std::string &role, const std::string &content, bool trigger_processing = false);
-	void replace_tool_result(const std::string &tool_call_id, const std::string &new_content);
+	void submit_prompt(const std::string &untrusted_prompt_text);
+	void inject_context(const std::string &role, const std::string &trusted_content, bool trigger_processing = false);
+	void inject_untrusted_context(const std::string &role, const std::string &untrusted_content, bool trigger_processing = false);
+	void replace_tool_result(const std::string &tool_call_id, const std::string &untrusted_new_content);
 	void cancel_current_task();
 	void close();
 
@@ -98,7 +99,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	}
 
 
-	std::shared_ptr<ai_agent> spawn_subagent(const std::string &task_description);
+	std::shared_ptr<ai_agent> spawn_subagent(const std::string &untrusted_name);
 	void remove_subagent(int id);
 	std::vector<std::shared_ptr<ai_agent>> get_subagents() const;
 
@@ -142,8 +143,8 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	{
 		return last_inference_duration_ms_.load();
 	}
-	void add_active_skill(const std::string &skill_name);
-	bool activate_skill(const std::string &skill_name);
+	void add_active_skill(const std::string &untrusted_skill_name);
+	bool activate_skill(const std::string &untrusted_skill_name);
 	std::vector<std::string> get_active_skills() const;
 	void add_active_tool_family(const std::string &family_name);
 	std::vector<std::string> get_active_tool_families() const;
@@ -165,7 +166,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	void set_properties(const agent_properties &props);
 
 	std::string get_allowed_write_file() const;
-	void set_allowed_write_file(const std::string &path);
+	void set_allowed_write_file(const std::string &untrusted_path);
 
 	bool is_mutation_possible() const;
 
@@ -182,13 +183,13 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 		return global_queue_;
 	}
 
-	void save_conversation(const std::string &filepath) const;
+	void save_conversation(const std::string &untrusted_filepath) const;
 	void page_out_context(size_t start_index, size_t end_index, std::string_view title, std::string_view summary,
 			      const std::vector<std::string> &tags);
 	void page_out_prior_context(std::string_view target_episode_id, bool include_all_prior, std::string_view title,
 				    std::string_view summary, const std::vector<std::string> &tags);
-	void snapshot_episode(std::string_view title, std::string_view summary, const std::vector<std::string> &tags);
-	void update_episode_hint(const std::string &episode_id, const std::string &hint);
+	void snapshot_episode(std::string_view untrusted_title, std::string_view untrusted_summary, const std::vector<std::string> &tags);
+	void update_episode_hint(const std::string &episode_id, const std::string &untrusted_hint);
 	bool page_in_context(const std::string &episode_id, int compression_level = 1);
 	bool set_episode_state(const std::string &episode_id, int target_level);
 	std::vector<std::string> page_in_history_auto(int default_level = 1, double target_fraction = 0.5);
@@ -198,12 +199,12 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	bool load_active_state(bool fresh_agent = false);
 	void load_episode_index();
 	std::string get_memory_index() const;
-	void set_final_result(const std::string &result);
+	void set_final_result(const std::string &untrusted_result);
 	std::string get_final_result() const;
 	bool has_final_result() const;
 
 	std::string get_task_description() const;
-	void set_task_description(const std::string &desc);
+	void set_task_description(const std::string &untrusted_desc);
 	void set_exit_implicitly_on_idle(bool val);
 	bool is_exit_implicitly_on_idle() const;
 	void set_notify_parent_on_completion(bool val);

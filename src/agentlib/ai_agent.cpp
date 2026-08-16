@@ -1103,7 +1103,7 @@ void ai_agent::add_interaction(std::shared_ptr<agent_interaction> interaction)
 	curr_ep->add_transaction(tx);
 }
 
-void ai_agent::inject_context(const std::string &role, const std::string &content, bool trigger_processing)
+void ai_agent::inject_context(const std::string &role, const std::string &trusted_content, bool trigger_processing)
 {
 	{
 		std::lock_guard<std::mutex> lock(conversation_mutex_);
@@ -1130,7 +1130,7 @@ void ai_agent::inject_context(const std::string &role, const std::string &conten
 						if (!new_content.empty()) {
 							new_content += "\n\n";
 						}
-						new_content += content;
+						new_content += trusted_content;
 						last_turn->set_content(new_content);
 						if (auto inter = last_turn->get_interaction()) {
 							inter->push_content(new_content);
@@ -1140,7 +1140,7 @@ void ai_agent::inject_context(const std::string &role, const std::string &conten
 						// update_system_prompt_with_families() calls do not overwrite/discard 
 						// the merged content.
 						if (!original_system_prompt_.empty()) {
-							original_system_prompt_ += "\n\n" + content;
+							original_system_prompt_ += "\n\n" + trusted_content;
 						}
 						merged = true;
 					}
@@ -1159,14 +1159,14 @@ void ai_agent::inject_context(const std::string &role, const std::string &conten
 				std::shared_ptr<Turn> t;
 				std::shared_ptr<agent_interaction> inter;
 				if (role == "system") {
-					t = std::make_shared<system_turn>(turn_id, content, "context_injection");
-					inter = std::make_shared<interaction_system_message>(content);
+					t = std::make_shared<system_turn>(turn_id, trusted_content, "context_injection");
+					inter = std::make_shared<interaction_system_message>(trusted_content);
 				} else if (role == "assistant") {
-					t = std::make_shared<model_response_turn>(turn_id, content, std::nullopt, std::vector<tool_call>{});
-					inter = std::make_shared<interaction_llm_response>(content);
+					t = std::make_shared<model_response_turn>(turn_id, trusted_content, std::nullopt, std::vector<tool_call>{});
+					inter = std::make_shared<interaction_llm_response>(trusted_content);
 				} else {
-					t = std::make_shared<user_turn>(turn_id, content);
-					inter = std::make_shared<interaction_user_message>(content);
+					t = std::make_shared<user_turn>(turn_id, trusted_content);
+					inter = std::make_shared<interaction_user_message>(trusted_content);
 				}
 				t->set_interaction(inter);
 				t->set_sequence_number(conversation_->allocate_next_turn_seq());
@@ -1183,6 +1183,17 @@ void ai_agent::inject_context(const std::string &role, const std::string &conten
 	if (trigger_processing && status_ == agent_status::idle) {
 		start_processing();
 	}
+}
+
+void ai_agent::inject_untrusted_context(const std::string &role, const std::string &untrusted_content, bool trigger_processing)
+{
+	std::string safe_content;
+	if (fs_utils::is_prompt_tag_wrapped(untrusted_content)) {
+		safe_content = untrusted_content;
+	} else {
+		safe_content = fs_utils::wrap_prompt_untrusted_data_tag("injected_context", untrusted_content);
+	}
+	inject_context(role, safe_content, trigger_processing);
 }
 void ai_agent::set_model(std::shared_ptr<ai_model> model)
 {
@@ -1207,7 +1218,7 @@ void ai_agent::set_model(std::shared_ptr<ai_model> model)
 	    std::make_shared<interaction_system_message>("Model switched to: " + model_->get_name() + " (" + model_->get_id() + ")"));
 }
 
-void ai_agent::submit_prompt(const std::string &prompt_text)
+void ai_agent::submit_prompt(const std::string &untrusted_prompt_text)
 {
 	{
 		std::lock_guard<std::mutex> lock(conversation_mutex_);
@@ -1222,8 +1233,8 @@ void ai_agent::submit_prompt(const std::string &prompt_text)
 			auto tx = std::make_shared<Transaction>(tx_id, transaction_type::user_exchange);
 			
 			std::string turn_id = "turn_" + std::to_string(std::rand());
-			auto t = std::make_shared<user_turn>(turn_id, prompt_text);
-			auto inter = std::make_shared<interaction_user_message>(prompt_text);
+			auto t = std::make_shared<user_turn>(turn_id, untrusted_prompt_text);
+			auto inter = std::make_shared<interaction_user_message>(untrusted_prompt_text);
 			t->set_interaction(inter);
 			t->set_sequence_number(conversation_->allocate_next_turn_seq());
 			tx->add_turn(t);
@@ -1827,7 +1838,7 @@ void ai_agent::start_processing()
 				system_msg += "Completion Event Data:\n```json\n" + notification_json.dump(2) + "\n```\n\n";
 				system_msg += "You can read the full interaction history log with the fs_read_lines tool from `" + transcript_uri + "`";
 
-				parent->inject_context("user", system_msg, true);
+				parent->inject_untrusted_context("user", system_msg, true);
 			}
 		}
 	}).detach();

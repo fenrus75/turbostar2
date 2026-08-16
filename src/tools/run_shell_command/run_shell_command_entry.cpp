@@ -223,7 +223,7 @@ std::string run_shell_command_tool::execute(agentlib::tool_context &ctx)
 				agent->replace_tool_result(captured_tool_call_id, formatted_injection);
 
 				// Wake up the LLM
-				agent->inject_context("system",
+				agent->inject_untrusted_context("system",
 						      "The background task 'run_shell_command' (" + cmd +
 							  ") has completed. I updated your previous tool result with the output.",
 						      true);

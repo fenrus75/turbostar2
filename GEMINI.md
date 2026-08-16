@@ -30,7 +30,7 @@ Top design documentation: `docs/design.md`
   - **Definition**: Any data originating from user input, CLI flags, network requests (HTTP/A2A), LLM prompts, subagent outputs, environment variables, database records, or un-canonicalized file paths MUST be treated as **untrusted**.
   - **Explicit Variable & Parameter Naming**:
     - **Variable Names**: All variables holding untrusted data MUST use the `untrusted_` prefix (e.g., `untrusted_path`, `untrusted_url`, `untrusted_json`).
-    - **Function Parameters**: Parameters taking untrusted data MUST be named with the `untrusted_` prefix OR annotated with `/* untrusted */` in the signature (e.g., `void parse_card(/* untrusted */ const std::string &untrusted_json)`).
+    - **Function Parameters**: Parameters taking untrusted data MUST be named with the `untrusted_` prefix OR annotated with a `/* untrusted */` comment in the signature, but NOT both (e.g., `void parse_card(const std::string &untrusted_json)` OR `void parse_card(/* untrusted */ const std::string &json)`).
   - **Data Cleaning & Approved Conversion Functions**:
     - Never operate directly on `untrusted_` variables. Clean or validate them using approved boundary functions, and assign the output to a clean variable name (e.g., `safe_path`, `canonical_url`, `clean_name`):
       1. **Path & File Security**:

@@ -62,7 +62,7 @@ std::string fs_compile_file_tool::execute(agentlib::tool_context &ctx)
 					std::string system_msg = std::format("The background task 'fs_compile_file' ({}) has completed successfully. I "
 									     "updated your previous tool result with the output.",
 									     safe_path);
-					agent->inject_context("system", system_msg, true);
+					agent->inject_untrusted_context("system", system_msg, true);
 				}
 			}).detach();
 			return "Compilation started in the background. The output will be injected here when it completes.";
@@ -112,7 +112,7 @@ std::string fs_compile_file_tool::execute(agentlib::tool_context &ctx)
 				std::string system_msg = std::format("The background task 'fs_compile_file' ({}) has completed {}. I "
 								     "updated your previous tool result with the output.",
 								     safe_path, status);
-				agent->inject_context("system", system_msg, true);
+				agent->inject_untrusted_context("system", system_msg, true);
 			}
 		}).detach();
 

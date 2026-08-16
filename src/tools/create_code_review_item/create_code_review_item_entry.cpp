@@ -103,7 +103,7 @@ std::string create_code_review_item_tool::execute(agentlib::tool_context &ctx)
 			std::string safe_filename = sanitize_for_parent_line(args_.filename);
 			std::string parent_msg = std::format("Subagent created code review item #{} ({}): {}:{} - {}", item_id,
 							     args_.severity, safe_filename, args_.line_number, safe_summary);
-			parent->inject_context("user", parent_msg, false);
+			parent->inject_untrusted_context("user", parent_msg, false);
 		}
 	}
 

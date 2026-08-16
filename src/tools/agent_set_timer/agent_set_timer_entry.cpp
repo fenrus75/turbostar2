@@ -36,7 +36,7 @@ std::string agent_set_timer_tool::execute(agentlib::tool_context &ctx)
 		// When the timer triggers, IF the agent is idle, we inject the context.
 		if (agent->get_status() == agentlib::agent_status::idle) {
 			event_logger::get_instance().log("Timer expired: Agent is idle, injecting expiration message.");
-			agent->inject_context("system", "previously set timer expired", true);
+			agent->inject_untrusted_context("system", "previously set timer expired", true);
 		} else {
 			event_logger::get_instance().log("Timer expired: Agent is not idle (status = {}), skipping injection.",
 				static_cast<int>(agent->get_status()));
