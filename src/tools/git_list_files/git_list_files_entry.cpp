@@ -85,7 +85,7 @@ std::string git_list_files_tool::execute(agentlib::tool_context &ctx)
 
 	std::stringstream md;
 	md << "## Tracked Git Files (" << file_order.size() << " files)\n\n";
-	md << "| File Path | Status |\n";
+	md << "| File Path | Status (blank=Tracked) |\n";
 	md << "| :--- | :--- |\n";
 
 	int count = 0;
