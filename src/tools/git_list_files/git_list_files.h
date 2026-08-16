@@ -9,6 +9,7 @@ struct git_list_files_args {
 	std::string safe_path{"."};
 	std::string pattern{""};
 	int limit{500};
+	bool untracked{false};
 };
 
 class git_list_files_tool : public agentlib::llm_tool_action {
@@ -25,7 +26,7 @@ private:
 class git_list_files_validator : public agentlib::tool_validator {
 public:
 	std::string get_name() const override { return "git_list_files"; }
-	std::string get_description() const override { return "List all tracked files in the Git repository index under a specified path or directory. Use this instead of running 'git ls-files' via run_shell_command."; }
+	std::string get_description() const override { return "List tracked files in the Git repository index under a specified path or directory, augmented with real-time git status (modifications, renames, deletions, additions). Use this instead of running 'git ls-files' via run_shell_command."; }
 
 	nlohmann::json get_parameters_schema() const override {
 		return {
@@ -45,6 +46,11 @@ public:
 					{"type", "integer"},
 					{"description", "Optional maximum number of files to return (defaults to 500, max 5000)."},
 					{"default", 500}
+				}},
+				{"untracked", {
+					{"type", "boolean"},
+					{"description", "Optional boolean flag to include untracked files in the output list. Defaults to false."},
+					{"default", false}
 				}}
 			}}
 		};

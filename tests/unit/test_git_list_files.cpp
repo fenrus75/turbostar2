@@ -75,6 +75,14 @@ int main()
 		assert(result.find("`file1.txt` | DEL |") != std::string::npos);
 	}
 
+	// 5. Staged rename status test
+	{
+		fs_utils::execute_command_sync("git mv file2.cpp file2_renamed.cpp");
+		std::string result = registry.execute_tool("git_list_files", "{}", ctx);
+		std::cout << "Ren Result:\n" << result << std::endl;
+		assert(result.find("REN") != std::string::npos);
+	}
+
 	std::cout << "git_list_files tests passed successfully.\n";
 	return 0;
 }

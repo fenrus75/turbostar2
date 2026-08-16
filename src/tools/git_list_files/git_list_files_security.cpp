@@ -33,6 +33,10 @@ bool git_list_files_validator::validate_args_impl(const nlohmann::json &untruste
 		}
 	}
 
+	if (untrusted_args.contains("untracked") && untrusted_args["untracked"].is_boolean()) {
+		args_.untracked = untrusted_args["untracked"].get<bool>();
+	}
+
 	return true;
 }
 

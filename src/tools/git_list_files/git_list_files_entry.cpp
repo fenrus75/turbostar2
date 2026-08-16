@@ -6,15 +6,6 @@
 
 namespace tools {
 
-static int status_rank(const std::string &status)
-{
-	if (status == "DEL" || status == "UNM" || status == "UNT")
-		return 3;
-	if (status == "MOD" || status == "SKIP")
-		return 2;
-	return 1;
-}
-
 git_list_files_tool::git_list_files_tool(git_list_files_args args)
     : llm_tool_action("Listing tracked git files"), args_(std::move(args))
 {
@@ -27,63 +18,75 @@ bool git_list_files_tool::validate_runtime(const agentlib::tool_context & /*ctx*
 
 std::string git_list_files_tool::execute(agentlib::tool_context &ctx)
 {
-	std::string cmd = "git --no-pager ls-files -t -c -m -d -- " + fs_utils::escape_shell_arg(args_.safe_path);
-	std::string output = fs_utils::execute_command_sync(cmd);
+	std::string safe_path_arg = fs_utils::escape_shell_arg(args_.safe_path);
 
-	std::stringstream ss(output);
+	// 1. Query tracked files baseline from git index
+	std::string ls_cmd = "git --no-pager ls-files -- " + safe_path_arg;
+	std::string ls_output = fs_utils::execute_command_sync(ls_cmd);
+
+	std::stringstream ls_ss(ls_output);
 	std::string line;
 
 	std::unordered_map<std::string, std::string> file_status_map;
 	std::vector<std::string> file_order;
 
-	while (std::getline(ss, line)) {
+	while (std::getline(ls_ss, line)) {
 		if (line.empty() || line.starts_with("Process exited with code")) {
 			continue;
 		}
-
-		std::string file_path;
-		std::string status_code;
-
-		if (line.length() >= 3 && line[1] == ' ') {
-			char tag = line[0];
-			file_path = line.substr(2);
-			switch (tag) {
-			case 'C':
-			case 'M':
-				status_code = "MOD";
-				break;
-			case 'R':
-				status_code = "DEL";
-				break;
-			case 'U':
-				status_code = "UNM";
-				break;
-			case 'S':
-				status_code = "SKIP";
-				break;
-			case '?':
-			case 'K':
-				status_code = "UNT";
-				break;
-			case 'H':
-			default:
-				status_code = "";
-				break;
-			}
-		} else {
-			file_path = line;
-			status_code = "";
+		if (!args_.pattern.empty() && line.find(args_.pattern) == std::string::npos) {
+			continue;
 		}
+		if (file_status_map.find(line) == file_status_map.end()) {
+			file_order.push_back(line);
+			file_status_map[line] = "";
+		}
+	}
 
-		if (!args_.pattern.empty() && file_path.find(args_.pattern) == std::string::npos) {
+	// 2. Query git status --porcelain to overlay real-time staged, unstaged, rename, deletion, and addition status
+	std::string status_cmd = "git --no-pager status --porcelain=v1 -- " + safe_path_arg;
+	std::string status_output = fs_utils::execute_command_sync(status_cmd);
+
+	std::stringstream status_ss(status_output);
+	while (std::getline(status_ss, line)) {
+		if (line.empty() || line.length() < 4 || line.starts_with("Process exited with code")) {
 			continue;
 		}
 
-		if (file_status_map.find(file_path) == file_status_map.end()) {
-			file_order.push_back(file_path);
-			file_status_map[file_path] = status_code;
-		} else if (status_rank(status_code) > status_rank(file_status_map[file_path])) {
-			file_status_map[file_path] = status_code;
+		char x = line[0];
+		char y = line[1];
+
+		std::string raw_path = line.substr(3);
+		std::string status_code;
+
+		if (x == 'R' || y == 'R' || raw_path.find(" -> ") != std::string::npos) {
+			status_code = "REN";
+		} else if (x == 'A' || y == 'A') {
+			status_code = "ADD";
+		} else if (x == 'D' || y == 'D') {
+			status_code = "DEL";
+		} else if (x == 'M' && y == 'M') {
+			status_code = "MOD";
+		} else if (x == 'M') {
+			status_code = "STG";
+		} else if (y == 'M') {
+			status_code = "MOD";
+		} else if (x == '?' || y == '?') {
+			if (!args_.untracked) {
+				continue;
+			}
+			status_code = "UNT";
+		}
+
+		if (!args_.pattern.empty() && raw_path.find(args_.pattern) == std::string::npos) {
+			continue;
+		}
+
+		if (file_status_map.find(raw_path) == file_status_map.end()) {
+			file_order.push_back(raw_path);
+			file_status_map[raw_path] = status_code;
+		} else {
+			file_status_map[raw_path] = status_code;
 		}
 	}
 
