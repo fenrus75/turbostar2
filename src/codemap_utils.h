@@ -23,6 +23,30 @@ struct codemap_selection_result {
 	size_t omitted_count{0};
 };
 
+struct outgoing_call_reference {
+	std::string caller_file;       // Source file where call occurs
+	int call_line{0};              // Line number of the call site
+	std::string target_name;       // Name of called function/method
+	std::string target_file;       // File path where target is defined (.cpp implementation preferred)
+	int target_start_line{0};      // Start line of target implementation
+	int target_end_line{0};        // End line of target implementation
+	std::string target_kind;       // "Method", "Function", "Class", etc.
+	bool is_direct_read_call{true};// True if called inside [read_start, read_end]
+};
+
+// Identifies functions called within [start_line, end_line] of safe_path.
+std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
+	const std::string &safe_path,
+	int start_line,
+	int end_line,
+	agentlib::tool_context *ctx = nullptr);
+
+// Identifies functions called by a specific symbol in safe_path.
+std::vector<outgoing_call_reference> get_outgoing_calls_for_symbol(
+	const std::string &safe_path,
+	std::string_view symbol_name,
+	agentlib::tool_context *ctx = nullptr);
+
 // Query LSP (or regex fallback) and collect flat symbol list for a given file
 std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, agentlib::tool_context &ctx, int min_lines = 1);
 std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, int min_lines = 1);

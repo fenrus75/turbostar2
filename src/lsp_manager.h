@@ -72,6 +72,12 @@ class lsp_manager
 	};
 	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &filepath, int line, int character);
 
+	struct outgoing_call_item {
+		int call_line;
+		call_hierarchy_item item;
+	};
+	[[nodiscard]] std::vector<outgoing_call_item> query_call_hierarchy_outgoing_batch(const std::string &filepath, const std::vector<std::pair<int, int>> &positions);
+
 	struct type_hierarchy_item {
 		std::string name;
 		int kind;

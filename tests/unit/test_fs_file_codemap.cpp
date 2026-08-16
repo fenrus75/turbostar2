@@ -242,6 +242,34 @@ int main()
 		assert(vfs_md_res.find("`    Section 2: Headers`") != std::string::npos);
 	}
 
+	// 14. Test get_outgoing_calls_in_range and get_outgoing_calls_for_symbol
+	{
+		std::string calls_file = "test_calls_impl.cpp";
+		std::ofstream out_calls(calls_file);
+		out_calls << "void target_func_alpha()\n{\n    int a = 1;\n}\n\n"
+			  << "void caller_func_beta()\n{\n    target_func_alpha();\n}\n\n";
+		for (int i = 0; i < 30; ++i) {
+			out_calls << "// Padding line " << i << "\n";
+		}
+		out_calls.close();
+
+		auto calls_in_range = tools::get_outgoing_calls_in_range(calls_file, 6, 9, &ctx);
+		assert(!calls_in_range.empty());
+		assert(calls_in_range[0].target_name == "target_func_alpha");
+
+		auto calls_for_sym = tools::get_outgoing_calls_for_symbol(calls_file, "caller_func_beta", &ctx);
+		assert(!calls_for_sym.empty());
+		assert(calls_for_sym[0].target_name == "target_func_alpha");
+
+		// Test outgoing call score boosting in select_prioritized_codemap_symbols
+		auto all_syms = tools::get_document_codemap_symbols(calls_file, ctx, 1);
+		auto selected = tools::select_prioritized_codemap_symbols(all_syms, 6, 9, calls_file, ctx, 1);
+		assert(!selected.selected_symbols.empty());
+		assert(selected.selected_symbols[0].name == "target_func_alpha");
+
+		std::remove(calls_file.c_str());
+	}
+
 	// Cleanup
 	std::remove(impl_file.c_str());
 	std::remove(header_file.c_str());

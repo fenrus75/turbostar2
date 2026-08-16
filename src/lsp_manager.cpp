@@ -729,6 +729,154 @@ std::vector<lsp_manager::call_hierarchy_item> lsp_manager::query_call_hierarchy_
 	return {};
 }
 
+std::vector<lsp_manager::outgoing_call_item> lsp_manager::query_call_hierarchy_outgoing_batch(const std::string &filepath, const std::vector<std::pair<int, int>> &positions)
+{
+	if (positions.empty()) {
+		return {};
+	}
+	auto server = get_server_for_file(filepath);
+	if (!server) {
+		return {};
+	}
+
+	struct prep_entry {
+		int line;
+		int character;
+		std::shared_ptr<std::promise<lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>>> promise;
+	};
+	std::vector<prep_entry> prep_entries;
+	prep_entries.reserve(positions.size());
+
+	std::string abs_path = fs::absolute(filepath).string();
+
+	for (const auto &pos : positions) {
+		auto promise_prep = std::make_shared<std::promise<lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>>>();
+		prep_entries.push_back({pos.first, pos.second, promise_prep});
+
+		try {
+			auto params = lsp::requests::TextDocument_PrepareCallHierarchy::Params();
+			params.textDocument.uri = lsp::DocumentUri::fromPath(abs_path);
+			params.position.line = static_cast<lsp::uint>(pos.first);
+			params.position.character = static_cast<lsp::uint>(pos.second);
+
+			server->message_handler->sendRequest<lsp::requests::TextDocument_PrepareCallHierarchy>(
+			    std::move(params),
+			    [promise_prep](const lsp::requests::TextDocument_PrepareCallHierarchy::Result &res) {
+				    try {
+					    if (!res.isNull()) {
+						    promise_prep->set_value(res.value());
+					    } else {
+						    promise_prep->set_value(lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>{});
+					    }
+				    } catch (...) {
+					    event_logger::get_instance().log("LSP: Caught unknown exception");
+				    }
+			    },
+			    [promise_prep](const lsp::ResponseError &err) {
+				    (void)err;
+				    try {
+					    promise_prep->set_value(lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>{});
+				    } catch (...) {
+					    event_logger::get_instance().log("LSP: Caught unknown exception");
+				    }
+			    });
+		} catch (...) {
+			try {
+				promise_prep->set_value(lsp::Opt<lsp::Array<lsp::CallHierarchyItem>>{});
+			} catch (...) {
+				event_logger::get_instance().log("LSP: Caught unknown exception");
+			}
+		}
+	}
+
+	auto deadline_prep = std::chrono::steady_clock::now() + std::chrono::milliseconds(150);
+
+	struct call_entry {
+		int line;
+		std::shared_ptr<std::promise<std::vector<call_hierarchy_item>>> promise;
+	};
+	std::vector<call_entry> call_entries;
+
+	for (auto &pe : prep_entries) {
+		auto fut = pe.promise->get_future();
+		if (fut.wait_until(deadline_prep) == std::future_status::ready) {
+			auto prep_res = fut.get();
+			if (prep_res && !prep_res->empty()) {
+				auto promise_out = std::make_shared<std::promise<std::vector<call_hierarchy_item>>>();
+				call_entries.push_back({pe.line, promise_out});
+
+				try {
+					auto params = lsp::requests::CallHierarchy_OutgoingCalls::Params();
+					params.item = prep_res->front();
+
+					server->message_handler->sendRequest<lsp::requests::CallHierarchy_OutgoingCalls>(
+					    std::move(params),
+					    [promise_out](const lsp::requests::CallHierarchy_OutgoingCalls::Result &res) {
+						    try {
+							    std::vector<call_hierarchy_item> out;
+							    if (!res.isNull()) {
+								    for (const auto &call : res.value()) {
+									    call_hierarchy_item item;
+									    item.name = call.to.name;
+									    item.kind = static_cast<int>(call.to.kind);
+									    if (call.to.detail)
+										    item.detail = *call.to.detail;
+									    item.uri = call.to.uri.path();
+									    item.range = {static_cast<int>(call.to.range.start.line),
+											  static_cast<int>(call.to.range.start.character),
+											  static_cast<int>(call.to.range.end.line),
+											  static_cast<int>(call.to.range.end.character)};
+									    item.selection_range = {static_cast<int>(call.to.selectionRange.start.line),
+												    static_cast<int>(call.to.selectionRange.start.character),
+												    static_cast<int>(call.to.selectionRange.end.line),
+												    static_cast<int>(call.to.selectionRange.end.character)};
+									    out.push_back(item);
+								    }
+							    }
+							    promise_out->set_value(out);
+						    } catch (...) {
+							    event_logger::get_instance().log("LSP: Caught unknown exception");
+						    }
+					    },
+					    [promise_out](const lsp::ResponseError &err) {
+						    (void)err;
+						    try {
+							    promise_out->set_value({});
+						    } catch (...) {
+							    event_logger::get_instance().log("LSP: Caught unknown exception");
+						    }
+					    });
+				} catch (...) {
+					try {
+						promise_out->set_value({});
+					} catch (...) {
+						event_logger::get_instance().log("LSP: Caught unknown exception");
+					}
+				}
+			}
+		}
+	}
+
+	if (call_entries.empty()) {
+		return {};
+	}
+
+	auto deadline_out = std::chrono::steady_clock::now() + std::chrono::milliseconds(150);
+	std::vector<outgoing_call_item> result;
+
+	for (auto &ce : call_entries) {
+		auto fut = ce.promise->get_future();
+		if (fut.wait_until(deadline_out) == std::future_status::ready) {
+			auto items = fut.get();
+			for (auto &item : items) {
+				result.push_back({ce.line, item});
+			}
+		}
+	}
+
+	return result;
+}
+
 std::vector<lsp_manager::type_hierarchy_item> lsp_manager::query_type_hierarchy_supertypes(const std::string &filepath, int line,
 											   int character)
 {

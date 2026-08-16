@@ -8,6 +8,7 @@
 #include <format>
 #include <regex>
 #include <sstream>
+#include <unordered_set>
 #include "agentlib/virtual_file_system.h"
 
 namespace tools {
@@ -352,6 +353,222 @@ std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string 
 	return get_document_codemap_symbols_impl(safe_path, nullptr, nullptr, min_lines);
 }
 
+struct outgoing_call_cache_entry {
+	std::filesystem::file_time_type last_mtime;
+	std::vector<outgoing_call_reference> calls;
+};
+
+static std::mutex g_outgoing_calls_cache_mutex;
+static std::unordered_map<std::string, outgoing_call_cache_entry> g_outgoing_calls_cache;
+
+static void extract_regex_outgoing_calls(
+	const std::string &safe_path,
+	int start_line,
+	int end_line,
+	const std::vector<codemap_symbol_info> &all_symbols,
+	std::vector<outgoing_call_reference> &out)
+{
+	std::ifstream file(safe_path);
+	if (!file.is_open())
+		return;
+
+	std::vector<std::string> lines;
+	std::string l;
+	while (std::getline(file, l)) {
+		lines.push_back(l);
+	}
+
+	static const std::regex call_regex(R"(\b([a-zA-Z_]\w*)\s*\()");
+	int clamped_start = std::max(1, start_line);
+	int clamped_end = std::min(static_cast<int>(lines.size()), end_line);
+
+	std::unordered_map<std::string, const codemap_symbol_info *> sym_map;
+	for (const auto &sym : all_symbols) {
+		size_t pos = sym.name.rfind("::");
+		std::string short_name = (pos != std::string::npos) ? sym.name.substr(pos + 2) : sym.name;
+		sym_map[short_name] = &sym;
+	}
+
+	std::unordered_set<std::string> seen;
+	for (int i = clamped_start - 1; i < clamped_end; ++i) {
+		std::string_view line_vw = lines[i];
+		std::string line_str(line_vw);
+		auto words_begin = std::sregex_iterator(line_str.begin(), line_str.end(), call_regex);
+		auto words_end = std::sregex_iterator();
+
+		for (std::sregex_iterator r = words_begin; r != words_end; ++r) {
+			std::smatch match = *r;
+			std::string func_name = match[1].str();
+
+			if (func_name == "if" || func_name == "for" || func_name == "while" ||
+			    func_name == "switch" || func_name == "catch" || func_name == "sizeof" ||
+			    func_name == "decltype" || func_name == "return" || func_name == "cast" ||
+			    func_name == "static_cast" || func_name == "dynamic_cast" || func_name == "reinterpret_cast") {
+				continue;
+			}
+
+			if (seen.contains(func_name))
+				continue;
+			seen.insert(func_name);
+
+			outgoing_call_reference ref;
+			ref.caller_file = safe_path;
+			ref.call_line = i + 1;
+			ref.target_name = func_name;
+			ref.is_direct_read_call = (i + 1 >= start_line && i + 1 <= end_line);
+
+			auto it = sym_map.find(func_name);
+			if (it != sym_map.end()) {
+				// Skip if line i + 1 is the function's own definition header!
+				if (it->second->start_line == i + 1) {
+					continue;
+				}
+				ref.target_file = safe_path;
+				ref.target_start_line = it->second->start_line;
+				ref.target_end_line = it->second->end_line;
+				ref.target_kind = it->second->kind_str;
+			} else {
+				ref.target_file = "";
+				ref.target_start_line = 0;
+				ref.target_end_line = 0;
+				ref.target_kind = "Function";
+			}
+
+			out.push_back(ref);
+		}
+	}
+}
+
+std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
+	const std::string &safe_path,
+	int start_line,
+	int end_line,
+	agentlib::tool_context *ctx)
+{
+	std::error_code ec;
+	auto current_mtime = std::filesystem::last_write_time(safe_path, ec);
+
+	{
+		std::lock_guard<std::mutex> lock(g_outgoing_calls_cache_mutex);
+		auto it = g_outgoing_calls_cache.find(safe_path);
+		if (!ec && it != g_outgoing_calls_cache.end() && it->second.last_mtime == current_mtime) {
+			std::vector<outgoing_call_reference> result;
+			for (const auto &call : it->second.calls) {
+				if (call.call_line >= start_line && call.call_line <= end_line) {
+					result.push_back(call);
+				}
+			}
+			if (!result.empty()) {
+				return result;
+			}
+		}
+	}
+
+	std::vector<outgoing_call_reference> all_calls;
+	std::vector<codemap_symbol_info> doc_symbols;
+	if (ctx) {
+		doc_symbols = get_document_codemap_symbols(safe_path, *ctx, 1);
+	} else {
+		doc_symbols = get_document_codemap_symbols(safe_path, 1);
+	}
+
+	std::vector<std::pair<int, int>> positions;
+	for (const auto &sym : doc_symbols) {
+		if (sym.start_line <= end_line && sym.end_line >= start_line) {
+			positions.push_back({sym.start_line - 1, 0});
+		}
+	}
+
+	if (positions.empty() && start_line > 0) {
+		positions.push_back({start_line - 1, 0});
+	}
+
+	if (positions.size() > 10) {
+		positions.resize(10);
+	}
+
+	auto lsp_items = project_manager::get_instance().lsp_query_call_hierarchy_outgoing_batch(safe_path, positions);
+
+	if (!lsp_items.empty()) {
+		for (const auto &item : lsp_items) {
+			outgoing_call_reference ref;
+			ref.caller_file = safe_path;
+			ref.call_line = item.call_line + 1;
+			ref.target_name = item.item.name;
+			ref.target_kind = lsp_kind_to_string(item.item.kind);
+			ref.is_direct_read_call = (ref.call_line >= start_line && ref.call_line <= end_line);
+
+			std::string target_uri_path = item.item.uri;
+			if (target_uri_path.starts_with("file://")) {
+				target_uri_path = target_uri_path.substr(7);
+			}
+
+			std::string resolved_impl_path = target_uri_path;
+			if (ctx && (target_uri_path.ends_with(".h") || target_uri_path.ends_with(".hpp"))) {
+				std::string impl = find_matching_impl_file(target_uri_path, *ctx);
+				if (!impl.empty()) {
+					resolved_impl_path = impl;
+				}
+			}
+
+			ref.target_file = resolved_impl_path;
+			ref.target_start_line = item.item.range.start_y + 1;
+			ref.target_end_line = item.item.range.end_y + 1;
+
+			if (resolved_impl_path != target_uri_path) {
+				std::vector<codemap_symbol_info> impl_symbols;
+				if (ctx) {
+					impl_symbols = get_document_codemap_symbols(resolved_impl_path, *ctx, 1);
+				} else {
+					impl_symbols = get_document_codemap_symbols(resolved_impl_path, 1);
+				}
+				const codemap_symbol_info *found = find_symbol_by_hint(impl_symbols, item.item.name);
+				if (found) {
+					ref.target_start_line = found->start_line;
+					ref.target_end_line = found->end_line;
+				}
+			}
+
+			all_calls.push_back(ref);
+		}
+	} else {
+		extract_regex_outgoing_calls(safe_path, start_line, end_line, doc_symbols, all_calls);
+	}
+
+	if (!ec) {
+		std::lock_guard<std::mutex> lock(g_outgoing_calls_cache_mutex);
+		g_outgoing_calls_cache[safe_path] = {current_mtime, all_calls};
+	}
+
+	std::vector<outgoing_call_reference> range_result;
+	for (const auto &call : all_calls) {
+		if (call.call_line >= start_line && call.call_line <= end_line) {
+			range_result.push_back(call);
+		}
+	}
+	return range_result;
+}
+
+std::vector<outgoing_call_reference> get_outgoing_calls_for_symbol(
+	const std::string &safe_path,
+	std::string_view symbol_name,
+	agentlib::tool_context *ctx)
+{
+	std::vector<codemap_symbol_info> doc_symbols;
+	if (ctx) {
+		doc_symbols = get_document_codemap_symbols(safe_path, *ctx, 1);
+	} else {
+		doc_symbols = get_document_codemap_symbols(safe_path, 1);
+	}
+
+	const codemap_symbol_info *sym = find_symbol_by_hint(doc_symbols, symbol_name);
+	if (!sym) {
+		return {};
+	}
+
+	return get_outgoing_calls_in_range(safe_path, sym->start_line, sym->end_line, ctx);
+}
+
 codemap_selection_result select_prioritized_codemap_symbols(
 	const std::vector<codemap_symbol_info> &all_symbols,
 	int read_start,
@@ -379,6 +596,27 @@ codemap_selection_result select_prioritized_codemap_symbols(
 	if (ctx.codemap_history.size() > 64) {
 		ctx.codemap_history.clear();
 		ctx.codemap_history[safe_path] = history;
+	}
+
+	// Query outgoing calls inside the read line range and enclosing function scope
+	auto direct_outgoing_calls = get_outgoing_calls_in_range(safe_path, read_start, read_end, &ctx);
+	std::unordered_set<std::string> direct_call_targets;
+	std::unordered_set<std::string> enclosing_call_targets;
+
+	const codemap_symbol_info *enclosing_sym = find_enclosing_symbol(all_symbols, read_start);
+	if (!enclosing_sym) {
+		enclosing_sym = find_enclosing_symbol(all_symbols, read_end);
+	}
+
+	if (enclosing_sym) {
+		auto enclosing_calls = get_outgoing_calls_in_range(safe_path, enclosing_sym->start_line, enclosing_sym->end_line, &ctx);
+		for (const auto &call : enclosing_calls) {
+			enclosing_call_targets.insert(call.target_name);
+		}
+	}
+
+	for (const auto &call : direct_outgoing_calls) {
+		direct_call_targets.insert(call.target_name);
 	}
 
 	struct scored_symbol {
@@ -415,7 +653,17 @@ codemap_selection_result select_prioritized_codemap_symbols(
 			}
 		}
 
-		// 2. Search Relevance (recent grep patterns)
+		// 2. Outgoing Call Boost (+30.0 for direct read calls, +15.0 for enclosing scope calls)
+		size_t double_colon = sym.name.rfind("::");
+		std::string short_sym_name = (double_colon != std::string::npos) ? sym.name.substr(double_colon + 2) : sym.name;
+
+		if (direct_call_targets.contains(sym.name) || direct_call_targets.contains(short_sym_name)) {
+			score += 30.0;
+		} else if (enclosing_call_targets.contains(sym.name) || enclosing_call_targets.contains(short_sym_name)) {
+			score += 15.0;
+		}
+
+		// 3. Search Relevance (recent grep patterns)
 		double grep_weight = 5.0;
 		for (const auto &pattern : ctx.recent_grep_patterns) {
 			if (!pattern.empty()) {
@@ -432,12 +680,12 @@ codemap_selection_result select_prioritized_codemap_symbols(
 			grep_weight /= 2.0; // Decaying weight for older search terms
 		}
 
-		// 3. Short symbol penalty (getters/setters < 3 lines)
+		// 4. Short symbol penalty (getters/setters < 3 lines)
 		if (sym.line_count < 3) {
 			score -= 5.0;
 		}
 
-		// 4. Deduplication penalty if previously reported
+		// 5. Deduplication penalty if previously reported
 		if (history.reported_symbol_names.contains(sym.name)) {
 			score -= 3.0;
 		}
