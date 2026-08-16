@@ -384,11 +384,86 @@ std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string 
 
 struct outgoing_call_cache_entry {
 	std::filesystem::file_time_type last_mtime;
+	std::chrono::steady_clock::time_point last_fetch_time{std::chrono::steady_clock::now()};
 	std::vector<outgoing_call_reference> calls;
 };
 
 static std::mutex g_outgoing_calls_cache_mutex;
 static std::unordered_map<std::string, outgoing_call_cache_entry> g_outgoing_calls_cache;
+
+static void refresh_outgoing_calls_async(
+	std::string safe_path,
+	std::vector<codemap_symbol_info> doc_symbols,
+	agentlib::tool_context *ctx)
+{
+	std::thread([safe_path = std::move(safe_path), doc_symbols = std::move(doc_symbols), ctx]() {
+		try {
+			std::error_code ec;
+			auto current_mtime = std::filesystem::last_write_time(safe_path, ec);
+			if (ec) return;
+
+			std::vector<std::pair<int, int>> positions;
+			for (const auto &sym : doc_symbols) {
+				positions.push_back({sym.start_line - 1, 0});
+			}
+			if (positions.empty()) {
+				positions.push_back({0, 0});
+			}
+			if (positions.size() > 10) {
+				positions.resize(10);
+			}
+
+			// Relaxed 10-second deadline for background indexing/completion
+			auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+			auto lsp_items = project_manager::get_instance().lsp_query_call_hierarchy_outgoing_batch(safe_path, positions, deadline);
+			if (lsp_items.empty()) return;
+
+			std::vector<outgoing_call_reference> all_calls;
+			for (const auto &item : lsp_items) {
+				outgoing_call_reference ref;
+				ref.caller_file = safe_path;
+				ref.call_line = item.call_line + 1;
+				ref.target_name = item.item.name;
+				ref.target_kind = lsp_kind_to_string(item.item.kind);
+
+				std::string target_uri_path = item.item.uri;
+				if (target_uri_path.starts_with("file://")) {
+					target_uri_path = target_uri_path.substr(7);
+				}
+
+				std::string resolved_impl_path = target_uri_path;
+				if (ctx && (target_uri_path.ends_with(".h") || target_uri_path.ends_with(".hpp"))) {
+					std::string impl = find_matching_impl_file(target_uri_path, *ctx);
+					if (!impl.empty()) {
+						resolved_impl_path = impl;
+					}
+				}
+
+				ref.target_file = resolved_impl_path;
+				ref.target_start_line = item.item.range.start_y + 1;
+				ref.target_end_line = item.item.range.end_y + 1;
+
+				if (resolved_impl_path != target_uri_path) {
+					std::vector<codemap_symbol_info> impl_symbols;
+					fallback_find_symbols(resolved_impl_path, 1, impl_symbols);
+					const codemap_symbol_info *found = find_symbol_by_hint(impl_symbols, item.item.name);
+					if (found) {
+						ref.target_start_line = found->start_line;
+						ref.target_end_line = found->end_line;
+					}
+				}
+
+				all_calls.push_back(ref);
+			}
+
+			if (!all_calls.empty()) {
+				std::lock_guard<std::mutex> lock(g_outgoing_calls_cache_mutex);
+				g_outgoing_calls_cache[safe_path] = {current_mtime, std::chrono::steady_clock::now(), all_calls};
+				event_logger::get_instance().log(std::format("LSP: background refresh outgoing calls path='{}' (found {} calls)", safe_path, all_calls.size()));
+			}
+		} catch (...) {}
+	}).detach();
+}
 
 static bool is_project_file(const std::string &path, agentlib::tool_context * /*ctx*/ = nullptr)
 {
@@ -470,16 +545,22 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
 	{
 		std::lock_guard<std::mutex> lock(g_outgoing_calls_cache_mutex);
 		auto it = g_outgoing_calls_cache.find(safe_path);
-		if (!ec && it != g_outgoing_calls_cache.end() && it->second.last_mtime == current_mtime) {
+		if (!ec && it != g_outgoing_calls_cache.end() && it->second.last_mtime == current_mtime && !it->second.calls.empty()) {
 			std::vector<outgoing_call_reference> result;
 			for (const auto &call : it->second.calls) {
 				if (call.call_line >= start_line && call.call_line <= end_line) {
 					result.push_back(call);
 				}
 			}
-			if (!result.empty()) {
+			auto now = std::chrono::steady_clock::now();
+			if (now - it->second.last_fetch_time < std::chrono::seconds(5)) {
 				return result;
 			}
+			// Stale cache hit (>= 5s): update last_fetch_time to avoid duplicate background requests
+			// and return cached calls immediately while triggering background refresh.
+			it->second.last_fetch_time = now;
+			refresh_outgoing_calls_async(safe_path, doc_symbols, ctx);
+			return result;
 		}
 	}
 
@@ -546,7 +627,11 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
 
 	if (!ec && !all_calls.empty()) {
 		std::lock_guard<std::mutex> lock(g_outgoing_calls_cache_mutex);
-		g_outgoing_calls_cache[safe_path] = {current_mtime, all_calls};
+		g_outgoing_calls_cache[safe_path] = {current_mtime, std::chrono::steady_clock::now(), all_calls};
+	} else if (lsp_items.empty()) {
+		// Synchronous lookup timed out or returned empty: launch background refresh thread with 10s deadline
+		// so if clangd finishes after the synchronous deadline, the result is saved to cache for the next call!
+		refresh_outgoing_calls_async(safe_path, doc_symbols, ctx);
 	}
 
 	std::vector<outgoing_call_reference> range_result;
