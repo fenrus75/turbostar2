@@ -1031,7 +1031,89 @@ std::vector<lsp_manager::symbol_node> lsp_manager::query_document_symbols(const 
 		std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
 		auto it = symbol_cache_.find(abs_path);
 		if (it != symbol_cache_.end() && it->second.last_mtime == current_mtime && !it->second.symbols.empty()) {
-			return it->second.symbols;
+			auto now = std::chrono::steady_clock::now();
+			if (now - it->second.last_fetch_time < std::chrono::seconds(5)) {
+				return it->second.symbols;
+			}
+			// Cache entry is >= 5 seconds old: update last_fetch_time to avoid duplicate background requests
+			// and return cached symbols immediately while triggering asynchronous LSP refresh in background.
+			it->second.last_fetch_time = now;
+			auto cached_symbols = it->second.symbols;
+
+			auto server = get_server_for_file(filepath);
+			if (server) {
+				event_logger::get_instance().log(std::format("LSP: background refresh query_document_symbols path='{}'", filepath));
+				try {
+					auto params = lsp::requests::TextDocument_DocumentSymbol::Params();
+					params.textDocument.uri = lsp::DocumentUri::fromPath(abs_path);
+					server->message_handler->sendRequest<lsp::requests::TextDocument_DocumentSymbol>(
+					    std::move(params),
+					    [abs_path, current_mtime, this](const lsp::requests::TextDocument_DocumentSymbol::Result &res) {
+						    std::vector<symbol_node> out;
+						    try {
+							    if (!res.isNull()) {
+								    const auto &val = res.value();
+								    if (std::holds_alternative<lsp::Array<lsp::DocumentSymbol>>(val)) {
+									    const auto &arr = std::get<lsp::Array<lsp::DocumentSymbol>>(val);
+									    auto convert_symbol = [](auto &self, const lsp::DocumentSymbol &sym) -> symbol_node {
+										    symbol_node node;
+										    node.name = sym.name;
+										    node.kind = static_cast<int>(sym.kind);
+										    node.range = {
+											    static_cast<int>(sym.range.start.line),
+											    static_cast<int>(sym.range.start.character),
+											    static_cast<int>(sym.range.end.line),
+											    static_cast<int>(sym.range.end.character)
+										    };
+										    node.selection_range = {
+											    static_cast<int>(sym.selectionRange.start.line),
+											    static_cast<int>(sym.selectionRange.start.character),
+											    static_cast<int>(sym.selectionRange.end.line),
+											    static_cast<int>(sym.selectionRange.end.character)
+										    };
+										    if (sym.children && !sym.children->empty()) {
+											    for (const auto &child : *sym.children) {
+												    node.children.push_back(self(self, child));
+											    }
+										    }
+										    return node;
+									    };
+
+									    for (const auto &sym : arr) {
+										    out.push_back(convert_symbol(convert_symbol, sym));
+									    }
+								    } else if (std::holds_alternative<lsp::Array<lsp::SymbolInformation>>(val)) {
+									    const auto &arr = std::get<lsp::Array<lsp::SymbolInformation>>(val);
+									    for (const auto &sym : arr) {
+										    symbol_node node;
+										    node.name = sym.name;
+										    node.kind = static_cast<int>(sym.kind);
+										    node.range = {
+											    static_cast<int>(sym.location.range.start.line),
+											    static_cast<int>(sym.location.range.start.character),
+											    static_cast<int>(sym.location.range.end.line),
+											    static_cast<int>(sym.location.range.end.character)
+										    };
+										    node.selection_range = node.range;
+										    out.push_back(node);
+									    }
+								    }
+							    }
+							    if (!out.empty()) {
+								    std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+								    symbol_cache_[abs_path] = {current_mtime, std::chrono::steady_clock::now(), out};
+							    }
+						    } catch (...) {
+							    event_logger::get_instance().log("LSP: Caught unknown exception in background refresh lambda");
+						    }
+					    },
+					    [](const lsp::ResponseError &err) {
+						    event_logger::get_instance().log("LSP: background document symbol refresh error: {}", err.message());
+					    });
+				} catch (...) {}
+			}
+
+			return cached_symbols;
 		}
 	}
 
@@ -1103,7 +1185,7 @@ std::vector<lsp_manager::symbol_node> lsp_manager::query_document_symbols(const 
 				    }
 				    if (!out.empty()) {
 					    std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
-					    symbol_cache_[abs_path] = {current_mtime, out};
+					    symbol_cache_[abs_path] = {current_mtime, std::chrono::steady_clock::now(), out};
 				    }
 				    promise->set_value(out);
 			    } catch (...) {

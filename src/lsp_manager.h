@@ -128,6 +128,7 @@ class lsp_manager
 
 	struct symbol_cache_entry {
 		std::filesystem::file_time_type last_mtime;
+		std::chrono::steady_clock::time_point last_fetch_time{std::chrono::steady_clock::now()};
 		std::vector<symbol_node> symbols;
 	};
 
