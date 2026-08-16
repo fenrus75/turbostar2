@@ -384,7 +384,7 @@ std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string 
 
 struct outgoing_call_cache_entry {
 	std::filesystem::file_time_type last_mtime;
-	std::chrono::steady_clock::time_point last_fetch_time{std::chrono::steady_clock::now()};
+	std::chrono::steady_clock::time_point last_fetch_time;
 	std::vector<outgoing_call_reference> calls;
 };
 
@@ -402,8 +402,13 @@ static void refresh_outgoing_calls_async(
 			auto current_mtime = std::filesystem::last_write_time(safe_path, ec);
 			if (ec) return;
 
+			std::vector<codemap_symbol_info> effective_symbols = doc_symbols;
+			if (effective_symbols.empty()) {
+				fallback_find_symbols(safe_path, 1, effective_symbols);
+			}
+
 			std::vector<std::pair<int, int>> positions;
-			for (const auto &sym : doc_symbols) {
+			for (const auto &sym : effective_symbols) {
 				positions.push_back({sym.start_line - 1, 0});
 			}
 			if (positions.empty()) {
@@ -564,10 +569,13 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
 		}
 	}
 
-	std::vector<outgoing_call_reference> all_calls;
+	std::vector<codemap_symbol_info> effective_symbols = doc_symbols;
+	if (effective_symbols.empty()) {
+		fallback_find_symbols(safe_path, 1, effective_symbols);
+	}
 
 	std::vector<std::pair<int, int>> positions;
-	for (const auto &sym : doc_symbols) {
+	for (const auto &sym : effective_symbols) {
 		if (sym.start_line <= end_line && sym.end_line >= start_line) {
 			positions.push_back({sym.start_line - 1, 0});
 		}
@@ -580,6 +588,8 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
 	if (positions.size() > 10) {
 		positions.resize(10);
 	}
+
+	std::vector<outgoing_call_reference> all_calls;
 
 	auto lsp_items = project_manager::get_instance().lsp_query_call_hierarchy_outgoing_batch(safe_path, positions, deadline);
 
