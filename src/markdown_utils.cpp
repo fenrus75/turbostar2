@@ -166,7 +166,94 @@ static std::string truncate_cell(const std::string &content, size_t target_width
 	}
 }
 
-std::string align_all_tables(const std::string &text, bool framed, int min_width, int max_width)
+static std::vector<std::string> wrap_cell(const std::string &content, size_t target_width)
+{
+	if (content.empty()) {
+		return {""};
+	}
+	if (target_width == 0) {
+		return {content};
+	}
+	if (formatted_display_width(content) <= target_width) {
+		return {content};
+	}
+
+	std::vector<std::string> lines;
+	size_t byte_idx = 0;
+	size_t text_len = content.length();
+
+	while (byte_idx < text_len) {
+		size_t line_start = byte_idx;
+		size_t current_byte_len = 0;
+		size_t current_disp_width = 0;
+		size_t last_space_byte_idx = std::string::npos;
+
+		bool is_inline_code = false;
+		size_t peek_idx = byte_idx;
+
+		while (peek_idx < text_len) {
+			if (!is_inline_code && peek_idx + 1 < text_len && content.substr(peek_idx, 2) == "**") {
+				peek_idx += 2;
+				current_byte_len += 2;
+				continue;
+			}
+			if (content[peek_idx] == '`') {
+				is_inline_code = !is_inline_code;
+				peek_idx += 1;
+				current_byte_len += 1;
+				continue;
+			}
+
+			unsigned char c = static_cast<unsigned char>(content[peek_idx]);
+			size_t clen = utf8::char_len(c);
+			if (peek_idx + clen > text_len) {
+				clen = text_len - peek_idx;
+			}
+			std::string_view glyph(content.data() + peek_idx, clen);
+			size_t glyph_w = utf8::display_width(glyph);
+
+			if (current_disp_width + glyph_w > target_width && current_byte_len > 0) {
+				break;
+			}
+
+			if (c == ' ' || c == '\t') {
+				last_space_byte_idx = peek_idx;
+			}
+
+			peek_idx += clen;
+			current_disp_width += glyph_w;
+			current_byte_len += clen;
+		}
+
+		if (peek_idx < text_len && content[peek_idx] != ' ' && content[peek_idx] != '\t' &&
+		    last_space_byte_idx != std::string::npos && last_space_byte_idx > line_start) {
+			current_byte_len = last_space_byte_idx - line_start;
+		}
+
+		if (current_byte_len == 0) {
+			unsigned char c = static_cast<unsigned char>(content[byte_idx]);
+			size_t clen = utf8::char_len(c);
+			if (byte_idx + clen > text_len) {
+				clen = text_len - byte_idx;
+			}
+			current_byte_len = clen;
+		}
+
+		lines.push_back(content.substr(line_start, current_byte_len));
+		byte_idx = line_start + current_byte_len;
+
+		while (byte_idx < text_len && (content[byte_idx] == ' ' || content[byte_idx] == '\t')) {
+			byte_idx++;
+		}
+	}
+
+	if (lines.empty()) {
+		lines.push_back("");
+	}
+	return lines;
+}
+
+std::string align_all_tables(const std::string &text, bool framed, int min_width, int max_width, bool word_wrap)
 {
 	std::vector<std::string> lines;
 	std::stringstream ss(text);
@@ -194,6 +281,7 @@ std::string align_all_tables(const std::string &text, bool framed, int min_width
 
 		align_options opts;
 		opts.use_utf8_frames = framed;
+		opts.word_wrap = word_wrap;
 		auto aligned = table_aligner::align_table_block(table_block, opts, min_width, max_width);
 
 		processed_lines.erase(processed_lines.begin() + it->start_line, processed_lines.begin() + it->end_line + 1);
@@ -325,12 +413,81 @@ std::vector<std::string> table_aligner::align_table_block(const std::vector<std:
 
 	for (size_t row_idx = 0; row_idx < grid.size(); ++row_idx) {
 		const auto &row = grid[row_idx];
-		std::string aligned_line;
 
-		if (opts.use_utf8_frames) {
-			if (row.size() == 1 && row[0] == "---SEPARATOR---") {
-				aligned_line = make_border("├", "┼", "┤", "─");
+		if (row.size() == 1 && row[0] == "---SEPARATOR---") {
+			if (opts.use_utf8_frames) {
+				result.push_back(make_border("├", "┼", "┤", "─"));
 			} else {
+				std::string aligned_line;
+				if (opts.use_outer_pipes)
+					aligned_line += "|";
+				for (size_t i = 0; i < col_widths.size(); ++i) {
+					if (i > 0)
+						aligned_line += "|";
+					aligned_line += std::string(col_widths[i] + 2 * opts.padding, '-');
+				}
+				if (opts.use_outer_pipes)
+					aligned_line += "|";
+				result.push_back(aligned_line);
+			}
+			continue;
+		}
+
+		if (opts.word_wrap) {
+			std::vector<std::vector<std::string>> cell_sub_lines(col_widths.size());
+			size_t max_lines = 1;
+
+			for (size_t i = 0; i < col_widths.size(); ++i) {
+				std::string cell = (i < row.size()) ? row[i] : "";
+				cell_sub_lines[i] = wrap_cell(cell, col_widths[i]);
+				max_lines = std::max(max_lines, cell_sub_lines[i].size());
+			}
+
+			for (size_t sub_idx = 0; sub_idx < max_lines; ++sub_idx) {
+				std::string aligned_line;
+				if (opts.use_utf8_frames) {
+					aligned_line = "│";
+					for (size_t i = 0; i < col_widths.size(); ++i) {
+						if (i > 0)
+							aligned_line += "│";
+						aligned_line += std::string(opts.padding, ' ');
+
+						std::string sub_cell = (sub_idx < cell_sub_lines[i].size()) ? cell_sub_lines[i][sub_idx] : "";
+						aligned_line += sub_cell;
+
+						size_t cell_len = formatted_display_width(sub_cell);
+						if (col_widths[i] > cell_len) {
+							aligned_line += std::string(col_widths[i] - cell_len, ' ');
+						}
+						aligned_line += std::string(opts.padding, ' ');
+					}
+					aligned_line += "│";
+				} else {
+					if (opts.use_outer_pipes)
+						aligned_line += "|";
+					for (size_t i = 0; i < col_widths.size(); ++i) {
+						if (i > 0)
+							aligned_line += "|";
+						aligned_line += std::string(opts.padding, ' ');
+
+						std::string sub_cell = (sub_idx < cell_sub_lines[i].size()) ? cell_sub_lines[i][sub_idx] : "";
+						aligned_line += sub_cell;
+
+						size_t cell_len = formatted_display_width(sub_cell);
+						if (col_widths[i] > cell_len) {
+							aligned_line += std::string(col_widths[i] - cell_len, ' ');
+						}
+
+						aligned_line += std::string(opts.padding, ' ');
+					}
+					if (opts.use_outer_pipes)
+						aligned_line += "|";
+				}
+				result.push_back(aligned_line);
+			}
+		} else {
+			std::string aligned_line;
+			if (opts.use_utf8_frames) {
 				aligned_line = "│";
 				for (size_t i = 0; i < col_widths.size(); ++i) {
 					if (i > 0)
@@ -346,19 +503,9 @@ std::vector<std::string> table_aligner::align_table_block(const std::vector<std:
 					aligned_line += std::string(opts.padding, ' ');
 				}
 				aligned_line += "│";
-			}
-		} else {
-			if (opts.use_outer_pipes)
-				aligned_line += "|";
-
-			if (row.size() == 1 && row[0] == "---SEPARATOR---") {
-				// Reconstruct separator based on widths
-				for (size_t i = 0; i < col_widths.size(); ++i) {
-					if (i > 0)
-						aligned_line += "|";
-					aligned_line += std::string(col_widths[i] + 2 * opts.padding, '-');
-				}
 			} else {
+				if (opts.use_outer_pipes)
+					aligned_line += "|";
 				for (size_t i = 0; i < col_widths.size(); ++i) {
 					if (i > 0)
 						aligned_line += "|";
@@ -375,11 +522,11 @@ std::vector<std::string> table_aligner::align_table_block(const std::vector<std:
 
 					aligned_line += std::string(opts.padding, ' ');
 				}
+				if (opts.use_outer_pipes)
+					aligned_line += "|";
 			}
-			if (opts.use_outer_pipes)
-				aligned_line += "|";
+			result.push_back(aligned_line);
 		}
-		result.push_back(aligned_line);
 	}
 
 	if (opts.use_utf8_frames) {
@@ -388,5 +535,6 @@ std::vector<std::string> table_aligner::align_table_block(const std::vector<std:
 
 	return result;
 }
+
 
 } // namespace markdown_utils

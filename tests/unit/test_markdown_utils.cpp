@@ -93,25 +93,56 @@ void test_align_table_min_max_width()
 	assert(aligned2[1] == "|-----------|--------|");
 	assert(aligned2[2] == "| Alice     | 30     |");
 
-	// 3. Test maximum width shrinking and ellipsis truncation
+	// 3. Test maximum width shrinking and ellipsis truncation when word_wrap = false
 	std::vector<std::string> long_table = {
 		"| Name | Description |",
 		"|---|---|",
 		"| Alice | Software Engineer at Google DeepMind |",
 		"| Bob | Designer |"
 	};
-	// Natural width = 47. We request max_width = 30.
-	// Overhead = 2 (pipes) + 1 (separator) + 4 (padding) = 7.
-	// Target content chars = 23.
-	// Widest column (col2) is shrunk from 35 to 18.
-	// col1 (5) and col2 (18) sum = 23.
-	// Description in row 2 truncates to "Software Engine..." (length 18).
-	auto aligned3 = table_aligner::align_table_block(long_table, {}, 0, 30);
+	align_options no_wrap_opts;
+	no_wrap_opts.word_wrap = false;
+	auto aligned3 = table_aligner::align_table_block(long_table, no_wrap_opts, 0, 30);
 	assert(aligned3.size() == 4);
 	assert(aligned3[0] == "| Name  | Description        |");
 	assert(aligned3[1] == "|-------|--------------------|");
 	assert(aligned3[2] == "| Alice | Software Engine... |");
 	assert(aligned3[3] == "| Bob   | Designer           |");
+}
+
+void test_align_table_word_wrap()
+{
+	std::vector<std::string> long_table = {
+		"| Name | Description |",
+		"|---|---|",
+		"| Alice | Software Engineer at Google DeepMind |",
+		"| Bob | Designer |"
+	};
+
+	// 1. Test standard pipe table word wrapping (word_wrap = true)
+	align_options wrap_opts;
+	wrap_opts.word_wrap = true;
+	auto aligned = table_aligner::align_table_block(long_table, wrap_opts, 0, 30);
+	assert(aligned.size() == 5);
+	assert(aligned[0] == "| Name  | Description        |");
+	assert(aligned[1] == "|-------|--------------------|");
+	assert(aligned[2] == "| Alice | Software Engineer  |");
+	assert(aligned[3] == "|       | at Google DeepMind |");
+	assert(aligned[4] == "| Bob   | Designer           |");
+
+	// 2. Test framed table word wrapping
+	align_options framed_wrap_opts;
+	framed_wrap_opts.use_utf8_frames = true;
+	framed_wrap_opts.word_wrap = true;
+	auto framed_aligned = table_aligner::align_table_block(long_table, framed_wrap_opts, 0, 30);
+	assert(framed_aligned.size() == 7);
+	assert(framed_aligned[0] == "┌───────┬────────────────────┐");
+	assert(framed_aligned[1] == "│ Name  │ Description        │");
+	assert(framed_aligned[2] == "├───────┼────────────────────┤");
+	assert(framed_aligned[3] == "│ Alice │ Software Engineer  │");
+	assert(framed_aligned[4] == "│       │ at Google DeepMind │");
+	assert(framed_aligned[5] == "│ Bob   │ Designer           │");
+	assert(framed_aligned[6] == "└───────┴────────────────────┘");
 }
 
 void test_align_table_formatted()
@@ -146,8 +177,10 @@ int main()
 	test_align_table_block();
 	test_align_table_utf8();
 	test_align_table_min_max_width();
+	test_align_table_word_wrap();
 	test_align_table_formatted();
 
 	std::cout << "markdown_utils unit tests passed!\n";
 	return 0;
 }
+

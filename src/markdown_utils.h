@@ -9,6 +9,7 @@ struct align_options {
     int padding = 1;              // Spaces between text and the | separator
     bool use_outer_pipes = true;  // Ensure table starts and ends with |
     bool use_utf8_frames = false; // Use UTF-8 box drawing characters
+    bool word_wrap = true;        // Wrap cell text to allocated column widths instead of truncating
 };
 
 struct table_range {
@@ -51,7 +52,7 @@ size_t display_width(const std::string& s);
 /**
  * @brief Detects and aligns all markdown tables in a block of text.
  */
-std::string align_all_tables(const std::string& text, bool framed = false, int min_width = 0, int max_width = 0);
+std::string align_all_tables(const std::string& text, bool framed = false, int min_width = 0, int max_width = 0, bool word_wrap = true);
 
 } // namespace markdown_utils
 
