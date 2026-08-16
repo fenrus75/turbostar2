@@ -559,9 +559,10 @@ std::vector<lsp_manager::symbol_info> lsp_manager::query_workspace_symbols(const
 		auto params = lsp::requests::Workspace_Symbol::Params();
 		params.query = query;
 
+		auto req_start_time = std::chrono::steady_clock::now();
 		active_server->message_handler->sendRequest<lsp::requests::Workspace_Symbol>(
 		    std::move(params),
-		    [promise](const lsp::requests::Workspace_Symbol::Result &res) {
+		    [promise, query, req_start_time](const lsp::requests::Workspace_Symbol::Result &res) {
 			    std::vector<symbol_info> out;
 			    try {
 				    if (!res.isNull()) {
@@ -597,6 +598,8 @@ std::vector<lsp_manager::symbol_info> lsp_manager::query_workspace_symbols(const
 						    }
 					    }
 				    }
+				    auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - req_start_time).count();
+				    event_logger::get_instance().log(std::format("LSP: query_workspace_symbols response received query='{}' after {}ms (found {} symbols)", query, dur_ms, out.size()));
 				    promise->set_value(out);
 			    } catch (...) {
 				    event_logger::get_instance().log("LSP: Caught unknown exception");
@@ -780,10 +783,15 @@ std::vector<lsp_manager::outgoing_call_item> lsp_manager::query_call_hierarchy_o
 			params.position.line = static_cast<lsp::uint>(pos.first);
 			params.position.character = static_cast<lsp::uint>(pos.second);
 
+			auto req_start_time = std::chrono::steady_clock::now();
+			int target_line = pos.first;
 			server->message_handler->sendRequest<lsp::requests::TextDocument_PrepareCallHierarchy>(
 			    std::move(params),
-			    [promise_prep](const lsp::requests::TextDocument_PrepareCallHierarchy::Result &res) {
+			    [promise_prep, filepath, target_line, req_start_time](const lsp::requests::TextDocument_PrepareCallHierarchy::Result &res) {
 				    try {
+					    auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - req_start_time).count();
+					    bool has_items = !res.isNull() && !res.value().empty();
+					    event_logger::get_instance().log(std::format("LSP: prepareCallHierarchy response received path='{}' line={} after {}ms (found={})", filepath, target_line, dur_ms, has_items));
 					    if (!res.isNull()) {
 						    promise_prep->set_value(res.value());
 					    } else {
@@ -831,9 +839,11 @@ std::vector<lsp_manager::outgoing_call_item> lsp_manager::query_call_hierarchy_o
 					auto params = lsp::requests::CallHierarchy_OutgoingCalls::Params();
 					params.item = prep_res->front();
 
+					auto req_out_start_time = std::chrono::steady_clock::now();
+					int caller_line = pe.line;
 					server->message_handler->sendRequest<lsp::requests::CallHierarchy_OutgoingCalls>(
 					    std::move(params),
-					    [promise_out](const lsp::requests::CallHierarchy_OutgoingCalls::Result &res) {
+					    [promise_out, filepath, caller_line, req_out_start_time](const lsp::requests::CallHierarchy_OutgoingCalls::Result &res) {
 						    try {
 							    std::vector<call_hierarchy_item> out;
 							    if (!res.isNull()) {
@@ -855,6 +865,8 @@ std::vector<lsp_manager::outgoing_call_item> lsp_manager::query_call_hierarchy_o
 									    out.push_back(item);
 								    }
 							    }
+							    auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - req_out_start_time).count();
+							    event_logger::get_instance().log(std::format("LSP: outgoingCalls response received path='{}' line={} after {}ms (found {} calls)", filepath, caller_line, dur_ms, out.size()));
 							    promise_out->set_value(out);
 						    } catch (...) {
 							    event_logger::get_instance().log("LSP: Caught unknown exception");
@@ -1130,9 +1142,10 @@ std::vector<lsp_manager::symbol_node> lsp_manager::query_document_symbols(const 
 		auto params = lsp::requests::TextDocument_DocumentSymbol::Params();
 		params.textDocument.uri = lsp::DocumentUri::fromPath(abs_path);
 
+		auto req_start_time = std::chrono::steady_clock::now();
 		server->message_handler->sendRequest<lsp::requests::TextDocument_DocumentSymbol>(
 		    std::move(params),
-		    [promise, abs_path, current_mtime, this](const lsp::requests::TextDocument_DocumentSymbol::Result &res) {
+		    [promise, abs_path, current_mtime, req_start_time, this](const lsp::requests::TextDocument_DocumentSymbol::Result &res) {
 			    std::vector<symbol_node> out;
 			    try {
 				    if (!res.isNull()) {
@@ -1183,6 +1196,8 @@ std::vector<lsp_manager::symbol_node> lsp_manager::query_document_symbols(const 
 						    }
 					    }
 				    }
+				    auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - req_start_time).count();
+				    event_logger::get_instance().log(std::format("LSP: query_document_symbols response received path='{}' after {}ms (found {} symbols)", abs_path, dur_ms, out.size()));
 				    if (!out.empty()) {
 					    std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
 					    symbol_cache_[abs_path] = {current_mtime, std::chrono::steady_clock::now(), out};

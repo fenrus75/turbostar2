@@ -391,6 +391,34 @@ struct outgoing_call_cache_entry {
 static std::mutex g_outgoing_calls_cache_mutex;
 static std::unordered_map<std::string, outgoing_call_cache_entry> g_outgoing_calls_cache;
 
+static int get_symbol_name_column(const std::string &file_path, int start_line)
+{
+	std::ifstream file(file_path);
+	if (!file.is_open()) return 0;
+
+	std::string line;
+	int current_line = 1;
+	while (std::getline(file, line)) {
+		if (current_line == start_line) {
+			size_t paren_pos = line.find('(');
+			if (paren_pos != std::string::npos && paren_pos > 0) {
+				size_t col = paren_pos - 1;
+				while (col > 0 && std::isspace(static_cast<unsigned char>(line[col]))) {
+					col--;
+				}
+				return static_cast<int>(col);
+			}
+			size_t first_non_space = line.find_first_not_of(" \t");
+			if (first_non_space != std::string::npos) {
+				return static_cast<int>(first_non_space);
+			}
+			return 0;
+		}
+		current_line++;
+	}
+	return 0;
+}
+
 static void refresh_outgoing_calls_async(
 	std::string safe_path,
 	std::vector<codemap_symbol_info> doc_symbols,
@@ -409,7 +437,8 @@ static void refresh_outgoing_calls_async(
 
 			std::vector<std::pair<int, int>> positions;
 			for (const auto &sym : effective_symbols) {
-				positions.push_back({sym.start_line - 1, 0});
+				int col = get_symbol_name_column(safe_path, sym.start_line);
+				positions.push_back({sym.start_line - 1, col});
 			}
 			if (positions.empty()) {
 				positions.push_back({0, 0});
@@ -577,12 +606,14 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
 	std::vector<std::pair<int, int>> positions;
 	for (const auto &sym : effective_symbols) {
 		if (sym.start_line <= end_line && sym.end_line >= start_line) {
-			positions.push_back({sym.start_line - 1, 0});
+			int col = get_symbol_name_column(safe_path, sym.start_line);
+			positions.push_back({sym.start_line - 1, col});
 		}
 	}
 
 	if (positions.empty() && start_line > 0) {
-		positions.push_back({start_line - 1, 0});
+		int col = get_symbol_name_column(safe_path, start_line);
+		positions.push_back({start_line - 1, col});
 	}
 
 	if (positions.size() > 10) {
