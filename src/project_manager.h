@@ -128,7 +128,10 @@ class project_manager
 	void lsp_invalidate_symbol_cache(const std::string &filepath);
 	std::vector<lsp_manager::call_hierarchy_item> lsp_query_call_hierarchy_outgoing(const std::string &filepath, int line,
 											int character);
-	std::vector<lsp_manager::outgoing_call_item> lsp_query_call_hierarchy_outgoing_batch(const std::string &filepath, const std::vector<std::pair<int, int>> &positions);
+	std::vector<lsp_manager::outgoing_call_item> lsp_query_call_hierarchy_outgoing_batch(
+		const std::string &filepath,
+		const std::vector<std::pair<int, int>> &positions,
+		std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::time_point::max());
 	std::vector<lsp_manager::type_hierarchy_item> lsp_query_type_hierarchy_supertypes(const std::string &filepath, int line,
 											  int character);
 	std::optional<std::vector<diagnostic_info>> lsp_query_file_diagnostics(const std::string &filepath);

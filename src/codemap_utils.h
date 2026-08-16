@@ -40,7 +40,16 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
 	const std::string &safe_path,
 	int start_line,
 	int end_line,
-	agentlib::tool_context *ctx = nullptr);
+	agentlib::tool_context *ctx = nullptr,
+	std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::time_point::max());
+
+std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
+	const std::string &safe_path,
+	int start_line,
+	int end_line,
+	const std::vector<codemap_symbol_info> &doc_symbols,
+	agentlib::tool_context *ctx = nullptr,
+	std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::time_point::max());
 
 // Identifies functions called by a specific symbol in safe_path.
 std::vector<outgoing_call_reference> get_outgoing_calls_for_symbol(

@@ -733,9 +733,16 @@ std::vector<lsp_manager::call_hierarchy_item> lsp_manager::query_call_hierarchy_
 	return {};
 }
 
-std::vector<lsp_manager::outgoing_call_item> lsp_manager::query_call_hierarchy_outgoing_batch(const std::string &filepath, const std::vector<std::pair<int, int>> &positions)
+std::vector<lsp_manager::outgoing_call_item> lsp_manager::query_call_hierarchy_outgoing_batch(
+	const std::string &filepath,
+	const std::vector<std::pair<int, int>> &positions,
+	std::chrono::steady_clock::time_point deadline)
 {
 	if (positions.empty()) {
+		return {};
+	}
+	auto now = std::chrono::steady_clock::now();
+	if (now >= deadline) {
 		return {};
 	}
 	auto server = get_server_for_file(filepath);
@@ -795,7 +802,8 @@ std::vector<lsp_manager::outgoing_call_item> lsp_manager::query_call_hierarchy_o
 		}
 	}
 
-	auto deadline_prep = std::chrono::steady_clock::now() + std::chrono::milliseconds(150);
+	int rem_prep_ms = std::clamp<int>(static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()).count()), 1, 150);
+	auto deadline_prep = std::chrono::steady_clock::now() + std::chrono::milliseconds(rem_prep_ms);
 
 	struct call_entry {
 		int line;
@@ -867,7 +875,8 @@ std::vector<lsp_manager::outgoing_call_item> lsp_manager::query_call_hierarchy_o
 		return {};
 	}
 
-	auto deadline_out = std::chrono::steady_clock::now() + std::chrono::milliseconds(150);
+	int rem_out_ms = std::clamp<int>(static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()).count()), 1, 150);
+	auto deadline_out = std::chrono::steady_clock::now() + std::chrono::milliseconds(rem_out_ms);
 	std::vector<outgoing_call_item> result;
 
 	for (auto &ce : call_entries) {

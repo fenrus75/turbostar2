@@ -590,10 +590,13 @@ std::vector<lsp_manager::call_hierarchy_item> project_manager::lsp_query_call_hi
 	return {};
 }
 
-std::vector<lsp_manager::outgoing_call_item> project_manager::lsp_query_call_hierarchy_outgoing_batch(const std::string &filepath, const std::vector<std::pair<int, int>> &positions)
+std::vector<lsp_manager::outgoing_call_item> project_manager::lsp_query_call_hierarchy_outgoing_batch(
+	const std::string &filepath,
+	const std::vector<std::pair<int, int>> &positions,
+	std::chrono::steady_clock::time_point deadline)
 {
 	if (lsp_manager_)
-		return lsp_manager_->query_call_hierarchy_outgoing_batch(filepath, positions);
+		return lsp_manager_->query_call_hierarchy_outgoing_batch(filepath, positions, deadline);
 	return {};
 }
 

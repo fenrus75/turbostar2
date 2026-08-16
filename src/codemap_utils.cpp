@@ -388,6 +388,24 @@ static bool is_project_file(const std::string &path, agentlib::tool_context * /*
 	return true;
 }
 
+static std::string normalize_display_path(const std::string &path, agentlib::tool_context * /*ctx*/ = nullptr)
+{
+	if (path.empty()) return path;
+	std::string p = path;
+	if (p.starts_with("file://")) {
+		p = p.substr(7);
+	}
+	std::error_code ec;
+	std::string cwd = std::filesystem::current_path(ec).string();
+	if (!ec && !cwd.empty()) {
+		if (!cwd.ends_with("/")) cwd += "/";
+		if (p.starts_with(cwd)) {
+			p = p.substr(cwd.length());
+		}
+	}
+	return p;
+}
+
 struct resolved_symbol_loc {
 	std::string file_path;
 	int start_line{0};
@@ -401,17 +419,18 @@ static void scan_dir_recursive(
 	const std::string &func_name,
 	const std::string &safe_path,
 	agentlib::tool_context *ctx,
-	resolved_symbol_loc &result)
+	resolved_symbol_loc &result,
+	std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::time_point::max())
 {
-	if (result.start_line > 0) return;
+	if (result.start_line > 0 || std::chrono::steady_clock::now() >= deadline) return;
 	try {
 		if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir)) return;
 		for (const auto &entry : std::filesystem::directory_iterator(dir)) {
-			if (result.start_line > 0) return;
+			if (result.start_line > 0 || std::chrono::steady_clock::now() >= deadline) return;
 			if (entry.is_directory()) {
 				std::string filename = entry.path().filename().string();
 				if (filename == "build" || filename == ".git" || filename == "node_modules" || filename == "subprojects") continue;
-				scan_dir_recursive(entry.path(), func_name, safe_path, ctx, result);
+				scan_dir_recursive(entry.path(), func_name, safe_path, ctx, result, deadline);
 			} else if (entry.is_regular_file()) {
 				std::string p_str = entry.path().string();
 				if (p_str == safe_path) continue;
@@ -448,8 +467,12 @@ static void scan_dir_recursive(
 static resolved_symbol_loc resolve_cross_file_symbol(
 	const std::string &func_name,
 	const std::string &safe_path,
-	agentlib::tool_context *ctx)
+	agentlib::tool_context *ctx,
+	std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::time_point::max())
 {
+	if (std::chrono::steady_clock::now() >= deadline) {
+		return {"", 0, 0, "Function"};
+	}
 	// 1. Try LSP workspace symbols lookup
 	auto ws_syms = project_manager::get_instance().lsp_query_workspace_symbols(func_name);
 	for (const auto &ws : ws_syms) {
@@ -504,7 +527,8 @@ static void extract_regex_outgoing_calls(
 	int end_line,
 	const std::vector<codemap_symbol_info> &all_symbols,
 	std::vector<outgoing_call_reference> &out,
-	agentlib::tool_context *ctx = nullptr)
+	agentlib::tool_context *ctx = nullptr,
+	std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::time_point::max())
 {
 	std::ifstream file(safe_path);
 	if (!file.is_open())
@@ -529,12 +553,16 @@ static void extract_regex_outgoing_calls(
 
 	std::unordered_set<std::string> seen;
 	for (int i = clamped_start - 1; i < clamped_end; ++i) {
+		if (std::chrono::steady_clock::now() >= deadline)
+			break;
 		std::string_view line_vw = lines[i];
 		std::string line_str(line_vw);
 		auto words_begin = std::sregex_iterator(line_str.begin(), line_str.end(), call_regex);
 		auto words_end = std::sregex_iterator();
 
 		for (std::sregex_iterator r = words_begin; r != words_end; ++r) {
+			if (std::chrono::steady_clock::now() >= deadline)
+				break;
 			std::smatch match = *r;
 			std::string func_name = match[1].str();
 
@@ -584,7 +612,7 @@ static void extract_regex_outgoing_calls(
 				ref.target_end_line = it->second->end_line;
 				ref.target_kind = it->second->kind_str;
 			} else {
-				auto resolved = resolve_cross_file_symbol(func_name, safe_path, ctx);
+				auto resolved = resolve_cross_file_symbol(func_name, safe_path, ctx, deadline);
 				ref.target_file = resolved.file_path;
 				ref.target_start_line = resolved.start_line;
 				ref.target_end_line = resolved.end_line;
@@ -600,8 +628,30 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
 	const std::string &safe_path,
 	int start_line,
 	int end_line,
-	agentlib::tool_context *ctx)
+	agentlib::tool_context *ctx,
+	std::chrono::steady_clock::time_point deadline)
 {
+	std::vector<codemap_symbol_info> doc_symbols;
+	if (ctx) {
+		doc_symbols = get_document_codemap_symbols(safe_path, *ctx, 1);
+	} else {
+		doc_symbols = get_document_codemap_symbols(safe_path, 1);
+	}
+	return get_outgoing_calls_in_range(safe_path, start_line, end_line, doc_symbols, ctx, deadline);
+}
+
+std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
+	const std::string &safe_path,
+	int start_line,
+	int end_line,
+	const std::vector<codemap_symbol_info> &doc_symbols,
+	agentlib::tool_context *ctx,
+	std::chrono::steady_clock::time_point deadline)
+{
+	if (std::chrono::steady_clock::now() >= deadline) {
+		return {};
+	}
+
 	std::error_code ec;
 	auto current_mtime = std::filesystem::last_write_time(safe_path, ec);
 
@@ -622,12 +672,6 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
 	}
 
 	std::vector<outgoing_call_reference> all_calls;
-	std::vector<codemap_symbol_info> doc_symbols;
-	if (ctx) {
-		doc_symbols = get_document_codemap_symbols(safe_path, *ctx, 1);
-	} else {
-		doc_symbols = get_document_codemap_symbols(safe_path, 1);
-	}
 
 	std::vector<std::pair<int, int>> positions;
 	for (const auto &sym : doc_symbols) {
@@ -644,10 +688,12 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
 		positions.resize(10);
 	}
 
-	auto lsp_items = project_manager::get_instance().lsp_query_call_hierarchy_outgoing_batch(safe_path, positions);
+	auto lsp_items = project_manager::get_instance().lsp_query_call_hierarchy_outgoing_batch(safe_path, positions, deadline);
 
 	if (!lsp_items.empty()) {
 		for (const auto &item : lsp_items) {
+			if (std::chrono::steady_clock::now() >= deadline)
+				break;
 			outgoing_call_reference ref;
 			ref.caller_file = safe_path;
 			ref.call_line = item.call_line + 1;
@@ -674,11 +720,7 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
 
 			if (resolved_impl_path != target_uri_path) {
 				std::vector<codemap_symbol_info> impl_symbols;
-				if (ctx) {
-					impl_symbols = get_document_codemap_symbols(resolved_impl_path, *ctx, 1);
-				} else {
-					impl_symbols = get_document_codemap_symbols(resolved_impl_path, 1);
-				}
+				fallback_find_symbols(resolved_impl_path, 1, impl_symbols);
 				const codemap_symbol_info *found = find_symbol_by_hint(impl_symbols, item.item.name);
 				if (found) {
 					ref.target_start_line = found->start_line;
@@ -689,10 +731,10 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
 			all_calls.push_back(ref);
 		}
 	} else {
-		extract_regex_outgoing_calls(safe_path, start_line, end_line, doc_symbols, all_calls, ctx);
+		extract_regex_outgoing_calls(safe_path, start_line, end_line, doc_symbols, all_calls, ctx, deadline);
 	}
 
-	if (!ec) {
+	if (!ec && !all_calls.empty()) {
 		std::lock_guard<std::mutex> lock(g_outgoing_calls_cache_mutex);
 		g_outgoing_calls_cache[safe_path] = {current_mtime, all_calls};
 	}
@@ -760,8 +802,9 @@ codemap_selection_result select_prioritized_codemap_symbols(
 		ctx.codemap_history[safe_path] = history;
 	}
 
-	// Query outgoing calls inside the read line range and enclosing function scope
-	auto direct_outgoing_calls = get_outgoing_calls_in_range(safe_path, read_start, read_end, &ctx);
+	// Query outgoing calls inside the read line range and enclosing function scope (bound total codemap LSP latency to 250ms)
+	auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(250);
+	auto direct_outgoing_calls = get_outgoing_calls_in_range(safe_path, read_start, read_end, all_symbols, &ctx, deadline);
 	std::unordered_set<std::string> direct_call_targets;
 	std::unordered_set<std::string> enclosing_call_targets;
 
@@ -771,7 +814,7 @@ codemap_selection_result select_prioritized_codemap_symbols(
 	}
 
 	if (enclosing_sym) {
-		auto enclosing_calls = get_outgoing_calls_in_range(safe_path, enclosing_sym->start_line, enclosing_sym->end_line, &ctx);
+		auto enclosing_calls = get_outgoing_calls_in_range(safe_path, enclosing_sym->start_line, enclosing_sym->end_line, all_symbols, &ctx, deadline);
 		for (const auto &call : enclosing_calls) {
 			enclosing_call_targets.insert(call.target_name);
 		}
@@ -880,13 +923,18 @@ codemap_selection_result select_prioritized_codemap_symbols(
 	// Append up to 4 cross-file outgoing dependency call symbols under Option D
 	size_t cross_file_count = 0;
 	std::unordered_set<std::string> added_cross_file_keys;
+	std::string norm_safe_path = normalize_display_path(safe_path, &ctx);
 
 	for (const auto &call : direct_outgoing_calls) {
 		if (cross_file_count >= 4)
 			break;
 
-		if (!call.target_file.empty() && call.target_file != safe_path && call.target_start_line > 0 && is_project_file(call.target_file, &ctx)) {
-			std::string key = call.target_file + ":" + call.target_name;
+		if (!call.target_file.empty() && call.target_start_line > 0 && is_project_file(call.target_file, &ctx)) {
+			std::string norm_target = normalize_display_path(call.target_file, &ctx);
+			if (norm_target == norm_safe_path)
+				continue;
+
+			std::string key = norm_target + ":" + call.target_name;
 			if (added_cross_file_keys.contains(key))
 				continue;
 			added_cross_file_keys.insert(key);
@@ -899,7 +947,7 @@ codemap_selection_result select_prioritized_codemap_symbols(
 			dep_sym.end_line = call.target_end_line;
 			dep_sym.line_count = std::max(1, call.target_end_line - call.target_start_line + 1);
 			dep_sym.depth = 0;
-			dep_sym.source_file = call.target_file;
+			dep_sym.source_file = norm_target;
 
 			res.selected_symbols.push_back(dep_sym);
 			cross_file_count++;
@@ -926,12 +974,14 @@ std::string format_codemap_table(
 	// Separate primary file symbols from cross-file dependency symbols (Option D)
 	std::vector<codemap_symbol_info> primary_symbols;
 	std::unordered_map<std::string, std::vector<codemap_symbol_info>> dependency_symbols;
+	std::string norm_primary = normalize_display_path(display_path, ctx);
 
 	for (const auto &sym : symbols) {
-		if (sym.source_file.empty() || sym.source_file == display_path) {
+		std::string norm_source = normalize_display_path(sym.source_file, ctx);
+		if (norm_source.empty() || norm_source == norm_primary) {
 			primary_symbols.push_back(sym);
 		} else {
-			dependency_symbols[sym.source_file].push_back(sym);
+			dependency_symbols[norm_source].push_back(sym);
 		}
 	}
 
