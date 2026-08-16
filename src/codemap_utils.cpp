@@ -1,4 +1,5 @@
 #include "codemap_utils.h"
+#include "event_logger.h"
 
 #include "project_manager.h"
 #include <algorithm>
@@ -394,6 +395,56 @@ struct resolved_symbol_loc {
 	std::string kind_str{"Function"};
 };
 
+
+static void scan_dir_recursive(
+	const std::filesystem::path &dir,
+	const std::string &func_name,
+	const std::string &safe_path,
+	agentlib::tool_context *ctx,
+	resolved_symbol_loc &result)
+{
+	if (result.start_line > 0) return;
+	try {
+		if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir)) return;
+		for (const auto &entry : std::filesystem::directory_iterator(dir)) {
+			if (result.start_line > 0) return;
+			if (entry.is_directory()) {
+				std::string filename = entry.path().filename().string();
+				if (filename == "build" || filename == ".git" || filename == "node_modules" || filename == "subprojects") continue;
+				scan_dir_recursive(entry.path(), func_name, safe_path, ctx, result);
+			} else if (entry.is_regular_file()) {
+				std::string p_str = entry.path().string();
+				if (p_str == safe_path) continue;
+				std::string p_ext = entry.path().extension().string();
+				if (p_ext != ".cpp" && p_ext != ".c" && p_ext != ".h" && p_ext != ".hpp" && p_ext != ".cc") continue;
+
+				std::vector<codemap_symbol_info> doc_syms;
+				if (ctx) doc_syms = get_document_codemap_symbols(p_str, *ctx, 1);
+				else doc_syms = get_document_codemap_symbols(p_str, 1);
+
+				const auto *found = find_symbol_by_hint(doc_syms, func_name);
+				if (found) {
+					std::string resolved_path = p_str;
+					if (ctx && (p_ext == ".h" || p_ext == ".hpp")) {
+						std::string impl = find_matching_impl_file(p_str, *ctx);
+						if (!impl.empty()) {
+							resolved_path = impl;
+							auto impl_syms = get_document_codemap_symbols(resolved_path, *ctx, 1);
+							const auto *found_impl = find_symbol_by_hint(impl_syms, func_name);
+							if (found_impl) {
+								result = {resolved_path, found_impl->start_line, found_impl->end_line, found_impl->kind_str};
+								return;
+							}
+						}
+					}
+					result = {resolved_path, found->start_line, found->end_line, found->kind_str};
+					return;
+				}
+			}
+		}
+	} catch (...) {}
+}
+
 static resolved_symbol_loc resolve_cross_file_symbol(
 	const std::string &func_name,
 	const std::string &safe_path,
@@ -431,43 +482,20 @@ static resolved_symbol_loc resolve_cross_file_symbol(
 		}
 	}
 
-	// 2. Scan directory files for matching symbol definition
-	try {
-		std::filesystem::path dir = std::filesystem::path(safe_path).parent_path();
-		if (dir.empty()) dir = ".";
-		if (std::filesystem::exists(dir) && std::filesystem::is_directory(dir)) {
-			for (const auto &entry : std::filesystem::directory_iterator(dir)) {
-				if (!entry.is_regular_file()) continue;
-				std::string p_str = entry.path().string();
-				if (p_str == safe_path) continue;
-				std::string p_ext = entry.path().extension().string();
-				if (p_ext != ".cpp" && p_ext != ".c" && p_ext != ".h" && p_ext != ".hpp" && p_ext != ".cc") continue;
+	// 2. Scan parent directory first, then scan src/ directory recursively for symbol definition
+	resolved_symbol_loc result;
+	std::filesystem::path parent = std::filesystem::path(safe_path).parent_path();
+	if (!parent.empty()) {
+		scan_dir_recursive(parent, func_name, safe_path, ctx, result);
+	}
+	if (result.start_line == 0 && std::filesystem::exists("src")) {
+		scan_dir_recursive("src", func_name, safe_path, ctx, result);
+	}
+	if (result.start_line == 0) {
+		scan_dir_recursive(".", func_name, safe_path, ctx, result);
+	}
 
-				std::vector<codemap_symbol_info> doc_syms;
-				if (ctx) doc_syms = get_document_codemap_symbols(p_str, *ctx, 1);
-				else doc_syms = get_document_codemap_symbols(p_str, 1);
-
-				const auto *found = find_symbol_by_hint(doc_syms, func_name);
-				if (found) {
-					std::string resolved_path = p_str;
-					if (ctx && (p_ext == ".h" || p_ext == ".hpp")) {
-						std::string impl = find_matching_impl_file(p_str, *ctx);
-						if (!impl.empty()) {
-							resolved_path = impl;
-							auto impl_syms = get_document_codemap_symbols(resolved_path, *ctx, 1);
-							const auto *found_impl = find_symbol_by_hint(impl_syms, func_name);
-							if (found_impl) {
-								return {resolved_path, found_impl->start_line, found_impl->end_line, found_impl->kind_str};
-							}
-						}
-					}
-					return {resolved_path, found->start_line, found->end_line, found->kind_str};
-				}
-			}
-		}
-	} catch (...) {}
-
-	return {"", 0, 0, "Function"};
+	return result;
 }
 
 static void extract_regex_outgoing_calls(
@@ -515,6 +543,24 @@ static void extract_regex_outgoing_calls(
 			    func_name == "decltype" || func_name == "return" || func_name == "cast" ||
 			    func_name == "static_cast" || func_name == "dynamic_cast" || func_name == "reinterpret_cast") {
 				continue;
+			}
+
+			// Filter out member calls on objects (e.g. str.empty() or ptr->clear())
+			size_t match_pos = match.position(0);
+			if (match_pos > 0) {
+				char prev = line_str[match_pos - 1];
+				if (prev == '.' || (prev == '>' && match_pos > 1 && line_str[match_pos - 2] == '-')) {
+					static const std::unordered_set<std::string> stl_member_names = {
+						"empty", "size", "clear", "push_back", "emplace_back", "pop_back", "length",
+						"find", "rfind", "substr", "c_str", "get", "lock", "reset", "count", "begin",
+						"end", "front", "back", "insert", "erase", "reserve", "resize", "append",
+						"data", "value", "first", "second", "open", "close", "str", "is_open",
+						"contains", "contains_key", "at", "operator", "transform", "sort", "min", "max"
+					};
+					if (stl_member_names.contains(func_name)) {
+						continue;
+					}
+				}
 			}
 
 			if (seen.contains(func_name))
@@ -657,6 +703,11 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
 			range_result.push_back(call);
 		}
 	}
+
+	event_logger::get_instance().log(
+		std::format("get_outgoing_calls_in_range: path='{}', range={}-{} using {} (found {} calls)",
+			safe_path, start_line, end_line, lsp_items.empty() ? "REGEX_FALLBACK" : "LSP_BATCH", range_result.size()));
+
 	return range_result;
 }
 
