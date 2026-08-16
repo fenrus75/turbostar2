@@ -126,8 +126,9 @@ shell_command_recommendation evaluate_shell_command_resteer(const std::string &c
 		return rec;
 	}
 
-	// 5. Git Status / Diff / Log: git status, git diff, git log, git show --stat
+	// 5. Git Status / Diff / Log / Ls-files: git status, git diff, git log, git ls-files
 	static const std::regex git_status_regex(R"(^git\s+status(?:\s+.*)?$)");
+	static const std::regex git_ls_files_regex(R"(^git\s+ls-files(?:\s+.*)?$)");
 	static const std::regex git_diff_regex(R"(^git\s+diff(?:\s+--stat)?(?:\s+([^\s\|;]+))?$)");
 	static const std::regex git_log_regex(R"(^git\s+log(?:\s+.*)?$)");
 	static const std::regex git_show_stat_regex(R"(^git\s+show\s+--stat(?:\s+.*)?$)");
@@ -137,6 +138,13 @@ shell_command_recommendation evaluate_shell_command_resteer(const std::string &c
 		rec.confidence = 0.90;
 		rec.suggested_tool = "git_status()";
 		rec.explanation = "To check repository status, use the native 'git_status' tool instead of shell git status.";
+		return rec;
+	}
+	if (std::regex_match(cmd, git_ls_files_regex)) {
+		rec.matched = true;
+		rec.confidence = 0.90;
+		rec.suggested_tool = "git_list_files()";
+		rec.explanation = "To list tracked repository files, use the native 'git_list_files' tool instead of shell git ls-files.";
 		return rec;
 	}
 	if (std::regex_match(cmd, match, git_diff_regex)) {

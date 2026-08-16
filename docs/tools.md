@@ -479,6 +479,13 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Description:** Get the git status of the project repository as a Markdown table (shows staged, unstaged, and untracked files).
 *   **Arguments:** None.
 
+### `git_list_files`
+*   **Description:** List all tracked files in the Git repository index under a specified path or directory. ALWAYS use this tool to query tracked git files instead of running 'git ls-files' via run_shell_command.
+*   **Arguments:**
+    *   `path` *(string, optional)*: Relative path or directory under project root (defaults to '.').
+    *   `pattern` *(string, optional)*: Optional pattern or substring to filter filenames (e.g. '.cpp' or 'src/').
+    *   `limit` *(integer, optional)*: Maximum number of files to return (defaults to 500, max 5000).
+
 ### `git_add`
 *   **Description:** Stages specific files or directories for the next commit (git add <paths>).
 *   **Arguments:**

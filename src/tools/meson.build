@@ -56,6 +56,8 @@ tools_sources = files(
   'fs_mkdir/fs_mkdir_security.cpp',
   'git_status/git_status_entry.cpp',
   'git_status/git_status_security.cpp',
+  'git_list_files/git_list_files_entry.cpp',
+  'git_list_files/git_list_files_security.cpp',
   'git_branch_list/git_branch_list_entry.cpp',
   'git_branch_list/git_branch_list_security.cpp',
   'git_branch_create/git_branch_create_entry.cpp',
