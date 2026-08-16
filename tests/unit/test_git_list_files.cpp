@@ -55,6 +55,17 @@ int main()
 		assert(result.find("file1.txt") == std::string::npos);
 	}
 
+	// 3. Modified file status test
+	{
+		std::ofstream f2_mod(repo.get_path() + "/file2.cpp", std::ios::app);
+		f2_mod << "// modified\n";
+		f2_mod.close();
+
+		std::string result = registry.execute_tool("git_list_files", "{}", ctx);
+		std::cout << "Mod Result:\n" << result << std::endl;
+		assert(result.find("`file2.cpp` | MOD |") != std::string::npos);
+	}
+
 	std::cout << "git_list_files tests passed successfully.\n";
 	return 0;
 }

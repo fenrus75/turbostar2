@@ -480,7 +480,7 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Arguments:** None.
 
 ### `git_list_files`
-*   **Description:** List all tracked files in the Git repository index under a specified path or directory. ALWAYS use this tool to query tracked git files instead of running 'git ls-files' via run_shell_command.
+*   **Description:** List all tracked files in the Git repository index under a specified path or directory as a 2-column Markdown table (`| File Path | Status |`). Clean tracked files have a blank status cell; modified/deleted files are annotated (`MOD`, `DEL`, `UNM`). ALWAYS use this tool to query tracked git files instead of running 'git ls-files' via run_shell_command.
 *   **Arguments:**
     *   `path` *(string, optional)*: Relative path or directory under project root (defaults to '.').
     *   `pattern` *(string, optional)*: Optional pattern or substring to filter filenames (e.g. '.cpp' or 'src/').
