@@ -270,6 +270,35 @@ int main()
 		std::remove(calls_file.c_str());
 	}
 
+	// 15. Test Option D multiple ### Codemap for <path> sections for cross-file calls
+	{
+		std::string main_file = "test_opt_d_main.cpp";
+		std::string dep_file = "test_opt_d_dep.cpp";
+
+		std::ofstream out_dep(dep_file);
+		out_dep << "void dep_function_zeta()\n{\n    int z = 100;\n}\n";
+		out_dep.close();
+
+		std::ofstream out_main(main_file);
+		out_main << "#include \"test_opt_d_dep.h\"\n\n"
+			 << "void main_caller_func()\n{\n    dep_function_zeta();\n}\n\n";
+		for (int i = 0; i < 30; ++i) {
+			out_main << "// Padding line " << i << "\n";
+		}
+		out_main.close();
+
+		auto all_syms = tools::get_document_codemap_symbols(main_file, ctx, 1);
+		auto selected = tools::select_prioritized_codemap_symbols(all_syms, 3, 6, main_file, ctx, 10);
+		std::string table_md = tools::format_codemap_table(main_file, selected.selected_symbols, false, 35, selected.total_symbols, selected.omitted_count, &ctx);
+
+		std::cout << "Option D codemap table output:\n" << table_md << "\n";
+		assert(table_md.find("### Codemap for `test_opt_d_main.cpp`") != std::string::npos);
+		assert(table_md.find("`main_caller_func`") != std::string::npos);
+
+		std::remove(main_file.c_str());
+		std::remove(dep_file.c_str());
+	}
+
 	// Cleanup
 	std::remove(impl_file.c_str());
 	std::remove(header_file.c_str());

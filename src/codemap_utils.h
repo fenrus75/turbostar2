@@ -15,6 +15,7 @@ struct codemap_symbol_info {
 	int end_line;
 	int line_count;
 	int depth{0};
+	std::string source_file; // Source file path if cross-file dependency
 };
 
 struct codemap_selection_result {

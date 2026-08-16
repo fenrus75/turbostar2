@@ -38,7 +38,7 @@ static void collect_symbols_recursive(const lsp_manager::symbol_node &node, cons
 	// Only include functions, methods, classes, structs, enums, interfaces
 	if (node.kind == 5 || node.kind == 6 || node.kind == 9 || node.kind == 10 || node.kind == 11 || node.kind == 23 || node.kind == 26 || prefix.empty()) {
 		if (len >= min_lines) {
-			out.push_back({full_name, node.name, lsp_kind_to_string(node.kind), start, end, len, depth});
+			out.push_back({full_name, node.name, lsp_kind_to_string(node.kind), start, end, len, depth, ""});
 		}
 	}
 
@@ -132,7 +132,7 @@ static void fallback_find_symbols(const std::string &safe_path, int min_lines, s
 			}
 			int len = end_line - line_num + 1;
 			if (len >= min_lines) {
-				out.push_back({match[1].str(), match[1].str(), "Class/Struct", line_num, end_line, len, 0});
+				out.push_back({match[1].str(), match[1].str(), "Class/Struct", line_num, end_line, len, 0, ""});
 			}
 		} else if (std::regex_search(lines[i], match, func_regex)) {
 			std::string name = match[1].str();
@@ -152,7 +152,7 @@ static void fallback_find_symbols(const std::string &safe_path, int min_lines, s
 				}
 				int len = std::max(1, end_line - line_num + 1);
 				if (len >= min_lines) {
-					out.push_back({name, name, "Function", line_num, end_line, len, 0});
+					out.push_back({name, name, "Function", line_num, end_line, len, 0, ""});
 				}
 			}
 		}
@@ -242,6 +242,7 @@ static void parse_markdown_headings(const std::string &content, int min_lines, s
 			.end_line = line_no,
 			.line_count = 1,
 			.depth = depth,
+			.source_file = "",
 		});
 	}
 
@@ -701,20 +702,50 @@ codemap_selection_result select_prioritized_codemap_symbols(
 		return a.info->start_line < b.info->start_line;
 	});
 
-	size_t take_count = std::min(max_items, scored.size());
-	res.selected_symbols.reserve(take_count);
+	size_t primary_max = std::min<size_t>(8, max_items);
+	size_t take_count = std::min(primary_max, scored.size());
+	res.selected_symbols.reserve(take_count + 4);
 
 	for (size_t i = 0; i < take_count; ++i) {
 		res.selected_symbols.push_back(*scored[i].info);
 		history.reported_symbol_names.insert(scored[i].info->name);
 	}
 
-	// Re-sort selected symbols by start_line ascending for document order display
+	// Re-sort primary file symbols by start_line ascending for document order display
 	std::sort(res.selected_symbols.begin(), res.selected_symbols.end(), [](const codemap_symbol_info &a, const codemap_symbol_info &b) {
 		return a.start_line < b.start_line;
 	});
 
-	res.omitted_count = (res.total_symbols > res.selected_symbols.size()) ? (res.total_symbols - res.selected_symbols.size()) : 0;
+	// Append up to 4 cross-file outgoing dependency call symbols under Option D
+	size_t cross_file_count = 0;
+	std::unordered_set<std::string> added_cross_file_keys;
+
+	for (const auto &call : direct_outgoing_calls) {
+		if (cross_file_count >= 4)
+			break;
+
+		if (!call.target_file.empty() && call.target_file != safe_path && call.target_start_line > 0) {
+			std::string key = call.target_file + ":" + call.target_name;
+			if (added_cross_file_keys.contains(key))
+				continue;
+			added_cross_file_keys.insert(key);
+
+			codemap_symbol_info dep_sym;
+			dep_sym.name = call.target_name;
+			dep_sym.display_name = call.target_name;
+			dep_sym.kind_str = call.target_kind.empty() ? "Function" : call.target_kind;
+			dep_sym.start_line = call.target_start_line;
+			dep_sym.end_line = call.target_end_line;
+			dep_sym.line_count = std::max(1, call.target_end_line - call.target_start_line + 1);
+			dep_sym.depth = 0;
+			dep_sym.source_file = call.target_file;
+
+			res.selected_symbols.push_back(dep_sym);
+			cross_file_count++;
+		}
+	}
+
+	res.omitted_count = (res.total_symbols > take_count) ? (res.total_symbols - take_count) : 0;
 	return res;
 }
 
@@ -731,38 +762,54 @@ std::string format_codemap_table(
 		return "";
 	}
 
-	size_t effective_total = (total_symbols_count > 0) ? total_symbols_count : symbols.size();
+	// Separate primary file symbols from cross-file dependency symbols (Option D)
+	std::vector<codemap_symbol_info> primary_symbols;
+	std::unordered_map<std::string, std::vector<codemap_symbol_info>> dependency_symbols;
+
+	for (const auto &sym : symbols) {
+		if (sym.source_file.empty() || sym.source_file == display_path) {
+			primary_symbols.push_back(sym);
+		} else {
+			dependency_symbols[sym.source_file].push_back(sym);
+		}
+	}
+
+	size_t effective_total = (total_symbols_count > 0) ? total_symbols_count : primary_symbols.size();
 
 	std::stringstream ss;
 	if (rich_format) {
-		if (total_file_lines > 0) {
-			if (effective_total > symbols.size()) {
-				ss << std::format("### Codemap for `{}` (Top {} of {} symbols, {} lines):\n\n", display_path, symbols.size(), effective_total, total_file_lines);
+		if (!primary_symbols.empty()) {
+			if (total_file_lines > 0) {
+				if (effective_total > primary_symbols.size()) {
+					ss << std::format("### Codemap for `{}` (Top {} of {} symbols, {} lines):\n\n", display_path, primary_symbols.size(), effective_total, total_file_lines);
+				} else {
+					ss << std::format("### Codemap for `{}` (Full {} symbols, {} lines):\n\n", display_path, effective_total, total_file_lines);
+				}
 			} else {
-				ss << std::format("### Codemap for `{}` (Full {} symbols, {} lines):\n\n", display_path, effective_total, total_file_lines);
+				if (effective_total > primary_symbols.size()) {
+					ss << std::format("### Codemap for `{}` (Top {} of {} symbols):\n\n", display_path, primary_symbols.size(), effective_total);
+				} else {
+					ss << std::format("### Codemap for `{}` (Full {} symbols):\n\n", display_path, effective_total);
+				}
 			}
-		} else {
-			if (effective_total > symbols.size()) {
-				ss << std::format("### Codemap for `{}` (Top {} of {} symbols):\n\n", display_path, symbols.size(), effective_total);
-			} else {
-				ss << std::format("### Codemap for `{}` (Full {} symbols):\n\n", display_path, effective_total);
+			ss << "| Symbol | Start Line | End Line | Lines |\n";
+			ss << "| :--- | :---: | :---: | :---: |\n";
+			for (const auto &sym : primary_symbols) {
+				ss << std::format("| `{}` | {} | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line, sym.line_count);
 			}
-		}
-		ss << "| Symbol | Start Line | End Line | Lines |\n";
-		ss << "| :--- | :---: | :---: | :---: |\n";
-		for (const auto &sym : symbols) {
-			ss << std::format("| `{}` | {} | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line, sym.line_count);
 		}
 	} else {
-		if (effective_total > symbols.size()) {
-			ss << std::format("### Codemap for `{}` (Top {} of {} symbols):\n\n", display_path, symbols.size(), effective_total);
-		} else {
-			ss << std::format("### Codemap for `{}` ({} symbols):\n\n", display_path, symbols.size());
-		}
-		ss << "| Function | Start Line | End Line |\n";
-		ss << "| :--- | :---: | :---: |\n";
-		for (const auto &sym : symbols) {
-			ss << std::format("| `{}` | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line);
+		if (!primary_symbols.empty()) {
+			if (effective_total > primary_symbols.size()) {
+				ss << std::format("### Codemap for `{}` (Top {} of {} symbols):\n\n", display_path, primary_symbols.size(), effective_total);
+			} else {
+				ss << std::format("### Codemap for `{}` ({} symbols):\n\n", display_path, primary_symbols.size());
+			}
+			ss << "| Function | Start Line | End Line |\n";
+			ss << "| :--- | :---: | :---: |\n";
+			for (const auto &sym : primary_symbols) {
+				ss << std::format("| `{}` | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line);
+			}
 		}
 	}
 
@@ -772,6 +819,24 @@ std::string format_codemap_table(
 			ctx->has_hinted_fs_file_codemap = true;
 		} else {
 			ss << std::format("*... [{} other symbols omitted]*\n", omitted_count);
+		}
+	}
+
+	// Render Option D secondary dependency codemap sections
+	for (const auto &[dep_path, dep_syms] : dependency_symbols) {
+		ss << std::format("\n### Codemap for `{}` (Called Dependency):\n\n", dep_path);
+		if (rich_format) {
+			ss << "| Symbol | Start Line | End Line | Lines |\n";
+			ss << "| :--- | :---: | :---: | :---: |\n";
+			for (const auto &sym : dep_syms) {
+				ss << std::format("| `{}` | {} | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line, sym.line_count);
+			}
+		} else {
+			ss << "| Function | Start Line | End Line |\n";
+			ss << "| :--- | :---: | :---: |\n";
+			for (const auto &sym : dep_syms) {
+				ss << std::format("| `{}` | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line);
+			}
 		}
 	}
 
