@@ -738,8 +738,8 @@ codemap_selection_result select_prioritized_codemap_symbols(
 		ctx.codemap_history[safe_path] = history;
 	}
 
-	// Query outgoing calls inside the read line range and enclosing function scope (bound total codemap LSP latency to 400ms)
-	auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(400);
+	// Query outgoing calls inside the read line range and enclosing function scope (bound total codemap LSP latency to 1100ms)
+	auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(1100);
 	auto direct_outgoing_calls = get_outgoing_calls_in_range(safe_path, read_start, read_end, all_symbols, &ctx, deadline);
 	std::unordered_set<std::string> direct_call_targets;
 	std::unordered_set<std::string> enclosing_call_targets;

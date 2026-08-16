@@ -622,14 +622,14 @@ std::vector<lsp_manager::symbol_info> lsp_manager::query_workspace_symbols(const
 	}
 
 	auto start_time = std::chrono::steady_clock::now();
-	if (future.wait_for(std::chrono::milliseconds(350)) == std::future_status::ready) {
+	if (future.wait_for(std::chrono::milliseconds(1000)) == std::future_status::ready) {
 		auto result = future.get();
 		auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time).count();
 		event_logger::get_instance().log(std::format("LSP: query_workspace_symbols query='{}' finished in {}ms (found {} symbols)", query, dur_ms, result.size()));
 		return result;
 	}
 
-	event_logger::get_instance().log(std::format("LSP: query_workspace_symbols query='{}' timed out after 350ms", query));
+	event_logger::get_instance().log(std::format("LSP: query_workspace_symbols query='{}' timed out after 1000ms", query));
 	return {};
 }
 
@@ -818,7 +818,7 @@ std::vector<lsp_manager::outgoing_call_item> lsp_manager::query_call_hierarchy_o
 		}
 	}
 
-	int rem_prep_ms = std::clamp<int>(static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()).count()), 1, 350);
+	int rem_prep_ms = std::clamp<int>(static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()).count()), 1, 1000);
 	auto deadline_prep = std::chrono::steady_clock::now() + std::chrono::milliseconds(rem_prep_ms);
 
 	struct call_entry {
@@ -895,7 +895,7 @@ std::vector<lsp_manager::outgoing_call_item> lsp_manager::query_call_hierarchy_o
 		return {};
 	}
 
-	int rem_out_ms = std::clamp<int>(static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()).count()), 1, 350);
+	int rem_out_ms = std::clamp<int>(static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()).count()), 1, 1000);
 	auto deadline_out = std::chrono::steady_clock::now() + std::chrono::milliseconds(rem_out_ms);
 	std::vector<outgoing_call_item> result;
 
@@ -1222,14 +1222,14 @@ std::vector<lsp_manager::symbol_node> lsp_manager::query_document_symbols(const 
 	}
 
 	auto start_time = std::chrono::steady_clock::now();
-	if (future.wait_for(std::chrono::milliseconds(350)) == std::future_status::ready) {
+	if (future.wait_for(std::chrono::milliseconds(1000)) == std::future_status::ready) {
 		auto result = future.get();
 		auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time).count();
 		event_logger::get_instance().log(std::format("LSP: query_document_symbols path='{}' finished in {}ms (found {} symbols)", filepath, dur_ms, result.size()));
 		return result;
 	}
 
-	event_logger::get_instance().log(std::format("LSP: query_document_symbols path='{}' timed out after 350ms", filepath));
+	event_logger::get_instance().log(std::format("LSP: query_document_symbols path='{}' timed out after 1000ms", filepath));
 	return {};
 }
 
