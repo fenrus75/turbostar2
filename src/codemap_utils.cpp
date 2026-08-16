@@ -362,6 +362,31 @@ struct outgoing_call_cache_entry {
 static std::mutex g_outgoing_calls_cache_mutex;
 static std::unordered_map<std::string, outgoing_call_cache_entry> g_outgoing_calls_cache;
 
+static bool is_project_file(const std::string &path, agentlib::tool_context * /*ctx*/ = nullptr)
+{
+	if (path.empty()) return false;
+	if (path.starts_with("/usr/") || path.starts_with("/opt/") || path.starts_with("/lib/") ||
+	    path.starts_with("/tmp/") || path.starts_with("/etc/") || path.starts_with("/var/")) {
+		return false;
+	}
+	if (path.find("/include/") != std::string::npos || path.find("/bits/") != std::string::npos ||
+	    path.find("gcc/") != std::string::npos || path.find("clang/") != std::string::npos) {
+		return false;
+	}
+
+	// If absolute path, check if it resides within current project working directory
+	if (path.starts_with("/")) {
+		std::error_code ec;
+		std::string cwd = std::filesystem::current_path(ec).string();
+		if (!ec && !cwd.empty()) {
+			if (!path.starts_with(cwd)) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 struct resolved_symbol_loc {
 	std::string file_path;
 	int start_line{0};
@@ -381,6 +406,9 @@ static resolved_symbol_loc resolve_cross_file_symbol(
 			std::string target_path = ws.location.path;
 			if (target_path.starts_with("file://")) {
 				target_path = target_path.substr(7);
+			}
+			if (!is_project_file(target_path, ctx)) {
+				continue;
 			}
 			std::string resolved_path = target_path;
 			if (ctx && (target_path.ends_with(".h") || target_path.ends_with(".hpp"))) {
@@ -806,7 +834,7 @@ codemap_selection_result select_prioritized_codemap_symbols(
 		if (cross_file_count >= 4)
 			break;
 
-		if (!call.target_file.empty() && call.target_file != safe_path && call.target_start_line > 0) {
+		if (!call.target_file.empty() && call.target_file != safe_path && call.target_start_line > 0 && is_project_file(call.target_file, &ctx)) {
 			std::string key = call.target_file + ":" + call.target_name;
 			if (added_cross_file_keys.contains(key))
 				continue;

@@ -344,11 +344,6 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 					event_logger::get_instance().log(
 						std::format("fs_read_lines: path='{}', range={}-{}, codemap generated {} symbols across sections",
 							args_.safe_path, start, adjusted_end, selection.selected_symbols.size()));
-					for (const auto &sym : selection.selected_symbols) {
-						event_logger::get_instance().log(
-							std::format("  codemap_symbol: name='{}', file='{}', lines={}-{}",
-								sym.name, sym.source_file.empty() ? args_.safe_path : sym.source_file, sym.start_line, sym.end_line));
-					}
 					ss << "\n" << format_codemap_table(args_.requested_path, selection.selected_symbols, /*rich_format=*/false, /*total_file_lines=*/0, selection.total_symbols, selection.omitted_count, &ctx);
 				}
 			}
