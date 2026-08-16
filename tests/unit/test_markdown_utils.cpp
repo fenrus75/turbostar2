@@ -143,7 +143,23 @@ void test_align_table_word_wrap()
 	assert(framed_aligned[4] == "│       │ at Google DeepMind │");
 	assert(framed_aligned[5] == "│ Bob   │ Designer           │");
 	assert(framed_aligned[6] == "└───────┴────────────────────┘");
+
+	// 3. Test word wrapping when a single word exceeds the target column width (cuts word at max_width)
+	std::vector<std::string> long_word_table = {
+		"| Key | Value |",
+		"|---|---|",
+		"| Long | supercalifragilisticexpialidocious |"
+	};
+	auto long_word_aligned = table_aligner::align_table_block(long_word_table, wrap_opts, 0, 20);
+	assert(long_word_aligned.size() == 6);
+	assert(long_word_aligned[0] == "| Key  | Value     |");
+	assert(long_word_aligned[1] == "|------|-----------|");
+	assert(long_word_aligned[2] == "| Long | supercali |");
+	assert(long_word_aligned[3] == "|      | fragilist |");
+	assert(long_word_aligned[4] == "|      | icexpiali |");
+	assert(long_word_aligned[5] == "|      | docious   |");
 }
+
 
 void test_align_table_formatted()
 {
