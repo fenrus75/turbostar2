@@ -199,7 +199,9 @@ std::shared_ptr<lsp_manager::server_instance> lsp_manager::get_server_for_file(c
 	// Try to start the server on demand
 	if (lang_id == "cpp") {
 		std::string build_dir = config_manager::get_instance().get_build_directory();
-		start_server("clangd", {"-log=error", "--compile-commands-dir=" + build_dir, "-j=4", "--malloc-trim", "--background-index"},
+		unsigned int num_cores = std::thread::hardware_concurrency();
+		unsigned int clangd_jobs = std::clamp(num_cores / 2, 2u, 8u);
+		start_server("clangd", {"-log=error", "--compile-commands-dir=" + build_dir, std::format("-j={}", clangd_jobs), "--malloc-trim", "--background-index"},
 			     "cpp");
 	} else if (lang_id == "python") {
 		start_server("pylsp", {}, "python");

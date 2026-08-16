@@ -112,13 +112,30 @@ static void fallback_find_symbols(const std::string &safe_path, int min_lines, s
 		lines.push_back(l);
 	}
 
-	static const std::regex func_regex(R"(^\s*(?:[\w:\<\>]+\s+)+([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*)\s*\([^\)]*\)\s*(?:const|noexcept)?\s*\{?)");
-	static const std::regex class_regex(R"(^\s*(?:class|struct)\s+([a-zA-Z_]\w*))");
+	std::string ext = std::filesystem::path(safe_path).extension().string();
+	for (char &c : ext) {
+		c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+	}
+	bool is_py = (ext == ".py");
+
+	static const std::regex cpp_func_regex(R"(^\s*(?:[\w:\<\>]+\s+)+([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*)\s*\([^\)]*\)\s*(?:const|noexcept)?\s*\{?)");
+	static const std::regex cpp_class_regex(R"(^\s*(?:class|struct)\s+([a-zA-Z_]\w*))");
+	static const std::regex py_func_regex(R"(^\s*def\s+([a-zA-Z_]\w*)\s*\()");
+	static const std::regex py_class_regex(R"(^\s*class\s+([a-zA-Z_]\w*))");
 
 	for (size_t i = 0; i < lines.size(); ++i) {
 		int line_num = static_cast<int>(i + 1);
 		std::smatch match;
-		if (std::regex_search(lines[i], match, class_regex)) {
+
+		if (is_py) {
+			if (std::regex_search(lines[i], match, py_class_regex) || std::regex_search(lines[i], match, py_func_regex)) {
+				std::string name = match[1].str();
+				out.push_back({name, name, "Function", line_num, line_num, 1, 0, ""});
+			}
+			continue;
+		}
+
+		if (std::regex_search(lines[i], match, cpp_class_regex)) {
 			int end_line = line_num;
 			int depth = 0;
 			for (size_t j = i; j < lines.size(); ++j) {
@@ -135,9 +152,15 @@ static void fallback_find_symbols(const std::string &safe_path, int min_lines, s
 			if (len >= min_lines) {
 				out.push_back({match[1].str(), match[1].str(), "Class/Struct", line_num, end_line, len, 0, ""});
 			}
-		} else if (std::regex_search(lines[i], match, func_regex)) {
+		} else if (std::regex_search(lines[i], match, cpp_func_regex)) {
 			std::string name = match[1].str();
 			if (name != "if" && name != "for" && name != "while" && name != "switch" && name != "catch") {
+				std::string_view trimmed_line = lines[i];
+				size_t last_non_ws = trimmed_line.find_last_not_of(" \t\r\n");
+				if (last_non_ws != std::string_view::npos && trimmed_line[last_non_ws] == ';') {
+					continue;
+				}
+
 				int end_line = line_num;
 				int depth = 0;
 				bool started = false;
@@ -151,6 +174,10 @@ static void fallback_find_symbols(const std::string &safe_path, int min_lines, s
 						break;
 					}
 				}
+				if (!started) {
+					continue;
+				}
+
 				int len = std::max(1, end_line - line_num + 1);
 				if (len >= min_lines) {
 					out.push_back({name, name, "Function", line_num, end_line, len, 0, ""});
