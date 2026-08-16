@@ -101,7 +101,14 @@ void code_review_window::draw_content(bool /*cursor_only*/) const
 
 		auto wrap_text = [](const std::string &text, int max_w) -> std::vector<std::string> {
 			std::vector<std::string> res;
-			std::stringstream ss(text);
+			if (max_w <= 0)
+				return res;
+
+			std::string clean_text = text;
+			std::replace(clean_text.begin(), clean_text.end(), '\t', ' ');
+			std::replace(clean_text.begin(), clean_text.end(), '\r', ' ');
+
+			std::stringstream ss(clean_text);
 			std::string line;
 			while (std::getline(ss, line)) {
 				if (line.empty()) {
@@ -114,7 +121,7 @@ void code_review_window::draw_content(bool /*cursor_only*/) const
 						res.push_back(line.substr(start));
 						break;
 					}
-					size_t last_space = line.find_last_of(" \t", start + max_w);
+					size_t last_space = line.find_last_of(" ", start + max_w);
 					if (last_space == std::string::npos || last_space <= start) {
 						res.push_back(line.substr(start, max_w));
 						start += max_w;
@@ -132,16 +139,22 @@ void code_review_window::draw_content(bool /*cursor_only*/) const
 		lines.push_back(std::format("Severity: {}", item.severity));
 		lines.push_back(std::format("State:    {}", item.state));
 		lines.push_back(std::format("File:     {}:{}", item.filename, item.line_number));
-		// Ensure the line content doesn't contain raw newlines or carriage returns,
-		// as they would interfere with ncurses cursor positioning and corrupt the layout.
-		// All newlines and carriage returns are replaced with single spaces.
+
 		std::string clean_line_content = item.line_content;
 		std::replace(clean_line_content.begin(), clean_line_content.end(), '\n', ' ');
 		std::replace(clean_line_content.begin(), clean_line_content.end(), '\r', ' ');
+		std::replace(clean_line_content.begin(), clean_line_content.end(), '\t', ' ');
 		
-		// Wrap the line content display to fit the pane width
-		auto line_text_wrapped = wrap_text(std::format("Line text: {}", clean_line_content), right_width - 2);
-		lines.insert(lines.end(), line_text_wrapped.begin(), line_text_wrapped.end());
+		std::string line_prefix = "Line text: ";
+		int max_line_w = std::max(10, right_width - 2 - static_cast<int>(line_prefix.length()));
+		if (clean_line_content.length() > static_cast<size_t>(max_line_w)) {
+			if (max_line_w > 3) {
+				clean_line_content = clean_line_content.substr(0, max_line_w - 3) + "...";
+			} else {
+				clean_line_content = clean_line_content.substr(0, max_line_w);
+			}
+		}
+		lines.push_back(line_prefix + clean_line_content);
 
 		lines.push_back(std::format("Date:     {}", date_str));
 		lines.push_back(std::format("Commit:   {}", item.git_hash));
@@ -162,12 +175,14 @@ void code_review_window::draw_content(bool /*cursor_only*/) const
 		lines.insert(lines.end(), fix_wrapped.begin(), fix_wrapped.end());
 
 		int details_height = content_height;
+		int max_print_len = std::max(0, right_width - 1);
 		for (int i = 0; i < details_height; ++i) {
 			int line_idx = detail_scroll_offset_ + i;
 			if (line_idx < (int)lines.size()) {
 				std::string display_line = lines[line_idx];
-				if (display_line.length() > static_cast<size_t>(right_width)) {
-					display_line = display_line.substr(0, right_width);
+				std::replace(display_line.begin(), display_line.end(), '\t', ' ');
+				if (display_line.length() > static_cast<size_t>(max_print_len)) {
+					display_line = display_line.substr(0, max_print_len);
 				}
 				mvprintw(current_y + i, details_x, "%s", display_line.c_str());
 			}
