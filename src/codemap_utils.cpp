@@ -419,8 +419,7 @@ static void scan_dir_recursive(
 				if (p_ext != ".cpp" && p_ext != ".c" && p_ext != ".h" && p_ext != ".hpp" && p_ext != ".cc") continue;
 
 				std::vector<codemap_symbol_info> doc_syms;
-				if (ctx) doc_syms = get_document_codemap_symbols(p_str, *ctx, 1);
-				else doc_syms = get_document_codemap_symbols(p_str, 1);
+				fallback_find_symbols(p_str, 1, doc_syms);
 
 				const auto *found = find_symbol_by_hint(doc_syms, func_name);
 				if (found) {
@@ -429,15 +428,16 @@ static void scan_dir_recursive(
 						std::string impl = find_matching_impl_file(p_str, *ctx);
 						if (!impl.empty()) {
 							resolved_path = impl;
-							auto impl_syms = get_document_codemap_symbols(resolved_path, *ctx, 1);
+							std::vector<codemap_symbol_info> impl_syms;
+							fallback_find_symbols(resolved_path, 1, impl_syms);
 							const auto *found_impl = find_symbol_by_hint(impl_syms, func_name);
 							if (found_impl) {
-								result = {resolved_path, found_impl->start_line, found_impl->end_line, found_impl->kind_str};
+								result = resolved_symbol_loc{resolved_path, found_impl->start_line, found_impl->end_line, found_impl->kind_str};
 								return;
 							}
 						}
 					}
-					result = {resolved_path, found->start_line, found->end_line, found->kind_str};
+					result = resolved_symbol_loc{resolved_path, found->start_line, found->end_line, found->kind_str};
 					return;
 				}
 			}

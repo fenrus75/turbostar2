@@ -270,6 +270,8 @@ std::vector<lsp_manager::location_info> lsp_manager::query_definition(const std:
 	if (!server)
 		return {};
 
+	event_logger::get_instance().log(std::format("LSP: query_definition path='{}:L{}'", filepath, line));
+
 	auto promise = std::make_shared<std::promise<std::vector<location_info>>>();
 	auto future = promise->get_future();
 
@@ -546,6 +548,8 @@ std::vector<lsp_manager::symbol_info> lsp_manager::query_workspace_symbols(const
 	if (!active_server)
 		return {};
 
+	event_logger::get_instance().log(std::format("LSP: query_workspace_symbols query='{}'", query));
+
 	auto promise = std::make_shared<std::promise<std::vector<symbol_info>>>();
 	auto future = promise->get_future();
 
@@ -735,9 +739,11 @@ std::vector<lsp_manager::outgoing_call_item> lsp_manager::query_call_hierarchy_o
 		return {};
 	}
 	auto server = get_server_for_file(filepath);
-	if (!server) {
+	if (!server)
 		return {};
-	}
+
+	event_logger::get_instance().log(
+		std::format("LSP: query_call_hierarchy_outgoing_batch path='{}' ({} positions)", filepath, positions.size()));
 
 	struct prep_entry {
 		int line;
@@ -1015,6 +1021,8 @@ std::vector<lsp_manager::symbol_node> lsp_manager::query_document_symbols(const 
 	auto server = get_server_for_file(filepath);
 	if (!server)
 		return {};
+
+	event_logger::get_instance().log(std::format("LSP: query_document_symbols path='{}'", filepath));
 
 	auto promise = std::make_shared<std::promise<std::vector<symbol_node>>>();
 	auto future = promise->get_future();
