@@ -842,9 +842,9 @@ codemap_selection_result select_prioritized_codemap_symbols(
 		return a.info->start_line < b.info->start_line;
 	});
 
-	size_t primary_max = std::min<size_t>(8, max_items);
+	size_t primary_max = std::min<size_t>(10, max_items);
 	size_t take_count = std::min(primary_max, scored.size());
-	res.selected_symbols.reserve(take_count + 4);
+	res.selected_symbols.reserve(take_count + 10);
 
 	for (size_t i = 0; i < take_count; ++i) {
 		res.selected_symbols.push_back(*scored[i].info);
@@ -856,13 +856,13 @@ codemap_selection_result select_prioritized_codemap_symbols(
 		return a.start_line < b.start_line;
 	});
 
-	// Append up to 4 cross-file outgoing dependency call symbols under Option D
+	// Append up to 10 cross-file outgoing dependency call symbols under Option D
 	size_t cross_file_count = 0;
 	std::unordered_set<std::string> added_cross_file_keys;
 	std::string norm_safe_path = normalize_display_path(safe_path, &ctx);
 
 	for (const auto &call : direct_outgoing_calls) {
-		if (cross_file_count >= 4)
+		if (cross_file_count >= 10)
 			break;
 
 		if (!call.target_file.empty() && call.target_start_line > 0 && is_project_file(call.target_file, &ctx)) {
