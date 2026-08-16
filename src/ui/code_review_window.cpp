@@ -79,6 +79,8 @@ void code_review_window::draw_content(bool /*cursor_only*/) const
 		listbox_->draw(listbox_->x(), listbox_->y());
 	}
 
+	attron(COLOR_PAIR(get_background_color_pair()));
+
 	// Draw vertical separator
 	int sep_x = start_x + left_width;
 	for (int i = 0; i < content_height; ++i) {
