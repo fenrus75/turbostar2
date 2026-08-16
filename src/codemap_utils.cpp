@@ -362,12 +362,93 @@ struct outgoing_call_cache_entry {
 static std::mutex g_outgoing_calls_cache_mutex;
 static std::unordered_map<std::string, outgoing_call_cache_entry> g_outgoing_calls_cache;
 
+struct resolved_symbol_loc {
+	std::string file_path;
+	int start_line{0};
+	int end_line{0};
+	std::string kind_str{"Function"};
+};
+
+static resolved_symbol_loc resolve_cross_file_symbol(
+	const std::string &func_name,
+	const std::string &safe_path,
+	agentlib::tool_context *ctx)
+{
+	// 1. Try LSP workspace symbols lookup
+	auto ws_syms = project_manager::get_instance().lsp_query_workspace_symbols(func_name);
+	for (const auto &ws : ws_syms) {
+		if (ws.name == func_name || ws.name.ends_with("::" + func_name)) {
+			std::string target_path = ws.location.path;
+			if (target_path.starts_with("file://")) {
+				target_path = target_path.substr(7);
+			}
+			std::string resolved_path = target_path;
+			if (ctx && (target_path.ends_with(".h") || target_path.ends_with(".hpp"))) {
+				std::string impl = find_matching_impl_file(target_path, *ctx);
+				if (!impl.empty())
+					resolved_path = impl;
+			}
+			int s_line = ws.location.range.start_y + 1;
+			int e_line = std::max(s_line + 1, ws.location.range.end_y + 1);
+
+			if (resolved_path != target_path && ctx) {
+				auto impl_syms = get_document_codemap_symbols(resolved_path, *ctx, 1);
+				const auto *found = find_symbol_by_hint(impl_syms, func_name);
+				if (found) {
+					s_line = found->start_line;
+					e_line = found->end_line;
+				}
+			}
+			return {resolved_path, s_line, e_line, lsp_kind_to_string(ws.kind)};
+		}
+	}
+
+	// 2. Scan directory files for matching symbol definition
+	try {
+		std::filesystem::path dir = std::filesystem::path(safe_path).parent_path();
+		if (dir.empty()) dir = ".";
+		if (std::filesystem::exists(dir) && std::filesystem::is_directory(dir)) {
+			for (const auto &entry : std::filesystem::directory_iterator(dir)) {
+				if (!entry.is_regular_file()) continue;
+				std::string p_str = entry.path().string();
+				if (p_str == safe_path) continue;
+				std::string p_ext = entry.path().extension().string();
+				if (p_ext != ".cpp" && p_ext != ".c" && p_ext != ".h" && p_ext != ".hpp" && p_ext != ".cc") continue;
+
+				std::vector<codemap_symbol_info> doc_syms;
+				if (ctx) doc_syms = get_document_codemap_symbols(p_str, *ctx, 1);
+				else doc_syms = get_document_codemap_symbols(p_str, 1);
+
+				const auto *found = find_symbol_by_hint(doc_syms, func_name);
+				if (found) {
+					std::string resolved_path = p_str;
+					if (ctx && (p_ext == ".h" || p_ext == ".hpp")) {
+						std::string impl = find_matching_impl_file(p_str, *ctx);
+						if (!impl.empty()) {
+							resolved_path = impl;
+							auto impl_syms = get_document_codemap_symbols(resolved_path, *ctx, 1);
+							const auto *found_impl = find_symbol_by_hint(impl_syms, func_name);
+							if (found_impl) {
+								return {resolved_path, found_impl->start_line, found_impl->end_line, found_impl->kind_str};
+							}
+						}
+					}
+					return {resolved_path, found->start_line, found->end_line, found->kind_str};
+				}
+			}
+		}
+	} catch (...) {}
+
+	return {"", 0, 0, "Function"};
+}
+
 static void extract_regex_outgoing_calls(
 	const std::string &safe_path,
 	int start_line,
 	int end_line,
 	const std::vector<codemap_symbol_info> &all_symbols,
-	std::vector<outgoing_call_reference> &out)
+	std::vector<outgoing_call_reference> &out,
+	agentlib::tool_context *ctx = nullptr)
 {
 	std::ifstream file(safe_path);
 	if (!file.is_open())
@@ -429,10 +510,11 @@ static void extract_regex_outgoing_calls(
 				ref.target_end_line = it->second->end_line;
 				ref.target_kind = it->second->kind_str;
 			} else {
-				ref.target_file = "";
-				ref.target_start_line = 0;
-				ref.target_end_line = 0;
-				ref.target_kind = "Function";
+				auto resolved = resolve_cross_file_symbol(func_name, safe_path, ctx);
+				ref.target_file = resolved.file_path;
+				ref.target_start_line = resolved.start_line;
+				ref.target_end_line = resolved.end_line;
+				ref.target_kind = resolved.kind_str;
 			}
 
 			out.push_back(ref);
@@ -533,7 +615,7 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
 			all_calls.push_back(ref);
 		}
 	} else {
-		extract_regex_outgoing_calls(safe_path, start_line, end_line, doc_symbols, all_calls);
+		extract_regex_outgoing_calls(safe_path, start_line, end_line, doc_symbols, all_calls, ctx);
 	}
 
 	if (!ec) {

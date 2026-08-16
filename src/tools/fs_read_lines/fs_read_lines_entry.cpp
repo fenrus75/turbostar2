@@ -12,6 +12,7 @@
 #include "mime.h"
 #include "fs_read_lines.h"
 #include "codemap_utils.h"
+#include "event_logger.h"
 
 #include "agentlib/document_provider.h"
 #include "agentlib/interactions/action.h"
@@ -340,6 +341,14 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 			if (!symbols.empty()) {
 				auto selection = select_prioritized_codemap_symbols(symbols, start, adjusted_end, args_.safe_path, ctx, /*max_items=*/10);
 				if (!selection.selected_symbols.empty()) {
+					event_logger::get_instance().log(
+						std::format("fs_read_lines: path='{}', range={}-{}, codemap generated {} symbols across sections",
+							args_.safe_path, start, adjusted_end, selection.selected_symbols.size()));
+					for (const auto &sym : selection.selected_symbols) {
+						event_logger::get_instance().log(
+							std::format("  codemap_symbol: name='{}', file='{}', lines={}-{}",
+								sym.name, sym.source_file.empty() ? args_.safe_path : sym.source_file, sym.start_line, sym.end_line));
+					}
 					ss << "\n" << format_codemap_table(args_.requested_path, selection.selected_symbols, /*rich_format=*/false, /*total_file_lines=*/0, selection.total_symbols, selection.omitted_count, &ctx);
 				}
 			}
