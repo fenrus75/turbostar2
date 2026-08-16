@@ -6,6 +6,15 @@
 
 namespace tools {
 
+static int status_rank(const std::string &status)
+{
+	if (status == "DEL" || status == "UNM" || status == "UNT")
+		return 3;
+	if (status == "MOD" || status == "SKIP")
+		return 2;
+	return 1;
+}
+
 git_list_files_tool::git_list_files_tool(git_list_files_args args)
     : llm_tool_action("Listing tracked git files"), args_(std::move(args))
 {
@@ -73,7 +82,7 @@ std::string git_list_files_tool::execute(agentlib::tool_context &ctx)
 		if (file_status_map.find(file_path) == file_status_map.end()) {
 			file_order.push_back(file_path);
 			file_status_map[file_path] = status_code;
-		} else if (!status_code.empty()) {
+		} else if (status_rank(status_code) > status_rank(file_status_map[file_path])) {
 			file_status_map[file_path] = status_code;
 		}
 	}

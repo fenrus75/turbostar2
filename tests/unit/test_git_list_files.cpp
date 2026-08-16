@@ -66,6 +66,15 @@ int main()
 		assert(result.find("`file2.cpp` | MOD |") != std::string::npos);
 	}
 
+	// 4. Deleted file status test
+	{
+		std::filesystem::remove(repo.get_path() + "/file1.txt");
+
+		std::string result = registry.execute_tool("git_list_files", "{}", ctx);
+		std::cout << "Del Result:\n" << result << std::endl;
+		assert(result.find("`file1.txt` | DEL |") != std::string::npos);
+	}
+
 	std::cout << "git_list_files tests passed successfully.\n";
 	return 0;
 }
