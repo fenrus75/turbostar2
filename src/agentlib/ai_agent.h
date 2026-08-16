@@ -184,10 +184,10 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	}
 
 	void save_conversation(const std::string &untrusted_filepath) const;
-	void page_out_context(size_t start_index, size_t end_index, std::string_view title, std::string_view summary,
+	void page_out_context(size_t start_index, size_t end_index, std::string_view untrusted_title, std::string_view untrusted_summary,
 			      const std::vector<std::string> &tags);
-	void page_out_prior_context(std::string_view target_episode_id, bool include_all_prior, std::string_view title,
-				    std::string_view summary, const std::vector<std::string> &tags);
+	void page_out_prior_context(std::string_view target_episode_id, bool include_all_prior, std::string_view untrusted_title,
+				    std::string_view untrusted_summary, const std::vector<std::string> &tags);
 	void snapshot_episode(std::string_view untrusted_title, std::string_view untrusted_summary, const std::vector<std::string> &tags);
 	void update_episode_hint(const std::string &episode_id, const std::string &untrusted_hint);
 	bool page_in_context(const std::string &episode_id, int compression_level = 1);

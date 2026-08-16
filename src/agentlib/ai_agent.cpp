@@ -666,12 +666,12 @@ void ai_agent::clear_conversation()
 
 
 
-void ai_agent::add_active_skill(const std::string &skill_name)
+void ai_agent::add_active_skill(const std::string &untrusted_skill_name)
 {
 	std::lock_guard<std::mutex> lock(state_mutex_);
 	// Check if it already exists to avoid duplicates
-	if (std::find(active_skills_.begin(), active_skills_.end(), skill_name) == active_skills_.end()) {
-		active_skills_.push_back(skill_name);
+	if (std::find(active_skills_.begin(), active_skills_.end(), untrusted_skill_name) == active_skills_.end()) {
+		active_skills_.push_back(untrusted_skill_name);
 		if (global_queue_) {
 			editor_event tool_ev;
 			tool_ev.type = event_type::agent_tool_update;
@@ -681,10 +681,10 @@ void ai_agent::add_active_skill(const std::string &skill_name)
 	}
 }
 
-bool ai_agent::activate_skill(const std::string &skill_name)
+bool ai_agent::activate_skill(const std::string &untrusted_skill_name)
 {
-	add_active_skill(skill_name);
-	std::string content = skill_manager::get_instance().format_skill_content(skill_name);
+	add_active_skill(untrusted_skill_name);
+	std::string content = skill_manager::get_instance().format_skill_content(untrusted_skill_name);
 	if (content.rfind("Error:", 0) == 0) {
 		return false;
 	}
@@ -925,12 +925,12 @@ std::map<std::string, int> ai_agent::get_stats() const
 	return out;
 }
 
-std::shared_ptr<ai_agent> ai_agent::spawn_subagent(const std::string &name)
+std::shared_ptr<ai_agent> ai_agent::spawn_subagent(const std::string &untrusted_name)
 {
 	std::lock_guard<std::mutex> lock(state_mutex_);
 	uint64_t seq = ++subagent_sequence_counter_;
 	int new_id = static_cast<int>(id_ * 100 + seq);
-	auto subagent = ai_agent::create(new_id, name, model_, global_queue_, doc_provider_);
+	auto subagent = ai_agent::create(new_id, untrusted_name, model_, global_queue_, doc_provider_);
 	subagent->set_parent(shared_from_this());
 	subagents_.push_back(subagent);
 
@@ -1872,13 +1872,13 @@ std::vector<message> ai_agent::get_conversation() const
 	return get_conversation_unlocked();
 }
 
-void ai_agent::set_conversation(std::span<const message> c)
+void ai_agent::set_conversation(std::span<const message> untrusted_c)
 {
 	std::lock_guard<std::mutex> lock(conversation_mutex_);
-	set_conversation_unlocked(c);
+	set_conversation_unlocked(untrusted_c);
 }
 
-void ai_agent::set_conversation_unlocked(std::span<const message> c)
+void ai_agent::set_conversation_unlocked(std::span<const message> untrusted_c)
 {
 	long long next_seq = 1;
 	if (conversation_) {
@@ -1895,7 +1895,7 @@ void ai_agent::set_conversation_unlocked(std::span<const message> c)
 	std::shared_ptr<Transaction> current_tx = nullptr;
 	
 	std::shared_ptr<Episode> last_ep = nullptr;
-	for (const auto &msg : c) {
+	for (const auto &msg : untrusted_c) {
 		std::shared_ptr<Episode> ep = nullptr;
 		if (!msg.episode_id.empty()) {
 			auto it = ep_map.find(msg.episode_id);
@@ -1991,7 +1991,7 @@ void ai_agent::set_conversation_unlocked(std::span<const message> c)
 		}
 	}
 
-	for (const auto &msg : c) {
+	for (const auto &msg : untrusted_c) {
 		if (msg.role == "system") {
 			original_system_prompt_ = msg.content;
 			break;
@@ -2005,7 +2005,7 @@ std::shared_ptr<Conversation> ai_agent::get_conversation_data() const
 	return conversation_;
 }
 
-void ai_agent::save_conversation(const std::string &filepath) const
+void ai_agent::save_conversation(const std::string &untrusted_filepath) const
 {
 	std::lock_guard<std::mutex> lock(conversation_mutex_);
 	nlohmann::json root;
@@ -2026,13 +2026,13 @@ void ai_agent::save_conversation(const std::string &filepath) const
 		root["conversation"] = nlohmann::json::object();
 	}
 
-	std::ofstream file(filepath);
+	std::ofstream file(untrusted_filepath);
 	if (file.is_open()) {
 		file << root.dump(4);
 	}
 }
 
-void ai_agent::snapshot_episode(std::string_view title, std::string_view summary, const std::vector<std::string> &tags)
+void ai_agent::snapshot_episode(std::string_view untrusted_title, std::string_view untrusted_summary, const std::vector<std::string> &tags)
 {
 	std::lock_guard<std::mutex> lock(conversation_mutex_);
 	if (!conversation_ || !conversation_->get_current_episode())
@@ -2056,11 +2056,11 @@ void ai_agent::snapshot_episode(std::string_view title, std::string_view summary
 	std::string filepath = history_dir + "/" + episode_id + ".json";
 	std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
 
-	std::string title_str(title);
-	std::string summary_str(summary);
+	std::string untrusted_title_str(untrusted_title);
+	std::string untrusted_summary_str(untrusted_summary);
 
-	curr_ep->set_title(title_str);
-	curr_ep->set_summary(summary_str);
+	curr_ep->set_title(untrusted_title_str);
+	curr_ep->set_summary(untrusted_summary_str);
 	curr_ep->set_finalized(true);
 
 	nlohmann::json root = curr_ep->serialize();
@@ -2074,8 +2074,8 @@ void ai_agent::snapshot_episode(std::string_view title, std::string_view summary
 
 	nlohmann::json meta;
 	meta["episode_id"] = episode_id;
-	meta["title"] = title_str;
-	meta["summary"] = summary_str;
+	meta["title"] = untrusted_title_str;
+	meta["summary"] = untrusted_summary_str;
 	meta["reactivation_hint"] = curr_ep->get_reactivation_hint();
 	meta["tags"] = tags;
 	meta["episode_seq"] = seq;
@@ -2092,8 +2092,8 @@ void ai_agent::snapshot_episode(std::string_view title, std::string_view summary
 
 	episode_index_entry mi;
 	mi.id = episode_id;
-	mi.title = title_str;
-	mi.summary = summary_str;
+	mi.title = untrusted_title_str;
+	mi.summary = untrusted_summary_str;
 	mi.tags = tags;
 	mi.episode_seq = seq;
 	mi.lru_seq = l_seq;
@@ -2104,7 +2104,7 @@ void ai_agent::snapshot_episode(std::string_view title, std::string_view summary
 	episode_index_[episode_id] = mi;
 }
 
-void ai_agent::page_out_context(size_t start_index, size_t end_index, std::string_view title, std::string_view summary,
+void ai_agent::page_out_context(size_t start_index, size_t end_index, std::string_view untrusted_title, std::string_view untrusted_summary,
 				const std::vector<std::string> &tags)
 {
 	std::lock_guard<std::mutex> lock(conversation_mutex_);
@@ -2192,7 +2192,7 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, std::strin
 	std::string episode_id = "episode_" + std::to_string(seq);
 
 	// Construct temp episode to serialize it
-	auto temp_ep = std::make_shared<Episode>(episode_id, std::string(title), std::string(summary));
+	auto temp_ep = std::make_shared<Episode>(episode_id, std::string(untrusted_title), std::string(untrusted_summary));
 	temp_ep->set_finalized(true);
 	temp_ep->set_sequence_number(seq);
 	std::shared_ptr<Transaction> current_tx = nullptr;
@@ -2282,8 +2282,8 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, std::strin
 
 	nlohmann::json meta;
 	meta["episode_id"] = episode_id;
-	meta["title"] = title;
-	meta["summary"] = summary;
+	meta["title"] = untrusted_title;
+	meta["summary"] = untrusted_summary;
 	meta["reactivation_hint"] = "";
 	meta["tags"] = tags;
 	meta["episode_seq"] = seq;
@@ -2300,8 +2300,8 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, std::strin
 
 	episode_index_entry mi;
 	mi.id = episode_id;
-	mi.title = title;
-	mi.summary = summary;
+	mi.title = untrusted_title;
+	mi.summary = untrusted_summary;
 	mi.tags = tags;
 	mi.episode_seq = seq;
 	mi.lru_seq = l_seq;
@@ -2313,8 +2313,8 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, std::strin
 	// Replace the block with the summary pointer
 	std::stringstream pointer_msg;
 	pointer_msg << "[SYSTEM MEMORY: Episode Archived]\n";
-	pointer_msg << "Title: " << title << "\n";
-	pointer_msg << "Summary: " << summary << "\n";
+	pointer_msg << "Title: " << untrusted_title << "\n";
+	pointer_msg << "Summary: " << untrusted_summary << "\n";
 	if (!tags.empty()) {
 		pointer_msg << "Tags: [";
 		for (size_t i = 0; i < tags.size(); ++i) {
@@ -2451,8 +2451,8 @@ static bool is_episode_boundary_message(const message &msg)
 	return false;
 }
 
-void ai_agent::page_out_prior_context(std::string_view target_episode_id, bool include_all_prior, std::string_view title,
-				    std::string_view summary, const std::vector<std::string> &tags)
+void ai_agent::page_out_prior_context(std::string_view target_episode_id, bool include_all_prior, std::string_view untrusted_title,
+				    std::string_view untrusted_summary, const std::vector<std::string> &tags)
 {
 	std::unique_lock<std::mutex> lock(conversation_mutex_);
 
@@ -2518,7 +2518,7 @@ void ai_agent::page_out_prior_context(std::string_view target_episode_id, bool i
 	// Unlock and delegate to the core paging function
 	lock.unlock();
 	event_logger::get_instance().log("[page_out_prior_context] Delegating to page_out_context...");
-	page_out_context(start_index, end_index, title, summary, tags);
+	page_out_context(start_index, end_index, untrusted_title, untrusted_summary, tags);
 }
 
 void ai_agent::compact_ephemeral_errors(std::vector<message> &convo)
@@ -3254,10 +3254,10 @@ void ai_agent::inject_archived_episodes_summary()
 	}
 }
 
-void ai_agent::set_final_result(const std::string &result)
+void ai_agent::set_final_result(const std::string &untrusted_result)
 {
 	std::lock_guard<std::mutex> lock(state_mutex_);
-	final_result_ = result;
+	final_result_ = untrusted_result;
 }
 
 std::string ai_agent::get_final_result() const
@@ -3278,10 +3278,10 @@ std::string ai_agent::get_task_description() const
 	return task_description_;
 }
 
-void ai_agent::set_task_description(const std::string &desc)
+void ai_agent::set_task_description(const std::string &untrusted_desc)
 {
 	std::lock_guard<std::mutex> lock(state_mutex_);
-	task_description_ = desc;
+	task_description_ = untrusted_desc;
 }
 
 void ai_agent::set_exit_implicitly_on_idle(bool val)
@@ -3339,10 +3339,10 @@ std::string ai_agent::get_allowed_write_file() const
 	return allowed_write_file_;
 }
 
-void ai_agent::set_allowed_write_file(const std::string &path)
+void ai_agent::set_allowed_write_file(const std::string &untrusted_path)
 {
 	std::lock_guard<std::mutex> lock(state_mutex_);
-	allowed_write_file_ = path;
+	allowed_write_file_ = untrusted_path;
 }
 
 bool ai_agent::is_read_only() const
