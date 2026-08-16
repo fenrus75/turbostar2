@@ -558,7 +558,7 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
 
 	event_logger::get_instance().log(
 		std::format("get_outgoing_calls_in_range: path='{}', range={}-{} using {} (found {} calls)",
-			safe_path, start_line, end_line, lsp_items.empty() ? "REGEX_FALLBACK" : "LSP_BATCH", range_result.size()));
+			safe_path, start_line, end_line, lsp_items.empty() ? "NO_CALLS" : "LSP_BATCH", range_result.size()));
 
 	return range_result;
 }
