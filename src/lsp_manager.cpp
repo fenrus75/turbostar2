@@ -1050,7 +1050,7 @@ std::vector<lsp_manager::symbol_node> lsp_manager::query_document_symbols(const 
 
 		server->message_handler->sendRequest<lsp::requests::TextDocument_DocumentSymbol>(
 		    std::move(params),
-		    [promise](const lsp::requests::TextDocument_DocumentSymbol::Result &res) {
+		    [promise, abs_path, current_mtime, this](const lsp::requests::TextDocument_DocumentSymbol::Result &res) {
 			    std::vector<symbol_node> out;
 			    try {
 				    if (!res.isNull()) {
@@ -1101,6 +1101,10 @@ std::vector<lsp_manager::symbol_node> lsp_manager::query_document_symbols(const 
 						    }
 					    }
 				    }
+				    if (!out.empty()) {
+					    std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+					    symbol_cache_[abs_path] = {current_mtime, out};
+				    }
 				    promise->set_value(out);
 			    } catch (...) {
 				    event_logger::get_instance().log("LSP: Caught unknown exception in query_document_symbols lambda");
@@ -1125,10 +1129,6 @@ std::vector<lsp_manager::symbol_node> lsp_manager::query_document_symbols(const 
 		auto result = future.get();
 		auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time).count();
 		event_logger::get_instance().log(std::format("LSP: query_document_symbols path='{}' finished in {}ms (found {} symbols)", filepath, dur_ms, result.size()));
-		if (!result.empty()) {
-			std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
-			symbol_cache_[abs_path] = {current_mtime, result};
-		}
 		return result;
 	}
 
