@@ -51,7 +51,6 @@ class project_manager
 		is_exiting_ = exiting;
 		if (exiting) {
 			inventory_thread_.request_stop();
-			software_map_thread_.request_stop();
 		}
 	}
 
@@ -153,28 +152,7 @@ class project_manager
 	// Executable candidate scanning
 	std::vector<std::string> detect_executable_candidates();
 
-	// Software Map (Background LSP)
-	std::string get_software_map_markdown() const;
-	void save_software_map();
-	void load_software_map();
 
-	struct software_map_symbol {
-		std::string name;
-		int kind; // LSP SymbolKind (5=Class, 12=Function, etc)
-		lsp_manager::location_info location;
-		int looked_up_count{0};
-		int accumulated_count{0};
-		bool is_seed{true};	// True if found via initial workspace/symbol scan
-		bool is_sampled{false}; // True if exact references and outgoing calls have been verified
-		std::string base_classes;
-	};
-
-	struct software_map_data {
-		std::string git_head_hash;
-		std::vector<software_map_symbol> symbols;
-		std::unordered_map<std::string, std::vector<size_t>> name_to_indices;
-		bool ready{false};
-	};
 
       private:
 	project_manager();
@@ -183,8 +161,6 @@ class project_manager
 	void load_instructions();
 	void scan_dependencies();
 	void inventory_project(std::stop_token stop);
-	void software_map_loop(std::stop_token stop);
-	void update_software_map_markdown();
 	// Returns true if the meson.build used to populate the available-test list
 	// has a different mtime than when the list was last refreshed. Used by
 	// get_available_tests() to invalidate the cached list when build definitions
@@ -243,24 +219,7 @@ class project_manager
 	project_layout layout_;
 	std::jthread inventory_thread_;
 
-	/*
-	 * software_map_mutex_ is a shared reader-writer mutex protecting the software_map_ data.
-	 * Locking Rules:
-	 * - Shared locks (readers) are used when querying symbol details from the software map.
-	 * - Exclusive locks (writers) are used when loading, saving, or performing background LSP scans.
-	 */
-	mutable std::shared_mutex software_map_mutex_;
-	software_map_data software_map_;
-	std::jthread software_map_thread_;
 
-	/*
-	 * software_map_markdown_mutex_ is a shared reader-writer mutex protecting the cached markdown string of the software map.
-	 * Locking Rules:
-	 * - Shared locks (readers) are used when retrieving the markdown representation.
-	 * - Exclusive locks (writers) are used when generating/updating the markdown string.
-	 */
-	mutable std::shared_mutex software_map_markdown_mutex_;
-	std::string software_map_markdown_cache_;
 
 	/*
 	 * dependencies_mutex_ protects detected_dependencies_, github_vfs_urls_, and mapped_dependencies_.

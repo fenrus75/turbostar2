@@ -229,8 +229,6 @@ void config_manager::load_from_file(const std::string &path)
 			auto_open_error_files_ = (value == "true" || value == "1");
 		} else if (key == "compile_on_save") {
 			compile_on_save_ = (value == "true" || value == "1");
-		} else if (key == "software_map_enabled") {
-			software_map_enabled_ = (value == "true" || value == "1");
 		} else if (key == "default_model_id" || key == "llm_url") {
 			default_model_id_ = value;
 		} else if (key == "paranoid_mode") {
@@ -362,7 +360,6 @@ void config_manager::save_project(const std::string &target_path)
 	file << "lsp_enabled=" << (lsp_enabled_ ? "true" : "false") << "\n";
 	file << "auto_open_error_files=" << (auto_open_error_files_ ? "true" : "false") << "\n";
 	file << "compile_on_save=" << (compile_on_save_ ? "true" : "false") << "\n";
-	file << "software_map_enabled=" << (software_map_enabled_ ? "true" : "false") << "\n";
 	file << "paranoid_mode=" << (paranoid_mode_ ? "true" : "false") << "\n";
 	file << "run_outside_sandbox=" << (run_outside_sandbox_ ? "true" : "false") << "\n";
 	file << "log_all_tool_calls=" << (log_all_tool_calls_ ? "true" : "false") << "\n";

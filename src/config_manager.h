@@ -67,15 +67,6 @@ class config_manager
 		compile_on_save_ = compile;
 	}
 
-	bool is_software_map_enabled() const
-	{
-		return software_map_enabled_;
-	}
-	void set_software_map_enabled(bool enabled)
-	{
-		software_map_enabled_ = enabled;
-	}
-
 	std::string get_default_model_id() const
 	{
 		return default_model_id_;
@@ -265,7 +256,6 @@ class config_manager
 	bool lsp_enabled_{true};
 	bool auto_open_error_files_{true};
 	bool compile_on_save_{false};
-	bool software_map_enabled_{false};
 	bool paranoid_mode_{false};
 	bool run_outside_sandbox_{false};
 	bool log_all_tool_calls_{false};

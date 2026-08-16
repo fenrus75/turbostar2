@@ -53,7 +53,6 @@ std::unique_ptr<dialog> create_ai_settings_dialog()
 
 	auto ai_grp = std::make_unique<ui_checkbox_group>("ai_grp");
 	ai_grp->add_child(std::make_unique<ui_checkbox>("log_all_tools", "Log agent tool calls", 'g', config_manager::get_instance().is_log_all_tool_calls()));
-	ai_grp->add_child(std::make_unique<ui_checkbox>("software_map", "Auto Software Map", 'M', config_manager::get_instance().is_software_map_enabled()));
 	tab1_flow->add_child(std::move(ai_grp));
 	tabbed->add_tab_page("general_ai", "General AI", std::move(tab1_flow));
 

@@ -111,8 +111,6 @@ std::unique_ptr<dialog> create_settings_dialog()
 	auto col2 = std::make_unique<ui_checkbox_group>("col2");
 	col2->add_child(std::make_unique<ui_checkbox>("log_all_tools", "Log agent tool calls", 'g',
 						      config_manager::get_instance().is_log_all_tool_calls()));
-	col2->add_child(std::make_unique<ui_checkbox>("software_map", "Auto Software Map", 'M',
-						      config_manager::get_instance().is_software_map_enabled()));
 	col2->add_child(std::make_unique<ui_checkbox>("shell_display_access", "Shell display access", 'd',
 						      config_manager::get_instance().is_shell_display_access()));
 
@@ -224,10 +222,6 @@ void apply_settings_from_dialog(const dialog &dlg)
 	auto log_shell = dlg.get_value("log_shell_commands");
 	if (log_shell)
 		cfg.set_log_shell_commands(*log_shell == "true");
-
-	auto sw_map = dlg.get_value("software_map");
-	if (sw_map)
-		cfg.set_software_map_enabled(*sw_map == "true");
 
 	auto shell_display = dlg.get_value("shell_display_access");
 	if (shell_display)
