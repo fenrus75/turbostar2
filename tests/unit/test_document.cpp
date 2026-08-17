@@ -621,6 +621,32 @@ int main()
 			writer.join();
 		}
 
+		// Test 17: format_paragraph for comment blocks and non-C/C++ paragraphs
+		{
+			document doc(queue, "notes.txt");
+			doc.append_line("# This is a long header comment");
+			doc.append_line("# that spans across multiple lines");
+			doc.append_line("# in a text document.");
+
+			doc.move_cursor(0, 0); // Position at line 0
+			config_manager::get_instance().set_max_line_width(40);
+			doc.format_paragraph();
+
+			assert(doc.get_line_count() >= 1);
+			assert(doc.get_line(0)->get_text().starts_with("# "));
+		}
+
+		// Test 18: format_paragraph for C++ code block (calls format_range)
+		{
+			document doc(queue, "sample.cpp");
+			doc.append_line("int main(){int x=1;return x;}");
+
+			doc.move_cursor(0, 0);
+			doc.format_paragraph(); // Should trigger C++ formatting branch
+		}
+
+
 	std::cout << "document unit test passed!\n";
 	return 0;
 }
+
