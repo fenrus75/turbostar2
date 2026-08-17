@@ -151,9 +151,9 @@ int main()
 
 	// Unit test tools::find_symbol_by_hint
 	std::vector<tools::codemap_symbol_info> test_syms = {
-		{"main", "main", "Function", 10, 50, 41, 0},
-		{"editor::dispatch", "  ::dispatch", "Method", 100, 200, 101, 1},
-		{"tools::fs_replace_content_tool", "fs_replace_content_tool", "Class", 300, 400, 101, 0}
+		{"main", "main", "Function", 10, 50, 41, 0, ""},
+		{"editor::dispatch", "  ::dispatch", "Method", 100, 200, 101, 1, ""},
+		{"tools::fs_replace_content_tool", "fs_replace_content_tool", "Class", 300, 400, 101, 0, ""}
 	};
 	assert(tools::find_symbol_by_hint(test_syms, "main") != nullptr);
 	assert(tools::find_symbol_by_hint(test_syms, "dispatch") != nullptr);
