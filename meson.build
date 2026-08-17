@@ -1404,6 +1404,13 @@ test_document_reload = executable('test_document_reload',
   include_directories: inc)
 test('unit_document_reload', test_document_reload, suite: 'editor')
 
+test_process_runner = executable('test_process_runner',
+  'tests/unit/test_process_runner.cpp',
+  dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],
+  include_directories: inc)
+test('unit_process_runner', test_process_runner, suite: 'editor')
+
+
 test_crash_handler_race = executable('test_crash_handler_race',
   ['tests/unit/test_crash_handler_race.cpp', 'src/crash_handler.cpp', git_version_h],
   dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep, libunwind_dep],
