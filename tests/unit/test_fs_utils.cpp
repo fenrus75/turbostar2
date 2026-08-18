@@ -160,9 +160,26 @@ int main()
 	assert(tools::find_symbol_by_hint(test_syms, "fs_replace_content") != nullptr);
 	assert(tools::find_symbol_by_hint(test_syms, "nonexistent_func") == nullptr);
 
+	// Unit test shell escaping & security functions
+	std::string untrusted_arg = "foo'bar; rm -rf / $HOME `id`";
+	std::string escaped = fs_utils::escape_shell_arg(untrusted_arg);
+	assert(!escaped.empty());
+	assert(escaped.front() == '\'');
+	assert(escaped.back() == '\'');
+
+	assert(fs_utils::is_shell_safe("simple_arg_123.cpp"));
+	assert(!fs_utils::is_shell_safe("arg; malicious"));
+
+	assert(fs_utils::is_valid_db_name("my_database_1"));
+	assert(!fs_utils::is_valid_db_name("db; DROP TABLE users;"));
+
+	assert(fs_utils::is_safe_for_ui("Normal Text 123"));
+	assert(!fs_utils::is_safe_for_ui("\x1b[31mANSI Code"));
+
 	// Cleanup
 	fs::remove_all(temp_dir);
 
 	std::cout << "All fs_utils unit tests passed!" << std::endl;
 	return 0;
 }
+

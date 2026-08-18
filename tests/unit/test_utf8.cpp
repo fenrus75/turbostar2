@@ -111,6 +111,44 @@ void test_utf8_ascii_fastpath()
 	assert(utf8::length(mixed_str) == 14); // 6 ASCII + 1 crab emoji + 7 ASCII
 }
 
+void test_utf8_sanitize_and_validation()
+{
+	// Valid UTF-8
+	std::string valid = "Hello 🦀 World";
+	assert(utf8::is_valid_utf8(valid));
+	assert(utf8::sanitize(valid) == valid);
+
+	// Invalid UTF-8 bytes
+	std::string invalid = "Hello \xFF\xFE World";
+	assert(!utf8::is_valid_utf8(invalid));
+	std::string sanitized = utf8::sanitize(invalid);
+	assert(sanitized.find("?") != std::string::npos);
+
+	// Embedded NUL byte
+	std::string nul_str = std::string("Hello\0World", 11);
+	assert(!utf8::is_valid_utf8(nul_str));
+}
+
+void test_utf8_trim_and_terminal_sanitize()
+{
+	// trim
+	std::string s = "   hello world   \n\t";
+	assert(utf8::trim(s) == "hello world");
+
+	std::string s_trailing = "hello world  \n";
+	utf8::trim_trailing_whitespace(s_trailing);
+	assert(s_trailing == "hello world");
+
+	// sanitize_terminal_output (ANSI codes removal)
+	std::string ansi_colored = "\x1b[31mRed Error\x1b[0m Normal Text";
+	assert(utf8::sanitize_terminal_output(ansi_colored) == "Red Error Normal Text");
+
+	// detect_mime
+	std::string plain_text = "Plain text buffer content\n";
+	std::string detected = utf8::detect_mime(plain_text);
+	assert(!detected.empty());
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -122,7 +160,10 @@ int main()
 	test_utf8_next_character();
 	test_utf8_wrap_string();
 	test_utf8_ascii_fastpath();
+	test_utf8_sanitize_and_validation();
+	test_utf8_trim_and_terminal_sanitize();
 
 	std::cout << "All UTF-8 unit tests passed!" << std::endl;
 	return 0;
 }
+
