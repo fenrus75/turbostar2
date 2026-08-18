@@ -153,6 +153,39 @@ int main()
 		fs::current_path(orig_cwd);
 	}
 
+	// Test extra RW/RO paths, PTY mode, project hash, and perf dir
+	{
+		test_command_runner runner;
+		runner.apply_default_profile();
+		runner.set_project_dir("/tmp/test_proj");
+		runner.set_project_hash("hash12345");
+		runner.set_use_pty(true);
+		runner.add_extra_rw_path("/tmp/extra_rw");
+		runner.add_extra_ro_path("/tmp/extra_ro");
+		runner.set_crash_cookie("cookie_abc");
+		runner.set_perf_dir("/tmp/perf_dir");
+		runner.set_enable_crash_catcher(true);
+
+		std::string cmd = runner.test_build_command("ls");
+		assert_contains(cmd, "--pty");
+		assert_contains(cmd, "turbostar-project-hash12345");
+		assert_contains(cmd, "extra_rw");
+		assert_contains(cmd, "extra_ro");
+		assert_contains(cmd, "cookie_abc");
+		assert_contains(cmd, "perf_dir");
+	}
+
+	// Test sync_command_runner execution with CRLF output and crashdumps getter
+	{
+		sync_command_runner runner;
+		runner.apply_internal_profile();
+		std::string output = runner.execute_and_get_output("printf 'line1\\r\\nline2\\r\\n'");
+		assert_contains(output, "line1");
+		assert_contains(output, "line2");
+
+		assert(runner.get_new_crashdumps().empty());
+	}
+
 	// Test timeout functionality
 	{
 		sync_command_runner runner;
@@ -170,3 +203,4 @@ int main()
 	std::cout << "test_command_runner passed!\n";
 	return 0;
 }
+
