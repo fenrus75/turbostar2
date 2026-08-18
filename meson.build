@@ -1410,6 +1410,13 @@ test_process_runner = executable('test_process_runner',
   include_directories: inc)
 test('unit_process_runner', test_process_runner, suite: 'editor')
 
+test_troff2md = executable('test_troff2md',
+  'tests/unit/test_troff2md.cpp',
+  dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],
+  include_directories: inc)
+test('unit_troff2md', test_troff2md, suite: 'editor')
+
+
 
 test_crash_handler_race = executable('test_crash_handler_race',
   ['tests/unit/test_crash_handler_race.cpp', 'src/crash_handler.cpp', git_version_h],
