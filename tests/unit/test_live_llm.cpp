@@ -95,11 +95,13 @@ int main(int argc, char **argv)
 	std::cout << "Live LLM completion test passed successfully!\n";
 
 	// Test 2: Live Tool Calling Loop
+	bool has_expect = app.get_option("--expect")->count() > 0;
 	std::string test_target_tool = tool_name.empty() ? "run_python" : tool_name;
 	std::string test_prompt = prompt_str.empty() ? "Please run the run_python tool to execute python code calculating 2468 * 1357." : prompt_str;
-	std::string test_expect = expect_str.empty() ? "3349076" : expect_str;
+	std::string test_expect = has_expect ? expect_str : (tool_name.empty() ? "3349076" : "");
 
 	std::cout << "\n--- Testing Live Tool Calling Loop (" << test_target_tool << ") ---\n";
+
 
 	auto &registry = agentlib::tool_registry::get_instance();
 	agentlib::tool_context ctx;
@@ -124,10 +126,24 @@ int main(int argc, char **argv)
 	if (tool_response.msg.tool_calls && !tool_response.msg.tool_calls->empty()) {
 		calls_to_exec = *tool_response.msg.tool_calls;
 	} else {
-		// Parse pseudo tool call block from content (either raw JSON or Markdown json block)
+		// Parse pseudo tool call block from content (either raw JSON, ```json, or ```tool_call block)
 		std::string json_str;
+		size_t tc_start = tool_response.msg.content.find("```tool_call");
 		size_t json_start = tool_response.msg.content.find("```json");
-		if (json_start != std::string::npos) {
+		if (tc_start != std::string::npos) {
+			size_t body_start = tc_start + 12;
+			size_t body_end = tool_response.msg.content.find("```", body_start);
+			if (body_end != std::string::npos) {
+				std::string name = tool_response.msg.content.substr(body_start, body_end - body_start);
+				name.erase(0, name.find_first_not_of(" \t\n\r"));
+				name.erase(name.find_last_not_of(" \t\n\r") + 1);
+				agentlib::tool_call tc;
+				tc.id = "call_pseudo_1";
+				tc.function.name = name;
+				tc.function.arguments = "{}";
+				calls_to_exec.push_back(tc);
+			}
+		} else if (json_start != std::string::npos) {
 			size_t body_start = tool_response.msg.content.find('{', json_start);
 			size_t body_end = tool_response.msg.content.find("```", body_start);
 			if (body_start != std::string::npos && body_end != std::string::npos) {
@@ -141,17 +157,42 @@ int main(int argc, char **argv)
 			}
 		}
 
+
 		if (!json_str.empty()) {
 			try {
 				nlohmann::json parsed = nlohmann::json::parse(json_str);
-				if (parsed.contains("name") && parsed.contains("arguments")) {
+				std::string tname;
+				if (parsed.contains("name") && parsed["name"].is_string()) {
+					tname = parsed["name"].get<std::string>();
+				} else if (parsed.contains("tool") && parsed["tool"].is_string()) {
+					tname = parsed["tool"].get<std::string>();
+				}
+
+				nlohmann::json args_json;
+				if (parsed.contains("arguments")) {
+					args_json = parsed["arguments"];
+				} else if (parsed.contains("params")) {
+					args_json = parsed["params"];
+				} else if (parsed.contains("parameters")) {
+					args_json = parsed["parameters"];
+				} else if (parsed.contains("args")) {
+					args_json = parsed["args"];
+				} else {
+					// Parameters are directly at top-level of JSON object
+					args_json = parsed;
+					args_json.erase("name");
+					args_json.erase("tool");
+				}
+
+
+				if (!tname.empty() && !args_json.is_null()) {
 					agentlib::tool_call tc;
 					tc.id = "call_pseudo_1";
-					tc.function.name = parsed["name"].get<std::string>();
-					if (parsed["arguments"].is_string()) {
-						tc.function.arguments = parsed["arguments"].get<std::string>();
+					tc.function.name = tname;
+					if (args_json.is_string()) {
+						tc.function.arguments = args_json.get<std::string>();
 					} else {
-						tc.function.arguments = parsed["arguments"].dump();
+						tc.function.arguments = args_json.dump();
 					}
 					calls_to_exec.push_back(tc);
 				}
@@ -159,6 +200,7 @@ int main(int argc, char **argv)
 			}
 		}
 	}
+
 
 	if (!calls_to_exec.empty()) {
 		std::cout << "Detected " << calls_to_exec.size() << " tool call(s) from model:\n";

@@ -255,9 +255,9 @@ inline void normalize_tool_call(tool_call &call)
 				}
 			}
 			args = new_args;
-		} else if (official_name == "fs_list_dir" || official_name == "fs_mkdir" || official_name == "git_diff_unstaged") {
+		} else if (official_name == "fs_list_dir" || official_name == "fs_mkdir" || official_name == "git_diff_unstaged" || official_name == "git_blame") {
 			std::string path_val;
-			for (const auto &key : {"path", "file", "file_path", "filepath", "dir", "directory", "dir_path"}) {
+			for (const auto &key : {"path", "file", "file_path", "filepath", "filename", "dir", "directory", "dir_path"}) {
 				if (args.contains(key) && args[key].is_string()) {
 					path_val = args[key].get<std::string>();
 					break;
@@ -271,6 +271,7 @@ inline void normalize_tool_call(tool_call &call)
 			}
 			args = new_args;
 		} else if (official_name == "fs_glob") {
+
 			std::string pattern_val;
 			for (const auto &key : {"pattern", "file_pattern", "query", "glob"}) {
 				if (args.contains(key) && args[key].is_string()) {
