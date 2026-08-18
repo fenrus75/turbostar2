@@ -1,4 +1,6 @@
+// Tested source file: src/tools/troff2md.cpp
 #include "test_watchdog.h"
+
 #include <cassert>
 #include <iostream>
 #include <string>

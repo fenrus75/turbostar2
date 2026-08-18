@@ -66,3 +66,11 @@ meson test -C build --suite editor
 meson test -C build --suite agent
 meson test -C build --suite plugins
 ```
+
+## 8. Unit Test File Headers
+
+Every unit test file (`tests/unit/test_*.cpp`) must include a comment on line 1 referencing the primary source file(s) under test:
+```cpp
+// Tested source file: src/fs_utils.cpp
+```
+This ensures discoverability when searching for which unit test covers a given source module.

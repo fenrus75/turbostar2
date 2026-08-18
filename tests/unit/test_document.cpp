@@ -1,4 +1,6 @@
+// Tested source file: src/document.cpp, src/document_format.cpp
 #include "test_watchdog.h"
+
 #include <cassert>
 #include <chrono>
 #include <filesystem>

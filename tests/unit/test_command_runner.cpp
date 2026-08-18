@@ -1,4 +1,6 @@
+// Tested source file: src/command_runner.cpp
 #include "test_watchdog.h"
+
 #include "git_manager.h"
 #include <cassert>
 #include <iostream>

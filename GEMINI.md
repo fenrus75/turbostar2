@@ -10,6 +10,8 @@ Top design documentation: `docs/design.md`
 - git commit after each logical change or item implemented. This is a standing rule.
 - **CRITICAL**: When adding a new `event_type` enum value (in `src/event_queue.h`), you **MUST** update the central routing switch statement in `editor::dispatch` inside `src/editor_events.cpp` to route the new event to its handler. Since `editor::dispatch` has a `default: break;` case, a missing mapping compiles with NO warnings but silently discards the event at runtime.
 - **CRITICAL**: Every unit test MUST isolate the `HOME` environment variable to a temporary directory to prevent race conditions during parallel test execution and avoid overwriting user configuration files in `~/.cache/turbostar/`. This is handled automatically when calling `test_watchdog::setup_watchdog()` at the start of `main()`. For custom isolated paths, use `test_watchdog::scoped_test_home guard("custom_prefix");` or `test_watchdog::isolate_home("custom_prefix");`.
+- **Unit Test File Headers**: Every unit test file (`tests/unit/test_*.cpp`) MUST include a comment on line 1 specifying the primary source file(s) under test (e.g. `// Tested source file: src/fs_utils.cpp`).
+
 - perform a code review before each commit to ensure no stray edits happened
 - when working on a crash report, use the process from `docs/turbostar-crash-analysis-protocol.md`
 - run the test suite before commit
