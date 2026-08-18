@@ -76,10 +76,21 @@ llm_chat_response llm_client::send_chat(std::span<const message> conversation, c
 			if (!chat_response.msg.tool_calls) {
 				chat_response.msg.tool_calls = std::vector<tool_call>();
 			}
-			for (const auto &tc : *delta.tool_calls) {
-				chat_response.msg.tool_calls->push_back(tc);
+			for (auto tc : *delta.tool_calls) {
+				if (tc.type.empty())
+					tc.type = "function";
+				if (tc.id.empty() && !chat_response.msg.tool_calls->empty()) {
+					auto &last = chat_response.msg.tool_calls->back();
+					if (!tc.function.name.empty())
+						last.function.name += tc.function.name;
+					if (!tc.function.arguments.empty())
+						last.function.arguments += tc.function.arguments;
+				} else {
+					chat_response.msg.tool_calls->push_back(tc);
+				}
 			}
 		}
+
 		if (delta.usage.total_tokens > 0) {
 			chat_response.usage = delta.usage;
 		}

@@ -24,7 +24,8 @@ struct tool_call {
 
 inline void to_json(nlohmann::json &j, const tool_call &p)
 {
-	j = nlohmann::json{{"id", p.id}, {"type", p.type}, {"function", p.function}};
+	std::string type_val = p.type.empty() ? "function" : p.type;
+	j = nlohmann::json{{"id", p.id}, {"type", type_val}, {"function", p.function}};
 	if (p.signature)
 		j["signature"] = *p.signature;
 }
@@ -33,13 +34,16 @@ inline void from_json(const nlohmann::json &j, tool_call &p)
 {
 	if (j.contains("id") && !j["id"].is_null())
 		p.id = j["id"].get<std::string>();
-	if (j.contains("type") && !j["type"].is_null())
+	if (j.contains("type") && !j["type"].is_null() && !j["type"].get<std::string>().empty())
 		p.type = j["type"].get<std::string>();
+	else
+		p.type = "function";
 	if (j.contains("function") && !j["function"].is_null())
 		p.function = j["function"].get<function_call>();
 	if (j.contains("signature") && !j["signature"].is_null())
 		p.signature = j["signature"].get<std::string>();
 }
+
 
 struct message {
 	std::string role;
@@ -131,7 +135,12 @@ struct chat_delta {
 
 inline void normalize_tool_call(tool_call &call)
 {
+	if (call.type.empty()) {
+		call.type = "function";
+	}
+
 	if (call.function.name.starts_with("mcp__")) {
+
 		std::string res = call.function.name;
 		size_t pos = 3; // skip "mcp"
 		while ((pos = res.find("__", pos)) != std::string::npos) {
