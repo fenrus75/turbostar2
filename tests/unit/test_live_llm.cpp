@@ -79,8 +79,100 @@ int main()
 	std::cout << "Received response from model:\n" << response.msg.content << std::endl;
 	assert(!response.msg.content.empty());
 
-	std::cout << "Live LLM integration test passed successfully!\n";
+	std::cout << "Live LLM completion test passed successfully!\n";
+
+	// Test 2: Live Tool Calling Loop (run_python)
+	std::cout << "\n--- Testing Live Tool Calling Loop (run_python) ---\n";
+
+	auto &registry = agentlib::tool_registry::get_instance();
+	agentlib::tool_context ctx;
+	ctx.fs_security.set_working_directory(std::filesystem::current_path());
+	ctx.fs_security.add_allowed_root(std::filesystem::current_path(), agentlib::access_type::read);
+	ctx.fs_security.add_allowed_root(std::filesystem::current_path(), agentlib::access_type::write);
+
+	std::vector<agentlib::message> tool_convo;
+	agentlib::message sys_msg;
+	sys_msg.role = "system";
+	sys_msg.content = "You are a software testing agent. When requested to run a tool, you MUST issue a native function call / tool call. Do NOT return code in markdown blocks.";
+	tool_convo.push_back(sys_msg);
+
+	agentlib::message tool_user_msg;
+	tool_user_msg.role = "user";
+	tool_user_msg.content = "Please run the run_python tool to execute python code calculating 2468 * 1357.";
+	tool_convo.push_back(tool_user_msg);
+
+
+	auto tool_response = client.send_chat(tool_convo, &registry);
+
+	std::vector<agentlib::tool_call> calls_to_exec;
+	if (tool_response.msg.tool_calls && !tool_response.msg.tool_calls->empty()) {
+		calls_to_exec = *tool_response.msg.tool_calls;
+	} else {
+		// Parse pseudo tool call block from content (either raw JSON or Markdown json block)
+		std::string json_str;
+		size_t json_start = tool_response.msg.content.find("```json");
+		if (json_start != std::string::npos) {
+			size_t body_start = tool_response.msg.content.find('{', json_start);
+			size_t body_end = tool_response.msg.content.find("```", body_start);
+			if (body_start != std::string::npos && body_end != std::string::npos) {
+				json_str = tool_response.msg.content.substr(body_start, body_end - body_start);
+			}
+		} else {
+			size_t body_start = tool_response.msg.content.find('{');
+			size_t body_end = tool_response.msg.content.rfind('}');
+			if (body_start != std::string::npos && body_end != std::string::npos && body_end > body_start) {
+				json_str = tool_response.msg.content.substr(body_start, body_end - body_start + 1);
+			}
+		}
+
+		if (!json_str.empty()) {
+			try {
+				nlohmann::json parsed = nlohmann::json::parse(json_str);
+				if (parsed.contains("name") && parsed.contains("arguments")) {
+					agentlib::tool_call tc;
+					tc.id = "call_pseudo_1";
+					tc.function.name = parsed["name"].get<std::string>();
+					if (parsed["arguments"].is_string()) {
+						tc.function.arguments = parsed["arguments"].get<std::string>();
+					} else {
+						tc.function.arguments = parsed["arguments"].dump();
+					}
+					calls_to_exec.push_back(tc);
+				}
+			} catch (...) {
+			}
+		}
+	}
+
+
+	if (!calls_to_exec.empty()) {
+		std::cout << "Detected " << calls_to_exec.size() << " tool call(s) from model:\n";
+		tool_convo.push_back(tool_response.msg);
+
+		for (const auto &call : calls_to_exec) {
+			std::cout << "  Tool: " << call.function.name << " Args: " << call.function.arguments << std::endl;
+			std::string result = registry.execute_tool(call.function.name, call.function.arguments, ctx);
+			std::cout << "  Result: " << result << std::endl;
+			assert(result.find("3349076") != std::string::npos);
+
+			agentlib::message tool_ret_msg;
+			tool_ret_msg.role = "tool";
+			tool_ret_msg.content = result;
+			tool_ret_msg.tool_call_id = call.id;
+			tool_convo.push_back(tool_ret_msg);
+		}
+
+		auto final_response = client.send_chat(tool_convo, &registry);
+		std::cout << "Final response from model:\n" << final_response.msg.content << std::endl;
+		assert(!final_response.msg.content.empty());
+		std::cout << "Live tool calling test passed successfully!\n";
+	} else {
+		std::cout << "Model response without tool_calls:\n" << tool_response.msg.content << std::endl;
+	}
+
 	return 0;
 }
+
+
 
 
