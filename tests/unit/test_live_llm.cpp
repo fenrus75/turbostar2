@@ -11,6 +11,8 @@
 #include "../../src/agentlib/llm_types.h"
 
 
+#include <CLI11.hpp>
+
 #ifndef LIVE_LLM_TESTS_ENABLED
 #define LIVE_LLM_TESTS_ENABLED 0
 #endif
@@ -23,9 +25,20 @@
 #define LIVE_LLM_MODEL "default"
 #endif
 
-int main()
+int main(int argc, char **argv)
 {
-	test_watchdog::setup_watchdog(30);
+	test_watchdog::setup_watchdog(45);
+
+	CLI::App app{"Turbostar Live LLM Test Tool Harness"};
+	std::string tool_name;
+	std::string prompt_str;
+	std::string expect_str;
+
+	app.add_option("--tool", tool_name, "Tool name under test");
+	app.add_option("--prompt", prompt_str, "Test prompt sent to the LLM");
+	app.add_option("--expect", expect_str, "Expected substring in tool output");
+	CLI11_PARSE(app, argc, argv);
+
 
 	std::string server_url = LIVE_LLM_URL;
 	const char *env_url = std::getenv("TURBOSTAR_LIVE_LLM_URL");
@@ -81,8 +94,12 @@ int main()
 
 	std::cout << "Live LLM completion test passed successfully!\n";
 
-	// Test 2: Live Tool Calling Loop (run_python)
-	std::cout << "\n--- Testing Live Tool Calling Loop (run_python) ---\n";
+	// Test 2: Live Tool Calling Loop
+	std::string test_target_tool = tool_name.empty() ? "run_python" : tool_name;
+	std::string test_prompt = prompt_str.empty() ? "Please run the run_python tool to execute python code calculating 2468 * 1357." : prompt_str;
+	std::string test_expect = expect_str.empty() ? "3349076" : expect_str;
+
+	std::cout << "\n--- Testing Live Tool Calling Loop (" << test_target_tool << ") ---\n";
 
 	auto &registry = agentlib::tool_registry::get_instance();
 	agentlib::tool_context ctx;
@@ -93,14 +110,13 @@ int main()
 	std::vector<agentlib::message> tool_convo;
 	agentlib::message sys_msg;
 	sys_msg.role = "system";
-	sys_msg.content = "You are a software testing agent. When requested to run a tool, you MUST issue a native function call / tool call. Do NOT return code in markdown blocks.";
+	sys_msg.content = "You are a software testing agent. When requested to run a tool, you MUST issue a native function call / tool call or format json tool call block. Do NOT return raw explanations without tool calls.";
 	tool_convo.push_back(sys_msg);
 
 	agentlib::message tool_user_msg;
 	tool_user_msg.role = "user";
-	tool_user_msg.content = "Please run the run_python tool to execute python code calculating 2468 * 1357.";
+	tool_user_msg.content = test_prompt;
 	tool_convo.push_back(tool_user_msg);
-
 
 	auto tool_response = client.send_chat(tool_convo, &registry);
 
@@ -144,7 +160,6 @@ int main()
 		}
 	}
 
-
 	if (!calls_to_exec.empty()) {
 		std::cout << "Detected " << calls_to_exec.size() << " tool call(s) from model:\n";
 		tool_convo.push_back(tool_response.msg);
@@ -152,8 +167,11 @@ int main()
 		for (const auto &call : calls_to_exec) {
 			std::cout << "  Tool: " << call.function.name << " Args: " << call.function.arguments << std::endl;
 			std::string result = registry.execute_tool(call.function.name, call.function.arguments, ctx);
-			std::cout << "  Result: " << result << std::endl;
-			assert(result.find("3349076") != std::string::npos);
+			std::cout << "  Result:\n" << result << std::endl;
+
+			if (!test_expect.empty()) {
+				assert(result.find(test_expect) != std::string::npos);
+			}
 
 			agentlib::message tool_ret_msg;
 			tool_ret_msg.role = "tool";
@@ -165,13 +183,14 @@ int main()
 		auto final_response = client.send_chat(tool_convo, &registry);
 		std::cout << "Final response from model:\n" << final_response.msg.content << std::endl;
 		assert(!final_response.msg.content.empty());
-		std::cout << "Live tool calling test passed successfully!\n";
+		std::cout << "Live tool calling test (" << test_target_tool << ") passed successfully!\n";
 	} else {
 		std::cout << "Model response without tool_calls:\n" << tool_response.msg.content << std::endl;
 	}
 
 	return 0;
 }
+
 
 
 

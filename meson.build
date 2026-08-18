@@ -1434,7 +1434,25 @@ test_live_llm = executable('test_live_llm',
   cpp_args: live_llm_args,
   dependencies : [agent_dep, core_dep, nlohmann_json_dep, thread_dep, sqlite3_dep, re2_dep, lsp_dep, curl_dep],
   include_directories: inc)
-test('live_llm_integration', test_live_llm, suite: 'live_llm')
+
+test('live_llm_ping', test_live_llm, suite: 'live_llm', is_parallel: false)
+
+live_tool_tests = [
+  { 'tool': 'run_python',        'prompt': 'Please use run_python to calculate 2468 * 1357',                      'expect': '3349076' },
+  { 'tool': 'fs_list_dir',       'prompt': 'Please use fs_list_dir to list files in current directory',           'expect': 'meson.build' },
+  { 'tool': 'fs_read_lines',     'prompt': 'Please use fs_read_lines to view lines 1 to 5 of meson.build',        'expect': 'project(' },
+  { 'tool': 'fs_grep_files',     'prompt': 'Please use fs_grep_files to search for "test_watchdog" in src',       'expect': 'test_watchdog' },
+  { 'tool': 'git_status',        'prompt': 'Please use git_status to check repository status',                    'expect': 'On branch' },
+  { 'tool': 'git_diff_unstaged', 'prompt': 'Please use git_diff_unstaged to show unstaged git changes',          'expect': 'diff --git' },
+]
+
+foreach t : live_tool_tests
+  test('live_tool_' + t['tool'], test_live_llm,
+       args: ['--tool', t['tool'], '--prompt', t['prompt'], '--expect', t['expect']],
+       suite: 'live_llm',
+       is_parallel: false)
+endforeach
+
 
 
 
