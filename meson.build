@@ -1416,6 +1416,27 @@ test_troff2md = executable('test_troff2md',
   include_directories: inc)
 test('unit_troff2md', test_troff2md, suite: 'editor')
 
+live_llm_tests_opt = get_option('live-llm-tests')
+live_llm_url_opt = get_option('live-llm-url')
+live_llm_model_opt = get_option('live-llm-model')
+
+live_llm_args = []
+if live_llm_tests_opt
+  live_llm_args += ['-DLIVE_LLM_TESTS_ENABLED=1']
+else
+  live_llm_args += ['-DLIVE_LLM_TESTS_ENABLED=0']
+endif
+live_llm_args += ['-DLIVE_LLM_URL="' + live_llm_url_opt + '"']
+live_llm_args += ['-DLIVE_LLM_MODEL="' + live_llm_model_opt + '"']
+
+test_live_llm = executable('test_live_llm',
+  'tests/unit/test_live_llm.cpp',
+  cpp_args: live_llm_args,
+  dependencies : [agent_dep, core_dep, nlohmann_json_dep, thread_dep, sqlite3_dep, re2_dep, lsp_dep, curl_dep],
+  include_directories: inc)
+test('live_llm_integration', test_live_llm, suite: 'live_llm')
+
+
 
 
 test_crash_handler_race = executable('test_crash_handler_race',
