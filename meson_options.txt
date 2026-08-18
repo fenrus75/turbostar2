@@ -3,6 +3,9 @@ option('enable-libmagic', type: 'feature', value: 'auto', description: 'Enable l
 option('live-llm-tests', type: 'boolean', value: false, description: 'Enable live LLM server integration tests')
 option('live-llm-url', type: 'string', value: 'http://llama.fenrus.org:8080/v1', description: 'URL endpoint for live LLM server (OpenAI / vLLM API)')
 option('live-llm-model', type: 'string', value: 'nvidia/MiniMax-M2.7-NVFP4', description: 'Model name for live LLM server')
+option('live-llm-api-key', type: 'string', value: '', description: 'API Key for live LLM server authentication (e.g. OpenAI API key)')
+option('live-llm-api-type', type: 'string', value: 'openai', description: 'API protocol type (openai, gemini, claude, openai_response)')
+
 
 
 

@@ -1419,6 +1419,8 @@ test('unit_troff2md', test_troff2md, suite: 'editor')
 live_llm_tests_opt = get_option('live-llm-tests')
 live_llm_url_opt = get_option('live-llm-url')
 live_llm_model_opt = get_option('live-llm-model')
+live_llm_api_key_opt = get_option('live-llm-api-key')
+live_llm_api_type_opt = get_option('live-llm-api-type')
 
 live_llm_args = []
 if live_llm_tests_opt
@@ -1428,6 +1430,9 @@ else
 endif
 live_llm_args += ['-DLIVE_LLM_URL="' + live_llm_url_opt + '"']
 live_llm_args += ['-DLIVE_LLM_MODEL="' + live_llm_model_opt + '"']
+live_llm_args += ['-DLIVE_LLM_API_KEY="' + live_llm_api_key_opt + '"']
+live_llm_args += ['-DLIVE_LLM_API_TYPE="' + live_llm_api_type_opt + '"']
+
 
 test_live_llm = executable('test_live_llm',
   'tests/unit/test_live_llm.cpp',

@@ -25,6 +25,14 @@
 #define LIVE_LLM_MODEL "default"
 #endif
 
+#ifndef LIVE_LLM_API_KEY
+#define LIVE_LLM_API_KEY ""
+#endif
+
+#ifndef LIVE_LLM_API_TYPE
+#define LIVE_LLM_API_TYPE "openai"
+#endif
+
 int main(int argc, char **argv)
 {
 	test_watchdog::setup_watchdog(45);
@@ -33,12 +41,15 @@ int main(int argc, char **argv)
 	std::string tool_name;
 	std::string prompt_str;
 	std::string expect_str;
+	std::string cli_api_key;
+	std::string cli_api_type;
 
 	app.add_option("--tool", tool_name, "Tool name under test");
 	app.add_option("--prompt", prompt_str, "Test prompt sent to the LLM");
 	app.add_option("--expect", expect_str, "Expected substring in tool output");
+	app.add_option("--api-key", cli_api_key, "API Key for LLM server authentication");
+	app.add_option("--api-type", cli_api_type, "API type (openai, gemini, claude, openai_response)");
 	CLI11_PARSE(app, argc, argv);
-
 
 	std::string server_url = LIVE_LLM_URL;
 	const char *env_url = std::getenv("TURBOSTAR_LIVE_LLM_URL");
@@ -49,19 +60,41 @@ int main(int argc, char **argv)
 		server_url = env_url;
 	}
 
+	std::string api_key = LIVE_LLM_API_KEY;
+	if (!cli_api_key.empty()) {
+		api_key = cli_api_key;
+	} else {
+		const char *env_key = std::getenv("OPENAI_API_KEY");
+		if (!env_key || !*env_key) {
+			env_key = std::getenv("TURBOSTAR_LIVE_LLM_API_KEY");
+		}
+		if (env_key && *env_key) {
+			api_key = env_key;
+		}
+	}
+
+	std::string api_type_str = cli_api_type.empty() ? LIVE_LLM_API_TYPE : cli_api_type;
+	agentlib::api_type type = agentlib::api_type::openai;
+	if (api_type_str == "gemini") {
+		type = agentlib::api_type::gemini;
+	} else if (api_type_str == "claude") {
+		type = agentlib::api_type::claude;
+	} else if (api_type_str == "openai_response") {
+		type = agentlib::api_type::openai_response;
+	}
+
 	const char *env_enabled = std::getenv("TURBOSTAR_ENABLE_LIVE_LLM_TESTS");
-	bool enabled = (LIVE_LLM_TESTS_ENABLED != 0) || (env_enabled && std::string(env_enabled) == "1") || (env_url != nullptr);
+	bool enabled = (LIVE_LLM_TESTS_ENABLED != 0) || (env_enabled && std::string(env_enabled) == "1") || (env_url != nullptr) || !api_key.empty();
 
 	if (!enabled) {
-		std::cout << "[SKIPPED] Live LLM tests disabled. Enable via Meson option (-Dlive-llm-tests=true) or env (TURBOSTAR_LIVE_LLM_URL).\n";
+		std::cout << "[SKIPPED] Live LLM tests disabled. Enable via Meson option (-Dlive-llm-tests=true) or env (TURBOSTAR_LIVE_LLM_URL or OPENAI_API_KEY).\n";
 		return 77; // Meson skip exit code
 	}
 
 	std::cout << "Testing live LLM server connection at: " << server_url << std::endl;
 
 	std::string error_out;
-	auto models = agentlib::fetch_models_from_server(server_url, error_out);
-
+	auto models = agentlib::fetch_models_from_server(server_url, error_out, api_key, "", type);
 
 	if (models.empty()) {
 		std::cout << "[SKIPPED] Live LLM server at " << server_url << " returned no models or is unreachable: " << error_out << std::endl;
@@ -78,8 +111,9 @@ int main(int argc, char **argv)
 
 	std::cout << "Sending live completion query to model: " << target_model << std::endl;
 
-	auto transport = std::make_shared<agentlib::httplib_transport>(server_url);
-	agentlib::llm_client client(transport, target_model, agentlib::api_type::openai);
+	auto transport = std::make_shared<agentlib::httplib_transport>(server_url, api_key);
+	agentlib::llm_client client(transport, target_model, type);
+
 
 	std::vector<agentlib::message> convo;
 	agentlib::message user_msg;
