@@ -1,5 +1,7 @@
+// Tested source file: src/agentlib/virtual_file_system.cpp
 #include "test_watchdog.h"
 #include "agentlib/ai_agent.h"
+
 #include "agentlib/virtual_file_system.h"
 #include "agentlib/skill_manager.h"
 #include "agentlib/tool_registry.h"

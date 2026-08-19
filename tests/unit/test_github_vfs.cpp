@@ -1,5 +1,7 @@
+// Tested source file: src/agentlib/virtual_file_system.cpp
 #include "test_watchdog.h"
 #include <cassert>
+
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include "../../src/agentlib/virtual_file_system.h"

@@ -1,6 +1,8 @@
+// Tested source file: src/agentlib/virtual_file_system.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <filesystem>
+
 #include <fstream>
 #include <iostream>
 #include <cstring>
@@ -254,6 +256,67 @@ void test_images_vfs_write()
 	images::image_manager::get_instance().delete_image(image_uri);
 }
 
+void test_unsupported_and_invalid_uris()
+{
+	virtual_file_system vfs;
+
+	std::string bad_scheme_uri = "unknown_scheme://foo/bar";
+	assert(!vfs.exists(bad_scheme_uri));
+	assert(!vfs.read_file(bad_scheme_uri).has_value());
+	assert(!vfs.get_file_info(bad_scheme_uri).has_value());
+	assert(!vfs.create_file(bad_scheme_uri).has_value());
+	assert(vfs.write_file(bad_scheme_uri, "data", 4).empty());
+	assert(vfs.list_directory(bad_scheme_uri).empty());
+
+	std::string no_scheme_uri = "just_a_path/file.txt";
+	assert(!vfs.exists(no_scheme_uri));
+	assert(!vfs.read_file(no_scheme_uri).has_value());
+}
+
+void test_http_vfs_provider()
+{
+	virtual_file_system vfs;
+
+	// Unreachable HTTP URL should return std::nullopt cleanly
+	std::string bad_http_uri = "http://127.0.0.1:59999/nonexistent_test_file.txt";
+	assert(!vfs.exists(bad_http_uri));
+	assert(!vfs.read_file(bad_http_uri).has_value());
+	assert(!vfs.get_file_info(bad_http_uri).has_value());
+
+	// Unreachable HTTPS URL should return std::nullopt cleanly
+	std::string bad_https_uri = "https://127.0.0.1:59999/nonexistent_test_file.txt";
+	assert(!vfs.exists(bad_https_uri));
+	assert(!vfs.read_file(bad_https_uri).has_value());
+}
+
+void test_memory_vfs_edge_cases()
+{
+	virtual_file_system vfs;
+
+	// 1. Mount empty buffer
+	std::string empty_uri = "skills://test/empty.txt";
+	assert(vfs.mount_buffer(empty_uri, ""));
+	assert(vfs.exists(empty_uri));
+	auto info_empty = vfs.get_file_info(empty_uri);
+	assert(info_empty.has_value());
+	assert(info_empty->size == 0);
+	assert(info_empty->size_in_lines == 0);
+	auto read_empty = vfs.read_file(empty_uri);
+	assert(read_empty.has_value());
+	assert((*read_empty)->view().empty());
+
+	// 2. Mount CRLF buffer
+	std::string crlf_uri = "skills://test/crlf.txt";
+	assert(vfs.mount_buffer(crlf_uri, "line1\r\nline2\r\nline3\r\n"));
+	auto info_crlf = vfs.get_file_info(crlf_uri);
+	assert(info_crlf.has_value());
+	assert(info_crlf->size_in_lines == 3);
+
+	// 3. Unmount non-existent URI (should handle gracefully)
+	vfs.unmount_file("skills://test/does_not_exist.txt");
+	vfs.unmount_prefix("skills://nonexistent_prefix/");
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -266,6 +329,10 @@ int main()
 	test_file_provider();
 	test_file_vfs_write();
 	test_images_vfs_write();
+	test_unsupported_and_invalid_uris();
+	test_http_vfs_provider();
+	test_memory_vfs_edge_cases();
 	std::cout << "virtual_file_system tests passed.\n";
 	return 0;
 }
+
