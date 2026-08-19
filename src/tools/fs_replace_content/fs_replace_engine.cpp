@@ -165,6 +165,7 @@ std::string fs_replace_engine::check_brace_warnings(
 		int before_whole = calculate_brace_balance(before_lines, 0, static_cast<int>(before_lines.size()) - 1);
 		int after_whole = calculate_brace_balance(after_lines, 0, static_cast<int>(after_lines.size()) - 1);
 
+		// If the file was balanced at file scope and the edit made it unbalanced at file scope:
 		if (before_whole == 0 && after_whole != 0) {
 			if (after_whole > 0) {
 				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces at file scope (net balance: +{}, missing {} closing '}}' brace{})\n",
@@ -174,10 +175,12 @@ std::string fs_replace_engine::check_brace_warnings(
 				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces at file scope (net balance: {}, possible extra {} closing '}}' brace{})\n",
 						        after_whole, abs_bal, (abs_bal == 1 ? "" : "s"));
 			}
+			return warnings;
 		}
 	}
 
-	// 2. Check Enclosing / Intersecting Codemap Symbols (Functions / Methods / Classes)
+	// 2. If global counter did NOT transition 0 -> non-0 (e.g. was and remains unbalanced, or remains 0->0):
+	// THEN look at function/symbol scope counter.
 	auto symbols = get_document_codemap_symbols(safe_path, ctx);
 	if (!symbols.empty()) {
 		for (const auto &sym : symbols) {
@@ -221,6 +224,7 @@ std::string fs_replace_engine::check_brace_warnings(
 	}
 
 	return warnings;
+
 }
 
 replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, const replace_engine_args &args)

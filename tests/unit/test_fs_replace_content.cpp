@@ -260,6 +260,23 @@ int main()
 			assert(read_file() == "void strict_foo() {\n    x();\n}\n");
 		}
 
+		// 16. Pre-existing unbalanced global brace case: global remains unbalanced, function scope checked.
+		{
+			write_file("{\nvoid foo() {\n    x();\n}\n"); // global is +1 before edit
+			nlohmann::json json_args = {
+				{"path", temp_file},
+				{"target_content", "}"},
+				{"replacement_content", "// removed brace inside foo"}
+			};
+			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
+			std::cout << "Pre-existing unbalanced global result: " << res << std::endl;
+			assert(res.find("Successfully replaced") != std::string::npos);
+			// Global scope warning should NOT be triggered (was and remains unbalanced),
+			// but function scope warning FOR foo SHOULD be triggered!
+			assert(res.find("Edit introduced unbalanced braces in Function 'foo'") != std::string::npos);
+		}
+
+
 		// 16. Windowed replacement with start_line and end_line
 		{
 			write_file("line 1\nTarget block\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nTarget block\nline 11\n");

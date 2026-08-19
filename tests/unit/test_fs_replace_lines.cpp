@@ -263,11 +263,15 @@ int main()
 	// Test VFS replace_lines support (tmp://)
 	{
 		auto global_vfs = std::make_shared<agentlib::virtual_file_system>();
-		auto tmp_prov = std::make_shared<agentlib::file_vfs_provider>("tmp", fs_utils::get_project_tmp_dir());
+		std::string tmp_dir = fs_utils::get_project_tmp_dir();
+		ctx.fs_security.add_allowed_root(tmp_dir, agentlib::access_type::read);
+		ctx.fs_security.add_allowed_root(tmp_dir, agentlib::access_type::write);
+		auto tmp_prov = std::make_shared<agentlib::file_vfs_provider>("tmp", tmp_dir);
 		global_vfs->register_provider("tmp", tmp_prov);
 		ctx.fs_security.set_vfs(global_vfs.get());
 
-		std::string physical_tmp_file = fs_utils::get_project_tmp_dir() + "/test_replace_lines_vfs.txt";
+		std::string physical_tmp_file = tmp_dir + "/test_replace_lines_vfs.txt";
+
 		std::ofstream out(physical_tmp_file);
 		out << "Line X\nLine Y\nLine Z\n";
 		out.close();

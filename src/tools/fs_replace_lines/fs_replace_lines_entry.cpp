@@ -8,7 +8,9 @@
 #include "../../fs_utils.h"
 #include "../../project_manager.h"
 #include "../../utf8.h"
+#include "../../mime.h"
 #include "fs_replace_lines.h"
+
 
 namespace tools
 {
@@ -94,7 +96,40 @@ static std::string check_brace_warnings(const std::string &safe_path,
                                         const std::vector<std::string> &after_lines,
                                         const std::vector<edit_operation> &edits)
 {
+	bool file_has_braces = false;
+	for (const auto &l : before_lines) {
+		if (l.find('{') != std::string::npos || l.find('}') != std::string::npos) {
+			file_has_braces = true;
+			break;
+		}
+	}
+	if (!mime::uses_brace_syntax(safe_path) && !file_has_braces) {
+		return "";
+	}
+
 	std::string warnings;
+
+	// 1. Check Whole-File Brace Balance
+	if (!before_lines.empty() && !after_lines.empty()) {
+		int before_whole = calculate_brace_balance(before_lines, 0, static_cast<int>(before_lines.size()) - 1);
+		int after_whole = calculate_brace_balance(after_lines, 0, static_cast<int>(after_lines.size()) - 1);
+
+		// If the file was balanced at file scope and the edit made it unbalanced at file scope:
+		if (before_whole == 0 && after_whole != 0) {
+			if (after_whole > 0) {
+				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces (net balance: +{}, missing {} closing '}}' brace{})\n",
+				                        after_whole, after_whole, (after_whole == 1 ? "" : "s"));
+			} else {
+				int abs_bal = std::abs(after_whole);
+				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces (net balance: {}, possible extra {} closing '}}' brace{})\n",
+				                        after_whole, abs_bal, (abs_bal == 1 ? "" : "s"));
+			}
+			return warnings;
+		}
+	}
+
+	// 2. If global counter did NOT transition 0 -> non-0 (e.g. was and remains unbalanced, or remains 0->0):
+	// THEN look at function/symbol scope counter.
 	auto symbols = project_manager::get_instance().lsp_query_document_symbols(safe_path);
 	std::vector<lsp_manager::symbol_node> funcs;
 	collect_functions(symbols, funcs);
@@ -147,23 +182,11 @@ static std::string check_brace_warnings(const std::string &safe_path,
 				}
 			}
 		}
-	} else {
-		int before_bal = calculate_brace_balance(before_lines, 0, static_cast<int>(before_lines.size()) - 1);
-		int after_bal = calculate_brace_balance(after_lines, 0, static_cast<int>(after_lines.size()) - 1);
-		if (before_bal == 0 && after_bal != 0) {
-			if (after_bal > 0) {
-				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces (net balance: +{}, missing {} closing '}}' brace{})\n",
-				                        after_bal, after_bal, (after_bal == 1 ? "" : "s"));
-			} else {
-				int abs_bal = std::abs(after_bal);
-				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces (net balance: {}, possible extra {} closing '}}' brace{})\n",
-				                        after_bal, abs_bal, (abs_bal == 1 ? "" : "s"));
-			}
-		}
 	}
 
 	return warnings;
 }
+
 
 } // namespace
 
