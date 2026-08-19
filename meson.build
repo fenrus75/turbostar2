@@ -1066,6 +1066,13 @@ test_fallback_crash = executable('test_fallback_crash',
   include_directories: inc)
 test('unit_test_fallback_crash', test_fallback_crash, should_fail: true, suite: 'agent')
 
+test_crash_process = executable('test_crash_process',
+  ['tests/unit/test_crash_process.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_crash_process', test_crash_process, suite: 'agent')
+
+
 test_crashdump_list = executable('test_crashdump_list',
   ['tests/unit/test_crashdump_list.cpp',
    'src/tools/crashdump_list/crashdump_list_entry.cpp',
