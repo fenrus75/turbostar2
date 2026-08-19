@@ -114,7 +114,7 @@ static std::string check_brace_warnings(const std::string &safe_path,
 		int before_whole = calculate_brace_balance(before_lines, 0, static_cast<int>(before_lines.size()) - 1);
 		int after_whole = calculate_brace_balance(after_lines, 0, static_cast<int>(after_lines.size()) - 1);
 
-		// If the file was balanced at file scope and the edit made it unbalanced at file scope:
+		// Case A: Global was balanced (0) and became unbalanced (non-0) -> emit file-scope warning
 		if (before_whole == 0 && after_whole != 0) {
 			if (after_whole > 0) {
 				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces (net balance: +{}, missing {} closing '}}' brace{})\n",
@@ -126,11 +126,24 @@ static std::string check_brace_warnings(const std::string &safe_path,
 			}
 			return warnings;
 		}
+
+		// Case B: Global was balanced before and remains balanced after -> no warning!
+		if (before_whole == 0 && after_whole == 0) {
+			return "";
+		}
+
+		// Case C: Global was unbalanced before and became balanced after -> no warning!
+		if (before_whole != 0 && after_whole == 0) {
+			return "";
+		}
+
+		// Case D: Global was (and remains) unbalanced (before_whole != 0 && after_whole != 0).
+		// THEN look at function/symbol scope counter.
 	}
 
-	// 2. If global counter did NOT transition 0 -> non-0 (e.g. was and remains unbalanced, or remains 0->0):
-	// THEN look at function/symbol scope counter.
+	// 2. Check Enclosing / Intersecting Functions ONLY when globally unbalanced before & after
 	auto symbols = project_manager::get_instance().lsp_query_document_symbols(safe_path);
+
 	std::vector<lsp_manager::symbol_node> funcs;
 	collect_functions(symbols, funcs);
 
