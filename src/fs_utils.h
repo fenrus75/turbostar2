@@ -224,4 +224,18 @@ std::vector<unsigned char> base64_decode(std::string_view encoded);
  */
 std::string format_binary_output(std::span<const unsigned char> data, std::string_view format, std::string_view mime_type);
 
+/**
+ * @brief Computes Levenshtein edit distance between two strings.
+ */
+size_t levenshtein_distance(std::string_view s1, std::string_view s2);
+
+/**
+ * @brief Ensures all parent directories for target_path exist on disk.
+ * Automatically creates any missing parent directories (Option B).
+ * If a new directory is created and a sibling directory exists with a 1-character difference
+ * (e.g. "model" vs "models"), appends a warning to note_or_warning_out.
+ * Returns true if parent directory exists or was created successfully.
+ */
+bool ensure_parent_directory_exists(const std::string &target_path, std::string &note_or_warning_out);
+
 } // namespace fs_utils

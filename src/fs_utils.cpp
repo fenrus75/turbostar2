@@ -847,4 +847,85 @@ std::string format_binary_output(std::span<const unsigned char> data, std::strin
 	return std::format("data:{};base64,{}", mime_type, base64_encode(data));
 }
 
+size_t levenshtein_distance(std::string_view s1, std::string_view s2)
+{
+	size_t len1 = s1.length();
+	size_t len2 = s2.length();
+	std::vector<std::vector<size_t>> d(len1 + 1, std::vector<size_t>(len2 + 1));
+
+	for (size_t i = 0; i <= len1; ++i) d[i][0] = i;
+	for (size_t j = 0; j <= len2; ++j) d[0][j] = j;
+
+	for (size_t i = 1; i <= len1; ++i) {
+		for (size_t j = 1; j <= len2; ++j) {
+			size_t cost = (s1[i - 1] == s2[j - 1]) ? 0 : 1;
+			d[i][j] = std::min({ d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost });
+		}
+	}
+	return d[len1][len2];
+}
+
+bool ensure_parent_directory_exists(const std::string &target_path, std::string &note_or_warning_out)
+{
+	note_or_warning_out.clear();
+	std::filesystem::path p(target_path);
+	std::filesystem::path parent = p.parent_path();
+	if (parent.empty() || std::filesystem::exists(parent)) {
+		return true;
+	}
+
+	// Trace non-existent parent components to find the topmost missing directory
+	std::filesystem::path curr = parent;
+	std::vector<std::filesystem::path> missing_components;
+
+	while (!curr.empty() && !std::filesystem::exists(curr)) {
+		missing_components.push_back(curr);
+		curr = curr.parent_path();
+	}
+
+	std::filesystem::path existing_grandparent = curr.empty() ? std::filesystem::current_path() : curr;
+	std::string warnings;
+
+	if (!missing_components.empty() && std::filesystem::exists(existing_grandparent)) {
+		std::filesystem::path first_missing = missing_components.back();
+		std::string new_dir_name = first_missing.filename().string();
+
+		std::vector<std::string> similar_dirs;
+		std::error_code ec;
+		for (const auto &entry : std::filesystem::directory_iterator(existing_grandparent, ec)) {
+			if (entry.is_directory(ec)) {
+				std::string existing_name = entry.path().filename().string();
+				if (existing_name != new_dir_name && levenshtein_distance(new_dir_name, existing_name) == 1) {
+					similar_dirs.push_back(existing_name);
+				}
+			}
+		}
+
+		if (!similar_dirs.empty()) {
+			std::string rel_new = make_relative_to_project(first_missing.string());
+			for (const auto &sim : similar_dirs) {
+				warnings += std::format("⚠️ Warning: Automatically created directory '{}', but similar existing directory '{}' was found at the same level (did you mean '{}'?)\n",
+				                        rel_new, sim, sim);
+			}
+		}
+	}
+
+	std::error_code ec;
+	bool created = std::filesystem::create_directories(parent, ec);
+	if (!created && !std::filesystem::exists(parent)) {
+		return false;
+	}
+
+	std::string rel_parent = make_relative_to_project(parent.string());
+	std::string note = std::format("(Created missing parent directory: {}/)", rel_parent);
+
+	if (!warnings.empty()) {
+		note_or_warning_out = warnings + note;
+	} else {
+		note_or_warning_out = note;
+	}
+
+	return true;
+}
+
 } // namespace fs_utils

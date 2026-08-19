@@ -842,7 +842,11 @@ std::optional<vfs_write_handle> file_vfs_provider::create_file(const std::string
 		return std::nullopt; // Block: Directory traversal escape hack detected
 	}
 
+	std::string dir_note;
+	fs_utils::ensure_parent_directory_exists(target.string(), dir_note);
+
 	class file_vfs_writer : public vfs_writer
+
 	{
 		std::filesystem::path path_;
 		std::ofstream ofs_;

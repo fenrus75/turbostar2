@@ -560,7 +560,13 @@ extern std::string troff2md(std::string troff_content);
 
 		// Initialize virtual file system and attach to security manager
 		virtual_file_system vfs;
+		std::string tmp_dir = fs_utils::get_project_tmp_dir();
+		ctx.fs_security.add_allowed_root(tmp_dir, agentlib::access_type::read);
+		ctx.fs_security.add_allowed_root(tmp_dir, agentlib::access_type::write);
+		vfs.register_provider("tmp", std::make_shared<agentlib::file_vfs_provider>("tmp", tmp_dir));
 		ctx.fs_security.set_vfs(&vfs);
+
+
 
 		// Write via tool execution
 		std::string args = "{\"path\": \"" + target_uri + "\", \"content\": \"VFS tool write!\", \"append\": false}";
@@ -600,9 +606,29 @@ extern std::string troff2md(std::string troff_content);
 		assert(content_tmp == "Temporary VFS write!");
 		ifs_tmp.close();
 
+		// Test auto-creation of missing parent directories and 1-char similarity warning
+		std::string base_dir = proj_root + "/test_auto_mkdir";
+		std::string existing_sibling_dir = base_dir + "/model";
+		std::filesystem::create_directories(existing_sibling_dir);
+
+		// Write to test_auto_mkdir/models/new_file.txt ("models" vs "model" distance == 1)
+		std::string target_similar = base_dir + "/models/new_file.txt";
+		std::string sim_args = "{\"path\": \"" + target_similar + "\", \"content\": \"Auto mkdir similarity test!\", \"append\": false}";
+		std::string sim_res = registry.execute_tool("fs_write_file", sim_args, ctx);
+
+		std::cout << "Auto-mkdir result with similarity warning:\n" << sim_res << std::endl;
+		assert(sim_res.find("Successfully wrote") != std::string::npos);
+		assert(sim_res.find("(Created missing parent directory:") != std::string::npos);
+		assert(sim_res.find("⚠️ Warning: Automatically created directory") != std::string::npos);
+		assert(sim_res.find("did you mean 'model'?") != std::string::npos);
+
+		// Cleanup
+		std::filesystem::remove_all(base_dir);
+
 		// Test tmp:// directory listing
 		std::string list_args = "{\"path\": \"tmp://\", \"rich_metadata\": false}";
 		std::string list_res = registry.execute_tool("fs_list_dir", list_args, ctx);
+
 		assert(list_res.find("000_test_fs_write_tmp.txt") != std::string::npos);
 
 		std::filesystem::remove(expected_tmp_file);
@@ -623,6 +649,8 @@ extern std::string troff2md(std::string troff_content);
 		// Purge with substring "unique_purge_task"
 		std::string purge_res1 = registry.execute_tool("fs_purge_tmp", "{\"substring\": \"unique_purge_task\"}", ctx);
 		assert(purge_res1.find("Successfully purged 2 files") != std::string::npos);
+
+
 		assert(!vfs.exists(purge_file1));
 		assert(vfs.exists(purge_file2));
 		assert(!vfs.exists(purge_file3));

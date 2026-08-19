@@ -1,7 +1,9 @@
 #include <filesystem>
 #include <fstream>
 #include "../../agentlib/interactions/action.h"
+#include "../../fs_utils.h"
 #include "fs_write_file.h"
+
 
 namespace tools
 {
@@ -87,6 +89,11 @@ std::string fs_write_file_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		bool file_exists = std::filesystem::exists(args_.safe_path);
+		std::string dir_note;
+		if (!file_exists) {
+			fs_utils::ensure_parent_directory_exists(args_.safe_path, dir_note);
+		}
+
 		bool inject_newline = false;
 
 		// If appending and the file exists and is not empty, check the last byte
@@ -130,10 +137,18 @@ std::string fs_write_file_tool::execute(agentlib::tool_context &ctx)
 		if (ctx.trigger_ui_update)
 			ctx.trigger_ui_update();
 		
+		std::string res_msg;
 		if (args_.append) {
-			return "Successfully appended to " + args_.path;
+			res_msg = "Successfully appended to " + args_.path;
+		} else {
+			res_msg = "Successfully wrote to " + args_.path;
 		}
-		return "Successfully wrote to " + args_.path;
+
+		if (!dir_note.empty()) {
+			res_msg += "\n" + dir_note;
+		}
+		return res_msg;
+
 	} catch (const std::exception &e) {
 		if (custom_interaction)
 			custom_interaction->set_status(agentlib::interaction_action::status::failure,
