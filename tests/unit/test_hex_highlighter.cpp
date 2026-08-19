@@ -1,3 +1,4 @@
+// Tested source file: src/hex/elf.cpp, src/hex/png.cpp, src/hex/jpeg.cpp, src/hex/zip.cpp, src/hex/pdf.cpp, src/hex/tar.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <fstream>
@@ -10,6 +11,8 @@
 #include "hex/jpeg.h"
 #include "hex/zip.h"
 #include "hex/pdf.h"
+#include "hex/tar.h"
+
 
 // Helper to write values in little endian format to a vector
 void write_u16_le(std::vector<uint8_t> &data, size_t offset, uint16_t val)
@@ -523,6 +526,198 @@ void test_pdf_highlighter()
 	std::cout << "Real PDF file test passed!" << std::endl;
 }
 
+void test_tar_highlighter()
+{
+	std::vector<uint8_t> data(1536, 0); // 3 blocks of 512 bytes
+
+	// Construct header for file "hello.txt", size 12 bytes octal "00000000014"
+	std::string fname = "hello.txt";
+	for (size_t i = 0; i < fname.length(); ++i) {
+		data[i] = static_cast<uint8_t>(fname[i]);
+	}
+
+	// Size in octal at offset 124 (12 bytes)
+	std::string size_oct = "00000000014";
+	for (size_t i = 0; i < size_oct.length(); ++i) {
+		data[124 + i] = static_cast<uint8_t>(size_oct[i]);
+	}
+
+	// ustar magic at offset 257 (5 bytes "ustar")
+	data[257] = 'u';
+	data[258] = 's';
+	data[259] = 't';
+	data[260] = 'a';
+	data[261] = 'r';
+
+	tar_hex_highlighter hl;
+	assert(hl.can_handle(data) == true);
+	bool success = hl.parse(data);
+	assert(success == true);
+	assert(hl.get_files().size() == 1);
+	assert(hl.get_files()[0].filename == "hello.txt");
+	assert(hl.get_files()[0].size == 12);
+
+	highlight_info inf = hl.get_info(data, 10);
+	assert(inf.type == hex_semantic_type::file_header);
+
+	assert(hl.get_offset_by_name("hello.txt").has_value());
+	assert(hl.get_next_symbol_offset(0) > 0);
+
+	auto &reg = hex_highlighter_registry::get_instance();
+	auto detected = reg.detect_highlighter(data);
+	assert(detected != nullptr);
+	assert(dynamic_cast<tar_hex_highlighter *>(detected.get()) != nullptr);
+	std::cout << "TAR highlighter test passed!" << std::endl;
+}
+
+void test_malicious_corrupt_files()
+{
+	std::cout << "Starting robustness & malicious/corrupt file format tests..." << std::endl;
+
+	// 1. ELF Malformed / Corrupted Payloads
+	{
+		elf_hex_highlighter elf_hl;
+
+		// Truncated ELF inputs
+		std::vector<uint8_t> elf_trunc1 = {0x7F, 'E', 'L', 'F'}; // Truncated (< 64 bytes)
+		assert(!elf_hl.can_handle(elf_trunc1));
+
+		std::vector<uint8_t> elf_trunc2(63, 0);
+		elf_trunc2[0] = 0x7F; elf_trunc2[1] = 'E'; elf_trunc2[2] = 'L'; elf_trunc2[3] = 'F';
+		assert(!elf_hl.can_handle(elf_trunc2));
+
+		// Corrupt ELF class / endian
+		std::vector<uint8_t> elf_bad_class(100, 0);
+		elf_bad_class[0] = 0x7F; elf_bad_class[1] = 'E'; elf_bad_class[2] = 'L'; elf_bad_class[3] = 'F';
+		elf_bad_class[4] = 0x99; // Invalid class
+		elf_bad_class[5] = 0x01;
+		assert(elf_hl.can_handle(elf_bad_class));
+		assert(!elf_hl.parse(elf_bad_class));
+
+		std::vector<uint8_t> elf_bad_data(100, 0);
+		elf_bad_data[0] = 0x7F; elf_bad_data[1] = 'E'; elf_bad_data[2] = 'L'; elf_bad_data[3] = 'F';
+		elf_bad_data[4] = 0x02;
+		elf_bad_data[5] = 0x99; // Invalid data encoding
+		assert(elf_hl.can_handle(elf_bad_data));
+		assert(!elf_hl.parse(elf_bad_data));
+
+		// Out of bounds / overflow section header offsets
+		std::vector<uint8_t> elf_oof(100, 0);
+		elf_oof[0] = 0x7F; elf_oof[1] = 'E'; elf_oof[2] = 'L'; elf_oof[3] = 'F';
+		elf_oof[4] = 2; // ELFCLASS64
+		elf_oof[5] = 1; // LSB
+		write_u64_le(elf_oof, 40, 0xFFFFFFFFFFFFFFFFULL); // e_shoff out of bounds
+		write_u16_le(elf_oof, 58, 64); // e_shentsize
+		write_u16_le(elf_oof, 60, 100); // e_shnum
+		assert(elf_hl.can_handle(elf_oof));
+		elf_hl.parse(elf_oof);
+		elf_hl.get_info(elf_oof, 10);
+	}
+
+	// 2. PNG Malformed / Corrupted Payloads
+	{
+		png_hex_highlighter png_hl;
+
+		// Truncated PNG
+		std::vector<uint8_t> png_trunc = {0x89, 'P', 'N', 'G'};
+		assert(!png_hl.can_handle(png_trunc));
+
+		// Chunk length overflow (0xFFFFFFFF)
+		std::vector<uint8_t> png_wrap(100, 0);
+		png_wrap[0] = 0x89; png_wrap[1] = 0x50; png_wrap[2] = 0x4E; png_wrap[3] = 0x47;
+		png_wrap[4] = 0x0D; png_wrap[5] = 0x0A; png_wrap[6] = 0x1A; png_wrap[7] = 0x0A;
+		png_wrap[8] = 0xFF; png_wrap[9] = 0xFF; png_wrap[10] = 0xFF; png_wrap[11] = 0xFF;
+		png_wrap[12] = 'I'; png_wrap[13] = 'H'; png_wrap[14] = 'D'; png_wrap[15] = 'R';
+		assert(png_hl.can_handle(png_wrap));
+		png_hl.parse(png_wrap);
+		png_hl.get_info(png_wrap, 5);
+	}
+
+	// 3. JPEG Malformed / Corrupted Payloads
+	{
+		jpeg_hex_highlighter jpeg_hl;
+
+		// Truncated JPEG
+		std::vector<uint8_t> jpeg_trunc = {0xFF, 0xD8};
+		assert(!jpeg_hl.can_handle(jpeg_trunc));
+
+		// Marker length overshoot
+		std::vector<uint8_t> jpeg_bad(20, 0);
+		jpeg_bad[0] = 0xFF; jpeg_bad[1] = 0xD8;
+		jpeg_bad[2] = 0xFF; jpeg_bad[3] = 0xE0;
+		jpeg_bad[4] = 0xFF; jpeg_bad[5] = 0xFF;
+		assert(jpeg_hl.can_handle(jpeg_bad));
+		jpeg_hl.parse(jpeg_bad);
+		jpeg_hl.get_info(jpeg_bad, 3);
+
+		// Consecutive 0xFF padding floods
+		std::vector<uint8_t> jpeg_flood(100, 0xFF);
+		jpeg_flood[0] = 0xFF; jpeg_flood[1] = 0xD8;
+		assert(jpeg_hl.can_handle(jpeg_flood));
+		jpeg_hl.parse(jpeg_flood);
+	}
+
+	// 4. ZIP Malformed / Corrupted Payloads
+	{
+		zip_hex_highlighter zip_hl;
+
+		// Truncated ZIP
+		std::vector<uint8_t> zip_trunc = {0x50, 0x4B};
+		assert(!zip_hl.can_handle(zip_trunc));
+
+		// ZIP EOCD with corrupt out of bounds CD offset
+		std::vector<uint8_t> zip_bad(100, 0);
+		zip_bad[0] = 0x50; zip_bad[1] = 0x4B; zip_bad[2] = 0x03; zip_bad[3] = 0x04;
+		size_t eocd_pos = zip_bad.size() - 22;
+		zip_bad[eocd_pos] = 0x50; zip_bad[eocd_pos + 1] = 0x4B;
+		zip_bad[eocd_pos + 2] = 0x05; zip_bad[eocd_pos + 3] = 0x06;
+		write_u32_le(zip_bad, eocd_pos + 16, 0xDEADBEEF);
+		write_u32_le(zip_bad, eocd_pos + 12, 1000);
+		assert(zip_hl.can_handle(zip_bad));
+		zip_hl.parse(zip_bad);
+		zip_hl.get_info(zip_bad, 0);
+	}
+
+	// 5. TAR Malformed / Corrupted Payloads
+	{
+		tar_hex_highlighter tar_hl;
+
+		// Truncated TAR header (< 512 bytes)
+		std::vector<uint8_t> tar_trunc(260, 'A');
+		tar_trunc[257] = 'u'; tar_trunc[258] = 's'; tar_trunc[259] = 't';
+		assert(!tar_hl.can_handle(tar_trunc));
+
+		// Corrupt octal size with non-octal string
+		std::vector<uint8_t> tar_bad(1024, 0);
+		tar_bad[257] = 'u'; tar_bad[258] = 's'; tar_bad[259] = 't'; tar_bad[260] = 'a'; tar_bad[261] = 'r';
+		std::string bad_oct = "INVALID_OCT!";
+		for (size_t i = 0; i < bad_oct.length(); ++i) {
+			tar_bad[124 + i] = static_cast<uint8_t>(bad_oct[i]);
+		}
+		assert(tar_hl.can_handle(tar_bad));
+		tar_hl.parse(tar_bad);
+		tar_hl.get_info(tar_bad, 0);
+	}
+
+	// 6. PDF Malformed / Corrupted Payloads
+	{
+		pdf_hex_highlighter pdf_hl;
+
+		// Truncated PDF header
+		std::vector<uint8_t> pdf_trunc = {'%', 'P', 'D'};
+		assert(!pdf_hl.can_handle(pdf_trunc));
+
+		// Unclosed obj / stream keywords
+		std::string pdf_bad_str = "%PDF-1.4\n1 0 obj\n<< /Length 99999 >>\nstream\ngarbage bytes...\n";
+		std::vector<uint8_t> pdf_bad(pdf_bad_str.begin(), pdf_bad_str.end());
+		assert(pdf_hl.can_handle(pdf_bad));
+		pdf_hl.parse(pdf_bad);
+		pdf_hl.get_info(pdf_bad, 10);
+	}
+
+	std::cout << "All robustness & malicious/corrupt file format tests passed cleanly!" << std::endl;
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -532,6 +727,9 @@ int main()
 	test_real_jpeg_file();
 	test_zip_highlighter();
 	test_pdf_highlighter();
+	test_tar_highlighter();
+	test_malicious_corrupt_files();
 	std::cout << "All hex syntax highlighter tests passed!" << std::endl;
 	return 0;
 }
+
