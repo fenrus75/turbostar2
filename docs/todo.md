@@ -393,8 +393,15 @@ remember to describe features in terms of the benefit to the user or the agent, 
   5. Removed `sqlite3_dep` from core library dependencies in `src/meson.build` (`libturbostar_core`, `libagentlib`, `tools_deps`).
   6. Updated Meson unit test targets (`test_sqlite_list_db` and `test_sqlite_validation`) in `meson.build` with `export_dynamic: true`, `depends: [sqlite_plugin]`, and `env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins']`.
   7. Fixed singleton initialization order in `test_sqlite_list_db.cpp` and `test_sqlite_validation.cpp` to prevent exit double-free crashes.
-  8. Verified 100% test suite pass rate (246 OK, 1 Expected Fail, 2 Skipped).
+## 21-08-2026
+- Fix OpenAI Streaming Backend HTTP 400 Bad Request Error on Truncated Tool Call Arguments (`src/fs_utils.h/cpp`, `src/agentlib/llm_types.h`, `src/agentlib/protocols/openai_completion_connection.cpp`, `tests/unit/test_api_formatter.cpp`):
+  1. **Root Cause**: When an LLM stream terminates or truncates tool call generation (e.g. hitting `max_tokens`), unterminated JSON argument strings (e.g. missing `"` and `}`) were persisted into conversation history. On subsequent turns, serializing these invalid JSON strings into `/v1/chat/completions` request payloads caused strict OpenAI-compatible backends (vLLM, llama.cpp) to throw `HTTP 400 Bad Request: Unterminated string starting at: line 1 column 46 (char 45)`.
+  2. **JSON Auto-Repair**: Created `fs_utils::repair_json_string` which automatically closes unterminated string literals and unclosed object/array brackets/braces (`{`, `[`), falling back safely to `"{}"` if parsing fails completely.
+  3. **Protocol Serialization & Cleanup**: Integrated `repair_json_string` into `to_json(nlohmann::json&, const tool_call&)` in `llm_types.h`. Erased internal-only non-standard metadata keys (`timestamp`, `duration_ms`, `episode_id`, `episode_level`) before posting messages to OpenAI endpoints.
+  4. **Verification**: Added unit test assertions in `test_api_formatter.cpp` testing full 452-message conversation payload loading and `repair_json_string` behavior. Verified live payload success against local LLM server endpoint. Verified 100% test suite pass rate (262 OK, 1 Expected Fail, 2 Skipped).
+
 ## 15-08-2026
+
 - Multi-Chunk Batch File Editing (`fs_multi_replace_content`) & Shared Replacement Engine (`src/tools/fs_replace_content/`, `src/codemap_utils.h/cpp`, `src/mime.h/cpp`, `docs/tools.md`, `tests/unit/test_fs_multi_replace_content.cpp`, `meson.build`):
   1. **Shared Engine (`fs_replace_engine.h/cpp`)**: Created shared replacement engine co-located in `src/tools/fs_replace_content/`, encapsulating multi-chunk batch replacements, relaxed line matching, scope windowing, and multiline-aware brace balance verification (`calculate_brace_balance`). Refactored `fs_replace_content` to execute via `fs_replace_engine`.
   2. **Multi-Chunk Tool (`fs_multi_replace_content`)**: Built `fs_multi_replace_content` accepting an array of `{target_content, replacement_content, line_hint, function_scope, start_line, end_line}` chunk objects. Executes atomic transactional rollback if any chunk fails to match or breaks syntax/brace-balance in strict mode.
