@@ -117,9 +117,10 @@ httplib_transport::httplib_transport(const std::string &base_url, const std::str
 			cli_->set_connection_timeout(std::chrono::milliseconds(5000));
 			cli_->set_read_timeout(std::chrono::milliseconds(15000));
 		} else {
-			cli_->set_connection_timeout(std::chrono::seconds(5));
-			cli_->set_read_timeout(std::chrono::seconds(300));
+			cli_->set_connection_timeout(std::chrono::seconds(15));
+			cli_->set_read_timeout(std::chrono::seconds(600));
 		}
+
 		cli_->set_follow_location(true);
 		cli_->set_keep_alive(false);
 		cli_->enable_server_certificate_verification(false);
@@ -250,6 +251,8 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 		std::string error_body;
 		std::string requested_path;
 		int status_code = 0;
+		bool chunks_received = false;
+
 		{
 			std::lock_guard<std::mutex> lock(mutex_);
 			if (!cli_)
@@ -303,6 +306,9 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 					error_body.append(data, len);
 					return true;
 				}
+				if (len > 0) {
+					chunks_received = true;
+				}
 				return callback(data, len, off, total);
 			};
 
@@ -313,8 +319,20 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 			int err_num = errno;
 			last_error_ =
 			    error_to_string(res.error()) + " (Path: " + requested_path + ")" + format_rich_diagnostics(res.error(), err_num);
+			if (!chunks_received && attempt < MAX_RETRIES && !cancelled_.load()) {
+				event_logger::get_instance().log(std::format(
+					"HTTP transport error ({}) for {}. Waiting {}s before retry (attempt {}/{})...",
+					error_to_string(res.error()), requested_path, wait_seconds, attempt + 1, MAX_RETRIES));
+				for (int s = 0; s < wait_seconds && !cancelled_.load(); ++s) {
+					std::this_thread::sleep_for(std::chrono::seconds(1));
+				}
+				if (!cancelled_.load()) {
+					continue;
+				}
+			}
 			return false;
 		}
+
 
 		if (res->status != 200) {
 			if (res->status == 503 && attempt < MAX_RETRIES && !cancelled_.load()) {

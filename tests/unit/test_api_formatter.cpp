@@ -69,12 +69,12 @@ public:
 			 std::function<bool(const char* data, size_t len, size_t off, size_t total)> callback) override {
 		last_path = path;
 		last_body = json_body;
-		if (!stream_success) return false;
 		for (const auto& chunk : stream_chunks) {
 			callback(chunk.data(), chunk.size(), 0, chunk.size());
 		}
-		return true;
+		return stream_success;
 	}
+
 
 	std::string get_base_url() const override { return "mock://"; }
 	std::string get_last_error() const override { return ""; }
@@ -343,8 +343,31 @@ int main()
 		assert(inner_args["path"] == "src/main.cpp");
 	}
 
+	// 8. Test stream completion when parsed_sse is true but transport returns false on socket close
+	{
+		auto transport = std::make_shared<mock_transport>();
+		transport->stream_success = false;
+		transport->stream_chunks.push_back("data: {\"id\":\"resp_sse_1\",\"choices\":[{\"delta\":{\"content\":\"Hello world\"}}]}\n\n");
+
+		openai_completion_connection conn(transport, "gpt-4", api_type::openai);
+		bool received_content = false;
+		bool received_error = false;
+
+		conn.send_prompt(*convo, agent_properties{}, [&](const stream_event& ev) {
+			if (ev.type == stream_event::event_type::content_chunk) {
+				if (ev.text == "Hello world") received_content = true;
+			} else if (ev.type == stream_event::event_type::error) {
+				received_error = true;
+			}
+		});
+
+		assert(received_content && "Should have received content chunk from SSE stream");
+		assert(!received_error && "Should NOT emit error event when SSE chunks were successfully parsed before socket close");
+	}
+
 	std::cout << "test_api_formatter passed successfully!" << std::endl;
 	return 0;
 }
+
 
 

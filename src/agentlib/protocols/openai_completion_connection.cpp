@@ -287,8 +287,9 @@ void openai_completion_connection::send_prompt(
 		return true;
 	});
 
-	if (!success) {
+	if (!success && !parsed_sse) {
 		std::string err = "Error: Streaming request failed to " + transport_->get_base_url();
+
 		std::string last_err = transport_->get_last_error();
 		if (!last_err.empty()) {
 			err += " (" + last_err + ")";

@@ -284,6 +284,7 @@ void openai_response_connection::send_prompt(
 	std::string line_buffer;
 	llm_usage final_usage{};
 	std::string final_response_id = "";
+	bool parsed_sse = false;
 
 	bool success = transport_->post_stream(endpoint, body, [&](const char *data, size_t len, size_t /*off*/, size_t /*total*/) {
 		line_buffer.append(data, len);
@@ -300,6 +301,8 @@ void openai_response_connection::send_prompt(
 				}
 				try {
 					nlohmann::json chunk = nlohmann::json::parse(json_str);
+					parsed_sse = true;
+
 					
 					if (chunk.contains("response") && chunk["response"].is_object() && chunk["response"].contains("id") &&
 					    chunk["response"]["id"].is_string()) {
@@ -382,7 +385,7 @@ void openai_response_connection::send_prompt(
 		return true;
 	});
 
-	if (!success) {
+	if (!success && !parsed_sse) {
 		std::string err = "Error: Streaming request failed to " + transport_->get_base_url();
 		std::string last_err = transport_->get_last_error();
 		if (!last_err.empty()) {
@@ -394,6 +397,7 @@ void openai_response_connection::send_prompt(
 		stream_event completed_event{ stream_event::event_type::completed, "", {}, final_usage, final_response_id };
 		callback(completed_event);
 	}
+
 }
 
 std::string openai_response_connection::compact_response(const std::string& previous_response_id, std::string* error_msg) {
