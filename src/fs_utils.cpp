@@ -928,4 +928,62 @@ bool ensure_parent_directory_exists(const std::string &target_path, std::string 
 	return true;
 }
 
+std::string repair_json_string(std::string_view untrusted_json)
+{
+	if (untrusted_json.empty()) {
+		return "{}";
+	}
+
+	try {
+		auto parsed = nlohmann::json::parse(untrusted_json);
+		return std::string(untrusted_json);
+	} catch (...) {
+	}
+
+	std::string s(untrusted_json);
+	std::vector<char> stack;
+	bool in_string = false;
+	bool escaped = false;
+
+	for (char c : s) {
+		if (in_string) {
+			if (escaped) {
+				escaped = false;
+			} else if (c == '\\') {
+				escaped = true;
+			} else if (c == '"') {
+				in_string = false;
+			}
+		} else {
+			if (c == '"') {
+				in_string = true;
+			} else if (c == '{' || c == '[') {
+				stack.push_back(c);
+			} else if (c == '}' && !stack.empty() && stack.back() == '{') {
+				stack.pop_back();
+			} else if (c == ']' && !stack.empty() && stack.back() == '[') {
+				stack.pop_back();
+			}
+		}
+	}
+
+	std::string repaired = s;
+	if (in_string) {
+		repaired += '"';
+	}
+	while (!stack.empty()) {
+		char top = stack.back();
+		stack.pop_back();
+		repaired += (top == '{' ? '}' : ']');
+	}
+
+	try {
+		auto parsed = nlohmann::json::parse(repaired);
+		return repaired;
+	} catch (...) {
+	}
+
+	return "{}";
+}
+
 } // namespace fs_utils

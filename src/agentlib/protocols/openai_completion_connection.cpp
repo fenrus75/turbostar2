@@ -166,7 +166,10 @@ void openai_completion_connection::send_prompt(
 		to_json(m_json, msg);
 		m_json.erase("episode_id");
 		m_json.erase("episode_level");
+		m_json.erase("timestamp");
+		m_json.erase("duration_ms");
 		if (msg.role == "user" && msg.content.find("images://") != std::string::npos) {
+
 			m_json["content"] = process_user_content_openai(msg.content);
 		}
 		msgs_json.push_back(m_json);

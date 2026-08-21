@@ -5,6 +5,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <vector>
+#include "../fs_utils.h"
 
 namespace agentlib
 {
@@ -25,10 +26,13 @@ struct tool_call {
 inline void to_json(nlohmann::json &j, const tool_call &p)
 {
 	std::string type_val = p.type.empty() ? "function" : p.type;
-	j = nlohmann::json{{"id", p.id}, {"type", type_val}, {"function", p.function}};
+	function_call fc = p.function;
+	fc.arguments = fs_utils::repair_json_string(fc.arguments);
+	j = nlohmann::json{{"id", p.id}, {"type", type_val}, {"function", fc}};
 	if (p.signature)
 		j["signature"] = *p.signature;
 }
+
 
 inline void from_json(const nlohmann::json &j, tool_call &p)
 {

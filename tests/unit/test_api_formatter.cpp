@@ -1,6 +1,10 @@
+// Tested source file: src/agentlib/protocols/openai_completion_connection.cpp
 #include "test_watchdog.h"
 #include <cassert>
+#include <fstream>
 #include <iostream>
+
+
 #include <nlohmann/json.hpp>
 #include "../../src/agentlib/protocols/connection.h"
 #include "../../src/agentlib/protocols/openai_completion_connection.h"
@@ -259,6 +263,88 @@ int main()
 		assert(msgs[ast_idx + 2]["content"] == "Auto-Episode Boundary");
 	}
 
+	// 6. Test loading agent_chat_2.json and generating openai_completion_connection payload
+	{
+		std::string chat_path = "/home/arjan/.cache/turbostar/projects/10101618844961150461/tmp/agent_chat_2.json";
+		std::ifstream ifs(chat_path);
+		if (ifs.is_open()) {
+			std::cout << "Loading saved conversation: " << chat_path << std::endl;
+			nlohmann::json root = nlohmann::json::parse(ifs);
+			ifs.close();
+
+			auto loaded_convo = Conversation::deserialize(root["conversation"]);
+			auto transport = std::make_shared<mock_transport>();
+			openai_completion_connection conn(transport, "nvidia/MiniMax-M2.7-NVFP4", api_type::openai);
+			conn.send_prompt(*loaded_convo, agent_properties{}, [](const stream_event&){});
+
+			std::cout << "Generated payload body length: " << transport->last_body.size() << " bytes." << std::endl;
+			std::cout << "First 100 bytes of body: [" << transport->last_body.substr(0, 100) << "]" << std::endl;
+
+			try {
+				nlohmann::json parsed_body = nlohmann::json::parse(transport->last_body);
+				std::cout << "Successfully parsed generated payload JSON body! Messages count: " 
+				          << parsed_body["messages"].size() << std::endl;
+
+				// Scan transport->last_body for unescaped control characters inside JSON strings!
+				bool in_string = false;
+				bool escaped = false;
+				size_t line = 1, col = 0;
+				for (size_t i = 0; i < transport->last_body.size(); ++i) {
+					char c = transport->last_body[i];
+					col++;
+					if (c == '\n') { line++; col = 0; }
+
+					if (in_string) {
+						if (escaped) {
+							escaped = false;
+						} else if (c == '\\') {
+							escaped = true;
+						} else if (c == '"') {
+							in_string = false;
+						} else if (static_cast<unsigned char>(c) < 0x20) {
+							std::cout << "CRITICAL PROTOCOL BUG: Raw unescaped control char 0x"
+								  << std::hex << static_cast<int>(static_cast<unsigned char>(c)) << std::dec
+								  << " found in JSON body string at index " << i
+								  << " (line " << line << " col " << col << ")!" << std::endl;
+						}
+					} else {
+						if (c == '"') {
+							in_string = true;
+						}
+					}
+				}
+			} catch (const std::exception &e) {
+				std::cerr << "FAIL parsing generated payload body: " << e.what() << std::endl;
+				assert(false && "Generated payload JSON body is invalid!");
+			}
+
+		}
+	}
+
+	// 7. Test repair_json_string on unterminated/truncated tool_call arguments
+	{
+		std::string truncated_args = "{\"path\": \"src/main.cpp\", \"target_content\": \"int main() {\\n    return 0;";
+		std::string repaired = fs_utils::repair_json_string(truncated_args);
+		json parsed = json::parse(repaired);
+		assert(parsed["path"] == "src/main.cpp");
+		assert(parsed["target_content"] == "int main() {\n    return 0;");
+
+		// Test serializing tool_call with truncated arguments
+		tool_call tc;
+		tc.id = "call_trunc_123";
+		tc.type = "function";
+		tc.function.name = "fs_replace_content";
+		tc.function.arguments = truncated_args;
+
+		json tc_json;
+		to_json(tc_json, tc);
+		assert(tc_json["function"]["arguments"].is_string());
+		json inner_args = json::parse(tc_json["function"]["arguments"].get<std::string>());
+		assert(inner_args["path"] == "src/main.cpp");
+	}
+
 	std::cout << "test_api_formatter passed successfully!" << std::endl;
 	return 0;
 }
+
+

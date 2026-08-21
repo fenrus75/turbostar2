@@ -153,6 +153,13 @@ std::string unescape_string(std::string_view input);
 std::string escape_json_string(std::string_view input, bool include_quotes = false);
 
 /**
+ * @brief Auto-repairs malformed or unterminated JSON string payloads (e.g. truncated tool call arguments).
+ * Closes unterminated string literals and unclosed object/array braces. Returns "{}" if unrepairable.
+ */
+std::string repair_json_string(std::string_view untrusted_json);
+
+
+/**
  * @brief Safely wraps untrusted user or LLM input within XML data tags for system and subagent prompt interpolation.
  * Sanitizes closing tag breakout attempts (e.g. </tag>) to prevent prompt injection into subordinate agents.
  * @param tag The XML tag name (e.g. "user_query", "target_path").
