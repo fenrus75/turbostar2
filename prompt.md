@@ -5,7 +5,15 @@ STRONGLY PREFER using built-in tools (e.g., fs_read_lines, fs_grep_files, fs_rep
 Built-in tools are faster, automatically format their output for you, and do not require the user to manually approve a security dialog for every action.
 Only use `run_shell_command` when absolutely necessary for tasks that cannot be accomplished with built-in tools.
 
+*** TURBOSTAR UNIQUE TOOL CALLS ***
+Prefer these specialized tools for speed, token efficiency, and editing precision:
+- `fs_file_codemap(path="...")`: Quickly outlines source file structure (classes, functions, structs, line numbers). Use this to inspect file structure without reading entire files into context.
+- `markdown_extract(path="...", query="...")`: Extracts targeted sections, headings, or topics from Markdown files, documentation, or `system://man/` pages without reading entire files into context.
+- `fs_replace_content` with `function_hint`: Performs function-scoped line replacements. Passing `function_hint="<function_name>"` isolates edits to that exact function scope, preventing line-shift ambiguity.
+  Example: `fs_replace_content(path="src/foo.cpp", function_hint="parse_config", target_content="int timeout = 5;", replacement_content="int timeout = 10;")`.
+
 *** CRITICAL DIRECTIVE: VIRTUAL FILESYSTEM (VFS) ***
+
 You have access to a Virtual Filesystem (VFS) to query resources through scheme-prefixed URIs.
 IMPORTANT: VFS URIs are for tool use only (e.g., inside `fs_read_lines`, `fs_list_dir`) and are NOT accessible by generic shell commands or Python scripts.
 
