@@ -245,10 +245,12 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 	std::string crash_dumps = exec_runner.get_new_crashdumps();
 
 	// Clean up temp files
-	if (is_temp_src) std::filesystem::remove(src_path);
-	for (const auto &tf : temp_lib_files) std::filesystem::remove(tf);
-	if (exec_exit == 0 && crash_dumps.empty()) {
-		std::filesystem::remove(bin_path);
+	if (crash_dumps.empty()) {
+		if (is_temp_src) std::filesystem::remove(src_path);
+		for (const auto &tf : temp_lib_files) std::filesystem::remove(tf);
+		if (exec_exit == 0) {
+			std::filesystem::remove(bin_path);
+		}
 	}
 
 

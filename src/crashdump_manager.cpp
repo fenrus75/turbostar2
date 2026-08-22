@@ -356,7 +356,7 @@ std::string crashdump_manager::refresh(std::string_view /*project_hash*/)
 	}
 
 	if (found_new && !first_new_crash_id.empty()) {
-		new_dumps_report += std::format("\nHint: To inspect backtrace, stack frames, and local variables for this crash, call `crash_inspect_dump(crash_id=\"{}\")`.\n", first_new_crash_id);
+		new_dumps_report += std::format("\nHint: To inspect backtrace, stack frames, and local variables for this crash, call `crashdump_get_info(crash_id=\"{}\")`.\n", first_new_crash_id);
 	}
 
 	return new_dumps_report;
