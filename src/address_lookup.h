@@ -44,13 +44,14 @@ class address_lookup
 	static std::vector<resolved_address> resolve_addresses(std::span<const uintptr_t> addresses,
 							       std::string_view maps_path_or_pid = "");
 
-      private:
-	// Check if a binary exists in PATH
-	static bool check_binary_exists(std::string_view name);
-
 	// Safely execute subprocess without shell interpretation, passing stdin content if provided
 	static std::vector<std::string> run_command(std::string_view bin, std::span<const std::string> args,
 						    std::string_view stdin_input = "");
+
+      private:
+	// Check if a binary exists in PATH
+	static bool check_binary_exists(std::string_view name);
 };
+
 
 } // namespace turbostar

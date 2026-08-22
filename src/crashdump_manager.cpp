@@ -484,12 +484,115 @@ crash_frame_info crashdump_manager::get_crash_frame_info(std::string_view crash_
 
 	std::string dump_dir = fs_utils::get_project_dump_dir();
 	fs::path crash_dir = fs::path(dump_dir) / std::format("crash_{}", crash_id);
-	generate_report_if_needed(crash_dir.string());
 
+	// 1. First attempt: Query GDB directly on the core dump file to get GDB's exact unstripped frame numbers
+	fs::path core_file;
+	if (fs::exists(crash_dir)) {
+		for (const auto &entry : fs::directory_iterator(crash_dir)) {
+			if (entry.is_regular_file() && entry.path().filename().string().starts_with("core")) {
+				core_file = entry.path();
+				break;
+			}
+		}
+	}
+
+	std::string gdb_bin = fs::exists("/usr/bin/gdb") ? "/usr/bin/gdb" : (fs::exists("/bin/gdb") ? "/bin/gdb" : "");
+	if (!core_file.empty() && !gdb_bin.empty()) {
+		std::string exe_path;
+		fs::path info_path = crash_dir / "info.txt";
+		std::ifstream info_in(info_path);
+		if (info_in) {
+			std::string l;
+			constexpr std::string_view exe_pref = "Executable: ";
+			while (std::getline(info_in, l)) {
+				if (l.starts_with(exe_pref)) {
+					std::string cand = l.substr(exe_pref.length());
+					if (fs::exists(cand)) exe_path = cand;
+					break;
+				}
+			}
+		}
+		if (exe_path.empty() && fs::exists(crash_dir / "executable.bin")) {
+			exe_path = (crash_dir / "executable.bin").string();
+		}
+
+		std::vector<std::string> gdb_args = {"--batch", "-ex", "bt 25"};
+		if (!exe_path.empty()) {
+			gdb_args.push_back(exe_path);
+		}
+		gdb_args.push_back("-c");
+		gdb_args.push_back(core_file.string());
+
+		auto gdb_lines = turbostar::address_lookup::run_command(gdb_bin, gdb_args);
+		for (const auto &l : gdb_lines) {
+			// Expect lines like: #5  0x00005563f993f145 in compute_bonus (e=0x0) at /path/to/crash_probe.c:12
+			if (l.empty() || l[0] != '#') continue;
+
+			size_t space_pos = l.find(' ');
+			if (space_pos == std::string::npos || space_pos < 2) continue;
+			std::string frame_str = l.substr(1, space_pos - 1);
+			int gdb_frame_idx = -1;
+			try { gdb_frame_idx = std::stoi(frame_str); } catch (...) { continue; }
+
+			size_t in_pos = l.find(" in ");
+			if (in_pos == std::string::npos) continue;
+
+			size_t func_start = in_pos + 4;
+			size_t paren_pos = l.find('(', func_start);
+			if (paren_pos == std::string::npos) continue;
+
+			std::string func_name = l.substr(func_start, paren_pos - func_start);
+			size_t f_first = func_name.find_first_not_of(" \t");
+			size_t f_last = func_name.find_last_of(" \t");
+			if (f_first != std::string::npos) {
+				func_name = func_name.substr(f_first, f_last - f_first + 1);
+			}
+
+			// Skip signal handler / syscall / wrapper frames
+			if (func_name == "__internal_syscall_cancel" || func_name == "__syscall_cancel" ||
+			    func_name == "__GI___wait4" || func_name == "wait4" ||
+			    func_name == "turbocatch_handle_signal" || func_name == "_start" ||
+			    func_name.contains("signal") || func_name.contains("syscall")) {
+				continue;
+			}
+
+			res.frame_number = gdb_frame_idx;
+			res.function_name = func_name;
+
+			size_t at_pos = l.find(" at ", paren_pos);
+			if (at_pos != std::string::npos) {
+				res.location = l.substr(at_pos + 4);
+			}
+
+			size_t close_paren = l.find(')', paren_pos);
+			if (close_paren != std::string::npos && close_paren > paren_pos + 1) {
+				std::string args_str = l.substr(paren_pos + 1, close_paren - paren_pos - 1);
+				size_t eq_pos = args_str.find('=');
+				if (eq_pos != std::string::npos && eq_pos > 0) {
+					size_t var_end = eq_pos;
+					size_t var_start = var_end;
+					while (var_start > 0 && (std::isalnum(args_str[var_start - 1]) || args_str[var_start - 1] == '_')) {
+						--var_start;
+					}
+					if (var_start < var_end) {
+						res.suggested_var = args_str.substr(var_start, var_end - var_start);
+					}
+				}
+			}
+
+			if (res.frame_number >= 0 && !res.function_name.empty()) {
+				return res;
+			}
+		}
+	}
+
+	// 2. Fallback: Parse report.md
+	generate_report_if_needed(crash_dir.string());
 	fs::path report_path = crash_dir / "report.md";
 	if (!fs::exists(report_path)) {
 		return res;
 	}
+
 
 	std::ifstream in(report_path);
 	std::string line;
