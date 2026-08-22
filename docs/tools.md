@@ -307,6 +307,19 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
     *   `dependencies` *(array of strings, optional)*: PyPI dependencies to temporarily install via 'uv' (if available). If a `venv` is also provided, they are installed into that virtual environment instead.
     *   `venv` *(string, optional)*: Path to a Python virtual environment directory (e.g. '.venv'). Its interpreter (`<venv>/bin/python`) is used to run the script, and any `dependencies` are installed into it. Resolved relative to the project root.
 
+### `run_cpp`
+*   **Description:** Compiles and executes C++ source code or standalone probe files in a sandboxed environment with `libturbocatch.so` preloaded to catch crashes. Useful for testing APIs, language features, and logic without modifying build files.
+*   **Arguments:**
+    *   `code` *(string, optional)*: Inline C++ source code string to compile and run.
+    *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://probe.cpp') to a C++ file to execute.
+    *   `std` *(string, optional)*: C++ language standard version (`c++23`, `c++20`, `c++17`). Defaults to `c++23`.
+    *   `includes` *(array of strings, optional)*: Array of include paths or system header flags (e.g. `["src/", "include://"]`).
+    *   `defines` *(array of strings, optional)*: Array of preprocessor macro definitions (e.g. `["DEBUG=1"]`).
+    *   `libraries` *(array of strings, optional)*: Array of linker library flags or pkg-config packages (e.g. `["-lsqlite3", "-lssl"]`).
+    *   `timeout` *(integer, optional)*: Maximum execution runtime in seconds (1 to 60). Defaults to `10`.
+
+
+
 ### `web_fetch`
 *   **Description:** Fetches content from a URL via HTTP/HTTPS. Useful for reading documentation or external resources. Implements domain-based access controls and prompts the user for permission.
 *   **Arguments:**

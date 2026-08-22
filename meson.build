@@ -565,6 +565,15 @@ test_run_python = executable('test_run_python',
   include_directories: inc)
 test('unit_test_run_python', test_run_python, timeout: 60, is_parallel: false, suite: 'agent')
 
+test_run_cpp = executable('test_run_cpp',
+  ['tests/unit/test_run_cpp.cpp',
+   'src/tools/run_cpp/run_cpp_entry.cpp',
+   'src/tools/run_cpp/run_cpp_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_run_cpp', test_run_cpp, timeout: 60, is_parallel: false, suite: 'agent', depends: libturbocatch, env: ['TURBOSTAR_TURBOCATCH_DIR=' + meson.project_build_root()])
+
+
 test_run_shell_command = executable('test_run_shell_command',
   ['tests/unit/test_run_shell_command.cpp',
    'src/tools/run_shell_command/run_shell_command_entry.cpp',

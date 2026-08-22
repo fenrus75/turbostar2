@@ -33,7 +33,10 @@ tools_sources = files(
   'wait_for_subagent/wait_for_subagent_security.cpp',
   'run_python/run_python_entry.cpp',
   'run_python/run_python_security.cpp',
+  'run_cpp/run_cpp_entry.cpp',
+  'run_cpp/run_cpp_security.cpp',
   'web_fetch/web_fetch_entry.cpp',
+
   'web_fetch/web_fetch_security.cpp',
   'apply_text_filter/apply_text_filter_entry.cpp',
   'apply_text_filter/apply_text_filter_security.cpp',

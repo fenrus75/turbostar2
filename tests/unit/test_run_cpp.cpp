@@ -1,0 +1,60 @@
+// Tested source file: src/tools/run_cpp/run_cpp_entry.cpp
+#include "test_watchdog.h"
+#include <cassert>
+#include <iostream>
+#include <nlohmann/json.hpp>
+#include "../../src/agentlib/tool_registry.h"
+#include "../../src/project_manager.h"
+
+using namespace agentlib;
+
+int main()
+{
+	test_watchdog::setup_watchdog(60);
+	project_manager::get_instance().initialize();
+
+	tool_registry &registry = tool_registry::get_instance();
+	tool_context ctx;
+
+	std::string project_root = project_manager::get_instance().get_project_root();
+	ctx.fs_security.set_working_directory(project_root);
+	ctx.fs_security.add_allowed_root(project_root, access_type::read);
+	ctx.fs_security.add_allowed_root(project_root, access_type::write);
+
+	std::cout << "Testing run_cpp tool..." << std::endl;
+
+	// 1. Success case: inline C++ code execution
+	{
+		nlohmann::json args = {
+			{"code", "std::cout << \"Hello TurboStar run_cpp: \" << (20 + 22) << std::endl;"},
+			{"std", "c++23"}
+		};
+		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
+		std::cout << "Result 1: " << result << std::endl;
+		assert(result.find("Hello TurboStar run_cpp: 42") != std::string::npos);
+		assert(result.find("[Execution: SUCCESS]") != std::string::npos);
+	}
+
+	// 2. Compilation error handling
+	{
+		nlohmann::json args = {
+			{"code", "int x = ;"}
+		};
+		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
+		std::cout << "Result 2: " << result << std::endl;
+		assert(result.find("[Compilation: FAILED]") != std::string::npos);
+	}
+
+	// 3. Runtime crash catching via libturbocatch.so preloading (SIGSEGV)
+	{
+		nlohmann::json args = {
+			{"code", "int *ptr = nullptr;\n*ptr = 1337;"}
+		};
+		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
+		std::cout << "Result 3: " << result << std::endl;
+		assert(result.find("[Execution: FAILED") != std::string::npos || result.find("SIGSEGV") != std::string::npos || result.find("Segmentation fault") != std::string::npos);
+	}
+
+	std::cout << "run_cpp tests passed successfully.\n";
+	return 0;
+}

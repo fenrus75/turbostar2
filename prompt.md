@@ -11,6 +11,8 @@ Prefer these specialized tools for speed, token efficiency, and editing precisio
 - `markdown_extract(path="...", query="...")`: Extracts targeted sections, headings, or topics from Markdown files, documentation, or `system://man/` pages without reading entire files into context.
 - `fs_replace_content` with `function_hint`: Performs function-scoped line replacements. Passing `function_hint="<function_name>"` isolates edits to that exact function scope, preventing line-shift ambiguity.
   Example: `fs_replace_content(path="src/foo.cpp", function_hint="parse_config", target_content="int timeout = 5;", replacement_content="int timeout = 10;")`.
+- `run_cpp(code="...")`: Compiles and executes C++ source code in a sandboxed probe environment with `libturbocatch.so` preloaded to catch crashes. Use this to verify C++ APIs, language features, or logic snippets directly.
+
 
 *** CRITICAL DIRECTIVE: VIRTUAL FILESYSTEM (VFS) ***
 
