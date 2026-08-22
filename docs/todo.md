@@ -415,9 +415,10 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 - `run_cpp` Ad-Hoc Probe Tool (`src/tools/run_cpp/`, `docs/tools.md`, `src/ui/agent_window.cpp`, `prompt.md`, `tests/unit/test_run_cpp.cpp`):
   1. **Built `run_cpp` Tool**: Enables agents to compile and run ad-hoc C/C++ snippets or standalone probe files in a sandboxed execution environment. Supports C++ (`c++23`, `c++20`, `c++17`, `c++14`, `c++11`) and C (`c17`, `c11`, `c99`, `c89`, `gnu17`, `gnu11`) standards, custom include paths (`-I`), preprocessor macros (`-D`), and linker library flags (`-l`). Automatically selects `gcc` for C standards and `g++` for C++ standards.
-  2. **VFS Path Support (`tmp://`, `include://`, `skills://`)**: Added VFS URI resolution to `run_cpp_entry.cpp`. Automatically maps disk-backed VFS paths (`tmp://file.c`) and extracts memory/VFS buffer files into the sandbox build directory (`build/tmp_cpp`), enabling seamless compilation of temporary VFS source files. Automatically defaults `.c` files to `c17` standard.
+  2. **VFS Path Support (`tmp://`, `include://`, `skills://`)**: Added VFS URI resolution to `run_cpp_entry.cpp` for `path`, `includes`, and `libraries`. Automatically maps disk-backed VFS paths (`tmp://file.c`, `tmp://header.h`, `tmp://helper.cpp`) and extracts memory/VFS buffer files into the sandbox build directory (`build/tmp_cpp`), enabling seamless compilation of temporary VFS source files, include headers, and extra translation units. Automatically defaults `.c` files to `c17` standard.
   4. **Discoverability & Schema Documentation Enhancements**: Updated `run_cpp.h`, `run_cpp_security.cpp`, `docs/tools.md`, and `agent_window.cpp` to explicitly document VFS URI resolution (`tmp://`, `include://`), `-I` include array evaluation order, preprocessor macro format (stripping optional `-D` prefix), extra translation units & linker flags in `libraries`, default language standard (`c++23` and auto `.c` `c17`), timeout bounds (1-60s, default 10s), and `libturbocatch.so` crash intercept formatting.
-  5. **Verification**: Added unit tests in `tests/unit/test_run_cpp.cpp`. Verified 100% test suite pass rate (263 OK, 1 Expected Fail, 2 Skipped).
+  5. **Verification**: Added unit tests in `tests/unit/test_run_cpp.cpp` for VFS source files, VFS include directories (`includes`), and VFS translation units (`libraries`). Verified 100% test suite pass rate (263 OK, 1 Expected Fail, 2 Skipped).
+
 
 
 
