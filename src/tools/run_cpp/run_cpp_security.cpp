@@ -25,7 +25,24 @@ nlohmann::json run_cpp_validator::get_parameters_schema() const
 	};
 }
 
+std::vector<agentlib::tool_example> run_cpp_validator::get_examples() const
+{
+	return {
+		{
+			"Inline C++23 Modern STL Probe",
+			nlohmann::json{{"code", "std::cout << \"Sum: \" << (20 + 22) << std::endl;"}, {"std", "c++23"}},
+			"Compiles and executes an inline C++23 snippet."
+		},
+		{
+			"C11 API Probe with Library Flags",
+			nlohmann::json{{"code", "printf(\"SQLite: %s\\n\", sqlite3_libversion());"}, {"std", "c11"}, {"libraries", nlohmann::json::array({"-lsqlite3"})}},
+			"Compiles and executes a C11 snippet linked against libsqlite3."
+		}
+	};
+}
+
 bool run_cpp_validator::validate_args_impl(const nlohmann::json &args, const agentlib::tool_context &ctx, std::string &out_error) const
+
 {
 	parsed_args_ = run_cpp_args{};
 

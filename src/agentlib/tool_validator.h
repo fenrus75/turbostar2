@@ -44,7 +44,16 @@ namespace agentlib {
 | resolve_code_review_item_validator | src/tools/resolve_code_review_item/resolve_code_review_item.h |
 | get_code_review_item_validator | src/tools/get_code_review_item/get_code_review_item.h |
 | list_code_review_items_validator | src/tools/list_code_review_items/list_code_review_items.h |
+
 */
+
+struct tool_example {
+	std::string title;
+	nlohmann::json input_args;
+	std::string explanation;
+};
+
+
 class tool_validator {
 public:
     virtual ~tool_validator() = default;
@@ -53,6 +62,8 @@ public:
     virtual std::string get_name() const = 0;
     virtual std::string get_description() const = 0;
     virtual nlohmann::json get_parameters_schema() const = 0;
+    virtual std::vector<tool_example> get_examples() const { return {}; }
+
 
     // Indicates if the tool is "pure" (has no persistent side effects on the project codebase).
     // Pure tools (e.g., read, list, status, code review database, scratch VFS) can be safely executed by read-only agents.

@@ -43,7 +43,9 @@ class run_cpp_validator : public agentlib::tool_validator
 		return "Compiles and executes C++ source code or standalone probe files in a sandboxed environment with libturbocatch.so preloaded to catch crashes. Useful for testing APIs, language features, and logic.";
 	}
 	nlohmann::json get_parameters_schema() const override;
+	std::vector<agentlib::tool_example> get_examples() const override;
 	bool is_pure() const override
+
 	{
 		return true;
 	}

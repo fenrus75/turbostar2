@@ -201,7 +201,8 @@ int main()
 			nlohmann::json args = {{"url", "http://127.0.0.1:54321/index.html"}, {"output_path", "../outside.txt"}};
 			auto prep = registry.prepare_tool("web_fetch", args.dump(), ctx);
 			assert(prep.tool == nullptr);
-			assert(prep.error_message.find("Security Violation") != std::string::npos);
+			assert(prep.error_message.find("Validation Error") != std::string::npos || prep.error_message.find("Security Violation") != std::string::npos);
+
 		}
 
 		// 3. Successful download write to disk

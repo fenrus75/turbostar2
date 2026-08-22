@@ -37,6 +37,9 @@ extern std::string troff2md(std::string troff_content);
 	ctx.fs_security.set_working_directory(project_manager::get_instance().get_project_root());
 	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::read);
 	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::write);
+	ctx.fs_security.add_allowed_root(test_watchdog::get_global_test_home()->get_path(), access_type::read);
+	ctx.fs_security.add_allowed_root(test_watchdog::get_global_test_home()->get_path(), access_type::write);
+
 
 	std::cout << "\nTesting fs_run_tests with specific tests..." << std::endl;
 	// We'll run a fast test like unit_event_logger
@@ -493,9 +496,11 @@ extern std::string troff2md(std::string troff_content);
 			ctx
 		);
 		assert(prep_security.tool == nullptr);
-		assert(prep_security.error_message.find("Security Violation") != std::string::npos ||
+		assert(prep_security.error_message.find("Validation Error") != std::string::npos ||
+		       prep_security.error_message.find("Security Violation") != std::string::npos ||
 		       prep_security.error_message.find("Access Denied") != std::string::npos ||
 		       prep_security.error_message.find("outside workspace") != std::string::npos);
+
 
 		// Test 5: troff_to_markdown filter
 		{

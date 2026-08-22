@@ -37,8 +37,11 @@ class tool_registry
 
 	std::vector<std::shared_ptr<tool_validator>> get_all_registered_validators() const;
 
+	std::vector<tool_example> get_tool_examples(const std::string &name) const;
+
 	// Checks if the tool should be silent in the UI by default
 	bool is_tool_silent(const std::string &name) const;
+
 
 	struct tool_preparation_result {
 		std::unique_ptr<llm_tool> tool;

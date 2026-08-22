@@ -270,7 +270,19 @@ bool tool_registry::is_tool_silent(const std::string &name) const
 	return false;
 }
 
+std::vector<tool_example> tool_registry::get_tool_examples(const std::string &name) const
+{
+	std::lock_guard<std::recursive_mutex> lock(mutex_);
+	auto it = validator_factories_.find(name);
+	if (it != validator_factories_.end()) {
+		auto validator = it->second();
+		return validator->get_examples();
+	}
+	return {};
+}
+
 tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::string &name, const std::string &args_json_string,
+
 								   tool_context &ctx) const
 {
 	tool_preparation_result res;
@@ -313,7 +325,11 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 	try {
 		args = nlohmann::json::parse(args_json_string);
 	} catch (const std::exception &e) {
-		res.error_message = "Error parsing tool arguments: " + std::string(e.what());
+		res.error_message = std::format(
+			"Error parsing JSON arguments for tool '{}': {}. "
+			"To inspect parameter schemas and valid usage examples, read `system://tools_detailed.md?search={}`.",
+			name, e.what(), name
+		);
 		return res;
 	}
 
@@ -330,7 +346,11 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 
 	try {
 		if (!validator->validate_args(args, ctx, security_error)) {
-			res.error_message = "Stage 1 Security Violation: " + security_error;
+			res.error_message = std::format(
+				"Validation Error for tool '{}': {}. "
+				"To inspect parameter schemas and valid usage examples, read `system://tools_detailed.md?search={}`.",
+				name, security_error, name
+			);
 			return res;
 		}
 

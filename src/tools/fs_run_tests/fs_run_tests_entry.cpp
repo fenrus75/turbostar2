@@ -141,7 +141,8 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 	std::string cmd;
 
 	if (build_system == "meson") {
-		cmd = "MESON_TESTTHREADS=2 meson test -C " + build_path.string();
+		cmd = "CCACHE_DISABLE=1 MESON_TESTTHREADS=2 meson test -C " + build_path.string();
+
 		for (const auto &t : resolved) {
 			cmd += " " + fs_utils::escape_shell_arg(t);
 		}

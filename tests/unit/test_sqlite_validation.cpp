@@ -44,17 +44,17 @@ void test_tool_object_creation()
 		// Try sqlite_create_db
 		std::string json_arg = "{\"database\": \"" + bad_name + "\"}";
 		std::string res = registry.execute_tool("sqlite_create_db", json_arg, ctx);
-		// We expect it to fail at stage 1 or parsing
-		assert(res.find("Error parsing") == 0 || res.find("Stage 1 Security Violation:") == 0);
+		assert(res.find("Error parsing") != std::string::npos || res.find("Validation Error") != std::string::npos || res.find("Security Violation") != std::string::npos);
 
 		// Try sqlite_delete_db
 		res = registry.execute_tool("sqlite_delete_db", json_arg, ctx);
-		assert(res.find("Error parsing") == 0 || res.find("Stage 1 Security Violation:") == 0);
+		assert(res.find("Error parsing") != std::string::npos || res.find("Validation Error") != std::string::npos || res.find("Security Violation") != std::string::npos);
 
 		// Try sqlite_perform
 		std::string json_arg_perf = "{\"database\": \"" + bad_name + "\", \"query\": \"SELECT 1;\"}";
 		res = registry.execute_tool("sqlite_perform", json_arg_perf, ctx);
-		assert(res.find("Error parsing") == 0 || res.find("Stage 1 Security Violation:") == 0);
+		assert(res.find("Error parsing") != std::string::npos || res.find("Validation Error") != std::string::npos || res.find("Security Violation") != std::string::npos);
+
 	}
 }
 

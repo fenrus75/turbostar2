@@ -456,11 +456,27 @@ system_vfs_provider::system_vfs_provider()
 				} else {
 					oss << "* **Arguments:** None\n";
 				}
+
+				auto examples = agentlib::tool_registry::get_instance().get_tool_examples(name);
+				if (!examples.empty()) {
+					oss << "* **Usage Examples:**\n";
+					for (const auto &ex : examples) {
+						oss << "    * **" << ex.title << "**";
+						if (!ex.explanation.empty()) {
+							oss << " — " << ex.explanation;
+						}
+						oss << ":\n";
+						oss << "      ```json\n";
+						oss << "      " << ex.input_args.dump(2) << "\n";
+						oss << "      ```\n";
+					}
+				}
 				oss << "\n";
 			}
 		}
 		return oss.str();
 	});
+
 
 	// 4. Dynamic Generator: system://mcp.md
 	register_generator("mcp.md", [](const std::string &) -> std::string {

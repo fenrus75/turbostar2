@@ -4,7 +4,23 @@
 
 namespace tools {
 
+std::vector<agentlib::tool_example> fs_replace_content_validator::get_examples() const {
+    return {
+        {
+            "Function-Scoped Replacement",
+            nlohmann::json{
+                {"path", "src/main.cpp"},
+                {"function_hint", "parse_config"},
+                {"target_content", "int timeout = 5;"},
+                {"replacement_content", "int timeout = 10;"}
+            },
+            "Replaces target lines strictly within the specified function scope."
+        }
+    };
+}
+
 bool fs_replace_content_validator::validate_args_impl(const nlohmann::json& raw_args, const agentlib::tool_context& ctx, std::string& out_error) const {
+
     try {
         if (!raw_args.contains("path") || !raw_args["path"].is_string()) {
             out_error = "Missing or invalid 'path' parameter.";
