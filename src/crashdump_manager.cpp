@@ -264,7 +264,9 @@ std::string crashdump_manager::refresh(std::string_view /*project_hash*/)
 		return "";
 
 	std::string new_dumps_report;
+	std::string first_new_crash_id;
 	bool found_new = false;
+
 
 	for (const auto &entry : fs::directory_iterator(dump_dir)) {
 		if (!entry.is_directory())
@@ -344,6 +346,7 @@ std::string crashdump_manager::refresh(std::string_view /*project_hash*/)
 		seen_crash_ids_.insert(crash_id);
 
 		if (!found_new) {
+			first_new_crash_id = crash_id;
 			new_dumps_report =
 			    "### New Crashdumps Detected\n| Crash ID | Timestamp | Executable | Signal | Cookie |\n|---|---|---|---|---|\n";
 			found_new = true;
@@ -351,8 +354,13 @@ std::string crashdump_manager::refresh(std::string_view /*project_hash*/)
 		new_dumps_report += info.to_markdown_row() + "\n";
 	}
 
+	if (found_new && !first_new_crash_id.empty()) {
+		new_dumps_report += std::format("\nHint: To inspect backtrace, stack frames, and local variables for this crash, call `crash_inspect_dump(crash_id=\"{}\")`.\n", first_new_crash_id);
+	}
+
 	return new_dumps_report;
 }
+
 
 const std::vector<crashdump_info> &crashdump_manager::get_crashdumps() const
 {
