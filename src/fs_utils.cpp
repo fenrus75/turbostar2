@@ -68,6 +68,13 @@ std::string system_header_to_include_uri(std::string_view path_str)
 	if (path_str.empty() || path_str.starts_with("include://")) {
 		return std::string(path_str);
 	}
+	if (path_str.starts_with("include:/")) {
+		return "include://" + std::string(path_str.substr(9));
+	}
+	if (path_str.starts_with("include:")) {
+		return "include://" + std::string(path_str.substr(8));
+	}
+
 
 	std::filesystem::path p(path_str);
 	if (p.is_relative()) {

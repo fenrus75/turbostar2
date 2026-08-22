@@ -142,12 +142,19 @@ bool file_security_manager::validate_access(const std::string &requested_path, a
 					    std::string &out_error) const
 {
 
-	if (requested_path.find("://") != std::string::npos) {
-		size_t scheme_pos = requested_path.find("://");
-		std::string scheme = requested_path.substr(0, scheme_pos);
+	if (requested_path.find("://") != std::string::npos || requested_path.starts_with("include:")) {
+		std::string req_path = requested_path;
+		if (req_path.starts_with("include:/") && !req_path.starts_with("include://")) {
+			req_path = "include://" + req_path.substr(9);
+		} else if (req_path.starts_with("include:") && !req_path.starts_with("include://")) {
+			req_path = "include://" + req_path.substr(8);
+		}
+
+		size_t scheme_pos = req_path.find("://");
+		std::string scheme = req_path.substr(0, scheme_pos);
 
 		if (scheme == "file") {
-			std::string raw_file_path = requested_path.substr(7); // strip file://
+			std::string raw_file_path = req_path.substr(7); // strip file://
 			std::string inner_resolved;
 			if (!validate_access(raw_file_path, requested_perm, inner_resolved, out_error)) {
 				return false;
@@ -157,11 +164,11 @@ bool file_security_manager::validate_access(const std::string &requested_path, a
 		}
 
 		if (scheme == "tmp" || scheme == "images") {
-			if (requested_path.find("..") != std::string::npos) {
+			if (req_path.find("..") != std::string::npos) {
 				out_error = "Path traversal prohibited in virtual scheme.";
 				return false;
 			}
-			out_resolved_path = requested_path;
+			out_resolved_path = req_path;
 			return true;
 		}
 
@@ -170,10 +177,11 @@ bool file_security_manager::validate_access(const std::string &requested_path, a
 			return false;
 		}
 		auto vfs = get_vfs();
-		if (vfs && (vfs->exists(requested_path) || !vfs->list_directory(requested_path).empty())) {
-			out_resolved_path = requested_path;
+		if (vfs && (vfs->exists(req_path) || !vfs->list_directory(req_path).empty())) {
+			out_resolved_path = req_path;
 			return true;
 		}
+
 
 		out_error = "Virtual file or directory not found or not mounted.";
 		return false;

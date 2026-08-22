@@ -367,7 +367,10 @@ void test_include_vfs_provider()
 	// Test system header to include:// URI rewriting
 	assert(fs_utils::system_header_to_include_uri("/usr/include/stdio.h") == "include://stdio.h");
 	assert(fs_utils::system_header_to_include_uri("../../../../usr/include/stdio.h") == "include://stdio.h");
+	assert(fs_utils::system_header_to_include_uri("include:/bits/c++config.h") == "include://bits/c++config.h");
 	assert(fs_utils::make_relative_to_project("../../../../usr/include/stdio.h") == "include://stdio.h");
+	assert(vfs.exists("include:/bits/c++config.h"));
+
 
 	if (std::filesystem::exists("/usr/include/x86_64-linux-gnu/c++/15/bits/c++config.h")) {
 		assert(fs_utils::make_relative_to_project("../../../../usr/include/x86_64-linux-gnu/c++/15/bits/c++config.h") == "include://bits/c++config.h");

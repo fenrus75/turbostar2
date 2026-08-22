@@ -262,9 +262,15 @@ std::shared_ptr<vfs_provider> virtual_file_system::get_provider_for_uri(const st
 		if (it != providers_.end()) {
 			return it->second;
 		}
+	} else if (uri.starts_with("include:")) {
+		auto it = providers_.find("include");
+		if (it != providers_.end()) {
+			return it->second;
+		}
 	}
 	return default_provider_;
 }
+
 
 bool virtual_file_system::exists(const std::string &uri) const
 {
@@ -1119,10 +1125,15 @@ std::string include_vfs_provider::resolve_header_path(const std::string &uri) co
 	std::string rel = uri;
 	if (rel.starts_with("include://")) {
 		rel = rel.substr(10);
+	} else if (rel.starts_with("include:/")) {
+		rel = rel.substr(9);
+	} else if (rel.starts_with("include:")) {
+		rel = rel.substr(8);
 	}
 	while (rel.starts_with("/")) {
 		rel = rel.substr(1);
 	}
+
 
 	if (rel.empty()) {
 		if (std::filesystem::exists("/usr/include")) {
@@ -1212,10 +1223,15 @@ std::vector<vfs_file_info> include_vfs_provider::list_directory(const std::strin
 	std::string rel = prefix;
 	if (rel.starts_with("include://")) {
 		rel = rel.substr(10);
+	} else if (rel.starts_with("include:/")) {
+		rel = rel.substr(9);
+	} else if (rel.starts_with("include:")) {
+		rel = rel.substr(8);
 	}
 	while (rel.starts_with("/")) {
 		rel = rel.substr(1);
 	}
+
 
 	auto bases = get_search_bases(rel);
 	std::set<std::string> seen_names;
