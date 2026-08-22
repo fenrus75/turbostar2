@@ -411,11 +411,12 @@ remember to describe features in terms of the benefit to the user or the agent, 
   8. Verified 100% build and test suite pass rate.
 
 - Self-Contained Workflow Tool Examples & Automated Verification (`src/tools/`, `src/plugins/`, `tests/unit/test_tool_examples.cpp`, `meson.build`):
-  1. **Tier 1 & Tier 2 Tool Examples**: Implemented `get_examples()` across all remaining tools (`fs_replace_lines`, `fs_multi_replace_content`, `fs_grep_files`, `web_fetch`, `sqlite_perform`, `run_shell_command`, `image_crop`, `image_resize`, `image_compose`, `fs_read_binary`, `invoke_subagent`, `code_get_definition`, `git_diff_staged`, `git_diff_unstaged`).
+  1. **Tier 1 & Tier 2 Tool Examples**: Implemented `get_examples()` across all remaining tools (`fs_replace_lines`, `fs_multi_replace_content`, `fs_grep_files`, `web_fetch`, `sqlite_perform`, `run_shell_command`, `image_crop`, `image_resize`, `image_compose`, `fs_read_binary`, `invoke_subagent`, `code_get_definition`, `git_diff_staged`, `git_diff_unstaged`, `agent_debug_coredump`, `agent_write_to_run`).
   2. **Automated Tool Example Test Target**: Added dedicated `test_tool_examples` unit test target (`tests/unit/test_tool_examples.cpp`), which dynamically iterates across all 123 registered tool validators and verifies every tool example's `input_args` against parameter schemas and security checks, ensuring examples never go stale.
   3. **`run_cpp` & Crash Report Tool Hints**: Added signal interception (`SIGSEGV`, `SIGABRT`, `SIGFPE`, `SIGBUS`) and `<crash_report>` tags to `run_cpp_entry.cpp`. Added a single-line actionable tool hint (`Hint: To inspect backtrace, stack frames, and local variables for this crash, call crash_inspect_dump(crash_id="<id>")`) to `crashdump_manager.cpp`.
   4. **Original Binary Retention on Crash**: Updated `run_cpp_entry.cpp` so that when an execution crashes (`exec_exit != 0` or crash dumps detected), the original binary at `bin_path` is left intact on disk at its exact path. Updated `get_executable_for_crash` to inspect `info.txt`'s original executable path first.
-  5. **Verification**: Executed `./build/test_tool_examples` and `./build/test_run_cpp` with 100% pass rate.
+  5. **Verification**: Executed `./build/test_tool_examples` (41 / 41 validated examples) and `./build/test_run_cpp` with 100% pass rate.
+
 
 
 
