@@ -149,8 +149,8 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 		stack_in.close();
 
 		auto resolved = turbostar::address_lookup::resolve_addresses(raw_ips, maps_path.native());
-		int frame = 0;
 		static std::string project_root = project_manager::get_instance().get_project_root();
+
 		std::string prefix = project_root;
 		if (!prefix.empty() && prefix.back() != '/') {
 			prefix += "/";
@@ -176,7 +176,8 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 				break;
 			}
 
-			int frame_idx = frame++;
+			int frame_idx = static_cast<int>(i);
+
 			std::string location = res.location;
 			size_t colon_pos = location.find_last_of(':');
 			if (colon_pos != std::string::npos && location.length() > 0 && location[0] != '?') {
