@@ -36,12 +36,13 @@ class agent_write_to_run_validator : public agentlib::tool_validator
 	{
 		return {
 			{
-				"Send GDB commands to a coredump session",
-				nlohmann::json{{"run_id", 2001}, {"data", "frame 5\nprint e\n"}, {"output", true}},
-				"After agent_debug_coredump returns gdb_run_id 2001, sends debugger commands ('frame 5', 'print e') to select the crash frame and print variable values."
+				"Send backtrace command to a coredump session",
+				nlohmann::json{{"run_id", 2001}, {"data", "bt\n"}, {"output", true}},
+				"After agent_debug_coredump returns gdb_run_id 2001, sends 'bt\\n' to get the full stack trace, then 'frame <N>\\ninfo locals\\n' to inspect variables."
 			}
 		};
 	}
+
 
 	nlohmann::json get_parameters_schema() const override
 	{
