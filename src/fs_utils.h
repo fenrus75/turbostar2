@@ -36,6 +36,8 @@ std::filesystem::path safe_absolute(const std::filesystem::path &p);
  * @brief Makes an absolute path relative to the active project root or working directory.
  */
 std::string make_relative_to_project(std::string_view path_str, std::string_view working_dir = "");
+std::string system_header_to_include_uri(std::string_view path_str);
+
 
 /**
  * @brief Heuristically checks if a file is a binary file by scanning for a null byte in the first 4KB.

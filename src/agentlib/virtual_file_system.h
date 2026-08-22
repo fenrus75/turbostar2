@@ -300,7 +300,9 @@ class include_vfs_provider : public vfs_provider
 
       private:
 	std::string resolve_header_path(const std::string &uri) const;
+	std::vector<std::string> get_search_bases(const std::string &rel) const;
 };
+
 
 
 /**

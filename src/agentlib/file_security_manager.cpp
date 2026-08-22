@@ -11,6 +11,8 @@ namespace agentlib
 {
 
 file_security_manager::file_security_manager()
+
+
 {
 	// Ensure the default cwd is an absolute, sanitized path
 	cwd_ = std::filesystem::weakly_canonical(std::filesystem::current_path());
@@ -30,6 +32,19 @@ file_security_manager::file_security_manager()
 	if (std::filesystem::exists("/usr/include")) {
 		add_allowed_root("/usr/include", access_type::read);
 	}
+	if (std::filesystem::exists("/usr/lib")) {
+		try {
+			for (const auto &entry : std::filesystem::directory_iterator("/usr/lib")) {
+				if (entry.is_directory() && entry.path().filename().string().starts_with("llvm-")) {
+					add_allowed_root(entry.path().string(), access_type::read);
+				}
+			}
+		} catch (...) {}
+	}
+	if (std::filesystem::exists("/usr/lib/gcc")) {
+		add_allowed_root("/usr/lib/gcc", access_type::read);
+	}
+
 }
 
 
@@ -154,10 +169,12 @@ bool file_security_manager::validate_access(const std::string &requested_path, a
 			out_error = "Virtual scheme \"" + scheme + "\" is read-only.";
 			return false;
 		}
-		if (vfs_ && (vfs_->exists(requested_path) || !vfs_->list_directory(requested_path).empty())) {
+		auto vfs = get_vfs();
+		if (vfs && (vfs->exists(requested_path) || !vfs->list_directory(requested_path).empty())) {
 			out_resolved_path = requested_path;
 			return true;
 		}
+
 		out_error = "Virtual file or directory not found or not mounted.";
 		return false;
 	}

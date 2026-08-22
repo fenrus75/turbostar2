@@ -268,8 +268,8 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 			for (const auto &sym : final_symbols) {
 				std::string kind_str = symbol_kind_to_string(sym.kind);
 				fs::path abs_path(sym.location.path);
-				std::string display_path = abs_path.is_absolute() ?
-					fs::relative(abs_path, root_path).string() : sym.location.path;
+				std::string display_path = fs_utils::make_relative_to_project(sym.location.path, root_path.string());
+
 				
 				int start_line = sym.location.range.start_y + 1;
 				int end_line = sym.location.range.end_y + 1;

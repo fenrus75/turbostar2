@@ -63,10 +63,113 @@ std::filesystem::path safe_absolute(const std::filesystem::path &p)
 	}
 }
 
+std::string system_header_to_include_uri(std::string_view path_str)
+{
+	if (path_str.empty() || path_str.starts_with("include://")) {
+		return std::string(path_str);
+	}
+
+	std::filesystem::path p(path_str);
+	if (p.is_relative()) {
+		std::string proj_root = project_manager::get_instance().get_project_root();
+		if (!proj_root.empty()) {
+			p = (std::filesystem::path(proj_root) / p).lexically_normal();
+		} else {
+			p = p.lexically_normal();
+		}
+	} else {
+		p = p.lexically_normal();
+	}
+
+	std::string abs_str = p.string();
+
+	// 1. LLVM/Clang compiler internal headers: /usr/lib/llvm-<ver>/lib/clang/<ver>/include/
+	if (abs_str.starts_with("/usr/lib/llvm-")) {
+		size_t pos = abs_str.find("/lib/clang/");
+		if (pos != std::string::npos) {
+			size_t inc_pos = abs_str.find("/include/", pos);
+			if (inc_pos != std::string::npos) {
+				std::string rel_hdr = abs_str.substr(inc_pos + 9);
+				if (!rel_hdr.empty()) {
+					return "include://" + rel_hdr;
+				}
+			}
+		}
+	}
+
+	// 2. GCC compiler internal headers: /usr/lib/gcc/<arch>/<ver>/include/ or include-fixed/
+	if (abs_str.starts_with("/usr/lib/gcc/")) {
+		size_t inc_pos = abs_str.find("/include-fixed/");
+		if (inc_pos != std::string::npos) {
+			std::string rel_hdr = abs_str.substr(inc_pos + 15);
+			if (!rel_hdr.empty()) {
+				return "include://" + rel_hdr;
+			}
+		}
+		inc_pos = abs_str.find("/include/");
+		if (inc_pos != std::string::npos) {
+			std::string rel_hdr = abs_str.substr(inc_pos + 9);
+			if (!rel_hdr.empty()) {
+				return "include://" + rel_hdr;
+			}
+		}
+	}
+
+	// 3. /usr/include/
+	if (abs_str.starts_with("/usr/include/")) {
+		std::string rel = abs_str.substr(13); // trim "/usr/include/"
+
+		// Trim target triplet prefix if present at start (e.g. x86_64-linux-gnu/)
+		if (rel.starts_with("x86_64-linux-gnu/")) {
+			rel = rel.substr(17);
+		} else {
+			size_t first_slash = rel.find('/');
+			if (first_slash != std::string::npos) {
+				std::string first_part = rel.substr(0, first_slash);
+				if (first_part.find('-') != std::string::npos && (first_part.ends_with("-gnu") || first_part.ends_with("-linux"))) {
+					rel = rel.substr(first_slash + 1);
+				}
+			}
+		}
+
+		// Trim c++/<ver>/ if present
+		if (rel.starts_with("c++/")) {
+			size_t slash1 = rel.find('/', 4);
+			if (slash1 != std::string::npos) {
+				rel = rel.substr(slash1 + 1);
+				// Trim inner target triplet if present (e.g. x86_64-linux-gnu/)
+				if (rel.starts_with("x86_64-linux-gnu/")) {
+					rel = rel.substr(17);
+				} else {
+					size_t first_slash = rel.find('/');
+					if (first_slash != std::string::npos) {
+						std::string first_part = rel.substr(0, first_slash);
+						if (first_part.find('-') != std::string::npos && (first_part.ends_with("-gnu") || first_part.ends_with("-linux"))) {
+							rel = rel.substr(first_slash + 1);
+						}
+					}
+				}
+			}
+		}
+
+		if (!rel.empty()) {
+			return "include://" + rel;
+		}
+	}
+
+
+	return "";
+}
+
 std::string make_relative_to_project(std::string_view path_str, std::string_view working_dir)
 {
 	if (path_str.empty()) {
 		return std::string(path_str);
+	}
+
+	std::string inc_uri = system_header_to_include_uri(path_str);
+	if (!inc_uri.empty()) {
+		return inc_uri;
 	}
 
 	std::vector<std::string> roots;
@@ -96,6 +199,7 @@ std::string make_relative_to_project(std::string_view path_str, std::string_view
 	}
 	return target_p.string();
 }
+
 
 bool is_binary_file(std::string_view filepath)
 {

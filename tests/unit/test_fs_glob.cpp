@@ -20,9 +20,15 @@ int main()
 	ctx.fs_security.add_allowed_root(project_root, access_type::read);
 	ctx.fs_security.add_allowed_root(project_root, access_type::write);
 
+	auto vfs = std::make_shared<virtual_file_system>();
+	ctx.fs_security.set_vfs(vfs.get());
+
+
+
 	auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
 	auto agent = ai_agent::create(1, "TestAgent", model, nullptr, nullptr);
 	ctx.active_agent = agent.get();
+
 
 	std::cout << "Testing fs_glob..." << std::endl;
 	{
@@ -60,8 +66,26 @@ int main()
 			assert(!prep.error_message.empty());
 		}
 
+		// 5. Success case: glob include://std*.h
+		{
+			std::string args = "{\"pattern\": \"include://std*.h\"}";
+			std::string res = registry.execute_tool("fs_glob", args, ctx);
+			std::cout << "Glob include result:\n" << res << std::endl;
+			assert(res.find("include://stdio.h") != std::string::npos || res.find("include://stdlib.h") != std::string::npos);
+		}
+
+
+		// 6. Success case: glob include://bits/*.h
+		{
+			std::string args = "{\"pattern\": \"include://bits/*.h\"}";
+			std::string res = registry.execute_tool("fs_glob", args, ctx);
+			std::cout << "Glob include bits result:\n" << res << std::endl;
+			assert(res.find("include://bits/c++config.h") != std::string::npos);
+		}
+
 		std::cout << "fs_glob tool verified successfully!" << std::endl;
 	}
 
 	return 0;
 }
+

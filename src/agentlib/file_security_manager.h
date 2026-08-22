@@ -33,6 +33,8 @@ class file_security_manager
 		return vfs_;
 	}
 
+
+
 	/**
 	 * @brief Sets the working directory used to resolve relative paths.
 	 * @param cwd The path to the working directory. Must exist and be a directory.

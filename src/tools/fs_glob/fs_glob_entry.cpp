@@ -59,6 +59,81 @@ std::string fs_glob_tool::execute(agentlib::tool_context& ctx) {
     fs::path root_path = ctx.fs_security.get_working_directory();
     std::string build_dir = config_manager::get_instance().get_build_directory();
 
+    const size_t max_results = 100;
+    re2::RE2::Options options;
+    options.set_case_sensitive(true);
+
+    // Check if pattern is a VFS URI (e.g. include://*.h or include://bits/*.h)
+    if (pattern_.find("://") != std::string::npos) {
+        auto vfs = ctx.fs_security.get_vfs();
+        if (!vfs) {
+            set_failure(ctx, "VFS not available");
+            return "Error: VFS not available.";
+        }
+
+        size_t scheme_pos = pattern_.find("://");
+        std::string scheme = pattern_.substr(0, scheme_pos + 3);
+        std::string path_pattern = pattern_.substr(scheme_pos + 3);
+
+        size_t wild_pos = path_pattern.find_first_of("*?");
+        std::string dir_prefix;
+        if (wild_pos != std::string::npos) {
+            size_t slash_pos = path_pattern.find_last_of('/', wild_pos);
+            if (slash_pos != std::string::npos) {
+                dir_prefix = path_pattern.substr(0, slash_pos);
+            }
+        } else {
+            size_t slash_pos = path_pattern.find_last_of('/');
+            if (slash_pos != std::string::npos) {
+                dir_prefix = path_pattern.substr(0, slash_pos);
+            }
+        }
+
+        std::string base_dir_uri = scheme + dir_prefix;
+        bool is_recursive = path_pattern.find("**") != std::string::npos;
+
+        std::vector<std::string> candidates;
+        std::function<void(const std::string&)> scan_vfs_dir = [&](const std::string &cur_uri) {
+            auto listing = vfs->list_directory(cur_uri);
+            for (const auto &item : listing) {
+                if (item.type == 'F') {
+                    candidates.push_back(item.uri);
+                } else if (item.type == 'D' && is_recursive) {
+                    scan_vfs_dir(item.uri);
+                }
+            }
+        };
+        scan_vfs_dir(base_dir_uri);
+
+        std::string regex_str = glob_to_regex(pattern_);
+        re2::RE2 regex(regex_str, options);
+
+        std::vector<std::string> matches;
+        for (const auto &cand : candidates) {
+            if (re2::RE2::FullMatch(cand, regex)) {
+                matches.push_back(cand);
+            }
+        }
+
+        std::sort(matches.begin(), matches.end());
+        if (matches.size() > max_results) {
+            matches.resize(max_results);
+        }
+
+        if (matches.empty()) {
+            set_success(ctx, "No matches found");
+            return fs_utils::wrap_prompt_untrusted_data_tag("fs_glob_result", "No matches found for glob pattern '" + pattern_ + "'.");
+        }
+
+        std::stringstream ss;
+        ss << "# Glob Results for '" << pattern_ << "' (" << matches.size() << " matches):\n\n";
+        for (const auto &m : matches) {
+            ss << "- `" << m << "`\n";
+        }
+        set_success(ctx, std::to_string(matches.size()) + " matches");
+        return fs_utils::wrap_prompt_untrusted_data_tag("fs_glob_result", ss.str());
+    }
+
     // Normalize pattern
     std::string norm_pattern = pattern_;
     std::replace(norm_pattern.begin(), norm_pattern.end(), '\\', '/');
@@ -69,8 +144,6 @@ std::string fs_glob_tool::execute(agentlib::tool_context& ctx) {
     }
 
     std::string regex_str = glob_to_regex(norm_pattern);
-    re2::RE2::Options options;
-    options.set_case_sensitive(true);
     re2::RE2 regex(regex_str, options);
 
     if (!regex.ok()) {
@@ -80,9 +153,9 @@ std::string fs_glob_tool::execute(agentlib::tool_context& ctx) {
 
     std::vector<std::string> matches;
     size_t total_matches = 0;
-    const size_t max_results = 100;
 
     try {
+
         for (auto it = fs::recursive_directory_iterator(root_path, fs::directory_options::skip_permission_denied);
              it != fs::recursive_directory_iterator(); ++it) {
             

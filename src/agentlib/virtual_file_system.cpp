@@ -12,7 +12,9 @@
 #include <format>
 #include <nlohmann/json.hpp>
 #include <sys/mman.h>
+#include <set>
 #include <sys/stat.h>
+
 #include <unistd.h>
 
 namespace agentlib
@@ -1018,32 +1020,16 @@ std::string images_vfs_provider::get_local_path(const std::string &uri) const
 }
 
 // include_vfs_provider Implementation
-std::string include_vfs_provider::resolve_header_path(const std::string &uri) const
+std::vector<std::string> include_vfs_provider::get_search_bases(const std::string &rel) const
 {
-	std::string rel = uri;
-	if (rel.starts_with("include://")) {
-		rel = rel.substr(10);
-	}
-	while (rel.starts_with("/")) {
-		rel = rel.substr(1);
-	}
-	if (rel.empty()) {
-		return "";
-	}
-
-	// If rel is an explicit path starting with usr/include/
-	if (rel.starts_with("usr/include/")) {
-		std::string abs_path = "/" + rel;
-		if (std::filesystem::exists(abs_path)) {
-			return abs_path;
-		}
-	}
-
-	// Check standard search order strictly under /usr/include/
-	std::vector<std::string> search_bases = {
-		"/usr/include/" + rel,
-		"/usr/include/x86_64-linux-gnu/" + rel
+	std::vector<std::string> bases;
+	auto append_base = [&](const std::string &base_path) {
+		std::string path = rel.empty() ? base_path : (base_path.ends_with('/') ? base_path + rel : base_path + "/" + rel);
+		bases.push_back(path);
 	};
+
+	append_base("/usr/include");
+	append_base("/usr/include/x86_64-linux-gnu");
 
 	// Discover libstdc++ C++ include versions under /usr/include/c++/
 	std::filesystem::path cpp_dir("/usr/include/c++");
@@ -1058,12 +1044,103 @@ std::string include_vfs_provider::resolve_header_path(const std::string &uri) co
 		} catch (...) {}
 		std::sort(cpp_versions.rbegin(), cpp_versions.rend());
 		for (const auto &ver : cpp_versions) {
-			search_bases.push_back("/usr/include/c++/" + ver + "/" + rel);
-			search_bases.push_back("/usr/include/c++/" + ver + "/x86_64-linux-gnu/" + rel);
+			append_base("/usr/include/c++/" + ver);
+			append_base("/usr/include/c++/" + ver + "/x86_64-linux-gnu");
+			append_base("/usr/include/c++/" + ver + "/backward");
 		}
 	}
 
-	for (const auto &candidate : search_bases) {
+	// ALSO discover libstdc++ C++ include versions under /usr/include/x86_64-linux-gnu/c++/
+	std::filesystem::path arch_dir("/usr/include/x86_64-linux-gnu");
+	if (std::filesystem::exists(arch_dir) && std::filesystem::is_directory(arch_dir)) {
+		std::filesystem::path arch_cpp_dir = arch_dir / "c++";
+		if (std::filesystem::exists(arch_cpp_dir) && std::filesystem::is_directory(arch_cpp_dir)) {
+			std::vector<std::string> cpp_versions;
+			try {
+				for (const auto &entry : std::filesystem::directory_iterator(arch_cpp_dir)) {
+					if (entry.is_directory()) {
+						cpp_versions.push_back(entry.path().filename().string());
+					}
+				}
+			} catch (...) {}
+			std::sort(cpp_versions.rbegin(), cpp_versions.rend());
+			for (const auto &ver : cpp_versions) {
+				append_base("/usr/include/x86_64-linux-gnu/c++/" + ver);
+			}
+		}
+	}
+
+	// Discover LLVM/Clang include dirs under /usr/lib/llvm-*/lib/clang/*/include/
+	std::filesystem::path usr_lib("/usr/lib");
+	if (std::filesystem::exists(usr_lib) && std::filesystem::is_directory(usr_lib)) {
+		try {
+			std::vector<std::string> llvm_dirs;
+			for (const auto &entry : std::filesystem::directory_iterator(usr_lib)) {
+				if (entry.is_directory() && entry.path().filename().string().starts_with("llvm-")) {
+					llvm_dirs.push_back(entry.path().string());
+				}
+			}
+			std::sort(llvm_dirs.rbegin(), llvm_dirs.rend());
+			for (const auto &llvm_dir : llvm_dirs) {
+				std::filesystem::path clang_dir = std::filesystem::path(llvm_dir) / "lib" / "clang";
+				if (std::filesystem::exists(clang_dir) && std::filesystem::is_directory(clang_dir)) {
+					for (const auto &ver_entry : std::filesystem::directory_iterator(clang_dir)) {
+						if (ver_entry.is_directory()) {
+							append_base((ver_entry.path() / "include").string());
+						}
+					}
+				}
+			}
+		} catch (...) {}
+
+		// Discover GCC include dirs under /usr/lib/gcc/
+		std::filesystem::path gcc_dir("/usr/lib/gcc");
+		if (std::filesystem::exists(gcc_dir) && std::filesystem::is_directory(gcc_dir)) {
+			try {
+				for (const auto &arch_entry : std::filesystem::directory_iterator(gcc_dir)) {
+					if (arch_entry.is_directory()) {
+						for (const auto &ver_entry : std::filesystem::directory_iterator(arch_entry.path())) {
+							if (ver_entry.is_directory()) {
+								append_base((ver_entry.path() / "include").string());
+								append_base((ver_entry.path() / "include-fixed").string());
+							}
+						}
+					}
+				}
+			} catch (...) {}
+		}
+	}
+
+	return bases;
+}
+
+std::string include_vfs_provider::resolve_header_path(const std::string &uri) const
+{
+	std::string rel = uri;
+	if (rel.starts_with("include://")) {
+		rel = rel.substr(10);
+	}
+	while (rel.starts_with("/")) {
+		rel = rel.substr(1);
+	}
+
+	if (rel.empty()) {
+		if (std::filesystem::exists("/usr/include")) {
+			return "/usr/include";
+		}
+		return "";
+	}
+
+	// If rel is an explicit path starting with usr/include/ or usr/lib/
+	if (rel.starts_with("usr/include/") || rel.starts_with("usr/lib/")) {
+		std::string abs_path = "/" + rel;
+		if (std::filesystem::exists(abs_path)) {
+			return abs_path;
+		}
+	}
+
+	auto bases = get_search_bases(rel);
+	for (const auto &candidate : bases) {
 		std::filesystem::path p(candidate);
 		if (std::filesystem::exists(p)) {
 			return p.string();
@@ -1132,28 +1209,50 @@ std::optional<vfs_file_info> include_vfs_provider::get_file_info(const std::stri
 std::vector<vfs_file_info> include_vfs_provider::list_directory(const std::string &prefix) const
 {
 	std::vector<vfs_file_info> results;
-	std::string resolved = resolve_header_path(prefix);
-	if (resolved.empty() || !std::filesystem::is_directory(resolved)) {
-		return results;
+	std::string rel = prefix;
+	if (rel.starts_with("include://")) {
+		rel = rel.substr(10);
+	}
+	while (rel.starts_with("/")) {
+		rel = rel.substr(1);
 	}
 
-	try {
-		for (const auto &entry : std::filesystem::directory_iterator(resolved)) {
-			vfs_file_info info;
-			std::string rel_item = prefix;
-			if (!rel_item.ends_with('/')) rel_item += "/";
-			rel_item += entry.path().filename().string();
-			info.uri = rel_item;
-			info.type = entry.is_directory() ? 'D' : 'F';
-			if (info.type == 'F') {
-				info.size = entry.file_size();
-			}
-			results.push_back(info);
+	auto bases = get_search_bases(rel);
+	std::set<std::string> seen_names;
+
+	for (const auto &base_dir : bases) {
+		std::filesystem::path dir_p(base_dir);
+		if (!std::filesystem::exists(dir_p) || !std::filesystem::is_directory(dir_p)) {
+			continue;
 		}
-	} catch (...) {}
+
+		try {
+			for (const auto &entry : std::filesystem::directory_iterator(dir_p)) {
+				std::string name = entry.path().filename().string();
+				if (seen_names.contains(name)) {
+					continue;
+				}
+				seen_names.insert(name);
+
+				vfs_file_info info;
+				std::string rel_item = prefix;
+				if (!rel_item.ends_with('/')) rel_item += "/";
+				rel_item += name;
+
+				info.uri = rel_item;
+				info.type = entry.is_directory() ? 'D' : 'F';
+				if (info.type == 'F') {
+					std::error_code ec;
+					info.size = entry.file_size(ec);
+				}
+				results.push_back(info);
+			}
+		} catch (...) {}
+	}
 
 	return results;
 }
+
 
 bool include_vfs_provider::is_local_path_available(const std::string &uri) const
 {

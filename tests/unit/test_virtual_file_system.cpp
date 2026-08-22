@@ -337,7 +337,47 @@ void test_include_vfs_provider()
 
 	// Test non-existent header
 	assert(!vfs.exists("include://non_existent_header_12345.h"));
+
+	// Test bits/c++config.h resolution across multiarch paths
+	assert(vfs.exists("include://bits/c++config.h"));
+	auto c_handle = vfs.read_file("include://bits/c++config.h");
+	assert(c_handle.has_value());
+
+	// Test directory listing for include:// root
+	auto root_listing = vfs.list_directory("include://");
+	assert(!root_listing.empty());
+	bool found_stdio = false;
+	bool found_bits_dir = false;
+	for (const auto &item : root_listing) {
+		if (item.uri == "include://stdio.h" || item.uri == "include://vector") found_stdio = true;
+		if (item.uri == "include://bits" || item.uri == "include://bits/") found_bits_dir = true;
+	}
+	assert(found_stdio);
+	assert(found_bits_dir);
+
+	// Test directory listing for include://bits
+	auto bits_listing = vfs.list_directory("include://bits");
+	assert(!bits_listing.empty());
+	bool found_cppconfig = false;
+	for (const auto &item : bits_listing) {
+		if (item.uri == "include://bits/c++config.h") found_cppconfig = true;
+	}
+	assert(found_cppconfig);
+
+	// Test system header to include:// URI rewriting
+	assert(fs_utils::system_header_to_include_uri("/usr/include/stdio.h") == "include://stdio.h");
+	assert(fs_utils::system_header_to_include_uri("../../../../usr/include/stdio.h") == "include://stdio.h");
+	assert(fs_utils::make_relative_to_project("../../../../usr/include/stdio.h") == "include://stdio.h");
+
+	if (std::filesystem::exists("/usr/include/x86_64-linux-gnu/c++/15/bits/c++config.h")) {
+		assert(fs_utils::make_relative_to_project("../../../../usr/include/x86_64-linux-gnu/c++/15/bits/c++config.h") == "include://bits/c++config.h");
+	}
+	if (std::filesystem::exists("/usr/lib/llvm-21/lib/clang/21/include/__stddef_size_t.h")) {
+		assert(fs_utils::make_relative_to_project("../../../../usr/lib/llvm-21/lib/clang/21/include/__stddef_size_t.h") == "include://__stddef_size_t.h");
+	}
 }
+
+
 
 int main()
 {
