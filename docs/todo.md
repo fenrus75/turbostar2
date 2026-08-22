@@ -410,6 +410,12 @@ remember to describe features in terms of the benefit to the user or the agent, 
   7. **Build Target Linkage Fix**: Updated `meson.build` to add `link_with: libturbostar_core` to the `turbostar-crashprocess` executable target so `address_lookup.cpp` symbols resolve `fs_utils` cleanly.
   8. Verified 100% build and test suite pass rate.
 
+- Self-Contained Workflow Tool Examples (`src/tools/`, `src/plugins/`):
+  1. **Python Tool Examples**: Added rich inline code execution, VFS script execution (`tmp://script.py`), and on-demand PyPI dependency installation (`dependencies: ["requests"]` via `uv`) in `run_python_security.cpp`.
+  2. **Self-Contained Complete Flow Examples**: Updated `fs_man`, `markdown_extract`, `fs_read_lines`, `fs_run_tests`, `image_import`, `image_grayscale`, `image_export`, and `fs_file_codemap` validators to present self-contained complete multi-tool workflow sequences (`Full Flow: 1) ... -> 2) ... -> 3) ...`) in each tool's example explanation, preserving strict schema validity while enabling instant single-tool discovery.
+  3. **Verification**: Built and verified clean unit test execution (`test_run_python`, `test_fs_man`, `test_markdown_extract_plugin`, `test_tools`).
+
+
 
 
 
