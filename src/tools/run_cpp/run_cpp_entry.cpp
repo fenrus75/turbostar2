@@ -149,8 +149,13 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	for (const auto &def : args_.defines) {
-		compile_cmd += std::format(" -D{}", fs_utils::escape_shell_arg(def));
+		std::string clean_def = def;
+		if (clean_def.starts_with("-D")) {
+			clean_def = clean_def.substr(2);
+		}
+		compile_cmd += std::format(" -D{}", fs_utils::escape_shell_arg(clean_def));
 	}
+
 
 	compile_cmd += std::format(" {} -o {}", fs_utils::escape_shell_arg(src_path), fs_utils::escape_shell_arg(bin_path));
 

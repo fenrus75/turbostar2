@@ -40,8 +40,9 @@ class run_cpp_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Compiles and executes C++ source code or standalone probe files in a sandboxed environment with libturbocatch.so preloaded to catch crashes. Useful for testing APIs, language features, and logic.";
+		return "Compiles and executes C/C++ source code snippets or standalone probe files in a sandboxed environment with libturbocatch.so preloaded. Supports modern C++ and C standards, custom VFS paths (tmp://, include://), preprocessor defines, include directories, extra translation units, and linker flags. Non-zero exit codes and runtime crashes (SIGSEGV, SIGABRT, SIGFPE) are intercepted and surfaced with detailed crash trace outputs and exit statuses.";
 	}
+
 	nlohmann::json get_parameters_schema() const override;
 	std::vector<agentlib::tool_example> get_examples() const override;
 	bool is_pure() const override

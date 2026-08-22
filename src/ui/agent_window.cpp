@@ -56,8 +56,8 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	    "- `fs_file_codemap(path=\"...\")`: Quickly outlines source file structure (classes, functions, structs, line numbers). Use this to inspect file structure without reading entire files into context.\n"
 	    "- `markdown_extract(path=\"...\", query=\"...\")`: Extracts targeted sections, headings, or topics from Markdown files, documentation, or `system://man/` pages without reading entire files into context.\n"
 	    "- `fs_replace_content` with `function_hint`: Performs function-scoped line replacements. Passing `function_hint=\"<function_name>\"` isolates edits to that exact function scope, preventing line-shift ambiguity.\n"
-	    "  Example: `fs_replace_content(path=\"src/foo.cpp\", function_hint=\"parse_config\", target_content=\"int timeout = 5;\", replacement_content=\"int timeout = 10;\")`.\n"
-	    "- `run_cpp(code=\"...\")`: Compiles and executes C++ source code in a sandboxed probe environment with `libturbocatch.so` preloaded to catch crashes. Use this to verify C++ APIs, language features, or logic snippets directly.\n\n"
+	    "- `run_cpp(code=\"...\" or path=\"tmp://...\")`: Compiles and executes C/C++ source code or VFS files (`tmp://`, `include://`) in a sandboxed probe environment with `libturbocatch.so` preloaded to catch crashes. Supports C++/C standards (`std`), include paths (`includes`), preprocessor defines (`defines`), extra translation units (`libraries`), and linker flags.\n\n"
+
 
 	    "*** CRITICAL DIRECTIVE: VIRTUAL FILESYSTEM (VFS) ***\n"
 
