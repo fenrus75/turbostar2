@@ -405,7 +405,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
   2. **Root & Subpath Directory Listing**: Updated `include_vfs_provider::list_directory()` to iterate across all candidate search directories for root `include://` and subpaths (`include://bits`, `include://sys`), returning deduplicated directory (`type = 'D'`) and file (`type = 'F'`) entries.
   3. **VFS Globbing**: Added VFS URI scheme support to `fs_glob` (e.g. `fs_glob("include://std*.h")`, `fs_glob("include://bits/*.h")`).
   4. **`system_header_to_include_uri` Path Rewriting**: Updated `fs_utils::system_header_to_include_uri` to strip compiler multiarch and libstdc++ version prefixes, converting paths like `/usr/include/x86_64-linux-gnu/c++/15/bits/c++config.h` into `include://bits/c++config.h`. Updated `make_relative_to_project` and LSP symbol display paths in `fs_grep_files`.
-  5. Verified 100% test suite pass rate (263 OK, 1 Expected Fail, 2 Skipped).
+  5. **Single-Slash `include:/` URI Normalization**: Updated `fs_utils::system_header_to_include_uri`, `file_security_manager::validate_access`, `virtual_file_system::get_provider_for_uri`, and `include_vfs_provider` to normalize single-slash `include:/` URIs to standard `include://` URIs.
+  6. Verified 100% test suite pass rate (263 OK, 1 Expected Fail, 2 Skipped).
+
 
 
 
