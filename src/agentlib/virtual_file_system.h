@@ -106,15 +106,17 @@ using vfs_write_handle = std::unique_ptr<vfs_writer>;
 
 # subclasses of vfs_provider
 
-| subclass            | filename                           |
-| ------------------- | ---------------------------------- |
-| memory_vfs_provider | src/agentlib/virtual_file_system.h |
-| github_vfs_provider | src/agentlib/virtual_file_system.h |
-| file_vfs_provider   | src/agentlib/virtual_file_system.h |
-| images_vfs_provider | src/agentlib/virtual_file_system.h |
-| system_vfs_provider | src/vfs/system_vfs_provider.h      |
+| subclass             | filename                           |
+| -------------------- | ---------------------------------- |
+| memory_vfs_provider  | src/agentlib/virtual_file_system.h |
+| github_vfs_provider  | src/agentlib/virtual_file_system.h |
+| file_vfs_provider    | src/agentlib/virtual_file_system.h |
+| images_vfs_provider  | src/agentlib/virtual_file_system.h |
+| include_vfs_provider | src/agentlib/virtual_file_system.h |
+| system_vfs_provider  | src/vfs/system_vfs_provider.h      |
 
 */
+
 
 /**
  * @brief Base class for scheme-specific virtual filesystem providers (e.g. github://)
@@ -282,6 +284,24 @@ class images_vfs_provider : public vfs_provider
 	bool is_local_path_available(const std::string &uri) const override;
 	std::string get_local_path(const std::string &uri) const override;
 };
+
+class include_vfs_provider : public vfs_provider
+{
+      public:
+	include_vfs_provider() = default;
+	~include_vfs_provider() override = default;
+
+	bool exists(const std::string &uri) const override;
+	std::optional<vfs_file_handle> read_file(const std::string &uri) override;
+	std::optional<vfs_file_info> get_file_info(const std::string &uri) const override;
+	std::vector<vfs_file_info> list_directory(const std::string &prefix) const override;
+	bool is_local_path_available(const std::string &uri) const override;
+	std::string get_local_path(const std::string &uri) const override;
+
+      private:
+	std::string resolve_header_path(const std::string &uri) const;
+};
+
 
 /**
  * @brief Memory-Mapped Virtual File System coordinating scheme-specific providers.

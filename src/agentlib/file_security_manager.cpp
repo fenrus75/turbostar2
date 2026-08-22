@@ -26,7 +26,12 @@ file_security_manager::file_security_manager()
 	add_ignore_pattern("\\.gnupg");
 	add_ignore_pattern("/.gemini/keys");
 	add_ignore_pattern("\\.gemini\\keys");
+
+	if (std::filesystem::exists("/usr/include")) {
+		add_allowed_root("/usr/include", access_type::read);
+	}
 }
+
 
 void file_security_manager::set_working_directory(const std::filesystem::path &cwd)
 {

@@ -68,7 +68,10 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	    "| `system://` | Read system guidelines, workflow standards, project overview (`system://project/`), and subagent status/transcripts (`system://subagents/`). |\n"
 	    "| `tmp://` | Scratch directory for the agent to store temporary files, diagnostic dumps, and intermediate run data to avoid cluttering the main project. |\n"
 	    "| `github://` | Direct, cached HTTPS access to raw files, repository listings, and directory trees from GitHub (e.g., "
-	    "github://username/project/). |\n";
+	    "github://username/project/). |\n"
+	    "| `include://` | Access system C/C++ header files under `/usr/include/` (e.g., `#include <stdio.h>` -> `include://stdio.h`, `#include <vector>` -> `include://vector`). |\n";
+
+
 
 	system_prompt += project_manager::get_instance().get_project_knowledge_prompt();
 

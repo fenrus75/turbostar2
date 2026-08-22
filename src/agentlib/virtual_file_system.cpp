@@ -225,7 +225,11 @@ virtual_file_system::virtual_file_system()
 
 	auto system_prov = std::make_shared<turbostar::system_vfs_provider>();
 	register_provider("system", system_prov);
+
+	auto include_prov = std::make_shared<include_vfs_provider>();
+	register_provider("include", include_prov);
 }
+
 
 bool virtual_file_system::mount_file(const std::string &uri, const std::string &disk_path)
 {
@@ -1013,4 +1017,154 @@ std::string images_vfs_provider::get_local_path(const std::string &uri) const
 	return images::image_manager::get_instance().resolve_uri(uri);
 }
 
+// include_vfs_provider Implementation
+std::string include_vfs_provider::resolve_header_path(const std::string &uri) const
+{
+	std::string rel = uri;
+	if (rel.starts_with("include://")) {
+		rel = rel.substr(10);
+	}
+	while (rel.starts_with("/")) {
+		rel = rel.substr(1);
+	}
+	if (rel.empty()) {
+		return "";
+	}
+
+	// If rel is an explicit path starting with usr/include/
+	if (rel.starts_with("usr/include/")) {
+		std::string abs_path = "/" + rel;
+		if (std::filesystem::exists(abs_path)) {
+			return abs_path;
+		}
+	}
+
+	// Check standard search order strictly under /usr/include/
+	std::vector<std::string> search_bases = {
+		"/usr/include/" + rel,
+		"/usr/include/x86_64-linux-gnu/" + rel
+	};
+
+	// Discover libstdc++ C++ include versions under /usr/include/c++/
+	std::filesystem::path cpp_dir("/usr/include/c++");
+	if (std::filesystem::exists(cpp_dir) && std::filesystem::is_directory(cpp_dir)) {
+		std::vector<std::string> cpp_versions;
+		try {
+			for (const auto &entry : std::filesystem::directory_iterator(cpp_dir)) {
+				if (entry.is_directory()) {
+					cpp_versions.push_back(entry.path().filename().string());
+				}
+			}
+		} catch (...) {}
+		std::sort(cpp_versions.rbegin(), cpp_versions.rend());
+		for (const auto &ver : cpp_versions) {
+			search_bases.push_back("/usr/include/c++/" + ver + "/" + rel);
+			search_bases.push_back("/usr/include/c++/" + ver + "/x86_64-linux-gnu/" + rel);
+		}
+	}
+
+	for (const auto &candidate : search_bases) {
+		std::filesystem::path p(candidate);
+		if (std::filesystem::exists(p)) {
+			return p.string();
+		}
+	}
+
+	return "";
+}
+
+bool include_vfs_provider::exists(const std::string &uri) const
+{
+	return !resolve_header_path(uri).empty();
+}
+
+std::optional<vfs_file_handle> include_vfs_provider::read_file(const std::string &uri)
+{
+	std::string resolved = resolve_header_path(uri);
+	if (resolved.empty() || !std::filesystem::is_regular_file(resolved)) {
+		return std::nullopt;
+	}
+
+	std::ifstream ifs(resolved, std::ios::binary);
+	if (!ifs) return std::nullopt;
+
+	std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+	return std::make_shared<string_content_buffer>(std::move(content));
+}
+
+std::optional<vfs_file_info> include_vfs_provider::get_file_info(const std::string &uri) const
+{
+	std::string resolved = resolve_header_path(uri);
+	if (resolved.empty()) {
+		return std::nullopt;
+	}
+
+	std::error_code ec;
+	if (!std::filesystem::exists(resolved, ec)) return std::nullopt;
+
+	size_t size = std::filesystem::file_size(resolved, ec);
+	if (ec) size = 0;
+
+	char type = 'F';
+	if (std::filesystem::is_directory(resolved, ec)) {
+		type = 'D';
+	}
+
+	size_t lines = 0;
+	if (type == 'F' && size > 0) {
+		std::ifstream ifs(resolved, std::ios::binary);
+		if (ifs) {
+			std::string line;
+			while (std::getline(ifs, line)) {
+				lines++;
+			}
+		}
+	}
+
+	vfs_file_info info;
+	info.uri = uri;
+	info.size = size;
+	info.type = type;
+	info.size_in_lines = lines;
+	return info;
+}
+
+std::vector<vfs_file_info> include_vfs_provider::list_directory(const std::string &prefix) const
+{
+	std::vector<vfs_file_info> results;
+	std::string resolved = resolve_header_path(prefix);
+	if (resolved.empty() || !std::filesystem::is_directory(resolved)) {
+		return results;
+	}
+
+	try {
+		for (const auto &entry : std::filesystem::directory_iterator(resolved)) {
+			vfs_file_info info;
+			std::string rel_item = prefix;
+			if (!rel_item.ends_with('/')) rel_item += "/";
+			rel_item += entry.path().filename().string();
+			info.uri = rel_item;
+			info.type = entry.is_directory() ? 'D' : 'F';
+			if (info.type == 'F') {
+				info.size = entry.file_size();
+			}
+			results.push_back(info);
+		}
+	} catch (...) {}
+
+	return results;
+}
+
+bool include_vfs_provider::is_local_path_available(const std::string &uri) const
+{
+	return !resolve_header_path(uri).empty();
+}
+
+std::string include_vfs_provider::get_local_path(const std::string &uri) const
+{
+	return resolve_header_path(uri);
+}
+
 } // namespace agentlib
+
+

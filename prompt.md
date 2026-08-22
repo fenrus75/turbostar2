@@ -23,6 +23,9 @@ IMPORTANT: VFS URIs are for tool use only (e.g., inside `fs_read_lines`, `fs_lis
 | `system://` | Read system guidelines, workflow standards, project overview (`system://project/`), and subagent status/transcripts (`system://subagents/`). |
 | `tmp://` | Scratch directory for the agent to store temporary files, diagnostic dumps, and intermediate run data to avoid cluttering the main project. |
 | `github://` | Direct, cached HTTPS access to raw files, repository listings, and directory trees from GitHub (e.g., github://username/project/). |
+| `include://` | Access system C/C++ header files under `/usr/include/` (e.g., `#include <stdio.h>` -> `include://stdio.h`, `#include <vector>` -> `include://vector`). |
+
+
 
 
 *** PRIMARY LANGUAGE GUIDELINES (C++) ***

@@ -317,6 +317,28 @@ void test_memory_vfs_edge_cases()
 	vfs.unmount_prefix("skills://nonexistent_prefix/");
 }
 
+void test_include_vfs_provider()
+{
+	virtual_file_system vfs;
+	assert(vfs.exists("include://stdio.h"));
+	assert(vfs.is_local_path_available("include://stdio.h"));
+	std::string loc = vfs.get_local_path("include://stdio.h");
+	assert(loc.starts_with("/usr/include"));
+
+	auto handle = vfs.read_file("include://stdio.h");
+	assert(handle.has_value());
+	assert((*handle)->view().size() > 0);
+
+
+	// Test C++ header resolution
+	assert(vfs.exists("include://vector"));
+	auto v_handle = vfs.read_file("include://vector");
+	assert(v_handle.has_value());
+
+	// Test non-existent header
+	assert(!vfs.exists("include://non_existent_header_12345.h"));
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -332,7 +354,9 @@ int main()
 	test_unsupported_and_invalid_uris();
 	test_http_vfs_provider();
 	test_memory_vfs_edge_cases();
+	test_include_vfs_provider();
 	std::cout << "virtual_file_system tests passed.\n";
 	return 0;
 }
+
 
