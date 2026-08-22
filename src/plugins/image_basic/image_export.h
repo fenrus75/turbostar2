@@ -43,6 +43,8 @@ class image_export_validator : public agentlib::tool_validator
 	}
 	std::string get_family() const override { return "image"; }
 	nlohmann::json get_parameters_schema() const override;
+	std::vector<agentlib::tool_example> get_examples() const override;
+
 
       protected:
 	bool validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &ctx,

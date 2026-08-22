@@ -93,6 +93,29 @@ std::unique_ptr<agentlib::llm_tool> fs_man_validator::create_tool_impl(const nlo
 	return std::make_unique<fs_man_tool>(args_);
 }
 
+std::vector<agentlib::tool_example> fs_man_validator::get_examples() const {
+	return {
+		{
+			"Full Manpage Directive Lookup Workflow",
+			nlohmann::json{{"name", "systemd.exec"}},
+			"Full Flow: 1) Call fs_man(name='systemd.exec') to render system://man/systemd.exec.md -> 2) Call markdown_extract(path='system://man/systemd.exec.md', query='ProtectKernelTunables') to extract targeted directive section."
+		},
+		{
+			"Direct Filtered Manpage Directive Lookup",
+			nlohmann::json{{"name", "systemd.exec"}, {"filter", "ProtectKernelTunables"}},
+			"Renders systemd.exec manpage and extracts only the ProtectKernelTunables directive portion in a single step."
+		},
+		{
+			"C Library API Documentation Lookup",
+			nlohmann::json{{"name", "pthread_create"}, {"section", "3"}},
+			"Looks up C library pthread_create function parameters, header files, and return codes."
+		}
+	};
+}
+
+
+
 REGISTER_TOOL(fs_man_validator)
 
 } // namespace tools
+

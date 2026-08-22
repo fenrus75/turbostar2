@@ -16,6 +16,18 @@ nlohmann::json image_export_validator::get_parameters_schema() const
 	    {"required", nlohmann::json::array({"name", "filename"})}};
 }
 
+std::vector<agentlib::tool_example> image_export_validator::get_examples() const
+{
+	return {
+		{
+			"Export Transformed Image Alias to Workspace",
+			nlohmann::json{{"name", "logo_gray"}, {"filename", "output/logo_gray.png"}},
+			"Full Flow: 1) image_import(filename='assets/logo.jpg', output='logo') -> 2) image_grayscale(name='logo', output='logo_gray') -> 3) image_export(name='logo_gray', filename='output/logo_gray.png')."
+		}
+	};
+}
+
+
 bool image_export_validator::validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &ctx,
 						    std::string &out_error) const
 {

@@ -51,5 +51,23 @@ std::unique_ptr<agentlib::llm_tool> fs_run_tests_validator::create_tool_impl(con
 	return std::make_unique<fs_run_tests_tool>(parsed_test_names_, parsed_timeout_);
 }
 
-REGISTER_TOOL(fs_run_tests_validator)
+std::vector<agentlib::tool_example> fs_run_tests_validator::get_examples() const
+{
+	return {
+		{
+			"Targeted Test Execution by Exact Name",
+			nlohmann::json{{"test_names", nlohmann::json::array({"unit_fs_grep_files"})}},
+			"Full Flow: 1) Call fs_read_lines(path='system://project/testlist.md?search=fs_grep') to discover exact test target names -> 2) Call fs_run_tests(test_names=['unit_fs_grep_files']) to execute."
+		},
+		{
+			"Run All Project Tests with Timeout",
+			nlohmann::json{{"timeout", 60}},
+			"Runs full project test suite with a 60-second timeout."
+		}
+	};
 }
+
+
+
+REGISTER_TOOL(fs_run_tests_validator)
+} // namespace tools

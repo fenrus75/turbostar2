@@ -70,7 +70,32 @@ class run_python_validator : public agentlib::tool_validator
 		return {{"type", "object"}, {"properties", props}};
 	}
 
+	std::vector<agentlib::tool_example> get_examples() const override
+	{
+		return {
+			{
+				"Inline Python Script Execution",
+				nlohmann::json{{"code", "import sys, json\ndata = {'status': 'ok', 'count': 42}\nprint(json.dumps(data))\n"}},
+				"Executes inline Python code string headlessly. Must use print() to output results."
+			},
+			{
+				"VFS Python Script Execution",
+				nlohmann::json{{"path", "tmp://probe.py"}, {"timeout", 30}},
+				"Executes Python script stored in temporary VFS location (tmp://probe.py) with 30s timeout."
+			},
+			{
+				"Python Script with PyPI Dependencies",
+				nlohmann::json{
+					{"code", "import requests\nresp = requests.get('https://httpbin.org/json')\nprint(resp.status_code, len(resp.text))\n"},
+					{"dependencies", nlohmann::json::array({"requests"})}
+				},
+				"Executes Python code with on-demand PyPI dependency installation via uv."
+			}
+		};
+	}
+
       private:
+
 	bool has_uv() const
 	{
 		static bool uv_checked = false;

@@ -67,7 +67,25 @@ std::unique_ptr<agentlib::llm_tool> markdown_extract_validator::create_tool_impl
 	return std::make_unique<markdown_extract_tool>(args_);
 }
 
+std::vector<agentlib::tool_example> markdown_extract_validator::get_examples() const {
+	return {
+		{
+			"Targeted Directive Extraction from VFS Manpage",
+			nlohmann::json{{"path", "system://man/systemd.exec.md"}, {"query", "ProtectKernelTunables"}},
+			"Full Flow: 1) Call fs_man(name='systemd.exec') to render system://man/systemd.exec.md -> 2) Call markdown_extract(path='system://man/systemd.exec.md', query='ProtectKernelTunables') to extract targeted directive section without reading thousands of lines."
+		},
+		{
+			"Section Heading Extraction from Workspace Document",
+			nlohmann::json{{"path", "docs/design.md"}, {"query", "Architecture"}},
+			"Extracts targeted Architecture section from design documentation without reading full file."
+		}
+	};
+}
+
+
+
 } // namespace tools
+
 
 extern "C" {
 

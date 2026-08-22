@@ -54,7 +54,21 @@ std::unique_ptr<agentlib::llm_tool> image_grayscale_validator::create_tool_impl(
 	return std::make_unique<image_grayscale_tool>(args_);
 }
 
+std::vector<agentlib::tool_example> image_grayscale_validator::get_examples() const
+{
+	return {
+		{
+			"Grayscale Transformation on VFS Image Alias",
+			nlohmann::json{{"name", "logo"}, {"output", "logo_gray"}},
+			"Full Flow: 1) image_import(filename='assets/logo.jpg', output='logo') -> 2) image_grayscale(name='logo', output='logo_gray') -> 3) image_export(name='logo_gray', filename='output/logo_gray.png')."
+		}
+	};
+}
+
+
+
 } // namespace tools
+
 
 extern "C" {
 void register_image_grayscale(void)

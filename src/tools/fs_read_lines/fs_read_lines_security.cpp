@@ -56,6 +56,25 @@ class fs_read_lines_validator : public agentlib::tool_validator
 		    {"required", nlohmann::json::array({"path"})}};
 	}
 
+	std::vector<agentlib::tool_example> get_examples() const override
+	{
+		return {
+			{
+				"Search Test Suite List for Keyword",
+				nlohmann::json{{"path", "system://project/testlist.md?search=fs_grep"}},
+				"Full Flow: 1) Call fs_read_lines(path='system://project/testlist.md?search=fs_grep') to discover exact test target names (e.g. 'unit_fs_grep_files') -> 2) Call fs_run_tests(test_names=['unit_fs_grep_files']) to execute."
+			},
+			{
+				"Read Specific Line Range of Source File",
+				nlohmann::json{{"path", "src/editor.cpp"}, {"start_line", 40}, {"end_line", 80}},
+				"Reads lines 40 to 80 from src/editor.cpp with 1-based line numbers."
+			}
+		};
+	}
+
+
+
+
       protected:
 	// Stage 1: Pre-invocation validation
 	bool validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &ctx, std::string &out_error) const override

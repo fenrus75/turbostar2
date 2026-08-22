@@ -36,6 +36,18 @@ public:
 			{"required", nlohmann::json::array({"path"})}};
 	}
 
+	std::vector<agentlib::tool_example> get_examples() const override
+	{
+		return {
+			{
+				"Source File Symbol & Function Outline",
+				nlohmann::json{{"path", "src/editor.cpp"}},
+				"Outlines classes, methods, structs, and line bounds for src/editor.cpp without reading full file content."
+			}
+		};
+	}
+
+
 protected:
 	bool validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &ctx, std::string &out_error) const override
 	{

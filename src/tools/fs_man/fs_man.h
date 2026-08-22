@@ -58,7 +58,12 @@ public:
 		};
 	}
 
+
+	std::vector<agentlib::tool_example> get_examples() const override;
+
 	bool is_pure() const override { return true; }
+
+
 
 protected:
 	bool validate_args_impl(const nlohmann::json& args, const agentlib::tool_context& ctx, std::string& out_error) const override;
