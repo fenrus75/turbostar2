@@ -240,15 +240,47 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 
 	std::string exec_output = exec_runner.execute_and_get_output(fs_utils::escape_shell_arg(bin_path));
 	int exec_exit = exec_runner.get_exit_code();
+	std::string crash_dumps = exec_runner.get_new_crashdumps();
 
 	// Clean up temp files
 	if (is_temp_src) std::filesystem::remove(src_path);
 	for (const auto &tf : temp_lib_files) std::filesystem::remove(tf);
 	std::filesystem::remove(bin_path);
 
+	std::string status_str;
+	if (exec_exit == 0) {
+		status_str = "SUCCESS";
+	} else {
+		std::string sig_name;
+		if (exec_exit == 139 || crash_dumps.find("| 11 |") != std::string::npos || crash_dumps.find("Signal | 11") != std::string::npos) {
+			sig_name = "SIGSEGV (Segmentation Fault)";
+		} else if (exec_exit == 134 || crash_dumps.find("| 6 |") != std::string::npos || crash_dumps.find("Signal | 6") != std::string::npos) {
+			sig_name = "SIGABRT (Aborted)";
+		} else if (exec_exit == 136 || crash_dumps.find("| 8 |") != std::string::npos || crash_dumps.find("Signal | 8") != std::string::npos) {
+			sig_name = "SIGFPE (Floating Point Exception)";
+		} else if (exec_exit == 135 || crash_dumps.find("| 7 |") != std::string::npos || crash_dumps.find("Signal | 7") != std::string::npos) {
+			sig_name = "SIGBUS (Bus Error)";
+		} else if (exec_exit > 128) {
+			sig_name = std::format("Signal {}", exec_exit - 128);
+		}
 
-	std::string status_str = (exec_exit == 0) ? "SUCCESS" : std::format("FAILED (Exit Code: {})", exec_exit);
-	return std::format("<cpp_execution_output>\n[Execution: {}]\n{}\n</cpp_execution_output>", status_str, fs_utils::wrap_prompt_untrusted_data_tag("stdout", exec_output));
+		if (!sig_name.empty()) {
+			status_str = std::format("CRASHED ({})", sig_name);
+		} else if (!crash_dumps.empty()) {
+			status_str = "CRASHED";
+		} else {
+			status_str = std::format("FAILED (Exit Code: {})", exec_exit);
+		}
+	}
+
+	std::string body = std::format("[Execution: {}]\n{}", status_str, fs_utils::wrap_prompt_untrusted_data_tag("stdout", exec_output));
+	if (!crash_dumps.empty()) {
+		body += std::format("\n{}", fs_utils::wrap_prompt_untrusted_data_tag("crash_report", crash_dumps));
+	}
+
+	return std::format("<cpp_execution_output>\n{}\n</cpp_execution_output>", body);
 }
+
+
 
 } // namespace tools
