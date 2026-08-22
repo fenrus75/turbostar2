@@ -179,8 +179,11 @@ turbostar_exe = executable('turbostar',
 
 turbostar_crashprocess_exe = executable('turbostar-crashprocess',
   ['src/crash_process.cpp', 'src/address_lookup.cpp'],
+  dependencies : [nlohmann_json_dep, thread_dep],
+  link_with: libturbostar_core,
   include_directories: inc,
   install : true)
+
 
 install_symlink('turboagent',
   install_dir: 'bin',
