@@ -1,7 +1,9 @@
 #include "run_cpp.h"
 #include "command_runner.h"
+#include "crashdump_manager.h"
 #include "fs_utils.h"
 #include "project_manager.h"
+
 
 #include <filesystem>
 #include <fstream>
@@ -242,10 +244,18 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 	int exec_exit = exec_runner.get_exit_code();
 	std::string crash_dumps = exec_runner.get_new_crashdumps();
 
+	if (exec_exit != 0 || !crash_dumps.empty()) {
+		const auto &dumps = crashdump_manager::get_instance().get_crashdumps();
+		if (!dumps.empty()) {
+			crashdump_manager::get_instance().preserve_binary(dumps.back().crash_id, bin_path);
+		}
+	}
+
 	// Clean up temp files
 	if (is_temp_src) std::filesystem::remove(src_path);
 	for (const auto &tf : temp_lib_files) std::filesystem::remove(tf);
 	std::filesystem::remove(bin_path);
+
 
 	std::string status_str;
 	if (exec_exit == 0) {

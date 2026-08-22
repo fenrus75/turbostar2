@@ -4,8 +4,10 @@
 #include <iostream>
 #include <fstream>
 #include "../../src/agentlib/tool_registry.h"
+#include "../../src/crashdump_manager.h"
 #include "../../src/fs_utils.h"
 #include "../../src/project_manager.h"
+
 
 
 using namespace agentlib;
@@ -55,7 +57,13 @@ int main()
 		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
 		std::cout << "Result 3: " << result << std::endl;
 		assert(result.find("[Execution: FAILED") != std::string::npos || result.find("SIGSEGV") != std::string::npos || result.find("Segmentation fault") != std::string::npos);
+		auto dumps = crashdump_manager::get_instance().get_crashdumps();
+		assert(!dumps.empty());
+		std::string preserved_bin = (std::filesystem::path(fs_utils::get_project_dump_dir()) / ("crash_" + dumps.back().crash_id) / "executable.bin").string();
+		std::cout << "Preserved binary path: " << preserved_bin << std::endl;
+		assert(std::filesystem::exists(preserved_bin));
 	}
+
 
 	// 4. Success case: inline C11 code execution using gcc
 	{

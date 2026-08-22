@@ -391,13 +391,20 @@ std::vector<resolved_address> address_lookup::resolve_addresses(std::span<const 
 			}
 
 			for (const auto &pair : elf_groups) {
-				const std::string &elf_path = pair.first;
+				std::string effective_elf_path = pair.first;
+				if (!fs::exists(effective_elf_path)) {
+					fs::path candidate = fs::path(maps_path).parent_path() / "executable.bin";
+					if (fs::exists(candidate)) {
+						effective_elf_path = candidate.string();
+					}
+				}
 				const auto &offsets = pair.second;
 
-				std::vector<std::string> args = {"-a", "-f", "-C", "-e", elf_path};
+				std::vector<std::string> args = {"-a", "-f", "-C", "-e", effective_elf_path};
 				for (const auto &item : offsets) {
 					args.push_back(std::format("0x{:x}", item.rel_offset));
 				}
+
 
 				auto lines = run_command(addr2line_bin, args);
 				auto sub_map = parse_addr2line_output(lines);

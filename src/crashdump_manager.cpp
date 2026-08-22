@@ -421,7 +421,26 @@ void crashdump_manager::clear_all()
 	}
 }
 
+bool crashdump_manager::preserve_binary(std::string_view crash_id, const std::string &bin_path)
+{
+	if (crash_id.empty() || bin_path.empty() || !fs::exists(bin_path)) {
+		return false;
+	}
+
+	std::string dump_dir = fs_utils::get_project_dump_dir();
+	fs::path crash_path = fs::path(dump_dir) / std::format("crash_{}", crash_id);
+	if (!fs::exists(crash_path) || !fs::is_directory(crash_path)) {
+		return false;
+	}
+
+	fs::path target_bin = crash_path / "executable.bin";
+	std::error_code ec;
+	fs::copy_file(bin_path, target_bin, fs::copy_options::overwrite_existing, ec);
+	return !ec;
+}
+
 std::string crashdump_manager::format_crash_notification(std::span<const crashdump_info> dumps)
+
 {
 	if (dumps.empty())
 		return "";

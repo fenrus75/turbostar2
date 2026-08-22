@@ -32,8 +32,12 @@ public:
     // Deletes all crash dumps from the disk and clears internal state
     void clear_all();
 
+    // Copies a binary into the crash dump folder (executable.bin) for coredump/address resolution
+    bool preserve_binary(std::string_view crash_id, const std::string &bin_path);
+
     // Formats a consistent crash notification message for LLM tools
     static std::string format_crash_notification(std::span<const crashdump_info> dumps);
+
     static std::string format_crash_notification(size_t crash_count);
 
 
