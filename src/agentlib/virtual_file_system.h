@@ -19,9 +19,9 @@ namespace agentlib
 
 struct vfs_file_info {
 	std::string uri;
-	size_t size;
-	char type; // 'F', 'D', 'L'
-	size_t size_in_lines;
+	size_t size{0};
+	char type{'F'}; // 'F', 'D', 'L'
+	size_t size_in_lines{0};
 	std::string details{};
 };
 
