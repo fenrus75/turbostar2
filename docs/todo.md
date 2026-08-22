@@ -394,7 +394,12 @@ remember to describe features in terms of the benefit to the user or the agent, 
   6. Updated Meson unit test targets (`test_sqlite_list_db` and `test_sqlite_validation`) in `meson.build` with `export_dynamic: true`, `depends: [sqlite_plugin]`, and `env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins']`.
   7. Fixed singleton initialization order in `test_sqlite_list_db.cpp` and `test_sqlite_validation.cpp` to prevent exit double-free crashes.
 ## 21-08-2026
+- `include://` VFS Scheme & System Header Security (`src/agentlib/virtual_file_system.h/cpp`, `src/agentlib/file_security_manager.cpp`, `src/ui/agent_window.cpp`, `prompt.md`, `tests/unit/test_virtual_file_system.cpp`):
+  1. **`include://` Scheme Provider**: Built `include_vfs_provider` in `virtual_file_system.cpp` enabling URIs like `include://stdio.h` or `include://vector` to resolve across standard system and C++ libstdc++ include paths under `/usr/include/` (including `/usr/include/x86_64-linux-gnu/` and `/usr/include/c++/<version>/`). Updated `vfs_provider` subclass table in `virtual_file_system.h`.
+  2. **Read-Only Path Security**: Added `/usr/include` as a read-only allowed root in `file_security_manager::file_security_manager()` and added `include` scheme support to `validate_access`.
+  3. **Documentation & Tests**: Updated VFS prompt tables in `agent_window.cpp` and `prompt.md` with `#include <stdio.h>` -> `include://stdio.h` examples. Added `test_include_vfs_provider()` to `test_virtual_file_system.cpp`. Verified 100% test suite pass rate (262 OK, 1 Expected Fail, 2 Skipped).
 - `web_fetch` Tool HTTP Method & Custom Headers Enhancement (`src/tools/web_fetch/`, `docs/tools.md`, `tests/unit/test_web_fetch.cpp`):
+
   1. **New Parameters**: Extended `web_fetch` with optional `method` parameter (string, e.g. `GET`, `POST`, `PUT`, `DELETE`, `HEAD`, defaulting to `GET`) and `headers` parameter (JSON object mapping header names to string values, e.g. `{"Authorization": "Bearer ...", "Content-Type": "application/json"}`).
   2. **cURL Engine Updates**: Updated `perform_http_request` in `web_fetch_entry.cpp` to configure HTTP request methods via `CURLOPT_HTTPGET`, `CURLOPT_POST`, `CURLOPT_NOBODY`, or `CURLOPT_CUSTOMREQUEST` and append custom HTTP headers via `curl_slist`.
   3. **Documentation & Unit Tests**: Updated JSON schema in `web_fetch_security.cpp`, documentation in `docs/tools.md`, and unit tests in `test_web_fetch.cpp`. Verified 100% test suite pass rate (262 OK, 1 Expected Fail, 2 Skipped).
