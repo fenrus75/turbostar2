@@ -1256,6 +1256,11 @@ agentlib::wait_for_app_result editor::wait_for_app(int run_id, std::string_view 
 static std::string get_executable_for_crash(const std::string &crash_id)
 {
 	fs::path dump_dir = fs::path(fs_utils::get_project_dump_dir()) / ("crash_" + crash_id);
+	fs::path preserved_bin = dump_dir / "executable.bin";
+	if (fs::exists(preserved_bin)) {
+		return preserved_bin.string();
+	}
+
 	fs::path info_path = dump_dir / "info.txt";
 	std::ifstream in(info_path);
 	if (in) {
@@ -1263,12 +1268,17 @@ static std::string get_executable_for_crash(const std::string &crash_id)
 		constexpr std::string_view exe_prefix = "Executable: ";
 		while (std::getline(in, line)) {
 			if (line.starts_with(exe_prefix)) {
-				return line.substr(exe_prefix.length());
+				std::string orig = line.substr(exe_prefix.length());
+				if (fs::exists(orig)) {
+					return orig;
+				}
+				break;
 			}
 		}
 	}
 	return "";
 }
+
 
 static std::string get_coredump_path_for_crash(const std::string &crash_id)
 {

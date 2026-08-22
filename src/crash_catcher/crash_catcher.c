@@ -252,7 +252,38 @@ static void write_info(const char *dir_path, int sig, void *addr, int is_write, 
 	close(fd);
 }
 
+static void copy_executable(const char *crash_dir)
+{
+	int src_fd = open("/proc/self/exe", O_RDONLY);
+	if (src_fd < 0) return;
+
+	char dst_path[1024] = {0};
+	safe_strcpy(dst_path, crash_dir, sizeof(dst_path));
+	safe_strcat(dst_path, "/executable.bin", sizeof(dst_path));
+
+	int dst_fd = open(dst_path, O_WRONLY | O_CREAT | O_TRUNC, 0755);
+	if (dst_fd < 0) {
+		close(src_fd);
+		return;
+	}
+
+	char buf[8192];
+	ssize_t n;
+	while ((n = read(src_fd, buf, sizeof(buf))) > 0) {
+		ssize_t written = 0;
+		while (written < n) {
+			ssize_t r = write(dst_fd, buf + written, n - written);
+			if (r <= 0) break;
+			written += r;
+		}
+	}
+
+	close(src_fd);
+	close(dst_fd);
+}
+
 void turbocatch_handle_signal(int sig, siginfo_t *info, void *ucontext)
+
 {
 	// Prevent recursive crashing if our handler does something dumb
 	signal(sig, SIG_DFL);
@@ -300,6 +331,8 @@ void turbocatch_handle_signal(int sig, siginfo_t *info, void *ucontext)
 	write_maps(crash_dir);
 	write_registers(crash_dir, uc);
 	write_backtrace(crash_dir, uc);
+	copy_executable(crash_dir);
+
 
 	// Try to capture a core dump via gcore using a child process
 	pid_t child_pid = fork();
