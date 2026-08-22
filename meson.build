@@ -368,8 +368,10 @@ test('unit_clear_command', test_clear_command, suite: 'agent')
 test_address_lookup = executable('test_address_lookup',
   ['tests/unit/test_address_lookup.cpp', 'src/address_lookup.cpp'],
   dependencies : [nlohmann_json_dep, thread_dep],
+  link_with: libturbostar_core,
   include_directories: 'src')
 test('unit_address_lookup', test_address_lookup, suite: 'editor')
+
 
 test_perf_catcher = executable('test_perf_catcher',
   ['tests/unit/test_perf_catcher.cpp'],

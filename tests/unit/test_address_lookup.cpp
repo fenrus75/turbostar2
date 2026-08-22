@@ -1,7 +1,10 @@
+// Tested source file: src/address_lookup.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include "../../src/address_lookup.h"
+#include "../../src/fs_utils.h"
+
 
 using namespace turbostar;
 
@@ -41,6 +44,17 @@ int main()
 	assert(batch_results[3].address == 0x123456);
 
 	std::cout << "Batch resolution returned " << batch_results.size() << " items successfully." << std::endl;
+
+	// 4. Test system header path rewriting in address_lookup / crash resolution
+	std::string stdio_path = "/usr/include/stdio.h";
+	std::string stdio_rel = fs_utils::make_relative_to_project(stdio_path);
+	assert(stdio_rel == "include://stdio.h");
+
+	std::string config_path = "/usr/include/x86_64-linux-gnu/c++/15/bits/c++config.h";
+	std::string config_rel = fs_utils::make_relative_to_project(config_path);
+	assert(config_rel == "include://bits/c++config.h");
+
 	std::cout << "address_lookup tests passed successfully!" << std::endl;
 	return 0;
 }
+

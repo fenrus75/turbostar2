@@ -1,6 +1,9 @@
 #include "address_lookup.h"
+#include "fs_utils.h"
 #include <algorithm>
 #include <cctype>
+
+
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
@@ -274,13 +277,25 @@ static std::unordered_map<uintptr_t, resolved_address> parse_addr2line_output(co
 						current_res.line_number = 0;
 					}
 				}
-			} else {
 				current_res.file_path = cleaned_line;
 				current_res.line_number = 0;
 			}
+
+			if (!current_res.file_path.empty()) {
+				std::string rel_p = fs_utils::make_relative_to_project(current_res.file_path);
+				if (!rel_p.empty() && rel_p != current_res.file_path) {
+					std::string old_p = current_res.file_path;
+					current_res.file_path = rel_p;
+					if (current_res.location.starts_with(old_p)) {
+						current_res.location = rel_p + current_res.location.substr(old_p.length());
+					}
+				}
+			}
+
 			state = 3; // Finished primary frame for this address; skip any extra inlined outer frames
 		}
 	}
+
 
 	if (has_addr) {
 		resolved_map[current_addr] = current_res;

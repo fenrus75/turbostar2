@@ -192,13 +192,13 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 				std::string full_file_path = p.string();
 
 				bool is_project = false;
-				std::string rel_file_path = raw_file;
+				std::string rel_file_path = fs_utils::make_relative_to_project(full_file_path);
 				if (full_file_path.starts_with(prefix)) {
 					is_project = true;
-					rel_file_path = full_file_path.substr(prefix.length());
 				}
 
 				location = rel_file_path + line_part;
+
 
 				// Extract line number for codemap symbol lookup
 				if (is_project && fs::exists(full_file_path)) {
