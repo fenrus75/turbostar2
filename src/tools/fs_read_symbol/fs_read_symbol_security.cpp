@@ -68,7 +68,7 @@ class fs_read_symbol_validator : public agentlib::tool_validator
 			return false;
 		}
 
-		if (!fs_utils::is_regular_file(canonical_path)) {
+		if (canonical_path.find("://") == std::string::npos && !fs_utils::is_regular_file(canonical_path)) {
 			out_error = "Target is not a regular file: " + path_arg;
 			return false;
 		}

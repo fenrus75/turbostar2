@@ -674,6 +674,7 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 	// Group interactions into turns and pre-assign backgrounds
 	struct turn_group {
 		std::vector<std::shared_ptr<agent_interaction>> items;
+		std::vector<std::vector<interaction_line>> item_lines;
 		int height{0};
 		background_mode bg{background_mode::light_blue};
 	};
@@ -734,6 +735,7 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 					turn.height++; // Separator line
 			}
 			auto lines = turn.items[i]->render(inner_width, turn.bg);
+			turn.item_lines.push_back(lines);
 			turn.height += lines.size();
 		}
 		total_turns_height += turn.height;
@@ -820,7 +822,7 @@ void agent_window::draw_content(bool /*cursor_only*/) const
 				}
 			}
 
-			auto content = item->render(inner_width, turn.bg);
+			auto content = turn.item_lines[i];
 			for (const auto &line : content) {
 				interaction_line l = line;
 				l.prefix = vert + " ";

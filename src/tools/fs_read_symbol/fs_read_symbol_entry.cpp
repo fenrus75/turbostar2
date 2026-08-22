@@ -122,7 +122,7 @@ bool fs_read_symbol_tool::validate_runtime(const agentlib::tool_context & /*ctx*
 
 std::string fs_read_symbol_tool::execute(agentlib::tool_context &ctx)
 {
-	if (fs_utils::is_binary_file(args_.safe_path)) {
+	if (args_.safe_path.find("://") == std::string::npos && fs_utils::is_binary_file(args_.safe_path)) {
 		return "Error: Cannot read symbols from binary file: " + args_.requested_path;
 	}
 
@@ -135,6 +135,14 @@ std::string fs_read_symbol_tool::execute(agentlib::tool_context &ctx)
 		size_t line_count = doc_snapshot->get_line_count();
 		for (size_t i = 0; i < line_count; ++i) {
 			content += doc_snapshot->get_line_text(i) + "\n";
+		}
+	} else if (args_.safe_path.find("://") != std::string::npos) {
+		auto vfs = ctx.fs_security.get_vfs();
+		if (vfs) {
+			auto view_opt = vfs->read_file(args_.safe_path);
+			if (view_opt) {
+				content = std::string(view_opt.value()->view());
+			}
 		}
 	} else {
 		std::ifstream file(args_.safe_path, std::ios::binary);
