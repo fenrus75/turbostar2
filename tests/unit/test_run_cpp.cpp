@@ -89,8 +89,45 @@ int main()
 		assert(result.find("[Execution: SUCCESS]") != std::string::npos);
 	}
 
+	// 6. Success case: tmp:// VFS include directory
+	{
+		auto vfs = std::make_shared<virtual_file_system>();
+		vfs->mount_buffer("tmp://my_header.h", "#define TMP_VFS_MAGIC 777\n");
+		ctx.fs_security.set_vfs(vfs.get());
+
+		nlohmann::json args = {
+			{"code", "#include \"my_header.h\"\nstd::cout << \"TMP Include Magic: \" << TMP_VFS_MAGIC << std::endl;"},
+			{"includes", nlohmann::json::array({"tmp://"})},
+			{"std", "c++23"}
+		};
+		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
+		std::cout << "Result 6: " << result << std::endl;
+		assert(result.find("TMP Include Magic: 777") != std::string::npos);
+		assert(result.find("[Execution: SUCCESS]") != std::string::npos);
+	}
+
+	// 7. Success case: tmp:// VFS library/translation unit
+	{
+		auto vfs = std::make_shared<virtual_file_system>();
+		vfs->mount_buffer("tmp://helper.cpp", "int compute_vfs_val() { return 888; }\n");
+		ctx.fs_security.set_vfs(vfs.get());
+
+		nlohmann::json args = {
+			{"code", "#include <iostream>\nint compute_vfs_val(); int main() { std::cout << \"VFS Lib Val: \" << compute_vfs_val() << std::endl; return 0; }"},
+			{"libraries", nlohmann::json::array({"tmp://helper.cpp"})},
+			{"std", "c++23"}
+		};
+
+		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
+		std::cout << "Result 7: " << result << std::endl;
+		assert(result.find("VFS Lib Val: 888") != std::string::npos);
+		assert(result.find("[Execution: SUCCESS]") != std::string::npos);
+	}
+
 	std::cout << "run_cpp tests passed successfully.\n";
 	return 0;
 }
+
+
 
 

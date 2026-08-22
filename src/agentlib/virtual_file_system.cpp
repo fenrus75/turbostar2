@@ -297,8 +297,20 @@ std::optional<vfs_file_info> virtual_file_system::get_file_info(const std::strin
 
 std::vector<vfs_file_info> virtual_file_system::list_directory(const std::string &prefix) const
 {
-	return get_provider_for_uri(prefix)->list_directory(prefix);
+	auto res = get_provider_for_uri(prefix)->list_directory(prefix);
+	auto def_res = default_provider_->list_directory(prefix);
+	std::set<std::string> seen;
+	for (const auto &item : res) {
+		seen.insert(item.uri);
+	}
+	for (const auto &item : def_res) {
+		if (seen.insert(item.uri).second) {
+			res.push_back(item);
+		}
+	}
+	return res;
 }
+
 
 void virtual_file_system::register_provider(const std::string &scheme, std::shared_ptr<vfs_provider> provider)
 {

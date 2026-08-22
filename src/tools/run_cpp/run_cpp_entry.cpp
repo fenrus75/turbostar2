@@ -137,16 +137,41 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 
 	for (const auto &inc : args_.includes) {
 		std::string clean_inc = inc;
-		if (clean_inc.find("://") != std::string::npos || clean_inc.starts_with("include:")) {
+		if (clean_inc.find("://") != std::string::npos || clean_inc.starts_with("include:") || clean_inc.starts_with("tmp:")) {
 			auto vfs = ctx.fs_security.get_vfs();
-			if (vfs && vfs->is_local_path_available(clean_inc)) {
-				clean_inc = vfs->get_local_path(clean_inc);
-			} else if (clean_inc.starts_with("include://")) {
-				clean_inc = "/usr/include/" + clean_inc.substr(10);
+			if (vfs) {
+				if (vfs->is_local_path_available(clean_inc)) {
+					std::string local_dir = vfs->get_local_path(clean_inc);
+					if (!local_dir.empty()) {
+						std::filesystem::create_directories(local_dir);
+						clean_inc = local_dir;
+					}
+				} else if (clean_inc.starts_with("include://")) {
+					clean_inc = "/usr/include/" + clean_inc.substr(10);
+				}
+
+				auto file_list = vfs->list_directory(inc);
+				for (const auto &vf : file_list) {
+					if (vf.type == 'F' || vf.type == 'f') {
+						auto handle = vfs->read_file(vf.uri);
+						if (handle.has_value()) {
+							std::filesystem::path rel_sub = std::filesystem::path(vf.uri).filename();
+							std::filesystem::path target_header = std::filesystem::path(tmp_dir) / rel_sub;
+							std::ofstream h_ofs(target_header, std::ios::binary);
+							if (h_ofs) {
+								std::string_view h_code = (*handle)->view();
+								h_ofs.write(h_code.data(), h_code.size());
+								h_ofs.close();
+							}
+						}
+					}
+				}
 			}
 		}
 		compile_cmd += std::format(" -I{}", fs_utils::escape_shell_arg(clean_inc));
 	}
+	compile_cmd += std::format(" -I{}", fs_utils::escape_shell_arg(tmp_dir));
+
 
 	for (const auto &def : args_.defines) {
 		std::string clean_def = def;
@@ -156,11 +181,39 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 		compile_cmd += std::format(" -D{}", fs_utils::escape_shell_arg(clean_def));
 	}
 
-
 	compile_cmd += std::format(" {} -o {}", fs_utils::escape_shell_arg(src_path), fs_utils::escape_shell_arg(bin_path));
 
+	std::vector<std::string> temp_lib_files;
 	for (const auto &lib : args_.libraries) {
-		compile_cmd += std::format(" {}", fs_utils::escape_shell_arg(lib));
+		std::string clean_lib = lib;
+		if (!clean_lib.starts_with("-") && (clean_lib.find("://") != std::string::npos || clean_lib.starts_with("tmp:"))) {
+			auto vfs = ctx.fs_security.get_vfs();
+			if (vfs) {
+				if (vfs->is_local_path_available(clean_lib)) {
+					std::string local_p = vfs->get_local_path(clean_lib);
+					if (!local_p.empty() && std::filesystem::exists(local_p)) {
+						clean_lib = local_p;
+					}
+				}
+				if (clean_lib == lib || clean_lib.find("://") != std::string::npos) {
+					auto handle = vfs->read_file(lib);
+					if (handle.has_value()) {
+						std::string_view lib_code = (*handle)->view();
+						std::filesystem::path filename = std::filesystem::path(lib).filename();
+						std::string lib_temp_path = (std::filesystem::path(tmp_dir) / std::format("vfs_lib_{}_{}", rand_id, filename.string())).string();
+
+						std::ofstream l_ofs(lib_temp_path, std::ios::binary);
+						if (l_ofs) {
+							l_ofs.write(lib_code.data(), lib_code.size());
+							l_ofs.close();
+							clean_lib = lib_temp_path;
+							temp_lib_files.push_back(lib_temp_path);
+						}
+					}
+				}
+			}
+		}
+		compile_cmd += std::format(" {}", fs_utils::escape_shell_arg(clean_lib));
 	}
 
 	sync_command_runner compile_runner;
@@ -173,6 +226,7 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 
 	if (compile_exit != 0) {
 		if (is_temp_src) std::filesystem::remove(src_path);
+		for (const auto &tf : temp_lib_files) std::filesystem::remove(tf);
 		return std::format("<cpp_execution_output>\n[Compilation: FAILED]\n{}\n</cpp_execution_output>", fs_utils::wrap_prompt_untrusted_data_tag("compiler_output", compile_output));
 	}
 
@@ -188,7 +242,9 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 
 	// Clean up temp files
 	if (is_temp_src) std::filesystem::remove(src_path);
+	for (const auto &tf : temp_lib_files) std::filesystem::remove(tf);
 	std::filesystem::remove(bin_path);
+
 
 	std::string status_str = (exec_exit == 0) ? "SUCCESS" : std::format("FAILED (Exit Code: {})", exec_exit);
 	return std::format("<cpp_execution_output>\n[Execution: {}]\n{}\n</cpp_execution_output>", status_str, fs_utils::wrap_prompt_untrusted_data_tag("stdout", exec_output));
