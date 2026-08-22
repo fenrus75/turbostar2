@@ -410,10 +410,12 @@ remember to describe features in terms of the benefit to the user or the agent, 
   7. **Build Target Linkage Fix**: Updated `meson.build` to add `link_with: libturbostar_core` to the `turbostar-crashprocess` executable target so `address_lookup.cpp` symbols resolve `fs_utils` cleanly.
   8. Verified 100% build and test suite pass rate.
 
-- Self-Contained Workflow Tool Examples (`src/tools/`, `src/plugins/`):
-  1. **Python Tool Examples**: Added rich inline code execution, VFS script execution (`tmp://script.py`), and on-demand PyPI dependency installation (`dependencies: ["requests"]` via `uv`) in `run_python_security.cpp`.
-  2. **Self-Contained Complete Flow Examples**: Updated `fs_man`, `markdown_extract`, `fs_read_lines`, `fs_run_tests`, `image_import`, `image_grayscale`, `image_export`, and `fs_file_codemap` validators to present self-contained complete multi-tool workflow sequences (`Full Flow: 1) ... -> 2) ... -> 3) ...`) in each tool's example explanation, preserving strict schema validity while enabling instant single-tool discovery.
-  3. **Verification**: Built and verified clean unit test execution (`test_run_python`, `test_fs_man`, `test_markdown_extract_plugin`, `test_tools`).
+- Self-Contained Workflow Tool Examples & Automated Verification (`src/tools/`, `src/plugins/`, `tests/unit/test_tool_examples.cpp`, `meson.build`):
+  1. **Tier 1 & Tier 2 Tool Examples**: Implemented `get_examples()` across all remaining tools (`fs_replace_lines`, `fs_multi_replace_content`, `fs_grep_files`, `web_fetch`, `sqlite_perform`, `run_shell_command`, `image_crop`, `image_resize`, `image_compose`, `fs_read_binary`, `invoke_subagent`, `code_get_definition`, `git_diff_staged`, `git_diff_unstaged`).
+  2. **Automated Tool Example Test Target**: Added dedicated `test_tool_examples` unit test target (`tests/unit/test_tool_examples.cpp`), which dynamically iterates across all 123 registered tool validators and verifies every tool example's `input_args` against parameter schemas and security checks, ensuring examples never go stale.
+  3. **`run_cpp` Debug Symbols**: Added `-g -rdynamic` to `run_cpp_entry.cpp` compilation command line so sandboxed ad-hoc C/C++ probe crashes resolve backtraces and debug symbols.
+  4. **Verification**: Executed `./build/test_tool_examples` with 100% pass rate (39 / 39 examples validated cleanly across all tools and plugins).
+
 
 
 
