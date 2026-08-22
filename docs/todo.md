@@ -394,7 +394,12 @@ remember to describe features in terms of the benefit to the user or the agent, 
   6. Updated Meson unit test targets (`test_sqlite_list_db` and `test_sqlite_validation`) in `meson.build` with `export_dynamic: true`, `depends: [sqlite_plugin]`, and `env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins']`.
   7. Fixed singleton initialization order in `test_sqlite_list_db.cpp` and `test_sqlite_validation.cpp` to prevent exit double-free crashes.
 ## 21-08-2026
+- `web_fetch` Tool HTTP Method & Custom Headers Enhancement (`src/tools/web_fetch/`, `docs/tools.md`, `tests/unit/test_web_fetch.cpp`):
+  1. **New Parameters**: Extended `web_fetch` with optional `method` parameter (string, e.g. `GET`, `POST`, `PUT`, `DELETE`, `HEAD`, defaulting to `GET`) and `headers` parameter (JSON object mapping header names to string values, e.g. `{"Authorization": "Bearer ...", "Content-Type": "application/json"}`).
+  2. **cURL Engine Updates**: Updated `perform_http_request` in `web_fetch_entry.cpp` to configure HTTP request methods via `CURLOPT_HTTPGET`, `CURLOPT_POST`, `CURLOPT_NOBODY`, or `CURLOPT_CUSTOMREQUEST` and append custom HTTP headers via `curl_slist`.
+  3. **Documentation & Unit Tests**: Updated JSON schema in `web_fetch_security.cpp`, documentation in `docs/tools.md`, and unit tests in `test_web_fetch.cpp`. Verified 100% test suite pass rate (262 OK, 1 Expected Fail, 2 Skipped).
 - System Prompt "Turbostar Unique Tool Calls" Section (`src/ui/agent_window.cpp`, `prompt.md`): Added a dedicated `*** TURBOSTAR UNIQUE TOOL CALLS ***` section to the agent's base system prompt highlighting specialized tools (`fs_file_codemap`, `markdown_extract`, and `fs_replace_content` with `function_hint` + concrete example) to encourage models to leverage these high-efficiency built-in capabilities. Verified full test suite pass rate (262 OK, 1 Expected Fail, 2 Skipped).
+
 - Cold KV Cache Timeouts & Transient Stream Error Handling (`src/agentlib/httplib_transport.cpp`, `src/agentlib/protocols/openai_completion_connection.cpp`, `src/agentlib/protocols/openai_response_connection.cpp`, `tests/unit/test_api_formatter.cpp`):
 
   1. **Cold KV Cache Timeouts**: Increased `httplib_transport` read timeout from 300s to 600s (10 minutes) and connection timeout from 5s to 15s, allowing LLM servers to process large initial prompt ingestions (cold KV cache TTFT) without timing out socket operations (`errno=115 EINPROGRESS`).
