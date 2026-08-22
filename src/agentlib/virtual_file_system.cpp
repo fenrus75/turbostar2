@@ -274,18 +274,26 @@ std::shared_ptr<vfs_provider> virtual_file_system::get_provider_for_uri(const st
 
 bool virtual_file_system::exists(const std::string &uri) const
 {
+	if (default_provider_->exists(uri)) return true;
 	return get_provider_for_uri(uri)->exists(uri);
 }
 
 std::optional<vfs_file_handle> virtual_file_system::read_file(const std::string &uri)
 {
+	if (default_provider_->exists(uri)) {
+		return default_provider_->read_file(uri);
+	}
 	return get_provider_for_uri(uri)->read_file(uri);
 }
 
 std::optional<vfs_file_info> virtual_file_system::get_file_info(const std::string &uri) const
 {
+	if (default_provider_->exists(uri)) {
+		return default_provider_->get_file_info(uri);
+	}
 	return get_provider_for_uri(uri)->get_file_info(uri);
 }
+
 
 std::vector<vfs_file_info> virtual_file_system::list_directory(const std::string &prefix) const
 {

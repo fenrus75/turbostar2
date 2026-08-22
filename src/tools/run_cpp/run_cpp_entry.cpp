@@ -92,6 +92,36 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 		}
 		ofs.write(code_to_write.data(), code_to_write.size());
 		ofs.close();
+	} else if (!args_.path.empty()) {
+		std::string raw_path = args_.safe_path.empty() ? args_.path : args_.safe_path;
+		if (raw_path.find("://") != std::string::npos || raw_path.starts_with("include:")) {
+			auto vfs = ctx.fs_security.get_vfs();
+			if (vfs) {
+				if (vfs->is_local_path_available(raw_path)) {
+					std::string local_p = vfs->get_local_path(raw_path);
+					if (!local_p.empty() && std::filesystem::exists(local_p)) {
+						src_path = local_p;
+					}
+				}
+				if (src_path == args_.safe_path || src_path.find("://") != std::string::npos) {
+					auto handle = vfs->read_file(raw_path);
+					if (handle.has_value()) {
+						std::string_view vfs_code = (*handle)->view();
+						src_path = (std::filesystem::path(tmp_dir) / std::format("vfs_src_{}{}", rand_id, src_ext)).string();
+						is_temp_src = true;
+
+						std::ofstream ofs(src_path, std::ios::binary);
+						if (!ofs) {
+							return "<cpp_execution_output>\n[Error: Failed to create temporary source file from VFS]\n</cpp_execution_output>";
+						}
+						ofs.write(vfs_code.data(), vfs_code.size());
+						ofs.close();
+					} else {
+						return std::format("<cpp_execution_output>\n[Error: Failed to read source file from VFS: {}]\n</cpp_execution_output>", raw_path);
+					}
+				}
+			}
+		}
 	}
 
 	std::string bin_path = (std::filesystem::path(tmp_dir) / std::format("probe_{}.bin", rand_id)).string();
@@ -107,8 +137,13 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 
 	for (const auto &inc : args_.includes) {
 		std::string clean_inc = inc;
-		if (clean_inc.starts_with("include://")) {
-			clean_inc = "/usr/include/" + clean_inc.substr(10);
+		if (clean_inc.find("://") != std::string::npos || clean_inc.starts_with("include:")) {
+			auto vfs = ctx.fs_security.get_vfs();
+			if (vfs && vfs->is_local_path_available(clean_inc)) {
+				clean_inc = vfs->get_local_path(clean_inc);
+			} else if (clean_inc.starts_with("include://")) {
+				clean_inc = "/usr/include/" + clean_inc.substr(10);
+			}
 		}
 		compile_cmd += std::format(" -I{}", fs_utils::escape_shell_arg(clean_inc));
 	}

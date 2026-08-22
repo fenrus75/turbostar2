@@ -74,7 +74,10 @@ bool run_cpp_validator::validate_args_impl(const nlohmann::json &args, const age
 			out_error = "Unsupported C/C++ standard version: " + parsed_args_.std_ver;
 			return false;
 		}
+	} else if (!parsed_args_.path.empty() && (parsed_args_.path.ends_with(".c") || parsed_args_.path.ends_with(".C"))) {
+		parsed_args_.std_ver = "c17";
 	}
+
 
 
 	if (args.contains("includes") && args["includes"].is_array()) {

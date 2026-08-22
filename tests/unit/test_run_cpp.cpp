@@ -2,9 +2,11 @@
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
-#include <nlohmann/json.hpp>
+#include <fstream>
 #include "../../src/agentlib/tool_registry.h"
+#include "../../src/fs_utils.h"
 #include "../../src/project_manager.h"
+
 
 using namespace agentlib;
 
@@ -67,7 +69,28 @@ int main()
 		assert(result.find("[Execution: SUCCESS]") != std::string::npos);
 	}
 
+	// 5. Success case: tmp:// file path C execution
+	{
+		auto vfs = std::make_shared<virtual_file_system>();
+		vfs->mount_buffer("tmp://probe_test.c", "#include <stdio.h>\nint main() { printf(\"Hello tmp VFS C: %d\\n\", 100); return 0; }\n");
+		ctx.fs_security.set_vfs(vfs.get());
+
+
+
+
+
+
+		nlohmann::json args = {
+			{"path", "tmp://probe_test.c"}
+		};
+		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
+		std::cout << "Result 5: " << result << std::endl;
+		assert(result.find("Hello tmp VFS C: 100") != std::string::npos);
+		assert(result.find("[Execution: SUCCESS]") != std::string::npos);
+	}
+
 	std::cout << "run_cpp tests passed successfully.\n";
 	return 0;
 }
+
 
