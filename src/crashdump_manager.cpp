@@ -473,3 +473,158 @@ std::string crashdump_manager::format_crash_notification(size_t crash_count)
 	    "\n\nCRASH DETECTED: {} new crash(es) occurred during execution. Please use 'crashdump_list' and 'crashdump_get_info' to investigate.",
 	    crash_count);
 }
+
+crash_frame_info crashdump_manager::get_crash_frame_info(std::string_view crash_id) const
+{
+	crash_frame_info res;
+	if (crash_id.empty()) {
+		return res;
+	}
+
+	std::string dump_dir = fs_utils::get_project_dump_dir();
+	fs::path crash_dir = fs::path(dump_dir) / std::format("crash_{}", crash_id);
+	generate_report_if_needed(crash_dir.string());
+
+	fs::path report_path = crash_dir / "report.md";
+	if (!fs::exists(report_path)) {
+		return res;
+	}
+
+	std::ifstream in(report_path);
+	std::string line;
+	bool in_backtrace = false;
+
+	struct frame_candidate {
+		int frame{0};
+		std::string func;
+		std::string loc;
+		bool is_project{false};
+	};
+	std::vector<frame_candidate> candidates;
+
+	static std::string project_root = project_manager::get_instance().get_project_root();
+
+	while (std::getline(in, line)) {
+		if (line.starts_with("### Backtrace")) {
+			in_backtrace = true;
+			continue;
+		}
+		if (in_backtrace && line.starts_with("###")) {
+			break;
+		}
+		if (!in_backtrace || line.empty() || line.starts_with("| Frame") || line.starts_with("|---")) {
+			continue;
+		}
+
+		// Parse table row: | Frame | Address | Function | Location |
+		std::vector<std::string> parts;
+		std::stringstream ss(line);
+		std::string item;
+		while (std::getline(ss, item, '|')) {
+			size_t first = item.find_first_not_of(" \t");
+			size_t last = item.find_last_of(" \t");
+			if (first != std::string::npos) {
+				if (last != std::string::npos && last >= first) {
+					item = item.substr(first, last - first + 1);
+				} else {
+					item = item.substr(first);
+				}
+			} else {
+				item.clear();
+			}
+			parts.push_back(item);
+		}
+
+		if (parts.size() >= 5) {
+			try {
+				int frame_idx = std::stoi(parts[1]);
+				std::string func = parts[3];
+				std::string loc = parts[4];
+
+				bool is_proj = false;
+				if (!loc.empty() && loc[0] != '?' && !loc.starts_with("/usr/") && !loc.starts_with("/lib/")) {
+					is_proj = true;
+				}
+
+				candidates.push_back({frame_idx, func, loc, is_proj});
+			} catch (...) {
+			}
+		}
+	}
+
+	if (candidates.empty()) {
+		return res;
+	}
+
+	// Pick the first candidate that is project code, or candidates[0]
+	const frame_candidate *chosen = &candidates[0];
+	for (const auto &c : candidates) {
+		if (c.is_project) {
+			chosen = &c;
+			break;
+		}
+	}
+
+	res.frame_number = chosen->frame;
+	res.function_name = chosen->func;
+	res.location = chosen->loc;
+
+	// Parse location for file and line: e.g. "src/crash_probe.c:12"
+	size_t colon_pos = res.location.find_last_of(':');
+	if (colon_pos != std::string::npos && colon_pos > 0) {
+		std::string file_part = res.location.substr(0, colon_pos);
+		std::string line_part = res.location.substr(colon_pos + 1);
+
+		fs::path full_p(file_part);
+		if (!full_p.is_absolute() && !project_root.empty()) {
+			full_p = fs::path(project_root) / full_p;
+		}
+
+		int line_num = 0;
+		try { line_num = std::stoi(line_part); } catch (...) {}
+
+		if (line_num > 0 && fs::exists(full_p)) {
+			std::ifstream src_in(full_p);
+			std::string src_line;
+			int cur_l = 0;
+			while (std::getline(src_in, src_line)) {
+				if (++cur_l == line_num) {
+					// Search for pointer dereferences: foo->bar or *ptr
+					size_t arrow_pos = src_line.find("->");
+					if (arrow_pos != std::string::npos && arrow_pos > 0) {
+						size_t var_end = arrow_pos;
+						size_t var_start = var_end;
+						while (var_start > 0 && (std::isalnum(src_line[var_start - 1]) || src_line[var_start - 1] == '_')) {
+							--var_start;
+						}
+						if (var_start < var_end) {
+							res.suggested_var = src_line.substr(var_start, var_end - var_start);
+						}
+					}
+					if (res.suggested_var.empty()) {
+						size_t star_pos = src_line.find('*');
+						if (star_pos != std::string::npos && star_pos + 1 < src_line.length()) {
+							size_t var_start = star_pos + 1;
+							while (var_start < src_line.length() && (src_line[var_start] == ' ' || src_line[var_start] == '\t')) {
+								++var_start;
+							}
+							size_t var_end = var_start;
+							while (var_end < src_line.length() && (std::isalnum(src_line[var_end]) || src_line[var_end] == '_')) {
+								++var_end;
+							}
+							if (var_end > var_start) {
+								std::string cand = src_line.substr(var_start, var_end - var_start);
+								if (cand != "int" && cand != "char" && cand != "void" && cand != "double" && cand != "float" && cand != "const") {
+									res.suggested_var = cand;
+								}
+							}
+						}
+					}
+					break;
+				}
+			}
+		}
+	}
+
+	return res;
+}

@@ -18,9 +18,20 @@ struct crashdump_info {
     std::string to_markdown_row() const;
 };
 
+struct crash_frame_info {
+    int frame_number{0};
+    std::string function_name;
+    std::string location;
+    std::string suggested_var;
+};
+
 class crashdump_manager {
 public:
     static crashdump_manager& get_instance();
+
+    // Parses crash dump report to extract the primary crash frame index, function name, and candidate variable name
+    crash_frame_info get_crash_frame_info(std::string_view crash_id) const;
+
 
     // Returns a markdown formatted string of newly discovered crashdumps, or empty string if none.
     std::string refresh(std::string_view project_hash);
