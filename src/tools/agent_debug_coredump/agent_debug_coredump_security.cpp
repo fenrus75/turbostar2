@@ -26,7 +26,18 @@ class agent_debug_coredump_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Launches a GDB session attached to the coredump for a given crash_id. Returns JSON with gdb_run_id.";
+		return "Launches a GDB session attached to the coredump for a given crash_id. Returns JSON with gdb_run_id (e.g. 2001). Send GDB commands to that session using 'agent_write_to_run' (e.g. 'bt', 'frame 5', 'print e'), then clean up with 'agent_terminate_run'.";
+	}
+
+	std::vector<agentlib::tool_example> get_examples() const override
+	{
+		return {
+			{
+				"Inspect variable value at crash frame after SIGSEGV",
+				nlohmann::json{{"crash_id", "833323"}},
+				"Drives GDB on the coredump for crash_id 833323 to select the crashing stack frame and inspect local variables."
+			}
+		};
 	}
 
 	nlohmann::json get_parameters_schema() const override
@@ -38,6 +49,7 @@ class agent_debug_coredump_validator : public agentlib::tool_validator
 		schema["required"] = nlohmann::json::array({"crash_id"});
 		return schema;
 	}
+
 
       protected:
 	bool validate_args_impl(const nlohmann::json &args_json, const agentlib::tool_context & /*ctx*/,

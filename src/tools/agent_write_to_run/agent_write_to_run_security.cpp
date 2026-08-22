@@ -32,6 +32,17 @@ class agent_write_to_run_validator : public agentlib::tool_validator
 		return "Writes/injects keyboard input sequences into the application or debugger PTY master stream (add \n for commands to gdb!).";
 	}
 
+	std::vector<agentlib::tool_example> get_examples() const override
+	{
+		return {
+			{
+				"Send GDB commands to a coredump session",
+				nlohmann::json{{"run_id", 2001}, {"data", "frame 5\nprint e\n"}, {"output", true}},
+				"After agent_debug_coredump returns gdb_run_id 2001, sends debugger commands ('frame 5', 'print e') to select the crash frame and print variable values."
+			}
+		};
+	}
+
 	nlohmann::json get_parameters_schema() const override
 	{
 		return {
