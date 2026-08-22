@@ -1,3 +1,4 @@
+// Tested source file: src/tools/web_fetch/web_fetch_entry.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <chrono>
@@ -14,6 +15,7 @@
 #include "event_queue.h"
 #include "project_manager.h"
 #include "fs_utils.h"
+
 
 using namespace agentlib;
 
@@ -301,6 +303,30 @@ int main()
 			assert(success);
 			assert(res == "Hello  World");
 		}
+
+		// 7. Test method and headers parameter validation
+		{
+			// Valid GET/POST and custom headers
+			nlohmann::json valid_args = {
+				{"url", "http://127.0.0.1:54321/api"},
+				{"method", "POST"},
+				{"headers", {{"Authorization", "Bearer secret123"}, {"Content-Type", "application/json"}}}
+			};
+			auto prep = registry.prepare_tool("web_fetch", valid_args.dump(), ctx);
+			assert(prep.tool != nullptr && "web_fetch with valid method and headers should validate");
+			assert(prep.error_message.empty());
+
+			// Invalid method (type)
+			nlohmann::json bad_method = {{"url", "http://127.0.0.1:54321/api"}, {"method", 123}};
+			auto prep_bm = registry.prepare_tool("web_fetch", bad_method.dump(), ctx);
+			assert(prep_bm.tool == nullptr && prep_bm.error_message.find("Expected string") != std::string::npos);
+
+			// Invalid headers (not object)
+			nlohmann::json bad_headers = {{"url", "http://127.0.0.1:54321/api"}, {"headers", "invalid_header_string"}};
+			auto prep_bh = registry.prepare_tool("web_fetch", bad_headers.dump(), ctx);
+			assert(prep_bh.tool == nullptr && prep_bh.error_message.find("Expected object") != std::string::npos);
+
+		}
 	}
 
 	// Clean up
@@ -308,3 +334,5 @@ int main()
 	std::cout << "web_fetch tests passed successfully.\n";
 	return 0;
 }
+
+

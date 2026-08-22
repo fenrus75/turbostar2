@@ -1,4 +1,5 @@
 #pragma once
+#include <map>
 #include <memory>
 #include <string>
 #include "../../agentlib/tool_validator.h"
@@ -8,11 +9,14 @@ namespace tools
 
 struct web_fetch_args {
 	std::string url;
+	std::string method = "GET";
+	std::map<std::string, std::string> headers;
 	std::string output_path;
 	std::string safe_output_path;
 	std::string filter;
 	bool no_ask = false;
 };
+
 
 class web_fetch_tool : public agentlib::llm_tool
 {

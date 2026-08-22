@@ -59,7 +59,9 @@ static size_t write_callback(void *contents, size_t size, size_t nmemb, void *us
 	return realsize;
 }
 
-static std::string perform_http_get(const std::string &url, int timeout_seconds = 30)
+static std::string perform_http_request(const std::string &url, const std::string &method,
+                                       const std::map<std::string, std::string> &headers,
+                                       int timeout_seconds = 30)
 {
 	CURL *curl = curl_easy_init();
 	if (!curl) {
@@ -79,7 +81,35 @@ static std::string perform_http_get(const std::string &url, int timeout_seconds 
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, static_cast<long>(timeout_seconds));
 	curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
+	std::string upper_method = method.empty() ? "GET" : method;
+	for (char &c : upper_method) {
+		c = static_cast<char>(::toupper(static_cast<unsigned char>(c)));
+	}
+
+	if (upper_method == "GET") {
+		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+	} else if (upper_method == "POST") {
+		curl_easy_setopt(curl, CURLOPT_POST, 1L);
+	} else if (upper_method == "HEAD") {
+		curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+	} else {
+		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, upper_method.c_str());
+	}
+
+	struct curl_slist *header_list = nullptr;
+	for (const auto &[key, val] : headers) {
+		std::string header_str = key + ": " + val;
+		header_list = curl_slist_append(header_list, header_str.c_str());
+	}
+	if (header_list) {
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header_list);
+	}
+
 	CURLcode res = curl_easy_perform(curl);
+
+	if (header_list) {
+		curl_slist_free_all(header_list);
+	}
 	curl_easy_cleanup(curl);
 
 	if (res != CURLE_OK) {
@@ -144,7 +174,8 @@ std::string web_fetch_tool::execute(agentlib::tool_context &ctx)
 
 		editor_event ev;
 		ev.type = event_type::prompt_user;
-		ev.payload = "Agent wants to fetch URL:\n" + args_.url + "\n\nAllow connection to " + domain_ + "?";
+		std::string req_desc = args_.method.empty() ? "GET" : args_.method;
+		ev.payload = "Agent wants to fetch URL (" + req_desc + "):\n" + args_.url + "\n\nAllow connection to " + domain_ + "?";
 
 		bool is_local = is_local_ip(domain_);
 		if (is_local) {
@@ -177,7 +208,8 @@ std::string web_fetch_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-	std::string output = perform_http_get(args_.url);
+	std::string output = perform_http_request(args_.url, args_.method, args_.headers);
+
 
 	if (!args_.filter.empty()) {
 		bool success = false;

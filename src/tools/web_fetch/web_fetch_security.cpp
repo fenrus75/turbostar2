@@ -10,6 +10,13 @@ nlohmann::json web_fetch_validator::get_parameters_schema() const
 	return {{"type", "object"},
 		{"properties",
 		 {{"url", {{"type", "string"}, {"description", "The full URL to fetch (must start with http:// or https://)."}}},
+		  {"method",
+		   {{"type", "string"},
+		    {"description", "Optional. The HTTP method to use (e.g. 'GET', 'POST', 'PUT', 'DELETE', 'HEAD'). Defaults to 'GET'."}}},
+		  {"headers",
+		   {{"type", "object"},
+		    {"description", "Optional. Custom HTTP request headers as key-value pairs (e.g. {\"Authorization\": \"Bearer token\", \"Content-Type\": \"application/json\"})."},
+		    {"additionalProperties", {{"type", "string"}}}}},
 		  {"output_path",
 		   {{"type", "string"},
 		    {"description", "Optional. The relative file path under the project workspace or VFS URI (e.g., 'tmp://file.txt') to save the fetched content."}}},
@@ -44,6 +51,37 @@ bool web_fetch_validator::validate_args_impl(const nlohmann::json &args, const a
 		return false;
 	}
 
+	std::string method = "GET";
+	if (args.contains("method")) {
+		if (!args["method"].is_string()) {
+			out_error = "Invalid 'method' argument (must be string).";
+			return false;
+		}
+		method = args["method"].get<std::string>();
+		if (method.empty()) {
+			out_error = "method cannot be empty.";
+			return false;
+		}
+		for (char &c : method) {
+			c = static_cast<char>(::toupper(static_cast<unsigned char>(c)));
+		}
+	}
+
+	std::map<std::string, std::string> headers;
+	if (args.contains("headers")) {
+		if (!args["headers"].is_object()) {
+			out_error = "Invalid 'headers' argument (must be a JSON object mapping header names to string values).";
+			return false;
+		}
+		for (auto it = args["headers"].begin(); it != args["headers"].end(); ++it) {
+			if (!it.value().is_string()) {
+				out_error = "Invalid header value for '" + it.key() + "' (must be string).";
+				return false;
+			}
+			headers[it.key()] = it.value().get<std::string>();
+		}
+	}
+
 	std::string output_path;
 	std::string safe_output_path;
 	if (args.contains("output_path")) {
@@ -72,13 +110,16 @@ bool web_fetch_validator::validate_args_impl(const nlohmann::json &args, const a
 
 	// Check for unexpected arguments
 	for (auto it = args.begin(); it != args.end(); ++it) {
-		if (it.key() != "url" && it.key() != "no_ask" && it.key() != "output_path" && it.key() != "filter") {
+		if (it.key() != "url" && it.key() != "no_ask" && it.key() != "output_path" && it.key() != "filter" &&
+		    it.key() != "method" && it.key() != "headers") {
 			out_error = "Unexpected parameter '" + it.key() + "' passed to tool.";
 			return false;
 		}
 	}
 
 	parsed_args_.url = url;
+	parsed_args_.method = method;
+	parsed_args_.headers = std::move(headers);
 	parsed_args_.output_path = output_path;
 	parsed_args_.safe_output_path = safe_output_path;
 	parsed_args_.filter = filter;
@@ -86,6 +127,7 @@ bool web_fetch_validator::validate_args_impl(const nlohmann::json &args, const a
 
 	return true;
 }
+
 
 std::unique_ptr<agentlib::llm_tool> web_fetch_validator::create_tool_impl(const nlohmann::json & /*args*/) const
 {

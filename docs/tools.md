@@ -311,9 +311,12 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
 *   **Description:** Fetches content from a URL via HTTP/HTTPS. Useful for reading documentation or external resources. Implements domain-based access controls and prompts the user for permission.
 *   **Arguments:**
     *   `url` *(string, required)*: The full URL to fetch (must start with http:// or https://).
-    *   `output_path` *(string, optional)*: Optional relative file path under the project workspace to save the fetched content directly to disk.
+    *   `method` *(string, optional)*: Optional HTTP method to use (e.g. `GET`, `POST`, `PUT`, `DELETE`, `HEAD`). Defaults to `GET`.
+    *   `headers` *(object, optional)*: Optional custom HTTP request headers as key-value pairs (e.g. `{"Authorization": "Bearer token", "Content-Type": "application/json"}`).
+    *   `output_path` *(string, optional)*: Optional relative file path under the project workspace or VFS URI (e.g. `tmp://file.txt`) to save the fetched content directly to disk.
     *   `filter` *(string, optional)*: Optional content processing filter to apply before returning or saving (e.g. `html_to_markdown`, `html_to_markdown_plain`, `html_extract_tables`).
     *   `no_ask` *(boolean, optional)*: If true, the tool will fail silently with a permission error if the domain is not pre-approved, rather than prompting the user for permission.
+
 
 ### `apply_text_filter`
 *   **Description:** Applies a named content processing or format conversion filter (e.g., converting HTML to Markdown via 'html_to_markdown', aligning tables via 'markdown_align_tables', or sanitizing input via 'strip_ansi'/'strip_utf8') to input text or a workspace/VFS file. Optionally saves the converted output directly to a workspace file.
