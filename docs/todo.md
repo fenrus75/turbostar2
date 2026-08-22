@@ -395,9 +395,10 @@ remember to describe features in terms of the benefit to the user or the agent, 
   7. Fixed singleton initialization order in `test_sqlite_list_db.cpp` and `test_sqlite_validation.cpp` to prevent exit double-free crashes.
 ## 21-08-2026
 - `run_cpp` Ad-Hoc Probe Tool (`src/tools/run_cpp/`, `docs/tools.md`, `src/ui/agent_window.cpp`, `prompt.md`, `tests/unit/test_run_cpp.cpp`):
-  1. **Built `run_cpp` Tool**: Enables agents to compile and run ad-hoc C++ snippets or standalone probe files in a sandboxed execution environment. Supports configurable C++ standard (`c++23`, `c++20`, `c++17`), custom include paths (`-I`), preprocessor macros (`-D`), and linker library flags (`-l`).
+  1. **Built `run_cpp` Tool**: Enables agents to compile and run ad-hoc C/C++ snippets or standalone probe files in a sandboxed execution environment. Supports C++ (`c++23`, `c++20`, `c++17`, `c++14`, `c++11`) and C (`c17`, `c11`, `c99`, `c89`, `gnu17`, `gnu11`) standards, custom include paths (`-I`), preprocessor macros (`-D`), and linker library flags (`-l`). Automatically selects `gcc` for C standards and `g++` for C++ standards.
   2. **`LD_PRELOAD` `libturbocatch.so` Integration**: Automatically preloads `libturbocatch.so` during probe execution using `sync_command_runner.set_enable_crash_catcher(true)` to catch runtime crashes (`SIGSEGV`, `SIGABRT`, `SIGFPE`) and return structured crash reports to the model.
   3. **Documentation & Unit Tests**: Added `run_cpp` documentation to `docs/tools.md`, prompt section to `agent_window.cpp` and `prompt.md`, and unit tests in `tests/unit/test_run_cpp.cpp`. Verified 100% test suite pass rate (263 OK, 1 Expected Fail, 2 Skipped).
+
 - Shell Command Re-Steering & `sqlite` Tool Family Auto-Activation (`src/tools/run_shell_command/`, `src/agentlib/ai_agent.cpp`, `tests/unit/test_run_shell_command.cpp`):
 
   1. **New Re-Steering Rules**: Added pattern matching in `shell_command_resteer.cpp` for `cat <file>` $\to$ `fs_read_lines`, `curl [options] <url>` $\to$ `web_fetch`, and `sqlite3 <db> "<query>"` $\to$ `sqlite_perform`. Intercepts raw shell commands prior to user prompt approval and re-steers agents to built-in tools.
