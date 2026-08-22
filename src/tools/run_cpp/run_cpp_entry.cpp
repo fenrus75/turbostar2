@@ -45,26 +45,45 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 	std::filesystem::create_directories(tmp_dir);
 
 
+	bool is_c_mode = (!args_.std_ver.starts_with("c++") && (args_.std_ver.starts_with("c") || args_.std_ver.starts_with("gnu")));
+	std::string compiler_bin = is_c_mode ? "gcc" : "g++";
+	std::string src_ext = is_c_mode ? ".c" : ".cpp";
+
 	if (!args_.code.empty()) {
-		src_path = (std::filesystem::path(tmp_dir) / std::format("probe_{}.cpp", rand_id)).string();
+		src_path = (std::filesystem::path(tmp_dir) / std::format("probe_{}{}", rand_id, src_ext)).string();
 		is_temp_src = true;
 
 		std::string code_to_write = args_.code;
 		if (code_to_write.find("main(") == std::string::npos && code_to_write.find("main (") == std::string::npos) {
-			code_to_write = std::format(
-				"#include <iostream>\n"
-				"#include <vector>\n"
-				"#include <string>\n"
-				"#include <string_view>\n"
-				"#include <optional>\n"
-				"#include <variant>\n"
-				"#include <memory>\n"
-				"int main() {{\n"
-				"{}\n"
-				"\treturn 0;\n"
-				"}}\n",
-				code_to_write
-			);
+			if (is_c_mode) {
+				code_to_write = std::format(
+					"#include <stdio.h>\n"
+					"#include <stdlib.h>\n"
+					"#include <stdbool.h>\n"
+					"#include <string.h>\n"
+					"#include <stdint.h>\n"
+					"int main(void) {{\n"
+					"{}\n"
+					"\treturn 0;\n"
+					"}}\n",
+					code_to_write
+				);
+			} else {
+				code_to_write = std::format(
+					"#include <iostream>\n"
+					"#include <vector>\n"
+					"#include <string>\n"
+					"#include <string_view>\n"
+					"#include <optional>\n"
+					"#include <variant>\n"
+					"#include <memory>\n"
+					"int main() {{\n"
+					"{}\n"
+					"\treturn 0;\n"
+					"}}\n",
+					code_to_write
+				);
+			}
 		}
 
 		std::ofstream ofs(src_path, std::ios::binary);
@@ -77,7 +96,8 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 
 	std::string bin_path = (std::filesystem::path(tmp_dir) / std::format("probe_{}.bin", rand_id)).string();
 
-	std::string compile_cmd = std::format("g++ -std={} -O0 -g", args_.std_ver);
+	std::string compile_cmd = std::format("{} -std={} -O0 -g", compiler_bin, args_.std_ver);
+
 
 
 	std::string src_dir = (std::filesystem::path(project_root) / "src").string();

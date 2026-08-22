@@ -1,6 +1,8 @@
 #include "run_cpp.h"
 #include "agentlib/file_security_manager.h"
 #include "agentlib/tool_registry.h"
+#include <set>
+
 
 
 namespace tools
@@ -13,7 +15,8 @@ nlohmann::json run_cpp_validator::get_parameters_schema() const
 		{"properties", {
 			{"code", {{"type", "string"}, {"description", "Inline C++ source code to compile and run."}}},
 			{"path", {{"type", "string"}, {"description", "Optional path to a .cpp file in the workspace or VFS (e.g. 'tmp://probe.cpp')."}}},
-			{"std", {{"type", "string"}, {"enum", nlohmann::json::array({"c++23", "c++20", "c++17"})}, {"default", "c++23"}, {"description", "C++ language standard to compile against (c++23, c++20, c++17). Defaults to c++23."}}},
+			{"std", {{"type", "string"}, {"enum", nlohmann::json::array({"c++23", "c++20", "c++17", "c++14", "c++11", "c17", "c11", "c99", "c89", "gnu17", "gnu11"})}, {"default", "c++23"}, {"description", "C/C++ language standard to compile against (e.g. c++23, c++20, c++17, c17, c11, c99). Defaults to c++23."}}},
+
 			{"includes", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Optional array of include directories (e.g. ['src/'])."}}},
 			{"defines", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Optional array of preprocessor macros (e.g. ['DEBUG=1'])."}}},
 			{"libraries", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Optional array of linker library flags (e.g. ['-lsqlite3', '-lssl'])."}}},
@@ -46,11 +49,16 @@ bool run_cpp_validator::validate_args_impl(const nlohmann::json &args, const age
 
 	if (args.contains("std") && args["std"].is_string()) {
 		parsed_args_.std_ver = args["std"].get<std::string>();
-		if (parsed_args_.std_ver != "c++23" && parsed_args_.std_ver != "c++20" && parsed_args_.std_ver != "c++17") {
-			out_error = "Unsupported C++ standard version: " + parsed_args_.std_ver;
+		static const std::set<std::string> valid_stds = {
+			"c++23", "c++20", "c++17", "c++14", "c++11",
+			"c17", "c11", "c99", "c89", "gnu17", "gnu11"
+		};
+		if (!valid_stds.contains(parsed_args_.std_ver)) {
+			out_error = "Unsupported C/C++ standard version: " + parsed_args_.std_ver;
 			return false;
 		}
 	}
+
 
 	if (args.contains("includes") && args["includes"].is_array()) {
 		for (const auto &item : args["includes"]) {

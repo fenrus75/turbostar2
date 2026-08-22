@@ -55,6 +55,19 @@ int main()
 		assert(result.find("[Execution: FAILED") != std::string::npos || result.find("SIGSEGV") != std::string::npos || result.find("Segmentation fault") != std::string::npos);
 	}
 
+	// 4. Success case: inline C11 code execution using gcc
+	{
+		nlohmann::json args = {
+			{"code", "printf(\"Hello TurboStar C11: %d\\n\", 11);"},
+			{"std", "c11"}
+		};
+		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
+		std::cout << "Result 4: " << result << std::endl;
+		assert(result.find("Hello TurboStar C11: 11") != std::string::npos);
+		assert(result.find("[Execution: SUCCESS]") != std::string::npos);
+	}
+
 	std::cout << "run_cpp tests passed successfully.\n";
 	return 0;
 }
+
