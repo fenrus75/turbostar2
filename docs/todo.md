@@ -413,8 +413,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - Self-Contained Workflow Tool Examples & Automated Verification (`src/tools/`, `src/plugins/`, `tests/unit/test_tool_examples.cpp`, `meson.build`):
   1. **Tier 1 & Tier 2 Tool Examples**: Implemented `get_examples()` across all remaining tools (`fs_replace_lines`, `fs_multi_replace_content`, `fs_grep_files`, `web_fetch`, `sqlite_perform`, `run_shell_command`, `image_crop`, `image_resize`, `image_compose`, `fs_read_binary`, `invoke_subagent`, `code_get_definition`, `git_diff_staged`, `git_diff_unstaged`).
   2. **Automated Tool Example Test Target**: Added dedicated `test_tool_examples` unit test target (`tests/unit/test_tool_examples.cpp`), which dynamically iterates across all 123 registered tool validators and verifies every tool example's `input_args` against parameter schemas and security checks, ensuring examples never go stale.
-  3. **`run_cpp` Debug Symbols**: Added `-g -rdynamic` to `run_cpp_entry.cpp` compilation command line so sandboxed ad-hoc C/C++ probe crashes resolve backtraces and debug symbols.
-  4. **Verification**: Executed `./build/test_tool_examples` with 100% pass rate (39 / 39 examples validated cleanly across all tools and plugins).
+  3. **`run_cpp` Crash Reporting**: Added signal interception (`SIGSEGV`, `SIGABRT`, `SIGFPE`, `SIGBUS`) and `libturbocatch.so` crash report tag output to `run_cpp_entry.cpp`, formatting runtime crashes as `[Execution: CRASHED (<signal>)]` along with `<crash_report>` tags matching `agent_start_app`.
+  4. **Verification**: Executed `./build/test_tool_examples` and `./build/test_run_cpp` with 100% pass rate.
+
 
 
 
