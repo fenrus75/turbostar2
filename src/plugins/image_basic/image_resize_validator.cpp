@@ -78,7 +78,19 @@ std::unique_ptr<agentlib::llm_tool> image_resize_validator::create_tool_impl(con
 	return std::make_unique<image_resize_tool>(args_);
 }
 
+std::vector<agentlib::tool_example> image_resize_validator::get_examples() const
+{
+	return {
+		{
+			"Resize Image Alias with Proportional Aspect Ratio",
+			nlohmann::json{{"name", "logo"}, {"output", "logo_thumb"}, {"newX", 128}, {"newY", 128}},
+			"Resizes VFS image alias 'logo' to 128x128 bounding box, saving result to new alias 'logo_thumb'."
+		}
+	};
+}
+
 } // namespace tools
+
 
 extern "C" {
 void register_image_resize(void)

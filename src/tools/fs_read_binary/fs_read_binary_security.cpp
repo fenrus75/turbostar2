@@ -57,6 +57,23 @@ class fs_read_binary_validator : public agentlib::tool_validator
 		    {"required", nlohmann::json::array({"path"})}};
 	}
 
+	std::vector<agentlib::tool_example> get_examples() const override
+	{
+		return {
+			{
+				"Read Binary File Header as Hexadecimal Bytes",
+				nlohmann::json{
+					{"path", "build/turbostar"},
+					{"offset", 0},
+					{"size", 64},
+					{"format", "hex"}
+				},
+				"Reads first 64 bytes of executable binary header formatted as space-separated hexadecimal bytes."
+			}
+		};
+	}
+
+
       protected:
 	bool validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &ctx, std::string &out_error) const override
 	{

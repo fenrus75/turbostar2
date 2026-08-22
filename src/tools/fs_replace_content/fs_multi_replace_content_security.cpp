@@ -84,6 +84,32 @@ std::unique_ptr<agentlib::llm_tool> fs_multi_replace_content_validator::create_t
 	return std::make_unique<fs_multi_replace_content_tool>(args_);
 }
 
+std::vector<agentlib::tool_example> fs_multi_replace_content_validator::get_examples() const
+{
+	return {
+		{
+			"Atomic Multi-Chunk Non-Contiguous Scoped Function Edits",
+			nlohmann::json{
+				{"path", "src/server.cpp"},
+				{"chunks", nlohmann::json::array({
+					nlohmann::json{
+						{"function_scope", "parse_config"},
+						{"target_content", "int timeout = 5;"},
+						{"replacement_content", "int timeout = 10;"}
+					},
+					nlohmann::json{
+						{"function_scope", "process_request"},
+						{"target_content", "bool debug = false;"},
+						{"replacement_content", "bool debug = true;"}
+					}
+				})}
+			},
+			"Applies multiple non-contiguous line replacements across different function scopes in a single atomic transaction."
+		}
+	};
+}
+
 REGISTER_TOOL(fs_multi_replace_content_validator)
+
 
 } // namespace tools

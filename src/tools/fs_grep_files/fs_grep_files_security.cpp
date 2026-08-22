@@ -138,6 +138,34 @@ std::unique_ptr<agentlib::llm_tool> fs_grep_files_validator::create_tool_impl(co
     return std::make_unique<fs_grep_files_tool>(args_);
 }
 
+std::vector<agentlib::tool_example> fs_grep_files_validator::get_examples() const {
+	return {
+		{
+			"Regex Search in C/C++ Header Files with Surrounding Context",
+			nlohmann::json{
+				{"pattern", "class\\s+\\w+_validator"},
+				{"is_regex", true},
+				{"search_path", "src/tools"},
+				{"include_ext", ".h"},
+				{"context_lines", 2},
+				{"limit", 10}
+			},
+			"Performs regex search across C/C++ headers in src/tools returning matching class validator declarations with 2 context lines."
+		},
+		{
+			"Literal String Search Excluding Build Artifacts",
+			nlohmann::json{
+				{"pattern", "validate_access"},
+				{"search_path", "src"},
+				{"exclude_path", "build/"},
+				{"limit", 20}
+			},
+			"Searches for literal string 'validate_access' under src/ directory while excluding build/ output folder."
+		}
+	};
+}
+
 REGISTER_TOOL(fs_grep_files_validator)
 
 } // namespace tools
+

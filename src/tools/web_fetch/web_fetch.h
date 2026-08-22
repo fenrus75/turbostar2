@@ -43,7 +43,9 @@ class web_fetch_validator : public agentlib::tool_validator
 		return "Fetches content from a URL via HTTP/HTTPS. Useful for reading documentation or external resources.";
 	}
 	nlohmann::json get_parameters_schema() const override;
+	std::vector<agentlib::tool_example> get_examples() const override;
 	bool is_pure() const override
+
 	{
 		return true;
 	}

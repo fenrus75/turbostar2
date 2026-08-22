@@ -32,6 +32,21 @@ class sqlite_perform_validator : public agentlib::tool_validator
 			{"required", nlohmann::json::array({"database", "query"})}};
 	}
 
+	std::vector<agentlib::tool_example> get_examples() const override
+	{
+		return {
+			{
+				"Execute SQL Query on Workspace SQLite Database",
+				nlohmann::json{
+					{"database", "app_cache"},
+					{"query", "SELECT * FROM metrics WHERE key = 'latency_ms';"}
+				},
+				"Executes a single SQL query against workspace SQLite database 'app_cache.db'."
+			}
+		};
+	}
+
+
       protected:
 	bool validate_args_impl(const nlohmann::json &args, const agentlib::tool_context & /*ctx*/, std::string &out_error) const override
 	{

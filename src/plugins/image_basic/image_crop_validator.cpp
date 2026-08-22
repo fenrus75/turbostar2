@@ -79,7 +79,19 @@ std::unique_ptr<agentlib::llm_tool> image_crop_validator::create_tool_impl(const
 	return std::make_unique<image_crop_tool>(args_);
 }
 
+std::vector<agentlib::tool_example> image_crop_validator::get_examples() const
+{
+	return {
+		{
+			"Crop Bounding Sub-Region from Image Alias",
+			nlohmann::json{{"name", "logo"}, {"output", "logo_crop"}, {"x", 10}, {"y", 10}, {"width", 100}, {"height", 100}},
+			"Crops 100x100 sub-region from 'logo' starting at (10, 10), saving result to new VFS alias 'logo_crop'."
+		}
+	};
+}
+
 } // namespace tools
+
 
 extern "C" {
 void register_image_crop(void)

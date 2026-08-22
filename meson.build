@@ -433,6 +433,17 @@ test_tools = executable('test_tools',
   include_directories: inc)
 test('unit_test_tools', test_tools, suite: 'agent')
 
+test_tool_examples = executable('test_tool_examples',
+  ['tests/unit/test_tool_examples.cpp'],
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
+  export_dynamic: true,
+  include_directories: inc)
+test('unit_test_tool_examples', test_tool_examples, suite: 'agent')
+
+
+
+
+
 test_shell_security = executable('test_shell_security',
   ['tests/unit/test_shell_security.cpp',
    'src/tools/git_add/git_add_entry.cpp',

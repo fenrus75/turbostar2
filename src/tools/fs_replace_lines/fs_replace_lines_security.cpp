@@ -134,7 +134,26 @@ std::unique_ptr<agentlib::llm_tool> fs_replace_lines_validator::create_tool_impl
 	return std::make_unique<fs_replace_lines_tool>(args_);
 }
 
+std::vector<agentlib::tool_example> fs_replace_lines_validator::get_examples() const
+{
+	return {
+		{
+			"Descending Line Number Mixed Operations (Add, Replace, Remove)",
+			nlohmann::json{
+				{"path", "src/config.cpp"},
+				{"edits", nlohmann::json::array({
+					nlohmann::json{{"line_number", 80}, {"type", "add"}, {"replace_with", "    bool is_debug = true;\n"}},
+					nlohmann::json{{"line_number", 45}, {"type", "replace"}, {"original_text", "int timeout = 5;"}, {"replace_with", "int timeout = 10;"}},
+					nlohmann::json{{"line_number", 12}, {"type", "remove"}, {"original_text", "#include <legacy_header.h>\n"}}
+				})}
+			},
+			"Applies line edits in strictly DESCENDING line_number order (80 -> 45 -> 12) so bottom insertions do not shift top line indexes."
+		}
+	};
+}
+
 // Register the tool with the global registry
 REGISTER_TOOL(fs_replace_lines_validator)
 
 } // namespace tools
+

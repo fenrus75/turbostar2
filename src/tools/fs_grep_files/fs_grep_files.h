@@ -54,7 +54,10 @@ public:
     std::string get_name() const override { return "fs_grep_files"; }
     std::string get_description() const override { return "Search for a pattern within a specific file or across directories. Use this instead of shell grep. Automatically limits results to prevent context window overflow."; }
     nlohmann::json get_parameters_schema() const override;
+    std::vector<agentlib::tool_example> get_examples() const override;
+
     bool is_pure() const override { return true; }
+
 
 protected:
     bool validate_args_impl(const nlohmann::json& raw_args, const agentlib::tool_context& ctx, std::string& out_error) const override;

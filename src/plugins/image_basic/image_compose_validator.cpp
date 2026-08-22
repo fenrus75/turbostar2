@@ -80,7 +80,19 @@ std::unique_ptr<agentlib::llm_tool> image_compose_validator::create_tool_impl(co
 	return std::make_unique<image_compose_tool>(args_);
 }
 
+std::vector<agentlib::tool_example> image_compose_validator::get_examples() const
+{
+	return {
+		{
+			"Overlay Small Image onto Destination Canvas Alias",
+			nlohmann::json{{"main_image", "canvas"}, {"small_image", "logo"}, {"output", "canvas_with_logo"}, {"x", 50}, {"y", 50}},
+			"Overlays VFS image alias 'logo' onto 'canvas' at offset (50, 50), saving to new alias 'canvas_with_logo'."
+		}
+	};
+}
+
 } // namespace tools
+
 
 extern "C" {
 void register_image_compose(void)

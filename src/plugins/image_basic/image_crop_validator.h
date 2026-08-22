@@ -33,6 +33,9 @@ class image_crop_validator : public agentlib::tool_validator
 		    {"required", nlohmann::json::array({"name", "width", "height", "x", "y"})}};
 	}
 
+	std::vector<agentlib::tool_example> get_examples() const override;
+
+
       protected:
 	bool validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &ctx,
 				std::string &out_error) const override;

@@ -64,7 +64,23 @@ class code_get_definition_validator : public agentlib::tool_validator
 			{"required", {"path", "line", "character"}}};
 	}
 
+	std::vector<agentlib::tool_example> get_examples() const override
+	{
+		return {
+			{
+				"Go to Definition for Symbol at Line/Character Coordinates",
+				nlohmann::json{
+					{"path", "src/editor.cpp"},
+					{"line", 45},
+					{"character", 12}
+				},
+				"Queries LSP for definition of symbol at 1-based line 45 and 0-based character index 12 in src/editor.cpp."
+			}
+		};
+	}
+
 	bool is_pure() const override
+
 	{
 		return true;
 	}

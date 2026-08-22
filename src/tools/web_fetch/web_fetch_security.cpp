@@ -134,6 +134,30 @@ std::unique_ptr<agentlib::llm_tool> web_fetch_validator::create_tool_impl(const 
 	return std::make_unique<web_fetch_tool>(parsed_args_);
 }
 
+std::vector<agentlib::tool_example> web_fetch_validator::get_examples() const
+{
+	return {
+		{
+			"Fetch Web Page and Convert HTML to Markdown",
+			nlohmann::json{
+				{"url", "https://docs.python.org/3/"},
+				{"filter", "html_to_markdown"}
+			},
+			"Fetches remote webpage and automatically converts HTML output to clean Markdown format."
+		},
+		{
+			"HTTP GET Request with Custom Authorization Headers",
+			nlohmann::json{
+				{"url", "https://api.example.com/v1/status"},
+				{"method", "GET"},
+				{"headers", nlohmann::json{{"Authorization", "Bearer token123"}}}
+			},
+			"Executes HTTP GET request with custom authorization headers."
+		}
+	};
+}
+
+
 REGISTER_TOOL(web_fetch_validator)
 
 } // namespace tools

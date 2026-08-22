@@ -65,6 +65,30 @@ std::unique_ptr<agentlib::llm_tool> run_shell_command_validator::create_tool_imp
     return std::make_unique<run_shell_command_tool>(parsed_args_);
 }
 
+std::vector<agentlib::tool_example> run_shell_command_validator::get_examples() const
+{
+	return {
+		{
+			"Asynchronous Background Shell Command Execution",
+			nlohmann::json{
+				{"command", "ninja -C build"},
+				{"async", true},
+				{"timeout", 300}
+			},
+			"Launches long-running build command in background task. Note: Always prefer built-in tools (fs_grep_files over grep, git_* over git CLI, system://project/testlist.md over ctest) for speed, efficiency, and user approval bypass."
+		},
+		{
+			"Forced Shell Execution with User Approval Bypass",
+			nlohmann::json{
+				{"command", "systemctl status myservice"},
+				{"force", true}
+			},
+			"Requests explicit user security prompt approval for system administration task that lacks native tool equivalent."
+		}
+	};
+}
+
 REGISTER_TOOL(run_shell_command_validator)
 
 } // namespace tools
+

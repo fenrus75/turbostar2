@@ -126,7 +126,8 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 
 	std::string bin_path = (std::filesystem::path(tmp_dir) / std::format("probe_{}.bin", rand_id)).string();
 
-	std::string compile_cmd = std::format("{} -std={} -O0 -g", compiler_bin, args_.std_ver);
+	std::string compile_cmd = std::format("{} -std={} -O0 -g -rdynamic", compiler_bin, args_.std_ver);
+
 
 
 

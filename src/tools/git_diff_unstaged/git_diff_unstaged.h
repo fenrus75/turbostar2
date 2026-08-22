@@ -27,7 +27,23 @@ public:
     agentlib::access_type get_required_permission() const override { return agentlib::access_type::read; }
     bool is_pure() const override { return true; }
     
+    std::vector<agentlib::tool_example> get_examples() const override {
+        return {
+            {
+                "Inspect Whole Project Workspace Unstaged Diff",
+                nlohmann::json{{"path", "."}},
+                "Shows all uncommitted/unstaged git diff changes across the entire project workspace."
+            },
+            {
+                "Inspect Specific File Unstaged Diff",
+                nlohmann::json{{"path", "src/editor.cpp"}},
+                "Shows uncommitted/unstaged git diff changes specifically for src/editor.cpp."
+            }
+        };
+    }
+
     std::unique_ptr<agentlib::llm_tool> create_tool_from_resolved_path(const std::string& safe_path) const override {
+
         return std::make_unique<git_diff_unstaged_tool>(safe_path);
     }
 };

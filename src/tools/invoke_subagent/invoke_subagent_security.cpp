@@ -101,6 +101,23 @@ class invoke_subagent_validator : public agentlib::tool_validator
 		    {"required", nlohmann::json::array({"name"})}};
 	}
 
+	std::vector<agentlib::tool_example> get_examples() const override
+	{
+		return {
+			{
+				"Synchronous Subagent Research Task Delegation",
+				nlohmann::json{
+					{"name", "researcher_1"},
+					{"subagent_name", "research"},
+					{"task", "Investigate memory leak and lock contention in src/agentlib/virtual_file_system.cpp"},
+					{"wait", true}
+				},
+				"Spawns research subagent synchronously to investigate VFS source files and returns final report."
+			}
+		};
+	}
+
+
       protected:
 	bool validate_args_impl(const nlohmann::json &args_json, const agentlib::tool_context & /*ctx*/,
 				std::string &out_error) const override
