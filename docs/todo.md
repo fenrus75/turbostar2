@@ -393,7 +393,15 @@ remember to describe features in terms of the benefit to the user or the agent, 
   5. Removed `sqlite3_dep` from core library dependencies in `src/meson.build` (`libturbostar_core`, `libagentlib`, `tools_deps`).
   6. Updated Meson unit test targets (`test_sqlite_list_db` and `test_sqlite_validation`) in `meson.build` with `export_dynamic: true`, `depends: [sqlite_plugin]`, and `env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins']`.
   7. Fixed singleton initialization order in `test_sqlite_list_db.cpp` and `test_sqlite_validation.cpp` to prevent exit double-free crashes.
+## 22-08-2026
+- Tool Usage Examples VFS Integration & Central Error Steering (`src/agentlib/tool_validator.h`, `src/agentlib/tool_registry.h/cpp`, `src/vfs/system_vfs_provider.cpp`, `src/tools/run_cpp/`, `src/tools/fs_replace_content/`):
+  1. **`tool_example` C++ Interface**: Added `struct tool_example { std::string title; nlohmann::json input_args; std::string explanation; };` and `virtual std::vector<tool_example> get_examples() const` to `tool_validator`. Implemented concrete usage examples in tool validators (e.g. `run_cpp`, `fs_replace_content`).
+  2. **`system://tools_detailed.md` Rendering**: Updated `system_vfs_provider.cpp` generator to dynamically render a formatted `### Usage Examples` block under each tool when `get_examples()` returns sample calls. Accessible on-demand via `system://tools_detailed.md?search=<tool_name>`.
+  3. **Centralized Error Re-Steering**: Enhanced `tool_registry::prepare_tool` so that whenever an LLM passes invalid arguments or malformed JSON to any tool, the returned error message centrally appends: `"To inspect parameter schemas and valid usage examples, read system://tools_detailed.md?search=<tool_name>"`.
+  4. **Verification**: Verified 100% test suite pass rate (263 OK, 1 Expected Fail, 2 Skipped).
+
 ## 21-08-2026
+
 - `run_cpp` Ad-Hoc Probe Tool (`src/tools/run_cpp/`, `docs/tools.md`, `src/ui/agent_window.cpp`, `prompt.md`, `tests/unit/test_run_cpp.cpp`):
   1. **Built `run_cpp` Tool**: Enables agents to compile and run ad-hoc C/C++ snippets or standalone probe files in a sandboxed execution environment. Supports C++ (`c++23`, `c++20`, `c++17`, `c++14`, `c++11`) and C (`c17`, `c11`, `c99`, `c89`, `gnu17`, `gnu11`) standards, custom include paths (`-I`), preprocessor macros (`-D`), and linker library flags (`-l`). Automatically selects `gcc` for C standards and `g++` for C++ standards.
   2. **`LD_PRELOAD` `libturbocatch.so` Integration**: Automatically preloads `libturbocatch.so` during probe execution using `sync_command_runner.set_enable_crash_catcher(true)` to catch runtime crashes (`SIGSEGV`, `SIGABRT`, `SIGFPE`) and return structured crash reports to the model.
