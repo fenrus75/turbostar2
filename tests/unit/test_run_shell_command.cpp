@@ -1,3 +1,4 @@
+// Tested source file: src/tools/run_shell_command/run_shell_command_entry.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <chrono>
@@ -12,6 +13,7 @@
 #include "../../src/project_manager.h"
 #include "../../src/event_queue.h"
 #include "../../src/config_manager.h"
+
 
 #include "../../src/tools/terminal_command_runner.h"
 
@@ -193,6 +195,36 @@ int main()
 		assert(trigger_count > 0 && "trigger_update callback should have been called at least once during execution!");
 	}
 
+	// 10. Test re-steering for cat, curl, and sqlite3 shell commands
+	{
+		std::cout << "Testing re-steering for cat, curl, and sqlite3 shell commands..." << std::endl;
+
+		// cat file -> fs_read_lines
+		{
+			nlohmann::json args = {{"command", "cat src/main.cpp"}};
+			auto prep = registry.prepare_tool("run_shell_command", args.dump(), ctx);
+			assert(prep.tool == nullptr);
+			assert(prep.error_message.find("fs_read_lines") != std::string::npos);
+		}
+
+		// curl url -> web_fetch
+		{
+			nlohmann::json args = {{"command", "curl -s http://localhost:8080/tos"}};
+			auto prep = registry.prepare_tool("run_shell_command", args.dump(), ctx);
+			assert(prep.tool == nullptr);
+			assert(prep.error_message.find("web_fetch") != std::string::npos);
+		}
+
+		// sqlite3 db "query" -> sqlite_perform
+		{
+			nlohmann::json args = {{"command", "sqlite3 evilstar.db \"SELECT * FROM clients;\""}};
+			auto prep = registry.prepare_tool("run_shell_command", args.dump(), ctx);
+			assert(prep.tool == nullptr);
+			assert(prep.error_message.find("sqlite_perform") != std::string::npos);
+		}
+	}
+
 	std::cout << "run_shell_command tests passed successfully.\n";
 	return 0;
 }
+

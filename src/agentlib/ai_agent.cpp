@@ -762,6 +762,24 @@ bool ai_agent::is_tool_family_active(const std::string &family_name) const
 		}
 	}
 
+	// Auto-activate sqlite tool family when SQLite database files (.db, .sqlite, .sqlite3) exist in project
+	if (family_name == "sqlite") {
+		std::string root = project_manager::get_instance().get_project_root();
+		if (!root.empty()) {
+			try {
+				for (const auto &entry : std::filesystem::directory_iterator(root)) {
+					if (entry.is_regular_file()) {
+						std::string ext = entry.path().extension().string();
+						if (ext == ".db" || ext == ".sqlite" || ext == ".sqlite3") {
+							return true;
+						}
+					}
+				}
+			} catch (...) {}
+		}
+	}
+
+
 	// Check if dynamically activated for this agent session
 	{
 		std::lock_guard<std::mutex> lock(properties_mutex_);

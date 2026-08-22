@@ -163,7 +163,44 @@ shell_command_recommendation evaluate_shell_command_resteer(const std::string &c
 		return rec;
 	}
 
+	// 6. Direct File Reading: cat file
+	static const std::regex cat_read_regex(R"(^cat\s+([^\s\|;>]+)$)");
+	if (std::regex_match(cmd, match, cat_read_regex)) {
+		std::string file_path = sanitize_for_prompt_quote(match[1].str());
+		rec.matched = true;
+		rec.confidence = 0.90;
+		rec.suggested_tool = std::format("fs_read_lines(path=\"{}\")", file_path);
+		rec.explanation = std::format("To view file contents of '{}', use the native 'fs_read_lines' tool instead of shell cat.", file_path);
+		return rec;
+	}
+
+	// 7. HTTP Requests: curl [options] url
+	static const std::regex curl_exec_regex(R"(^curl\s+.*?(https?://[^\s"']+))", std::regex::icase);
+	if (std::regex_search(cmd, match, curl_exec_regex)) {
+		std::string target_url = sanitize_for_prompt_quote(match[1].str());
+		rec.matched = true;
+		rec.confidence = 0.90;
+		rec.suggested_tool = std::format("web_fetch(url=\"{}\")", target_url);
+		rec.explanation = std::format("To fetch or test HTTP/HTTPS URLs like '{}', use the native 'web_fetch' tool instead of shell curl.", target_url);
+		return rec;
+	}
+
+	// 8. SQLite Database Queries: sqlite3 db "query"
+	static const std::regex sqlite_exec_regex(R"(^sqlite3\s+([^\s]+)\s+["']?([^"']+)["']?$)");
+	if (std::regex_match(cmd, match, sqlite_exec_regex)) {
+		std::string db_file = sanitize_for_prompt_quote(match[1].str());
+		std::string q_str = sanitize_for_prompt_quote(match[2].str());
+		rec.matched = true;
+		rec.confidence = 0.90;
+		rec.suggested_tool = std::format("sqlite_perform(db_name=\"{}\", query=\"{}\")", db_file, q_str);
+		rec.explanation = std::format("To query SQLite database '{}', use the native 'sqlite_perform' tool instead of shell sqlite3.", db_file);
+		rec.required_family = "sqlite";
+		return rec;
+	}
+
+
 	return rec;
 }
 
 } // namespace tools
+

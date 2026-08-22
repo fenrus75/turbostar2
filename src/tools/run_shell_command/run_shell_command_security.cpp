@@ -1,3 +1,4 @@
+#include "../../agentlib/ai_agent.h"
 #include "../../agentlib/tool_registry.h"
 #include "run_shell_command.h"
 #include "shell_command_resteer.h"
@@ -5,7 +6,7 @@
 namespace tools
 {
 
-bool run_shell_command_validator::validate_args_impl(const nlohmann::json& args, const agentlib::tool_context& /*ctx*/, std::string& out_error) const
+bool run_shell_command_validator::validate_args_impl(const nlohmann::json& args, const agentlib::tool_context& ctx, std::string& out_error) const
 {
     parsed_args_.command = args["command"].get<std::string>();
     
@@ -45,6 +46,9 @@ bool run_shell_command_validator::validate_args_impl(const nlohmann::json& args,
     if (!parsed_args_.force) {
         auto rec = evaluate_shell_command_resteer(parsed_args_.command);
         if (rec.matched && rec.confidence >= 0.90) {
+            if (!rec.required_family.empty() && ctx.active_agent) {
+                ctx.active_agent->add_active_tool_family(rec.required_family);
+            }
             out_error = "Denied: Shell command matches native tool recommendation to prevent unnecessary user approval interrupts. " +
                         rec.explanation + " Recommended native call: " + rec.suggested_tool +
                         ". If native tools are genuinely insufficient, retry with force: true to request explicit user approval.";
@@ -54,6 +58,7 @@ bool run_shell_command_validator::validate_args_impl(const nlohmann::json& args,
 
     return true;
 }
+
 
 std::unique_ptr<agentlib::llm_tool> run_shell_command_validator::create_tool_impl(const nlohmann::json& /*args*/) const
 {

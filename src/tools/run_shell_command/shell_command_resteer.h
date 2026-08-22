@@ -8,7 +8,9 @@ struct shell_command_recommendation {
 	double confidence{0.0};
 	std::string suggested_tool;
 	std::string explanation;
+	std::string required_family;
 };
+
 
 // [NOT Signal-Safe]
 // Analyzes a proposed shell command line using pattern matching to detect if a native
