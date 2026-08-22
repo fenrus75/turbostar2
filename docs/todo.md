@@ -398,9 +398,16 @@ remember to describe features in terms of the benefit to the user or the agent, 
   1. **`tool_example` C++ Interface**: Added `struct tool_example { std::string title; nlohmann::json input_args; std::string explanation; };` and `virtual std::vector<tool_example> get_examples() const` to `tool_validator`. Implemented concrete usage examples in tool validators (e.g. `run_cpp`, `fs_replace_content`).
   2. **`system://tools_detailed.md` Rendering**: Updated `system_vfs_provider.cpp` generator to dynamically render a formatted `### Usage Examples` block under each tool when `get_examples()` returns sample calls. Accessible on-demand via `system://tools_detailed.md?search=<tool_name>`.
   3. **Centralized Error Re-Steering**: Enhanced `tool_registry::prepare_tool` so that whenever an LLM passes invalid arguments or malformed JSON to any tool, the returned error message centrally appends: `"To inspect parameter schemas and valid usage examples, read system://tools_detailed.md?search=<tool_name>"`.
-  4. **Verification**: Verified 100% test suite pass rate (263 OK, 1 Expected Fail, 2 Skipped).
+## 22-08-2026
 
-## 21-08-2026
+- `include://` Multiarch C++ Header Resolution, Subpath Directory Listing & VFS Globbing (`src/agentlib/virtual_file_system.h/cpp`, `src/agentlib/file_security_manager.h/cpp`, `src/fs_utils.h/cpp`, `src/tools/fs_glob/fs_glob_entry.cpp`, `src/tools/fs_grep_files/fs_grep_files_entry.cpp`, `tests/unit/test_virtual_file_system.cpp`, `tests/unit/test_fs_glob.cpp`):
+  1. **Multiarch & Compiler Search Bases**: Expanded `include_vfs_provider` search bases to dynamically resolve libstdc++ multiarch paths (`/usr/include/x86_64-linux-gnu/c++/<ver>/bits/c++config.h`), Clang compiler internal headers (`/usr/lib/llvm-<ver>/lib/clang/<ver>/include/`), and GCC headers (`/usr/lib/gcc/<arch>/<ver>/include/`).
+  2. **Root & Subpath Directory Listing**: Updated `include_vfs_provider::list_directory()` to iterate across all candidate search directories for root `include://` and subpaths (`include://bits`, `include://sys`), returning deduplicated directory (`type = 'D'`) and file (`type = 'F'`) entries.
+  3. **VFS Globbing**: Added VFS URI scheme support to `fs_glob` (e.g. `fs_glob("include://std*.h")`, `fs_glob("include://bits/*.h")`).
+  4. **`system_header_to_include_uri` Path Rewriting**: Updated `fs_utils::system_header_to_include_uri` to strip compiler multiarch and libstdc++ version prefixes, converting paths like `/usr/include/x86_64-linux-gnu/c++/15/bits/c++config.h` into `include://bits/c++config.h`. Updated `make_relative_to_project` and LSP symbol display paths in `fs_grep_files`.
+  5. Verified 100% test suite pass rate (263 OK, 1 Expected Fail, 2 Skipped).
+
+
 
 - `run_cpp` Ad-Hoc Probe Tool (`src/tools/run_cpp/`, `docs/tools.md`, `src/ui/agent_window.cpp`, `prompt.md`, `tests/unit/test_run_cpp.cpp`):
   1. **Built `run_cpp` Tool**: Enables agents to compile and run ad-hoc C/C++ snippets or standalone probe files in a sandboxed execution environment. Supports C++ (`c++23`, `c++20`, `c++17`, `c++14`, `c++11`) and C (`c17`, `c11`, `c99`, `c89`, `gnu17`, `gnu11`) standards, custom include paths (`-I`), preprocessor macros (`-D`), and linker library flags (`-l`). Automatically selects `gcc` for C standards and `g++` for C++ standards.
