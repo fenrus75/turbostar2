@@ -10,7 +10,9 @@
 #include <regex>
 #include <sstream>
 #include <unordered_set>
-#include "agentlib/virtual_file_system.h"
+#include <re2/re2.h>
+#include "config_manager.h"
+#include "fs_utils.h"
 
 namespace tools {
 
@@ -1080,6 +1082,65 @@ std::string get_line_symbol_annotation(const std::string &safe_path, int line_nu
 		symbols = get_document_codemap_symbols(safe_path, 1);
 	}
 	return get_line_symbol_annotation(symbols, line_number);
+}
+
+std::string augment_compiler_output_with_codemap(const std::string &output, agentlib::tool_context *ctx, size_t max_annotations)
+{
+	if (output.empty() || max_annotations == 0) {
+		return output;
+	}
+
+	static const re2::RE2 error_regex(R"(^(.*?):([0-9]+):([0-9]+): (error|warning): (.*)$)");
+	std::stringstream ss(output);
+	std::string line;
+	std::string result;
+	result.reserve(output.size());
+
+	size_t count = 0;
+	std::unordered_map<std::string, std::vector<codemap_symbol_info>> file_symbols_cache;
+
+	while (std::getline(ss, line)) {
+		std::string file_match, severity_match, message_match;
+		int line_num = 0, col_num = 0;
+
+		if (count < max_annotations && re2::RE2::PartialMatch(line, error_regex, &file_match, &line_num, &col_num, &severity_match, &message_match)) {
+			std::filesystem::path p(file_match);
+			if (!p.is_absolute()) {
+				std::string build_dir = config_manager::get_instance().get_build_directory();
+				std::filesystem::path build_p = fs_utils::safe_absolute(std::filesystem::path(build_dir) / p);
+				std::error_code ec;
+				if (std::filesystem::exists(build_p, ec) && !ec) {
+					p = build_p;
+				} else {
+					p = fs_utils::safe_absolute(p);
+				}
+			}
+			std::string abs_path = p.string();
+
+			if (!file_symbols_cache.contains(abs_path)) {
+				if (ctx) {
+					file_symbols_cache[abs_path] = get_document_codemap_symbols(abs_path, *ctx, 1);
+				} else {
+					file_symbols_cache[abs_path] = get_document_codemap_symbols(abs_path, 1);
+				}
+			}
+
+			std::string annotation = get_line_symbol_annotation(file_symbols_cache[abs_path], line_num);
+			if (!annotation.empty()) {
+				line += " " + annotation;
+				count++;
+			}
+		}
+
+		result += line;
+		result += "\n";
+	}
+
+	if (!output.empty() && output.back() != '\n' && !result.empty() && result.back() == '\n') {
+		result.pop_back();
+	}
+
+	return result;
 }
 
 } // namespace tools

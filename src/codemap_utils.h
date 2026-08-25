@@ -95,4 +95,7 @@ const codemap_symbol_info* find_symbol_by_hint(const std::vector<codemap_symbol_
 std::string get_line_symbol_annotation(const std::vector<codemap_symbol_info> &symbols, int line_number);
 std::string get_line_symbol_annotation(const std::string &safe_path, int line_number, agentlib::tool_context *ctx = nullptr);
 
+// Augment up to max_annotations compiler error/warning lines in output with mini codemap annotations
+std::string augment_compiler_output_with_codemap(const std::string &output, agentlib::tool_context *ctx = nullptr, size_t max_annotations = 3);
+
 } // namespace tools

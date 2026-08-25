@@ -311,6 +311,17 @@ int main()
 		assert(tools::get_line_symbol_annotation(dummy_symbols, 30) == "[symbol: my_bar_func (lines 25-40)]");
 		assert(tools::get_line_symbol_annotation(dummy_symbols, 5) == "");
 		assert(tools::get_line_symbol_annotation(dummy_symbols, 22) == "");
+
+		// Test augment_compiler_output_with_codemap
+		std::string raw_gcc_log =
+			"test_sample_impl.cpp:5:10: error: 'a' was not declared\n"
+			"test_sample_impl.cpp:9:12: warning: unused variable 'x'\n"
+			"test_sample_impl.cpp:50:1: error: out of range error\n";
+
+		std::string augmented = tools::augment_compiler_output_with_codemap(raw_gcc_log, nullptr, 3);
+		assert(augmented.find("test_sample_impl.cpp:5:10: error: 'a' was not declared [symbol: sample_foo (lines 3-6)]") != std::string::npos);
+		assert(augmented.find("test_sample_impl.cpp:9:12: warning: unused variable 'x' [symbol: sample_bar (lines 8-11)]") != std::string::npos);
+		assert(augmented.find("test_sample_impl.cpp:50:1: error: out of range error") != std::string::npos);
 	}
 
 	// Cleanup

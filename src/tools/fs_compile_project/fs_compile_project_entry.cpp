@@ -8,6 +8,7 @@
 #include "tools/output_filter.h"
 #include "tools/terminal_command_runner.h"
 #include "tools/fs_compile_project/fs_compile_project.h"
+#include "codemap_utils.h"
 #include "event_logger.h"
 
 namespace tools
@@ -113,6 +114,7 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 					output += std::format("\n\nCRASH DETECTED: {} new crash(es) occurred during execution. Please use the 'crashdump_list' and 'crashdump_get_info' tools to investigate.", crashes_after - crashes_before);
 				}
 
+				output = augment_compiler_output_with_codemap(output, nullptr, 3);
 				// Cap output at 10,000 characters to protect context window
 				if (output.length() > 10000) {
 					output = output.substr(output.length() - 10000);
@@ -172,6 +174,7 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 		output += std::format("\n\nCRASH DETECTED: {} new crash(es) occurred during execution. Please use the 'crashdump_list' and 'crashdump_get_info' tools to investigate.", crashes_after - crashes_before);
 	}
 
+	output = augment_compiler_output_with_codemap(output, &ctx, 3);
 	// Cap output at 10,000 characters to protect context window
 	if (output.length() > 10000) {
 		output = output.substr(output.length() - 10000);

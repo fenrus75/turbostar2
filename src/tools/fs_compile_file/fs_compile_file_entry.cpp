@@ -1,11 +1,12 @@
 #include <format>
 #include <thread>
-#include "../../agentlib/ai_agent.h"
-#include "../../config_manager.h"
-#include "../../crashdump_manager.h"
-#include "../../fs_utils.h"
-#include "../terminal_command_runner.h"
-#include "../../agentlib/file_health_utils.h"
+#include "agentlib/ai_agent.h"
+#include "config_manager.h"
+#include "crashdump_manager.h"
+#include "fs_utils.h"
+#include "tools/terminal_command_runner.h"
+#include "agentlib/file_health_utils.h"
+#include "codemap_utils.h"
 #include "fs_compile_file.h"
 
 namespace tools
@@ -98,6 +99,7 @@ std::string fs_compile_file_tool::execute(agentlib::tool_context &ctx)
 					  "investigate.";
 			}
 
+			output = augment_compiler_output_with_codemap(output, nullptr, 3);
 			// Cap output at 10,000 characters to protect context window
 			if (output.length() > 10000) {
 				output = output.substr(output.length() - 10000);
@@ -137,6 +139,7 @@ std::string fs_compile_file_tool::execute(agentlib::tool_context &ctx)
 			  "investigate.";
 	}
 
+	output = augment_compiler_output_with_codemap(output, &ctx, 3);
 	if (output.length() > 10000) {
 		output = output.substr(output.length() - 10000);
 		output = "\n...[output truncated due to length]...\n" + output;
