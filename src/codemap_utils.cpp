@@ -1098,6 +1098,7 @@ std::string augment_compiler_output_with_codemap(const std::string &output, agen
 
 	size_t count = 0;
 	std::unordered_map<std::string, std::vector<codemap_symbol_info>> file_symbols_cache;
+	std::unordered_set<std::string> seen_locations;
 
 	while (std::getline(ss, line)) {
 		std::string file_match, severity_match, message_match;
@@ -1116,19 +1117,24 @@ std::string augment_compiler_output_with_codemap(const std::string &output, agen
 				}
 			}
 			std::string abs_path = p.string();
+			std::string loc_key = std::format("{}:{}", abs_path, line_num);
 
-			if (!file_symbols_cache.contains(abs_path)) {
-				if (ctx) {
-					file_symbols_cache[abs_path] = get_document_codemap_symbols(abs_path, *ctx, 1);
-				} else {
-					file_symbols_cache[abs_path] = get_document_codemap_symbols(abs_path, 1);
+			if (!seen_locations.contains(loc_key)) {
+				seen_locations.insert(loc_key);
+
+				if (!file_symbols_cache.contains(abs_path)) {
+					if (ctx) {
+						file_symbols_cache[abs_path] = get_document_codemap_symbols(abs_path, *ctx, 1);
+					} else {
+						file_symbols_cache[abs_path] = get_document_codemap_symbols(abs_path, 1);
+					}
 				}
-			}
 
-			std::string annotation = get_line_symbol_annotation(file_symbols_cache[abs_path], line_num);
-			if (!annotation.empty()) {
-				line += " " + annotation;
-				count++;
+				std::string annotation = get_line_symbol_annotation(file_symbols_cache[abs_path], line_num);
+				if (!annotation.empty()) {
+					line += " " + annotation;
+					count++;
+				}
 			}
 		}
 
