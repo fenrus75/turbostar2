@@ -300,6 +300,19 @@ int main()
 		std::remove(dep_file.c_str());
 	}
 
+	// Test get_line_symbol_annotation helper
+	{
+		std::vector<tools::codemap_symbol_info> dummy_symbols = {
+			{"my_foo_func", "my_foo_func", "Function", 10, 20, 11, 0, ""},
+			{"my_bar_func", "my_bar_func", "Function", 25, 40, 16, 0, ""}
+		};
+
+		assert(tools::get_line_symbol_annotation(dummy_symbols, 15) == "[symbol: my_foo_func (lines 10-20)]");
+		assert(tools::get_line_symbol_annotation(dummy_symbols, 30) == "[symbol: my_bar_func (lines 25-40)]");
+		assert(tools::get_line_symbol_annotation(dummy_symbols, 5) == "");
+		assert(tools::get_line_symbol_annotation(dummy_symbols, 22) == "");
+	}
+
 	// Cleanup
 	std::remove(impl_file.c_str());
 	std::remove(header_file.c_str());

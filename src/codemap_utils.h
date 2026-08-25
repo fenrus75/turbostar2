@@ -91,4 +91,8 @@ const codemap_symbol_info* find_enclosing_symbol(const std::vector<codemap_symbo
 // Find a symbol in a list of codemap symbols matching a hint string (e.g. function or class name)
 const codemap_symbol_info* find_symbol_by_hint(const std::vector<codemap_symbol_info> &symbols, std::string_view hint);
 
+// Returns mini codemap annotation "[symbol: <name> (lines <start>-<end>)]" if resolved, or "" otherwise
+std::string get_line_symbol_annotation(const std::vector<codemap_symbol_info> &symbols, int line_number);
+std::string get_line_symbol_annotation(const std::string &safe_path, int line_number, agentlib::tool_context *ctx = nullptr);
+
 } // namespace tools

@@ -1062,4 +1062,24 @@ const codemap_symbol_info* find_symbol_by_hint(const std::vector<codemap_symbol_
 	return nullptr;
 }
 
+std::string get_line_symbol_annotation(const std::vector<codemap_symbol_info> &symbols, int line_number)
+{
+	const codemap_symbol_info *sym = find_enclosing_symbol(symbols, line_number);
+	if (!sym) {
+		return "";
+	}
+	return std::format("[symbol: {} (lines {}-{})]", sym->name, sym->start_line, sym->end_line);
+}
+
+std::string get_line_symbol_annotation(const std::string &safe_path, int line_number, agentlib::tool_context *ctx)
+{
+	std::vector<codemap_symbol_info> symbols;
+	if (ctx) {
+		symbols = get_document_codemap_symbols(safe_path, *ctx, 1);
+	} else {
+		symbols = get_document_codemap_symbols(safe_path, 1);
+	}
+	return get_line_symbol_annotation(symbols, line_number);
+}
+
 } // namespace tools
