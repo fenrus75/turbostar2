@@ -53,7 +53,7 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
     *   `symbol_name` *(string, required)*: The name of the function, method, class, struct, or variable to read. Supports namespace/class scopes (e.g. `Class::method`).
 
 ### `fs_file_codemap`
-*   **Description:** Provide a symbol codemap overview table for a file showing functions, methods, classes, and structs along with their start line, end line numbers, and total lines.
+*   **Description:** Provide a symbol codemap overview table for a file showing functions, methods, classes, and structs along with their start line, end line numbers, and total lines. Use this tool to inspect symbol boundaries and locate specific functions before reading full source files into context.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'src/ui/terminal_window.cpp').
     *   `min_lines` *(integer, optional)*: Minimum line count threshold to filter out trivial inline declarations (default: 1).
@@ -89,7 +89,7 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
     *   `case_insensitive` *(boolean, optional)*: Set to true to ignore case during regex matching. Defaults to false.
 
 ### `fs_file_size`
-*   **Description:** Get the size of a file in bytes.
+*   **Description:** Get the size of a single target file in bytes. Note: File sizes are also included in fs_list_dir; use fs_file_size only when you need the size of a single target file without listing full directory contents or incurring heavier metadata inspection.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt').
 
@@ -176,7 +176,7 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
     *   `append` *(boolean, optional)*: Set to true to safely append `content` to the end of an existing file. Defaults to false. Mutually exclusive with `force_overwrite`.
 
 ### `fs_mkdir`
-*   **Description:** Create a directory, including any necessary parent directories (like mkdir -p). Supports directory paths relative to the project root, or virtual paths (e.g., `tmp://nested/dir`).
+*   **Description:** Create a directory, including any necessary parent directories (like mkdir -p). Supports directory paths relative to the project root, or virtual paths (e.g., `tmp://nested/dir`). Use this tool when creating directory structures before writing files, instead of running shell 'mkdir' commands.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative directory path under the project workspace or VFS URI (e.g., 'tmp://dir'). Path to the directory to create.
 

@@ -19,7 +19,7 @@ private:
 class fs_mkdir_validator : public agentlib::single_file_tool_validator {
 public:
     std::string get_name() const override { return "fs_mkdir"; }
-    std::string get_description() const override { return "Create a directory, including any necessary parent directories (like mkdir -p)."; }
+    std::string get_description() const override { return "Create a directory, including any necessary parent directories (like mkdir -p). Use this tool when creating directory structures before writing files, instead of running shell 'mkdir' commands."; }
     std::string get_parameter_name() const override { return "path"; }
     std::string get_parameter_description() const override { return "The path to the directory to create, relative to the project root."; }
 

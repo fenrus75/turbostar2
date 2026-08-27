@@ -19,7 +19,7 @@ private:
 class fs_file_size_validator : public agentlib::single_file_tool_validator {
 public:
     std::string get_name() const override { return "fs_file_size"; }
-    std::string get_description() const override { return "Get the size of a file in bytes."; }
+    std::string get_description() const override { return "Get the size of a single target file in bytes. Note: File sizes are also included in fs_list_dir; use fs_file_size only when you need the size of a single target file without listing full directory contents or incurring heavier metadata inspection."; }
     std::string get_parameter_name() const override { return "path"; }
     std::string get_parameter_description() const override { return "The path to the file."; }
 
