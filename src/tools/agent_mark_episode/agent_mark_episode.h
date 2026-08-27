@@ -9,6 +9,8 @@ struct agent_mark_episode_args {
     std::string title;
     std::string summary;
     std::vector<std::string> tags;
+    bool title_truncated{false};
+    bool summary_truncated{false};
 };
 
 class agent_mark_episode_tool : public agentlib::llm_tool {

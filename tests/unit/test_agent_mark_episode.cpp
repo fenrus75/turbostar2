@@ -43,22 +43,24 @@ int main()
 			assert(!prep.error_message.empty());
 		}
 
-		// 3. Security case: reject overly long title (> 500 characters)
+		// 3. Title > 500 characters should be truncated to 500 and succeed with notice
 		{
-			std::string long_title(501, 'a');
-			auto prep = registry.prepare_tool("agent_mark_episode",
-				"{\"title\": \"" + long_title + "\", \"summary\": \"Summary\", \"tags\": []}", ctx);
-			assert(prep.tool == nullptr);
-			assert(!prep.error_message.empty());
+			std::string long_title(550, 't');
+			std::string result = registry.execute_tool("agent_mark_episode",
+				"{\"title\": \"" + long_title + "\", \"summary\": \"Short summary\", \"tags\": []}", ctx);
+			std::cout << "Truncated title result: " << result << std::endl;
+			assert(result.find("Episode marked") != std::string::npos);
+			assert(result.find("truncated") != std::string::npos);
 		}
 
-		// 4. Security case: reject overly long summary (> 500 characters)
+		// 4. Summary > 500 characters should be truncated to 500 and succeed with notice
 		{
-			std::string long_summary(501, 'b');
-			auto prep = registry.prepare_tool("agent_mark_episode",
-				"{\"title\": \"Title\", \"summary\": \"" + long_summary + "\", \"tags\": []}", ctx);
-			assert(prep.tool == nullptr);
-			assert(!prep.error_message.empty());
+			std::string long_summary(600, 's');
+			std::string result = registry.execute_tool("agent_mark_episode",
+				"{\"title\": \"Short title\", \"summary\": \"" + long_summary + "\", \"tags\": []}", ctx);
+			std::cout << "Truncated summary result: " << result << std::endl;
+			assert(result.find("Episode marked") != std::string::npos);
+			assert(result.find("truncated") != std::string::npos);
 		}
 
 		std::cout << "agent_mark_episode tool verified successfully!" << std::endl;

@@ -36,8 +36,8 @@ bool agent_mark_episode_validator::validate_args_impl(const nlohmann::json& raw_
             return false;
         }
         if (args_.title.length() > 500) {
-            out_error = "Title length exceeds limit of 500 characters";
-            return false;
+            args_.title = args_.title.substr(0, 500);
+            args_.title_truncated = true;
         }
         if (!fs_utils::is_safe_for_ui(args_.title)) {
             out_error = "Title contains unsafe control or ANSI escape characters";
@@ -48,8 +48,8 @@ bool agent_mark_episode_validator::validate_args_impl(const nlohmann::json& raw_
             return false;
         }
         if (args_.summary.length() > 500) {
-            out_error = "Summary length exceeds limit of 500 characters";
-            return false;
+            args_.summary = args_.summary.substr(0, 500);
+            args_.summary_truncated = true;
         }
         if (!fs_utils::is_safe_for_ui(args_.summary)) {
             out_error = "Summary contains unsafe control or ANSI escape characters";
