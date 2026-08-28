@@ -26,7 +26,7 @@ class agent_debug_coredump_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Launches a GDB session attached to the coredump for a given crash_id. Returns JSON containing gdb_run_id. Next, send 'bt' via 'agent_write_to_run' to locate crash frame N, then 'frame <N>' to inspect variables, and clean up with 'agent_terminate_run\.";;
+		return "Launches a GDB session attached to the coredump for a given crash_id. Returns JSON containing gdb_run_id. Next, send 'bt' via 'agent_write_to_run' to locate crash frame N, then 'frame <N>' to inspect variables, and clean up with 'agent_terminate_run'.";
 	}
 
 	std::vector<agentlib::tool_example> get_examples() const override
