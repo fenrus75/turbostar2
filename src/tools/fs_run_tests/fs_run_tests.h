@@ -24,7 +24,7 @@ private:
 class fs_run_tests_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "fs_run_tests"; }
-    std::string get_description() const override { return "Runs the project's test suite and returns console output. Catch crashes and dumps backtraces. To discover test names, read system://project/testlist.md (or system://project/testlist.md?search=<query>) with fs_read_lines instead of running 'meson test --list' in a shell command."; }
+    std::string get_description() const override { return "Runs the project's test suite and returns console output. Catch crashes and dumps backtraces. To discover test names, read system://project/testlist.md (or system://project/testlist.md?search=<query>) with fs_read_lines instead of running 'meson test --list' in a shell command.";; }
     
     nlohmann::json get_parameters_schema() const override {
         return {

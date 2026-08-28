@@ -52,7 +52,7 @@ class code_get_definition_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Finds the definition(s) of a symbol at a specific location.";
+		return "Finds the definition(s) of a symbol at a specific location, potentially across multiple files.";;
 	}
 	nlohmann::json get_parameters_schema() const override
 	{

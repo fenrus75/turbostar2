@@ -30,7 +30,7 @@ private:
 class fs_compile_project_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "fs_compile_project"; }
-    std::string get_description() const override { return "Compiles the entire project and returns the raw console output. Populates the workspace error list. Runs with terminal interaction."; }
+    std::string get_description() const override { return "Compiles the entire project and returns raw console output. Populates the workspace error list. Supports clean rebuilds and background execution via the async flag.";; }
     
     nlohmann::json get_parameters_schema() const override {
         return {

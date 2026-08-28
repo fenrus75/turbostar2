@@ -47,7 +47,7 @@ class create_code_review_item_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Creates a new code review finding/item for a specific file and stores it in the project database.";
+		return "Creates a new code review finding/item for a specific file and stores it in the project database.";;
 	}
 
 	nlohmann::json get_parameters_schema() const override

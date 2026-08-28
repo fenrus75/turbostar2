@@ -26,7 +26,7 @@ public:
 	std::string get_family() const override { return "code_review"; }
 	std::string get_name() const override { return "get_code_review_item"; }
 	std::string get_description() const override {
-		return "Retrieves the full details of a specific code review item by its unique ID.";
+		return "Retrieves the full details of a specific code review item by its unique ID. Access to resolved items is restricted to the verifier role.";;
 	}
 
 	nlohmann::json get_parameters_schema() const override {

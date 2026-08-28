@@ -25,7 +25,7 @@ class fs_read_symbol_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Read the full definition of a function, method, class, struct, or variable by name from a file. Uses LSP to find the exact boundaries.";
+		return "Read the full definition of a function, method, class, struct, or variable by name from a file. Use this to inspect a specific symbol's implementation without guessing line numbers or reading full files.";;
 	}
 
 	nlohmann::json get_parameters_schema() const override

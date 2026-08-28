@@ -23,7 +23,7 @@ private:
 class fs_compile_info_validator : public agentlib::single_file_tool_validator {
 public:
     std::string get_name() const override { return "fs_compile_info"; }
-    std::string get_description() const override { return "Retrieves the compile command, last compile time, and any build/LSP diagnostics for a specific file."; }
+    std::string get_description() const override { return "Retrieves the exact compile command (from compile_commands.json), the last compile time, and any active build/LSP diagnostics for a specific file.";; }
     std::string get_parameter_name() const override { return "path"; }
     std::string get_parameter_description() const override { return "The path to the file, relative to the project root."; }
 

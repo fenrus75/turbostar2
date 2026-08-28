@@ -30,7 +30,7 @@ class agent_wait_for_app_validator : public agentlib::tool_validator
 
 	std::string get_description() const override
 	{
-		return "Waits until a running process has either ended/crashed or reached a settled state without output for at least 500ms.";
+		return "Waits until a running process has either ended/crashed or reached a settled state without output for at least 500ms. Returns JSON with execution status, is_alive, age_ms, and optional crash_notification.";;
 	}
 
 	nlohmann::json get_parameters_schema() const override

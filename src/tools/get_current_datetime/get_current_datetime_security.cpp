@@ -21,8 +21,7 @@ class get_current_datetime_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Returns the current date and time as a markdown table. Includes Unix time, Year, Month, Day, Hour, Minute, Second, "
-		       "and Timezone.";
+		return "Returns the current date and time as a markdown table. Includes Unix time, Year, Month, Day, Hour, Minute, Second, and Timezone.";
 	}
 
 	nlohmann::json get_parameters_schema() const override

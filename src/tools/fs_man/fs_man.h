@@ -30,7 +30,7 @@ class fs_man_validator : public agentlib::tool_validator {
 public:
 	std::string get_name() const override { return "fs_man"; }
 	std::string get_description() const override {
-		return "Lookup and render system man pages (library functions, system calls, or commands) as Markdown. Use this to find exact C/C++ function signatures, parameter names/types, required header files, return codes, and behavior of standard library APIs (e.g., malloc, printf, sockets, pthread) or system utilities. Highly recommended before writing or debugging API calls.";
+		return "Lookup and render system man pages (library functions, system calls, or commands) as Markdown. Use this to find exact C/C++ function signatures, parameter names/types, required header files, return codes, and behavior of standard library APIs (e.g., malloc, printf, sockets, pthread) or system utilities. Highly recommended before writing or debugging API calls.";;
 	}
 
 	nlohmann::json get_parameters_schema() const override {

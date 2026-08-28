@@ -10,7 +10,7 @@ public:
 	std::string get_name() const override { return "markdown_extract"; }
 	std::string get_family() const override { return "base"; }
 	std::string get_description() const override {
-		return "Extract specific sections, directives, or topics from a Markdown document or VFS file (e.g. 'docs/design.md' or 'system://tools_detailed.md'). Use this to extract targeted documentation sections without reading massive files into context.";
+		return "Extract specific sections, directives, or topics from a Markdown document or VFS file (e.g. 'docs/design.md' or 'system://tools_detailed.md'). Use this to extract targeted documentation sections without reading massive files into context.";;
 	}
 
 	nlohmann::json get_parameters_schema() const override {

@@ -40,7 +40,7 @@ class invoke_subagent_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		std::string base_desc = "Invokes a subagent to delegate tasks to. You must provide a 'subagent_name', or a 'task' (user request), "
+		std::string base_desc = "Invokes a subagent to delegate tasks to. You must provide a 'subagent_name', a 'task' (user request), "
 		                        "or a 'profile' (system instructions), or a combination of them.";
 
 		const auto &subagents = agentlib::subagent_manager::get_instance().get_subagents();

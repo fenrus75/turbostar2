@@ -40,7 +40,7 @@ private:
 class fs_replace_lines_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "fs_replace_lines"; }
-    std::string get_description() const override { return "Surgically edit a file by providing an array of line operations (add, remove, replace). Edits MUST be sorted in descending line_number order (strictly bottom to top)."; }
+    std::string get_description() const override { return "Surgically edit a file by providing an array of line operations (add, remove, replace). Edits MUST be sorted in descending line_number order to prevent line-shifting offsets.";; }
     nlohmann::json get_parameters_schema() const override {
         return {
             {"type", "object"},

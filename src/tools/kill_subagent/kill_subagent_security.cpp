@@ -26,7 +26,7 @@ class kill_subagent_validator final : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Closes and terminates a specific subagent by its ID.";
+		return "Closes and terminates a specific subagent by its ID.";;
 	}
 
 	nlohmann::json get_parameters_schema() const override

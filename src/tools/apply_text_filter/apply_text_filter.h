@@ -37,7 +37,7 @@ class apply_text_filter_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Applies a named content processing or format conversion filter (e.g., converting HTML to Markdown via 'html_to_markdown', aligning tables via 'markdown_align_tables', or sanitizing input via 'strip_ansi'/'strip_utf8') to the input text. Optionally saves the converted output directly to a workspace file.";
+		return "Applies a named content processing or format conversion filter (e.g., converting HTML to Markdown via 'html_to_markdown', aligning tables via 'markdown_align_tables', or sanitizing input via 'strip_ansi'/'strip_utf8') to input text or a workspace/VFS file. Optionally saves converted output directly to a workspace file.";;
 	}
 	nlohmann::json get_parameters_schema() const override;
 

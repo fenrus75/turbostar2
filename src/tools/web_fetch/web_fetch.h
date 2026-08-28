@@ -40,7 +40,7 @@ class web_fetch_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Fetches content from a URL via HTTP/HTTPS. Useful for reading documentation or external resources.";
+		return "Fetches content from a URL via HTTP/HTTPS. Useful for reading documentation or external resources. Implements domain-based access controls and prompts the user for permission.";;
 	}
 	nlohmann::json get_parameters_schema() const override;
 	std::vector<agentlib::tool_example> get_examples() const override;

@@ -27,7 +27,7 @@ class agent_set_timer_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Schedules a background timer. When the timer expires, if you are idle, a notification will wake you up.";
+		return "Sets a timer (in seconds) that runs in the background. Once the timer expires, if the agent is idle, a notification wakes the agent.";;
 	}
 
 	nlohmann::json get_parameters_schema() const override

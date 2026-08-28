@@ -26,7 +26,7 @@ class crashdump_get_info_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Retrieves the detailed backtrace and memory map of a specific crashdump by its ID.";
+		return "Retrieves detailed backtrace analysis and info for a specific crashdump by process ID (PID).";;
 	}
 
 	nlohmann::json get_parameters_schema() const override

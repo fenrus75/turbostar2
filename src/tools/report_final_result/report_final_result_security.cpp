@@ -27,7 +27,7 @@ class report_final_result_validator final : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Reports the final result or summary of the completed task back to the parent agent.";
+		return "Reports the final result or summary of the completed task back to the parent agent. This replaces the default full interaction history returned to the parent with only the reported final result.";;
 	}
 
 	nlohmann::json get_parameters_schema() const override

@@ -29,7 +29,7 @@ public:
 	std::string get_family() const override { return "code_review"; }
 	std::string get_name() const override { return "resolve_code_review_item"; }
 	std::string get_description() const override {
-		return "Resolves a code review item by marking its state as 'resolved' and recording the commit hash where the fix was implemented.";
+		return "Resolves a code review item by marking its state as 'resolved' and recording the commit hash where the fix was implemented. Only accessible by developer and verifier roles.";;
 	}
 
 	nlohmann::json get_parameters_schema() const override {

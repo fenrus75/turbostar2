@@ -30,8 +30,7 @@ class ask_user_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Ask the user a question to gather preferences or make decisions. A custom input 'Other' field is automatically "
-		       "provided.";
+		return "Ask the user one or more questions to gather preferences, clarify requirements, or make decisions. When using this tool, prefer providing multiple-choice options. An 'Other' text input field is automatically added.";
 	}
 
 	nlohmann::json get_parameters_schema() const override

@@ -27,7 +27,7 @@ class wait_for_subagent_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Pauses your execution until the specified subagent finishes its current task and returns to an idle state.";
+		return "Pauses execution until the specified subagent finishes its current task and returns to an idle state.";;
 	}
 
 	nlohmann::json get_parameters_schema() const override

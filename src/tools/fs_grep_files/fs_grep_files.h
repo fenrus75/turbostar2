@@ -52,7 +52,7 @@ private:
 class fs_grep_files_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "fs_grep_files"; }
-    std::string get_description() const override { return "Search for a pattern within a specific file or across directories. Use this instead of shell grep. Automatically limits results to prevent context window overflow."; }
+    std::string get_description() const override { return "Search for a pattern (string or RE2 regular expression) across files or directories. Use this instead of shell grep. Returns formatted markdown with line numbers and enclosing symbol annotations. Ideal for finding definitions, usages, or error messages across the codebase.";; }
     nlohmann::json get_parameters_schema() const override;
     std::vector<agentlib::tool_example> get_examples() const override;
 

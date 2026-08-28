@@ -31,7 +31,7 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
 ## 1. File System Reading & Inspection
 
 ### `fs_list_dir`
-*   **Description:** Lists the contents of a directory as a Markdown table (Type, Size, Lines, Permissions, and optionally rich metadata). ALWAYS use this tool to list directory contents instead of running `ls` in a shell command.
+*   **Description:** Lists the contents of a directory as a Markdown table (Type, Size, Lines, Permissions, and optional rich metadata). ALWAYS use this tool to list directory contents instead of running `ls` in a shell command.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative directory path under the project workspace or VFS URI (e.g., 'tmp://dir').
     *   `rich_metadata` *(boolean, optional)*: If true, runs file header inspection to detect MIME types and format metadata (e.g. image dimensions, ELF architectures).
@@ -39,7 +39,7 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
     *   `offset` *(integer, optional)*: Starting offset for pagination. Defaults to 0.
 
 ### `fs_read_lines`
-*   **Description:** Reads a specific range of text lines from a file. Output lines are prefixed with their 1-based line number in `"<line_number>: <line_text>"` format. Automatically appends a compact symbol codemap overview table when reading a partial range of a source or header file.
+*   **Description:** Reads a specific range of text lines from a file. Output lines are prefixed with their 1-based line number in `<line_number>: <line_text>` format. Automatically appends a compact symbol codemap overview table when reading a partial range of a source or header file.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt').
     *   `start_line` *(integer, optional)*: The 1-based line number to start reading from. Defaults to 1 if omitted. Mutually exclusive with `tail`.
@@ -47,13 +47,13 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
     *   `tail` *(integer, optional)*: Reads the specified number of lines from the end of the file. Mutually exclusive with `start_line` and `end_line`.
 
 ### `fs_read_symbol`
-*   **Description:** Read the full definition of a function, method, class, struct, or variable by name from a file. Use this to inspect a specific symbol's implementation without guessing line numbers or reading full files.
+*   **Description:** Read the full definition of a function, method, class, struct, or variable by name from a file. Use this to inspect a specific symbol`s implementation without guessing line numbers or reading full files.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt').
     *   `symbol_name` *(string, required)*: The name of the function, method, class, struct, or variable to read. Supports namespace/class scopes (e.g. `Class::method`).
 
 ### `fs_file_codemap`
-*   **Description:** Provide a symbol codemap overview table for a file showing functions, methods, classes, and structs along with their start line, end line numbers, and total lines. Use this tool to inspect symbol boundaries and locate specific functions before reading full source files into context.
+*   **Description:** Provide a symbol codemap overview table for a file showing functions, methods, classes, and structs along with their start line and end line numbers. Use this tool to inspect symbol boundaries and locate specific functions before reading full source files into context.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'src/ui/terminal_window.cpp').
     *   `min_lines` *(integer, optional)*: Minimum line count threshold to filter out trivial inline declarations (default: 1).
@@ -61,7 +61,7 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
     *   `max_symbols` *(integer, optional)*: Maximum symbol count cap (default: 0 for unlimited).
 
 ### `fs_grep_files`
-*   **Description:** Search for a pattern (string or RE2 regular expression) across multiple files in the project. Use this instead of grep. Returns formatted markdown with line numbers, enclosing symbol context annotations (e.g. `[in function foo]`), and matches. Ideal for finding definitions, usages, or error messages across the codebase.
+*   **Description:** Search for a pattern (string or RE2 regular expression) across files or directories. Use this instead of shell grep. Returns formatted markdown with line numbers and enclosing symbol annotations. Ideal for finding definitions, usages, or error messages across the codebase.
 *   **Arguments:**
     *   `pattern` *(string, required)*: The RE2 regular expression to search for.
     *   `case_insensitive` *(boolean, optional)*: Set to true to ignore case during regex/literal matching. Defaults to false (case-sensitive search).
@@ -99,12 +99,12 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
     *   `pattern` *(string, optional)*: Optional pattern (string or RE2 regular expression) to filter test names.
 
 ### `fs_glob`
-*   **Description:** Returns a list of files matching a glob pattern (supporting double-star `**` wildcards) relative to the project root.
+*   **Description:** Returns a list of files matching a glob pattern (e.g. `src/**/*.cpp`, supporting double-star ** wildcards) relative to the project root.
 *   **Arguments:**
     *   `pattern` *(string, required)*: The glob pattern to search for, relative to the project root (e.g. `src/**/*.cpp` or `docs/*.md`).
 
 ### `fs_man`
-*   **Description:** Lookup and render system man pages (library functions, system calls, or commands) as Markdown. Use this to find exact C/C++ function signatures, parameter names/types, required header files, return codes, and behavior of standard library APIs (e.g., malloc, printf, sockets, pthread) or system utilities.
+*   **Description:** Lookup and render system man pages (library functions, system calls, or commands) as Markdown. Use this to find exact C/C++ function signatures, parameter names/types, required header files, return codes, and behavior of standard library APIs (e.g., malloc, printf, sockets, pthread) or system utilities. Highly recommended before writing or debugging API calls.
 *   **Arguments:**
     *   `name` *(string, required)*: The name of the function, library call, system call, or command to lookup (e.g., `'malloc'`, `'mmap'`, `'open'`, `'printf'`, `'pthread_create'`).
     *   `section` *(string, optional)*: Optional man page section (e.g., `"3"` for library functions, `"2"` for system calls, `"1"` for commands). If omitted, prioritizes library calls (section 3) first.
@@ -132,7 +132,7 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
 *Note: All mutation tools enforce write-access permissions and strictly prevent modifying files currently active in an editor buffer to avoid race conditions.*
 
 ### `fs_replace_lines`
-*   **Description:** Surgically edit a file by providing an array of line operations (add, remove, replace). Edits MUST be sorted in descending `line_number` order to prevent line-shifting offsets.
+*   **Description:** Surgically edit a file by providing an array of line operations (add, remove, replace). Edits MUST be sorted in descending line_number order to prevent line-shifting offsets.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Path to the file to edit.
     *   `edits` *(array of objects, required)*: A list of edit operations.
@@ -143,7 +143,7 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
     *   `strict` *(boolean, optional)*: If true, reject (and revert) the edits when they would leave braces unbalanced, instead of applying them and only issuing a warning. Defaults to false.
 
 ### `fs_replace_content`
-*   **Description:** Edit a file by replacing a unique contiguous block of text (`target_content`) with a new block (`replacement_content`), avoiding line-shifting errors. Use `function_hint` or `line_hint` to resolve ambiguity if `target_content` appears multiple times in a file.
+*   **Description:** Edit a file by replacing a unique contiguous block of text (target_content) with a new block (replacement_content), avoiding line-shifting errors. Use function_hint or line_hint to resolve ambiguity if target_content appears multiple times in a file.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Path to the file to edit.
     *   `target_content` *(string, required)*: The exact, contiguous block of text to replace in the file.
@@ -176,7 +176,7 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
     *   `append` *(boolean, optional)*: Set to true to safely append `content` to the end of an existing file. Defaults to false. Mutually exclusive with `force_overwrite`.
 
 ### `fs_mkdir`
-*   **Description:** Create a directory, including any necessary parent directories (like mkdir -p). Supports directory paths relative to the project root, or virtual paths (e.g., `tmp://nested/dir`). Use this tool when creating directory structures before writing files, instead of running shell 'mkdir' commands.
+*   **Description:** Create a directory, including any necessary parent directories (like mkdir -p). Supports workspace relative paths or virtual URIs (e.g., `tmp://dir`). Use this tool when creating directory structures before writing files, instead of running shell `mkdir` commands.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative directory path under the project workspace or VFS URI (e.g., 'tmp://dir'). Path to the directory to create.
 
@@ -190,11 +190,11 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
 ## 3. Compilation & Diagnostics
 
 ### `fs_run_tests`
-*   **Description:** Runs the project's test suite (synchronously) and returns the console output. Catch crashes and dumps backtraces. Runs with terminal interaction.
+*   **Description:** Runs the project`s test suite and returns console output. Catch crashes and dumps backtraces. To discover test names, read system://project/testlist.md (or system://project/testlist.md?search=<query>) with fs_read_lines instead of running `meson test --list` in a shell command.
 *   **Arguments:** None.
 
 ### `fs_compile_project`
-*   **Description:** Compiles the entire project and returns the raw console output. Populates the workspace error list. Can be run asynchronously.
+*   **Description:** Compiles the entire project and returns raw console output. Populates the workspace error list. Supports clean rebuilds and background execution via the async flag.
 *   **Arguments:**
     *   `clean` *(boolean, optional)*: If true, forces a completely clean rebuild before compiling to clear out stale artifacts. Defaults to false.
     *   `async` *(boolean, optional)*: If true, runs the compilation asynchronously in the background. Defaults to false.
@@ -207,7 +207,7 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
     *   `async` *(boolean, optional)*: If true, runs the compilation asynchronously in the background. Defaults to false.
 
 ### `fs_compile_info`
-*   **Description:** Retrieves the exact compile command (from `compile_commands.json`), the last compile time, and any active build/LSP diagnostics for a specific file.
+*   **Description:** Retrieves the exact compile command (from compile_commands.json), the last compile time, and any active build/LSP diagnostics for a specific file.
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the file, relative to the project root.
 
@@ -216,7 +216,7 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
 ## 4. UI Overlays & Feedback
 
 ### `flag_as_error`
-*   **Description:** Flags a specific line (and optional column range) in a file as an error or warning, creating a diagnostic overlay in the editor UI (red/yellow backgrounds).
+*   **Description:** Flags a specific line in a file as an error or warning, creating a diagnostic overlay in the editor UI.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt').
     *   `line` *(integer, required)*: The 1-based line number of the error.
@@ -271,7 +271,7 @@ These tools provide semantic understanding of code by leveraging the Language Se
 ## 6. Environment & Misc
 
 ### `ask_user`
-*   **Description:** Ask the user one or more questions to gather preferences, clarify requirements, or make decisions. When using this tool, prefer providing multiple-choice options. An 'Other' text input field is automatically added.
+*   **Description:** Ask the user one or more questions to gather preferences, clarify requirements, or make decisions. When using this tool, prefer providing multiple-choice options. An `Other` text input field is automatically added.
 *   **Arguments:**
     *   `questions` *(array of objects, required)*:
         *   `question` *(string, required)*: The complete question to ask the user.
@@ -300,7 +300,7 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
 *   `system://project/info.md` (or `system://project/overview.md`): Reads project workspace overview details, including root path, build system type, and instruction files (`GEMINI.md`, `AGENTS.md`).
 
 ### `run_python`
-*   **Description:** Executes Python code in a sandboxed environment.
+*   **Description:** Executes Python code in a sandboxed environment. You MUST use print() statements to see output, as the script runs headlessly. Provide either `code` (direct execution) OR `path` (to run an existing script file). Optionally provide an array of PyPI `dependencies` to be temporarily installed via `uv`.
 *   **Arguments:**
     *   `code` *(string, optional)*: The raw Python code string to execute.
     *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://script.py'). Path to a Python script to execute.
@@ -308,7 +308,7 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
     *   `venv` *(string, optional)*: Path to a Python virtual environment directory (e.g. '.venv'). Its interpreter (`<venv>/bin/python`) is used to run the script, and any `dependencies` are installed into it. Resolved relative to the project root.
 
 ### `run_cpp`
-*   **Description:** Compiles and executes C/C++ source code snippets or standalone probe files in a sandboxed environment. Use this to test C/C++ logic, verify API behavior, or run isolated probes without modifying codebase files. Supports modern C++ and C standards, custom VFS paths (`tmp://`, `include://`), preprocessor defines, include directories, extra translation units, and linker flags.
+*   **Description:** Compiles and executes C/C++ source code snippets or standalone probe files in a sandboxed environment. Use this to test C/C++ logic, verify API behavior, or run isolated probes without modifying codebase files. Supports modern C++ and C standards, custom VFS paths (tmp://, include://), preprocessor defines, include directories, extra translation units, and linker flags.
 *   **Arguments:**
     *   `code` *(string, optional)*: Inline C/C++ source code string to compile and run. If `main()` is omitted, a standard entry point wrapper is automatically provided. Either `code` or `path` must be provided.
     *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g. `tmp://probe.c`, `src/main.cpp`) to a source file to compile and execute. Resolves disk paths and VFS URIs (`tmp://`, `include://`, `skills://`).
@@ -333,7 +333,7 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
 
 
 ### `apply_text_filter`
-*   **Description:** Applies a named content processing or format conversion filter (e.g., converting HTML to Markdown via 'html_to_markdown', aligning tables via 'markdown_align_tables', or sanitizing input via 'strip_ansi'/'strip_utf8') to input text or a workspace/VFS file. Optionally saves the converted output directly to a workspace file.
+*   **Description:** Applies a named content processing or format conversion filter (e.g., converting HTML to Markdown via `html_to_markdown`, aligning tables via `markdown_align_tables`, or sanitizing input via `strip_ansi`/`strip_utf8`) to input text or a workspace/VFS file. Optionally saves converted output directly to a workspace file.
 *   **Arguments:**
     *   `filter` *(string, required)*: The name of the filter to apply (e.g., `strip_utf8`, `strip_ansi`, `html_to_markdown`, `html_to_markdown_plain`, `html_extract_tables`, `markdown_align_tables`, `meson_compile`, `meson_test`).
     *   `text` *(string, optional)*: The input text string to convert or filter. Either `text` or `path` must be provided.
@@ -341,7 +341,7 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
     *   `output_path` *(string, optional)*: Optional relative file path under the project workspace or VFS URI (e.g. `tmp://out.md`) to save the converted output directly to disk.
 
 ### `run_shell_command`
-*   **Description:** Runs an arbitrary shell command safely within the sandbox. Requires explicit user permission approval and interrupts the agent flow. Do NOT use run_shell_command to read files (use fs_read_lines), search code (use fs_grep_files or fs_find_files), list tests (read system://project/testlist.md via fs_read_lines), run unit tests (use fs_run_tests), or check git status/diff (use git_status, git_diff_unstaged, git_log).
+*   **Description:** Runs an arbitrary shell command safely within the sandbox. Requires explicit user permission approval and interrupts the agent flow. Do NOT use run_shell_command to read files (use fs_read_lines), search code (use fs_grep_files), list tests (read system://project/testlist.md via fs_read_lines), run unit tests (use fs_run_tests), or check git status/diff/files (use git_status, git_list_files, git_diff_unstaged, git_log).
 *   **Arguments:**
     *   `command` *(string, required)*: The exact shell command to execute.
     *   `timeout` *(integer, optional)*: Optional timeout in seconds. Default is 300.
@@ -359,7 +359,7 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
     *   `summary` *(string, required)*: A concise summary of the work that was just completed and the goal of the new phase.
 
 ### `agent_compress_history`
-*   **Description:** Proactively pages out conversational history prior to this tool call into a saved milestone archive. This frees up your context window. A highly dense pointer message replaces the old history, allowing you to restore it later if needed. *Note: Only available if the active model supports history mutation.*
+*   **Description:** Proactively pages out conversational history prior to this tool call into a saved milestone archive. This frees up your context window. A highly dense pointer message replaces the old history, allowing you to restore it later if needed.
 *   **Arguments:**
     *   `title` *(string, required)*: A short title for the milestone you are archiving.
     *   `summary` *(string, required)*: A concise summary of the history being paged out.
@@ -368,7 +368,7 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
     *   `include_all_prior` *(boolean, optional)*: If true, ignores the lower boundary and compresses everything from the target back to the system prompt.
 
 ### `agent_restore_context`
-*   **Description:** Pages in a previously saved context archive (episode). Use this if you need to resume work on an old task or look up historical context. Find the episode_id by using the '/memory' command or reading the SYSTEM MEMORY pointers in your history. *Note: Only available if the active model supports history mutation.*
+*   **Description:** Pages in a previously saved context archive (episode). Use this if you need to resume work on an old task or look up historical context. Find the episode_id by using the `/memory` command or reading the SYSTEM MEMORY pointers in your history.
 *   **Arguments:**
     *   `episode_id` *(string, required)*: The exact ID of the episode to restore.
     *   `compression_level` *(integer, optional)*: Controls how aggressively the archive is optimized during restoration. `0` = Raw history. `1` = Think-Free reasoning stripping (default). `2` = Terminal truncation / active level 2. Defaults to `1`.
@@ -378,7 +378,7 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
 *   **Arguments:** None.
 
 ### `agent_set_timer`
-*   **Description:** Sets a timer (in seconds) that runs in the background. Once the timer expires, if the agent is idle, it injects a `"previously set timer expired"` system message to wake the agent.
+*   **Description:** Sets a timer (in seconds) that runs in the background. Once the timer expires, if the agent is idle, a notification wakes the agent.
 *   **Arguments:**
     *   `seconds` *(integer, required)*: The duration of the timer in seconds.
 
@@ -425,7 +425,7 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
     *   `message` *(string, required)*: The text message or instruction to send (max 100KB).
 
 ### `wait_for_subagent`
-*   **Description:** Pauses execution until the specified subagent becomes idle.
+*   **Description:** Pauses execution until the specified subagent finishes its current task and returns to an idle state.
 *   **Arguments:**
     *   `id` *(integer, required)*: The ID of the subagent to wait for.
 
@@ -440,7 +440,7 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
     *   `result` *(string, required)*: The final result or outcome to report to the parent.
 
 ### `kill_subagent`
-*   **Description:** Closes and terminates a specific subagent.
+*   **Description:** Closes and terminates a specific subagent by its ID.
 *   **Arguments:**
     *   `id` *(integer, required)*: The ID of the subagent to terminate.
 
@@ -449,12 +449,12 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
 ## 9. Crashdump & Crash Analysis
 
 ### `crashdump_list`
-*   **Description:** Returns a markdown table of recent crashdumps (crashes) generated by commands in the sandbox (up to limit, returning the most recent ones).
+*   **Description:** Returns a markdown table of recent crashdumps (crashes) generated by commands in the sandbox, up to a specified limit.
 *   **Arguments:**
     *   `limit` *(integer, optional)*: Optional limit on the maximum number of recent crash dumps to return. Defaults to 20.
 
 ### `crashdump_get_info`
-*   **Description:** Retrieves the detailed backtrace and GDB analysis of a specific crashdump.
+*   **Description:** Retrieves detailed backtrace analysis and info for a specific crashdump by process ID (PID).
 *   **Arguments:**
     *   `pid` *(integer, required)*: The Process ID (PID) of the crashed executable.
 
@@ -493,11 +493,11 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
 These tools allow the agent to interact with the project's Git repository.
 
 ### `git_status`
-*   **Description:** Get the git status of the project repository as a Markdown table (shows staged, unstaged, and untracked files).
+*   **Description:** Get the git status of the project repository as a Markdown table (shows staged, unstaged, and untracked files). Use this instead of running `git status` via run_shell_command.
 *   **Arguments:** None.
 
 ### `git_list_files`
-*   **Description:** List all tracked files in the Git repository index under a specified path or directory as a 2-column Markdown table (`| File Path | Status (blank=Tracked) |`). Clean tracked files have a blank status cell; modified/deleted files are annotated (`MOD`, `DEL`, `UNM`). ALWAYS use this tool to query tracked git files instead of running 'git ls-files' via run_shell_command.
+*   **Description:** List tracked files in the Git repository index under a specified path or directory as a Markdown table with real-time status annotations (MOD, DEL, UNM). Use this tool to query tracked git files instead of running `git ls-files` via run_shell_command.
 *   **Arguments:**
     *   `path` *(string, optional)*: Relative path or directory under project root (defaults to '.').
     *   `pattern` *(string, optional)*: Optional pattern or substring to filter filenames (e.g. '.cpp' or 'src/').
@@ -529,7 +529,7 @@ These tools allow the agent to interact with the project's Git repository.
     *   `path` *(string, required)*: The path to the file or directory to diff, relative to the project root.
 
 ### `git_log`
-*   **Description:** View the last commit messages in the repository (git log -n <limit> --oneline).
+*   **Description:** View recent commit messages in the repository (git log -n <limit> --oneline). Use this instead of running `git log` or `git show` via run_shell_command.
 *   **Arguments:**
     *   `limit` *(integer, optional)*: The maximum number of commits to retrieve. Defaults to 10.
 
@@ -599,7 +599,7 @@ These tools allow the agent to interact with the project's Git repository.
     *   `path` *(string, required)*: The path to the main application executable, relative to the `build/` directory.
 
 ### `agent_start_app`
-*   **Description:** Starts the main application executable, optionally under GDB debugging with split screen or CPU performance sampling. Returns JSON with `app_run_id` and `gdb_run_id`.
+*   **Description:** Starts the main application executable, optionally under GDB debugging with split screen or CPU performance sampling. Returns JSON with app_run_id and gdb_run_id. In GDB mode, send `continue` to gdb to start application execution.
 *   **Arguments:**
     *   `args` *(string, optional)*: Command line arguments to pass to the application.
     *   `debugger` *(boolean, optional)*: If true, starts the application with a split screen debugger (GDB/GDBServer). Defaults to false.
@@ -613,33 +613,33 @@ These tools allow the agent to interact with the project's Git repository.
     *   `limit` *(integer, optional)*: Maximum number of top functions and lines to return. Defaults to 10.
 
 ### `agent_get_profile_details`
-*   **Description:** Returns line-by-line performance profiling details with source code text, line numbers sorted ascending, ±2 context lines merged into continuous blocks, sample counts, global application cycle percentages (`global_percentage`), and function/file cycle percentages (`function_percentage` when filtering by function, `file_percentage` when filtering by file) for a target source file or function name.
+*   **Description:** Returns line-by-line performance profiling details with source lines and CPU cycle percentages (file_percentage or function_percentage) for a target source file or function name.
 *   **Arguments:**
     *   `run_id` *(string or integer, optional)*: The execution run ID returned by `agent_start_app` (e.g. `'run_1'`, `1`, or `'editor'`). If omitted or empty, returns details for the active profile from the most recent run.
     *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Source file path to filter line performance samples.
     *   `function_name` *(string, optional)*: Function name to filter line performance samples.
 
 ### `agent_wait_for_app`
-*   **Description:** Waits until a running process has either ended/crashed or reached a settled state without output for at least 500ms. Returns JSON with execution status, `is_alive`, `age_ms`, and optional `crash_notification`.
+*   **Description:** Waits until a running process has either ended/crashed or reached a settled state without output for at least 500ms. Returns JSON with execution status, is_alive, age_ms, and optional crash_notification.
 *   **Arguments:**
     *   `run_id` *(integer, required)*: The unique execution ID returned by `agent_start_app`.
     *   `type` *(string, optional)*: The wait condition: `'ended'` (default) waits for process termination or crash, `'settled'` waits for either termination or 500ms of no output.
     *   `timeout_sec` *(integer, optional)*: Maximum time in seconds to wait before returning status `'timeout'`. Defaults to 30.
 
 ### `agent_debug_coredump`
-*   **Description:** Launches a GDB session attached to the coredump for a given crash_id. Returns JSON containing the `gdb_run_id` and detailed interactive `instructions` (which guide command inputs and warn to call `agent_terminate_run` when finished).
+*   **Description:** Launches a GDB session attached to the coredump for a given crash_id. Returns JSON containing gdb_run_id. Next, send `bt` via `agent_write_to_run` to locate crash frame N, then `frame <N>` to inspect variables, and clean up with `agent_terminate_run\.
 *   **Arguments:**
     *   `crash_id` *(string, required)*: The unique crash ID from the crash database to debug.
 
 ### `agent_write_to_run`
-*   **Description:** Writes/injects keyboard input sequences into the application or debugger PTY master stream.
+*   **Description:** Writes/injects keyboard input sequences into the application or debugger PTY master stream (e.g. sending commands to GDB).
 *   **Arguments:**
     *   `run_id` *(integer, required)*: The unique execution ID returned by `agent_start_app`.
     *   `data` *(string, required)*: The raw string data or escape sequence to inject.
     *   `output` *(boolean, optional)*: If true, records terminal output, waits for the terminal state to settle, and returns the recorded text in the tool response. Defaults to false.
 
 ### `agent_get_run_screenshot`
-*   **Description:** Returns a snapshot/screenshot of the terminal buffer grid, cursor coordinates, process alive status (`is_alive`), and optional `crash_notification` for a given run ID.
+*   **Description:** Returns a snapshot/screenshot of the terminal buffer grid, cursor coordinates, process alive status (is_alive), and optional crash_notification for a given run ID.
 *   **Arguments:**
     *   `run_id` *(integer, required)*: The unique execution ID returned by `agent_start_app`.
     *   `settle` *(boolean, optional)*: If true, waits up to 3 seconds for terminal content to settle before capturing screenshot.
@@ -806,7 +806,7 @@ These tools allow the agent to interact with the project's Git repository.
 ## 11. Code Review Tools
 
 ### `create_code_review_item`
-*   **Description:** Creates a new code review item in the database. When called by a subagent, a single compact line is appended to the parent agent's context (format: `#ID (severity): file:line - summary`) unless the calling agent has parent-injection suppressed (e.g. inside a synchronous `perform_code_review`, where results arrive via the toolcall return instead).
+*   **Description:** Creates a new code review finding/item for a specific file and stores it in the project database.
 *   **Arguments:**
     *   `summary` *(string, required)*: Brief one-line summary of the issue.
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). File containing the issue.
@@ -817,7 +817,7 @@ These tools allow the agent to interact with the project's Git repository.
     *   `proposed_fix` *(string, required)*: Clear step-by-step description of the proposed solution.
 
 ### `update_code_review_item`
-*   **Description:** Updates fields (state, severity, description, proposed_fix) of an existing code review item.
+*   **Description:** Updates fields (state, severity, description, proposed_fix) of an existing code review item in the database.
 *   **Arguments:**
     *   `id` *(integer, required)*: The unique ID of the code review item.
     *   `state` *(string, optional)*: The new state (`'invalid'`, `'new'`, `'confirmed'`, `'disputed'`, `'stale'`, `'resolved'`, `'verified-fixed'`).
@@ -831,20 +831,20 @@ These tools allow the agent to interact with the project's Git repository.
     *   `id` *(integer, required)*: The unique ID of the code review item to confirm/verify.
 
 ### `resolve_code_review_item`
-*   **Description:** Resolves a code review item by marking its state as 'resolved' and recording the commit hash where the fix was implemented. Only accessible by developer and verifier roles.
+*   **Description:** Resolves a code review item by marking its state as `resolved` and recording the commit hash where the fix was implemented. Only accessible by developer and verifier roles.
 *   **Arguments:**
     *   `id` *(integer, required)*: The unique ID of the code review item to resolve.
     *   `commit_hash` *(string, required)*: The git commit hash containing the resolution/fix.
 
 ### `list_code_review_items`
-*   **Description:** Lists all code review items as a compact Markdown table. Normal agents only see unresolved items; verifiers can also see resolved items by setting `include_resolved` to true.
+*   **Description:** Lists all code review items as a compact Markdown table, with optional filters for filename, severity, and resolution status.
 *   **Arguments:**
     *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Optional file path prefix to filter items.
     *   `severity` *(string, optional)*: Optional severity filter (one of: `nit`, `low`, `medium`, `high`, `critical`). Specifying a level returns all items of that severity or more severe.
     *   `include_resolved` *(boolean, optional)*: If true, lists resolved/verified items (restricted to verifiers).
 
 ### `get_code_review_item`
-*   **Description:** Retrieves the full JSON details of a specific code review item by its unique ID. Access to resolved items is restricted to the verifier role.
+*   **Description:** Retrieves the full details of a specific code review item by its unique ID. Access to resolved items is restricted to the verifier role.
 *   **Arguments:**
     *   `id` *(integer, required)*: The unique ID of the code review item.
 

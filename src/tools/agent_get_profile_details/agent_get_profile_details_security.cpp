@@ -27,7 +27,7 @@ class agent_get_profile_details_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Returns line-by-line CPU cycle percentages for a target source file or function name from a performance profile run (defaults to latest profile).";
+		return "Returns line-by-line performance profiling details with source lines and CPU cycle percentages (file_percentage or function_percentage) for a target source file or function name.";;
 	}
 
 	nlohmann::json get_parameters_schema() const override

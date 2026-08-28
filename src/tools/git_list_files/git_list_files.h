@@ -26,7 +26,7 @@ private:
 class git_list_files_validator : public agentlib::tool_validator {
 public:
 	std::string get_name() const override { return "git_list_files"; }
-	std::string get_description() const override { return "List tracked files in the Git repository index under a specified path or directory, augmented with real-time git status (modifications, renames, deletions, additions). Use this instead of running 'git ls-files' via run_shell_command."; }
+	std::string get_description() const override { return "List tracked files in the Git repository index under a specified path or directory as a Markdown table with real-time status annotations (MOD, DEL, UNM). Use this tool to query tracked git files instead of running 'git ls-files' via run_shell_command.";; }
 
 	nlohmann::json get_parameters_schema() const override {
 		return {

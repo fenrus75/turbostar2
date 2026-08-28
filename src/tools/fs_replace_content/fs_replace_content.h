@@ -37,7 +37,7 @@ class fs_replace_content_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "fs_replace_content"; }
     std::string get_description() const override { 
-        return "Edit a file by replacing a unique contiguous block of text (target_content) with a new block (replacement_content). Avoids line-number shifts."; 
+        return "Edit a file by replacing a unique contiguous block of text (target_content) with a new block (replacement_content), avoiding line-shifting errors. Use function_hint or line_hint to resolve ambiguity if target_content appears multiple times in a file.";; 
     }
     
     nlohmann::json get_parameters_schema() const override {

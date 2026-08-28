@@ -27,7 +27,7 @@ public:
 	std::string get_family() const override { return "code_review"; }
 	std::string get_name() const override { return "confirm_code_review_item"; }
 	std::string get_description() const override {
-		return "Confirms the correctness of a code review item (new -> confirmed) or verifies its resolution (resolved -> verified-fixed).";
+		return "Confirms the correctness of a code review item (new -> confirmed) or verifies its resolution (resolved -> verified-fixed). Only accessible by the verifier role.";;
 	}
 
 	nlohmann::json get_parameters_schema() const override {

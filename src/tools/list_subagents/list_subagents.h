@@ -20,7 +20,7 @@ class list_subagents_validator : public agentlib::tool_validator
 	std::string get_name() const override { return "list_subagents"; }
 	std::string get_description() const override
 	{
-		return "Lists all available subagents that can be created, showing their profiles and descriptions.";
+		return "Lists all active subagents managed by the current agent. Returns a Markdown table of ID, Name, and Status.";;
 	}
 	nlohmann::json get_parameters_schema() const override
 	{

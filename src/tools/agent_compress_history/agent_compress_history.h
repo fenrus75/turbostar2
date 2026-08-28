@@ -57,7 +57,7 @@ public:
 
     std::string get_name() const override { return "agent_compress_history"; }
     std::string get_description() const override {
-        return "Proactively pages out all conversational history prior to this tool call into a saved milestone archive. This frees up your context window. A highly dense pointer message will replace the old history, allowing you to restore it later if needed.";
+        return "Proactively pages out conversational history prior to this tool call into a saved milestone archive. This frees up your context window. A highly dense pointer message replaces the old history, allowing you to restore it later if needed.";;
     }
 
     nlohmann::json get_parameters_schema() const override;

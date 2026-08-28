@@ -28,7 +28,7 @@ public:
 	std::string get_family() const override { return "code_review"; }
 	std::string get_name() const override { return "list_code_review_items"; }
 	std::string get_description() const override {
-		return "Lists all code review items, with optional filters for filename, severity, and resolution status.";
+		return "Lists all code review items as a compact Markdown table, with optional filters for filename, severity, and resolution status.";;
 	}
 
 	nlohmann::json get_parameters_schema() const override {

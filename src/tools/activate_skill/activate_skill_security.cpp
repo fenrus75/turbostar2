@@ -33,7 +33,7 @@ class activate_skill_validator : public agentlib::tool_validator
 		std::string base_desc =
 		    "Activates a specialized agent skill by name. Returns the skill's instructions wrapped in <skill_content> tags. These "
 		    "provide specialized guidance for the current task. Use this when you identify a task that matches a skill's "
-		    "description. ONLY use names exactly as they appear in the <available_skills> section.";
+		    "description. ONLY use names exactly as they appear in the *Available Skills* section.";
 
 		auto &skills = agentlib::skill_manager::get_instance().get_skills();
 		if (skills.empty()) {

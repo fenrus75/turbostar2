@@ -20,7 +20,7 @@ class sqlite_perform_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Executes arbitrary SQL queries on a persistent SQLite database.";
+		return "Executes arbitrary SQL queries on a persistent SQLite database. Returns results as a Markdown table.";;
 	}
 
 	nlohmann::json get_parameters_schema() const override

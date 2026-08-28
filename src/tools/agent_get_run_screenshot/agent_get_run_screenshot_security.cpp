@@ -33,7 +33,7 @@ class agent_get_run_screenshot_validator final : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Returns a snapshot/screenshot of the terminal buffer grid, cursor coordinates, process alive status (is_alive), and optional crash notification for a given run ID.";
+		return "Returns a snapshot/screenshot of the terminal buffer grid, cursor coordinates, process alive status (is_alive), and optional crash_notification for a given run ID.";;
 	}
 
 	nlohmann::json get_parameters_schema() const override

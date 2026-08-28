@@ -22,7 +22,7 @@ public:
 	}
 	std::string get_description() const override
 	{
-		return "Provide a symbol codemap overview table for a file showing functions, methods, classes, and structs along with their start line and end line numbers. Use this tool to inspect symbol boundaries and locate specific functions before reading full source files into context.";
+		return "Provide a symbol codemap overview table for a file showing functions, methods, classes, and structs along with their start line and end line numbers. Use this tool to inspect symbol boundaries and locate specific functions before reading full source files into context.";;
 	}
 
 	nlohmann::json get_parameters_schema() const override

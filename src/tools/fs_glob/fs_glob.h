@@ -20,7 +20,7 @@ class fs_glob_validator : public agentlib::single_string_tool_validator {
 public:
     std::string get_name() const override { return "fs_glob"; }
     std::string get_description() const override { 
-        return "Returns a list of files matching a glob pattern (e.g. 'src/**/*.cpp') relative to the project root."; 
+        return "Returns a list of files matching a glob pattern (e.g. 'src/**/*.cpp', supporting double-star ** wildcards) relative to the project root.";; 
     }
     std::string get_parameter_name() const override { return "pattern"; }
     std::string get_parameter_description() const override { 

@@ -44,8 +44,8 @@ class run_python_validator : public agentlib::tool_validator
 	std::string get_description() const override
 	{
 		std::string base_desc =
-		    "Executes Python code. You MUST use print() statements to see output, as the script runs headlessly. Provide either "
-		    "'code' (for direct execution) OR 'path' (to run an existing file).";
+		    "Executes Python code in a sandboxed environment. You MUST use print() statements to see output, as the script runs headlessly. Provide either "
+		    "'code' (direct execution) OR 'path' (to run an existing script file).";
 		if (has_uv()) {
 			return base_desc + " Optionally provide an array of PyPI 'dependencies' to be temporarily installed via 'uv'.";
 		}
