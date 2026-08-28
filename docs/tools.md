@@ -47,7 +47,7 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
     *   `tail` *(integer, optional)*: Reads the specified number of lines from the end of the file. Mutually exclusive with `start_line` and `end_line`.
 
 ### `fs_read_symbol`
-*   **Description:** Read the full definition of a function, method, class, struct, or variable by name from a file. Uses the LSP server to locate the exact symbol boundaries and returns the code chunk with line numbers.
+*   **Description:** Read the full definition of a function, method, class, struct, or variable by name from a file. Use this to inspect a specific symbol's implementation without guessing line numbers or reading full files.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt').
     *   `symbol_name` *(string, required)*: The name of the function, method, class, struct, or variable to read. Supports namespace/class scopes (e.g. `Class::method`).
@@ -118,9 +118,9 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
     *   `section` *(string, optional)*: Optional section to filter results (e.g., `"1"` for commands, `"2"` for system calls, `"3"` for library functions).
 
 ### `markdown_extract`
-*   **Description:** Dispatches a specialized subagent to extract specific sections, directives, or topics from a Markdown document or VFS manpage (e.g. `system://man/systemd.exec.md`) with full section context and fidelity. Utilizes `fs_file_codemap` structural outlines and line-search tools internally. Part of the `base` tool family (always active).
+*   **Description:** Extract specific sections, directives, or topics from a Markdown document or VFS file (e.g. `docs/design.md` or `system://tools_detailed.md`). Use this to extract targeted documentation sections without reading massive files into context.
 *   **Arguments:**
-    *   `path` *(string, required)*: Relative file path under the project workspace or VFS URI (e.g., `docs/design.md` or `system://man/systemd.exec.md`).
+    *   `path` *(string, required)*: Relative file path under the project workspace or VFS URI (e.g., `docs/design.md` or `system://tools_detailed.md`).
     *   `query` *(string, required)*: The specific topic, directive name (e.g., `ProtectKernelTunables`), question, or section heading to extract.
     *   `output_path` *(string, optional)*: Optional relative file path under the project workspace or VFS URI (e.g. `tmp://extract.md`) to save the extracted Markdown result.
     *   `async` *(boolean, optional)*: Optional. If true, runs extraction in the background. Default is false (synchronous extraction).
@@ -132,7 +132,7 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
 *Note: All mutation tools enforce write-access permissions and strictly prevent modifying files currently active in an editor buffer to avoid race conditions.*
 
 ### `fs_replace_lines`
-*   **Description:** Surgically edit a file by providing an array of line operations (add, remove, replace). Edits MUST be sorted in descending `line_number` order to prevent line-shifting offsets. Large edit blocks (> 10 lines) report head and tail context lines with omitted line counts to conserve context space.
+*   **Description:** Surgically edit a file by providing an array of line operations (add, remove, replace). Edits MUST be sorted in descending `line_number` order to prevent line-shifting offsets.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Path to the file to edit.
     *   `edits` *(array of objects, required)*: A list of edit operations.
@@ -143,7 +143,7 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
     *   `strict` *(boolean, optional)*: If true, reject (and revert) the edits when they would leave braces unbalanced, instead of applying them and only issuing a warning. Defaults to false.
 
 ### `fs_replace_content`
-*   **Description:** Edit a file by replacing a unique contiguous block of text (`target_content`) with a new block (`replacement_content`), avoiding line-shifting errors. Supports staged relaxed matching (whitespace/CRLF normalization) and LSP/symbol scope resolution using `function_hint` or `line_hint` if multiple matches exist.
+*   **Description:** Edit a file by replacing a unique contiguous block of text (`target_content`) with a new block (`replacement_content`), avoiding line-shifting errors. Use `function_hint` or `line_hint` to resolve ambiguity if `target_content` appears multiple times in a file.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Path to the file to edit.
     *   `target_content` *(string, required)*: The exact, contiguous block of text to replace in the file.
@@ -201,7 +201,7 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
     *   `timeout` *(integer, optional)*: Optional compilation timeout in seconds. Defaults to 600.
 
 ### `fs_compile_file`
-*   **Description:** Compiles a single file and returns the raw console output. Populates the workspace error list. Can be run asynchronously. NOTE: This only compiles the individual file (e.g. checking syntax/errors) but does NOT link the project, so the executable binary will NOT be updated. To rebuild/link the whole project binary, use `fs_compile_project`.
+*   **Description:** Compiles a single file and returns the console output. Use this for fast compile and syntax feedback on a single file without running a full project build or link. NOTE: This does NOT link the project, so the binary is NOT updated; to rebuild/link the executable, use `fs_compile_project`.
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the file to compile, relative to the project root.
     *   `async` *(boolean, optional)*: If true, runs the compilation asynchronously in the background. Defaults to false.
@@ -308,7 +308,7 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
     *   `venv` *(string, optional)*: Path to a Python virtual environment directory (e.g. '.venv'). Its interpreter (`<venv>/bin/python`) is used to run the script, and any `dependencies` are installed into it. Resolved relative to the project root.
 
 ### `run_cpp`
-*   **Description:** Compiles and executes C/C++ source code snippets or standalone probe files in a sandboxed environment with `libturbocatch.so` preloaded. Supports modern C++ and C standards, custom VFS paths (`tmp://`, `include://`, `skills://`), preprocessor defines, include directories, extra translation units, and linker flags. Non-zero exit codes and runtime crashes (`SIGSEGV`, `SIGABRT`, `SIGFPE`) are intercepted by `libturbocatch.so` and returned as structured output.
+*   **Description:** Compiles and executes C/C++ source code snippets or standalone probe files in a sandboxed environment. Use this to test C/C++ logic, verify API behavior, or run isolated probes without modifying codebase files. Supports modern C++ and C standards, custom VFS paths (`tmp://`, `include://`), preprocessor defines, include directories, extra translation units, and linker flags.
 *   **Arguments:**
     *   `code` *(string, optional)*: Inline C/C++ source code string to compile and run. If `main()` is omitted, a standard entry point wrapper is automatically provided. Either `code` or `path` must be provided.
     *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g. `tmp://probe.c`, `src/main.cpp`) to a source file to compile and execute. Resolves disk paths and VFS URIs (`tmp://`, `include://`, `skills://`).

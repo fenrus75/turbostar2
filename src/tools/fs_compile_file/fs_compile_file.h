@@ -31,7 +31,7 @@ private:
 class fs_compile_file_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "fs_compile_file"; }
-    std::string get_description() const override { return "Compiles a single file and returns the raw console output. Populates the workspace error list. Runs with terminal interaction. NOTE: This only compiles the individual file (e.g. checking syntax/errors) but does NOT link the project, so the executable binary will NOT be updated. To rebuild/link the whole project binary, use fs_compile_project."; }
+    std::string get_description() const override { return "Compiles a single file and returns the console output. Use this for fast compile and syntax feedback on a single file without running a full project build or link. NOTE: This does NOT link the project, so the binary is NOT updated; to rebuild/link the executable, use fs_compile_project."; }
     
     nlohmann::json get_parameters_schema() const override {
         return {

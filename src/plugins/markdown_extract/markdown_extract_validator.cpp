@@ -71,8 +71,8 @@ std::vector<agentlib::tool_example> markdown_extract_validator::get_examples() c
 	return {
 		{
 			"Targeted Directive Extraction from VFS Manpage",
-			nlohmann::json{{"path", "system://man/systemd.exec.md"}, {"query", "ProtectKernelTunables"}},
-			"Full Flow: 1) Call fs_man(name='systemd.exec') to render system://man/systemd.exec.md -> 2) Call markdown_extract(path='system://man/systemd.exec.md', query='ProtectKernelTunables') to extract targeted directive section without reading thousands of lines."
+			nlohmann::json{{"path", "tmp://systemd.exec.md"}, {"query", "ProtectKernelTunables"}},
+			"Full Flow: 1) Call fs_man(name='systemd.exec', output_path='tmp://systemd.exec.md') -> 2) Call markdown_extract(path='tmp://systemd.exec.md', query='ProtectKernelTunables') to extract targeted directive section without reading thousands of lines."
 		},
 		{
 			"Section Heading Extraction from Workspace Document",

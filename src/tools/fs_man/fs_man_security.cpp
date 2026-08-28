@@ -97,8 +97,8 @@ std::vector<agentlib::tool_example> fs_man_validator::get_examples() const {
 	return {
 		{
 			"Full Manpage Directive Lookup Workflow",
-			nlohmann::json{{"name", "systemd.exec"}},
-			"Full Flow: 1) Call fs_man(name='systemd.exec') to render system://man/systemd.exec.md -> 2) Call markdown_extract(path='system://man/systemd.exec.md', query='ProtectKernelTunables') to extract targeted directive section."
+			nlohmann::json{{"name", "systemd.exec"}, {"output_path", "tmp://systemd.exec.md"}},
+			"Full Flow: 1) Call fs_man(name='systemd.exec', output_path='tmp://systemd.exec.md') -> 2) Call markdown_extract(path='tmp://systemd.exec.md', query='ProtectKernelTunables') to extract targeted directive section."
 		},
 		{
 			"Direct Filtered Manpage Directive Lookup",
