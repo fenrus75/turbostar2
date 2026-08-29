@@ -1661,21 +1661,11 @@ void ai_agent::start_processing()
 					}
 
 					bool tool_failed = false;
-					if (!prep.error_message.empty()) {
-						tool_result = prep.error_message;
+					self->update_last_activity_time();
+					tool_result = registry.execute_prepared_tool(call.function.name, call.function.arguments, prep, ctx);
+					self->update_last_activity_time();
+					if (!prep.error_message.empty() || tool_result.rfind("Execution Error:", 0) == 0) {
 						tool_failed = true;
-					} else {
-						try {
-							self->update_last_activity_time();
-							statistics_manager::get_instance().increment_stat(
-							    std::format("toolcall:{}", call.function.name));
-							tool_result = prep.tool->execute(ctx);
-							self->update_last_activity_time();
-						} catch (const std::exception &e) {
-							self->update_last_activity_time();
-							tool_result = "Execution Error: " + std::string(e.what());
-							tool_failed = true;
-						}
 					}
 
 					std::string result_preview = tool_result;

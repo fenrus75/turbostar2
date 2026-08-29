@@ -375,9 +375,8 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 	return res;
 }
 
-std::string tool_registry::execute_tool(const std::string &name, const std::string &args_json_string, tool_context &ctx) const
+std::string tool_registry::execute_prepared_tool(const std::string &name, const std::string &/*args_json_string*/, const tool_preparation_result &prep, tool_context &ctx) const
 {
-	auto prep = prepare_tool(name, args_json_string, ctx);
 	if (!prep.error_message.empty()) {
 		return prep.error_message;
 	}
@@ -402,6 +401,12 @@ std::string tool_registry::execute_tool(const std::string &name, const std::stri
 	}
 
 	return result;
+}
+
+std::string tool_registry::execute_tool(const std::string &name, const std::string &args_json_string, tool_context &ctx) const
+{
+	auto prep = prepare_tool(name, args_json_string, ctx);
+	return execute_prepared_tool(name, args_json_string, prep, ctx);
 }
 
 std::string tool_registry::execute_tool_unwrapped(const std::string &name, const std::string &args_json_string, tool_context &ctx) const

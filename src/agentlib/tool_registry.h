@@ -51,6 +51,9 @@ class tool_registry
 	// Performs parsing, Stage 1, and Stage 2 validation without executing
 	tool_preparation_result prepare_tool(const std::string &name, const std::string &args_json_string, tool_context &ctx) const;
 
+	// Executes a prepared tool instance with central document saving, statistics, exception handling, and tracing
+	std::string execute_prepared_tool(const std::string &name, const std::string &args_json_string, const tool_preparation_result &prep, tool_context &ctx) const;
+
 	// Executes the two-stage security and execution pipeline (Legacy / Convenience)
 	std::string execute_tool(const std::string &name, const std::string &args_json_string, tool_context &ctx) const;
 

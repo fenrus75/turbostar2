@@ -17,6 +17,12 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- we know how to compile a single file -- maybe compile the file after an agent edit rather than depending on the LSP
+
+- consider async compile of the whole project on edits to cut down time?
+	- both editor and agent env
+	- needs to be abortable and error/warning preserving for the "real" compile
+
 - we need to handle better the case where the server says we exceed token window by doing emergency compaction
 
 - if you are in the agent window, and go to the file menu, and hit <ESC>, the menu never goes away
@@ -230,7 +236,8 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - migrate role-based tool permission checks (in `confirm_code_review_item`, `resolve_code_review_item`, and `perform_code_review`) to silent tool families (prefixed with `:`) to decouple the tool registry from the C++ `agent_role` enum and allow dynamic plugin permissions.
 
 
-# done items (sorted by date, newest first)
+## 29-08-2026
+- Centralized Tool Execution Pipeline & Single Bottleneck (`src/agentlib/tool_registry.h/cpp`, `src/agentlib/ai_agent.cpp`, `docs/design-tools.md`): Refactored tool execution architecture to establish a single bottleneck (`tool_registry::execute_prepared_tool`): (1) **Separation of Preparation & Execution**: Extracted `execute_prepared_tool(name, args_json_string, prep, ctx)` from `tool_registry::execute_tool`, allowing interactive GUI agents (`ai_agent`) to call `prepare_tool`, attach UI interaction elements (spinners, status updates) to the turn, and then delegate execution back to `tool_registry`, (2) **Unified Single Bottleneck**: 100% of tool executions across interactive GUI agents, headless CLI tools (`agentcli`), and unit tests now route through `execute_prepared_tool`, handling unsaved document synchronization (`save_all_documents()`), persistent usage statistics (`statistics_manager`), safe exception catching (`Execution Error:`), and file change notifications (`check_files_changed()`) in one central location.
 
 ## 16-08-2026
 - Cell Word-Wrapping in Markdown Tables (`src/markdown_utils.h/cpp`, `tests/unit/test_markdown_utils.cpp`): Implemented word-wrapping for Markdown tables in `markdown_utils`: (1) **`word_wrap` Option**: Added `bool word_wrap = true` to `align_options` and `markdown_utils::align_all_tables`, enabling cell text wrapping to allocated column widths instead of truncating with `...`, (2) **Clean Multi-line Rows**: Multi-line rows render wrapped cell sub-lines sequentially without adding horizontal border divider lines, preserving screen space and following KISS principles, (3) **UTF-8 & Formatting Awareness**: Implemented `wrap_cell` helper supporting UTF-8 visual display width and inline markdown formatting markers (`**` and `` ` ``), splitting words longer than column max width at column boundary, (4) **Unit Testing**: Added `test_align_table_word_wrap` in `test_markdown_utils.cpp` testing single-line, multi-line, and mid-word splits for oversized words. Verified 100% test pass across all 266 tests.

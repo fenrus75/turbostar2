@@ -33,8 +33,21 @@ Before a tool is even instantiated, a companion validator class parses and valid
 - If validation fails, the tool is never created, and the error reason is returned directly to the LLM so it can correct its mistake.
 
 ### Stage 2: Runtime Validation (`llm_tool`)
-Once instantiated by the validator (via `create_tool()`), the actual tool object performs a secondary, context-aware validation.
-- Implements `validate_runtime()`.
+Once Stage 1 succeeds, the tool is instantiated and its runtime permissions are validated (`validate_runtime()`).
+
+## Centralized Tool Execution Pipeline
+
+To guarantee consistent behavior across interactive GUI agents (`ai_agent`), headless CLI environments (`agentcli`), and unit tests, all tool executions route through a single bottleneck in `tool_registry`:
+
+* **`tool_registry::prepare_tool(name, args_json_string, ctx)`**: Performs parsing, Stage 1 validation, and Stage 2 sandbox permission checks without running the tool. This allows interactive agents (`ai_agent`) to register UI interaction elements (spinners, status updates) before execution begins.
+* **`tool_registry::execute_prepared_tool(name, args_json_string, prep, ctx)`**: The single execution bottleneck. Handles:
+  1. Unsaved editor document synchronization (`save_all_documents()`).
+  2. Persistent tool usage stat tracking (`statistics_manager`).
+  3. Safe execution & exception catching (`Execution Error:`).
+  4. Post-tool file modification detection (`check_files_changed()`).
+  5. Centralized tool call tracing (`tool_tracer`).
+* **`tool_registry::execute_tool(name, args_json_string, ctx)`**: Convenience wrapper that combines `prepare_tool` and `execute_prepared_tool` for one-shot execution callers.
+
 - Validates the operation against the live `tool_context` (e.g., checking if the current document is in a state that allows editing).
 - If validation passes, `execute()` is called.
 
