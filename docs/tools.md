@@ -26,6 +26,9 @@ All tools in Turbostar follow a **"Standardized Unless..."** design policy for p
 ### Tool Purity & Read-Only Execution
 Tools in Turbostar implement `is_pure()` to enforce read-only agent security rules. A tool call is **PURE** (`is_pure() == true`) if it does not modify, delete, or overwrite persistent files in the Project Codebase or Workspace Source Tree. Read-only agents are permitted to execute pure tools, agent workflow tools (`activate_tool_family`, `invoke_subagent`, `report_final_result`), code review database tools (`create_code_review_item`), in-memory VFS memory (`images://`), and temporary scratchpads (`tmp://`). See [design-pure.md](file:///home/arjan/git/turbostar2/docs/design-pure.md) for full specification.
 
+### Tool Execution Tracing (`--tooltrace`)
+Turbostar supports tracing all LLM tool calls and outputs to sequential log files by specifying the `--tooltrace` CLI flag on startup. Each tool invocation creates a file named `toolcall.0`, `toolcall.1`, `toolcall.2`, etc., in the current working directory. Log files contain the tool call JSON object, followed by a `---` separator line, followed by the exact tool output payload returned to the LLM.
+
 ---
 
 ## 1. File System Reading & Inspection

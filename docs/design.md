@@ -77,6 +77,7 @@ After making a change, create a git commit for the change. Before committing, en
   - Prior to installation, it queries the active `SIGSEGV` handler; if any custom handler is already registered (such as by `libturbocatch.so`), it automatically steps back to respect it.
   - On crash, the fallback handler writes raw ANSI escape sequences directly to `stderr` to reset raw mode, show the cursor, and restore terminal colors to prevent garbled console states.
 - **Project Directory Override**: The active project directory (normally resolved dynamically from the git tree root) can be overridden by setting the `TURBOSTAR_PROJECT_ROOT` environment variable. This allows C++ and E2E tests to run in isolated staging areas to prevent resource conflicts and allow parallel execution.
+- **Tool Tracing (`--tooltrace`)**: Developers can pass `--tooltrace` on startup to trace all LLM tool executions to sequential log files (`toolcall.0`, `toolcall.1`, ...) in the current working directory. Each log file records the tool call JSON object, followed by a `---` separator line, followed by the exact tool output returned to the model.
 
 
 

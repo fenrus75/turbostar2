@@ -10,6 +10,7 @@
 #include "a2a/a2a_server.h"
 #include "a2a/a2a_server_manager.h"
 #include "agentlib/tool_registry.h"
+#include "agentlib/tool_tracer.h"
 #include "agentlib/command_registry.h"
 #include "ansi.h"
 #include "config_manager.h"
@@ -66,8 +67,11 @@ int main(int argc, char **argv)
 	std::string a2a_token;
 	bool a2a_enforce_token = false;
 
+	bool tooltrace = false;
+
 	app.add_option("--log", log_file, "Path to log file");
 	app.add_flag("--debug", debug_mode, "Enable debug mode");
+	app.add_flag("--tooltrace", tooltrace, "Trace all tool calls to sequential log files (toolcall.0, toolcall.1...) in the current directory");
 	app.add_flag("--no-lsp", no_lsp, "Disable LSP functionality");
 	app.add_flag("--no-welcome-screen", no_welcome, "Disable the welcome screen on startup");
 	app.add_flag("--fresh-agent", fresh_agent, "Do not load previous agent state/history on startup");
@@ -118,6 +122,10 @@ int main(int argc, char **argv)
 			std::cerr << "[Turbostar] Command-line parsing failed with exit code " << res_code << std::endl;
 		}
 		return res_code;
+	}
+
+	if (tooltrace) {
+		agentlib::tool_tracer::get_instance().set_enabled(true);
 	}
 
 	if (!a2a_token.empty()) {

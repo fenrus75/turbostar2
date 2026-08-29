@@ -440,6 +440,12 @@ test_tool_examples = executable('test_tool_examples',
   include_directories: inc)
 test('unit_test_tool_examples', test_tool_examples, suite: 'agent')
 
+test_tool_tracer = executable('test_tool_tracer',
+  ['tests/unit/test_tool_tracer.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
+  include_directories: inc)
+test('unit_test_tool_tracer', test_tool_tracer, suite: 'agent')
+
 
 
 

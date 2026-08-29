@@ -1,4 +1,5 @@
 #include "tool_registry.h"
+#include "agentlib/tool_tracer.h"
 #include <iostream>
 #include "ai_agent.h"
 #include "statistics_manager.h"
@@ -375,10 +376,12 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 	return res;
 }
 
-std::string tool_registry::execute_prepared_tool(const std::string &name, const std::string &/*args_json_string*/, const tool_preparation_result &prep, tool_context &ctx) const
+std::string tool_registry::execute_prepared_tool(const std::string &name, const std::string &args_json_string, const tool_preparation_result &prep, tool_context &ctx) const
 {
 	if (!prep.error_message.empty()) {
-		return prep.error_message;
+		std::string err = prep.error_message;
+		tool_tracer::get_instance().trace_tool_call(name, args_json_string, err);
+		return err;
 	}
 
 	// Increment persistent statistics for the tool execution count
@@ -399,6 +402,8 @@ std::string tool_registry::execute_prepared_tool(const std::string &name, const 
 	if (ctx.doc_provider) {
 		ctx.doc_provider->check_files_changed();
 	}
+
+	tool_tracer::get_instance().trace_tool_call(name, args_json_string, result);
 
 	return result;
 }
