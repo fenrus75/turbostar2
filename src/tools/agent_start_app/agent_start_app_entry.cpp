@@ -1,5 +1,7 @@
 #include "agent_start_app.h"
 #include "fs_utils.h"
+#include "perf_manager.h"
+#include <format>
 #include <nlohmann/json.hpp>
 
 namespace tools
@@ -42,6 +44,18 @@ std::string agent_start_app_tool::execute(agentlib::tool_context &ctx)
 		set_success(ctx, "Started run_id " + std::to_string(res.app_run_id) + " (status: " + wait_res.status + ")");
 	} else {
 		set_success(ctx, "Started run_id " + std::to_string(res.app_run_id));
+	}
+
+	std::string run_id_str = std::to_string(res.app_run_id);
+	auto report = turbostar::perf_manager::get_instance().get_profile_for_run(run_id_str);
+	if (report.total_samples == 0) {
+		std::string perf_dir = fs_utils::get_project_perf_dir();
+		report = turbostar::perf_manager::get_instance().parse_and_resolve(perf_dir, 0, run_id_str, true);
+	}
+	if (report.total_samples > 0) {
+		output["profile_notification"] = std::format(
+		    "Performance profile data is available ({} samples collected). Call agent_get_profile_summary(run_id=\"{}\") to view top bottleneck functions.",
+		    report.total_samples, run_id_str);
 	}
 
 	return fs_utils::wrap_prompt_untrusted_data_tag("agent_start_app_result", output.dump(2));
