@@ -184,6 +184,7 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 		const auto &res = resolved_addrs[i];
 
 		std::string norm_file_path = res.file_path;
+		int line_num = res.line_number;
 		if (!norm_file_path.empty() && norm_file_path != "??") {
 			size_t colon_idx = norm_file_path.rfind(':');
 			if (colon_idx != std::string::npos && colon_idx + 1 < norm_file_path.size()) {
@@ -195,6 +196,12 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 					}
 				}
 				if (all_digits) {
+					if (line_num <= 0) {
+						try {
+							line_num = std::stoi(norm_file_path.substr(colon_idx + 1));
+						} catch (...) {
+						}
+					}
 					norm_file_path = norm_file_path.substr(0, colon_idx);
 				}
 			}
@@ -207,17 +214,17 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 			f.count += count;
 			if (!norm_file_path.empty() && norm_file_path != "??") {
 				f.file_counts[norm_file_path] += count;
-				if (res.line_number > 0) {
-					f.file_line_counts[norm_file_path][res.line_number] += count;
+				if (line_num > 0) {
+					f.file_line_counts[norm_file_path][line_num] += count;
 				}
 			}
 		}
 
-		if (!norm_file_path.empty() && norm_file_path != "??" && res.line_number > 0) {
-			std::string line_key = std::format("{}:{}", norm_file_path, res.line_number);
+		if (!norm_file_path.empty() && norm_file_path != "??" && line_num > 0) {
+			std::string line_key = std::format("{}:{}", norm_file_path, line_num);
 			auto &l = line_map[line_key];
 			l.file_path = norm_file_path;
-			l.line_number = res.line_number;
+			l.line_number = line_num;
 			if (res.column_number > 0) {
 				l.column_number = res.column_number;
 			}
