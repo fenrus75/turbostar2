@@ -121,7 +121,12 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 					output = "\n...[output truncated due to length]...\n" + output;
 				}
 
-				std::string formatted_injection = std::format("```bash\n$ {}\n{}\n```", cmd, output);
+				std::string summary_header;
+				if (lines_removed > 0) {
+					summary_header = std::format("NOTE: Build output summarized to save context tokens (filtered {} low-information log lines). Full error messages and warnings are preserved.\n\n", lines_removed);
+				}
+
+				std::string formatted_injection = std::format("{}```bash\n$ {}\n{}\n```", summary_header, cmd, output);
 				agent->replace_tool_result(captured_tool_call_id, formatted_injection);
 				std::string status = (exit_code == 0) ? "successfully" : "with errors";
 				std::string system_msg = std::format("The background task 'fs_compile_project' has completed {}. I updated "
@@ -181,7 +186,12 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 		output = "\n...[output truncated due to length]...\n" + output;
 	}
 
-	return std::format("```bash\n$ {}\n{}\n```", cmd, output);
+	std::string summary_header;
+	if (lines_removed > 0) {
+		summary_header = std::format("NOTE: Build output summarized to save context tokens (filtered {} low-information log lines). Full error messages and warnings are preserved.\n\n", lines_removed);
+	}
+
+	return std::format("{}```bash\n$ {}\n{}\n```", summary_header, cmd, output);
 }
 
 } // namespace tools
