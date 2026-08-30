@@ -4,6 +4,7 @@
 #include "../../lsp_manager.h"
 #include "../../perf_manager.h"
 #include "../../project_manager.h"
+#include "codemap_utils.h"
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
@@ -96,107 +97,10 @@ static bool find_matching_symbol(const lsp_manager::symbol_node &node, const std
 	return false;
 }
 
-static symbol_bounds query_lsp_symbol_bounds(const std::string &abs_file_path, const std::string &target_func,
-					      int target_line)
-{
-	symbol_bounds bounds{0, 0};
-	if (abs_file_path.empty()) {
-		return bounds;
-	}
 
-	auto symbols = project_manager::get_instance().lsp_query_document_symbols(abs_file_path);
-	if (symbols.empty()) {
-		return bounds;
-	}
-
-	lsp_manager::symbol_node match;
-	for (const auto &root : symbols) {
-		if (find_matching_symbol(root, target_func, target_line, match)) {
-			bounds.start_line = match.range.start_y + 1;
-			bounds.end_line = match.range.end_y + 1;
-			break;
-		}
-	}
-	return bounds;
-}
-
-static symbol_bounds fallback_text_symbol_bounds(const std::vector<std::string> &file_lines,
-						  const std::string &target_func, int target_line)
-{
-	symbol_bounds bounds{0, 0};
-	if (target_func.empty() || file_lines.empty()) {
-		return bounds;
-	}
-
-	std::string func_base = target_func;
-	size_t paren = func_base.find('(');
-	if (paren != std::string::npos) {
-		func_base = func_base.substr(0, paren);
-	}
-	while (!func_base.empty() && std::isspace(static_cast<unsigned char>(func_base.back()))) {
-		func_base.pop_back();
-	}
-	size_t colons = func_base.rfind("::");
-	if (colons != std::string::npos) {
-		func_base = func_base.substr(colons + 2);
-	}
-
-	if (func_base.empty()) {
-		return bounds;
-	}
-
-	std::string func_lower;
-	for (char c : func_base) func_lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-
-	int best_start = 0;
-	for (int i = 0; i < static_cast<int>(file_lines.size()); ++i) {
-		std::string line_lower;
-		for (char c : file_lines[i]) line_lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-		if (line_lower.find(func_lower) != std::string::npos) {
-			if (line_lower.find('(') != std::string::npos || (i + 1 < static_cast<int>(file_lines.size()) && file_lines[i + 1].find('(') != std::string::npos)) {
-				best_start = i + 1;
-				if (target_line > 0 && std::abs((i + 1) - target_line) <= 15) {
-					break;
-				}
-			}
-		}
-	}
-
-	if (best_start <= 0) {
-		return bounds;
-	}
-
-	bounds.start_line = best_start;
-	int brace_depth = 0;
-	bool found_brace = false;
-
-	for (int i = best_start - 1; i < static_cast<int>(file_lines.size()); ++i) {
-		const auto &l = file_lines[i];
-		for (char c : l) {
-			if (c == '{') {
-				brace_depth++;
-				found_brace = true;
-			} else if (c == '}') {
-				brace_depth--;
-				if (found_brace && brace_depth <= 0) {
-					bounds.end_line = i + 1;
-					return bounds;
-				}
-			}
-		}
-	}
-
-	if (bounds.end_line <= 0) {
-		bounds.end_line = std::min(static_cast<int>(file_lines.size()), best_start + 30);
-	}
-	return bounds;
-}
 
 static symbol_bounds tighten_symbol_bounds(symbol_bounds bounds, const std::vector<std::string> &file_lines)
 {
-	if (bounds.start_line <= 0 || bounds.end_line <= 0 || file_lines.empty()) {
-		return bounds;
-	}
 
 	int start_idx = std::max(0, bounds.start_line - 1);
 	int end_idx = std::min(static_cast<int>(file_lines.size()) - 1, bounds.end_line - 1);
@@ -537,9 +441,22 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 		int total_lines = static_cast<int>(file_lines.size());
 
 		int representative_line = hot_line_numbers.empty() ? 0 : hot_line_numbers.front();
-		symbol_bounds bounds = query_lsp_symbol_bounds(resolved_path, args_.function_name, representative_line);
-		if (bounds.start_line <= 0 && !args_.function_name.empty()) {
-			bounds = fallback_text_symbol_bounds(file_lines, args_.function_name, representative_line);
+		auto doc_symbols = tools::get_document_codemap_symbols(resolved_path, ctx, 1);
+		symbol_bounds bounds{0, 0};
+
+		if (!args_.function_name.empty()) {
+			const auto *sym = tools::find_symbol_by_hint(doc_symbols, args_.function_name);
+			if (sym) {
+				bounds.start_line = sym->start_line;
+				bounds.end_line = sym->end_line;
+			}
+		}
+		if (bounds.start_line <= 0 && representative_line > 0) {
+			const auto *sym = tools::find_enclosing_symbol(doc_symbols, representative_line);
+			if (sym) {
+				bounds.start_line = sym->start_line;
+				bounds.end_line = sym->end_line;
+			}
 		}
 		bounds = tighten_symbol_bounds(bounds, file_lines);
 
