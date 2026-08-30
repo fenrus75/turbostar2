@@ -120,6 +120,78 @@ static symbol_bounds query_lsp_symbol_bounds(const std::string &abs_file_path, c
 	return bounds;
 }
 
+static symbol_bounds fallback_text_symbol_bounds(const std::vector<std::string> &file_lines,
+						  const std::string &target_func, int target_line)
+{
+	symbol_bounds bounds{0, 0};
+	if (target_func.empty() || file_lines.empty()) {
+		return bounds;
+	}
+
+	std::string func_base = target_func;
+	size_t paren = func_base.find('(');
+	if (paren != std::string::npos) {
+		func_base = func_base.substr(0, paren);
+	}
+	while (!func_base.empty() && std::isspace(static_cast<unsigned char>(func_base.back()))) {
+		func_base.pop_back();
+	}
+	size_t colons = func_base.rfind("::");
+	if (colons != std::string::npos) {
+		func_base = func_base.substr(colons + 2);
+	}
+
+	if (func_base.empty()) {
+		return bounds;
+	}
+
+	std::string func_lower;
+	for (char c : func_base) func_lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+
+	int best_start = 0;
+	for (int i = 0; i < static_cast<int>(file_lines.size()); ++i) {
+		std::string line_lower;
+		for (char c : file_lines[i]) line_lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+		if (line_lower.find(func_lower) != std::string::npos) {
+			if (line_lower.find('(') != std::string::npos || (i + 1 < static_cast<int>(file_lines.size()) && file_lines[i + 1].find('(') != std::string::npos)) {
+				best_start = i + 1;
+				if (target_line > 0 && std::abs((i + 1) - target_line) <= 15) {
+					break;
+				}
+			}
+		}
+	}
+
+	if (best_start <= 0) {
+		return bounds;
+	}
+
+	bounds.start_line = best_start;
+	int brace_depth = 0;
+	bool found_brace = false;
+
+	for (int i = best_start - 1; i < static_cast<int>(file_lines.size()); ++i) {
+		const auto &l = file_lines[i];
+		for (char c : l) {
+			if (c == '{') {
+				brace_depth++;
+				found_brace = true;
+			} else if (c == '}') {
+				brace_depth--;
+				if (found_brace && brace_depth <= 0) {
+					bounds.end_line = i + 1;
+					return bounds;
+				}
+			}
+		}
+	}
+
+	if (bounds.end_line <= 0) {
+		bounds.end_line = std::min(static_cast<int>(file_lines.size()), best_start + 30);
+	}
+	return bounds;
+}
+
 static symbol_bounds tighten_symbol_bounds(symbol_bounds bounds, const std::vector<std::string> &file_lines)
 {
 	if (bounds.start_line <= 0 || bounds.end_line <= 0 || file_lines.empty()) {
@@ -412,12 +484,15 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 						    match_symbol_string(pair.first, f.file_path) ||
 						    (!res_key.empty() && res_key == res_func)) {
 							for (const auto &ls : pair.second) {
-								if (std::find_if(matched_samples.begin(), matched_samples.end(),
-										 [&](const turbostar::perf_line_sample &existing) {
-											 return existing.file_path == ls.file_path &&
-												existing.line_number == ls.line_number;
-										 }) == matched_samples.end()) {
-									matched_samples.push_back(ls);
+								if (match_symbol_string(ls.function_name, args_.function_name) ||
+								    match_symbol_string(ls.function_name, f.function_name)) {
+									if (std::find_if(matched_samples.begin(), matched_samples.end(),
+											 [&](const turbostar::perf_line_sample &existing) {
+												 return existing.file_path == ls.file_path &&
+													existing.line_number == ls.line_number;
+											 }) == matched_samples.end()) {
+										matched_samples.push_back(ls);
+									}
 								}
 							}
 						}
@@ -463,6 +538,9 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 
 		int representative_line = hot_line_numbers.empty() ? 0 : hot_line_numbers.front();
 		symbol_bounds bounds = query_lsp_symbol_bounds(resolved_path, args_.function_name, representative_line);
+		if (bounds.start_line <= 0 && !args_.function_name.empty()) {
+			bounds = fallback_text_symbol_bounds(file_lines, args_.function_name, representative_line);
+		}
 		bounds = tighten_symbol_bounds(bounds, file_lines);
 
 		std::vector<line_range> ranges = merge_line_ranges(hot_line_numbers, total_lines, bounds);

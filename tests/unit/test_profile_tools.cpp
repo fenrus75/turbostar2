@@ -194,6 +194,33 @@ int main()
 		std::cout << "agent_get_profile_details (path cross-resolution) verified successfully!" << std::endl;
 	}
 
+	// 7. Test agent_get_profile_details multi-function file scope filtering
+	{
+		perf_profile_report run_d;
+		run_d.total_samples = 5000;
+		run_d.top_functions.push_back(perf_function_sample{.function_name = "is_prime_vA(int)", .file_path = "prime.cpp", .line_number = 6, .count = 3200, .percentage = 64.0});
+		run_d.top_functions.push_back(perf_function_sample{.function_name = "is_prime_vB(int)", .file_path = "prime.cpp", .line_number = 16, .count = 1800, .percentage = 36.0});
+
+		run_d.line_samples_by_file["prime.cpp"].push_back(
+			perf_line_sample{.file_path = "prime.cpp", .line_number = 6, .function_name = "is_prime_vA(int)", .count = 3200, .percentage = 64.0});
+		run_d.line_samples_by_file["prime.cpp"].push_back(
+			perf_line_sample{.file_path = "prime.cpp", .line_number = 16, .function_name = "is_prime_vB(int)", .count = 1800, .percentage = 36.0});
+
+		perf_manager::get_instance().set_active_profile(run_d, "run_4");
+
+		auto prep = registry.prepare_tool("agent_get_profile_details", "{\"run_id\": \"run_4\", \"function_name\": \"is_prime_vA\"}", ctx);
+		assert(prep.tool != nullptr);
+		auto res = parse_tool_json(prep.tool->execute(ctx));
+		assert(res["total_samples"] == 5000);
+		assert(res["target_samples"] == 3200);
+		for (const auto &ls : res["line_samples"]) {
+			if (ls["line_number"] == 16) {
+				assert(false && "line 16 (is_prime_vB) must not be returned when querying is_prime_vA!");
+			}
+		}
+		std::cout << "agent_get_profile_details (multi-function file scope filtering) verified successfully!" << std::endl;
+	}
+
 	perf_manager::get_instance().clear_active_profile();
 	std::cout << "Profile tools tests passed successfully!" << std::endl;
 	return 0;
