@@ -194,23 +194,44 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 	// Install any requested dependencies into the active interpreter's environment before
 	// running the script.
 	bool install_deps = !args_.dependencies.empty();
-	if (install_deps && args_.venv_dir) {
+	if (install_deps) {
 		std::string install_cmd;
-		if (access("/usr/bin/uv", X_OK) == 0) {
-			install_cmd = "uv pip install --python " + fs_utils::escape_shell_arg(python_interp) + " -- ";
-			for (const auto &dep : args_.dependencies) {
-				install_cmd += fs_utils::escape_shell_arg(dep) + " ";
+		std::string project_dir = ctx.fs_security.get_working_directory().string();
+		std::string turbostar_dir = (ctx.fs_security.get_working_directory() / ".turbostar").string();
+		std::filesystem::create_directories(ctx.fs_security.get_working_directory() / ".turbostar");
+
+		if (args_.venv_dir) {
+			if (access("/usr/bin/uv", X_OK) == 0) {
+				install_cmd = "uv pip install --python " + fs_utils::escape_shell_arg(python_interp) + " -- ";
+				for (const auto &dep : args_.dependencies) {
+					install_cmd += fs_utils::escape_shell_arg(dep) + " ";
+				}
+			} else {
+				install_cmd = fs_utils::escape_shell_arg(python_interp) + " -m pip install -- ";
+				for (const auto &dep : args_.dependencies) {
+					install_cmd += fs_utils::escape_shell_arg(dep) + " ";
+				}
 			}
+		} else if (access("/usr/bin/uv", X_OK) == 0) {
+			install_cmd = "UV_HTTP_TIMEOUT=300 UV_NO_PROJECT=1 UV_CACHE_DIR=.turbostar/uv_cache uv run ";
+			for (const auto &dep : args_.dependencies) {
+				install_cmd += "--with " + fs_utils::escape_shell_arg(dep) + " ";
+			}
+			install_cmd += "-- python3 -c \"import sys\"";
 		} else {
-			install_cmd = fs_utils::escape_shell_arg(python_interp) + " -m pip install -- ";
-			for (const auto &dep : args_.dependencies) {
-				install_cmd += fs_utils::escape_shell_arg(dep) + " ";
-			}
+			return "Execution Error: Dependencies were requested but 'uv' is not installed on the host system.";
 		}
+
 		sync_command_runner dep_runner;
 		dep_runner.apply_build_profile();
-		dep_runner.set_project_dir(ctx.fs_security.get_working_directory().string());
-		dep_runner.add_extra_rw_path(*args_.venv_dir);
+		dep_runner.set_project_dir(project_dir);
+		if (args_.venv_dir) {
+			dep_runner.add_extra_rw_path(*args_.venv_dir);
+		}
+		dep_runner.add_extra_rw_path(turbostar_dir);
+		if (const char *home = std::getenv("HOME")) {
+			dep_runner.add_extra_rw_path(std::string(home) + "/.cache/uv");
+		}
 		dep_runner.set_timeout(args_.timeout);
 		std::string dep_output = dep_runner.execute_and_get_output(install_cmd);
 		if (dep_runner.get_exit_code() != 0) {
