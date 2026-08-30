@@ -296,6 +296,21 @@ std::string command_runner::build_command(const std::string &raw_command) const
 
 	if (!network_access_) {
 		cmd += "-p PrivateNetwork=true ";
+	} else {
+		// Ensure DNS resolution configurations and systemd-resolved/NetworkManager run paths are accessible
+		std::error_code ec;
+		if (fs::exists("/run/systemd/resolve", ec)) {
+			cmd += "-p BindReadOnlyPaths=/run/systemd/resolve ";
+		}
+		if (fs::exists("/run/NetworkManager", ec)) {
+			cmd += "-p BindReadOnlyPaths=/run/NetworkManager ";
+		}
+		if (fs::is_symlink("/etc/resolv.conf", ec)) {
+			std::filesystem::path real_resolv = fs::canonical("/etc/resolv.conf", ec);
+			if (!real_resolv.empty() && fs::exists(real_resolv, ec)) {
+				cmd += "-p BindReadOnlyPaths=" + fs_utils::escape_shell_arg(real_resolv.string()) + " ";
+			}
+		}
 	}
 
 	if (allow_display_) {
