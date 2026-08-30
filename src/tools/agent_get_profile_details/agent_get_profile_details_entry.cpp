@@ -150,8 +150,7 @@ static std::vector<line_range> merge_line_ranges(const std::vector<int> &hot_lin
 	}
 
 	if (bounds.start_line > 0 && bounds.end_line >= bounds.start_line) {
-		ranges.push_back({bounds.start_line, bounds.start_line});
-		ranges.push_back({bounds.end_line, bounds.end_line});
+		ranges.push_back({bounds.start_line, bounds.end_line});
 	}
 
 	std::sort(ranges.begin(), ranges.end(), [](const line_range &a, const line_range &b) {
@@ -413,10 +412,12 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 		target_total_samples += s.count;
 	}
 
-	// Group samples by file_path
+	// Group samples by canonical resolved file_path
 	std::unordered_map<std::string, std::map<int, turbostar::perf_line_sample>> samples_by_file;
 	for (const auto &s : matched_samples) {
-		samples_by_file[s.file_path][s.line_number] = s;
+		std::string resolved = resolve_file_path(s.file_path, ctx);
+		std::string key = resolved.empty() ? s.file_path : resolved;
+		samples_by_file[key][s.line_number] = s;
 	}
 
 	nlohmann::json line_samples = nlohmann::json::array();
@@ -437,11 +438,11 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 		std::string resolved_path = resolve_file_path(file_path, ctx);
 		std::string rel_file_path = make_relative_to_project(resolved_path.empty() ? file_path : resolved_path, ctx);
 
-		auto file_lines = read_file_lines(resolved_path);
+		auto file_lines = read_file_lines(resolved_path.empty() ? file_path : resolved_path);
 		int total_lines = static_cast<int>(file_lines.size());
 
 		int representative_line = hot_line_numbers.empty() ? 0 : hot_line_numbers.front();
-		auto doc_symbols = tools::get_document_codemap_symbols(resolved_path, ctx, 1);
+		auto doc_symbols = tools::get_document_codemap_symbols(resolved_path.empty() ? file_path : resolved_path, ctx, 1);
 		symbol_bounds bounds{0, 0};
 
 		if (!args_.function_name.empty()) {
@@ -464,6 +465,17 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 
 		for (const auto &r : ranges) {
 			for (int line_num = r.start_line; line_num <= r.end_line; ++line_num) {
+				bool exists = false;
+				for (const auto &ex : line_samples) {
+					if (ex["line_number"] == line_num) {
+						exists = true;
+						break;
+					}
+				}
+				if (exists) {
+					continue;
+				}
+
 				nlohmann::json entry;
 				entry["line_number"] = line_num;
 
