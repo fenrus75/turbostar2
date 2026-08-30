@@ -1,12 +1,22 @@
 #include "run_cpp.h"
+#include "config_manager.h"
 #include "agentlib/file_security_manager.h"
 #include "agentlib/tool_registry.h"
 #include <set>
 
-
-
 namespace tools
 {
+
+std::string run_cpp_validator::get_description() const
+{
+	std::string desc = "Compiles and executes C/C++ source code snippets or standalone probe files in a sandboxed environment. Use this to test C/C++ logic, verify API behavior, or run isolated probes without modifying codebase files. Supports modern C++ and C standards, custom VFS paths (tmp://, include://), preprocessor defines, include directories, extra translation units, and linker flags.";
+	if (config_manager::get_instance().is_allow_code_execution_network()) {
+		desc += " Code execution has network access enabled.";
+	} else {
+		desc += " Code execution is strictly offline without network access.";
+	}
+	return desc;
+}
 
 nlohmann::json run_cpp_validator::get_parameters_schema() const
 {

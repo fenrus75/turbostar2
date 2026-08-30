@@ -303,7 +303,7 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
 *   `system://project/info.md` (or `system://project/overview.md`): Reads project workspace overview details, including root path, build system type, and instruction files (`GEMINI.md`, `AGENTS.md`).
 
 ### `run_python`
-*   **Description:** Executes Python code in a sandboxed environment. You MUST use print() statements to see output, as the script runs headlessly. Provide either `code` (direct execution) OR `path` (to run an existing script file). Optionally provide an array of PyPI `dependencies` to be temporarily installed via `uv`.
+*   **Description:** Executes Python code in a sandboxed environment. You MUST use print() statements to see output, as the script runs headlessly. Provide either `code` (direct execution) OR `path` (to run an existing script file). Optionally provide an array of PyPI `dependencies` to be temporarily installed via `uv`. Dynamically indicates whether script execution is strictly offline or has network access enabled.
 *   **Arguments:**
     *   `code` *(string, optional)*: The raw Python code string to execute.
     *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://script.py'). Path to a Python script to execute.
@@ -311,7 +311,7 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
     *   `venv` *(string, optional)*: Path to a Python virtual environment directory (e.g. '.venv'). Its interpreter (`<venv>/bin/python`) is used to run the script, and any `dependencies` are installed into it. Resolved relative to the project root.
 
 ### `run_cpp`
-*   **Description:** Compiles and executes C/C++ source code snippets or standalone probe files in a sandboxed environment. Use this to test C/C++ logic, verify API behavior, or run isolated probes without modifying codebase files. Supports modern C++ and C standards, custom VFS paths (tmp://, include://), preprocessor defines, include directories, extra translation units, and linker flags.
+*   **Description:** Compiles and executes C/C++ source code snippets or standalone probe files in a sandboxed environment. Use this to test C/C++ logic, verify API behavior, or run isolated probes without modifying codebase files. Supports modern C++ and C standards, custom VFS paths (tmp://, include://), preprocessor defines, include directories, extra translation units, and linker flags. Dynamically indicates whether code execution is strictly offline or has network access enabled.
 *   **Arguments:**
     *   `code` *(string, optional)*: Inline C/C++ source code string to compile and run. Omitting `main()` relies on automatic entry point wrapping, which is for trivial cases only; for non-trivial code (headers, functions, structs), provide complete source including `main()`. Either `code` or `path` must be provided.
     *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g. `tmp://probe.c`, `src/main.cpp`) to a source file to compile and execute. Resolves disk paths and VFS URIs (`tmp://`, `include://`, `skills://`).
@@ -344,7 +344,7 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
     *   `output_path` *(string, optional)*: Optional relative file path under the project workspace or VFS URI (e.g. `tmp://out.md`) to save the converted output directly to disk.
 
 ### `run_shell_command`
-*   **Description:** Runs an arbitrary shell command safely within the sandbox. Requires explicit user permission approval and interrupts the agent flow. Do NOT use run_shell_command to read files (use fs_read_lines), search code (use fs_grep_files), list tests (read system://project/testlist.md via fs_read_lines), run unit tests (use fs_run_tests), or check git status/diff/files (use git_status, git_list_files, git_diff_unstaged, git_log).
+*   **Description:** Runs an arbitrary shell command safely within the sandbox. Requires explicit user permission approval and interrupts the agent flow. Do NOT use run_shell_command to read files (use fs_read_lines), search code (use fs_grep_files), list tests (read system://project/testlist.md via fs_read_lines), run unit tests (use fs_run_tests), or check git status/diff/files (use git_status, git_list_files, git_diff_unstaged, git_log). Dynamically indicates whether command execution is strictly offline or has network access enabled.
 *   **Arguments:**
     *   `command` *(string, required)*: The exact shell command to execute.
     *   `timeout` *(integer, optional)*: Optional timeout in seconds. Default is 300.

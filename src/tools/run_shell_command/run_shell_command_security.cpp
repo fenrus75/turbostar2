@@ -1,10 +1,22 @@
 #include "../../agentlib/ai_agent.h"
 #include "../../agentlib/tool_registry.h"
+#include "config_manager.h"
 #include "run_shell_command.h"
 #include "shell_command_resteer.h"
 
 namespace tools
 {
+
+std::string run_shell_command_validator::get_description() const
+{
+	std::string desc = "Runs an arbitrary shell command safely within the sandbox. Requires explicit user permission approval and interrupts the agent flow. Do NOT use run_shell_command to read files (use fs_read_lines), search code (use fs_grep_files), list tests (read system://project/testlist.md via fs_read_lines), run unit tests (use fs_run_tests), or check git status/diff/files (use git_status, git_list_files, git_diff_unstaged, git_log).";
+	if (config_manager::get_instance().is_allow_code_execution_network()) {
+		desc += " Command execution has network access enabled.";
+	} else {
+		desc += " Command execution is strictly offline without network access.";
+	}
+	return desc;
+}
 
 bool run_shell_command_validator::validate_args_impl(const nlohmann::json& args, const agentlib::tool_context& ctx, std::string& out_error) const
 {

@@ -2,6 +2,7 @@
 #include <nlohmann/json.hpp>
 #include "../../agentlib/tool_registry.h"
 #include "../../agentlib/tool_validator.h"
+#include "config_manager.h"
 #include "run_python.h"
 
 namespace tools
@@ -46,6 +47,11 @@ class run_python_validator : public agentlib::tool_validator
 		std::string base_desc =
 		    "Executes Python code in a sandboxed environment. You MUST use print() statements to see output, as the script runs headlessly. Provide either "
 		    "'code' (direct execution) OR 'path' (to run an existing script file).";
+		if (config_manager::get_instance().is_allow_code_execution_network()) {
+			base_desc += " Script execution has network access enabled.";
+		} else {
+			base_desc += " Script execution is strictly offline without network access.";
+		}
 		if (has_uv()) {
 			return base_desc + " Optionally provide an array of PyPI 'dependencies' to be temporarily installed via 'uv'.";
 		}
