@@ -256,6 +256,83 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 	}
 }
 
+static std::string extract_summary(const fs::path &entry_path, const std::string &sig_str)
+{
+	fs::path assert_path = entry_path / "assertion.txt";
+	if (fs::exists(assert_path)) {
+		std::ifstream assert_in(assert_path);
+		if (assert_in) {
+			std::string line;
+			std::string expr, file, line_num, func;
+			while (std::getline(assert_in, line)) {
+				if (line.starts_with("Assertion: ")) {
+					expr = line.substr(11);
+				} else if (line.starts_with("File: ")) {
+					file = line.substr(6);
+				} else if (line.starts_with("Line: ")) {
+					line_num = line.substr(6);
+				} else if (line.starts_with("Function: ")) {
+					func = line.substr(10);
+				}
+			}
+			if (!expr.empty() || !file.empty()) {
+				std::string loc = file;
+				if (!line_num.empty()) {
+					loc += ":" + line_num;
+				}
+				if (!func.empty()) {
+					return std::format("assertion fail at {} `{}` in {}()", loc, expr, func);
+				} else {
+					return std::format("assertion fail at {} `{}`", loc, expr);
+				}
+			}
+		}
+	}
+
+	fs::path report_path = entry_path / "report.md";
+	if (fs::exists(report_path)) {
+		std::ifstream report_in(report_path);
+		if (report_in) {
+			std::string line;
+			bool in_table = false;
+			while (std::getline(report_in, line)) {
+				if (line.starts_with("| Frame |")) {
+					in_table = true;
+					continue;
+				}
+				if (in_table && line.starts_with("| 0 |")) {
+					std::vector<std::string> parts;
+					size_t start = 0, end;
+					while ((end = line.find('|', start)) != std::string::npos) {
+						parts.push_back(line.substr(start, end - start));
+						start = end + 1;
+					}
+					if (parts.size() >= 5) {
+						std::string fn = parts[3];
+						std::string loc = parts[4];
+						auto trim = [](std::string &s) {
+							while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front()))) s.erase(s.begin());
+							while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back()))) s.pop_back();
+						};
+						trim(fn);
+						trim(loc);
+						if (!loc.empty() && loc != "?" && !loc.starts_with("??") && loc.find(':') != std::string::npos) {
+							if (!fn.empty() && fn != "?" && fn != "??") {
+								return std::format("{} at {} in {}()", sig_str, loc, fn);
+							} else {
+								return std::format("{} at {}", sig_str, loc);
+							}
+						}
+					}
+					break;
+				}
+			}
+		}
+	}
+
+	return "";
+}
+
 std::string crashdump_manager::refresh(std::string_view /*project_hash*/)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
@@ -306,6 +383,7 @@ std::string crashdump_manager::refresh(std::string_view /*project_hash*/)
 		}
 		info.signal = sig_str;
 		info.crash_cookie = cookie_str;
+		info.summary = extract_summary(entry.path(), sig_str);
 
 		// Extract executable name from maps
 		std::string exe_name = "App";
@@ -441,22 +519,36 @@ bool crashdump_manager::preserve_binary(std::string_view crash_id, const std::st
 }
 
 std::string crashdump_manager::format_crash_notification(std::span<const crashdump_info> dumps)
-
 {
 	if (dumps.empty())
 		return "";
 
 	if (dumps.size() == 1) {
+		const auto &d = dumps[0];
+		if (!d.summary.empty()) {
+			return std::format(
+			    "\n\nCRASH DETECTED: Application crashed (Crash ID: {}).\nSummary: {}\nPlease use 'crashdump_get_info' with crash_id '{}' to investigate stack trace and details.",
+			    d.crash_id, d.summary, d.crash_id);
+		}
 		return std::format(
 		    "\n\nCRASH DETECTED: Application crashed (Crash ID: {}). Please use 'crashdump_get_info' with crash_id '{}' to investigate stack trace and details.",
 		    dumps[0].crash_id, dumps[0].crash_id);
 	}
 
 	std::string ids;
+	std::string summaries;
 	for (size_t i = 0; i < dumps.size(); ++i) {
 		if (i > 0)
 			ids += ", ";
 		ids += dumps[i].crash_id;
+		if (!dumps[i].summary.empty()) {
+			summaries += std::format("\n- Crash {}: {}", dumps[i].crash_id, dumps[i].summary);
+		}
+	}
+	if (!summaries.empty()) {
+		return std::format(
+		    "\n\nCRASH DETECTED: {} crash(es) occurred during execution (Crash IDs: {}).{}\nPlease use 'crashdump_list' and 'crashdump_get_info' to investigate.",
+		    dumps.size(), ids, summaries);
 	}
 	return std::format(
 	    "\n\nCRASH DETECTED: {} crash(es) occurred during execution (Crash IDs: {}). Please use 'crashdump_list' and 'crashdump_get_info' to investigate.",

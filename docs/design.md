@@ -78,6 +78,7 @@ After making a change, create a git commit for the change. Before committing, en
   - On crash, the fallback handler writes raw ANSI escape sequences directly to `stderr` to reset raw mode, show the cursor, and restore terminal colors to prevent garbled console states.
 - **Project Directory Override**: The active project directory (normally resolved dynamically from the git tree root) can be overridden by setting the `TURBOSTAR_PROJECT_ROOT` environment variable. This allows C++ and E2E tests to run in isolated staging areas to prevent resource conflicts and allow parallel execution.
 - **Tool Tracing (`--tooltrace`)**: Developers can pass `--tooltrace` on startup to trace all LLM tool executions to sequential log files (`toolcall.0`, `toolcall.1`, ...) in the current working directory. Each log file records the tool call JSON object, followed by a `---` separator line, followed by the exact tool output returned to the model.
+- **1-Line Crash Summaries**: When application crashes are detected, `crashdump_manager` post-processes `assertion.txt` (written by `libturbocatch.so`) or top resolved DWARF stack frames to extract a 1-line summary string (e.g. `Summary: assertion fail at src/editor.cpp:42 'c != NULL' in update()`). This summary is included in crash notification messages appended to tool responses, giving the LLM immediate root-cause visibility without requiring a separate `crashdump_get_info` invocation. Uninformative crashes (unresolved address offsets or glibc startup frames) omit the summary line cleanly.
 
 
 

@@ -14,6 +14,7 @@ struct crashdump_info {
     std::string signal;
     std::string crash_cookie;
     std::string raw_info;
+    std::string summary; // 1-line crash summary (e.g. "assertion fail at foo.c:23 'c != NULL' in bar()"), empty if uninformative
 
     std::string to_markdown_row() const;
 };

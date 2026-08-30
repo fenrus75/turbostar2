@@ -1,3 +1,4 @@
+// Tested source file: src/crashdump_manager.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
@@ -30,6 +31,10 @@ int main()
 		ofs << "Signal: 11\nCrashCookie: run_99\n";
 	}
 	{
+		std::ofstream ofs(crash_path / "assertion.txt");
+		ofs << "Assertion: c != NULL\nFile: src/editor.cpp\nLine: 42\nFunction: update\n";
+	}
+	{
 		std::ofstream ofs(crash_path / "maps.txt");
 		ofs << "555555554000-555555555000 r-xp 00000000 08:01 123456 /usr/bin/turbostar\n";
 	}
@@ -50,8 +55,15 @@ int main()
 
 	std::cout << "Testing crashdump_list..." << std::endl;
 	{
-		// 1. Success case: list crashdumps
+		// 1. Success case: list crashdumps and check 1-line summary
 		{
+			const auto &dumps = crashdump_manager::get_instance().get_crashdumps();
+			assert(!dumps.empty());
+			assert(dumps[0].summary == "assertion fail at src/editor.cpp:42 `c != NULL` in update()");
+
+			std::string notif = crashdump_manager::format_crash_notification(dumps);
+			assert(notif.find("Summary: assertion fail at src/editor.cpp:42 `c != NULL` in update()") != std::string::npos);
+
 			std::string res = registry.execute_tool("crashdump_list", "{}", ctx);
 			std::cout << "Crash list result: " << res << std::endl;
 			assert(res.find("| Crash ID |") != std::string::npos);

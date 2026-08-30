@@ -30,6 +30,7 @@ namespace fs = std::filesystem;
 
 std::string get_home_dir()
 {
+	int foo;
 	const char *home = getenv("HOME");
 	if (home)
 		return std::string(home);
