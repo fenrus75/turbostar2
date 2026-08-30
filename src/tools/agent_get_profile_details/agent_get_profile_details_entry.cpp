@@ -461,7 +461,28 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 		}
 		bounds = tighten_symbol_bounds(bounds, file_lines);
 
-		std::vector<line_range> ranges = merge_line_ranges(hot_line_numbers, total_lines, bounds);
+		std::vector<line_range> ranges;
+		if (!args_.function_name.empty() && bounds.start_line > 0 && bounds.end_line >= bounds.start_line) {
+			ranges.push_back({bounds.start_line, bounds.end_line});
+		} else {
+			ranges = merge_line_ranges(hot_line_numbers, total_lines, bounds);
+		}
+
+		std::unordered_map<int, uint64_t> effective_counts;
+		std::unordered_map<int, std::string> effective_funcs;
+		for (const auto &lp : line_map) {
+			int lnum = lp.first;
+			const auto &s = lp.second;
+			if (!args_.function_name.empty() && bounds.start_line > 0 && bounds.end_line >= bounds.start_line) {
+				if (lnum < bounds.start_line || lnum > bounds.end_line) {
+					lnum = bounds.start_line;
+				}
+			}
+			effective_counts[lnum] += s.count;
+			if (!s.function_name.empty()) {
+				effective_funcs[lnum] = s.function_name;
+			}
+		}
 
 		for (const auto &r : ranges) {
 			for (int line_num = r.start_line; line_num <= r.end_line; ++line_num) {
@@ -485,24 +506,25 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 					entry["code"] = nullptr;
 				}
 
-				auto it = line_map.find(line_num);
-				if (it != line_map.end()) {
-					const auto &s = it->second;
+				auto it = effective_counts.find(line_num);
+				if (it != effective_counts.end() && it->second > 0) {
+					uint64_t cnt = it->second;
 					double global_pct = (report.total_samples > 0)
-								? (static_cast<double>(s.count) * 100.0 / report.total_samples)
+								? (static_cast<double>(cnt) * 100.0 / report.total_samples)
 								: 0.0;
 					double target_pct = (target_total_samples > 0)
-							      ? (static_cast<double>(s.count) * 100.0 / target_total_samples)
+							      ? (static_cast<double>(cnt) * 100.0 / target_total_samples)
 							      : 0.0;
-					entry["count"] = s.count;
+					entry["count"] = cnt;
 					entry["global_percentage"] = global_pct;
 					if (!args_.file_path.empty()) {
 						entry["file_percentage"] = target_pct;
 					} else {
 						entry["function_percentage"] = target_pct;
 					}
-					if (!s.function_name.empty()) {
-						entry["function_name"] = s.function_name;
+					auto fn_it = effective_funcs.find(line_num);
+					if (fn_it != effective_funcs.end() && !fn_it->second.empty()) {
+						entry["function_name"] = fn_it->second;
 					}
 				} else {
 					entry["count"] = 0;
