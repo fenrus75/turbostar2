@@ -231,6 +231,7 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 		dep_runner.add_extra_rw_path(turbostar_dir);
 		if (const char *home = std::getenv("HOME")) {
 			dep_runner.add_extra_rw_path(std::string(home) + "/.cache/uv");
+			dep_runner.add_extra_rw_path(std::string(home) + "/.uv");
 		}
 		dep_runner.set_timeout(args_.timeout);
 		std::string dep_output = dep_runner.execute_and_get_output(install_cmd);
@@ -243,7 +244,7 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 	if (args_.venv_dir) {
 		base_cmd = "PYTHONUNBUFFERED=1 " + fs_utils::escape_shell_arg(python_interp) + " -u ";
 	} else if (access("/usr/bin/uv", X_OK) == 0) {
-		base_cmd = "PYTHONUNBUFFERED=1 UV_HTTP_TIMEOUT=300 UV_NO_PROJECT=1 UV_CACHE_DIR=.turbostar/uv_cache UV_PROJECT_ENVIRONMENT=.turbostar/uv_env uv run ";
+		base_cmd = "PYTHONUNBUFFERED=1 UV_OFFLINE=1 UV_HTTP_TIMEOUT=300 UV_NO_PROJECT=1 UV_CACHE_DIR=.turbostar/uv_cache uv run ";
 		for (const auto &dep : args_.dependencies) {
 			base_cmd += "--with " + fs_utils::escape_shell_arg(dep) + " ";
 		}
