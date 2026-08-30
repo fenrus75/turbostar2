@@ -3,6 +3,7 @@
 #include <sstream>
 #include "agentlib/ai_agent.h"
 #include "config_manager.h"
+#include "build_error_manager.h"
 #include "crashdump_manager.h"
 #include "fs_utils.h"
 #include "tools/output_filter.h"
@@ -82,6 +83,7 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 			int exit_code = runner->execute(cmd);
 
 			std::string output = runner->get_final_output();
+			build_error_manager::get_instance().set_last_raw_build_output(output);
 			runner->get_new_crashdumps(); // Trigger refresh in the runner to update the manager
 			size_t crashes_after = crashdump_manager::get_instance().get_crashdumps().size();
 
@@ -123,7 +125,7 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 
 				std::string summary_header;
 				if (lines_removed > 0) {
-					summary_header = std::format("NOTE: Build output summarized to save context tokens (filtered {} low-information log lines). Full error messages and warnings are preserved.\n\n", lines_removed);
+					summary_header = std::format("NOTE: Build output summarized to save context tokens (filtered {} low-information log lines). Full error messages and warnings are preserved. (Full raw build log available at 'system://project/build_output.log').\n\n", lines_removed);
 				}
 
 				std::string formatted_injection = std::format("{}```bash\n$ {}\n{}\n```", summary_header, cmd, output);
@@ -148,6 +150,7 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 	runner.execute(cmd);
 
 	std::string output = runner.get_final_output();
+	build_error_manager::get_instance().set_last_raw_build_output(output);
 	runner.get_new_crashdumps(); // Trigger refresh in the runner to update the manager
 	size_t crashes_after = crashdump_manager::get_instance().get_crashdumps().size();
 
@@ -188,7 +191,7 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 
 	std::string summary_header;
 	if (lines_removed > 0) {
-		summary_header = std::format("NOTE: Build output summarized to save context tokens (filtered {} low-information log lines). Full error messages and warnings are preserved.\n\n", lines_removed);
+		summary_header = std::format("NOTE: Build output summarized to save context tokens (filtered {} low-information log lines). Full error messages and warnings are preserved. (Full raw build log available at 'system://project/build_output.log').\n\n", lines_removed);
 	}
 
 	return std::format("{}```bash\n$ {}\n{}\n```", summary_header, cmd, output);

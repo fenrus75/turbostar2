@@ -685,6 +685,16 @@ system_vfs_provider::system_vfs_provider()
 	register_description("project/diagnostics.md", "Read to check summary of active compiler errors, warnings, and LSP diagnostics (supports ?search=<query>).");
 	register_description("project/info.md", "Read to check project workspace root, build system type, and instruction file presence.");
 	register_description("project/testlist.md", "Read to discover available test names to run via fs_run_tests (supports ?search=<query>).");
+	register_description("project/build_output.log", "Read for full raw build log output from the last compilation.");
+
+	// 9. Dynamic Generator: system://project/build_output.log
+	register_generator("project/build_output.log", [](const std::string &) -> std::string {
+		std::string raw = build_error_manager::get_instance().get_last_raw_build_output();
+		if (raw.empty()) {
+			return "(No compilation output recorded yet.)\n";
+		}
+		return raw;
+	});
 	register_description("subagents.md", "Read to check summary index of all active and recent subagents.");
 	register_description("subagents", "Directory containing active subagent dashboards, final results, and execution transcripts.");
 	// Register directory purpose descriptions
@@ -767,6 +777,9 @@ std::string system_vfs_provider::resolve_path(const std::string &uri, std::strin
 	}
 	if (path == "project/testlist" || path == "project/testlist.md" || path == "project/tests.md" || path == "project_tests.md" || path == "project/test-names.md") {
 		return "project/testlist.md";
+	}
+	if (path == "project/build_output.log" || path == "project/build.log" || path == "project/build_output" || path == "build_output.log") {
+		return "project/build_output.log";
 	}
 	if (path == "subagents" || path == "subagents.md" || path == "subagents/index.md" || path == "subagents_list.md") {
 		return "subagents.md";

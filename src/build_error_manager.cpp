@@ -45,6 +45,18 @@ std::time_t build_error_manager::get_last_compile_time() const
         return last_compile_time_;
 }
 
+void build_error_manager::set_last_raw_build_output(const std::string &raw_output)
+{
+        std::lock_guard lock(mutex_);
+        last_raw_build_output_ = raw_output;
+}
+
+std::string build_error_manager::get_last_raw_build_output() const
+{
+        std::lock_guard lock(mutex_);
+        return last_raw_build_output_;
+}
+
 std::optional<build_error> build_error_manager::get_next_error()
 {
         std::lock_guard lock(mutex_);

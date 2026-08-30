@@ -26,17 +26,21 @@ class build_error_manager
 
 	std::time_t get_last_compile_time() const;
 
+	void set_last_raw_build_output(const std::string &raw_output);
+	std::string get_last_raw_build_output() const;
+
 	private:
 	build_error_manager() = default;
 
 	std::vector<build_error> errors_;
 	int current_index_{-1};
 	/*
-	 * mutex_ protects the errors_ list, navigation current_index_, and last_compile_time_.
+	 * mutex_ protects the errors_ list, navigation current_index_, last_compile_time_, and last_raw_build_output_.
 	 * Locking Rules:
 	 * - Held briefly when clearing, adding, or querying errors, navigating through errors,
-	 *   or updating the compilation timestamp.
+	 *   updating compilation timestamp, or reading/writing raw build log output.
 	 */
 	mutable std::mutex mutex_;
 	std::time_t last_compile_time_{0};
+	std::string last_raw_build_output_;
 };

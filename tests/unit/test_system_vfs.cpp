@@ -6,6 +6,7 @@
 #include "agentlib/skill_manager.h"
 #include "agentlib/tool_registry.h"
 #include "vfs/system_vfs_provider.h"
+#include "build_error_manager.h"
 #include <cassert>
 #include <iostream>
 
@@ -102,6 +103,17 @@ int main()
 	assert(tools_search_doc.has_value());
 	std::string search_text = std::string((*tools_search_doc)->view());
 	assert(search_text.find("fs_read_lines") != std::string::npos);
+
+	// Verify system://project/build_output.log
+	build_error_manager::get_instance().set_last_raw_build_output("Ninja build log output line 1\nNinja build log output line 2\n");
+	auto build_log_doc = vfs.read_file("system://project/build_output.log");
+	assert(build_log_doc.has_value());
+	std::string build_log_text = std::string((*build_log_doc)->view());
+	assert(build_log_text.find("Ninja build log output line 1") != std::string::npos);
+
+	auto build_log_alias = vfs.read_file("system://build_output.log");
+	assert(build_log_alias.has_value());
+	assert(std::string((*build_log_alias)->view()) == build_log_text);
 
 	// 4. Test directory listing and purpose descriptions
 	auto info_cpp = vfs.get_file_info("system://languages/cpp23.md");
