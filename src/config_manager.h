@@ -97,6 +97,15 @@ class config_manager
 		run_outside_sandbox_ = run_outside;
 	}
 
+	bool is_allow_code_execution_network() const
+	{
+		return allow_code_execution_network_;
+	}
+	void set_allow_code_execution_network(bool allow)
+	{
+		allow_code_execution_network_ = allow;
+	}
+
 
 
 	bool is_force_ascii() const
@@ -261,6 +270,7 @@ class config_manager
 	bool log_all_tool_calls_{false};
 	bool shell_display_access_{false};
 	bool log_shell_commands_{false};
+	bool allow_code_execution_network_{false};
 
 	mutable std::string main_executable_{""};
 	std::string primary_language_{"C++"};

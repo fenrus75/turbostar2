@@ -9,6 +9,7 @@
 #include "../../command_runner.h"
 #include "../../crashdump_manager.h"
 #include "../../fs_utils.h"
+#include "config_manager.h"
 #include "../terminal_command_runner.h"
 #include "run_python.h"
 
@@ -145,6 +146,9 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 
 	live_python_runner runner(interaction_, ctx.trigger_ui_update);
 	runner.apply_strict_agent_profile();
+	if (config_manager::get_instance().is_allow_code_execution_network()) {
+		runner.set_network_access(true);
+	}
 	runner.set_enable_crash_catcher(true);
 	runner.set_project_dir(ctx.fs_security.get_working_directory().string());
 	runner.set_timeout(args_.timeout);

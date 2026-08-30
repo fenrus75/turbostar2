@@ -1,5 +1,6 @@
 #include "run_cpp.h"
 #include "command_runner.h"
+#include "config_manager.h"
 #include "crashdump_manager.h"
 #include "fs_utils.h"
 #include "project_manager.h"
@@ -236,6 +237,9 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 	// Prepare execution command with LD_PRELOAD libturbocatch.so
 	sync_command_runner exec_runner;
 	exec_runner.apply_strict_agent_profile();
+	if (config_manager::get_instance().is_allow_code_execution_network()) {
+		exec_runner.set_network_access(true);
+	}
 	exec_runner.set_enable_crash_catcher(true);
 	exec_runner.set_project_dir(ctx.fs_security.get_working_directory().string());
 	exec_runner.set_timeout(args_.timeout);

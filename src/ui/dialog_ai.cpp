@@ -64,6 +64,7 @@ std::unique_ptr<dialog> create_ai_settings_dialog()
 	sec_grp->add_child(std::make_unique<ui_checkbox>("paranoid_mode", "Paranoid Security Mode", 'P', config_manager::get_instance().is_paranoid_mode()));
 	sec_grp->add_child(std::make_unique<ui_checkbox>("run_outside_sandbox", "Run tests and app outside sandbox", 'R', config_manager::get_instance().is_run_outside_sandbox()));
 	sec_grp->add_child(std::make_unique<ui_checkbox>("shell_display_access", "Shell display access", 'd', config_manager::get_instance().is_shell_display_access()));
+	sec_grp->add_child(std::make_unique<ui_checkbox>("allow_code_execution_network", "Allow network access in code runners", 'N', config_manager::get_instance().is_allow_code_execution_network()));
 	sec_flow->add_child(std::move(sec_grp));
 	tabbed->add_tab_page("security", "Security", std::move(sec_flow));
 

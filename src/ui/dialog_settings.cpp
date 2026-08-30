@@ -234,6 +234,10 @@ void apply_settings_from_dialog(const dialog &dlg)
 	auto run_outside = dlg.get_value("run_outside_sandbox");
 	if (run_outside)
 		cfg.set_run_outside_sandbox(*run_outside == "true");
+
+	auto net = dlg.get_value("allow_code_execution_network");
+	if (net)
+		cfg.set_allow_code_execution_network(*net == "true");
 }
 
 std::unique_ptr<dialog> create_editor_settings_dialog()

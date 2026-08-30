@@ -187,6 +187,9 @@ std::string run_shell_command_tool::execute(agentlib::tool_context &ctx)
 
 	auto runner = std::make_shared<terminal_command_runner>(interaction_, ctx.trigger_ui_update);
 	runner->apply_strict_agent_profile();
+	if (config_manager::get_instance().is_allow_code_execution_network()) {
+		runner->set_network_access(true);
+	}
 	runner->set_allow_display(config_manager::get_instance().is_shell_display_access());
 	runner->set_enable_crash_catcher(true);
 	runner->set_project_dir(ctx.fs_security.get_working_directory().string());
