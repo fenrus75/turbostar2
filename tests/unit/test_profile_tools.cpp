@@ -175,6 +175,25 @@ int main()
 		std::cout << "agent_get_profile_summary and details with run_id parameter verified successfully!" << std::endl;
 	}
 
+	// 6. Test agent_get_profile_details with relative/absolute path cross-resolution
+	{
+		perf_profile_report run_c;
+		run_c.total_samples = 5000;
+		run_c.top_functions.push_back(perf_function_sample{.function_name = "editor::dispatch(event const&)", .file_path = "src/editor.cpp", .line_number = 150, .count = 5000, .percentage = 100.0});
+		run_c.line_samples_by_file[project_manager::get_instance().get_project_root() + "/src/editor.cpp"].push_back(
+			perf_line_sample{.file_path = project_manager::get_instance().get_project_root() + "/src/editor.cpp", .line_number = 150, .function_name = "editor::dispatch", .count = 5000, .percentage = 100.0});
+
+		perf_manager::get_instance().set_active_profile(run_c, "run_3");
+
+		auto prep = registry.prepare_tool("agent_get_profile_details", "{\"run_id\": \"run_3\", \"function_name\": \"editor::dispatch\"}", ctx);
+		assert(prep.tool != nullptr);
+		auto res = parse_tool_json(prep.tool->execute(ctx));
+		assert(res["total_samples"] == 5000);
+		assert(res["target_samples"] == 5000);
+		assert(!res["line_samples"].empty());
+		std::cout << "agent_get_profile_details (path cross-resolution) verified successfully!" << std::endl;
+	}
+
 	perf_manager::get_instance().clear_active_profile();
 	std::cout << "Profile tools tests passed successfully!" << std::endl;
 	return 0;

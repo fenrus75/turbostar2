@@ -159,12 +159,21 @@ static std::vector<line_range> merge_line_ranges(const std::vector<int> &hot_lin
 
 	std::vector<line_range> ranges;
 	for (int line : hot_lines) {
-		int start = std::max(func_start, line - 2);
-		int end = (func_end > 0) ? std::min(func_end, line + 2) : line + 2;
-		ranges.push_back({start, end});
+		int start = std::max(1, line - 2);
+		int end = (total_lines > 0) ? std::min(total_lines, line + 2) : line + 2;
+
+		if (func_start > 0 && func_end >= func_start) {
+			if (line >= func_start - 2 && line <= func_end + 2) {
+				start = std::max(func_start, start);
+				end = std::min(func_end, end);
+			}
+		}
+		if (start <= end) {
+			ranges.push_back({start, end});
+		}
 	}
 
-	if (bounds.start_line > 0 && bounds.end_line > 0) {
+	if (bounds.start_line > 0 && bounds.end_line >= bounds.start_line) {
 		ranges.push_back({bounds.start_line, bounds.start_line});
 		ranges.push_back({bounds.end_line, bounds.end_line});
 	}
@@ -175,6 +184,9 @@ static std::vector<line_range> merge_line_ranges(const std::vector<int> &hot_lin
 
 	std::vector<line_range> merged;
 	for (const auto &r : ranges) {
+		if (r.start_line > r.end_line) {
+			continue;
+		}
 		if (merged.empty()) {
 			merged.push_back(r);
 		} else {
@@ -365,8 +377,23 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 
 	if (!args_.file_path.empty()) {
 		for (const auto &l : report.top_lines) {
-			if (match_symbol_string(l.file_path, args_.file_path)) {
+			std::string res_path = resolve_file_path(l.file_path, ctx);
+			std::string target_res_path = resolve_file_path(args_.file_path, ctx);
+			if (match_symbol_string(l.file_path, args_.file_path) ||
+			    (!res_path.empty() && res_path == target_res_path)) {
 				matched_samples.push_back(l);
+			}
+		}
+		if (matched_samples.empty()) {
+			for (const auto &pair : report.line_samples_by_file) {
+				std::string res_path = resolve_file_path(pair.first, ctx);
+				std::string target_res_path = resolve_file_path(args_.file_path, ctx);
+				if (match_symbol_string(pair.first, args_.file_path) ||
+				    (!res_path.empty() && res_path == target_res_path)) {
+					for (const auto &ls : pair.second) {
+						matched_samples.push_back(ls);
+					}
+				}
 			}
 		}
 	} else if (!args_.function_name.empty()) {
@@ -375,13 +402,24 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 				matched_samples.push_back(l);
 			}
 		}
-		if (matched_samples.empty()) {
-			for (const auto &f : report.top_functions) {
-				if (match_symbol_string(f.function_name, args_.function_name) && !f.file_path.empty()) {
-					auto it = report.line_samples_by_file.find(f.file_path);
-					if (it != report.line_samples_by_file.end()) {
-						for (const auto &ls : it->second) {
-							matched_samples.push_back(ls);
+		for (const auto &f : report.top_functions) {
+			if (match_symbol_string(f.function_name, args_.function_name)) {
+				if (!f.file_path.empty()) {
+					for (const auto &pair : report.line_samples_by_file) {
+						std::string res_key = resolve_file_path(pair.first, ctx);
+						std::string res_func = resolve_file_path(f.file_path, ctx);
+						if (pair.first == f.file_path ||
+						    match_symbol_string(pair.first, f.file_path) ||
+						    (!res_key.empty() && res_key == res_func)) {
+							for (const auto &ls : pair.second) {
+								if (std::find_if(matched_samples.begin(), matched_samples.end(),
+										 [&](const turbostar::perf_line_sample &existing) {
+											 return existing.file_path == ls.file_path &&
+												existing.line_number == ls.line_number;
+										 }) == matched_samples.end()) {
+									matched_samples.push_back(ls);
+								}
+							}
 						}
 					}
 				}
