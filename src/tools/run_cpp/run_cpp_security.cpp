@@ -13,7 +13,7 @@ nlohmann::json run_cpp_validator::get_parameters_schema() const
 	return {
 		{"type", "object"},
 		{"properties", {
-			{"code", {{"type", "string"}, {"description", "Inline C/C++ source code to compile and run. If main() is omitted, a default entry point wrapper is automatically provided."}}},
+			{"code", {{"type", "string"}, {"description", "Inline C/C++ source code to compile and run. Omitting main() relies on automatic entry point wrapping, which is for trivial cases only; for non-trivial code (headers, functions, structs), provide complete source including main()."}}},
 			{"path", {{"type", "string"}, {"description", "Optional relative workspace path or VFS URI to a .cpp or .c source file (e.g. 'src/main.cpp', 'tmp://probe.c'). Fully resolves VFS URIs (tmp://, include://, skills://)."}}},
 			{"std", {{"type", "string"}, {"enum", nlohmann::json::array({"c++23", "c++20", "c++17", "c++14", "c++11", "c17", "c11", "c99", "c89", "gnu17", "gnu11"})}, {"default", "c++23"}, {"description", "C/C++ language standard to compile against. Defaults to 'c++23' for C++ sources/code, and auto-detects 'c17' for .c files."}}},
 			{"includes", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Optional array of include directory paths, appended via -I (e.g. ['src/', 'tmp://', '/usr/include/']). Supports relative paths and VFS URIs. Note: -I flags are evaluated in array order."}}},

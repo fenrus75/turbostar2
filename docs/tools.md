@@ -313,7 +313,7 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
 ### `run_cpp`
 *   **Description:** Compiles and executes C/C++ source code snippets or standalone probe files in a sandboxed environment. Use this to test C/C++ logic, verify API behavior, or run isolated probes without modifying codebase files. Supports modern C++ and C standards, custom VFS paths (tmp://, include://), preprocessor defines, include directories, extra translation units, and linker flags.
 *   **Arguments:**
-    *   `code` *(string, optional)*: Inline C/C++ source code string to compile and run. If `main()` is omitted, a standard entry point wrapper is automatically provided. Either `code` or `path` must be provided.
+    *   `code` *(string, optional)*: Inline C/C++ source code string to compile and run. Omitting `main()` relies on automatic entry point wrapping, which is for trivial cases only; for non-trivial code (headers, functions, structs), provide complete source including `main()`. Either `code` or `path` must be provided.
     *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g. `tmp://probe.c`, `src/main.cpp`) to a source file to compile and execute. Resolves disk paths and VFS URIs (`tmp://`, `include://`, `skills://`).
     *   `std` *(string, optional)*: C/C++ language standard version (`c++23`, `c++20`, `c++17`, `c++14`, `c++11`, `c17`, `c11`, `c99`, `c89`, `gnu17`, `gnu11`). Defaults to `c++23` for C++ sources/code, and auto-detects `c17` for `.c` files.
     *   `includes` *(array of strings, optional)*: Array of include directory paths appended via `-I` (e.g. `["src/", "tmp://", "/usr/include/"]`). Evaluated in array order; supports relative workspace paths and VFS URIs.
