@@ -162,7 +162,40 @@
       </div>
     </section>
 
-    <!-- Visual Feature 5: A2A Subagents & Context Memory -->
+    <!-- Visual Feature 5: Beyond Source Code -->
+    <section class="detail-split" id="beyond-source-code">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">X-Ray Vision Beyond Source Code</h2>
+        <p class="detail-text">
+          Native software isn't just text—it's compiled binaries, compressed archives, and media assets. Turbostar extends the agent's X-ray vision into the binary domain.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Deep Binary Inspection:</strong> Agents use <code>hexinspect</code> to natively analyze, edit, and hex-dump compiled artifacts.</li>
+          <li><strong>Container Extraction:</strong> Natively peer into and extract components from complex container formats like PDF, tarballs, and zip archives without relying on external shell utilities.</li>
+          <li><strong>Visual Asset Manipulation:</strong> Modular image tools allow the agent to inspect, resize, and convert graphical assets directly within the workspace.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-binary-tools">
+          <div class="terminal-header">
+            <div class="terminal-title">agentcli --hexinspect</div>
+          </div>
+          <div class="terminal-content" style="background: var(--bg-secondary);">
+            <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Agent inspecting a binary asset</span>
+<span class="keyword">hexinspect</span>(file: <span class="string">"firmware.bin"</span>, offset: 0x400, length: 64)
+<span class="literal">=></span> 0400: 7F 45 4C 46 02 01 01 00  .ELF....
+   0408: 00 00 00 00 00 00 00 00  ........
+   [ELF Header Detected: 64-bit LSB executable]
+
+<span class="comment"># Extracting a compressed resource</span>
+<span class="keyword">container_extract</span>(file: <span class="string">"assets.zip"</span>, target: <span class="string">"logo.png"</span>)
+<span class="literal">=> Success:</span> Extracted 142KB to /tmp/workspace/logo.png</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visual Feature 6: A2A Subagents & Context Memory -->
     <section class="features-section" id="bonus-features" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 4rem;">
       <div class="section-header">
         <h2 class="section-title">Beyond the Baseline</h2>
