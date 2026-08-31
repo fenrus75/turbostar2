@@ -103,6 +103,35 @@
             The main Turbostar application uses this backtrace file to decode addresses (something that is not safe to do inside signal handlers) and turn them into an actionable report. Turbostar maintains an internal crash database so users and AI agents can review crash details at any time. For human editor users, backtrace entries within the project include a "go to source" option.
           </p>
 
+          <h3 class="detail-subtitle">Human &amp; Agent-Friendly Crash Reports</h3>
+          <p class="detail-text">
+            To ensure both the agent and the developer share the same high-quality context, crash reports are formatted exactly how a human reverse-engineer would expect to see them. They include signal information, fully resolved DWARF backtraces, and a Codemap summary mapping stack frames directly to function boundaries:
+          </p>
+          <pre style="background: var(--bg-secondary); padding: 1rem; font-size: 0.85rem; border-radius: 4px; overflow-x: auto;"><code>## Crash Report
+
+### Info
+Signal: 11
+CrashAddress: 0x0 (read)
+Type: SEGV_MAPERR
+Executable: /home/arjan/git/turbotest9a/build/testcase
+CrashCookie: run_1001
+
+### Backtrace
+| Frame | Address          | Function        | Location                                                                      |
+|-------|------------------|-----------------|-------------------------------------------------------------------------------|
+| 0     | `0x7f59d6d74ca9` | `__strcpy_avx2` | /build/reproducible-path/glibc-2.42/sysdeps/x86_64/multiarch/strcpy-avx2.S:80 |
+| 1     | `0x5576dedcf168` | `foo(char*)`    | main.cpp:10:5                                                                 |
+| 2     | `0x5576dedcf1ae` | `main`          | main.cpp:17:9                                                                 |
+
+### Codemap Summary
+| File       | Symbol | Start Line | End Line | Lines | Frame Note        |
+|------------|--------|------------|----------|-------|-------------------|
+| `main.cpp` | `foo`  | 5          | 11       | 7     | Frame 1 (Line 10) |
+| `main.cpp` | `main` | 12         | 18       | 7     | Frame 2 (Line 17) |
+
+### Coredump Debugging
+A coredump is available for this crash. You can launch a GDB session to debug this coredump by calling the 'agent_debug_coredump' tool.</code></pre>
+
           <h3 class="detail-subtitle">Steering the Agent (Least Friction Principle)</h3>
           <p class="detail-text">
             Many LLMs will try to guess the issue based on minimal logs, jumping to incorrect conclusions on complex bugs. Turbostar uses the <strong>Least Friction Principle</strong>: we inject the crash root cause directly into the execution tool output so the LLM has zero friction diagnosing it.
