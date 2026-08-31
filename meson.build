@@ -400,6 +400,18 @@ test_profile_tools = executable('test_profile_tools',
   include_directories: inc)
 test('unit_profile_tools', test_profile_tools, suite: 'agent')
 
+test_profile_e2e = executable('test_profile_e2e',
+  ['tests/unit/test_profile_e2e.cpp',
+   'src/tools/agent_get_profile_summary/agent_get_profile_summary_entry.cpp',
+   'src/tools/agent_get_profile_summary/agent_get_profile_summary_security.cpp',
+   'src/tools/agent_get_profile_details/agent_get_profile_details_entry.cpp',
+   'src/tools/agent_get_profile_details/agent_get_profile_details_security.cpp',
+   'src/perf_manager.cpp',
+   'src/address_lookup.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
+  include_directories: inc)
+test('unit_profile_e2e', test_profile_e2e, suite: 'agent')
+
 test_agent_highlight = executable('test_agent_highlight',
   ['tests/unit/test_agent_highlight.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
