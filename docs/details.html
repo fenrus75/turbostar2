@@ -160,6 +160,18 @@ A coredump is available for this crash. You can launch a GDB session to debug th
           <p class="detail-text">
             Instead of forcing the LLM to run bash commands blindly, Turbostar acts as a mediator: the LLM sends commands (like <code>info locals</code>), and Turbostar pipes them through <code>gdbserver</code> to the application, parsing the output back cleanly to the LLM.
           </p>
+          
+          <div class="terminal-mockup" style="margin: 2rem 0;">
+            <div class="terminal-header">
+              <div class="terminal-title">Coredump Debugger (GDB)</div>
+            </div>
+            <div class="terminal-content">
+              <a href="./screenshot-agent-runs-gdb.png" target="_blank">
+                <img src="./screenshot-agent-runs-gdb.png" alt="Screenshot of the agent driving GDB on a coredump in Turbostar" style="width: 100%; height: auto; display: block;">
+              </a>
+            </div>
+          </div>
+
           <pre style="background: var(--bg-secondary); padding: 1rem; font-size: 0.85rem; border-radius: 4px;"><code>// Example GDB Tool Call Result:
 frame 11
 #11 0x0000560239369191 in foo (c=0x0) at ../main.cpp:8
