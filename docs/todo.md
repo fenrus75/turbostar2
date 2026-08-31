@@ -500,6 +500,14 @@ remember to describe features in terms of the benefit to the user or the agent, 
   3. **Protocol Serialization & Cleanup**: Integrated `repair_json_string` into `to_json(nlohmann::json&, const tool_call&)` in `llm_types.h`. Erased internal-only non-standard metadata keys (`timestamp`, `duration_ms`, `episode_id`, `episode_level`) before posting messages to OpenAI endpoints.
   4. **Verification**: Added unit test assertions in `test_api_formatter.cpp` testing full 452-message conversation payload loading and `repair_json_string` behavior. Verified live payload success against local LLM server endpoint. Verified 100% test suite pass rate (262 OK, 1 Expected Fail, 2 Skipped).
 
+## 31-08-2026
+
+- Stdio Model Context Protocol (`turbomcp`) Server Mode (`src/mcp/turbomcp_server.h/cpp`, `src/agentlib/tool_validator.h`, `src/tools/open_in_editor/open_in_editor.h`, `src/main.cpp`, `src/config_manager.h`, `meson.build`, `src/meson.build`, `tests/unit/test_turbomcp_server.cpp`):
+  1. **Executable Alias & Entry Point (`turbomcp`)**: Added `turbomcp` executable alias and `--mcp` / `--mcp-server` CLI flag. Operates as a stdio MCP server exposing Turbostar tools over JSON-RPC 2.0 (`initialize`, `notifications/initialized`, `ping`, `tools/list`, `tools/call`).
+  2. **Headless & Full Environment Retention**: Disables ncurses TUI initialization, redirects logging to stderr/file to keep stdout pure for JSON-RPC frames, defaults `--project-dir` to `.`, runs in `--yolo` mode (permission checks delegated to client), and enables all tool families (`--all-tool-families`). Retains VFS, sandbox security, LSP, profiling (`libturbocatch.so`), crash debugging (`gdbserver`), and internal subagent execution.
+  3. **Selective Tool Filtering (`expose_in_mcp`)**: Added virtual method `expose_in_mcp()` on `tool_validator` (defaulting to `true`). Overrode to `false` in `open_in_editor_validator` to filter TUI/editor-bound tools out of MCP tool discovery.
+  4. **Unit Testing & Verification**: Added `test_turbomcp_server.cpp` unit test and verified stdio JSON-RPC handshake, tool listing, and tool execution.
+
 ## 15-08-2026
 
 - Multi-Chunk Batch File Editing (`fs_multi_replace_content`) & Shared Replacement Engine (`src/tools/fs_replace_content/`, `src/codemap_utils.h/cpp`, `src/mime.h/cpp`, `docs/tools.md`, `tests/unit/test_fs_multi_replace_content.cpp`, `meson.build`):
