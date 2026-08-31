@@ -1,6 +1,8 @@
 # Web page todos (in `docs/index.html`, `docs/ai.html` and `docs/editor.html`)
 
 ## Webpage Screenshots to Take
+- [ ] Screenshot for `ai.html`: Agent using `hexinspect` to analyze a binary file in the chat (`screenshot-agent-hexinspect.png`)
+- [ ] Screenshot for `ai.html`: Agent extracting an asset from a container like a PDF or ZIP (`screenshot-agent-container-extract.png`)
 - [ ] Screenshot of the website homepage running in a browser showing the retro-modern Turbo Pascal HSL color scheme
 - [ ] Screenshot of the compile context optimizer output in the terminal showing raw build logs vs. minimized diagnostics
 - [ ] Screenshot of an agent interactive debugging session with parallel GDB execution and stdin interactions
