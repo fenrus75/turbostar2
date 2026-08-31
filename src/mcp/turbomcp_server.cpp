@@ -1,9 +1,12 @@
 // Tested source file: src/mcp/turbomcp_server.cpp
 #include "mcp/turbomcp_server.h"
-#include "agentlib/tool_registry.h"
+#include "agentlib/skill_manager.h"
 #include "agentlib/tool_context.h"
+#include "agentlib/tool_registry.h"
 #include "config_manager.h"
 #include "event_logger.h"
+#include "fs_utils.h"
+#include "project_manager.h"
 #include <iostream>
 #include <string>
 
@@ -46,8 +49,8 @@ nlohmann::json turbomcp_server::handle_request(const nlohmann::json &req)
 	nlohmann::json id = req.contains("id") ? req["id"] : nullptr;
 	nlohmann::json params = req.contains("params") ? req["params"] : nlohmann::json::object();
 
-	// Notifications (no id)
-	if (id.is_null() && (method == "notifications/initialized" || method == "cancelled")) {
+	// Notifications (no id field or id is null). In JSON-RPC 2.0, notifications MUST NOT receive a response.
+	if (!req.contains("id") || req["id"].is_null()) {
 		event_logger::get_instance().log("turbomcp_server received notification: {}", method);
 		return nullptr;
 	}
@@ -60,6 +63,20 @@ nlohmann::json turbomcp_server::handle_request(const nlohmann::json &req)
 		resp["jsonrpc"] = "2.0";
 		resp["id"] = id;
 		resp["result"] = nlohmann::json::object();
+		return resp;
+	}
+	if (method == "resources/list") {
+		nlohmann::json resp;
+		resp["jsonrpc"] = "2.0";
+		resp["id"] = id;
+		resp["result"] = {{"resources", nlohmann::json::array()}};
+		return resp;
+	}
+	if (method == "prompts/list") {
+		nlohmann::json resp;
+		resp["jsonrpc"] = "2.0";
+		resp["id"] = id;
+		resp["result"] = {{"prompts", nlohmann::json::array()}};
 		return resp;
 	}
 	if (method == "tools/list") {
@@ -136,6 +153,14 @@ nlohmann::json turbomcp_server::handle_tools_call(const nlohmann::json &id, cons
 	tool_context ctx;
 	ctx.properties.active_families = tool_registry::get_instance().get_all_registered_families();
 	ctx.queue = nullptr;
+
+	std::string workspace_root = project_manager::get_instance().get_project_root();
+	if (workspace_root.empty()) {
+		workspace_root = fs_utils::get_project_dir();
+	}
+	ctx.fs_security.set_working_directory(workspace_root);
+	ctx.fs_security.add_allowed_root(workspace_root, access_type::write);
+	ctx.fs_security.set_vfs(skill_manager::get_instance().get_vfs());
 
 	std::string args_str = args.dump();
 	std::string res_text = tool_registry::get_instance().execute_tool(tool_name, args_str, ctx);
