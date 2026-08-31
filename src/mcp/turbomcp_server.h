@@ -33,6 +33,7 @@ private:
 	void event_loop_worker();
 
 	std::shared_ptr<editor> editor_instance_;
+	std::shared_ptr<ai_agent> mcp_root_agent_;
 	std::atomic<bool> event_loop_running_{false};
 	std::thread event_loop_thread_;
 };

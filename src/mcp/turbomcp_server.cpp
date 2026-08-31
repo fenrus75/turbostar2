@@ -1,5 +1,6 @@
 // Tested source file: src/mcp/turbomcp_server.cpp
 #include "mcp/turbomcp_server.h"
+#include "agentlib/ai_agent.h"
 #include "agentlib/skill_manager.h"
 #include "agentlib/tool_context.h"
 #include "agentlib/tool_registry.h"
@@ -25,6 +26,7 @@ static editor_options make_headless_editor_options()
 
 turbomcp_server::turbomcp_server()
 	: editor_instance_(std::make_shared<editor>(make_headless_editor_options()))
+	, mcp_root_agent_(ai_agent::create(9999, "mcp_root", ai_model_registry::get_instance().get_default_model(), &editor_instance_->get_global_queue(), editor_instance_.get()))
 {
 	start_event_loop();
 }
@@ -63,6 +65,7 @@ void turbomcp_server::event_loop_worker()
 		} else {
 			std::this_thread::sleep_for(std::chrono::milliseconds(10));
 		}
+		editor_instance_->update_terminal_windows();
 	}
 
 	event_logger::get_instance().log("turbomcp_server: editor event loop thread stopped");
@@ -206,6 +209,7 @@ nlohmann::json turbomcp_server::handle_tools_call(const nlohmann::json &id, cons
 	nlohmann::json args = params.contains("arguments") ? params["arguments"] : nlohmann::json::object();
 
 	tool_context ctx;
+	ctx.active_agent = mcp_root_agent_.get();
 	ctx.properties.active_families = tool_registry::get_instance().get_all_registered_families();
 	ctx.queue = &editor_instance_->get_global_queue();
 	ctx.doc_provider = editor_instance_.get();
