@@ -4,6 +4,7 @@
 #include "agentlib/tool_context.h"
 #include "agentlib/tool_registry.h"
 #include "config_manager.h"
+#include "crashdump_manager.h"
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "project_manager.h"
@@ -100,7 +101,21 @@ wait_for_app_result headless_document_provider::wait_for_app(int run_id, std::st
 	int64_t age = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - info.start_time).count();
 	std::string status_str = info.is_alive ? "settled" : "ended";
 
-	return {status_str, age, info.is_alive, ""};
+	std::string crash_notif;
+	if (!info.is_alive) {
+		crashdump_manager::get_instance().refresh("");
+		auto dumps = crashdump_manager::get_instance().get_crashdumps_for_run(run_id);
+		if (!dumps.empty()) {
+			crash_notif = crashdump_manager::format_crash_notification(dumps);
+		} else {
+			auto all_dumps = crashdump_manager::get_instance().get_crashdumps();
+			if (!all_dumps.empty()) {
+				crash_notif = crashdump_manager::format_crash_notification(all_dumps);
+			}
+		}
+	}
+
+	return {status_str, age, info.is_alive, crash_notif};
 }
 
 bool headless_document_provider::terminate_run(int run_id)
@@ -130,8 +145,84 @@ run_screenshot_data headless_document_provider::get_run_screenshot(int /*run_id*
 }
 
 turbomcp_server::turbomcp_server()
-	: doc_provider_(std::make_shared<headless_document_provider>())
+	: doc_provider_(std::make_shared<headless_document_provider>()),
+	  queue_(std::make_shared<event_queue>())
 {
+	start_event_loop();
+}
+
+turbomcp_server::~turbomcp_server()
+{
+	stop_event_loop();
+}
+
+void turbomcp_server::start_event_loop()
+{
+	if (event_loop_running_.exchange(true)) {
+		return;
+	}
+	event_loop_thread_ = std::thread(&turbomcp_server::event_loop_worker, this);
+}
+
+void turbomcp_server::stop_event_loop()
+{
+	if (!event_loop_running_.exchange(false)) {
+		return;
+	}
+	if (event_loop_thread_.joinable()) {
+		event_loop_thread_.join();
+	}
+}
+
+void turbomcp_server::event_loop_worker()
+{
+	event_logger::get_instance().log("turbomcp_server: headless event loop thread started");
+
+	while (event_loop_running_) {
+		auto opt_ev = queue_->pop();
+		if (opt_ev) {
+			handle_headless_event(*opt_ev);
+		} else {
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		}
+	}
+
+	event_logger::get_instance().log("turbomcp_server: headless event loop thread stopped");
+}
+
+void turbomcp_server::handle_headless_event(const editor_event &ev)
+{
+	event_logger::get_instance().log("turbomcp_server processing headless event type {}", static_cast<int>(ev.type));
+
+	if (ev.type == event_type::prompt_user) {
+		if (ev.prompt_promise && !ev.prompt_options.empty()) {
+			ev.prompt_promise->set_value(ev.prompt_options[0]);
+		}
+		return;
+	}
+
+	if (ev.type == event_type::agent_start_app) {
+		if (ev.generic_promise) {
+			auto prom = std::static_pointer_cast<std::promise<agentlib::start_app_result>>(ev.generic_promise);
+			auto res = doc_provider_->start_app(ev.payload, ev.alt_pressed, ev.auto_continue, ev.collect_performance);
+			prom->set_value(res);
+		}
+		return;
+	}
+
+	if (ev.type == event_type::agent_start_coredump_gdb) {
+		if (ev.generic_promise) {
+			auto prom = std::static_pointer_cast<std::promise<agentlib::start_app_result>>(ev.generic_promise);
+			auto res = doc_provider_->start_coredump_gdb(ev.payload);
+			prom->set_value(res);
+		}
+		return;
+	}
+
+	if (ev.type == event_type::terminate_run) {
+		doc_provider_->terminate_run(ev.key_code);
+		return;
+	}
 }
 
 int turbomcp_server::run_stdio_loop()
@@ -273,7 +364,7 @@ nlohmann::json turbomcp_server::handle_tools_call(const nlohmann::json &id, cons
 
 	tool_context ctx;
 	ctx.properties.active_families = tool_registry::get_instance().get_all_registered_families();
-	ctx.queue = nullptr;
+	ctx.queue = queue_.get();
 	ctx.doc_provider = doc_provider_.get();
 
 	std::string workspace_root = project_manager::get_instance().get_project_root();

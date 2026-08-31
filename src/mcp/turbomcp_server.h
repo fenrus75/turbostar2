@@ -1,13 +1,16 @@
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <nlohmann/json.hpp>
 #include "agentlib/document_provider.h"
 #include "agentlib/tool_context.h"
+#include "event_queue.h"
 
 namespace agentlib
 {
@@ -54,7 +57,7 @@ class turbomcp_server
 {
 public:
 	turbomcp_server();
-	~turbomcp_server() = default;
+	~turbomcp_server();
 
 	// Runs the stdio JSON-RPC loop reading stdin and writing to stdout
 	int run_stdio_loop();
@@ -68,7 +71,15 @@ private:
 	void send_response(const nlohmann::json &resp);
 	void send_error(const nlohmann::json &id, int code, const std::string &message);
 
+	void start_event_loop();
+	void stop_event_loop();
+	void event_loop_worker();
+	void handle_headless_event(const editor_event &ev);
+
 	std::shared_ptr<headless_document_provider> doc_provider_;
+	std::shared_ptr<event_queue> queue_;
+	std::atomic<bool> event_loop_running_{false};
+	std::thread event_loop_thread_;
 };
 
 } // namespace agentlib
