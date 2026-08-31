@@ -67,6 +67,7 @@ agentlib_sources = files(
   'agentlib/tool_registry.cpp',
   'agentlib/tool_tracer.cpp',
   'agentlib/tool_validator.cpp',
+  'agentlib/json_utils.cpp',
   'agentlib/httplib_transport.cpp',
   'agentlib/recording_transport.cpp',
   'agentlib/replay_transport.cpp',

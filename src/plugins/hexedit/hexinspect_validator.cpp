@@ -1,5 +1,6 @@
 #include "plugins/hexedit/hexinspect_validator.h"
 #include <nlohmann/json.hpp>
+#include "agentlib/json_utils.h"
 #include "agentlib/tool_registry.h"
 
 namespace tools
@@ -36,20 +37,9 @@ bool hexinspect_validator::validate_args_impl(const nlohmann::json &raw_json, co
 					      std::string &out_error) const
 {
 	try {
-		auto parse_numeric = [](const nlohmann::json &j, const char *key, size_t def_val) -> size_t {
-			if (!j.contains(key)) return def_val;
-			auto &v = j[key];
-			if (v.is_number()) return v.get<size_t>();
-			if (v.is_string()) {
-				std::string s = v.get<std::string>();
-				return s.starts_with("0x") || s.starts_with("0X") ? std::stoull(s.substr(2), nullptr, 16) : std::stoull(s);
-			}
-			return def_val;
-		};
-
 		args_.requested_path = raw_json.value("path", "");
-		args_.offset = parse_numeric(raw_json, "offset", 0);
-		size_t parsed_size = parse_numeric(raw_json, "size", 0);
+		args_.offset = json_utils::parse_numeric_from_json(raw_json, "offset", 0);
+		size_t parsed_size = json_utils::parse_numeric_from_json(raw_json, "size", 0);
 		args_.offset_by_name = raw_json.value("offset_by_name", "");
 
 		if (args_.requested_path.empty()) {

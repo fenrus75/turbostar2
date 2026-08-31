@@ -523,6 +523,12 @@ test_hexinspect = executable('test_hexinspect',
   export_dynamic: true)
 test('unit_test_hexinspect', test_hexinspect, suite: 'plugins', depends: hexedit_plugin, env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'])
 
+test_json_utils = executable('test_json_utils',
+  ['tests/unit/test_json_utils.cpp'],
+  dependencies : [agent_dep, core_dep, nlohmann_json_dep, thread_dep, dl_dep],
+  include_directories: inc)
+test('unit_test_json_utils', test_json_utils, suite: 'unit')
+
 if lexbor_dep.found()
   test_html_extract_tables = executable('test_html_extract_tables',
     ['tests/unit/test_html_extract_tables.cpp'],
