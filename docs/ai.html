@@ -33,22 +33,35 @@
   <main class="content-page">
     <section class="page-header" id="ai-header">
       <span class="hero-tag">Systems &amp; Low-Level Coding</span>
-      <h1 class="page-title">Agentic Coding for <span>Systems Engineers</span></h1>
+      <h1 class="page-title">Agentic Coding for <span>Native Languages</span></h1>
       <p class="page-desc">
-        Turbostar is optimized specifically for systems and low-level development. We equip LLM agents with high-fidelity compiler feedback, sandboxed execution, and context-saving workspaces designed for heavy C++ and Python workspaces.
+        Native development (C, C++, Rust) demands more than just adding print statements. Turbostar equips LLM agents with high-fidelity compiler feedback, coredump debugging, and cycle-accurate performance profiling.
       </p>
     </section>
 
-    <!-- Visual Feature 1: Agent Integration -->
-    <section class="detail-split" id="agent-integration">
-      <div class="detail-info">
-        <h2 class="detail-subtitle">In-Editor Agent Integration</h2>
+    <!-- Philosophy Section -->
+    <section class="detail-split" id="design-philosophy" style="background: rgba(0, 0, 0, 0.2); padding: 3rem; border-radius: 8px; margin-bottom: 4rem;">
+      <div class="detail-info" style="max-width: 100%;">
+        <h2 class="detail-subtitle">Agent CLI Tool Design Matters!</h2>
+        <p class="detail-text" style="font-size: 1.1rem; color: #fff;">
+          <strong>An "N-1" model with a good set of tools for the task will outperform an "N" frontier model with a mediocre set of tools.</strong>
+        </p>
         <p class="detail-text">
-          Pair program with an AI agent that understands your entire workspace. Your embedded assistant can edit files, run builds, launch tests, and fix errors directly alongside you.
+          The default behavior for LLM agents today is to fall back on raw shell commands. While this works for simple scripts, native development is complex. LLMs need more than unstructured bash access—they need "X-ray vision" into the codebase, curated compiler diagnostics, and steered access to debugging tools.
+        </p>
+      </div>
+    </section>
+
+    <!-- Visual Feature 1: LSP X-Ray Vision -->
+    <section class="detail-split" id="lsp-xray">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">LSP: X-Ray Vision Plumbing</h2>
+        <p class="detail-text">
+          For editors, deep Language Server (LSP) integration makes the difference between a text editor and a development environment. For AI agents, it's their "X-ray vision" into the codebase.
         </p>
         <ul class="detail-list">
-          <li><strong>Split-Window Agent Chat:</strong> Chat, ask questions, or delegate coding tasks in a dedicated side-by-side window while watching your code update in real-time.</li>
-          <li><strong>Atomic Code Refactoring:</strong> The agent applies clean, precise file modifications directly into your open editor buffers with full undo support.</li>
+          <li><strong>Semantic Understanding:</strong> Allows the agent to instantly answer <em>"Where in the code is X?"</em> and <em>"What is in file Y?"</em> without relying on slow, error-prone text grepping.</li>
+          <li><strong>Type Introspection:</strong> Agents utilize full language parsers (like <code>clangd</code>) to autocomplete complex data structures autonomously.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -65,101 +78,18 @@
       </div>
     </section>
 
-    <!-- Visual Feature 2: Context Paging -->
-    <section class="detail-split reverse" id="context-paging">
+    <!-- Visual Feature 2: Dual View Compilation -->
+    <section class="detail-split reverse" id="compile-optimization">
       <div class="detail-info">
-        <h2 class="detail-subtitle">Virtual Context Paging</h2>
+        <h2 class="detail-subtitle">Dual-View Compilation Context</h2>
         <p class="detail-text">
-          Run long multi-hour development sessions without context limits. Turbostar automatically pages history in and out like virtual memory, preserving deep project history while keeping LLM costs low.
+          Compiling native code generates massive output. Turbostar optimizes this experience simultaneously for humans and machines.
         </p>
         <ul class="detail-list">
-          <li><strong>Tiered Context Optimization:</strong> Automatically compresses agent reasoning logs and redundant tool outputs while keeping critical decision context intact.</li>
-          <li><strong>Deep Disk Memory:</strong> Every detail is preserved safely on disk, allowing the agent to page earlier context back into memory whenever needed.</li>
+          <li><strong>Human View:</strong> A full ANSI-color compatible terminal emulator in a virtual window, showing the entire compilation process streaming live.</li>
+          <li><strong>Agent View:</strong> Context optimization strips out successful build noise, injecting only the exact failing lines and corresponding LSP diagnostics (e.g., <em>"10 lines into context!"</em>), saving 95%+ of token costs.</li>
         </ul>
-      </div>
-      <div class="detail-visual">
-        <div class="terminal-mockup" id="mock-undo">
-          <div class="terminal-header">
-            <div class="terminal-title">turbostar --history-compaction</div>
-          </div>
-          <div class="terminal-content">
-            <a href="./screenshot-agent-runs-the-testsuite.png" target="_blank">
-              <img src="./screenshot-agent-runs-the-testsuite.png" alt="Turbostar AI Agent Runs Test Suite showing context paging stats">
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Visual Feature: Tool Families -->
-    <section class="detail-split" id="tool-families">
-      <div class="detail-info">
-        <h2 class="detail-subtitle">Modular Tool Families</h2>
-        <p class="detail-text">
-          Keep AI agents fast, focused, and affordable. Agents load specialized tool capabilities on-demand, preventing context clutter and model confusion.
-        </p>
-        <ul class="detail-list">
-          <li><strong>On-Demand Capabilities:</strong> Agents activate tool sets (such as <code>git</code>, <code>image</code>, <code>x86</code>, or <code>hexedit</code>) only when required, keeping prompt sizes small and responses fast.</li>
-          <li><strong>High-Focus Subagents:</strong> Spawns specialized subagents equipped only with the exact tools needed for their specific role.</li>
-        </ul>
-      </div>
-      <div class="detail-visual">
-        <div class="terminal-mockup" id="mock-tool-families">
-          <div class="terminal-header">
-            <div class="terminal-title">turbostar --tool-families</div>
-          </div>
-          <div class="terminal-content" style="background: var(--bg-secondary);">
-            <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Agent activates tool family dynamically:</span>
-<span class="keyword">activate_tool_family</span>(name: <span class="string">"image"</span>)
-<span class="literal">=> Success:</span> Image tool family activated.
-   Registered tools available:
-   - image_import
-   - image_resize
-   - image_crop
-   - image_export
-   Context overhead minimized: loaded 6 tools instead of 40+.</code></pre>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Visual Feature 3: In-Editor Code Review -->
-    <section class="detail-split reverse" id="code-review">
-      <div class="detail-info">
-        <h2 class="detail-subtitle">In-Editor Code Review &amp; Edits</h2>
-        <p class="detail-text">
-          Ensure high code quality automatically. AI agents perform inline code reviews, flag potential vulnerabilities, and format code before changes are committed.
-        </p>
-        <ul class="detail-list">
-          <li><strong>Interactive Review Cards:</strong> Step through agent recommendations directly in the editor and approve or reject edits with single keystrokes.</li>
-          <li><strong>Pre-Execution Security Scans:</strong> Automatically scans Python code for security flaws before execution to keep your environment safe.</li>
-        </ul>
-      </div>
-      <div class="detail-visual">
-        <div class="terminal-mockup" id="mock-codereview">
-          <div class="terminal-header">
-            <div class="terminal-title">turbostar --code-review</div>
-          </div>
-          <div class="terminal-content">
-            <a href="./screenshot-inline-agent-codereview.png" target="_blank">
-              <img src="./screenshot-inline-agent-codereview.png" alt="Turbostar Inline Code Review Screen">
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Visual Feature 4: Compiler Context Optimization -->
-    <section class="detail-split" id="compile-optimization">
-      <div class="detail-info">
-        <h2 class="detail-subtitle">Compiler Context Optimization</h2>
-        <p class="detail-text">
-          Save 95%+ of token costs on build errors. Turbostar distills verbose compiler logs into concise, actionable error locations so agents fix build issues on the first attempt.
-        </p>
-        <ul class="detail-list">
-          <li><strong>Noise-Free Build Output:</strong> Strips out hundreds of lines of successful compilation noise, presenting the agent with only the relevant errors and summaries.</li>
-          <li><strong>Instant Diagnostic Focus:</strong> Pinpoints exact failure files and line numbers so the model resolves compiler errors immediately without wasting context tokens.</li>
-        </ul>
+        <a href="details.html#compile-context" class="card-link" style="margin-top: 1rem; display: inline-block;">Read compilation details &rarr;</a>
       </div>
       <div class="detail-visual">
         <div class="terminal-mockup" id="mock-compile-output">
@@ -167,57 +97,29 @@
             <div class="terminal-title">agentcli --run-build</div>
           </div>
           <div class="terminal-content" style="background: var(--bg-secondary);">
-            <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Raw compiler output (480 targets compiled)</span>
-<span class="comment"># [Info] Truncating 476 lines of successful compilation output.</span>
-<span class="comment"># Retaining summary and diagnostics:</span>
-
-[479/480] Compiling C++ object src/editor_events.cpp.o ... <span class="literal">OK</span>
-[480/480] Linking target build/turbostar ... <span class="literal">OK</span>
-
-<span class="keyword">Build Success:</span> 480 targets built in 12.4s.
-<span class="keyword">Context Saved:</span> Retained 0.2 KB of 42.1 KB raw output.</code></pre>
+            <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code>[1021/1193] Compiling C++ object src_main.cpp.o
+../src/main.cpp: In function ‘std::string get_home_dir()’:
+../src/main.cpp:33:13: warning: unused variable ‘foo’
+[symbol: get_home_dir (lines 31-38)]
+ 33 |   int foo;
+    |       ^~~</code></pre>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Visual Feature 5: Interactive Agent-Driven Debugging -->
-    <section class="detail-split reverse" id="agent-debugging">
-      <div class="detail-info">
-        <h2 class="detail-subtitle">Interactive Agent-Driven Debugging</h2>
-        <p class="detail-text">
-          Let your AI agent debug live applications. The agent can launch your program, send test inputs, set GDB breakpoints, and step through code autonomously.
-        </p>
-        <ul class="detail-list">
-          <li><strong>Real-Time Interactive Debugging:</strong> The agent feeds test cases into stdin while driving GDB in parallel to inspect variable states and isolate runtime bugs.</li>
-          <li><strong>Isolated Test Sandbox:</strong> Runs debugging sessions in protected environments to prevent hung processes and ensure host stability.</li>
-        </ul>
-      </div>
-      <div class="detail-visual">
-        <div class="terminal-mockup" id="mock-agent-debugger">
-          <div class="terminal-header">
-            <div class="terminal-title">turbostar --agent-debug</div>
-          </div>
-          <div class="terminal-content">
-            <a href="./screenshot-debugger.png" target="_blank">
-              <img src="./screenshot-debugger.png" alt="Turbostar Interactive Agent Debugging Split Screen">
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Visual Feature 6: Autonomous Crash Notifications & GDB Core Dump Debugging -->
+    <!-- Visual Feature 3: Steered Crash Debugging -->
     <section class="detail-split" id="crash-debugging">
       <div class="detail-info">
-        <h2 class="detail-subtitle">Autonomous Crash Notifications &amp; Core Dump Inspection</h2>
+        <h2 class="detail-subtitle">Steered Crash &amp; Coredump Debugging</h2>
         <p class="detail-text">
-          Resolve application crashes automatically. When a test run segfaults, the agent receives an immediate alert and inspects the core dump to find the root cause.
+          <strong>The Least Friction Principle:</strong> LLMs will use information that is easy to get, or to which they are explicitly steered. When native code crashes, Turbostar intercepts it instantly.
         </p>
         <ul class="detail-list">
-          <li><strong>Instant Crash Alerts:</strong> Execution tools notify the agent the moment a process crashes, providing unique Crash IDs for instant post-mortem analysis.</li>
-          <li><strong>Autonomous Core Dump Analysis:</strong> The agent inspects stack backtraces, variable states, and CPU registers via GDB, proposing exact code fixes automatically.</li>
+          <li><strong>Layered Root Cause Analysis:</strong> We provide the crash location, assertion message, and resolved backtraces directly in the execution tool output so the LLM doesn't jump to conclusions.</li>
+          <li><strong>Autonomous GDB Driving:</strong> The agent is explicitly steered via system prompts to invoke <code>agent_debug_coredump</code>, allowing it to drive GDB autonomously to inspect frames, arguments, and local variables.</li>
         </ul>
+        <a href="details.html#crash-catching" class="card-link" style="margin-top: 1rem; display: inline-block;">View tool call payload examples &rarr;</a>
       </div>
       <div class="detail-visual">
         <div class="terminal-mockup" id="mock-agent-gdb-gif">
@@ -233,70 +135,18 @@
       </div>
     </section>
 
-    <!-- Visual Feature 7: Agent Command Center -->
-    <section class="detail-split reverse" id="command-center-section">
-      <div class="detail-info">
-        <h2 class="detail-subtitle">Agent Command Center</h2>
-        <p class="detail-text">
-          Maintain total oversight over multi-agent workflows. The Command Center provides a visual dashboard to monitor subagents, background tasks, and active tool calls.
-        </p>
-        <ul class="detail-list">
-          <li><strong>Real-Time Process Tracking:</strong> Monitor agent progress, execution states, and task lifecycles across a clean visual dashboard grid.</li>
-          <li><strong>Subagent Hierarchy Control:</strong> Inspect parent-child agent trees, view running subagent tasks, or terminate stalled operations with one click.</li>
-        </ul>
-      </div>
-      <div class="detail-visual">
-        <div class="terminal-mockup" id="mock-command-center">
-          <div class="terminal-header">
-            <div class="terminal-title">turbostar --command-center</div>
-          </div>
-          <div class="terminal-content">
-            <a href="./screenshot-agent-command-center.png" target="_blank">
-              <img src="./screenshot-agent-command-center.png" alt="Turbostar Agent Command Center Dashboard">
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Visual Feature 8: Integrated Undo History -->
-    <section class="detail-split" id="undo-history">
-      <div class="detail-info">
-        <h2 class="detail-subtitle">Integrated Undo History</h2>
-        <p class="detail-text">
-          Code with complete safety and control. All agent modifications are integrated directly into the editor's undo buffer, allowing you to review or revert any change instantly.
-        </p>
-        <ul class="detail-list">
-          <li><strong>Granular Step-Back:</strong> Review or undo agent edits line-by-line using standard editor undo keys (<code>^K H</code> / <code>Ctrl+Z</code>).</li>
-          <li><strong>Visual Change Highlights:</strong> See exactly what lines the agent added, modified, or deleted before approving changes.</li>
-        </ul>
-      </div>
-      <div class="detail-visual">
-        <div class="terminal-mockup" id="mock-undo-view">
-          <div class="terminal-header">
-            <div class="terminal-title">turbostar --undo-history</div>
-          </div>
-          <div class="terminal-content">
-            <a href="./screenshot-agent-undo-view.png" target="_blank">
-              <img src="./screenshot-agent-undo-view.png" alt="Turbostar Integrated Agent Undo History View">
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Visual Feature 9: Autonomous Performance Profiling -->
+    <!-- Visual Feature 4: Performance Profiling -->
     <section class="detail-split reverse" id="perf-profiling-ai">
       <div class="detail-info">
-        <h2 class="detail-subtitle">Autonomous CPU Cycle Profiling</h2>
+        <h2 class="detail-subtitle">Bridging Performance Analysis</h2>
         <p class="detail-text">
-          Empower agents to optimize application performance automatically. Agents query CPU profiling data to identify bottlenecks and speed up critical inner loops.
+          Performance matters for native applications (otherwise we'd use Python/JS). However, the Linux <code>perf</code> tool is messy, highly verbose, and operates on assembly—making it a terrible fit for LLM context limits.
         </p>
         <ul class="detail-list">
-          <li><strong>Direct Bottleneck Discovery:</strong> Agents query top functions and line-by-line CPU cycle percentages to pinpoint exact performance bottlenecks.</li>
-          <li><strong>Multi-Run Benchmark Comparison:</strong> Compare cycle counts across multiple execution runs (<code>run_1</code>, <code>run_2</code>) to measure optimization gains empirically.</li>
-          <li><strong>Focused Symbol Context:</strong> Automatically extracts clean source code blocks around performance hotspots for precise AI refactoring.</li>
+          <li><strong>Agent-Friendly Distillation:</strong> LLMs "think" in functions and code lines. Turbostar translates raw CPU cycle sampling into a highly structured, low-token summary of hotspots.</li>
+          <li><strong>Targeted Refactoring:</strong> Agents call <code>agent_start_app(collect_performance=true)</code>, review the top bottlenecks, and execute laser-focused algorithmic optimizations.</li>
         </ul>
+        <a href="details.html#perf-profiling" class="card-link" style="margin-top: 1rem; display: inline-block;">Read profiling details &rarr;</a>
       </div>
       <div class="detail-visual">
         <div class="terminal-mockup" id="mock-perf-agent">
@@ -312,171 +162,32 @@
       </div>
     </section>
 
-    <!-- Visual Feature 10: Interactive Agent Creation & Zero-Porting A2A Server -->
-    <section class="detail-split" id="a2a-server-mode">
-      <div class="detail-info">
-        <h2 class="detail-subtitle">Interactive Agent Creation &amp; Zero-Porting A2A Server</h2>
-        <p class="detail-text">
-          Create, test, and fine-tune custom subagents interactively—complete with Model Context Protocol (MCP) servers, custom skills, specific AI models, and prompt rules. Once ready, serve those exact agents over the open Agent-to-Agent (A2A) protocol directly from the same environment without writing external wrapper code.
-        </p>
-        <ul class="detail-list">
-          <li><strong>Same-Environment Execution:</strong> Eliminate the hassle of porting agent definitions, MCP tool configs, or prompt files. Your interactive editing environment directly becomes the headless A2A server (<code>turboserver --server</code>).</li>
-          <li><strong>Zero-Latency Git Worktrees:</strong> Serve tasks with <code>--git-worktree</code> mode to instantly provision clean, isolated git worktree checkouts in under 50ms without network cloning or disk pollution.</li>
-          <li><strong>Open Standard OpenAPI Schema:</strong> Automatically synthesizes and serves OpenAPI-compliant Agent Cards (<code>/.well-known/agent-card.json</code>) detailing available tools, skills, and parameters.</li>
-        </ul>
-      </div>
-      <div class="detail-visual">
-        <div class="terminal-mockup" id="mock-a2a-server">
-          <div class="terminal-header">
-            <div class="terminal-title">turboserver --server --git-worktree --a2a-port 7820</div>
-          </div>
-          <div class="terminal-content" style="background: var(--bg-secondary);">
-            <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Launch interactive agents directly over A2A:</span>
-<span class="literal">$</span> turboserver --server --git-worktree
-<span class="keyword">A2A Server listening:</span> http://0.0.0.0:7820
-<span class="keyword">Card Catalog:</span> 4 subagents published (research, self, securityagent, x86_opt)
-<span class="keyword">Worktree Engine:</span> Private git worktree pre-seeding enabled (&lt; 50ms)
-
-<span class="comment"># Serving incoming remote A2A task:</span>
-[POST /a2a/v1/agents/research/tasks] -> task-4f8a92b
-=> Created worktree: /tmp/turbostar_a2a_task-4f8a92b from HEAD
-=> Running subagent with full MCP & skill context...
-=> Task completed successfully. Worktree pruned.</code></pre>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Visual Feature 11: Native A2A Client & Remote Agent Orchestration -->
-    <section class="detail-split reverse" id="a2a-client-orchestration">
-      <div class="detail-info">
-        <h2 class="detail-subtitle">Native A2A Client &amp; Remote Agent Orchestration</h2>
-        <p class="detail-text">
-          Delegate complex coding tasks across network boundaries. Turbostar includes a built-in Agent-to-Agent (A2A) client that enables your local agent to discover, connect to, and orchestrate remote agent servers seamlessly.
-        </p>
-        <ul class="detail-list">
-          <li><strong>TP7 TUI Server Manager &amp; Tooling:</strong> Manage persistent remote servers through a retro Turbo Pascal dialog (<code>A2A Servers...</code>) or programmatically via the <code>a2a_connect_server</code> tool.</li>
-          <li><strong>Remote Namespace Routing:</strong> Invoke remote agents effortlessly using <code>server:agent</code> syntax (e.g. <code>invoke_subagent(name: "gpu_box:securityagent")</code>).</li>
-          <li><strong>Automated Workspace Pre-Seeding:</strong> Automatically detects your active git repository remote URL and branch, pre-seeding the remote server's workspace so remote subagents start with complete project context on Turn 0.</li>
-        </ul>
-      </div>
-      <div class="detail-visual">
-        <div class="terminal-mockup" id="mock-a2a-client">
-          <div class="terminal-header">
-            <div class="terminal-title">turbostar --a2a-orchestrator</div>
-          </div>
-          <div class="terminal-content" style="background: var(--bg-secondary);">
-            <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Local agent delegates task to remote GPU server:</span>
-<span class="keyword">invoke_subagent</span>(
-  name: <span class="string">"gpu_box:securityagent"</span>,
-  instructions: <span class="string">"Perform full C++ memory safety audit"</span>
-)
-<span class="literal">=> Auto-detected Repo:</span> https://github.com/fenrus75/turbostar2.git
-<span class="literal">=> Auto-detected Branch:</span> main
-<span class="literal">=> Dispatching A2A Task:</span> Submitted to http://gpu-box.local:7820
-<span class="literal">=> Status:</span> Remote workspace pre-seeded. Subagent active...
-<span class="keyword">Task Result:</span> Audit completed (0 warnings found).</code></pre>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Security Model -->
-    <section class="page-header" id="security-overview" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem;">
-      <h2 class="detail-subtitle">Secure Tool Execution</h2>
-      <p class="detail-text" style="max-width: 800px; margin-bottom: 2rem;">
-        Turbostar provides native secure options for agents, reducing raw shell command risks and eliminating constant permission prompts.
-      </p>
-      
-      <div class="grid">
-        <article class="card" id="card-sandboxing">
-          <h3 class="card-title">Isolated Namespaces</h3>
-          <p class="card-desc">Agent operations execute within heavily restricted, non-root Linux mount and PID namespaces. The workspace is mounted as read-only by default, preventing arbitrary writes outside of explicitly approved paths.</p>
-        </article>
-        
-        <article class="card" id="card-bandit">
-          <h3 class="card-title">Bandit Python Scanning</h3>
-          <p class="card-desc">Python tool execution requires automated scans. Any script containing high-severity warnings is blocked from executing natively.</p>
-        </article>
-        
-        <article class="card" id="card-x11">
-          <h3 class="card-title">Display &amp; forward controls</h3>
-          <p class="card-desc">Support running graphical X11/SDL2 tests inside the sandbox with secure environment forwarding (XAUTHORITY/DISPLAY bindings).</p>
-        </article>
-
-        <article class="card" id="card-toolcall-libs">
-          <h3 class="card-title">Context-Aware Tool Libraries</h3>
-          <p class="card-desc">Equips agents with pre-scoped library helper tools that bypass raw shell execution, drastically reducing token usage and context expansion.</p>
-        </article>
-
-        <article class="card" id="card-agent-coredump">
-          <h3 class="card-title">Agent Crash Diagnostics</h3>
-          <p class="card-desc">Exposes structured coredump reports and backtrace data generated by <code>libturbocatch.so</code> directly to the agent's tool context for automated debugging.</p>
-        </article>
-
-        <article class="card" id="card-special-agents">
-          <h3 class="card-title">Specialized Agent Plugins</h3>
-          <p class="card-desc">Support for specialized agent types, including dedicated security code review roles and x86-64 assembly optimization agents.</p>
-        </article>
-
-        <article class="card" id="card-github-vfs">
-          <h3 class="card-title">GitHub Virtual Filesystem</h3>
-          <p class="card-desc">Exposes a native <code>github://</code> virtual file system prefix, allowing the coding agent to fetch and reference files from any public repository instantly.</p>
-        </article>
-
-        <article class="card" id="card-run-python">
-          <h3 class="card-title">Dedicated Python Runner</h3>
-          <p class="card-desc">Features a specialized tool that executes Python code directly in-memory without forcing the agent to write scratch files to disk first, accelerating iteration speed.</p>
-        </article>
-      </div>
-    </section>
-
-    <!-- Integration Support Section -->
-    <section class="features-section" id="integrations-overview" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 4rem;">
+    <!-- Visual Feature 5: A2A Subagents & Context Memory -->
+    <section class="features-section" id="bonus-features" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 4rem;">
       <div class="section-header">
-        <h2 class="section-title">Built-in Standards &amp; Extensibility</h2>
-        <p>Turbostar supports the standard agent stack natively to minimize custom orchestration layer code.</p>
+        <h2 class="section-title">Beyond the Baseline</h2>
+        <p>Turbostar includes a suite of integrated tools designed to give your agents superpowers across any language.</p>
       </div>
       
       <div class="grid">
-        <article class="card" id="card-protocols">
-          <h3 class="card-title">Multi-Protocol LLM Support</h3>
-          <p class="card-desc">Run with your preferred provider. Turbostar natively supports Google Gemini, OpenAI (both Completion and Responses APIs), and Anthropic Claude protocols.</p>
-        </article>
-
-        <article class="card" id="card-a2a-server">
-          <h3 class="card-title">Zero-Porting A2A Server Mode</h3>
-          <p class="card-desc">Interactively build custom subagents with full MCP tools, models, and skills, then serve them over A2A directly from the same environment with <code>--git-worktree</code> instant workspace pre-seeding.</p>
-        </article>
-
-        <article class="card" id="card-a2a-client">
-          <h3 class="card-title">Built-in Native A2A Client</h3>
-          <p class="card-desc">Discover, configure, and orchestrate remote A2A agent servers across your network with TUI management dialogs, <code>server:agent</code> routing, and automated repository context pre-seeding.</p>
-        </article>
-
-        <article class="card" id="card-mcp">
-          <h3 class="card-title">Model Context Protocol (MCP)</h3>
-          <p class="card-desc">Connect custom servers and tools natively. Turbostar acts as a high-fidelity MCP host for model and tool discovery.</p>
-        </article>
-        
-        <article class="card" id="card-skills">
-          <h3 class="card-title">Structured Skill Registration</h3>
-          <p class="card-desc">Define directory-based capabilities (instruction documents, scripts, and examples) that are automatically discovered and loaded into the agent's context.</p>
-        </article>
-        
-        <article class="card" id="card-customizations">
-          <h3 class="card-title">Customizations &amp; Rules</h3>
-          <p class="card-desc">Inject global or project-level guidelines and constraints into agent turn iterations dynamically using custom markdown configurations.</p>
-        </article>
-
-        <article class="card" id="card-claude-subagents">
-          <h3 class="card-title">Claude-Style Subagents</h3>
-          <p class="card-desc">Define helper subagents using standard Markdown profiles with YAML frontmatter, dynamically specifying tool namespaces, permissions, and visual animations.</p>
+        <article class="card" id="card-context-paging">
+          <h3 class="card-title">Virtual Context Paging</h3>
+          <p class="card-desc">Run long multi-hour development sessions without context limits. Turbostar automatically pages history in and out like virtual memory, preserving deep project history while keeping costs low.</p>
         </article>
 
         <article class="card" id="card-tool-families">
-          <h3 class="card-title">Dynamic Tool Families</h3>
-          <p class="card-desc">Group agent helper tools into modular namespace families (e.g. <code>git</code>, <code>image</code>, <code>hexedit</code>) that can be activated dynamically on-demand, reducing prompt clutter.</p>
+          <h3 class="card-title">Modular Tool Families</h3>
+          <p class="card-desc">Keep AI agents fast, focused, and affordable. Agents load specialized capabilities (like <code>git</code>, <code>hexedit</code>, or <code>x86asm</code>) only when required, preventing context bloat and hallucination.</p>
+        </article>
+        
+        <article class="card" id="card-a2a-server">
+          <h3 class="card-title">Zero-Porting A2A Server Mode</h3>
+          <p class="card-desc">Interactively build custom subagents with full tools and skills, then serve them over A2A directly from the same environment with <code>--git-worktree</code> instant workspace pre-seeding.</p>
+        </article>
+
+        <article class="card" id="card-undo">
+          <h3 class="card-title">Integrated Undo History</h3>
+          <p class="card-desc">Code with complete safety. All agent modifications (like braces editing) are integrated directly into the editor's undo buffer, allowing you to review or revert any change instantly.</p>
         </article>
       </div>
     </section>
