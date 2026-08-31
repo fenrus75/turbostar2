@@ -80,6 +80,9 @@
             <li><strong>image:</strong> Image processing tools (zoom, rotate, crop, format conversion, etc.).</li>
             <li><strong>x86asm:</strong> Tools to assemble, disassemble, and analyze x86/x64 machine code.</li>
           </ul>
+          <p class="detail-text">
+            In agent definition files (e.g., <code>agent.md</code>), we extend the agent specification with an option that specifies which tool families are enabled by default for that agent. For example, a coding agent will have the "git" family enabled by default, while an agent working on webpages may have the "image" tool family enabled, but not the Git family.
+          </p>
         </div>
       </div>
     </section>
@@ -92,12 +95,18 @@
 
       <div class="detail-split">
         <div class="detail-info">
-          <h3 class="detail-subtitle">Steering the Agent</h3>
+          <h3 class="detail-subtitle">Backtraces &amp; Interception</h3>
           <p class="detail-text">
-            Native applications crash for many reasons (bad pointers, failed assertions). Many LLMs will try to guess the issue based on minimal logs, jumping to incorrect conclusions on complex bugs. Turbostar uses the <strong>Least Friction Principle</strong>: we inject the crash root cause directly into the execution tool output so the LLM has zero friction diagnosing it.
+            Native applications (C, C++, etc.) can crash for many reasons—from chasing a bad pointer to hitting an <code>assert()</code> or failing to handle an exception. Turbostar wraps test and application execution with a special <code>LD_PRELOAD</code> library (<code>libturbocatch.so</code>) that intercepts key signals and carefully writes a stack trace to a dedicated location.
           </p>
-          
-          <h3 class="detail-subtitle">Example: Steering via agent_wait_for_app</h3>
+          <p class="detail-text">
+            The main Turbostar application uses this backtrace file to decode addresses (something that is not safe to do inside signal handlers) and turn them into an actionable report. Turbostar maintains an internal crash database so users and AI agents can review crash details at any time. For human editor users, backtrace entries within the project include a "go to source" option.
+          </p>
+
+          <h3 class="detail-subtitle">Steering the Agent (Least Friction Principle)</h3>
+          <p class="detail-text">
+            Many LLMs will try to guess the issue based on minimal logs, jumping to incorrect conclusions on complex bugs. Turbostar uses the <strong>Least Friction Principle</strong>: we inject the crash root cause directly into the execution tool output so the LLM has zero friction diagnosing it.
+          </p>
           <p class="detail-text">When an application crashes, the agent receives an immediate, structured notification explicitly telling it how to retrieve the coredump:</p>
           <pre style="background: var(--bg-secondary); padding: 1rem; font-size: 0.85rem; border-radius: 4px;"><code>{
   "crash_notification": "\n\nCRASH DETECTED: Application crashed (Crash ID: 1028928).\nSummary: assertion fail at ../main.cpp:8 `c != NULL` in void foo(char*)()`\nPlease use 'crashdump_get_info' with crash_id '1028928' to investigate stack trace and details.",
@@ -107,9 +116,17 @@
         </div>
         
         <div class="detail-info">
-          <h3 class="detail-subtitle">Coredumps &amp; Agent GDB Architecture</h3>
+          <h3 class="detail-subtitle">Generating Coredumps</h3>
           <p class="detail-text">
-            Generating coredumps is handled transparently via <code>libturbocatch.so</code>. But more importantly, the AI agent is given native GDB integration to investigate the dump.
+            Coredumps are the ultimate data source for analyzing crashes, containing a full memory snapshot of the application at the moment of failure. However, reliably generating a coredump file turns out to be a nightmare of Linux distribution-specific quirks. Systemd's <code>coredumpctl</code>? Not on Debian. Running ChromeOS? Forget it. Running inside a container? All bets are off.
+          </p>
+          <p class="detail-text">
+            Turbostar uses <code>coredumpctl</code> if available, but <code>libturbocatch.so</code> additionally triggers execution of <code>gdb</code>'s <code>gcore</code> utility to produce a kernel-independent coredump file. While neither tool is individually perfect, this dual-attempt approach ensures coredumps are reliably generated for every crash.
+          </p>
+
+          <h3 class="detail-subtitle">Agent GDB Architecture</h3>
+          <p class="detail-text">
+            From the backtrace details, a one-click "GDB window for the coredump" option is available to human editor users, while a fully interactive <code>gdb</code> session is just one tool call away for AI agents.
           </p>
           <p class="detail-text">
             Instead of forcing the LLM to run bash commands blindly, Turbostar acts as a mediator: the LLM sends commands (like <code>info locals</code>), and Turbostar pipes them through <code>gdbserver</code> to the application, parsing the output back cleanly to the LLM.
@@ -122,6 +139,9 @@ frame 11
 buffer = "\002V\000"
 (gdb) info args
 c = 0x0</code></pre>
+          <p class="detail-text">
+            An example crash dump provided to an AI agent can be viewed <a href="https://github.com/fenrus75/turbostar2/blob/main/docs/crash.md" target="_blank" rel="noopener noreferrer">on GitHub</a>.
+          </p>
         </div>
       </div>
     </section>
@@ -134,21 +154,31 @@ c = 0x0</code></pre>
 
       <div class="detail-split">
         <div class="detail-info">
+          <h3 class="detail-subtitle">Profiling Subsystem</h3>
+          <p class="detail-text">
+            Turbostar includes native basic performance profiling. While the Linux <code>perf</code> CLI tool is powerful, its output format is not editor-friendly. To provide basic profiling, Turbostar invokes the <code>perf_event_open</code> system call directly to collect a cycle-based profile.
+          </p>
+          <p class="detail-text">
+            Profile collection is subject to strict Linux security policies. To minimize required permissions, profiles are gathered using an <code>LD_PRELOAD</code> library (<code>libturbocatch.so</code>), scoping sampling strictly to the target process and its children.
+          </p>
+          <p class="detail-text">
+            Symbol resolution and data accumulation are handled by the main Turbostar application, producing per-line and per-function datasets. Hot lines are highlighted directly on the editor window frame, and the <code>F7</code> hotkey allows quick navigation between hotspots in the code.
+          </p>
+          <p class="detail-text">
+            AI agents can request profile collection during normal app execution tool calls. Profiles are stored in an in-memory database, allowing agents to compare "before" and "after" runs and query function-level or source-file-level details.
+          </p>
+        </div>
+        <div class="detail-info">
           <h3 class="detail-subtitle">Why Linux Perf is a Bad Fit for LLMs</h3>
           <p class="detail-text">
-            Performance matters for native applications. While the Linux <code>perf</code> CLI tool is incredibly powerful, it is <strong>not a natural fit for LLMs</strong>:
+            The native integration described above is critical because the standard Linux <code>perf</code> CLI tool is <strong>not a natural fit for LLMs</strong>:
           </p>
           <ul class="detail-list">
             <li><strong>Assembly vs Code Lines:</strong> <code>perf</code> operates primarily on assembly instructions. LLMs "think" in terms of high-level functions and source code lines.</li>
             <li><strong>Messy Parsing:</strong> <code>perf</code> output is designed for humans and varies wildly by version.</li>
             <li><strong>Massive Data:</strong> Raw performance profiling generates a massive amount of data. Feeding raw <code>perf record</code> logs into an LLM will instantly exhaust the context window.</li>
           </ul>
-        </div>
-        <div class="detail-info">
           <h3 class="detail-subtitle">The Turbostar Solution</h3>
-          <p class="detail-text">
-            To provide LLM-friendly profiling, Turbostar invokes the <code>perf_event_open</code> system call directly via <code>libturbocatch.so</code>.
-          </p>
           <p class="detail-text">
             Instead of raw logs, the agent receives condensed summaries (<code>agent_get_profile_summary</code>) showing only the top bottleneck functions. If the agent wants to drill down, it calls <code>agent_get_profile_details</code> to get exact line-by-line attribution of CPU samples directly mapped to the source code—costing only a few hundred tokens instead of millions.
           </p>
