@@ -955,7 +955,6 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 	// 6. Section Ranges (linear scan for matches)
 	for (const auto &sec : sections_) {
 		if (offset >= sec.offset && offset < sec.offset + sec.size) {
-			size_t relative = offset - sec.offset;
 #ifdef HAVE_ZYDIS
 			if (sec.semantic == hex_semantic_type::code_section && (header_.e_machine == 3 || header_.e_machine == 62)) {
 				ZydisMachineMode machine_mode = (header_.e_machine == 62) ? ZYDIS_MACHINE_MODE_LONG_64 : ZYDIS_MACHINE_MODE_LEGACY_32;

@@ -933,9 +933,11 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 		int app_id = next_run_id.fetch_add(2);
 		int gdb_id = app_id + 1;
 
-		auto app_tw = std::make_unique<ui::terminal_window>(app_id, 0, 1, COLS, app_h, "Run Output");
+		int cols = COLS > 0 ? COLS : 80;
+
+		auto app_tw = std::make_unique<ui::terminal_window>(app_id, 0, 1, cols, app_h, "Run Output");
 		app_tw->set_display_priority(10);
-		auto gdb_tw = std::make_unique<ui::terminal_window>(gdb_id, 0, 1 + app_h, COLS, gdb_h, "Debugger (GDB)");
+		auto gdb_tw = std::make_unique<ui::terminal_window>(gdb_id, 0, 1 + app_h, cols, gdb_h, "Debugger (GDB)");
 		gdb_tw->set_display_priority(10);
 		gdb_tw->set_sanitize_recorded_data(true);
 		app_tw->link_window(gdb_tw.get());
@@ -1000,8 +1002,10 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 		}
 		set_focus(focus_target::window, "start_app");
 	} else {
+		int cols = COLS > 0 ? COLS : 80;
+		int lines = LINES > 0 ? LINES : 25;
 		int app_id = 1000 + static_cast<int>(windows_.size());
-		auto tw = std::make_unique<ui::terminal_window>(app_id, 0, 1, COLS, LINES - 2, "Run Output");
+		auto tw = std::make_unique<ui::terminal_window>(app_id, 0, 1, cols, lines - 2, "Run Output");
 		tw->set_display_priority(10);
 
 		std::string raw_cmd = build_exe.string();
@@ -1367,7 +1371,9 @@ agentlib::start_app_result editor::start_coredump_gdb(std::string_view crash_id)
 	}
 
 	int run_id = 2000 + static_cast<int>(windows_.size());
-	auto gdb_tw = std::make_unique<ui::terminal_window>(run_id, 0, 1, COLS, LINES - 2, "Coredump Debugger (GDB)");
+	int cols = COLS > 0 ? COLS : 80;
+	int lines = LINES > 0 ? LINES : 25;
+	auto gdb_tw = std::make_unique<ui::terminal_window>(run_id, 0, 1, cols, lines - 2, "Coredump Debugger (GDB)");
 	gdb_tw->set_display_priority(10);
 	gdb_tw->set_sanitize_recorded_data(true);
 
