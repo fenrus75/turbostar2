@@ -19,6 +19,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- `hexinspect` format auto-chaining: when `hexinspect` is invoked on a compressed archive (e.g. `.tar.gz`, `.gz`, `.bz2`, `.zst`), transparently decompress the stream in memory before running structural format parsers (TAR, ELF, PNG, JPEG).
+- `hexdump` symbol size auto-resolution: when `hexdump` is called with `offset_by_name` (e.g. symbol name `"main"` or section `".text"`), automatically resolve `size` from the symbol's size reported in the binary `.symtab` when `size` is omitted or unspecified.
+
 - we know how to compile a single file -- maybe compile the file after an agent edit rather than depending on the LSP
 
 - consider async compile of the whole project on edits to cut down time?
