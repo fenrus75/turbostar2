@@ -129,6 +129,8 @@ class editor : public agentlib::document_provider
 	 */
 	void dispatch(const editor_event &ev);
 
+	event_queue &get_global_queue() noexcept { return global_queue_; }
+
       private:
 	void new_window(std::string_view filename);
 	std::string get_k_block_status_help() const;

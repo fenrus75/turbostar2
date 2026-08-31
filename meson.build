@@ -536,7 +536,7 @@ test('unit_test_json_utils', test_json_utils, suite: 'unit')
 
 test_turbomcp_server = executable('test_turbomcp_server',
   ['tests/unit/test_turbomcp_server.cpp'],
-  dependencies : [agent_dep, tools_dep, core_dep, nlohmann_json_dep, thread_dep, dl_dep],
+  dependencies : [agent_dep, tools_dep, ui_dep, core_dep, nlohmann_json_dep, thread_dep, dl_dep],
   include_directories: inc)
 test('unit_test_turbomcp_server', test_turbomcp_server, suite: 'unit')
 

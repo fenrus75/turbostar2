@@ -1276,6 +1276,8 @@ static std::string get_executable_for_crash(const std::string &crash_id)
 		while (std::getline(in, line)) {
 			if (line.starts_with(exe_prefix)) {
 				std::string orig = line.substr(exe_prefix.length());
+				while (!orig.empty() && (orig.back() == '\r' || orig.back() == '\n' || std::isspace(static_cast<unsigned char>(orig.back())))) orig.pop_back();
+				while (!orig.empty() && std::isspace(static_cast<unsigned char>(orig.front()))) orig.erase(orig.begin());
 				if (fs::exists(orig)) {
 					return orig;
 				}
