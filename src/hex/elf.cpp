@@ -1013,9 +1013,9 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 						}
 						highlight_info info;
 						info.type = sec.semantic;
-						info.description = std::format("{}{} | ELF Sec \"{}\": type = {}, offset = 0x{:X} (+{})",
+						info.description = std::format("{}{} | ELF Sec \"{}\": type = {}, offset = 0x{:X}",
 										  shorten_hex_numbers(instruction.text), symbol_ctx, sec.name,
-										  get_shdr_type_desc(sec.type_val), sec.offset, relative);
+										  get_shdr_type_desc(sec.type_val), sec.offset);
 						info.range_start = inst_start;
 						info.range_size = inst_len;
 						return info;
@@ -1026,8 +1026,8 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 				}
 			}
 #endif
-			return {sec.semantic, std::format("ELF Sec \"{}\": type = {}, offset = 0x{:X} (+{})", sec.name,
-							  get_shdr_type_desc(sec.type_val), sec.offset, relative)};
+			return {sec.semantic, std::format("ELF Sec \"{}\": type = {}, offset = 0x{:X}", sec.name,
+							  get_shdr_type_desc(sec.type_val), sec.offset)};
 		}
 	}
 

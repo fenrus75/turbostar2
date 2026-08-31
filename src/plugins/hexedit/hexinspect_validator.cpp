@@ -26,8 +26,8 @@ nlohmann::json hexinspect_validator::get_parameters_schema() const
 	    {"type", "object"},
 	    {"properties",
 	     {{"path", {{"type", "string"}, {"description", "The path to the binary file relative to project root."}}},
-	      {"offset", {{"type", "integer"}, {"description", "0-based byte offset to start inspecting. Defaults to 0."}}},
-	      {"size", {{"type", "integer"}, {"description", "Number of bytes to inspect. Defaults to 256. Maximum 4096."}}},
+	      {"offset", {{"type", nlohmann::json::array({"integer", "string"})}, {"description", "0-based byte offset to start inspecting (e.g. 0 or \"0x1080\"). Defaults to 0."}}},
+	      {"size", {{"type", nlohmann::json::array({"integer", "string"})}, {"description", "Number of bytes to inspect. Defaults to 256. Maximum 4096."}}},
 	      {"offset_by_name", {{"type", "string"}, {"description", "Optional section/chunk/symbol name (e.g. '.text' or 'PLTE') to resolve offset automatically."}}}}},
 	    {"required", nlohmann::json::array({"path"})}};
 }
@@ -36,22 +36,34 @@ bool hexinspect_validator::validate_args_impl(const nlohmann::json &raw_json, co
 					      std::string &out_error) const
 {
 	try {
-		hexinspect_raw_args parsed = raw_json.get<hexinspect_raw_args>();
-		if (parsed.path.empty()) {
+		auto parse_numeric = [](const nlohmann::json &j, const char *key, size_t def_val) -> size_t {
+			if (!j.contains(key)) return def_val;
+			auto &v = j[key];
+			if (v.is_number()) return v.get<size_t>();
+			if (v.is_string()) {
+				std::string s = v.get<std::string>();
+				return s.starts_with("0x") || s.starts_with("0X") ? std::stoull(s.substr(2), nullptr, 16) : std::stoull(s);
+			}
+			return def_val;
+		};
+
+		args_.requested_path = raw_json.value("path", "");
+		args_.offset = parse_numeric(raw_json, "offset", 0);
+		size_t parsed_size = parse_numeric(raw_json, "size", 0);
+		args_.offset_by_name = raw_json.value("offset_by_name", "");
+
+		if (args_.requested_path.empty()) {
 			out_error = "Path parameter cannot be empty.";
 			return false;
 		}
 
 		std::string canonical_path;
-		if (!ctx.fs_security.validate_access(parsed.path, agentlib::access_type::read, canonical_path, out_error)) {
+		if (!ctx.fs_security.validate_access(args_.requested_path, agentlib::access_type::read, canonical_path, out_error)) {
 			return false;
 		}
 
-		args_.requested_path = parsed.path;
 		args_.safe_path = canonical_path;
-		args_.offset = parsed.offset;
-		args_.size = (parsed.size == 0) ? 256 : (parsed.size > 4096 ? 4096 : parsed.size);
-		args_.offset_by_name = parsed.offset_by_name;
+		args_.size = (parsed_size == 0) ? 256 : (parsed_size > 4096 ? 4096 : parsed_size);
 
 		return true;
 	} catch (const std::exception &e) {

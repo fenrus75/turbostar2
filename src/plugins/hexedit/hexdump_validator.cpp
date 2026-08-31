@@ -27,8 +27,8 @@ nlohmann::json hexdump_validator::get_parameters_schema() const
 	    {"type", "object"},
 	    {"properties",
 	     {{"path", {{"type", "string"}, {"description", "The path to the file relative to the project root."}}},
-	      {"offset", {{"type", "integer"}, {"minimum", 0}, {"description", "Byte offset from which to start reading. Defaults to 0."}}},
-	      {"size", {{"type", "integer"}, {"minimum", 1}, {"description", "Number of bytes to read."}}},
+	      {"offset", {{"type", nlohmann::json::array({"integer", "string"})}, {"description", "Byte offset from which to start reading (e.g. 0 or \"0x1080\"). Defaults to 0."}}},
+	      {"size", {{"type", nlohmann::json::array({"integer", "string"})}, {"description", "Number of bytes to read."}}},
 	      {"offset_by_name", {{"type", "string"}, {"description", "Optional section/chunk/symbol name (e.g. '.text' or 'PLTE') to resolve offset automatically."}}}}},
 	    {"required", nlohmann::json::array({"path", "size"})}};
 }
@@ -37,26 +37,37 @@ bool hexdump_validator::validate_args_impl(const nlohmann::json &raw_json, const
 					   std::string &out_error) const
 {
 	try {
-		hexdump_raw_args parsed = raw_json.get<hexdump_raw_args>();
-		if (parsed.path.empty()) {
+		auto parse_numeric = [](const nlohmann::json &j, const char *key, size_t def_val) -> size_t {
+			if (!j.contains(key)) return def_val;
+			auto &v = j[key];
+			if (v.is_number()) return v.get<size_t>();
+			if (v.is_string()) {
+				std::string s = v.get<std::string>();
+				return s.starts_with("0x") || s.starts_with("0X") ? std::stoull(s.substr(2), nullptr, 16) : std::stoull(s);
+			}
+			return def_val;
+		};
+
+		args_.requested_path = raw_json.value("path", "");
+		args_.offset = parse_numeric(raw_json, "offset", 0);
+		args_.size = parse_numeric(raw_json, "size", 0);
+		args_.offset_by_name = raw_json.value("offset_by_name", "");
+
+		if (args_.requested_path.empty()) {
 			out_error = "Path cannot be empty.";
 			return false;
 		}
-		if (parsed.size == 0) {
+		if (args_.size == 0) {
 			out_error = "Size must be at least 1 byte.";
 			return false;
 		}
 
 		std::string canonical_path;
-		if (!ctx.fs_security.validate_access(parsed.path, agentlib::access_type::read, canonical_path, out_error)) {
+		if (!ctx.fs_security.validate_access(args_.requested_path, agentlib::access_type::read, canonical_path, out_error)) {
 			return false;
 		}
 
-		args_.requested_path = parsed.path;
 		args_.safe_path = canonical_path;
-		args_.offset = parsed.offset;
-		args_.size = parsed.size;
-		args_.offset_by_name = parsed.offset_by_name;
 
 		return true;
 	} catch (const std::exception &e) {

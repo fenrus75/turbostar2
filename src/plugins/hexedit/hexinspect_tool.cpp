@@ -144,7 +144,7 @@ std::string hexinspect_tool::execute(agentlib::tool_context &ctx)
 				if (vfs) {
 					vfs->write_file(tmp_uri, structure_summary.data(), structure_summary.size());
 				}
-				result += std::format("*Structure summary has been written to {}*\n\n", tmp_uri);
+				result += std::format("> [!TIP]\n> A complete structural summary of this binary (sections, symbols, headers) was automatically generated and saved to `{}`. Read that file if you need a high-level map before diving into offsets.\n\n", tmp_uri);
 			} else {
 				std::string tmp_uri = "tmp://archive_contents_" + filename + ".md";
 				size_t line_count = 0;
@@ -179,7 +179,7 @@ std::string hexinspect_tool::execute(agentlib::tool_context &ctx)
 					}
 
 					result += preview;
-					result += std::format("\n*Archive content summary was too large for direct inclusion ({} lines), but the complete listing has been written to {}*\n\n", line_count, tmp_uri);
+					result += std::format("\n> [!TIP]\n> Archive content summary was too large for direct inclusion ({} lines), but the complete listing has been saved to `{}`. Use a file reading tool if you need to see the rest of the archive!\n\n", line_count, tmp_uri);
 				}
 			}
 		}
