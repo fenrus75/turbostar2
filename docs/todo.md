@@ -507,6 +507,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
   2. **Headless & Full Environment Retention**: Disables ncurses TUI initialization, redirects logging to stderr/file to keep stdout pure for JSON-RPC frames, defaults `--project-dir` to `.`, runs in `--yolo` mode (permission checks delegated to client), and enables all tool families (`--all-tool-families`). Retains VFS, sandbox security, LSP, profiling (`libturbocatch.so`), crash debugging (`gdbserver`), and internal subagent execution.
   3. **Selective Tool Filtering (`expose_in_mcp`)**: Added virtual method `expose_in_mcp()` on `tool_validator` (defaulting to `true`). Overrode to `false` in `open_in_editor_validator` to filter TUI/editor-bound tools out of MCP tool discovery.
   4. **Unit Testing & Verification**: Added `test_turbomcp_server.cpp` unit test and verified stdio JSON-RPC handshake, tool listing, and tool execution.
+  5. **Website & Documentation Refresh**: Updated `docs/ai.html` with practical X-Ray vision capabilities experienced during live MCP evaluation (header-to-source symbol codemaps, syntax-aware boundary completion, inline dependency mapping, and line-count directory scale awareness).
 
 ## 15-08-2026
 

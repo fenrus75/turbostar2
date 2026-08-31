@@ -61,7 +61,10 @@
         </p>
         <ul class="detail-list">
           <li><strong>Semantic Understanding:</strong> Allows the agent to instantly answer <em>"Where in the code is X?"</em> and <em>"What is in file Y?"</em> without relying on slow, error-prone text grepping.</li>
-          <li><strong>Type Introspection:</strong> Agents utilize full language parsers (like <code>clangd</code>) to autocomplete complex data structures autonomously.</li>
+          <li><strong>Header &amp; Implementation Cross-Referencing:</strong> When inspecting header declarations, Turbostar automatically links the symbol codemap of the companion source file, eliminating multi-step search loops.</li>
+          <li><strong>Syntax-Aware Scope Snapping:</strong> Instead of blindly slicing code by line count and truncating signatures, file tools automatically snap slice bounds to complete function boundaries.</li>
+          <li><strong>Inline Dependency Mapping:</strong> Reading a code block automatically generates a codemap of all external functions and classes invoked within that slice, giving the agent immediate navigation pointers.</li>
+          <li><strong>Line-Count Scale Awareness:</strong> Directory listings report line counts alongside byte sizes, preventing context window overruns before opening large files.</li>
         </ul>
       </div>
       <div class="detail-visual">
