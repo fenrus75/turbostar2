@@ -1,4 +1,5 @@
 #include "ask_user.h"
+#include "config_manager.h"
 #include "fs_utils.h"
 
 namespace tools
@@ -10,7 +11,7 @@ ask_user_tool::ask_user_tool(ask_user_args args) : args_(std::move(args))
 
 bool ask_user_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const
 {
-	if (!ctx.queue) {
+	if (!ctx.queue && !config_manager::get_instance().is_yolo_mode()) {
 		out_error = "Execution Error: No event queue available to prompt the user.";
 		return false;
 	}
@@ -19,6 +20,11 @@ bool ask_user_tool::validate_runtime(const agentlib::tool_context &ctx, std::str
 
 std::string ask_user_tool::execute(agentlib::tool_context &ctx)
 {
+	if (config_manager::get_instance().is_yolo_mode()) {
+		std::string auto_res = args_.options.empty() ? "Yes" : args_.options[0];
+		return fs_utils::wrap_prompt_untrusted_data_tag("ask_user_result", auto_res);
+	}
+
 	if (!ctx.queue) {
 		return fs_utils::wrap_prompt_untrusted_data_tag("ask_user_result", "Error: No event queue available to prompt the user.");
 	}

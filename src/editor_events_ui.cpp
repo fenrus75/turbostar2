@@ -837,6 +837,13 @@ void editor::dispatch_event_ui(const editor_event &ev)
 
 	if (ev.type == event_type::prompt_user) {
 		logger.log("Dispatching prompt_user event.");
+		if (config_manager::get_instance().is_yolo_mode()) {
+			if (ev.prompt_promise) {
+				std::string auto_res = ev.prompt_options.empty() ? "Yes" : ev.prompt_options[0];
+				ev.prompt_promise->set_value(auto_res);
+			}
+			return;
+		}
 		// If a previous ask_user prompt is still pending (its promise has not been
 		// resolved), the calling agent thread is blocked on future.get() waiting for
 		// it. Overwriting active_ask_user_promise_ would strand that thread forever

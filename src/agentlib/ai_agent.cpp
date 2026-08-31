@@ -788,9 +788,9 @@ bool ai_agent::is_tool_family_active(const std::string &family_name) const
 		}
 	}
 
-	// Check if enabled in configuration (global or project)
+	// Check if enabled in configuration (global or project) or --all-tool-families CLI flag
 	config_manager &cfg = config_manager::get_instance();
-	if (cfg.is_tool_family_enabled(family_name, true) || cfg.is_tool_family_enabled(family_name, false)) {
+	if (cfg.is_all_tool_families_enabled() || cfg.is_tool_family_enabled(family_name, true) || cfg.is_tool_family_enabled(family_name, false)) {
 		return true;
 	}
 

@@ -88,6 +88,24 @@ class config_manager
 		paranoid_mode_ = paranoid;
 	}
 
+	bool is_yolo_mode() const
+	{
+		return yolo_mode_;
+	}
+	void set_yolo_mode(bool yolo)
+	{
+		yolo_mode_ = yolo;
+	}
+
+	bool is_all_tool_families_enabled() const
+	{
+		return all_tool_families_enabled_;
+	}
+	void set_all_tool_families_enabled(bool enabled)
+	{
+		all_tool_families_enabled_ = enabled;
+	}
+
 	bool is_run_outside_sandbox() const
 	{
 		return run_outside_sandbox_;
@@ -266,6 +284,8 @@ class config_manager
 	bool auto_open_error_files_{true};
 	bool compile_on_save_{false};
 	bool paranoid_mode_{false};
+	bool yolo_mode_{false};
+	bool all_tool_families_enabled_{false};
 	bool run_outside_sandbox_{false};
 	bool log_all_tool_calls_{false};
 	bool shell_display_access_{false};

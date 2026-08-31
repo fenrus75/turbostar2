@@ -32,14 +32,25 @@ int main(int argc, char **argv)
 	std::string dump_state_file = "";
 	std::string project_dir = "";
 	std::vector<std::string> active_families;
+	bool yolo_mode = false;
+	bool all_tool_families = false;
 
 	app.add_option("prompt,-p,--prompt", prompt, "The initial user prompt to send to the agent");
 	app.add_option("replay,-r,--replay", replay_file, "Traffic file for replay/record modes");
 	app.add_option("--dump-state", dump_state_file, "Dump the final conversation state to this JSON file before exiting");
 	app.add_option("--project-dir", project_dir, "Override the project root directory for isolated sandboxing");
 	app.add_option("--activate-family", active_families, "Activate specific tool families for the test agent");
+	app.add_flag("--yolo", yolo_mode, "Automatically approve all permission prompts and user questions (non-interactive)");
+	app.add_flag("--all-tool-families", all_tool_families, "Automatically enable all registered tool families at startup");
 
 	CLI11_PARSE(app, argc, argv);
+
+	if (yolo_mode) {
+		config_manager::get_instance().set_yolo_mode(true);
+	}
+	if (all_tool_families) {
+		config_manager::get_instance().set_all_tool_families_enabled(true);
+	}
 
 	{
 		if (!project_dir.empty()) {

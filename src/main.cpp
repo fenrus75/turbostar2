@@ -69,10 +69,14 @@ int main(int argc, char **argv)
 	bool a2a_enforce_token = false;
 
 	bool tooltrace = false;
+	bool yolo_mode = false;
+	bool all_tool_families = false;
 
 	app.add_option("--log", log_file, "Path to log file");
 	app.add_flag("--debug", debug_mode, "Enable debug mode");
 	app.add_flag("--tooltrace", tooltrace, "Trace all tool calls to sequential log files (toolcall.0, toolcall.1...) in the current directory");
+	app.add_flag("--yolo", yolo_mode, "Automatically approve all permission prompts and user questions (non-interactive)");
+	app.add_flag("--all-tool-families", all_tool_families, "Automatically enable all registered tool families at startup");
 	app.add_flag("--no-lsp", no_lsp, "Disable LSP functionality");
 	app.add_flag("--no-welcome-screen", no_welcome, "Disable the welcome screen on startup");
 	app.add_flag("--fresh-agent", fresh_agent, "Do not load previous agent state/history on startup");
@@ -127,6 +131,12 @@ int main(int argc, char **argv)
 
 	if (tooltrace) {
 		agentlib::tool_tracer::get_instance().set_enabled(true);
+	}
+	if (yolo_mode) {
+		config_manager::get_instance().set_yolo_mode(true);
+	}
+	if (all_tool_families) {
+		config_manager::get_instance().set_all_tool_families_enabled(true);
 	}
 
 	if (!a2a_token.empty()) {
