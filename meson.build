@@ -195,6 +195,11 @@ install_symlink('turboserver',
   pointing_to: 'turbostar'
 )
 
+install_symlink('turbomcp',
+  install_dir: 'bin',
+  pointing_to: 'turbostar'
+)
+
 agentcli_exe = executable('agentcli',
   'src/agentcli/main.cpp',
   dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
@@ -224,7 +229,7 @@ agentcli_replay_exe = executable('agentcli_replay',
 copy_to_testrun_tgt = custom_target('copy_to_testrun',
   input: turbostar_exe,
   output: 'turbostar_deploy_dummy',
-  command: ['sh', '-c', 'mkdir -p "$1" && cp "$2" "$1/turbostar.new" && mv "$1/turbostar.new" "$1/turbostar" && ln -sf turbostar "$1/turboagent" && ln -sf turbostar "$1/turboserver"', 'sh', join_paths(meson.project_source_root(), 'testrun'), '@INPUT@'],
+  command: ['sh', '-c', 'mkdir -p "$1" && cp "$2" "$1/turbostar.new" && mv "$1/turbostar.new" "$1/turbostar" && ln -sf turbostar "$1/turboagent" && ln -sf turbostar "$1/turboserver" && ln -sf turbostar "$1/turbomcp"', 'sh', join_paths(meson.project_source_root(), 'testrun'), '@INPUT@'],
   build_by_default: true
 )
 
@@ -528,6 +533,12 @@ test_json_utils = executable('test_json_utils',
   dependencies : [agent_dep, core_dep, nlohmann_json_dep, thread_dep, dl_dep],
   include_directories: inc)
 test('unit_test_json_utils', test_json_utils, suite: 'unit')
+
+test_turbomcp_server = executable('test_turbomcp_server',
+  ['tests/unit/test_turbomcp_server.cpp'],
+  dependencies : [agent_dep, tools_dep, core_dep, nlohmann_json_dep, thread_dep, dl_dep],
+  include_directories: inc)
+test('unit_test_turbomcp_server', test_turbomcp_server, suite: 'unit')
 
 if lexbor_dep.found()
   test_html_extract_tables = executable('test_html_extract_tables',

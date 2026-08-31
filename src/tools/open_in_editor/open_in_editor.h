@@ -29,6 +29,10 @@ class open_in_editor_validator : public agentlib::single_file_tool_validator
 	{
 		return "editor";
 	}
+	bool expose_in_mcp() const override
+	{
+		return false;
+	}
 	std::string get_description() const override
 	{
 		return "Open a file in the editor UI for the user to view or edit. If the file is already open in a window, that window is activated and focused; otherwise, the file is loaded in a new window.";;

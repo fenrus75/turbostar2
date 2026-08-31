@@ -1,0 +1,176 @@
+// Tested source file: src/mcp/turbomcp_server.cpp
+#include "mcp/turbomcp_server.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_context.h"
+#include "config_manager.h"
+#include "event_logger.h"
+#include <iostream>
+#include <string>
+
+namespace agentlib
+{
+
+int turbomcp_server::run_stdio_loop()
+{
+	event_logger::get_instance().log("turbomcp_server: starting stdio loop");
+
+	std::string line;
+	while (std::getline(std::cin, line)) {
+		if (line.empty()) {
+			continue;
+		}
+
+		try {
+			nlohmann::json req = nlohmann::json::parse(line);
+			nlohmann::json resp = handle_request(req);
+			if (!resp.is_null()) {
+				send_response(resp);
+			}
+		} catch (const std::exception &e) {
+			event_logger::get_instance().log("turbomcp_server JSON parse error: {}", e.what());
+			send_error(nullptr, -32700, "Parse error");
+		}
+	}
+
+	event_logger::get_instance().log("turbomcp_server: stdio loop ended");
+	return 0;
+}
+
+nlohmann::json turbomcp_server::handle_request(const nlohmann::json &req)
+{
+	if (!req.is_object()) {
+		return nullptr;
+	}
+
+	std::string method = req.value("method", "");
+	nlohmann::json id = req.contains("id") ? req["id"] : nullptr;
+	nlohmann::json params = req.contains("params") ? req["params"] : nlohmann::json::object();
+
+	// Notifications (no id)
+	if (id.is_null() && (method == "notifications/initialized" || method == "cancelled")) {
+		event_logger::get_instance().log("turbomcp_server received notification: {}", method);
+		return nullptr;
+	}
+
+	if (method == "initialize") {
+		return handle_initialize(id, params);
+	}
+	if (method == "ping") {
+		nlohmann::json resp;
+		resp["jsonrpc"] = "2.0";
+		resp["id"] = id;
+		resp["result"] = nlohmann::json::object();
+		return resp;
+	}
+	if (method == "tools/list") {
+		return handle_tools_list(id);
+	}
+	if (method == "tools/call") {
+		return handle_tools_call(id, params);
+	}
+
+	// Unknown method
+	nlohmann::json err;
+	err["jsonrpc"] = "2.0";
+	err["id"] = id;
+	err["error"] = {{"code", -32601}, {"message", "Method not found: " + method}};
+	return err;
+}
+
+nlohmann::json turbomcp_server::handle_initialize(const nlohmann::json &id, const nlohmann::json & /*params*/)
+{
+	nlohmann::json resp;
+	resp["jsonrpc"] = "2.0";
+	resp["id"] = id;
+
+	nlohmann::json result;
+	result["protocolVersion"] = "2024-11-05";
+	result["capabilities"] = {
+		{"tools", {{"listChanged", false}}}
+	};
+	result["serverInfo"] = {
+		{"name", "turbomcp"},
+		{"version", "0.1.0"}
+	};
+
+	resp["result"] = result;
+	return resp;
+}
+
+nlohmann::json turbomcp_server::handle_tools_list(const nlohmann::json &id)
+{
+	nlohmann::json tools_array = nlohmann::json::array();
+	auto validators = tool_registry::get_instance().get_all_registered_validators();
+
+	for (const auto &val : validators) {
+		if (!val) continue;
+
+		// Respect expose_in_mcp() virtual method to filter out editor-only tools
+		if (!val->expose_in_mcp()) {
+			continue;
+		}
+
+		nlohmann::json tool_item;
+		tool_item["name"] = val->get_name();
+		tool_item["description"] = val->get_description();
+		tool_item["inputSchema"] = val->get_parameters_schema();
+
+		tools_array.push_back(tool_item);
+	}
+
+	nlohmann::json resp;
+	resp["jsonrpc"] = "2.0";
+	resp["id"] = id;
+	resp["result"] = {
+		{"tools", tools_array}
+	};
+
+	return resp;
+}
+
+nlohmann::json turbomcp_server::handle_tools_call(const nlohmann::json &id, const nlohmann::json &params)
+{
+	std::string tool_name = params.value("name", "");
+	nlohmann::json args = params.contains("arguments") ? params["arguments"] : nlohmann::json::object();
+
+	tool_context ctx;
+	ctx.properties.active_families = tool_registry::get_instance().get_all_registered_families();
+	ctx.queue = nullptr;
+
+	std::string args_str = args.dump();
+	std::string res_text = tool_registry::get_instance().execute_tool(tool_name, args_str, ctx);
+
+	bool is_error = res_text.starts_with("Error:") || res_text.starts_with("Validation Error:") || res_text.starts_with("Security Violation:");
+
+	nlohmann::json content_item;
+	content_item["type"] = "text";
+	content_item["text"] = res_text;
+
+	nlohmann::json result_obj;
+	result_obj["content"] = nlohmann::json::array({content_item});
+	result_obj["isError"] = is_error;
+
+	nlohmann::json resp;
+	resp["jsonrpc"] = "2.0";
+	resp["id"] = id;
+	resp["result"] = result_obj;
+
+	return resp;
+}
+
+void turbomcp_server::send_response(const nlohmann::json &resp)
+{
+	std::cout << resp.dump() << "\n";
+	std::cout.flush();
+}
+
+void turbomcp_server::send_error(const nlohmann::json &id, int code, const std::string &message)
+{
+	nlohmann::json err;
+	err["jsonrpc"] = "2.0";
+	err["id"] = id;
+	err["error"] = {{"code", code}, {"message", message}};
+	send_response(err);
+}
+
+} // namespace agentlib

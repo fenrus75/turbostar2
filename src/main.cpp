@@ -20,6 +20,7 @@
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "mcp/mcp_manager.h"
+#include "mcp/turbomcp_server.h"
 #include "pluginloader.h"
 #include "project_manager.h"
 #include "statistics_manager.h"
@@ -71,12 +72,14 @@ int main(int argc, char **argv)
 	bool tooltrace = false;
 	bool yolo_mode = false;
 	bool all_tool_families = false;
+	bool mcp_mode = false;
 
 	app.add_option("--log", log_file, "Path to log file");
 	app.add_flag("--debug", debug_mode, "Enable debug mode");
 	app.add_flag("--tooltrace", tooltrace, "Trace all tool calls to sequential log files (toolcall.0, toolcall.1...) in the current directory");
 	app.add_flag("--yolo", yolo_mode, "Automatically approve all permission prompts and user questions (non-interactive)");
 	app.add_flag("--all-tool-families", all_tool_families, "Automatically enable all registered tool families at startup");
+	app.add_flag("--mcp, --mcp-server", mcp_mode, "Run as a Model Context Protocol (MCP) stdio server");
 	app.add_flag("--no-lsp", no_lsp, "Disable LSP functionality");
 	app.add_flag("--no-welcome-screen", no_welcome, "Disable the welcome screen on startup");
 	app.add_flag("--fresh-agent", fresh_agent, "Do not load previous agent state/history on startup");
@@ -151,6 +154,38 @@ int main(int argc, char **argv)
 	std::string binary_name = fs::path(argv[0]).filename().string();
 	if (binary_name == "turboserver" || binary_name == "a2aserver") {
 		a2a_server_mode = true;
+	}
+	if (binary_name == "turbomcp") {
+		mcp_mode = true;
+	}
+
+	if (mcp_mode) {
+		event_logger::get_instance().enable_stdout_logging(false);
+		if (project_dir.empty()) {
+			project_dir = ".";
+		}
+		fs_utils::set_override_project_dir(project_dir);
+
+		config_manager::get_instance().load();
+		config_manager::get_instance().set_yolo_mode(true);
+		config_manager::get_instance().set_all_tool_families_enabled(true);
+		if (!override_model_id.empty()) {
+			config_manager::get_instance().set_default_model_id(override_model_id);
+		}
+
+		plugin_loader::get_instance().load_all_plugins();
+		project_manager::get_instance().set_enforce_initialization(true);
+		project_manager::get_instance().initialize();
+		(void)agentlib::tool_registry::get_instance();
+		(void)command_registry::get_instance();
+		agentlib::skill_manager::get_instance().initialize();
+		agentlib::subagent_manager::get_instance().initialize();
+
+		agentlib::turbomcp_server server;
+		int res = server.run_stdio_loop();
+		plugin_loader::get_instance().unload_all_plugins();
+		project_manager::get_instance().shutdown();
+		return res;
 	}
 
 	if (!project_dir.empty()) {

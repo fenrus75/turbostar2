@@ -76,6 +76,10 @@ public:
     // Indicates if the tool's execution should be hidden from the UI by default.
     virtual bool is_silent_by_default() const { return is_pure(); }
 
+    // Indicates if the tool should be exposed over the MCP stdio interface.
+    // Defaults to true. Override to return false for TUI/editor-bound tools.
+    virtual bool expose_in_mcp() const { return true; }
+
     // Indicates if the tool can be executed by the given agent properties.
     // By default, summarizers are allowed no tools, while other roles can run any tool.
     virtual bool is_allowed_for_agent(const agent_properties &properties) const;
