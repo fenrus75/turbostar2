@@ -36,38 +36,38 @@ static bool match_symbol_string(std::string_view target, std::string_view query)
 	if (target.empty() || query.empty()) {
 		return false;
 	}
-	std::string t;
-	t.reserve(target.size());
-	for (char c : target) t.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-	std::string q;
-	q.reserve(query.size());
-	for (char c : query) q.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-
-	if (t.find(q) != std::string::npos || q.find(t) != std::string::npos) {
+	if (target == query) {
 		return true;
 	}
 
-	auto strip_params = [](const std::string &s) -> std::string {
-		size_t paren = s.find('(');
+	auto extract_base_name = [](std::string_view s) -> std::string {
+		std::string str(s);
+		size_t paren = str.find('(');
 		if (paren != std::string::npos) {
-			std::string base = s.substr(0, paren);
-			while (!base.empty() && std::isspace(static_cast<unsigned char>(base.back()))) {
-				base.pop_back();
-			}
-			return base;
+			str = str.substr(0, paren);
 		}
-		return s;
+		while (!str.empty() && std::isspace(static_cast<unsigned char>(str.back()))) {
+			str.pop_back();
+		}
+		size_t colons = str.rfind("::");
+		if (colons != std::string::npos) {
+			str = str.substr(colons + 2);
+		}
+		std::string lower;
+		for (char c : str) {
+			lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+		}
+		return lower;
 	};
 
-	std::string t_base = strip_params(t);
-	std::string q_base = strip_params(q);
-	if (!t_base.empty() && !q_base.empty()) {
-		if (t_base.find(q_base) != std::string::npos || q_base.find(t_base) != std::string::npos) {
-			return true;
-		}
+	std::string t_base = extract_base_name(target);
+	std::string q_base = extract_base_name(query);
+
+	if (t_base.empty() || q_base.empty()) {
+		return false;
 	}
 
-	return false;
+	return (t_base == q_base);
 }
 
 static bool find_matching_symbol(const lsp_manager::symbol_node &node, const std::string &target_name,
@@ -474,6 +474,9 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 			int lnum = lp.first;
 			const auto &s = lp.second;
 			if (!args_.function_name.empty() && bounds.start_line > 0 && bounds.end_line >= bounds.start_line) {
+				if (!s.function_name.empty() && !match_symbol_string(s.function_name, args_.function_name)) {
+					continue;
+				}
 				if (lnum < bounds.start_line || lnum > bounds.end_line) {
 					lnum = bounds.start_line;
 				}
