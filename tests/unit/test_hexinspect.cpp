@@ -81,7 +81,7 @@ int main()
 		assert(res.find("ELF Magic") != std::string::npos || res.find("e_ident") != std::string::npos);
 
 		// Verify structure summary was generated and written to VFS tmp file, bypassing direct inclusion
-		assert(res.find("Structure summary has been written to tmp://inspected_structure_") != std::string::npos);
+		assert(res.find("A complete structural summary of this binary") != std::string::npos);
 		
 		std::string tmp_physical_path = fs_utils::get_project_tmp_dir() + "/inspected_structure_mock_elf_hexinspect_bin.md";
 		assert(std::filesystem::exists(tmp_physical_path));
@@ -241,7 +241,8 @@ int main()
 		std::string res = registry.execute_tool("hexinspect", args, ctx);
 
 		// Verify structure summary was generated and written to VFS tmp file, bypassing direct inclusion
-		assert(res.find("Structure summary has been written to tmp://inspected_structure_shared-mime-info-spec_pdf.md") != std::string::npos);
+		assert(res.find("A complete structural summary of this binary") != std::string::npos);
+		assert(res.find("tmp://inspected_structure_shared-mime-info-spec_pdf.md") != std::string::npos);
 		assert(res.find("### PDF Structural Overview") == std::string::npos); // Bypassed inline preview
 
 		std::string tmp_physical_path = fs_utils::get_project_tmp_dir() + "/inspected_structure_shared-mime-info-spec_pdf.md";
