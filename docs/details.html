@@ -223,6 +223,28 @@ c = 0x0</code></pre>
           <p class="detail-text">
             Instead of raw logs, the agent receives condensed summaries (<code>agent_get_profile_summary</code>) showing only the top bottleneck functions. If the agent wants to drill down, it calls <code>agent_get_profile_details</code> to get exact line-by-line attribution of CPU samples directly mapped to the source code—costing only a few hundred tokens instead of millions.
           </p>
+
+          <div class="terminal-mockup" style="margin: 2rem 0;">
+            <div class="terminal-header">
+              <div class="terminal-title">agent_get_profile_summary</div>
+            </div>
+            <div class="terminal-content">
+              <a href="./screenshot-agent-runs-perf.png" target="_blank">
+                <img src="./screenshot-agent-runs-perf.png" alt="Agent retrieving performance profile summary" style="width: 100%; height: auto; display: block;">
+              </a>
+            </div>
+          </div>
+
+          <div class="terminal-mockup" style="margin: 2rem 0;">
+            <div class="terminal-header">
+              <div class="terminal-title">agent_get_profile_details</div>
+            </div>
+            <div class="terminal-content">
+              <a href="./screenshot-agent-runs-perf2.png" target="_blank">
+                <img src="./screenshot-agent-runs-perf2.png" alt="Agent retrieving detailed line-by-line performance profile" style="width: 100%; height: auto; display: block;">
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </section>
