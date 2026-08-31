@@ -170,9 +170,9 @@
           Native software isn't just text—it's compiled binaries, compressed archives, and media assets. Turbostar extends the agent's X-ray vision into the binary domain.
         </p>
         <ul class="detail-list">
-          <li><strong>Deep Binary Inspection:</strong> Agents use <code>hexinspect</code> to natively analyze, edit, and hex-dump compiled artifacts.</li>
-          <li><strong>Container Extraction:</strong> Natively peer into and extract components from complex container formats like PDF, tarballs, and zip archives without relying on external shell utilities.</li>
-          <li><strong>Visual Asset Manipulation:</strong> Modular image tools allow the agent to inspect, resize, and convert graphical assets directly within the workspace.</li>
+          <li><strong>Structural Inspection:</strong> Agents use <code>hexinspect</code> to natively parse ELF headers and binary metadata.</li>
+          <li><strong>Contextual Hexdumps:</strong> <code>hexdump</code> automatically annotates raw bytes with disassembled instructions and DWARF/ELF section data.</li>
+          <li><strong>Container Extraction:</strong> Natively extract components from formats like PDF, tarballs, and zip archives without relying on external shell utilities.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -181,15 +181,20 @@
             <div class="terminal-title">agentcli --hexinspect</div>
           </div>
           <div class="terminal-content" style="background: var(--bg-secondary);">
-            <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Agent inspecting a binary asset</span>
-<span class="keyword">hexinspect</span>(file: <span class="string">"firmware.bin"</span>, offset: 0x400, length: 64)
-<span class="literal">=></span> 0400: 7F 45 4C 46 02 01 01 00  .ELF....
-   0408: 00 00 00 00 00 00 00 00  ........
-   [ELF Header Detected: 64-bit LSB executable]
+            <pre style="border: none; box-shadow: none; background: transparent; padding: 1.5rem; margin: 0; font-size: 0.85rem; line-height: 1.4;"><code><span class="comment"># Agent analyzing ELF structure</span>
+<span class="keyword">hexinspect</span>(path: <span class="string">"build/testcase"</span>, offset: 0, size: 32)
+<span class="literal">=></span> | **MIME Type** | application/x-pie-executable |
+   | **Description** | ELF 64-bit LSB pie executable, x86-64 ... |
 
-<span class="comment"># Extracting a compressed resource</span>
-<span class="keyword">container_extract</span>(file: <span class="string">"assets.zip"</span>, target: <span class="string">"logo.png"</span>)
-<span class="literal">=> Success:</span> Extracted 142KB to /tmp/workspace/logo.png</code></pre>
+   * **[0x0 - 0x0]**: `7f` | ELF Magic Sign: '\x7fELF'
+   * **[0x1 - 0x1]**: `45` | ELF Magic Sign: '\x7fELF'
+   * **[0x4 - 0x4]**: `02` | ELF Ehdr: e_ident[EI_CLASS] = ELFCLASS64
+   * **[0x10 - 0x10]**: `03` | ELF Ehdr: e_type = ET_DYN (Shared object)
+
+<span class="comment"># Contextual hexdumping with inline disassembly & ELF sections</span>
+<span class="keyword">hexdump</span>(path: <span class="string">"build/testcase"</span>, offset: 4224, size: 32)
+<span class="literal">=></span> 00001080: 31 ed 49 89 d1 5e 48 89 |1.I..^H.|  # xor %ebp, %ebp | ELF Sec ".text"
+   00001088: e2 48 83 e4 f0 50 54 45 |.H...PTE|  # mov %rdx, %r9  | ELF Sec ".text"</code></pre>
           </div>
         </div>
       </div>
