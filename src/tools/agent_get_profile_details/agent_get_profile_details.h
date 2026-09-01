@@ -11,6 +11,7 @@ struct agent_get_profile_details_args {
 	std::string run_id;
 	std::string file_path;
 	std::string function_name;
+	std::string format{"markdown"};
 };
 
 class agent_get_profile_details_tool : public agentlib::llm_tool_action

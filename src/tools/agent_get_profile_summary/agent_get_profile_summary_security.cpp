@@ -42,7 +42,12 @@ class agent_get_profile_summary_validator : public agentlib::tool_validator
 		      {"limit",
 		       {{"type", "integer"},
 			{"description", "Maximum number of top functions and lines to return. Defaults to 10 (max 100)."},
-			{"default", 10}}}}}};
+			{"default", 10}}},
+		      {"format",
+		       {{"type", "string"},
+			{"enum", nlohmann::json::array({"markdown", "json"})},
+			{"description", "Return format. 'markdown' for clean token-efficient table, 'json' for raw JSON. Defaults to 'markdown'."},
+			{"default", "markdown"}}}}}};
 	}
 
       protected:
@@ -66,6 +71,15 @@ class agent_get_profile_summary_validator : public agentlib::tool_validator
 					return false;
 				}
 				args_.limit = lim;
+			}
+			args_.format = "markdown";
+			if (args_json.contains("format") && args_json["format"].is_string()) {
+				std::string fmt = args_json["format"].get<std::string>();
+				if (fmt != "markdown" && fmt != "json") {
+					out_error = "Validation Error: format must be 'markdown' or 'json'.";
+					return false;
+				}
+				args_.format = fmt;
 			}
 			return true;
 		} catch (const std::exception &e) {

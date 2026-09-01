@@ -21,7 +21,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 - `hexinspect` format auto-chaining: when `hexinspect` is invoked on a compressed archive (e.g. `.tar.gz`, `.gz`, `.bz2`, `.zst`), transparently decompress the stream in memory before running structural format parsers (TAR, ELF, PNG, JPEG).
 - `hexdump` symbol size auto-resolution: when `hexdump` is called with `offset_by_name` (e.g. symbol name `"main"` or section `".text"`), automatically resolve `size` from the symbol's size reported in the binary `.symtab` when `size` is omitted or unspecified.
-- Performance profiling Markdown formatting: format `agent_get_profile_summary` and `agent_get_profile_details` output as Markdown tables (with rank, function name, file path, line number, sample counts, and % CPU cycles) instead of raw JSON for token efficiency and UI scannability.
+- Performance profiling Markdown formatting: format `agent_get_profile_summary` and `agent_get_profile_details` output as Markdown tables by default (`format="markdown"`), while supporting optional `format="json"` for machine-parsable JSON automation. (Completed)
 
 - we know how to compile a single file -- maybe compile the file after an agent edit rather than depending on the LSP
 

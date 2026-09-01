@@ -45,7 +45,12 @@ class agent_get_profile_details_validator : public agentlib::tool_validator
 			 "Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Source file path to filter line performance samples. Optional."}}},
 		      {"function_name",
 		       {{"type", "string"},
-			{"description", "Function name to filter line performance samples. Optional."}}}}}};
+			{"description", "Function name to filter line performance samples. Optional."}}},
+		      {"format",
+		       {{"type", "string"},
+			{"enum", nlohmann::json::array({"markdown", "json"})},
+			{"description", "Return format. 'markdown' for clean token-efficient table, 'json' for raw JSON. Defaults to 'markdown'."},
+			{"default", "markdown"}}}}}};
 	}
 
       protected:
@@ -74,6 +79,15 @@ class agent_get_profile_details_validator : public agentlib::tool_validator
 			args_.function_name.clear();
 			if (args_json.contains("function_name") && args_json["function_name"].is_string()) {
 				args_.function_name = args_json["function_name"].get<std::string>();
+			}
+			args_.format = "markdown";
+			if (args_json.contains("format") && args_json["format"].is_string()) {
+				std::string fmt = args_json["format"].get<std::string>();
+				if (fmt != "markdown" && fmt != "json") {
+					out_error = "Validation Error: format must be 'markdown' or 'json'.";
+					return false;
+				}
+				args_.format = fmt;
 			}
 			return true;
 		} catch (const std::exception &e) {

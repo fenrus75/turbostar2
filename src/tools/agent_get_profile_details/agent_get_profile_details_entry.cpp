@@ -561,17 +561,55 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 		display_file_path = make_relative_to_project(args_.file_path, ctx);
 	}
 
-	nlohmann::json output = {
-	    {"run_id", args_.run_id.empty() ? "editor" : args_.run_id},
-	    {"total_samples", report.total_samples},
-	    {"target_samples", target_total_samples},
-	    {"file_path", display_file_path.empty() ? nullptr : nlohmann::json(display_file_path)},
-	    {"function_name", args_.function_name.empty() ? nullptr : nlohmann::json(args_.function_name)},
-	    {"line_samples", line_samples},
-	};
+	std::string run_id_str = args_.run_id.empty() ? "latest" : args_.run_id;
+
+	if (args_.format == "json") {
+		nlohmann::json output = {
+		    {"run_id", run_id_str},
+		    {"total_samples", report.total_samples},
+		    {"target_samples", target_total_samples},
+		    {"file_path", display_file_path.empty() ? nullptr : nlohmann::json(display_file_path)},
+		    {"function_name", args_.function_name.empty() ? nullptr : nlohmann::json(args_.function_name)},
+		    {"line_samples", line_samples},
+		};
+
+		set_success(ctx, "Retrieved profile details (" + std::to_string(line_samples.size()) + " line entries)");
+		return fs_utils::wrap_prompt_untrusted_data_tag("agent_profile_details_result", output.dump(2));
+	}
+
+	// Default: Markdown table format
+	std::ostringstream ss;
+	ss << std::format("### CPU Performance Profile Details (Run ID: `{}`)\n", run_id_str);
+	if (!display_file_path.empty()) {
+		ss << std::format("**File:** `{}` | ", display_file_path);
+	}
+	if (!args_.function_name.empty()) {
+		ss << std::format("**Function:** `{}` | ", args_.function_name);
+	}
+	ss << std::format("**Total Samples:** {} (Target: {})\n\n", report.total_samples, target_total_samples);
+
+	if (line_samples.empty()) {
+		ss << "*No matching line performance samples found for this target.*";
+	} else {
+		ss << "| Line | Function | Source Code | Samples | % CPU Cycles |\n";
+		ss << "| :---: | :--- | :--- | :---: | :---: |\n";
+		for (const auto &entry : line_samples) {
+			int lnum = entry.value("line_number", 0);
+			std::string code_str = entry.contains("code") && !entry["code"].is_null() ? entry["code"].get<std::string>() : "";
+			std::string fn_name = entry.contains("function_name") && !entry["function_name"].is_null() ? entry["function_name"].get<std::string>() : "";
+			uint64_t cnt = entry.value("count", (uint64_t)0);
+			double pct = entry.value("global_percentage", 0.0);
+
+			std::string code_cell = code_str.empty() ? "`<empty>`" : std::format("`{}`", code_str);
+			std::string fn_cell = fn_name.empty() ? "" : std::format("`{}`", fn_name);
+			std::string pct_cell = cnt > 0 ? std::format("**{:.2f}%**", pct) : "0.00%";
+
+			ss << std::format("| {} | {} | {} | {} | {} |\n", lnum, fn_cell, code_cell, cnt, pct_cell);
+		}
+	}
 
 	set_success(ctx, "Retrieved profile details (" + std::to_string(line_samples.size()) + " line entries)");
-	return fs_utils::wrap_prompt_untrusted_data_tag("agent_profile_details_result", output.dump(2));
+	return fs_utils::wrap_prompt_untrusted_data_tag("agent_profile_details_result", ss.str());
 }
 
 } // namespace tools
