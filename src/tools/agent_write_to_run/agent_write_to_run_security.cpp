@@ -11,7 +11,7 @@ namespace tools
 struct agent_write_to_run_raw_args {
 	int run_id{-1};
 	std::string data;
-	bool output{false};
+	bool output{true};
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_write_to_run_raw_args, run_id, data, output);
 

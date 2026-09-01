@@ -1,4 +1,5 @@
 #include "address_lookup.h"
+#include "event_logger.h"
 #include "fs_utils.h"
 #include <algorithm>
 #include <cctype>
@@ -277,8 +278,6 @@ static std::unordered_map<uintptr_t, resolved_address> parse_addr2line_output(co
 						current_res.line_number = 0;
 					}
 				}
-				current_res.file_path = cleaned_line;
-				current_res.line_number = 0;
 			}
 
 			if (!current_res.file_path.empty()) {
@@ -292,10 +291,13 @@ static std::unordered_map<uintptr_t, resolved_address> parse_addr2line_output(co
 				}
 			}
 
+			event_logger::get_instance().log(std::format("address_lookup: [0x{:x}] func='{}' file='{}' line={} col={}",
+								     current_addr, current_res.function_name, current_res.file_path,
+								     current_res.line_number, current_res.column_number));
+
 			state = 3; // Finished primary frame for this address; skip any extra inlined outer frames
 		}
 	}
-
 
 	if (has_addr) {
 		resolved_map[current_addr] = current_res;
@@ -356,7 +358,13 @@ std::vector<resolved_address> address_lookup::resolve_addresses(std::span<const 
 			args.push_back(std::format("0x{:x}", addr));
 		}
 
+		event_logger::get_instance().log(std::format("address_lookup: Executing {} -a -M {} -f -C for {} addresses",
+							     eu_addr2line_bin, maps_path, unique_addrs.size()));
 		auto lines = run_command(eu_addr2line_bin, args);
+		event_logger::get_instance().log(std::format("address_lookup: eu-addr2line returned {} output lines", lines.size()));
+		for (size_t k = 0; k < std::min<size_t>(10, lines.size()); ++k) {
+			event_logger::get_instance().log(std::format("  [raw_line_{}] {}", k, lines[k]));
+		}
 		resolved_map = parse_addr2line_output(lines);
 	} else if (!addr2line_bin.empty()) {
 		// Fallback: Parse memory mappings and group relative offsets per ELF binary
@@ -369,7 +377,13 @@ std::vector<resolved_address> address_lookup::resolve_addresses(std::span<const 
 				args.push_back(std::format("0x{:x}", addr));
 			}
 
+			event_logger::get_instance().log(std::format("address_lookup: Executing {} -a -f -C -e {} for {} addresses",
+								     addr2line_bin, maps_path, unique_addrs.size()));
 			auto lines = run_command(addr2line_bin, args);
+			event_logger::get_instance().log(std::format("address_lookup: addr2line returned {} output lines", lines.size()));
+			for (size_t k = 0; k < std::min<size_t>(10, lines.size()); ++k) {
+				event_logger::get_instance().log(std::format("  [raw_line_{}] {}", k, lines[k]));
+			}
 			resolved_map = parse_addr2line_output(lines);
 		} else {
 			// Group addresses by mapped ELF pathname

@@ -916,24 +916,7 @@ void editor::run()
 		}
 
 		if (debug_exited) {
-			for (auto it = windows_.begin(); it != windows_.end();) {
-				if ((*it)->get_title() == "Run Output" || (*it)->get_title() == "Debugger (GDB)") {
-					if (auto tw = dynamic_cast<ui::terminal_window *>(it->get())) {
-						tw->stop_process();
-					}
-					it = windows_.erase(it);
-					needs_render = true;
-				} else {
-					++it;
-				}
-			}
-			update_window_layout();
-			if (!windows_.empty()) {
-				activate_window(0);
-				set_focus(focus_target::window, "debugger_exit");
-			} else {
-				set_focus(focus_target::menu_bar, "debugger_exit");
-			}
+			event_logger::get_instance().log("Debugger or run output process exited. Terminal window preserved for output inspection.");
 		}
 
 		if (needs_render) {
@@ -1839,4 +1822,13 @@ void editor::save_search_persistence()
 	session_manager::get_instance().set_last_search_query(current_search_.query);
 	session_manager::get_instance().set_last_replace_query(current_search_.replacement);
 	session_manager::get_instance().save();
+}
+
+void editor::update_terminal_windows()
+{
+	for (size_t i = 0; i < windows_.size(); ++i) {
+		if (auto tw = dynamic_cast<ui::terminal_window *>(windows_[i].get())) {
+			tw->update_pty();
+		}
+	}
 }

@@ -129,6 +129,8 @@ class editor : public agentlib::document_provider
 	 */
 	void dispatch(const editor_event &ev);
 
+	void update_terminal_windows();
+
 	event_queue &get_global_queue() noexcept { return global_queue_; }
 
       private:
