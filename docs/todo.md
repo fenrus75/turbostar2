@@ -23,7 +23,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - `hexdump` symbol size auto-resolution: when `hexdump` is called with `offset_by_name` (e.g. symbol name `"main"` or section `".text"`), automatically resolve `size` from the symbol's size reported in the binary `.symtab` when `size` is omitted or unspecified.
 - Performance profiling Markdown formatting: format `agent_get_profile_summary` and `agent_get_profile_details` output as Markdown tables by default (`format="markdown"`), while supporting optional `format="json"` for machine-parsable JSON automation. (Completed)
 
-- we know how to compile a single file -- maybe compile the file after an agent edit rather than depending on the LSP
+- Single-file compile after edit: centralized `-fsyntax-only` single-file compile helper in `fs_utils` (`get_compile_command_for_file`), stripping object `-o` targets and dependency flags (`-MF`, `-MD`). Integrated into `update_file_health_state` across all file edit tools (`fs_replace_content`, `fs_replace_lines`, `fs_multi_replace_content`, `fs_write_file`) for deterministic compiler-driven failure attribution per `Edit ID #N`. (Completed)
 
 - consider async compile of the whole project on edits to cut down time?
 	- both editor and agent env
