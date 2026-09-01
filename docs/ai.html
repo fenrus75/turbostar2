@@ -64,6 +64,7 @@
           <li><strong>Header &amp; Implementation Cross-Referencing:</strong> When inspecting header declarations, Turbostar automatically links the symbol codemap of the companion source file, eliminating multi-step search loops.</li>
           <li><strong>Syntax-Aware Scope Snapping:</strong> Instead of blindly slicing code by line count and truncating signatures, file tools automatically snap slice bounds to complete function boundaries.</li>
           <li><strong>Inline Dependency Mapping:</strong> Reading a code block automatically generates a codemap of all external functions and classes invoked within that slice, giving the agent immediate navigation pointers.</li>
+          <li><strong>LSP-Anchored Codebase Grepping:</strong> Code search via <code>fs_grep_files</code> pinpoints primary symbol definition locations and automatically annotates every matching line with its enclosing C++ function/method scope.</li>
           <li><strong>Line-Count Scale Awareness:</strong> Directory listings report line counts alongside byte sizes, preventing context window overruns before opening large files.</li>
         </ul>
       </div>
@@ -175,6 +176,7 @@
         <ul class="detail-list">
           <li><strong>Structural Inspection:</strong> Agents use <code>hexinspect</code> to natively parse ELF headers and binary metadata.</li>
           <li><strong>Contextual Hexdumps:</strong> <code>hexdump</code> automatically annotates raw bytes with disassembled instructions and DWARF/ELF section data.</li>
+          <li><strong>In-Memory Probing:</strong> <code>run_cpp</code> and <code>run_python</code> enable agents to test modern C++23 header behavior or link directly against engine static libraries (<code>libturbostar_core.a</code>) in memory without cluttering the git workspace.</li>
           <li><strong>Container Extraction:</strong> Natively extract components from formats like PDF, tarballs, and zip archives without relying on external shell utilities.</li>
         </ul>
       </div>
@@ -227,8 +229,8 @@
         </article>
 
         <article class="card" id="card-undo">
-          <h3 class="card-title">Integrated Undo History</h3>
-          <p class="card-desc">Code with complete safety. All agent modifications (like braces editing) are integrated directly into the editor's undo buffer, allowing you to review or revert any change instantly.</p>
+          <h3 class="card-title">Integrated Undo &amp; Brace Safety</h3>
+          <p class="card-desc">Code with complete safety. File replacement tools feature strict AST brace-balance verification that rejects syntax-corrupting edits, while all modifications integrate directly into the editor's undo buffer.</p>
         </article>
       </div>
     </section>
