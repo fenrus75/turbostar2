@@ -27,7 +27,7 @@ config_manager &config_manager::get_instance()
 	return instance;
 }
 
-void config_manager::set_build_system(const std::string &sys)
+void config_manager::set_build_system(const std::string &sys, bool explicit_user_set)
 {
 	std::string bs = sys;
 	std::transform(bs.begin(), bs.end(), bs.begin(), [](unsigned char c) { return std::tolower(c); });
@@ -35,6 +35,31 @@ void config_manager::set_build_system(const std::string &sys)
 		bs = "python";
 	}
 	build_system_ = bs;
+	if (explicit_user_set) {
+		is_build_system_explicit_ = true;
+	}
+}
+
+void config_manager::auto_detect_build_system(const std::string &project_root)
+{
+	if (is_build_system_explicit_) {
+		return;
+	}
+	if (project_root.empty()) {
+		return;
+	}
+	fs::path root(project_root);
+	if (fs::exists(root / "meson.build")) {
+		set_build_system("meson", false);
+	} else if (fs::exists(root / "CMakeLists.txt")) {
+		set_build_system("cmake", false);
+	} else if (fs::exists(root / "Makefile") || fs::exists(root / "makefile") || fs::exists(root / "GNUmakefile")) {
+		set_build_system("make", false);
+	} else if (fs::exists(root / "Cargo.toml")) {
+		set_build_system("cargo", false);
+	} else if (fs::exists(root / "pyproject.toml") || fs::exists(root / "setup.py")) {
+		set_build_system("python", false);
+	}
 }
 
 std::string config_manager::get_config_file_path() const

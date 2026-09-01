@@ -29,7 +29,12 @@ class config_manager
 	{
 		return build_system_;
 	}
-	void set_build_system(const std::string &sys);
+	void set_build_system(const std::string &sys, bool explicit_user_set = true);
+	bool is_build_system_explicit() const
+	{
+		return is_build_system_explicit_;
+	}
+	void auto_detect_build_system(const std::string &project_root);
 
 	std::string get_build_directory() const
 	{
@@ -277,6 +282,7 @@ class config_manager
 
 	std::string clang_format_style_{"file"};
 	std::string build_system_{"meson"};
+	bool is_build_system_explicit_{false};
 	std::string build_directory_{"build"};
 	std::string default_model_id_{"nvidia/MiniMax-M2.7-NVFP4"};
 	std::map<std::string, std::string> task_models_;

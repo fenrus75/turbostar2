@@ -116,6 +116,31 @@ void project_manager::initialize()
 	}
 	initialized_ = true;
 
+	// Load project-specific configuration overlay if available (~/.cache/turbostar/projects/<hash>/config.ini)
+	std::string cache_root = fs_utils::get_project_cache_root();
+	if (!cache_root.empty()) {
+		std::string project_config_path = (fs::path(cache_root) / "config.ini").string();
+		if (fs::exists(project_config_path)) {
+			config_manager::get_instance().load_from_file(project_config_path);
+		}
+	}
+
+	// Load local project config file (.turbostar_project or .turbostar) if available in project_root_
+	if (!project_root_.empty()) {
+		std::string local_cfg = (fs::path(project_root_) / ".turbostar_project").string();
+		if (fs::exists(local_cfg)) {
+			config_manager::get_instance().load_from_file(local_cfg);
+		} else {
+			local_cfg = (fs::path(project_root_) / ".turbostar").string();
+			if (fs::exists(local_cfg)) {
+				config_manager::get_instance().load_from_file(local_cfg);
+			}
+		}
+	}
+
+	// Auto-detect build system if not explicitly configured by project settings
+	config_manager::get_instance().auto_detect_build_system(project_root_);
+
 	// Clean up previous runs' crash dumps on startup
 	crashdump_manager::get_instance().clear_all();
 

@@ -131,6 +131,10 @@ int main(int argc, char **argv)
 		return res_code;
 	}
 
+	if (!log_file.empty()) {
+		event_logger::get_instance().set_log_file(log_file);
+	}
+
 	if (tooltrace) {
 		agentlib::tool_tracer::get_instance().set_enabled(true);
 	}
