@@ -321,7 +321,7 @@ std::string count_lines_in_file(std::string_view filepath)
 	return std::to_string(lines);
 }
 
-std::string get_compile_command_for_file(std::string_view filepath, std::string_view build_dir)
+std::string get_compile_command_for_file(std::string_view filepath, std::string_view build_dir, bool syntax_only)
 {
 	std::filesystem::path cc_json = std::filesystem::path(build_dir) / "compile_commands.json";
 	if (!std::filesystem::exists(cc_json)) {
@@ -352,7 +352,41 @@ std::string get_compile_command_for_file(std::string_view filepath, std::string_
 						    safe_absolute(std::filesystem::path(dir) / file).lexically_normal().string();
 						if (abs_path == target_abs) {
 							// Found it! Run the command in the directory specified
-							return "cd " + dir + " && " + obj.get("command").string();
+							std::string cmd = obj.get("command").string();
+							if (syntax_only && !cmd.empty()) {
+								if (cmd.find("-fsyntax-only") == std::string::npos) {
+									cmd += " -fsyntax-only";
+								}
+								size_t o_pos = cmd.find(" -o ");
+								if (o_pos != std::string::npos) {
+									size_t next_space = cmd.find(' ', o_pos + 4);
+									if (next_space != std::string::npos) {
+										cmd.replace(o_pos + 4, next_space - (o_pos + 4), "/dev/null");
+									} else {
+										cmd.replace(o_pos + 4, std::string::npos, "/dev/null");
+									}
+								}
+								// Strip dependency generation flags (-MF <file>, -MQ <target>, -MD, -MMD)
+								auto strip_flag = [&](const std::string &flag, bool has_arg) {
+									size_t pos = 0;
+									while ((pos = cmd.find(flag, pos)) != std::string::npos) {
+										size_t end_pos = pos + flag.length();
+										if (has_arg) {
+											while (end_pos < cmd.length() && cmd[end_pos] == ' ') end_pos++;
+											size_t arg_end = cmd.find(' ', end_pos);
+											if (arg_end == std::string::npos) end_pos = cmd.length();
+											else end_pos = arg_end;
+										}
+										cmd.erase(pos, end_pos - pos);
+									}
+								};
+								strip_flag(" -MF ", true);
+								strip_flag(" -MQ ", true);
+								strip_flag(" -MD", false);
+								strip_flag(" -MMD", false);
+							}
+							std::string prefix = syntax_only ? "export CCACHE_DISABLE=1 && cd " : "cd ";
+							return prefix + dir + " && " + cmd;
 						}
 					}
 				}

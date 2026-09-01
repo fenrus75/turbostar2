@@ -28,6 +28,13 @@ int main()
 
 	std::cout << "Testing fs_compile_file..." << std::endl;
 	{
+		// 0. Verify -fsyntax-only is present when requested
+		{
+			std::string syntax_cmd = fs_utils::get_compile_command_for_file("src/main.cpp", "build", true);
+			std::cout << "Syntax-only compile command: " << syntax_cmd << std::endl;
+			assert(syntax_cmd.find("-fsyntax-only") != std::string::npos);
+		}
+
 		// 1. Success case: compile src/main.cpp (sync)
 		{
 			std::string args = "{\"path\": \"src/main.cpp\", \"async\": false}";

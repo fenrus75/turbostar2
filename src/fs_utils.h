@@ -66,7 +66,7 @@ std::string count_lines_in_file(std::string_view filepath);
 /**
  * @brief Parses compile_commands.json to find the exact compile command for a file.
  */
-std::string get_compile_command_for_file(std::string_view filepath, std::string_view build_dir);
+std::string get_compile_command_for_file(std::string_view filepath, std::string_view build_dir, bool syntax_only = true);
 
 /**
  * @brief Executes a shell command synchronously, capturing stdout and stderr.
