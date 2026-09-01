@@ -1,20 +1,12 @@
 #include <nlohmann/json.hpp>
 #include <optional>
+#include "../../agentlib/json_utils.h"
 #include "../../agentlib/tool_registry.h"
 #include "../../agentlib/tool_validator.h"
 #include "fs_read_binary.h"
 
 namespace tools
 {
-
-struct fs_read_binary_raw_args {
-	std::string path;
-	int offset = 0;
-	int size = -1;
-	std::string format = "base64";
-};
-
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(fs_read_binary_raw_args, path, offset, size, format);
 
 class fs_read_binary_validator : public agentlib::tool_validator
 {
@@ -78,23 +70,29 @@ class fs_read_binary_validator : public agentlib::tool_validator
 	bool validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &ctx, std::string &out_error) const override
 	{
 		try {
-			fs_read_binary_raw_args parsed = raw_json.get<fs_read_binary_raw_args>();
+			std::string raw_path = raw_json.value("path", "");
+			int offset = 0;
+			int size = -1;
+			std::string format = raw_json.value("format", "base64");
 
-			if (parsed.path.empty()) {
+			if (!json_utils::get_number(raw_json, "offset", offset, 0, out_error)) return false;
+			if (!json_utils::get_number(raw_json, "size", size, -1, out_error)) return false;
+
+			if (raw_path.empty()) {
 				out_error = "Path parameter cannot be empty.";
 				return false;
 			}
 
 			std::string canonical_path;
-			if (!ctx.fs_security.validate_access(parsed.path, agentlib::access_type::read, canonical_path, out_error)) {
+			if (!ctx.fs_security.validate_access(raw_path, agentlib::access_type::read, canonical_path, out_error)) {
 				return false;
 			}
 
-			args_.requested_path = parsed.path;
+			args_.requested_path = raw_path;
 			args_.safe_path = canonical_path;
-			args_.offset = (parsed.offset < 0) ? 0 : parsed.offset;
-			args_.size = parsed.size;
-			args_.format = parsed.format;
+			args_.offset = (offset < 0) ? 0 : offset;
+			args_.size = size;
+			args_.format = format;
 
 			return true;
 		} catch (const std::exception &e) {

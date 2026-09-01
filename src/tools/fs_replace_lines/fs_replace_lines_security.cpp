@@ -6,6 +6,8 @@
 
 #include "../../agentlib/ai_agent.h"
 
+#include "../../agentlib/json_utils.h"
+
 namespace tools
 {
 
@@ -24,22 +26,16 @@ bool fs_replace_lines_validator::validate_args_impl(const nlohmann::json &raw_js
 			return false;
 		}
 
-		std::vector<int> line_numbers;
-		for (const auto &edit_json : raw_json["edits"]) {
-			if (edit_json.contains("line_number") && edit_json["line_number"].is_number_integer()) {
-				line_numbers.push_back(edit_json["line_number"].get<int>());
-			}
-		}
-
 		std::vector<edit_operation> parsed_edits;
 
 		for (const auto &edit_json : raw_json["edits"]) {
-			if (!edit_json.contains("line_number") || !edit_json["line_number"].is_number_integer()) {
-				out_error = "Missing or invalid 'line_number' in edit operation.";
+			int line_number = 0;
+			if (!json_utils::get_number(edit_json, "line_number", line_number, 0, out_error) || line_number < 1) {
+				out_error = "Missing or invalid 'line_number' in edit operation (must be >= 1).";
 				return false;
 			}
 			edit_operation edit;
-			edit.line_number = edit_json["line_number"].get<int>();
+			edit.line_number = line_number;
 
 			if (edit_json.contains("type")) {
 				if (!edit_json["type"].is_string()) {

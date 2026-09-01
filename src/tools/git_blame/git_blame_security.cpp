@@ -4,16 +4,10 @@
 #include "../../agentlib/tool_validator.h"
 #include "git_blame.h"
 
+#include "../../agentlib/json_utils.h"
+
 namespace tools
 {
-
-struct git_blame_raw_args {
-	std::string path;
-	int start_line = 0;
-	int end_line = 0;
-};
-
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(git_blame_raw_args, path, start_line, end_line);
 
 nlohmann::json git_blame_validator::get_parameters_schema() const
 {
@@ -29,13 +23,19 @@ nlohmann::json git_blame_validator::get_parameters_schema() const
 bool git_blame_validator::validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &ctx, std::string &out_error) const
 {
 	try {
-		git_blame_raw_args raw = raw_json.get<git_blame_raw_args>();
-		if (raw.path.empty()) {
+		std::string raw_path = raw_json.value("path", "");
+		int start_line = 0;
+		int end_line = 0;
+
+		if (!json_utils::get_number(raw_json, "start_line", start_line, 0, out_error)) return false;
+		if (!json_utils::get_number(raw_json, "end_line", end_line, 0, out_error)) return false;
+
+		if (raw_path.empty()) {
 			out_error = "The 'path' parameter cannot be empty.";
 			return false;
 		}
 
-		std::string real_check_path = raw.path;
+		std::string real_check_path = raw_path;
 		if (real_check_path.find("file://") == 0) {
 			real_check_path = real_check_path.substr(7);
 		}
@@ -45,9 +45,9 @@ bool git_blame_validator::validate_args_impl(const nlohmann::json &raw_json, con
 			return false;
 		}
 
-		parsed_args_.requested_path = raw.path;
-		parsed_args_.start_line = raw.start_line;
-		parsed_args_.end_line = raw.end_line;
+		parsed_args_.requested_path = raw_path;
+		parsed_args_.start_line = start_line;
+		parsed_args_.end_line = end_line;
 		parsed_args_.safe_path = resolved_path;
 		return true;
 	} catch (const std::exception &e) {

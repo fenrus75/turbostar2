@@ -1,22 +1,12 @@
 #include <nlohmann/json.hpp>
 #include <optional>
+#include "../../agentlib/json_utils.h"
 #include "../../agentlib/tool_registry.h"
 #include "../../agentlib/tool_validator.h"
 #include "fs_read_lines.h"
 
 namespace tools
 {
-
-// A struct to deserialize the JSON arguments into, before validation.
-struct fs_read_lines_raw_args {
-	std::string path;
-	int start_line = -1;
-	int end_line = -1;
-	int tail = -1;
-};
-
-// Map JSON to the raw struct
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(fs_read_lines_raw_args, path, start_line, end_line, tail);
 
 class fs_read_lines_validator : public agentlib::tool_validator
 {
@@ -80,14 +70,21 @@ class fs_read_lines_validator : public agentlib::tool_validator
 	bool validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &ctx, std::string &out_error) const override
 	{
 		try {
-			fs_read_lines_raw_args parsed = raw_json.get<fs_read_lines_raw_args>();
+			std::string raw_path = raw_json.value("path", "");
+			int start_line = -1;
+			int end_line = -1;
+			int tail = -1;
 
-			if (parsed.path.empty()) {
+			if (!json_utils::get_number(raw_json, "start_line", start_line, -1, out_error)) return false;
+			if (!json_utils::get_number(raw_json, "end_line", end_line, -1, out_error)) return false;
+			if (!json_utils::get_number(raw_json, "tail", tail, -1, out_error)) return false;
+
+			if (raw_path.empty()) {
 				out_error = "Path parameter cannot be empty.";
 				return false;
 			}
 
-			std::string check_path = parsed.path;
+			std::string check_path = raw_path;
 			if (check_path.starts_with("file://")) {
 				check_path = check_path.substr(7);
 			}
@@ -99,25 +96,25 @@ class fs_read_lines_validator : public agentlib::tool_validator
 			}
 
 			// Populate the strict args for the tool
-			args_.requested_path = parsed.path;
+			args_.requested_path = raw_path;
 			args_.safe_path = canonical_path;
 
-			if (parsed.tail != -1) {
-				if (parsed.start_line != -1 || parsed.end_line != -1) {
+			if (tail != -1) {
+				if (start_line != -1 || end_line != -1) {
 					out_error = "'tail' parameter cannot be used together with 'start_line' or 'end_line'.";
 					return false;
 				}
-				if (parsed.tail <= 0) {
+				if (tail <= 0) {
 					out_error = "'tail' parameter must be greater than 0.";
 					return false;
 				}
-				args_.tail = parsed.tail;
+				args_.tail = tail;
 				args_.start_line = 1;
 				args_.end_line = 1000000;
 			} else {
 				args_.tail = std::nullopt;
-				args_.start_line = (parsed.start_line == -1) ? 1 : parsed.start_line;
-				args_.end_line = (parsed.end_line == -1) ? 1000000 : parsed.end_line;
+				args_.start_line = (start_line == -1) ? 1 : start_line;
+				args_.end_line = (end_line == -1) ? 1000000 : end_line;
 
 				if (args_.start_line < 1)
 					args_.start_line = 1;

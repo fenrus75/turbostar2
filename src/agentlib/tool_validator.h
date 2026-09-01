@@ -6,6 +6,8 @@
 #include "llm_tool.h"
 #include "agent_properties.h"
 
+#include "json_utils.h"
+
 namespace agentlib {
 
 /*
@@ -129,11 +131,31 @@ public:
                     std::string expected_type = prop_schema["type"].get<std::string>();
                     bool type_ok = false;
                     if (expected_type == "string" && it.value().is_string()) type_ok = true;
-                    else if (expected_type == "integer" && it.value().is_number_integer()) type_ok = true;
+                    else if (expected_type == "integer") {
+                        if (it.value().is_number_integer()) {
+                            type_ok = true;
+                        } else if (it.value().is_string()) {
+                            std::string dummy_err;
+                            int64_t dummy_val = 0;
+                            if (json_utils::get_number(args, it.key(), dummy_val, int64_t(0), dummy_err)) {
+                                type_ok = true;
+                            }
+                        }
+                    }
                     else if (expected_type == "boolean" && it.value().is_boolean()) type_ok = true;
                     else if (expected_type == "array" && it.value().is_array()) type_ok = true;
                     else if (expected_type == "object" && it.value().is_object()) type_ok = true;
-                    else if (expected_type == "number" && it.value().is_number()) type_ok = true;
+                    else if (expected_type == "number") {
+                        if (it.value().is_number()) {
+                            type_ok = true;
+                        } else if (it.value().is_string()) {
+                            std::string dummy_err;
+                            double dummy_val = 0.0;
+                            if (json_utils::get_number(args, it.key(), dummy_val, 0.0, dummy_err)) {
+                                type_ok = true;
+                            }
+                        }
+                    }
 
                     if (!type_ok) {
                         out_error = "Schema Validation Failed: Type mismatch for argument '" + it.key() + "'. Expected " + expected_type;

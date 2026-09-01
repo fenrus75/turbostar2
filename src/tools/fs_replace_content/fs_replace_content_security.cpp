@@ -1,4 +1,5 @@
 #include "fs_replace_content.h"
+#include "../../agentlib/json_utils.h"
 #include "../../agentlib/tool_registry.h"
 #include "../../agentlib/ai_agent.h"
 
@@ -46,11 +47,8 @@ bool fs_replace_content_validator::validate_args_impl(const nlohmann::json& raw_
 
         std::optional<int> hint;
         if (raw_args.contains("line_hint")) {
-            if (!raw_args["line_hint"].is_number_integer()) {
-                out_error = "Invalid 'line_hint' parameter (must be an integer).";
-                return false;
-            }
-            int h_val = raw_args["line_hint"].get<int>();
+            int h_val = 0;
+            if (!json_utils::get_number(raw_args, "line_hint", h_val, 0, out_error)) return false;
             if (h_val < 1) {
                 out_error = "'line_hint' must be a positive 1-based integer.";
                 return false;
@@ -90,11 +88,8 @@ bool fs_replace_content_validator::validate_args_impl(const nlohmann::json& raw_
 
         std::optional<int> start_l;
         if (raw_args.contains("start_line")) {
-            if (!raw_args["start_line"].is_number_integer()) {
-                out_error = "Invalid 'start_line' parameter (must be an integer).";
-                return false;
-            }
-            int sl_val = raw_args["start_line"].get<int>();
+            int sl_val = 0;
+            if (!json_utils::get_number(raw_args, "start_line", sl_val, 0, out_error)) return false;
             if (sl_val < 1) {
                 out_error = "'start_line' must be a positive 1-based integer.";
                 return false;
@@ -104,11 +99,8 @@ bool fs_replace_content_validator::validate_args_impl(const nlohmann::json& raw_
 
         std::optional<int> end_l;
         if (raw_args.contains("end_line")) {
-            if (!raw_args["end_line"].is_number_integer()) {
-                out_error = "Invalid 'end_line' parameter (must be an integer).";
-                return false;
-            }
-            int el_val = raw_args["end_line"].get<int>();
+            int el_val = 0;
+            if (!json_utils::get_number(raw_args, "end_line", el_val, 0, out_error)) return false;
             if (el_val < 1) {
                 out_error = "'end_line' must be a positive 1-based integer.";
                 return false;

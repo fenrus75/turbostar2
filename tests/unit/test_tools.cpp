@@ -325,6 +325,12 @@ extern std::string troff2md(std::string troff_content);
 		}
 
 		{
+			std::string args = "{\"path\": \"" + temp_file + "\", \"start_line\": \"1\", \"end_line\": \"4\"}";
+			std::string res = registry.execute_tool("fs_read_lines", args, ctx);
+			assert(res.find("1: line 1") != std::string::npos);
+		}
+
+		{
 			std::ofstream out(temp_file_path);
 			for (int i = 1; i <= 100; ++i) {
 				if (i == 45) {
