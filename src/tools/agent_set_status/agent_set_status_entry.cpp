@@ -37,6 +37,10 @@ class agent_set_status_validator : public agentlib::tool_validator
 	{
 		return "editor";
 	}
+	bool expose_in_mcp() const override
+	{
+		return false;
+	}
 	std::string get_description() const override
 	{
 		return "Sets a brief status message in the editor's status bar to inform the user of progress.";

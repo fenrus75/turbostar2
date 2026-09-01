@@ -17,6 +17,7 @@ class clear_all_errors_security : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "clear_all_errors"; }
     std::string get_family() const override { return "editor"; }
+    bool expose_in_mcp() const override { return false; }
     std::string get_description() const override { return "Clears all currently flagged errors and warnings from the editor UI."; }
     nlohmann::json get_parameters_schema() const override;
     bool is_pure() const override { return true; }

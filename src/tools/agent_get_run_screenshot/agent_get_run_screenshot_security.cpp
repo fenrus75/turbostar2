@@ -31,6 +31,10 @@ class agent_get_run_screenshot_validator final : public agentlib::tool_validator
 	{
 		return "agent_get_run_screenshot";
 	}
+	bool expose_in_mcp() const override
+	{
+		return false;
+	}
 	std::string get_description() const override
 	{
 		return "Returns a snapshot/screenshot of the terminal buffer grid, cursor coordinates, process alive status (is_alive), and optional crash_notification for a given run ID.";;

@@ -28,6 +28,7 @@ class flag_as_error_security : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "flag_as_error"; }
     std::string get_family() const override { return "editor"; }
+    bool expose_in_mcp() const override { return false; }
     std::string get_description() const override { return "Flags a specific line in a file as an error or warning, creating a diagnostic overlay in the editor UI.";; }
     nlohmann::json get_parameters_schema() const override;
     // Pure Domain 3 (Editor Metadata & Diagnostic State): Annotates editor UI overlay with error hints.
