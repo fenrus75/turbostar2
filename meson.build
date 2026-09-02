@@ -8,6 +8,22 @@ add_project_arguments('-DCPPHTTPLIB_OPENSSL_SUPPORT', language : 'cpp')
 
 cc = meson.get_compiler('cpp')
 
+# src/document_format.cpp formats a std::thread::id directly; libstdc++ 13 lacks P2693.
+if not cc.compiles('''#include <version>
+#if !defined(__cpp_lib_formatters) || __cpp_lib_formatters < 202302L
+#error "std::formatter<std::thread::id> is unavailable"
+#endif
+''', name : 'std::formatter<std::thread::id> (P2693)')
+  error('std::formatter<std::thread::id> (P2693) is required. Upgrade libstdc++.')
+endif
+
+# tests/unit detect AddressSanitizer via __has_feature, which GCC only added in 14.
+if not cc.compiles('''#if defined(__has_feature) && __has_feature(address_sanitizer)
+#endif
+''', name : '__has_feature in preprocessor conditionals')
+  error('__has_feature must be usable inside #if. Upgrade compiler.')
+endif
+
 if cc.get_id() == 'clang'
   add_project_arguments('-Wthread-safety', language : 'cpp')
 endif
@@ -32,6 +48,12 @@ endif
 
 if not cc.has_header('dtl/dtl.hpp')
   error('dtl/dtl.hpp is required but not found. Please install libdtl-dev (or equivalent).')
+endif
+
+# In some versions of dtl, enableTrivial() const assigns to a non-mutable member. 
+# That is ill-formed C++ that GCC 14+ rejects at parse time.
+if not cc.compiles('#include <dtl/dtl.hpp>', name : 'dtl headers compile')
+  error('dtl/dtl.hpp is rejected by current compiler. Install a newer version of dtl.')
 endif
 
 embed_prog = find_program('python3')
@@ -70,7 +92,8 @@ system_docs_embedded_h = custom_target('system_docs_embedded.h',
 httplib_dep = dependency('cpp-httplib', required : true)
 curl_dep = dependency('libcurl', required : true)
 openssl_dep = dependency('openssl', required : true)
-nlohmann_json_dep = dependency('nlohmann_json', required : true)
+# 3.12 added the std::optional support the NLOHMANN_DEFINE_TYPE_* validators rely on.
+nlohmann_json_dep = dependency('nlohmann_json', version : '>=3.12', required : true)
 thread_dep = dependency('threads')
 re2_dep = dependency('re2', required : true)
 sqlite3_dep = dependency('sqlite3', required : true)
@@ -1331,9 +1354,14 @@ test_image_tools = executable('test_image_tools',
   dependencies : [tools_dep, agent_dep, core_dep, nlohmann_json_dep, thread_dep, openssl_dep, lsp_dep, re2_dep, sqlite3_dep, curl_dep, dl_dep],
   include_directories: inc,
   export_dynamic: true)
-test('unit_image_tools', test_image_tools, suite: 'agent',
-  depends: [image_basic_plugin],
-  env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'])
+# image_basic still carries HAS_GRAPHICSMAGICK fallbacks, but most of its sources now
+# include Magick++.h unguarded, so it no longer builds without GraphicsMagick. This guard
+# covers that drift: test_image_tools.cpp asserts on image_import before its own fallbacks.
+if graphicsmagick_dep.found()
+  test('unit_image_tools', test_image_tools, suite: 'agent',
+    depends: [image_basic_plugin],
+    env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'])
+endif
 
 
 test_agent_tile = executable('test_agent_tile',
