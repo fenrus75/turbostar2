@@ -15,7 +15,7 @@ namespace agentlib {
 
 | subclass          | filename                                             |
 | ----------------- | ---------------------------------------------------- | 
-| fs_glob_validator | src/tools/fs_glob/fs_glob.h                          |
+| (none)             |                                                      |
 
 */
 class single_string_tool_validator : public tool_validator {

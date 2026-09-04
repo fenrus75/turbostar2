@@ -121,8 +121,8 @@ shell_command_recommendation evaluate_shell_command_resteer(const std::string &c
 		std::string pat = match[2].str();
 		rec.matched = true;
 		rec.confidence = 0.95;
-		rec.suggested_tool = std::format("fs_find_files(pattern=\"{}\", path=\"{}\")", pat, path_opt);
-		rec.explanation = "To search for files by name, use 'fs_find_files' or 'fs_glob' instead of shell find.";
+		rec.suggested_tool = std::format("fs_glob(pattern=\"{}\", path=\"{}\")", pat, path_opt);
+		rec.explanation = "To search for files by name, use 'fs_glob' instead of shell find.";
 		return rec;
 	}
 

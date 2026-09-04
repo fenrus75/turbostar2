@@ -1,3 +1,4 @@
+// Tested source file: src/tools/fs_glob/fs_glob_entry.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
@@ -88,6 +89,46 @@ int main()
 			std::string args = "{\"query\": \"docs/*.md\"}";
 			std::string res = registry.execute_tool("fs_glob", args, ctx);
 			std::cout << "Glob query alias result: " << res << std::endl;
+			assert(res.find("docs/design.md") != std::string::npos);
+		}
+
+		// 8. Success case: path parameter
+		{
+			std::string args = "{\"pattern\": \"*.md\", \"path\": \"docs\"}";
+			std::string res = registry.execute_tool("fs_glob", args, ctx);
+			std::cout << "Glob with path result: " << res << std::endl;
+			assert(res.find("docs/design.md") != std::string::npos);
+		}
+
+		// 9. Success case: search_path and directory aliases
+		{
+			std::string args1 = "{\"pattern\": \"*.md\", \"search_path\": \"docs\"}";
+			std::string res1 = registry.execute_tool("fs_glob", args1, ctx);
+			assert(res1.find("docs/design.md") != std::string::npos);
+
+			std::string args2 = "{\"pattern\": \"*.md\", \"directory\": \"docs\"}";
+			std::string res2 = registry.execute_tool("fs_glob", args2, ctx);
+			assert(res2.find("docs/design.md") != std::string::npos);
+		}
+
+		// 10. Success case: non-wildcard filename with path
+		{
+			std::string args = "{\"pattern\": \"design.md\", \"path\": \"docs\"}";
+			std::string res = registry.execute_tool("fs_glob", args, ctx);
+			assert(res.find("docs/design.md") != std::string::npos);
+		}
+
+		// 11. Success case: searching build directory when explicitly requested
+		{
+			std::string args = "{\"pattern\": \"*turbomcp*\", \"path\": \"build\"}";
+			std::string res = registry.execute_tool("fs_glob", args, ctx);
+			assert(res.find("build/") != std::string::npos);
+		}
+
+		// 12. Success case: fs_find_files alias tool
+		{
+			std::string args = "{\"pattern\": \"design.md\", \"path\": \"docs\"}";
+			std::string res = registry.execute_tool("fs_find_files", args, ctx);
 			assert(res.find("docs/design.md") != std::string::npos);
 		}
 

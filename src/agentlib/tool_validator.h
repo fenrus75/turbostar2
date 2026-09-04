@@ -46,6 +46,8 @@ namespace agentlib {
 | resolve_code_review_item_validator | src/tools/resolve_code_review_item/resolve_code_review_item.h |
 | get_code_review_item_validator | src/tools/get_code_review_item/get_code_review_item.h |
 | list_code_review_items_validator | src/tools/list_code_review_items/list_code_review_items.h |
+| fs_glob_validator            | src/tools/fs_glob/fs_glob.h                                 |
+| fs_find_files_validator      | src/tools/fs_glob/fs_glob.h                                 |
 
 */
 

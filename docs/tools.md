@@ -102,9 +102,10 @@ Turbostar supports tracing all LLM tool calls and outputs to sequential log file
     *   `pattern` *(string, optional)*: Optional pattern (string or RE2 regular expression) to filter test names.
 
 ### `fs_glob`
-*   **Description:** Returns a list of files matching a glob pattern (e.g. `src/**/*.cpp`, supporting double-star ** wildcards) relative to the project root.
+*   **Description:** Returns a list of files matching a glob pattern (e.g. `src/**/*.cpp`, supporting double-star ** wildcards) relative to the project root. Can be scoped to a directory with `path`.
 *   **Arguments:**
-    *   `pattern` *(string, required)*: The glob pattern to search for, relative to the project root (e.g. `src/**/*.cpp` or `docs/*.md`).
+    *   `pattern` *(string, required)*: The glob pattern to search for (e.g. `*.cpp`, `src/**/*.cpp`, or `*turbomcp*`). Alias: `query`.
+    *   `path` *(string, optional)*: The root directory to search within, relative to the project root or VFS URI (e.g. `src`, `build`, or `include://`). Defaults to project root (`.`). Aliases: `search_path`, `directory`.
 
 ### `fs_man`
 *   **Description:** Lookup and render system man pages (library functions, system calls, or commands) as Markdown. Use this to find exact C/C++ function signatures, parameter names/types, required header files, return codes, and behavior of standard library APIs (e.g., malloc, printf, sockets, pthread) or system utilities. Highly recommended before writing or debugging API calls.
