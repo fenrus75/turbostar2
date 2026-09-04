@@ -1,3 +1,4 @@
+// Tested source file: src/crashdump_manager.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
@@ -89,6 +90,68 @@ int main()
 		}
 
 		std::cout << "crashdump_get_info tool verified successfully!" << std::endl;
+	}
+
+	// 5. Verify report generation fallback when no core exists (unwinder path)
+	{
+		fs::path crash_fallback = fs::path(dump_dir) / "crash_fallback456";
+		fs::create_directories(crash_fallback);
+		{
+			std::ofstream ofs(crash_fallback / "info.txt");
+			ofs << "Signal: 6\nExecutable: /bin/true\n";
+		}
+		{
+			std::ofstream ofs(crash_fallback / "maps.txt");
+			ofs << "00000000-ffffffff r-xp 00000000 00:00 0 /bin/true\n";
+		}
+		{
+			std::ofstream ofs(crash_fallback / "stack.bin", std::ios::binary);
+			uint64_t ip = 0x12345;
+			ofs.write(reinterpret_cast<const char*>(&ip), sizeof(ip));
+		}
+		crashdump_manager::get_instance().refresh("dummy_hash");
+		std::string res = registry.execute_tool("crashdump_get_info", "{\"crash_id\": \"fallback456\"}", ctx);
+		assert(res.find("| Frame | Address | Function | Location |") != std::string::npos);
+		std::cout << "Fallback report generation verified!" << std::endl;
+	}
+
+	// 6. Verify GDB enrichment when core file and executable are available
+	{
+		std::string proj_root = project_manager::get_instance().get_project_root();
+		fs::path crash_exe = fs::path(proj_root) / "build" / "crash";
+		fs::path found_core;
+		if (fs::exists(crash_exe)) {
+			for (const auto &entry : fs::recursive_directory_iterator(dump_dir)) {
+				if (entry.is_regular_file() && entry.path().filename().string().starts_with("core") && entry.file_size() > 1024) {
+					found_core = entry.path();
+					break;
+				}
+			}
+		}
+		if (!found_core.empty()) {
+			fs::path crash_enriched = fs::path(dump_dir) / "crash_enriched789";
+			fs::create_directories(crash_enriched);
+			{
+				std::ofstream ofs(crash_enriched / "info.txt");
+				ofs << "Signal: 6\nExecutable: " << crash_exe.string() << "\n";
+			}
+			{
+				std::ofstream ofs(crash_enriched / "maps.txt");
+				ofs << "00000000-ffffffff r-xp 00000000 00:00 0 " << crash_exe.string() << "\n";
+			}
+			{
+				std::ofstream ofs(crash_enriched / "stack.bin", std::ios::binary);
+				uint64_t ip = 0x12345;
+				ofs.write(reinterpret_cast<const char*>(&ip), sizeof(ip));
+			}
+			fs::copy_file(found_core, crash_enriched / "core", fs::copy_options::overwrite_existing);
+
+			crashdump_manager::get_instance().refresh("dummy_hash");
+			std::string res = registry.execute_tool("crashdump_get_info", "{\"crash_id\": \"enriched789\"}", ctx);
+			assert(res.find("| Frame | Address | Function | Location | Note |") != std::string::npos);
+			assert(res.find("crash handling") != std::string::npos);
+			std::cout << "GDB enriched report generation verified!" << std::endl;
+		}
 	}
 
 	// Clean up mock files

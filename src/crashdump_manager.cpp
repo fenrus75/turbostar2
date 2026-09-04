@@ -13,6 +13,7 @@
 #include "fs_utils.h"
 #include "project_manager.h"
 #include "codemap_utils.h"
+#include "utf8.h"
 
 namespace fs = std::filesystem;
 
@@ -135,10 +136,6 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 		report << "### Info\n```\n" << info_content << "```\n\n";
 	}
 
-	report << "### Backtrace\n\n";
-	report << "| Frame | Address | Function | Location |\n";
-	report << "|---|---|---|---|\n";
-
 	std::ifstream stack_in(stack_path, std::ios::binary);
 	if (stack_in) {
 		uint64_t ip_addr;
@@ -148,13 +145,12 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 		}
 		stack_in.close();
 
-		auto resolved = turbostar::address_lookup::resolve_addresses(raw_ips, maps_path.native());
 		static std::string project_root = project_manager::get_instance().get_project_root();
-
 		std::string prefix = project_root;
 		if (!prefix.empty() && prefix.back() != '/') {
 			prefix += "/";
 		}
+		std::string build_dir = project_manager::get_instance().resolve_build_dir();
 
 		struct codemap_report_row {
 			std::string rel_path;
@@ -169,69 +165,339 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 		std::vector<codemap_report_row> codemap_rows;
 		std::set<std::tuple<std::string, std::string, int>> seen_symbols;
 
-		for (size_t i = 0; i < raw_ips.size(); ++i) {
-			const auto &res = resolved[i];
-			if (res.function_name == "__libc_start_main" || res.function_name == "__libc_start_call_main" ||
-			    res.function_name == "__libc_start_main_impl" || res.function_name == "_start") {
-				break;
+		// 1. Attempt GDB coredump enrichment
+		fs::path core_file;
+		if (fs::exists(crash_dir)) {
+			for (const auto &entry : fs::directory_iterator(crash_dir)) {
+				if (entry.is_regular_file() && entry.path().filename().string().starts_with("core")) {
+					core_file = entry.path();
+					break;
+				}
+			}
+		}
+
+		std::string gdb_bin = fs::exists("/usr/bin/gdb") ? "/usr/bin/gdb" : (fs::exists("/bin/gdb") ? "/bin/gdb" : "");
+		struct gdb_frame_data {
+			int frame_idx{-1};
+			uintptr_t address{0};
+			std::string function;
+			std::string location;
+			bool is_crash_handling{false};
+		};
+		std::vector<gdb_frame_data> gdb_frames;
+
+		if (!core_file.empty() && !gdb_bin.empty()) {
+			std::string exe_path;
+			if (info_in || fs::exists(info_path)) {
+				std::ifstream iin(info_path);
+				std::string l;
+				constexpr std::string_view exe_pref = "Executable: ";
+				while (std::getline(iin, l)) {
+					if (l.starts_with(exe_pref)) {
+						std::string cand = l.substr(exe_pref.length());
+						if (fs::exists(cand)) exe_path = cand;
+						break;
+					}
+				}
+			}
+			if (exe_path.empty() && fs::exists(fs::path(crash_dir) / "executable.bin")) {
+				exe_path = (fs::path(crash_dir) / "executable.bin").string();
 			}
 
-			int frame_idx = static_cast<int>(i);
+			std::vector<std::string> gdb_args = {"--batch"};
+			if (!exe_path.empty()) {
+				gdb_args.push_back(exe_path);
+			}
+			gdb_args.push_back("-c");
+			gdb_args.push_back(core_file.string());
+			gdb_args.push_back("-ex");
+			gdb_args.push_back("set width 0");
+			gdb_args.push_back("-ex");
+			gdb_args.push_back("set style enabled off");
+			gdb_args.push_back("-ex");
+			gdb_args.push_back("bt 35");
 
-			std::string location = res.location;
-			size_t colon_pos = location.find_last_of(':');
-			if (colon_pos != std::string::npos && location.length() > 0 && location[0] != '?') {
-				size_t first_colon = location.find(':');
-				std::string raw_file = location.substr(0, first_colon);
-				std::string line_part = location.substr(first_colon);
+			auto gdb_raw_lines = turbostar::address_lookup::run_command(gdb_bin, gdb_args);
 
-				fs::path p(raw_file);
-				if (!p.is_absolute()) {
-					p = fs::path(project_root) / p;
-				}
-				p = p.lexically_normal();
-				std::string full_file_path = p.string();
-
-				bool is_project = false;
-				std::string rel_file_path = fs_utils::make_relative_to_project(full_file_path);
-				if (full_file_path.starts_with(prefix)) {
-					is_project = true;
-				}
-
-				location = rel_file_path + line_part;
-
-
-				// Extract line number for codemap symbol lookup
-				if (is_project && fs::exists(full_file_path)) {
-					size_t num_start = (line_part.length() > 1 && line_part[0] == ':') ? 1 : 0;
-					size_t num_end = line_part.find(':', num_start);
-					std::string line_num_str = (num_end != std::string::npos) ?
-						line_part.substr(num_start, num_end - num_start) : line_part.substr(num_start);
-					int line_num = 0;
-					try {
-						line_num = std::stoi(line_num_str);
-					} catch (...) {
-						line_num = 0;
+			// Stitch continuation lines where arguments span across lines
+			std::vector<std::string> stitched_lines;
+			for (const auto &raw_l : gdb_raw_lines) {
+				std::string l = utf8::sanitize_terminal_output(raw_l);
+				while (!l.empty() && (l.back() == '\r' || l.back() == '\n' || l.back() == ' ' || l.back() == '\t')) l.pop_back();
+				if (l.empty()) continue;
+				if (l[0] == '#') {
+					stitched_lines.push_back(l);
+				} else if (!stitched_lines.empty()) {
+					size_t non_ws = l.find_first_not_of(" \t");
+					if (non_ws != std::string::npos) {
+						stitched_lines.back() += " " + l.substr(non_ws);
 					}
+				}
+			}
 
-					if (line_num > 0) {
-						auto symbols = tools::get_document_codemap_symbols(full_file_path, /*min_lines=*/1);
-						const tools::codemap_symbol_info *enc_sym = tools::find_enclosing_symbol(symbols, line_num);
-						if (enc_sym) {
-							auto sym_key = std::make_tuple(rel_file_path, enc_sym->name, enc_sym->start_line);
-							if (!seen_symbols.contains(sym_key)) {
-								seen_symbols.insert(sym_key);
-								int count = std::max(1, enc_sym->end_line - enc_sym->start_line + 1);
-								codemap_rows.push_back({rel_file_path, enc_sym->name, enc_sym->start_line, enc_sym->end_line, count, frame_idx, line_num});
-							}
+			bool seen_signal_boundary = false;
+			for (const auto &line : stitched_lines) {
+				if (line.empty() || line[0] != '#') continue;
+				size_t space_pos = line.find(' ');
+				if (space_pos == std::string::npos || space_pos < 2) continue;
+
+				int f_idx = -1;
+				try {
+					f_idx = std::stoi(line.substr(1, space_pos - 1));
+				} catch (...) {
+					continue;
+				}
+
+				if (f_idx == 0 && !gdb_frames.empty()) {
+					gdb_frames.clear();
+					seen_signal_boundary = false;
+				}
+
+				std::string rest = line.substr(space_pos);
+				size_t non_ws = rest.find_first_not_of(" \t");
+				if (non_ws == std::string::npos) continue;
+				rest = rest.substr(non_ws);
+
+				gdb_frame_data fd;
+				fd.frame_idx = f_idx;
+
+				if (rest.find("<signal handler called>") != std::string::npos) {
+					fd.function = "<signal handler called>";
+					fd.is_crash_handling = true;
+					seen_signal_boundary = true;
+					gdb_frames.push_back(fd);
+					continue;
+				}
+
+				if (rest.starts_with("0x") || rest.starts_with("0X")) {
+					size_t addr_end = rest.find(' ');
+					if (addr_end != std::string::npos) {
+						try {
+							fd.address = std::stoull(rest.substr(0, addr_end), nullptr, 16);
+						} catch (...) {}
+						rest = rest.substr(addr_end);
+						size_t next_nw = rest.find_first_not_of(" \t");
+						if (next_nw != std::string::npos) {
+							rest = rest.substr(next_nw);
 						}
 					}
 				}
-			} else if (location.starts_with(prefix)) {
-				location = location.substr(prefix.length());
+
+				if (rest.starts_with("in ")) {
+					rest = rest.substr(3);
+					size_t next_nw = rest.find_first_not_of(" \t");
+					if (next_nw != std::string::npos) {
+						rest = rest.substr(next_nw);
+					}
+				}
+
+				size_t at_pos = rest.rfind(" at ");
+				size_t from_pos = rest.rfind(" from ");
+
+				if (at_pos != std::string::npos) {
+					fd.function = rest.substr(0, at_pos);
+					fd.location = rest.substr(at_pos + 4);
+				} else if (from_pos != std::string::npos) {
+					fd.function = rest.substr(0, from_pos);
+					fd.location = rest.substr(from_pos + 6);
+				} else {
+					fd.function = rest;
+					fd.location = "";
+				}
+
+				size_t f_first = fd.function.find_first_not_of(" \t");
+				size_t f_last = fd.function.find_last_of(" \t");
+				if (f_first != std::string::npos) {
+					fd.function = fd.function.substr(f_first, f_last - f_first + 1);
+				}
+
+				if (!seen_signal_boundary ||
+				    fd.function.starts_with("turbocatch_handle_signal") ||
+				    fd.function.starts_with("__internal_syscall_cancel") ||
+				    fd.function.starts_with("__syscall_cancel") ||
+				    fd.function.starts_with("__GI___wait4") ||
+				    fd.function.starts_with("wait4")) {
+					fd.is_crash_handling = true;
+				}
+
+				gdb_frames.push_back(fd);
 			}
 
-			report << std::format("| {} | `0x{:x}` | `{}` | {} |\n", frame_idx, raw_ips[i], res.function_name, location);
+			// Match missing frame addresses with unwinder raw_ips
+			if (!raw_ips.empty()) {
+				size_t unw_idx = 0;
+				for (auto &gf : gdb_frames) {
+					if (gf.is_crash_handling) continue;
+					if (gf.address == 0 && unw_idx < raw_ips.size()) {
+						gf.address = raw_ips[unw_idx];
+					}
+					if (unw_idx < raw_ips.size() && gf.address == raw_ips[unw_idx]) {
+						unw_idx++;
+					}
+				}
+			}
+		}
+
+		if (!gdb_frames.empty()) {
+			// Hybrid GDB-enriched backtrace table
+			report << "### Backtrace\n\n";
+			report << "| Frame | Address | Function | Location | Note |\n";
+			report << "|---|---|---|---|---|\n";
+
+			for (const auto &frame : gdb_frames) {
+				if (frame.function == "__libc_start_main" || frame.function == "__libc_start_call_main" ||
+				    frame.function == "__libc_start_main_impl" || frame.function == "_start") {
+					break;
+				}
+
+				std::string location = frame.location;
+				std::string rel_file_path;
+				int line_num = 0;
+				bool is_project = false;
+
+				size_t colon_pos = location.find_last_of(':');
+				if (colon_pos != std::string::npos && !location.empty() && location[0] != '?') {
+					size_t first_colon = location.find(':');
+					std::string raw_file = location.substr(0, first_colon);
+					std::string line_part = location.substr(first_colon);
+
+					fs::path p(raw_file);
+					fs::path full_p;
+					if (p.is_absolute()) {
+						full_p = p.lexically_normal();
+					} else {
+						if (fs::exists(fs::path(project_root) / p)) {
+							full_p = (fs::path(project_root) / p).lexically_normal();
+						} else if (!build_dir.empty() && fs::exists(fs::path(build_dir) / p)) {
+							full_p = (fs::path(build_dir) / p).lexically_normal();
+						} else {
+							full_p = (fs::path(project_root) / p).lexically_normal();
+						}
+					}
+
+					std::string full_path_str = full_p.string();
+					rel_file_path = fs_utils::make_relative_to_project(full_path_str);
+					if (full_path_str.starts_with(prefix) && fs::exists(full_p)) {
+						is_project = true;
+					}
+
+					if (is_project) {
+						location = rel_file_path + line_part;
+					} else if (location.starts_with(prefix)) {
+						location = location.substr(prefix.length());
+					}
+
+					if (is_project) {
+						size_t num_start = (line_part.length() > 1 && line_part[0] == ':') ? 1 : 0;
+						size_t num_end = line_part.find(':', num_start);
+						std::string line_num_str = (num_end != std::string::npos) ?
+							line_part.substr(num_start, num_end - num_start) : line_part.substr(num_start);
+						try {
+							line_num = std::stoi(line_num_str);
+						} catch (...) {
+							line_num = 0;
+						}
+
+						if (line_num > 0) {
+							auto symbols = tools::get_document_codemap_symbols(full_path_str, /*min_lines=*/1);
+							const tools::codemap_symbol_info *enc_sym = tools::find_enclosing_symbol(symbols, line_num);
+							if (enc_sym) {
+								auto sym_key = std::make_tuple(rel_file_path, enc_sym->name, enc_sym->start_line);
+								if (!seen_symbols.contains(sym_key)) {
+									seen_symbols.insert(sym_key);
+									int count = std::max(1, enc_sym->end_line - enc_sym->start_line + 1);
+									codemap_rows.push_back({rel_file_path, enc_sym->name, enc_sym->start_line, enc_sym->end_line, count, frame.frame_idx, line_num});
+								}
+							}
+						}
+					}
+				} else if (location.starts_with(prefix)) {
+					location = location.substr(prefix.length());
+				}
+
+				std::string addr_str = (frame.address != 0) ? std::format("`0x{:x}`", frame.address) : "";
+				std::string note_str = frame.is_crash_handling ? "crash handling" : "";
+
+				// Escape any pipe characters in function signature for markdown table formatting
+				std::string safe_func = frame.function;
+				size_t pipe_pos = 0;
+				while ((pipe_pos = safe_func.find('|', pipe_pos)) != std::string::npos) {
+					safe_func.replace(pipe_pos, 1, "\\|");
+					pipe_pos += 2;
+				}
+
+				report << std::format("| {} | {} | `{}` | {} | {} |\n", frame.frame_idx, addr_str, safe_func, location, note_str);
+			}
+		} else {
+			// Fallback: unwinder-based backtrace
+			report << "### Backtrace\n\n";
+			report << "| Frame | Address | Function | Location |\n";
+			report << "|---|---|---|---|\n";
+
+			auto resolved = turbostar::address_lookup::resolve_addresses(raw_ips, maps_path.native());
+			for (size_t i = 0; i < raw_ips.size(); ++i) {
+				const auto &res = resolved[i];
+				if (res.function_name == "__libc_start_main" || res.function_name == "__libc_start_call_main" ||
+				    res.function_name == "__libc_start_main_impl" || res.function_name == "_start") {
+					break;
+				}
+
+				int frame_idx = static_cast<int>(i);
+
+				std::string location = res.location;
+				size_t colon_pos = location.find_last_of(':');
+				if (colon_pos != std::string::npos && location.length() > 0 && location[0] != '?') {
+					size_t first_colon = location.find(':');
+					std::string raw_file = location.substr(0, first_colon);
+					std::string line_part = location.substr(first_colon);
+
+					fs::path p(raw_file);
+					if (!p.is_absolute()) {
+						p = fs::path(project_root) / p;
+					}
+					p = p.lexically_normal();
+					std::string full_file_path = p.string();
+
+					bool is_project = false;
+					std::string rel_file_path = fs_utils::make_relative_to_project(full_file_path);
+					if (full_file_path.starts_with(prefix)) {
+						is_project = true;
+					}
+
+					location = rel_file_path + line_part;
+
+					// Extract line number for codemap symbol lookup
+					if (is_project && fs::exists(full_file_path)) {
+						size_t num_start = (line_part.length() > 1 && line_part[0] == ':') ? 1 : 0;
+						size_t num_end = line_part.find(':', num_start);
+						std::string line_num_str = (num_end != std::string::npos) ?
+							line_part.substr(num_start, num_end - num_start) : line_part.substr(num_start);
+						int line_num = 0;
+						try {
+							line_num = std::stoi(line_num_str);
+						} catch (...) {
+							line_num = 0;
+						}
+
+						if (line_num > 0) {
+							auto symbols = tools::get_document_codemap_symbols(full_file_path, /*min_lines=*/1);
+							const tools::codemap_symbol_info *enc_sym = tools::find_enclosing_symbol(symbols, line_num);
+							if (enc_sym) {
+								auto sym_key = std::make_tuple(rel_file_path, enc_sym->name, enc_sym->start_line);
+								if (!seen_symbols.contains(sym_key)) {
+									seen_symbols.insert(sym_key);
+									int count = std::max(1, enc_sym->end_line - enc_sym->start_line + 1);
+									codemap_rows.push_back({rel_file_path, enc_sym->name, enc_sym->start_line, enc_sym->end_line, count, frame_idx, line_num});
+								}
+							}
+						}
+					}
+				} else if (location.starts_with(prefix)) {
+					location = location.substr(prefix.length());
+				}
+
+				report << std::format("| {} | `0x{:x}` | `{}` | {} |\n", frame_idx, raw_ips[i], res.function_name, location);
+			}
 		}
 
 		if (!codemap_rows.empty()) {
@@ -300,7 +566,10 @@ static std::string extract_summary(const fs::path &entry_path, const std::string
 					in_table = true;
 					continue;
 				}
-				if (in_table && line.starts_with("| 0 |")) {
+				if (in_table && line.starts_with("| ") && !line.starts_with("| Frame") && !line.starts_with("|---")) {
+					if (line.find("crash handling") != std::string::npos) {
+						continue;
+					}
 					std::vector<std::string> parts;
 					size_t start = 0, end;
 					while ((end = line.find('|', start)) != std::string::npos) {
@@ -313,6 +582,9 @@ static std::string extract_summary(const fs::path &entry_path, const std::string
 						auto trim = [](std::string &s) {
 							while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front()))) s.erase(s.begin());
 							while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back()))) s.pop_back();
+							if (s.starts_with('`') && s.ends_with('`') && s.length() >= 2) {
+								s = s.substr(1, s.length() - 2);
+							}
 						};
 						trim(fn);
 						trim(loc);
@@ -324,7 +596,6 @@ static std::string extract_summary(const fs::path &entry_path, const std::string
 							}
 						}
 					}
-					break;
 				}
 			}
 		}
