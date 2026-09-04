@@ -248,6 +248,8 @@ remember to describe features in terms of the benefit to the user or the agent, 
 # Done
 
 ## 4-09-2026
+- `fs_grep_files` inline definition snippet: when LSP symbol matches are found in `fs_grep_files`, automatically extract and include up to 3 lines of definition / prototype code in the standard `fs_read_lines` fenced code format (`<line_num>: <code_text>`) so agents can inspect signatures without extra read turns. (Completed)
+
 - In `fs_grep_files` results, better LSP output: when 0 textual occurrences are found, output `No textual matches found for '<pattern>'` first and label LSP symbols clearly as `Related Symbol Index Definitions (no textual occurrences in searched scope)` so agents are not misled into thinking text matches occurred. (Completed)
 
 - `fs_run_tests` string/array parameter flexibility: accept `test_names` as either a single string or an array of strings in tool arguments. (Completed)

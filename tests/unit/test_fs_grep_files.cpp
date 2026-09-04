@@ -1,3 +1,4 @@
+// Tested source file: src/tools/fs_grep_files/fs_grep_files_entry.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <filesystem>
@@ -409,6 +410,46 @@ int main()
 		assert(zres.starts_with("<fs_grep_files_result>\nNo textual matches found for 'my_special_symbol'."));
 		assert(zres.find("### Related Symbol Index Definitions (no textual occurrences in searched scope):") != std::string::npos);
 		fs::remove_all(empty_dir);
+	}
+
+	// Test 13: LSP symbol match includes code snippet when file is readable
+	{
+		fs::path snippet_dir = temp_dir / "snippet_search";
+		fs::create_directories(snippet_dir);
+		fs::path src_dir = snippet_dir / "src";
+		fs::create_directories(src_dir);
+		fs::path target_file = src_dir / "foo.cpp";
+		{
+			std::ofstream out(target_file);
+			for (int i = 1; i <= 10; ++i) {
+				out << "// Line " << i << "\n";
+			}
+			out << "void my_snippet_symbol(\n";
+			out << "    int a,\n";
+			out << "    int b);\n";
+		}
+
+		agentlib::tool_context sctx;
+		sctx.fs_security.set_working_directory(snippet_dir);
+		sctx.fs_security.add_allowed_root(snippet_dir, agentlib::access_type::read);
+
+		tools::fs_grep_files_args sargs;
+		sargs.pattern = "my_snippet_symbol";
+		sargs.safe_search_path = snippet_dir.string();
+
+		test_fs_grep_files_tool_mocked stool(sargs);
+		lsp_manager::symbol_info sym;
+		sym.name = "my_snippet_symbol";
+		sym.kind = 12; // Function
+		sym.location.path = target_file.string();
+		sym.location.range.start_y = 10; // 0-based, line 11
+		sym.location.range.end_y = 12;   // 0-based, line 13
+		stool.mock_symbols = {sym};
+
+		std::string sres = stool.execute(sctx);
+		assert(sres.find("* **Function `my_snippet_symbol`** is defined in `src/foo.cpp` at line 11 to 13:") != std::string::npos);
+		assert(sres.find("```cpp\n11: void my_snippet_symbol(\n12:     int a,\n13:     int b);\n```\n") != std::string::npos);
+		fs::remove_all(snippet_dir);
 	}
 
 	std::cout << "fs_grep_files unit test passed!\n";

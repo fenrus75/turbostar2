@@ -13,6 +13,8 @@
 #include "codemap_utils.h"
 #include "fs_utils.h"
 #include "project_manager.h"
+#include "agentlib/document_provider.h"
+#include "agentlib/virtual_file_system.h"
 #include <format>
 #include <algorithm>
 #include <cctype>
@@ -130,6 +132,119 @@ struct last_search_info {
  */
 static std::mutex g_last_search_mutex;
 static last_search_info g_last_search;
+// Extracts up to 3 lines starting at start_line (1-based) representing the definition or prototype,
+// formatted in the exact fs_read_lines convention:
+// ```<lang>
+// <line_number>: <code_text>
+// ```
+static std::string extract_symbol_snippet(const std::string &safe_path, const std::string &display_path,
+                                         int start_line, int end_line, const agentlib::tool_context &ctx)
+{
+	if (start_line < 1) {
+		return "";
+	}
+
+	std::vector<std::string> raw_lines;
+
+	if (ctx.doc_provider && ctx.doc_provider->get_open_document(safe_path)) {
+		auto doc = ctx.doc_provider->get_open_document(safe_path);
+		size_t total = doc->get_line_count();
+		int max_l = std::min({start_line + 2, end_line, static_cast<int>(total)});
+		for (int l = start_line; l <= max_l; ++l) {
+			raw_lines.push_back(doc->get_line_text(l - 1));
+			const auto &cur = raw_lines.back();
+			if (cur.find(';') != std::string::npos || cur.find('{') != std::string::npos) {
+				break;
+			}
+		}
+	} else if (safe_path.find("://") != std::string::npos) {
+		auto vfs = ctx.fs_security.get_vfs();
+		if (vfs) {
+			auto view_opt = vfs->read_file(safe_path);
+			if (view_opt) {
+				std::string_view view = view_opt.value()->view();
+				int cur_line = 1;
+				size_t start_pos = 0;
+				int max_l = std::min(start_line + 2, end_line);
+				while (start_pos < view.length() && cur_line <= max_l) {
+					size_t end_pos = view.find('\n', start_pos);
+					std::string_view l = (end_pos == std::string_view::npos)
+								 ? view.substr(start_pos)
+								 : view.substr(start_pos, end_pos - start_pos);
+					if (cur_line >= start_line) {
+						raw_lines.emplace_back(l);
+						if (l.find(';') != std::string_view::npos || l.find('{') != std::string_view::npos) {
+							break;
+						}
+					}
+					start_pos = (end_pos == std::string_view::npos) ? view.length() : end_pos + 1;
+					cur_line++;
+				}
+			}
+		}
+	} else {
+		if (!fs_utils::is_regular_file(safe_path)) {
+			return "";
+		}
+		std::ifstream file(safe_path, std::ios::binary);
+		if (!file.is_open()) {
+			return "";
+		}
+		std::string line;
+		int cur_line = 1;
+		int max_l = std::min(start_line + 2, end_line);
+		while (cur_line < start_line && std::getline(file, line)) {
+			cur_line++;
+		}
+		while (cur_line <= max_l && std::getline(file, line)) {
+			if (!line.empty() && line.back() == '\r') {
+				line.pop_back();
+			}
+			raw_lines.push_back(line);
+			if (line.find(';') != std::string::npos || line.find('{') != std::string::npos) {
+				break;
+			}
+			cur_line++;
+		}
+	}
+
+	if (raw_lines.empty()) {
+		return "";
+	}
+
+	bool has_content = false;
+	for (const auto &l : raw_lines) {
+		if (l.find_first_not_of(" \t\r\n") != std::string::npos) {
+			has_content = true;
+			break;
+		}
+	}
+	if (!has_content) {
+		return "";
+	}
+
+	std::string lang = mime::get_language_from_extension(display_path);
+	std::stringstream ss;
+	ss << "```" << lang << "\n";
+	for (size_t i = 0; i < raw_lines.size(); ++i) {
+		int line_num = start_line + static_cast<int>(i);
+		std::string clean_line;
+		const auto &orig = raw_lines[i];
+		clean_line.reserve(orig.size());
+		for (char ch : orig) {
+			unsigned char c = static_cast<unsigned char>(ch);
+			if (c >= 32 || c == '\t') {
+				clean_line += ch;
+			}
+		}
+		if (clean_line.length() > 500) {
+			clean_line = clean_line.substr(0, 497) + "...";
+		}
+		ss << line_num << ": " << clean_line << "\n";
+	}
+	ss << "```\n";
+	return ss.str();
+}
 
 std::vector<lsp_manager::symbol_info> fs_grep_files_tool::get_lsp_symbols(const std::string &query)
 {
@@ -272,29 +387,44 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				int start_line = sym.location.range.start_y + 1;
 				int end_line = sym.location.range.end_y + 1;
 
-				if (end_line <= start_line) {
-					std::string safe_file_path;
-					std::string out_err;
-					fs::path full_path = abs_path.is_absolute() ? abs_path : (root_path / abs_path);
-					if (ctx.fs_security.validate_access(full_path.string(), agentlib::access_type::read, safe_file_path, out_err)) {
-						auto file_symbols = get_document_codemap_symbols(safe_file_path, ctx, /*min_lines=*/1);
-						for (const auto &csym : file_symbols) {
-							if (csym.start_line <= start_line && csym.end_line >= start_line) {
-								if (csym.end_line > start_line) {
-									end_line = csym.end_line;
-									break;
-								}
+				std::string safe_file_path;
+				std::string out_err;
+				fs::path full_path = abs_path.is_absolute() ? abs_path : (root_path / abs_path);
+				bool can_read = ctx.fs_security.validate_access(full_path.string(), agentlib::access_type::read, safe_file_path, out_err);
+
+				if (end_line <= start_line && can_read) {
+					auto file_symbols = get_document_codemap_symbols(safe_file_path, ctx, /*min_lines=*/1);
+					for (const auto &csym : file_symbols) {
+						if (csym.start_line <= start_line && csym.end_line >= start_line) {
+							if (csym.end_line > start_line) {
+								end_line = csym.end_line;
+								break;
 							}
 						}
 					}
 				}
 
-				if (end_line > start_line) {
-					lsp_ss << std::format("* **{} `{}`** is defined in `{}` at line {} to {}\n",
-						kind_str, sym.name, display_path, start_line, end_line);
+				std::string snippet;
+				if (can_read) {
+					snippet = extract_symbol_snippet(safe_file_path, display_path, start_line, end_line, ctx);
+				}
+
+				if (snippet.empty()) {
+					if (end_line > start_line) {
+						lsp_ss << std::format("* **{} `{}`** is defined in `{}` at line {} to {}\n",
+							kind_str, sym.name, display_path, start_line, end_line);
+					} else {
+						lsp_ss << std::format("* **{} `{}`** is defined in `{}` at line {}\n",
+							kind_str, sym.name, display_path, start_line);
+					}
 				} else {
-					lsp_ss << std::format("* **{} `{}`** is defined in `{}` at line {}\n",
-						kind_str, sym.name, display_path, start_line);
+					if (end_line > start_line) {
+						lsp_ss << std::format("* **{} `{}`** is defined in `{}` at line {} to {}:\n{}",
+							kind_str, sym.name, display_path, start_line, end_line, snippet);
+					} else {
+						lsp_ss << std::format("* **{} `{}`** is defined in `{}` at line {}:\n{}",
+							kind_str, sym.name, display_path, start_line, snippet);
+					}
 				}
 			}
 			lsp_section = lsp_ss.str();
