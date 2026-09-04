@@ -1,24 +1,7 @@
-// test_available_tests.cpp
+// Tested source file: src/project_manager.cpp, src/tools/fs_run_tests/fs_run_tests_entry.cpp
 //
-// Unit tests for project_manager's available-test list caching and invalidation.
-//
-// SOURCE FILE COVERED:
-//   src/project_manager.cpp  (get_available_tests / refresh_available_tests /
-//                             invalidate_available_tests_cache / build_definition_changed)
-//
-// BEHAVIOR COVERED:
-//   - get_available_tests() returns meson test --list names (integration: needs the
-//     real build dir, mirroring test_project_layout.cpp which uses the live project).
-//   - invalidate_available_tests_cache() forces a fresh refresh on the next call so
-//     newly added test targets (e.g. added to meson.build after the cache was first
-//     populated) become discoverable without an editor restart.
-//
-// NOTE ON THE STALE-CACHE BUG:
-//   Before this fix, get_available_tests() cached its list behind tests_ready_ with no
-//   invalidation, so tests registered in meson.build after the first lookup were
-//   invisible to fs_run_tests and system://project/testlist.md until editor restart.
-//   This test asserts the cached list actually contains a test that only exists after
-//   we re-query with an invalidated cache.
+// Unit tests for project_manager's available-test list caching/invalidation
+// and fs_run_tests tokenized fuzzy test resolution.
 #include "test_watchdog.h"
 #include <algorithm>
 #include <cassert>
@@ -27,6 +10,7 @@
 #include <vector>
 
 #include "project_manager.h"
+#include "tools/fs_run_tests/fs_run_tests.h"
 
 int main()
 {
@@ -73,5 +57,80 @@ int main()
 	assert(saw_llm && "Refreshed available-test list must include newly-registered unit_test_llm_client.");
 
 	std::cout << "Available-tests cache/invalidation tests passed!" << std::endl;
+
+	std::cout << "\nTesting tokenized fuzzy test resolution (fs_run_tests)..." << std::endl;
+	const std::vector<std::string> mock_available = {
+		"turbostar:unit_utf8",
+		"turbostar:unit_test_run_shell_command",
+		"turbostar:unit_foo_alpha",
+		"turbostar:unit_foo_beta",
+		"turbostar:integration_git_status"
+	};
+
+	// 1. Exact match
+	{
+		std::vector<std::string> query = {"turbostar:unit_utf8"};
+		auto res = tools::fs_run_tests_tool::resolve_test_names_detailed(query, mock_available);
+		assert(res.resolved_names.size() == 1);
+		assert(res.resolved_names[0] == "turbostar:unit_utf8");
+		assert(res.auto_matched_notes.empty());
+		assert(res.suggestions.empty());
+		assert(!res.did_substring_expand);
+	}
+
+	// 2. Substring match
+	{
+		std::vector<std::string> query = {"unit_utf8"};
+		auto res = tools::fs_run_tests_tool::resolve_test_names_detailed(query, mock_available);
+		assert(res.resolved_names.size() == 1);
+		assert(res.resolved_names[0] == "turbostar:unit_utf8");
+		assert(res.auto_matched_notes.empty());
+		assert(res.suggestions.empty());
+	}
+
+	// 3. Tokenized matching with noise word ("test") removal (the classic mismatch: query "unit_test_utf8" vs target "turbostar:unit_utf8")
+	{
+		std::vector<std::string> query = {"unit_test_utf8"};
+		auto res = tools::fs_run_tests_tool::resolve_test_names_detailed(query, mock_available);
+		assert(res.resolved_names.size() == 1);
+		assert(res.resolved_names[0] == "turbostar:unit_utf8");
+		assert(res.auto_matched_notes.size() == 1);
+		assert(res.auto_matched_notes[0].find("unit_test_utf8") != std::string::npos);
+		assert(res.auto_matched_notes[0].find("turbostar:unit_utf8") != std::string::npos);
+		assert(res.suggestions.empty());
+	}
+
+	// 4. Tokenized matching with inverted or colon tokens
+	{
+		std::vector<std::string> query = {"utf8_unit"};
+		auto res = tools::fs_run_tests_tool::resolve_test_names_detailed(query, mock_available);
+		assert(res.resolved_names.size() == 1);
+		assert(res.resolved_names[0] == "turbostar:unit_utf8");
+		assert(!res.auto_matched_notes.empty());
+	}
+
+	// 5. Multi-candidate match yielding suggestions (2 to 5 candidates)
+	{
+		std::vector<std::string> query = {"unit_test_foo"};
+		auto res = tools::fs_run_tests_tool::resolve_test_names_detailed(query, mock_available);
+		assert(res.resolved_names.empty());
+		assert(res.suggestions.size() == 2);
+		assert(std::find(res.suggestions.begin(), res.suggestions.end(), "turbostar:unit_foo_alpha") != res.suggestions.end());
+		assert(std::find(res.suggestions.begin(), res.suggestions.end(), "turbostar:unit_foo_beta") != res.suggestions.end());
+		assert(res.unresolved_queries.size() == 1);
+		assert(res.unresolved_queries[0] == "unit_test_foo");
+	}
+
+	// 6. Completely unknown test
+	{
+		std::vector<std::string> query = {"nonexistent_xyz"};
+		auto res = tools::fs_run_tests_tool::resolve_test_names_detailed(query, mock_available);
+		assert(res.resolved_names.empty());
+		assert(res.suggestions.empty());
+		assert(res.unresolved_queries.size() == 1);
+		assert(res.unresolved_queries[0] == "nonexistent_xyz");
+	}
+
+	std::cout << "All tokenized fuzzy test resolution tests passed!" << std::endl;
 	return 0;
 }

@@ -1,6 +1,8 @@
 #pragma once
 #include <string>
 #include <memory>
+#include <span>
+#include <vector>
 #include "agentlib/llm_tool.h"
 #include "agentlib/tool_validator.h"
 #include "agentlib/interactions/terminal.h"
@@ -14,6 +16,16 @@ public:
     std::shared_ptr<agentlib::agent_interaction> get_interaction() const override;
     bool validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const override;
     std::string execute(agentlib::tool_context& ctx) override;
+
+    struct resolve_result {
+        std::vector<std::string> resolved_names;
+        std::vector<std::string> suggestions;
+        std::vector<std::string> auto_matched_notes;
+        std::vector<std::string> unresolved_queries;
+        bool did_substring_expand{false};
+    };
+    static resolve_result resolve_test_names_detailed(std::span<const std::string> test_names,
+                                                     const std::vector<std::string>& available);
 
 private:
     std::shared_ptr<agentlib::interaction_terminal> interaction_;

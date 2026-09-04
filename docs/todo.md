@@ -21,12 +21,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 - in grep results, better LSP output
 
-- `fs_glob` / `fs_grep_files` parameter alias: accept `query` as an alias for `pattern` in tool arguments so agents using common search terminology don't trigger schema validation errors.
-
-- `git_diff_unstaged` / `git_diff_staged` default path: make `path` parameter optional, defaulting to `"."` (entire project workspace).
-
-- `fs_run_tests` smart token matching: split `test_names` tokens by `_` or match against both Meson test target names and binary filenames (e.g. `unit_agent_write_to_run` matching `unit_test_agent_write_to_run`).
-
 - `fs_run_tests` suite filter (`suite: "unit"` / `"e2e"`): allow running only fast local unit tests without invoking slower external/e2e test suites to prevent 3-minute MCP timeouts when building and running tests.
 
 - feature: we have "yolo" mode already -- add a /yolo slash command to the agent window
@@ -256,6 +250,10 @@ remember to describe features in terms of the benefit to the user or the agent, 
 # Done
 
 ## 4-09-2026
+- `fs_run_tests` tokenized fuzzy resolution: tokenized test matching splitting on punctuation (`_`, `:`, `/`, `-`), normalizing case, and ignoring noise words (`test`, `tests`, `turbostar`). Auto-runs if exactly 1 high-confidence match with an informative note (e.g. `unit_test_utf8` -> `turbostar:unit_utf8`), or provides suggestions if 2-5 candidates match. (Completed)
+
+- Tool argument aliases & defaults: added `query` parameter alias to `fs_glob` and `fs_grep_files`, and made `path` optional in `git_diff_unstaged` and `git_diff_staged` defaulting to project root `"."`. (Completed)
+
 - Crashdump vs GDB backtrace correlation: enriched crash reports with headless GDB coredump backtrace extraction in `crashdump_manager`, matching addresses with unwinder raw IPs, relativizing source paths to project workspace for symbol codemap integration, annotating snapshot frames as `crash handling`, and falling back to unwinder table if coredump is missing or GDB fails. (Completed)
 
 ## 1-09-2026

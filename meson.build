@@ -1626,7 +1626,7 @@ test('unit_project_layout', test_project_layout, suite: 'agent')
 
 test_available_tests = executable('test_available_tests',
   ['tests/unit/test_available_tests.cpp'],
-  dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
+  dependencies : [tools_dep, agent_dep, core_dep, lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
   include_directories: 'src')
 test('unit_test_available_tests', test_available_tests, is_parallel: false, suite: 'agent')
 
