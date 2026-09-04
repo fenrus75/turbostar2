@@ -53,6 +53,12 @@ extern std::string troff2md(std::string troff_content);
 	       run_result.find("exit status 0") != std::string::npos);
 #endif
 
+	std::cout << "\nTesting fs_run_tests with single string test_names..." << std::endl;
+	std::string single_str_result = registry.execute_tool("fs_run_tests", "{\"test_names\": \"unit_event_logger\"}", ctx);
+	std::cout << "Single string result:\n" << single_str_result << std::endl;
+	assert(single_str_result.find("meson test") != std::string::npos);
+	assert(single_str_result.find("unit_event_logger") != std::string::npos);
+
 	std::cout << "\nTesting fs_run_tests with space-containing test name..." << std::endl;
 	std::string space_run_result = registry.execute_tool("fs_run_tests", "{\"test_names\": [\"test with space\"]}", ctx);
 	std::cout << "Space run result:\n" << space_run_result << std::endl;

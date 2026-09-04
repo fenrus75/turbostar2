@@ -19,25 +19,35 @@ bool fs_run_tests_validator::validate_args_impl(const nlohmann::json &args, cons
 
 	std::vector<std::string> test_names;
 	if (args.contains("test_names")) {
-		if (!args["test_names"].is_array()) {
-			out_error = "Invalid 'test_names' parameter: must be an array of strings.";
-			return false;
-		}
-		if (args["test_names"].size() > 100) {
-			out_error = "Validation Error: 'test_names' array exceeds maximum limit of 100 entries.";
-			return false;
-		}
-		for (const auto &item : args["test_names"]) {
-			if (!item.is_string()) {
-				out_error = "Invalid 'test_names' entry: must be a string.";
-				return false;
-			}
-			std::string name = item.get<std::string>();
+		if (args["test_names"].is_string()) {
+			std::string name = args["test_names"].get<std::string>();
 			if (!fs_utils::is_safe_for_ui(name)) {
 				out_error = "Security Violation: test name contains unsafe control characters.";
 				return false;
 			}
-			test_names.push_back(name);
+			if (!name.empty()) {
+				test_names.push_back(name);
+			}
+		} else if (args["test_names"].is_array()) {
+			if (args["test_names"].size() > 100) {
+				out_error = "Validation Error: 'test_names' array exceeds maximum limit of 100 entries.";
+				return false;
+			}
+			for (const auto &item : args["test_names"]) {
+				if (!item.is_string()) {
+					out_error = "Invalid 'test_names' entry: must be a string.";
+					return false;
+				}
+				std::string name = item.get<std::string>();
+				if (!fs_utils::is_safe_for_ui(name)) {
+					out_error = "Security Violation: test name contains unsafe control characters.";
+					return false;
+				}
+				test_names.push_back(name);
+			}
+		} else {
+			out_error = "Invalid 'test_names' parameter: must be an array of strings or a single string.";
+			return false;
 		}
 	}
 

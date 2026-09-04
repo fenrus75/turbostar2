@@ -43,9 +43,7 @@ public:
             {"type", "object"},
             {"properties", {
                 {"test_names", {
-                    {"type", "array"},
-                    {"items", {{"type", "string"}}},
-                    {"description", "Optional list of specific test names to run. If omitted, runs all tests. Full test names can be discovered in system://project/testlist.md; a substring name (e.g. \"run_shell_command\") is expanded to all matching tests."}
+                    {"description", "Optional test name(s) to run (string or array of strings). If omitted, runs all tests. Full test names can be discovered in system://project/testlist.md; a substring name (e.g. \"run_shell_command\") is expanded to all matching tests."}
                 }},
                 {"timeout", {
                     {"type", "integer"},

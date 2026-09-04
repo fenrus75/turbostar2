@@ -264,13 +264,11 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 
 		if (!final_symbols.empty()) {
 			std::stringstream lsp_ss;
-			lsp_ss << "### LSP Symbol Definitions:\n";
 			for (const auto &sym : final_symbols) {
 				std::string kind_str = symbol_kind_to_string(sym.kind);
 				fs::path abs_path(sym.location.path);
 				std::string display_path = fs_utils::make_relative_to_project(sym.location.path, root_path.string());
 
-				
 				int start_line = sym.location.range.start_y + 1;
 				int end_line = sym.location.range.end_y + 1;
 
@@ -299,7 +297,6 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 						kind_str, sym.name, display_path, start_line);
 				}
 			}
-			lsp_ss << "\n---\n\n";
 			lsp_section = lsp_ss.str();
 		}
 	}
@@ -594,7 +591,8 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 
 	std::string result_str;
 	if (detailed_matches.empty() && overflow_files.empty()) {
-		result_str = lsp_section + "No matches found.";
+		result_str = std::format("No textual matches found for '{}'.\n\n### Related Symbol Index Definitions (no textual occurrences in searched scope):\n{}",
+					 args_.pattern, lsp_section);
 	} else {
 		std::stringstream ss;
 		ss << "Found " << total_detailed_matches;
@@ -672,7 +670,11 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				ss << "- `" << f << "`\n";
 			}
 		}
-		result_str = lsp_section + ss.str();
+		std::string lsp_header;
+		if (!lsp_section.empty()) {
+			lsp_header = "### LSP Symbol Definitions:\n" + lsp_section + "\n---\n\n";
+		}
+		result_str = lsp_header + ss.str();
 	}
 
 	interaction_->set_result(result_str);

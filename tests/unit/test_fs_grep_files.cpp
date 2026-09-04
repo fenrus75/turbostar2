@@ -384,6 +384,33 @@ int main()
 		fs::remove_all(tmp2);
 	}
 
+	// Test 12: When 0 text matches are found, clear message appears first followed by symbol index suggestions
+	{
+		fs::path empty_dir = temp_dir / "empty_search";
+		fs::create_directories(empty_dir);
+		agentlib::tool_context zctx;
+		zctx.fs_security.set_working_directory(empty_dir);
+		zctx.fs_security.add_allowed_root(empty_dir, agentlib::access_type::read);
+
+		tools::fs_grep_files_args zargs;
+		zargs.pattern = "my_special_symbol";
+		zargs.safe_search_path = empty_dir.string();
+
+		test_fs_grep_files_tool_mocked ztool(zargs);
+		lsp_manager::symbol_info sym;
+		sym.name = "my_special_symbol";
+		sym.kind = 12;
+		sym.location.path = "src/foo.cpp";
+		sym.location.range.start_y = 10;
+		sym.location.range.end_y = 20;
+		ztool.mock_symbols = {sym};
+
+		std::string zres = ztool.execute(zctx);
+		assert(zres.starts_with("<fs_grep_files_result>\nNo textual matches found for 'my_special_symbol'."));
+		assert(zres.find("### Related Symbol Index Definitions (no textual occurrences in searched scope):") != std::string::npos);
+		fs::remove_all(empty_dir);
+	}
+
 	std::cout << "fs_grep_files unit test passed!\n";
 	return 0;
 }

@@ -194,63 +194,6 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 	// Reset the drift tracker for this file since the LLM has read it.
 	ctx.file_drift_tracker.erase(args_.safe_path);
 
-	if (args_.tail.has_value()) {
-		size_t total_lines = 0;
-		if (args_.safe_path.find("://") != std::string::npos) {
-			auto vfs = ctx.fs_security.get_vfs();
-			if (vfs) {
-				auto view_opt = vfs->read_file(args_.safe_path);
-				if (view_opt) {
-					std::string_view view = view_opt.value()->view();
-					total_lines = std::count(view.begin(), view.end(), '\n');
-					if (!view.empty() && view.back() != '\n') {
-						total_lines++;
-					}
-				}
-			}
-		} else if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path)) {
-			auto doc_snapshot = ctx.doc_provider->get_open_document(args_.safe_path);
-			total_lines = doc_snapshot->get_line_count();
-		} else {
-			struct stat sb;
-			if (stat(args_.safe_path.c_str(), &sb) == -1) {
-				if (errno == ENOENT) {
-					return "Error: File does not exist: " + args_.safe_path;
-				}
-				return "Error: File cannot be accessed (" + std::string(strerror(errno)) + "): " + args_.safe_path;
-			}
-			if (S_ISDIR(sb.st_mode)) {
-				return "Error: Path is a directory, not a regular file: " + args_.safe_path;
-			}
-			if (!S_ISREG(sb.st_mode)) {
-				return "Error: File is not a regular file (e.g. FIFO/device): " + args_.safe_path;
-			}
-			if (sb.st_size > 50 * 1024 * 1024) {
-				return "Error: File is too large (>50MB) to read.";
-			}
-			std::ifstream file(args_.safe_path, std::ios::binary);
-			if (file.is_open()) {
-				total_lines = std::count(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), '\n');
-				file.clear();
-				file.seekg(0, std::ios::end);
-				auto size = file.tellg();
-				if (size > 0) {
-					file.clear();
-					file.seekg(-1, std::ios_base::end);
-					char last_char;
-					file.get(last_char);
-					if (last_char != '\n') {
-						total_lines++;
-					}
-				}
-			}
-		}
-
-		int tail_val = *args_.tail;
-		args_.start_line = std::max(1, static_cast<int>(total_lines) - tail_val + 1);
-		args_.end_line = static_cast<int>(total_lines);
-	}
-
 	// Fallback bounds checks: clamp indices to valid positive ranges and prevent excessive reads
 	// that could overwhelm the context window of the LLM.
 	int start = std::max(1, args_.start_line);
@@ -260,8 +203,8 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		requested_end = start + 50000;
 	}
 
-	// Always attempt to fetch up to 25 more lines to apply the semantic boundary heuristics.
-	int fetch_end = requested_end + 25;
+	// Always attempt to fetch up to 25 more lines to apply the semantic boundary heuristics (unless tail is requested).
+	int fetch_end = args_.tail.has_value() ? requested_end : (requested_end + 25);
 
 	file_read_result read_res;
 
@@ -275,13 +218,22 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 			read_res.error_message = "Error: Virtual file not found or not mounted.";
 		}
 	}
+	// Check if the file is currently open in the active editor buffer.
+	else if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path)) {
+		auto doc_snapshot = ctx.doc_provider->get_open_document(args_.safe_path);
+		read_res = read_from_document(doc_snapshot.get(), start, fetch_end);
+	}
 	// Read directly from local disk.
 	else {
 		read_res = read_from_disk(args_.safe_path, start, fetch_end);
 	}
 
+	if (args_.tail.has_value()) {
+		start = read_res.start_line;
+		requested_end = read_res.end_line;
+	}
 	int adjusted_end = requested_end;
-	if (read_res.success && !read_res.lines.empty()) {
+	if (!args_.tail.has_value() && read_res.success && !read_res.lines.empty()) {
 		adjusted_end = determine_adjusted_end_line(start, requested_end, read_res.lines, args_.safe_path, ctx);
 		int keep_count = adjusted_end - start + 1;
 		if (keep_count < 0) {
@@ -291,6 +243,7 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 			read_res.lines.resize(keep_count);
 		}
 	}
+
 
 	// Store bounded range back to args so that all retrieval mechanisms share the same range values.
 	args_.start_line = start;
@@ -405,6 +358,13 @@ file_read_result fs_read_lines_tool::read_from_vfs(agentlib::virtual_file_system
 		result.total_file_lines++;
 	}
 
+	if (args_.tail.has_value()) {
+		start = std::max(1, static_cast<int>(result.total_file_lines) - *args_.tail + 1);
+		end = static_cast<int>(result.total_file_lines);
+	}
+	result.start_line = start;
+	result.end_line = end;
+
 	if (end >= start) {
 		result.lines.reserve(end - start + 1);
 	}
@@ -437,6 +397,13 @@ file_read_result fs_read_lines_tool::read_from_document(agentlib::document_snaps
 {
 	file_read_result result;
 	result.total_file_lines = doc->get_line_count();
+
+	if (args_.tail.has_value()) {
+		start = std::max(1, static_cast<int>(result.total_file_lines) - *args_.tail + 1);
+		end = static_cast<int>(result.total_file_lines);
+	}
+	result.start_line = start;
+	result.end_line = end;
 
 	int start_idx = start - 1;
 	int end_idx = std::min<int>(end - 1, static_cast<int>(result.total_file_lines) - 1);
@@ -520,6 +487,13 @@ file_read_result fs_read_lines_tool::read_from_disk(const std::string &path, int
 			result.total_file_lines++;
 		}
 	}
+
+	if (args_.tail.has_value()) {
+		start = std::max(1, static_cast<int>(result.total_file_lines) - *args_.tail + 1);
+		end = static_cast<int>(result.total_file_lines);
+	}
+	result.start_line = start;
+	result.end_line = end;
 
 	file.clear();
 	file.seekg(0);

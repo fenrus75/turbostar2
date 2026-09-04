@@ -24,6 +24,8 @@ struct file_read_result {
     std::string error_message;
     std::vector<std::string> lines;
     size_t total_file_lines = 0;
+    int start_line = 1;
+    int end_line = 1;
 };
 
 class fs_read_lines_tool : public agentlib::llm_tool {

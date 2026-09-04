@@ -19,8 +19,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- in grep results, better LSP output
-
 - `fs_run_tests` suite filter (`suite: "unit"` / `"e2e"`): allow running only fast local unit tests without invoking slower external/e2e test suites to prevent 3-minute MCP timeouts when building and running tests.
 
 - feature: we have "yolo" mode already -- add a /yolo slash command to the agent window
@@ -250,6 +248,12 @@ remember to describe features in terms of the benefit to the user or the agent, 
 # Done
 
 ## 4-09-2026
+- In `fs_grep_files` results, better LSP output: when 0 textual occurrences are found, output `No textual matches found for '<pattern>'` first and label LSP symbols clearly as `Related Symbol Index Definitions (no textual occurrences in searched scope)` so agents are not misled into thinking text matches occurred. (Completed)
+
+- `fs_run_tests` string/array parameter flexibility: accept `test_names` as either a single string or an array of strings in tool arguments. (Completed)
+
+- `fs_read_lines` single-sourced `tail` handling: unified `tail` calculation into `read_from_disk`, `read_from_vfs`, and `read_from_document`, eliminating duplicated file opening, stat checks, and double line-counting in `execute()`. (Completed)
+
 - Accurate file-not-found error messages: fixed misleading `FIFO/device` error messages when accessing nonexistent files across `fs_read_lines`, `fs_file_size`, `open_in_editor`, and `fs_read_symbol` by properly distinguishing `ENOENT` / file non-existence and directories from actual non-regular FIFO/device files. (Completed)
 
 - `fs_run_tests` tokenized fuzzy resolution: tokenized test matching splitting on punctuation (`_`, `:`, `/`, `-`), normalizing case, and ignoring noise words (`test`, `tests`, `turbostar`). Auto-runs if exactly 1 high-confidence match with an informative note (e.g. `unit_test_utf8` -> `turbostar:unit_utf8`), or provides suggestions if 2-5 candidates match. (Completed)
