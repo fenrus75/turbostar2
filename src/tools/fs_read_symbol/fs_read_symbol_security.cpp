@@ -68,9 +68,21 @@ class fs_read_symbol_validator : public agentlib::tool_validator
 			return false;
 		}
 
-		if (canonical_path.find("://") == std::string::npos && !fs_utils::is_regular_file(canonical_path)) {
-			out_error = "Target is not a regular file: " + path_arg;
-			return false;
+		if (canonical_path.find("://") == std::string::npos) {
+			std::error_code ec;
+			auto st = std::filesystem::status(canonical_path, ec);
+			if (!std::filesystem::exists(st)) {
+				out_error = "File does not exist: " + path_arg;
+				return false;
+			}
+			if (std::filesystem::is_directory(st)) {
+				out_error = "Path is a directory, not a regular file: " + path_arg;
+				return false;
+			}
+			if (!std::filesystem::is_regular_file(st)) {
+				out_error = "Target is not a regular file (e.g. FIFO/device): " + path_arg;
+				return false;
+			}
 		}
 
 		if (symbol_name_arg.length() > 256) {

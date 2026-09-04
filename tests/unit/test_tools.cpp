@@ -404,6 +404,27 @@ extern std::string troff2md(std::string troff_content);
 		std::cout << "fs_read_lines boundary heuristics verified successfully!" << std::endl;
 	}
 
+	std::cout << "\nTesting fs_read_lines nonexistent file and directory error messages..." << std::endl;
+	{
+		std::string args_nonexistent = "{\"path\": \"nonexistent_dummy_file_12345.txt\", \"start_line\": 1, \"end_line\": 10}";
+		std::string res_nonexistent = registry.execute_tool("fs_read_lines", args_nonexistent, ctx);
+		std::cout << "Nonexistent file result: " << res_nonexistent << std::endl;
+		assert(res_nonexistent.find("Error: File does not exist") != std::string::npos);
+		assert(res_nonexistent.find("FIFO") == std::string::npos);
+
+		std::string args_dir = "{\"path\": \"src\", \"start_line\": 1, \"end_line\": 10}";
+		std::string res_dir = registry.execute_tool("fs_read_lines", args_dir, ctx);
+		std::cout << "Directory read result: " << res_dir << std::endl;
+		assert(res_dir.find("Error: Path is a directory") != std::string::npos);
+		assert(res_dir.find("FIFO") == std::string::npos);
+
+		std::string args_tail_nonexistent = "{\"path\": \"nonexistent_dummy_file_12345.txt\", \"tail\": 5}";
+		std::string res_tail_nonexistent = registry.execute_tool("fs_read_lines", args_tail_nonexistent, ctx);
+		std::cout << "Tail nonexistent result: " << res_tail_nonexistent << std::endl;
+		assert(res_tail_nonexistent.find("Error: File does not exist") != std::string::npos);
+		assert(res_tail_nonexistent.find("FIFO") == std::string::npos);
+	}
+
 	std::cout << "\nTesting fs_read_symbol..." << std::endl;
 	{
 		std::string proj_root = project_manager::get_instance().get_project_root();

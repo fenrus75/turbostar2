@@ -212,12 +212,20 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 			auto doc_snapshot = ctx.doc_provider->get_open_document(args_.safe_path);
 			total_lines = doc_snapshot->get_line_count();
 		} else {
-			if (!fs_utils::is_regular_file(args_.safe_path)) {
-				return "Error: Target is not a regular file.";
+			struct stat sb;
+			if (stat(args_.safe_path.c_str(), &sb) == -1) {
+				if (errno == ENOENT) {
+					return "Error: File does not exist: " + args_.safe_path;
+				}
+				return "Error: File cannot be accessed (" + std::string(strerror(errno)) + "): " + args_.safe_path;
 			}
-			std::error_code ec;
-			auto sz = std::filesystem::file_size(args_.safe_path, ec);
-			if (ec || sz > 50 * 1024 * 1024) {
+			if (S_ISDIR(sb.st_mode)) {
+				return "Error: Path is a directory, not a regular file: " + args_.safe_path;
+			}
+			if (!S_ISREG(sb.st_mode)) {
+				return "Error: File is not a regular file (e.g. FIFO/device): " + args_.safe_path;
+			}
+			if (sb.st_size > 50 * 1024 * 1024) {
 				return "Error: File is too large (>50MB) to read.";
 			}
 			std::ifstream file(args_.safe_path, std::ios::binary);
@@ -457,22 +465,26 @@ file_read_result fs_read_lines_tool::read_from_document(agentlib::document_snaps
 file_read_result fs_read_lines_tool::read_from_disk(const std::string &path, int start, int end) const
 {
 	file_read_result result;
-	if (!fs_utils::is_regular_file(path)) {
-		result.success = false;
-		result.error_message = "Error: File is not a regular file (e.g. FIFO/device): " + path;
-		return result;
-	}
-
 	struct stat sb;
 	if (stat(path.c_str(), &sb) == -1) {
 		result.success = false;
-		result.error_message = "Error: File does not exist or cannot be accessed: " + path;
+		if (errno == ENOENT) {
+			result.error_message = "Error: File does not exist: " + path;
+		} else {
+			result.error_message = "Error: File cannot be accessed (" + std::string(strerror(errno)) + "): " + path;
+		}
+		return result;
+	}
+
+	if (S_ISDIR(sb.st_mode)) {
+		result.success = false;
+		result.error_message = "Error: Path is a directory, not a regular file: " + path;
 		return result;
 	}
 
 	if (!S_ISREG(sb.st_mode)) {
 		result.success = false;
-		result.error_message = "Error: Target path is not a regular file: " + path;
+		result.error_message = "Error: File is not a regular file (e.g. FIFO/device): " + path;
 		return result;
 	}
 

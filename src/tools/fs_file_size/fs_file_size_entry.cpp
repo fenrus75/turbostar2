@@ -46,9 +46,19 @@ std::string fs_file_size_tool::execute(agentlib::tool_context &ctx)
 			return fs_utils::wrap_prompt_untrusted_data_tag("fs_file_size_result", "Error checking file status: " + ec.message());
 		}
 
+		if (!std::filesystem::exists(status)) {
+			set_failure(ctx, "File does not exist");
+			return fs_utils::wrap_prompt_untrusted_data_tag("fs_file_size_result", "Error: File does not exist: " + safe_path_);
+		}
+
+		if (std::filesystem::is_directory(status)) {
+			set_failure(ctx, "Path is a directory");
+			return fs_utils::wrap_prompt_untrusted_data_tag("fs_file_size_result", "Error: Path is a directory, not a regular file: " + safe_path_);
+		}
+
 		if (!std::filesystem::is_regular_file(status)) {
 			set_failure(ctx, "Path is not a regular file");
-			return fs_utils::wrap_prompt_untrusted_data_tag("fs_file_size_result", "Error: The specified path is not a regular file (it may be a directory, device, or special file)");
+			return fs_utils::wrap_prompt_untrusted_data_tag("fs_file_size_result", "Error: The specified path is not a regular file (e.g. FIFO/device): " + safe_path_);
 		}
 
 		auto size = std::filesystem::file_size(resolved_path, ec);

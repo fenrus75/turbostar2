@@ -250,6 +250,8 @@ remember to describe features in terms of the benefit to the user or the agent, 
 # Done
 
 ## 4-09-2026
+- Accurate file-not-found error messages: fixed misleading `FIFO/device` error messages when accessing nonexistent files across `fs_read_lines`, `fs_file_size`, `open_in_editor`, and `fs_read_symbol` by properly distinguishing `ENOENT` / file non-existence and directories from actual non-regular FIFO/device files. (Completed)
+
 - `fs_run_tests` tokenized fuzzy resolution: tokenized test matching splitting on punctuation (`_`, `:`, `/`, `-`), normalizing case, and ignoring noise words (`test`, `tests`, `turbostar`). Auto-runs if exactly 1 high-confidence match with an informative note (e.g. `unit_test_utf8` -> `turbostar:unit_utf8`), or provides suggestions if 2-5 candidates match. (Completed)
 
 - Tool argument aliases & defaults: added `query` parameter alias to `fs_glob` and `fs_grep_files`, and made `path` optional in `git_diff_unstaged` and `git_diff_staged` defaulting to project root `"."`. (Completed)
