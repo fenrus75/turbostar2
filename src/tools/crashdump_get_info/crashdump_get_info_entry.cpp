@@ -46,8 +46,9 @@ std::string crashdump_get_info_tool::execute(agentlib::tool_context & /*ctx*/)
 			std::string result = dump.raw_info;
 			if (has_coredump(args_.crash_id)) {
 				result += std::format(
-					"\n\n### Coredump Debugging\n"
-					"A coredump is available for this crash. You can launch a GDB session to debug this coredump by calling the 'agent_debug_coredump' tool:\n"
+					"\n\n### Optional: Interactive Coredump Debugging\n"
+					"The backtrace and parameters above already show the crash location, call stack, and function arguments.\n"
+					"If (and only if) the report above is insufficient to determine the root cause, you can launch an interactive GDB session to inspect deeper memory or local variables by calling 'agent_debug_coredump':\n"
 					"```json\n"
 					"{{\n"
 					"  \"name\": \"agent_debug_coredump\",\n"

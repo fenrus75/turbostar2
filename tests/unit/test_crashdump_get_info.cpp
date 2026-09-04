@@ -64,6 +64,8 @@ int main()
 			std::string res = registry.execute_tool("crashdump_get_info", "{\"crash_id\": \"test123\"}", ctx);
 			std::cout << "Crash info result: " << res << std::endl;
 			assert(res.find("Mock crash dump backtrace detail") != std::string::npos);
+			assert(res.find("Optional: Interactive Coredump Debugging") != std::string::npos);
+			assert(res.find("If (and only if) the report above is insufficient") != std::string::npos);
 			assert(res.find("agent_debug_coredump") != std::string::npos);
 			assert(res.find("test123") != std::string::npos);
 		}
