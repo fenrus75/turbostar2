@@ -83,6 +83,14 @@ int main()
 			assert(res.find("include://bits/c++config.h") != std::string::npos);
 		}
 
+		// 7. Success case: query alias for pattern
+		{
+			std::string args = "{\"query\": \"docs/*.md\"}";
+			std::string res = registry.execute_tool("fs_glob", args, ctx);
+			std::cout << "Glob query alias result: " << res << std::endl;
+			assert(res.find("docs/design.md") != std::string::npos);
+		}
+
 		std::cout << "fs_glob tool verified successfully!" << std::endl;
 	}
 

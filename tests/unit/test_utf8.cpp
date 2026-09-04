@@ -145,6 +145,16 @@ void test_utf8_trim_and_terminal_sanitize()
 	std::string ansi_colored = "\x1b[31mRed Error\x1b[0m Normal Text";
 	assert(utf8::sanitize_terminal_output(ansi_colored) == "Red Error Normal Text");
 
+	// Test incomplete trailing escape sequence is stripped, not leaked
+	std::string trailing_esc = "Program received signal SIGSEGV\x1b[";
+	assert(utf8::sanitize_terminal_output(trailing_esc) == "Program received signal SIGSEGV");
+
+	std::string trailing_esc_alone = "Program received signal SIGSEGV\x1b";
+	assert(utf8::sanitize_terminal_output(trailing_esc_alone) == "Program received signal SIGSEGV");
+
+	std::string trailing_esc_csi = "Program received signal SIGSEGV\x1b[31";
+	assert(utf8::sanitize_terminal_output(trailing_esc_csi) == "Program received signal SIGSEGV");
+
 	// detect_mime
 	std::string plain_text = "Plain text buffer content\n";
 	std::string detected = utf8::detect_mime(plain_text);

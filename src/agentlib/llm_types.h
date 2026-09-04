@@ -259,7 +259,7 @@ inline void normalize_tool_call(tool_call &call)
 				}
 			}
 			args = new_args;
-		} else if (official_name == "fs_list_dir" || official_name == "fs_mkdir" || official_name == "git_diff_unstaged" || official_name == "git_blame") {
+		} else if (official_name == "fs_list_dir" || official_name == "fs_mkdir" || official_name == "git_diff_unstaged" || official_name == "git_diff_staged" || official_name == "git_blame") {
 			std::string path_val;
 			for (const auto &key : {"path", "file", "file_path", "filepath", "filename", "dir", "directory", "dir_path"}) {
 				if (args.contains(key) && args[key].is_string()) {
@@ -270,7 +270,7 @@ inline void normalize_tool_call(tool_call &call)
 			nlohmann::json new_args = nlohmann::json::object();
 			if (!path_val.empty()) {
 				new_args["path"] = path_val;
-			} else if (official_name == "git_diff_unstaged") {
+			} else if (official_name == "git_diff_unstaged" || official_name == "git_diff_staged") {
 				new_args["path"] = "."; // default for git_diff
 			}
 			args = new_args;

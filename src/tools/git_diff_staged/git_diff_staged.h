@@ -21,8 +21,10 @@ public:
     std::string get_name() const override { return "git_diff_staged"; }
     std::string get_description() const override { return "View the staged git diff for a specific file or directory (use '.' for the entire project). Use this instead of running 'git diff --staged' or 'git diff --cached' via the shell. Returns raw patch output."; }
 
-    std::string get_family() const override { return "git"; }    std::string get_parameter_name() const override { return "path"; }
-    std::string get_parameter_description() const override { return "The path to the file or directory to diff, relative to the project root (e.g., 'src/main.cpp' or '.')."; }
+    std::string get_family() const override { return "git"; }
+    std::string get_parameter_name() const override { return "path"; }
+    std::string get_parameter_description() const override { return "Optional path to the file or directory to diff, relative to the project root. Defaults to '.' (entire workspace)."; }
+    std::optional<std::string> get_default_value() const override { return "."; }
 
     agentlib::access_type get_required_permission() const override { return agentlib::access_type::read; }
     bool is_pure() const override { return true; }

@@ -305,22 +305,44 @@ std::string sanitize_terminal_output(std::string_view input)
 
 		if (is_esc) {
 			if (i + esc_len < input.length() && input[i + esc_len] == '[') {
+				// CSI sequence: ESC [ ... [command character]
 				size_t j = i + esc_len + 1;
 				while (j < input.length()) {
 					char c = input[j];
-					if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+					if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '~' || c == '@') {
 						i = j + 1;
 						break;
 					}
 					j++;
 				}
 				if (j == input.length()) {
-					output += ' ';
-					i += esc_len;
+					// Incomplete CSI sequence reached end of input: discard trailing escape fragment
+					break;
 				}
+			} else if (i + esc_len < input.length() && input[i + esc_len] == ']') {
+				// OSC sequence: ESC ] ... (terminated by BEL \x07 or ST ESC \)
+				size_t j = i + esc_len + 1;
+				while (j < input.length()) {
+					if (input[j] == '\x07') {
+						i = j + 1;
+						break;
+					}
+					if (input[j] == '\x1b' && j + 1 < input.length() && input[j + 1] == '\\') {
+						i = j + 2;
+						break;
+					}
+					j++;
+				}
+				if (j == input.length()) {
+					// Incomplete OSC sequence reached end of input: discard trailing escape fragment
+					break;
+				}
+			} else if (i + esc_len >= input.length()) {
+				// Trailing bare ESC byte at the end of input: discard it
+				break;
 			} else {
-				output += ' ';
-				i += esc_len;
+				// 2-byte escape sequence like ESC 7, ESC 8, ESC =, ESC >
+				i += esc_len + 1;
 			}
 		} else {
 			output += input[i];

@@ -969,7 +969,7 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 
 		usleep(50000);
 
-		std::string gdb_cmd = "exec gdb -q -ex \"set pagination off\" -ex \"set breakpoint pending on\" -ex \"target remote localhost:" + std::to_string(port) + "\"";
+		std::string gdb_cmd = "exec gdb -q -ex \"set pagination off\" -ex \"set style enabled off\" -ex \"set breakpoint pending on\" -ex \"target remote localhost:" + std::to_string(port) + "\"";
 		if (auto_continue && config_manager::get_instance().get_gdb_auto_continue()) {
 			gdb_cmd += " -ex \"continue\"";
 		}
@@ -1377,7 +1377,7 @@ agentlib::start_app_result editor::start_coredump_gdb(std::string_view crash_id)
 	gdb_tw->set_display_priority(10);
 	gdb_tw->set_sanitize_recorded_data(true);
 
-	std::string gdb_cmd = std::format("exec gdb -q -ex \"set pagination off\" {} {}", 
+	std::string gdb_cmd = std::format("exec gdb -q -ex \"set pagination off\" -ex \"set style enabled off\" {} {}", 
 		fs_utils::escape_shell_arg(exe), 
 		fs_utils::escape_shell_arg(core_path));
 

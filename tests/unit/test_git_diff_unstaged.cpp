@@ -90,6 +90,23 @@ int main()
 		assert(found);
 	}
 
+	// 5. Success case: default path "." when arguments are empty
+	{
+		std::filesystem::path dummy_file = std::filesystem::path(test_dir) / "default_path_test.txt";
+		write_file(dummy_file, "initial\n");
+		fs_utils::execute_command_sync("git add default_path_test.txt");
+		fs_utils::execute_command_sync("git commit -m 'test: commit for default path test'");
+		write_file(dummy_file, "initial\nnew diff content\n");
+
+		nlohmann::json empty_args = nlohmann::json::object();
+		std::string result = registry.execute_tool("git_diff_unstaged", empty_args.dump(), ctx);
+		std::cout << "Empty args unstaged diff result:\n" << result << std::endl;
+		assert(result.find("new diff content") != std::string::npos);
+
+		fs_utils::execute_command_sync("git reset HEAD~1");
+		std::filesystem::remove(dummy_file);
+	}
+
 	std::cout << "git_diff_unstaged tests passed successfully.\n";
 	return 0;
 }

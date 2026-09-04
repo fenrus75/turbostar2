@@ -91,6 +91,21 @@ int main()
 		assert(found);
 	}
 
+	// 6. Success case: default path "." when arguments are empty
+	{
+		std::filesystem::path dummy_file = std::filesystem::path(test_dir) / "default_path_staged.txt";
+		write_file(dummy_file, "default staged content\n");
+		fs_utils::execute_command_sync("git add default_path_staged.txt");
+
+		nlohmann::json empty_args = nlohmann::json::object();
+		std::string result = registry.execute_tool("git_diff_staged", empty_args.dump(), ctx);
+		std::cout << "Empty args staged diff result:\n" << result << std::endl;
+		assert(result.find("default staged content") != std::string::npos);
+
+		fs_utils::execute_command_sync("git restore --staged default_path_staged.txt");
+		std::filesystem::remove(dummy_file);
+	}
+
 	std::cout << "git_diff_staged tests passed successfully.\n";
 	return 0;
 }

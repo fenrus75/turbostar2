@@ -11,7 +11,11 @@ nlohmann::json fs_grep_files_validator::get_parameters_schema() const {
         {"properties", {
             {"pattern", {
                 {"type", "string"},
-                {"description", "The exact string or RE2 regular expression to search for."}
+                {"description", "The exact string or RE2 regular expression to search for. Alias: 'query'."}
+            }},
+            {"query", {
+                {"type", "string"},
+                {"description", "Alias for 'pattern': the exact string or RE2 regular expression to search for."}
             }},
             {"is_regex", {
                 {"type", "boolean"},
@@ -57,14 +61,19 @@ nlohmann::json fs_grep_files_validator::get_parameters_schema() const {
                 {"description", "Number of lines of context to include before and after the match. Defaults to 0 (only the matching line). Max is 10."},
                 {"default", 0}
             }}
-        }},
-        {"required", nlohmann::json::array({"pattern"})}
+        }}
     };
 }
 
 bool fs_grep_files_validator::validate_args_impl(const nlohmann::json& raw_args, const agentlib::tool_context& ctx, std::string& out_error) const {
     try {
-        args_.pattern = raw_args.value("pattern", "");
+        if (raw_args.contains("pattern") && raw_args["pattern"].is_string()) {
+            args_.pattern = raw_args["pattern"].get<std::string>();
+        } else if (raw_args.contains("query") && raw_args["query"].is_string()) {
+            args_.pattern = raw_args["query"].get<std::string>();
+        } else {
+            args_.pattern = "";
+        }
         args_.is_regex = raw_args.value("is_regex", false);
         args_.case_insensitive = raw_args.value("case_insensitive", false);
         if (raw_args.contains("include_ext") && raw_args["include_ext"].is_string()) {

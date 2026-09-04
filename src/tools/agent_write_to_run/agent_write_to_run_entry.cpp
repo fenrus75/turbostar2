@@ -1,5 +1,6 @@
 #include "agent_write_to_run.h"
 #include "fs_utils.h"
+#include "utf8.h"
 #include <chrono>
 #include <thread>
 #include <numeric>
@@ -9,26 +10,15 @@ namespace tools
 
 static std::string sanitize_pty_output(const std::string &raw)
 {
-	std::string out;
-	out.reserve(raw.size());
-	bool in_escape = false;
-	for (size_t i = 0; i < raw.size(); ++i) {
-		char c = raw[i];
-		if (c == '\033') {
-			in_escape = true;
-			continue;
-		}
-		if (in_escape) {
-			if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '~') {
-				in_escape = false;
-			}
-			continue;
-		}
+	std::string out = utf8::sanitize_terminal_output(raw);
+	std::string clean;
+	clean.reserve(out.size());
+	for (char c : out) {
 		if (c == '\n' || c == '\r' || c == '\t' || (static_cast<unsigned char>(c) >= 32 && c != 127)) {
-			out += c;
+			clean += c;
 		}
 	}
-	return out;
+	return clean;
 }
 
 bool agent_write_to_run_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const

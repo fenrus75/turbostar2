@@ -366,6 +366,21 @@ int main()
 		assert(res2.find("Found 1 matches") != std::string::npos);
 		assert(res2.find("target.txt") != std::string::npos);
 
+		// 10c. 'query' alias for 'pattern' must validate and carry through to execution
+		nlohmann::json with_query = {{"query", "different_alias_keyword"}, {"path", "."}};
+		std::ofstream out2(tmp2 / "target2.txt");
+		out2 << "different_alias_keyword\n";
+		out2.close();
+		std::string err3;
+		tools::fs_grep_files_validator v3;
+		assert(v3.validate_args(with_query, vctx, err3));
+		assert(err3.empty());
+		auto tool3 = v3.create_tool(with_query);
+		assert(tool3 != nullptr);
+		std::string res3 = tool3->execute(vctx);
+		assert(res3.find("Found 1 matches") != std::string::npos);
+		assert(res3.find("target2.txt") != std::string::npos);
+
 		fs::remove_all(tmp2);
 	}
 

@@ -1,3 +1,4 @@
+// Tested source file: src/tools/agent_write_to_run/agent_write_to_run_entry.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
@@ -63,9 +64,9 @@ int main()
 		mock_doc_provider mock;
 		ctx.doc_provider = &mock;
 
-		// 1. Success case: write data to valid run_id
+		// 1. Success case: write data to valid run_id with output=false
 		{
-			std::string res = registry.execute_tool("agent_write_to_run", "{\"run_id\": 123, \"data\": \"echo hello\\n\"}", ctx);
+			std::string res = registry.execute_tool("agent_write_to_run", "{\"run_id\": 123, \"data\": \"echo hello\\n\", \"output\": false}", ctx);
 			std::cout << "Success path result: " << res << std::endl;
 			assert(res.find("Successfully wrote") != std::string::npos);
 			assert(mock.last_written_data == "echo hello\n");
@@ -119,7 +120,23 @@ int main()
 			assert(mock.is_recording == false);
 		}
 
-		std::cout << "agent_write_to_run tool verified successfully!" << std::endl;
+	// 8. Success case with output=true and split ANSI chunks
+	{
+		class mock_split_ansi_provider : public mock_doc_provider {
+		public:
+			std::vector<std::string> get_run_recorded_data(int) override {
+				// Simulate split across chunks: ESC [ in chunk 1, 31m in chunk 2
+				return {"(gdb) ", "\x1b[", "31mError\x1b[0m line\n"};
+			}
+		};
+		mock_split_ansi_provider split_mock;
+		ctx.doc_provider = &split_mock;
+		std::string res = registry.execute_tool("agent_write_to_run", "{\"run_id\": 123, \"data\": \"test\", \"output\": true}", ctx);
+		std::cout << "Split ANSI chunks result: " << res << std::endl;
+		assert(fs_utils::unwrap_prompt_untrusted_data_tag(res) == "(gdb) Error line");
+	}
+
+	std::cout << "agent_write_to_run tool verified successfully!" << std::endl;
 	}
 
 	return 0;

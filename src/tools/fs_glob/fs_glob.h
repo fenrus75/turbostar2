@@ -24,8 +24,9 @@ public:
     }
     std::string get_parameter_name() const override { return "pattern"; }
     std::string get_parameter_description() const override { 
-        return "The glob pattern to search for, relative to the project root (e.g. 'src/**/*.cpp' or 'docs/*.md')."; 
+        return "The glob pattern to search for, relative to the project root (e.g. 'src/**/*.cpp' or 'docs/*.md'). Alias: 'query'."; 
     }
+    std::vector<std::string> get_parameter_aliases() const override { return {"query"}; }
 
     bool validate_string_arg(const std::string& arg, const agentlib::tool_context& ctx, std::string& out_error) const override;
     std::unique_ptr<agentlib::llm_tool> create_tool_from_string(const std::string& arg) const override;

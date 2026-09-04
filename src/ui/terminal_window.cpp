@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <format>
 #include <ncurses.h>
+#include <numeric>
 #include <signal.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
@@ -591,12 +592,9 @@ std::vector<std::string> terminal_window::get_recorded_data() const
 {
 	auto raw = emulator_.get_recorded_data();
 	if (sanitize_recorded_data_) {
-		std::vector<std::string> sanitized;
-		sanitized.reserve(raw.size());
-		for (const auto &s : raw) {
-			sanitized.push_back(utf8::sanitize_terminal_output(s));
-		}
-		return sanitized;
+		std::string combined = std::accumulate(raw.begin(), raw.end(), std::string{});
+		std::string sanitized = utf8::sanitize_terminal_output(combined);
+		return {sanitized};
 	}
 	return raw;
 }

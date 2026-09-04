@@ -21,6 +21,14 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 - in grep results, better LSP output
 
+- `fs_glob` / `fs_grep_files` parameter alias: accept `query` as an alias for `pattern` in tool arguments so agents using common search terminology don't trigger schema validation errors.
+
+- `git_diff_unstaged` / `git_diff_staged` default path: make `path` parameter optional, defaulting to `"."` (entire project workspace).
+
+- `fs_run_tests` smart token matching: split `test_names` tokens by `_` or match against both Meson test target names and binary filenames (e.g. `unit_agent_write_to_run` matching `unit_test_agent_write_to_run`).
+
+- `fs_run_tests` suite filter (`suite: "unit"` / `"e2e"`): allow running only fast local unit tests without invoking slower external/e2e test suites to prevent 3-minute MCP timeouts when building and running tests.
+
 - feature: we have "yolo" mode already -- add a /yolo slash command to the agent window
 
 - `hexdump` symbol size auto-resolution: when `hexdump` is called with `offset_by_name` (e.g. symbol name `"main"` or section `".text"`), automatically resolve `size` from the symbol's size reported in the binary `.symtab` when `size` is omitted or unspecified.

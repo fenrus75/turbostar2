@@ -1,6 +1,7 @@
 // Tested source file: src/mcp/turbomcp_server.cpp
 #include "mcp/turbomcp_server.h"
 #include "agentlib/ai_agent.h"
+#include "agentlib/llm_types.h"
 #include "agentlib/skill_manager.h"
 #include "agentlib/tool_context.h"
 #include "agentlib/tool_registry.h"
@@ -207,6 +208,17 @@ nlohmann::json turbomcp_server::handle_tools_call(const nlohmann::json &id, cons
 {
 	std::string tool_name = params.value("name", "");
 	nlohmann::json args = params.contains("arguments") ? params["arguments"] : nlohmann::json::object();
+
+	// Normalize tool call arguments (handles aliases like query -> pattern, search_path -> path, etc.)
+	tool_call tc;
+	tc.function.name = tool_name;
+	tc.function.arguments = args.dump();
+	normalize_tool_call(tc);
+	tool_name = tc.function.name;
+	try {
+		args = nlohmann::json::parse(tc.function.arguments);
+	} catch (...) {
+	}
 
 	tool_context ctx;
 	ctx.active_agent = mcp_root_agent_.get();
