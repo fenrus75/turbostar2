@@ -111,10 +111,10 @@ int main()
 			assert(res_chrono.find("newer2") != std::string::npos);
 		}
 
-		// 4. Stage 1 validation failure: reject unexpected properties (based on review recommendations)
+		// 4. Stage 1 validation failure: reject unexpected properties (schema validation)
 		{
 			auto prep = registry.prepare_tool("crashdump_get_info", "{\"crash_id\": \"test123\", \"extra_arg\": 1}", ctx);
-			assert(prep.tool == nullptr); // This will fail initially as expected
+			assert(prep.tool == nullptr); // unexpected properties must be rejected by schema validation (tool == nullptr, error set)
 			assert(!prep.error_message.empty());
 		}
 
@@ -180,6 +180,8 @@ int main()
 			assert(res.find("| Frame | Address | Function | Location | Note |") != std::string::npos);
 			assert(res.find("crash handling") != std::string::npos);
 			std::cout << "GDB enriched report generation verified!" << std::endl;
+		} else {
+			std::cout << "INFO: GDB enrichment test skipped (no live core file/executable present)" << std::endl;
 		}
 	}
 
