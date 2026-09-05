@@ -443,7 +443,12 @@ file_read_result fs_read_lines_tool::read_from_disk(const std::string &path, int
 	if (stat(path.c_str(), &sb) == -1) {
 		result.success = false;
 		if (errno == ENOENT) {
-			result.error_message = "Error: File does not exist: " + path;
+			std::string alt = fs_utils::filename_suggest_alternative(args_.requested_path);
+			if (!alt.empty()) {
+				result.error_message = std::format("Error: File does not exist: {}. Did you mean '{}'?", path, alt);
+			} else {
+				result.error_message = "Error: File does not exist: " + path;
+			}
 		} else {
 			result.error_message = "Error: File cannot be accessed (" + std::string(strerror(errno)) + "): " + path;
 		}

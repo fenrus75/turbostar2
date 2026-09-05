@@ -1131,4 +1131,160 @@ std::string repair_json_string(std::string_view untrusted_json)
 	return "{}";
 }
 
+std::string filename_suggest_alternative(/* untrusted */ std::string_view untrusted_filename)
+{
+	if (untrusted_filename.empty()) {
+		return "";
+	}
+
+	std::string clean_target(untrusted_filename);
+	std::replace(clean_target.begin(), clean_target.end(), '\\', '/');
+
+	std::filesystem::path target_p(clean_target);
+	std::string target_basename = target_p.filename().string();
+	if (target_basename.empty() || target_basename == "." || target_basename == "..") {
+		return "";
+	}
+
+	std::string proj_root = get_project_dir();
+	if (proj_root.empty()) {
+		return "";
+	}
+
+	std::error_code ec;
+	if (!std::filesystem::exists(proj_root, ec) || !std::filesystem::is_directory(proj_root, ec)) {
+		return "";
+	}
+
+	std::filesystem::path root_p(proj_root);
+	root_p = root_p.lexically_normal();
+
+	// Canonicalize attempted path relative to project
+	std::string attempted_rel = make_relative_to_project(untrusted_filename);
+	std::replace(attempted_rel.begin(), attempted_rel.end(), '\\', '/');
+	std::filesystem::path attempted_p(attempted_rel);
+	std::filesystem::path attempted_parent = attempted_p.parent_path().lexically_normal();
+
+	// Decompose attempted parent directory into components
+	std::vector<std::string> attempted_components;
+	for (const auto &elem : attempted_parent) {
+		std::string s = elem.string();
+		if (!s.empty() && s != ".") {
+			attempted_components.push_back(s);
+		}
+	}
+
+	struct candidate_t {
+		int common_components{0};
+		size_t common_chars{0};
+		int depth{0};
+		size_t path_length{0};
+		std::string rel_path;
+	};
+
+	std::vector<candidate_t> matches;
+
+	try {
+		for (auto it = std::filesystem::recursive_directory_iterator(root_p, std::filesystem::directory_options::skip_permission_denied, ec);
+		     it != std::filesystem::recursive_directory_iterator(); ++it) {
+			if (ec) {
+				ec.clear();
+				continue;
+			}
+
+			const auto &entry = *it;
+			std::string name = entry.path().filename().string();
+
+			if (entry.is_directory(ec)) {
+				bool is_top_level = !entry.path().parent_path().has_relative_path() || entry.path().parent_path() == root_p;
+				if (name.front() == '.' || name == "tmp" || name == "temp" ||
+				    (is_top_level && (name == "build" || name == "builddir" || name.starts_with("build_") || name.starts_with("build-")))) {
+					it.disable_recursion_pending();
+				}
+				continue;
+			}
+
+			if (!entry.is_regular_file(ec)) {
+				continue;
+			}
+
+			if (name != target_basename) {
+				continue;
+			}
+
+			auto rel = std::filesystem::relative(entry.path(), root_p, ec);
+			if (ec || rel.empty() || rel.string().starts_with("..")) {
+				continue;
+			}
+
+			std::string cand_rel = rel.string();
+			std::replace(cand_rel.begin(), cand_rel.end(), '\\', '/');
+
+			if (cand_rel == attempted_rel) {
+				continue;
+			}
+
+			std::filesystem::path cand_p(cand_rel);
+			std::filesystem::path cand_parent = cand_p.parent_path().lexically_normal();
+
+			std::vector<std::string> cand_components;
+			for (const auto &elem : cand_parent) {
+				std::string s = elem.string();
+				if (!s.empty() && s != ".") {
+					cand_components.push_back(s);
+				}
+			}
+
+			int common_comp = 0;
+			size_t min_comp = std::min(attempted_components.size(), cand_components.size());
+			for (size_t i = 0; i < min_comp; ++i) {
+				if (attempted_components[i] == cand_components[i]) {
+					common_comp++;
+				} else {
+					break;
+				}
+			}
+
+			size_t common_ch = 0;
+			size_t min_len = std::min(attempted_rel.size(), cand_rel.size());
+			while (common_ch < min_len && attempted_rel[common_ch] == cand_rel[common_ch]) {
+				common_ch++;
+			}
+
+			candidate_t cand;
+			cand.common_components = common_comp;
+			cand.common_chars = common_ch;
+			cand.depth = static_cast<int>(cand_components.size());
+			cand.path_length = cand_rel.size();
+			cand.rel_path = std::move(cand_rel);
+
+			matches.push_back(std::move(cand));
+		}
+	} catch (...) {
+		// Ignore any filesystem iteration errors
+	}
+
+	if (matches.empty()) {
+		return "";
+	}
+
+	std::sort(matches.begin(), matches.end(), [](const candidate_t &a, const candidate_t &b) {
+		if (a.common_components != b.common_components) {
+			return a.common_components > b.common_components;
+		}
+		if (a.common_chars != b.common_chars) {
+			return a.common_chars > b.common_chars;
+		}
+		if (a.depth != b.depth) {
+			return a.depth < b.depth;
+		}
+		if (a.path_length != b.path_length) {
+			return a.path_length < b.path_length;
+		}
+		return a.rel_path < b.rel_path;
+	});
+
+	return matches.front().rel_path;
+}
+
 } // namespace fs_utils

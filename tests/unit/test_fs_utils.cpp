@@ -178,6 +178,43 @@ int main()
 	assert(fs_utils::is_safe_for_ui("Normal Text 123"));
 	assert(!fs_utils::is_safe_for_ui("\x1b[31mANSI Code"));
 
+	// Test filename_suggest_alternative
+	{
+		fs::path alt_test_root = temp_dir / "alt_proj";
+		fs::create_directories(alt_test_root / "src" / "tools" / "scanner");
+		fs::create_directories(alt_test_root / "src" / "tools" / "common");
+		fs::create_directories(alt_test_root / "src" / "widgets");
+		fs::create_directories(alt_test_root / "tests");
+
+		// Touch files
+		{ std::ofstream(alt_test_root / "src" / "tools" / "scanner" / "parser.cpp"); }
+		{ std::ofstream(alt_test_root / "src" / "tools" / "common" / "parser.cpp"); }
+		{ std::ofstream(alt_test_root / "tests" / "parser.cpp"); }
+		{ std::ofstream(alt_test_root / "src" / "widgets" / "button.cpp"); }
+
+		fs_utils::set_override_project_dir(alt_test_root.string());
+
+		// 1. Single match: request without directory
+		assert(fs_utils::filename_suggest_alternative("button.cpp") == "src/widgets/button.cpp");
+
+		// 2. Multiple matches: prefer closest common prefix
+		// Request in src/tools/other/ should prefer src/tools/common/parser.cpp over tests/parser.cpp
+		assert(fs_utils::filename_suggest_alternative("src/tools/other/parser.cpp") == "src/tools/common/parser.cpp");
+
+		// Request in tests/other/ should prefer tests/parser.cpp
+		assert(fs_utils::filename_suggest_alternative("tests/other/parser.cpp") == "tests/parser.cpp");
+
+		// 3. Exact path requested shouldn't match itself, should find closest alternative
+		assert(fs_utils::filename_suggest_alternative("src/tools/scanner/parser.cpp") == "src/tools/common/parser.cpp");
+
+		// 4. Nonexistent basename returns empty
+		assert(fs_utils::filename_suggest_alternative("missing.cpp").empty());
+		assert(fs_utils::filename_suggest_alternative("").empty());
+
+		// Reset override
+		fs_utils::set_override_project_dir("");
+	}
+
 	// Cleanup
 	fs::remove_all(temp_dir);
 

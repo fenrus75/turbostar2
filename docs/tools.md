@@ -42,7 +42,7 @@ Turbostar supports tracing all LLM tool calls and outputs to sequential log file
     *   `offset` *(integer, optional)*: Starting offset for pagination. Defaults to 0.
 
 ### `fs_read_lines`
-*   **Description:** Reads a specific range of text lines from a file. Output lines are prefixed with their 1-based line number in `<line_number>: <line_text>` format. Automatically appends a compact symbol codemap overview table when reading a partial range of a source or header file. For C/C++ implementation files, automatically extracts a mini Class Context preview showing the header declarations and types of referenced member variables and sibling methods used within the read range.
+*   **Description:** Reads a specific range of text lines from a file. Output lines are prefixed with their 1-based line number in `<line_number>: <line_text>` format. Automatically appends a compact symbol codemap overview table when reading a partial range of a source or header file. For C/C++ implementation files, automatically extracts a mini Class Context preview showing the header declarations and types of referenced member variables and sibling methods used within the read range. When a requested file path does not exist, automatically searches the project for existing files with matching basenames and suggests the closest candidate by path prefix.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt').
     *   `start_line` *(integer, optional)*: The 1-based line number to start reading from. Defaults to 1 if omitted. Mutually exclusive with `tail`.

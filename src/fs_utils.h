@@ -247,4 +247,13 @@ size_t levenshtein_distance(std::string_view s1, std::string_view s2);
  */
 bool ensure_parent_directory_exists(const std::string &target_path, std::string &note_or_warning_out);
 
+/**
+ * @brief When a requested file is not found, searches the project tree for an existing file
+ * with the same basename. If multiple matches exist, prefers the candidate with the longest
+ * matching path prefix (closest directory hierarchy to the attempted filename).
+ * @param untrusted_filename The relative or absolute path requested.
+ * @return Project-relative path of the best candidate, or empty string if none found.
+ */
+std::string filename_suggest_alternative(/* untrusted */ std::string_view untrusted_filename);
+
 } // namespace fs_utils
