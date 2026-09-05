@@ -49,12 +49,46 @@ std::string crashdump_get_info_tool::execute(agentlib::tool_context & /*ctx*/)
 
 	std::string target_id = args_.crash_id;
 	if (target_id.empty()) {
-		target_id = dumps.back().crash_id;
+		// Chronologically find the most recent crash by directory/timestamp or highest numeric ID
+		const crashdump_info *newest = nullptr;
+		for (const auto &dump : dumps) {
+			if (!newest) {
+				newest = &dump;
+				continue;
+			}
+			if (dump.timestamp != "Recent" && newest->timestamp != "Recent") {
+				if (dump.timestamp > newest->timestamp) {
+					newest = &dump;
+				}
+			} else {
+				// Fallback: compare crash_id numerically if possible, otherwise string comparison
+				try {
+					long long id_a = std::stoll(dump.crash_id);
+					long long id_b = std::stoll(newest->crash_id);
+					if (id_a > id_b) {
+						newest = &dump;
+					}
+				} catch (...) {
+					if (dump.crash_id > newest->crash_id) {
+						newest = &dump;
+					}
+				}
+			}
+		}
+		if (newest) {
+			target_id = newest->crash_id;
+		} else {
+			target_id = dumps.back().crash_id;
+		}
 	}
 
 	for (const auto &dump : dumps) {
 		if (dump.crash_id == target_id) {
 			std::string result = dump.raw_info;
+			if (result.empty()) {
+				result = std::format("Crash ID: {}\nTimestamp: {}\nExecutable: {}\nSignal: {}\nSummary: {}\n",
+				                     dump.crash_id, dump.timestamp, dump.executable, dump.signal, dump.summary);
+			}
 			if (has_coredump(target_id)) {
 				result += std::format(
 					"\n\n### Optional: Interactive Coredump Debugging\n"

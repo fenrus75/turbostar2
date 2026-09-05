@@ -77,7 +77,7 @@ int main()
 			assert(res.find("Error: No crashdump found") != std::string::npos);
 		}
 
-		// 3. Optional crash_id: defaults to most recent crash
+		// 3. Optional crash_id: defaults to most recent crash chronologically
 		{
 			std::string res = registry.execute_tool("crashdump_get_info", "{}", ctx);
 			assert(res.find("Mock crash dump backtrace detail") != std::string::npos);
@@ -86,6 +86,29 @@ int main()
 			std::string res_empty = registry.execute_tool("crashdump_get_info", "{\"crash_id\": \"\"}", ctx);
 			assert(res_empty.find("Mock crash dump backtrace detail") != std::string::npos);
 			assert(res_empty.find("test123") != std::string::npos);
+
+			// Add an older dump and a newer dump with distinct mtimes to verify chronological selection
+			fs::path c_older = fs::path(dump_dir) / "crash_older1";
+			fs::create_directories(c_older);
+			{
+				std::ofstream ofs(c_older / "info.txt");
+				ofs << "Signal: 11\nExecutable: /bin/test_app\n";
+			}
+			fs::path c_newer = fs::path(dump_dir) / "crash_newer2";
+			fs::create_directories(c_newer);
+			{
+				std::ofstream ofs(c_newer / "info.txt");
+				ofs << "Signal: 11\nExecutable: /bin/test_app\n";
+			}
+			auto now = fs::file_time_type::clock::now();
+			fs::last_write_time(c_older, now - std::chrono::hours(2));
+			fs::last_write_time(c_newer, now + std::chrono::hours(2));
+
+			crashdump_manager::get_instance().refresh("dummy_hash");
+
+			// Should resolve to 'newer2' because its timestamp/mtime is newest
+			std::string res_chrono = registry.execute_tool("crashdump_get_info", "{}", ctx);
+			assert(res_chrono.find("newer2") != std::string::npos);
 		}
 
 		// 4. Stage 1 validation failure: reject unexpected properties (based on review recommendations)

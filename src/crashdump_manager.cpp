@@ -712,13 +712,15 @@ std::string crashdump_manager::refresh(std::string_view /*project_hash*/)
 }
 
 
-const std::vector<crashdump_info> &crashdump_manager::get_crashdumps() const
+std::vector<crashdump_info> crashdump_manager::get_crashdumps() const
 {
+	std::lock_guard<std::mutex> lock(mutex_);
 	return crashdumps_;
 }
 
 std::vector<crashdump_info> crashdump_manager::get_crashdumps_for_cookie(std::string_view cookie) const
 {
+	std::lock_guard<std::mutex> lock(mutex_);
 	std::vector<crashdump_info> res;
 	for (const auto &c : crashdumps_) {
 		if (c.crash_cookie == cookie || (!cookie.empty() && c.crash_cookie.starts_with(cookie))) {
@@ -833,7 +835,7 @@ std::string crashdump_manager::format_crash_notification(size_t crash_count)
 
 	auto &mgr = get_instance();
 	mgr.refresh();
-	const auto &dumps = mgr.get_crashdumps();
+	const std::vector<crashdump_info> dumps = mgr.get_crashdumps();
 	if (crash_count <= dumps.size()) {
 		return format_crash_notification(std::span<const crashdump_info>(dumps.data() + dumps.size() - crash_count, crash_count));
 	}
