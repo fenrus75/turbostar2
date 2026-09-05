@@ -65,6 +65,24 @@ extern std::string troff2md(std::string troff_content);
 	assert(space_run_result.find("'test with space'") != std::string::npos ||
 	       space_run_result.find("\"test with space\"") != std::string::npos);
 
+	std::cout << "\nTesting fs_run_tests verbose flag behaviors..." << std::endl;
+	// Test verbose=auto (default for single test) includes --print-errorlogs
+	std::string auto_run_result = registry.execute_tool("fs_run_tests", "{\"test_names\": [\"unit_event_logger\"], \"verbose\": \"auto\"}", ctx);
+	assert(auto_run_result.find("--print-errorlogs") != std::string::npos);
+
+	// Test verbose=true includes -v in the command
+	std::string verbose_run_result = registry.execute_tool("fs_run_tests", "{\"test_names\": [\"unit_event_logger\"], \"verbose\": true}", ctx);
+	assert(verbose_run_result.find(" -v ") != std::string::npos || verbose_run_result.find(" -v '") != std::string::npos);
+
+	// Test verbose=false suppresses both -v and --print-errorlogs
+	std::string quiet_run_result = registry.execute_tool("fs_run_tests", "{\"test_names\": [\"unit_event_logger\"], \"verbose\": false}", ctx);
+	assert(quiet_run_result.find(" -v ") == std::string::npos);
+	assert(quiet_run_result.find("--print-errorlogs") == std::string::npos);
+
+	// Test invalid verbose value is rejected by validator
+	std::string invalid_verbose_result = registry.execute_tool("fs_run_tests", "{\"test_names\": [\"unit_event_logger\"], \"verbose\": \"invalid_mode\"}", ctx);
+	assert(invalid_verbose_result.find("Invalid 'verbose' parameter") != std::string::npos);
+
 	std::cout << "\nTesting agent_set_timer..." << std::endl;
 	auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
 	auto agent = ai_agent::create(1, "TestAgent", model, &q, nullptr);

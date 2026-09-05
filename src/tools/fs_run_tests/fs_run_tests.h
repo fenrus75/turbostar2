@@ -11,11 +11,13 @@ namespace tools {
 
 class fs_run_tests_tool : public agentlib::llm_tool {
 public:
-    fs_run_tests_tool(std::vector<std::string> test_names = {}, int timeout = 300);
+    fs_run_tests_tool(std::vector<std::string> test_names = {}, int timeout = 300, std::string verbose = "auto");
 
     std::shared_ptr<agentlib::agent_interaction> get_interaction() const override;
     bool validate_runtime(const agentlib::tool_context& ctx, std::string& out_error) const override;
     std::string execute(agentlib::tool_context& ctx) override;
+
+    const std::string &get_verbose() const noexcept { return verbose_; }
 
     struct resolve_result {
         std::vector<std::string> resolved_names;
@@ -31,6 +33,7 @@ private:
     std::shared_ptr<agentlib::interaction_terminal> interaction_;
     std::vector<std::string> test_names_;
     int timeout_;
+    std::string verbose_{"auto"};
 };
 
 class fs_run_tests_validator : public agentlib::tool_validator {
@@ -48,6 +51,9 @@ public:
                 {"timeout", {
                     {"type", "integer"},
                     {"description", "Optional timeout in seconds. Default is 300."}
+                }},
+                {"verbose", {
+                    {"description", "Optional verbosity mode: 'auto' (default: compact on pass, full output on failure for single tests), 'true' (always full output), or 'false' (always compact output). Accepts string or boolean."}
                 }}
             }}
         };
@@ -63,6 +69,7 @@ protected:
 private:
     mutable std::vector<std::string> parsed_test_names_;
     mutable int parsed_timeout_{300};
+    mutable std::string parsed_verbose_{"auto"};
 };
 
 } // namespace tools

@@ -194,8 +194,11 @@ Turbostar supports tracing all LLM tool calls and outputs to sequential log file
 ## 3. Compilation & Diagnostics
 
 ### `fs_run_tests`
-*   **Description:** Runs the project`s test suite and returns console output. Catch crashes and dumps backtraces. To discover test names, read system://project/testlist.md (or system://project/testlist.md?search=<query>) with fs_read_lines instead of running `meson test --list` in a shell command.
-*   **Arguments:** None.
+*   **Description:** Runs the project's test suite and returns console output. Catches crashes and dumps backtraces. To discover test names, read system://project/testlist.md (or system://project/testlist.md?search=<query>) with fs_read_lines instead of running `meson test --list` in a shell command.
+*   **Arguments:**
+    *   `test_names` *(string or array of strings, optional)*: Specific test name(s) or substrings to execute. If omitted, runs the full test suite.
+    *   `timeout` *(integer, optional)*: Optional execution timeout in seconds. Defaults to 300.
+    *   `verbose` *(string or boolean, optional)*: Controls output verbosity. Accepts `"auto"` (default), `"true"` / `true`, or `"false"` / `false`. In `"auto"` mode on a single targeted test, passing tests output a compact summary, while failing tests surface the full verbose logs (stdout/stderr). Explicitly setting `true` always surfaces verbose output, and `false` suppresses verbose logs.
 
 ### `fs_compile_project`
 *   **Description:** Compiles the entire project and returns raw console output. Populates the workspace error list. Supports clean rebuilds and background execution via the async flag.

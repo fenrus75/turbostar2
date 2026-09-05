@@ -19,6 +19,8 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- fs_read_lines -- if file does not exist, could we return a suggestion on what file to use instead? same basename somewhere else in the directory tree
+
 - `fs_run_tests` suite filter (`suite: "unit"` / `"e2e"`): allow running only fast local unit tests without invoking slower external/e2e test suites to prevent 3-minute MCP timeouts when building and running tests.
 
 - feature: we have "yolo" mode already -- add a /yolo slash command to the agent window
@@ -246,6 +248,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # Done
+
+## 5-09-2026
+- `fs_run_tests` verbose flag & "auto" mode: added `verbose` argument (`"auto"`, `"true"`/`true`, `"false"`/`false`) to `fs_run_tests`. Defaults to `"auto"`, where single test executions suppress verbose logs when passing and surface full verbose logs (stdout/stderr) on failure. Explicit `true` always surfaces verbose output, and `false` keeps output compact. Conditional on build system (`meson test -v` / `--print-errorlogs` for Meson; `ctest -V` / `--output-on-failure` for CMake). Documented in `docs/tools.md` and added unit test coverage in `tests/unit/test_tools.cpp`. (Completed)
 
 ## 4-09-2026
 - `perform_code_review` async by default & documentation: changed default execution mode of `perform_code_review` to `async=true` in `perform_code_review.h` and `perform_code_review_security.cpp` to prevent MCP/RPC client timeout aborts during multi-stage reviewer + verifier passes; documented `perform_code_review` in `docs/tools.md` under Section 11 (Code Review Tools); updated unit tests to verify default async behavior. (Completed)

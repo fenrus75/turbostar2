@@ -164,8 +164,8 @@ static std::string escape_ctest_regex(const std::string &name)
 	return out;
 }
 
-fs_run_tests_tool::fs_run_tests_tool(std::vector<std::string> test_names, int timeout)
-    : test_names_(std::move(test_names)), timeout_(timeout)
+fs_run_tests_tool::fs_run_tests_tool(std::vector<std::string> test_names, int timeout, std::string verbose)
+    : test_names_(std::move(test_names)), timeout_(timeout), verbose_(std::move(verbose))
 {
 	interaction_ = std::make_shared<agentlib::interaction_terminal>("Test Suite", "Running tests...");
 }
@@ -215,17 +215,28 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 	}
 	const auto &resolved = res.resolved_names;
 	bool did_substring_expand = res.did_substring_expand;
+	bool is_single_test = (resolved.size() == 1);
 
 	std::string cmd;
 
 	if (build_system == "meson") {
 		cmd = "CCACHE_DISABLE=1 MESON_TESTTHREADS=2 meson test -C " + build_path.string();
+		if (verbose_ == "true") {
+			cmd += " -v";
+		} else if (verbose_ == "auto" && is_single_test) {
+			cmd += " --print-errorlogs";
+		}
 
 		for (const auto &t : resolved) {
 			cmd += " " + fs_utils::escape_shell_arg(t);
 		}
 	} else if (build_system == "cmake") {
 		cmd = "ctest --test-dir " + build_path.string();
+		if (verbose_ == "true") {
+			cmd += " -V";
+		} else if (verbose_ == "auto" && is_single_test) {
+			cmd += " --output-on-failure";
+		}
 		if (!resolved.empty()) {
 			cmd += " -R \"(";
 			for (size_t i = 0; i < resolved.size(); ++i) {
@@ -281,7 +292,7 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 	// exactly which tests were matched and ran.
 	std::vector<std::shared_ptr<output_filter>> filters;
 	int lines_removed = 0;
-	if (!did_substring_expand) {
+	if (!did_substring_expand && verbose_ != "true") {
 		filters.push_back(std::make_shared<meson_test_filter>());
 		output = apply_output_filters(cmd, output, filters, &lines_removed);
 
