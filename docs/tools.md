@@ -809,6 +809,14 @@ These tools allow the agent to interact with the project's Git repository.
 
 ## 11. Code Review Tools
 
+### `perform_code_review`
+*   **Description:** Spawns code reviewer subagent(s) to inspect a set of files. In asynchronous mode (default) the review runs in the background and reviewer agent IDs are returned immediately; set `async=false` to wait synchronously for reviewer findings.
+*   **Arguments:**
+    *   `files` *(array of strings, required)*: List of file paths relative to the project root to perform code review on.
+    *   `instructions` *(string, optional)*: Optional custom review instructions or specific focus areas.
+    *   `result_file` *(string, optional)*: Optional file path relative to project root where the final summary report will be written.
+    *   `async` *(boolean, optional)*: If true, runs the code review asynchronously in the background. Defaults to `true`.
+
 ### `create_code_review_item`
 *   **Description:** Creates a new code review finding/item for a specific file and stores it in the project database.
 *   **Arguments:**

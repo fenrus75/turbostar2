@@ -67,11 +67,12 @@ void test_perform_code_review_execution()
 	assert(prep.tool == nullptr);
 	assert(!prep.error_message.empty());
 
-	// Test 2: Developer role calls it (allowed)
-	prep = registry.prepare_tool("perform_code_review", args_json, ctx);
+	// Test 2: Developer role calls it without explicit async (defaults to async=true)
+	std::string default_args_json = "{\"files\": [\"src_to_review.cpp\"], \"instructions\": \"Check for bugs\"}";
+	prep = registry.prepare_tool("perform_code_review", default_args_json, ctx);
 	assert(prep.tool != nullptr);
 
-	std::string res_str = registry.execute_tool("perform_code_review", args_json, ctx);
+	std::string res_str = registry.execute_tool("perform_code_review", default_args_json, ctx);
 	std::cout << "Result: " << res_str << std::endl;
 	assert(res_str.find("Code review started asynchronously") != std::string::npos);
 

@@ -12,7 +12,7 @@ struct perform_code_review_args {
 	std::vector<std::string> files;
 	std::string instructions;
 	std::string result_file;
-	bool async{false};
+	bool async{true};
 };
 
 class perform_code_review_tool : public agentlib::llm_tool_action
@@ -44,8 +44,8 @@ class perform_code_review_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Spawns a code reviewer agent to inspect a set of files. In synchronous mode (default) the findings are returned "
-		       "directly as a summary-table toolcall result; set async=true to also launch a background verification agent.";
+		return "Spawns a code reviewer agent to inspect a set of files. In asynchronous mode (default) the review runs "
+		       "in the background and reviewer agent IDs are returned immediately; set async=false to run synchronously.";
 	}
 
 	nlohmann::json get_parameters_schema() const override
@@ -65,7 +65,7 @@ class perform_code_review_validator : public agentlib::tool_validator
 		      {"async",
 		       {{"type", "boolean"},
 			{"description",
-			 "If true, runs the code review asynchronously in the background. Defaults to false (synchronous)."}}}}},
+			 "If true, runs the code review asynchronously in the background. Defaults to true."}}}}},
 		    {"required", nlohmann::json::array({"files"})}};
 	}
 

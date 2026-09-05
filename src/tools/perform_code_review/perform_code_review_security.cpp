@@ -9,7 +9,7 @@ struct perform_code_review_raw_args {
 	std::vector<std::string> files;
 	std::string instructions;
 	std::string result_file;
-	bool async = false;
+	bool async = true;
 };
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(perform_code_review_raw_args, files, instructions, result_file, async);
