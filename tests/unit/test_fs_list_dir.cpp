@@ -116,11 +116,11 @@ int main()
 			assert(grep_res.find("system://tools.md") != std::string::npos);
 		}
 
-		// 6. Test passing wildcard path into fs_list_dir suggests fs_find_files
+		// 6. Test passing wildcard path into fs_list_dir suggests fs_find_files with project-relative pattern
 		{
 			std::string args = "{\"path\": \"src/*.cpp\"}";
 			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
-			assert(res.find("fs_find_files") != std::string::npos);
+			assert(res.find("fs_find_files(pattern='src/*.cpp')") != std::string::npos);
 		}
 
 		std::cout << "fs_list_dir tool verified successfully." << std::endl;
