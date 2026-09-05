@@ -291,9 +291,7 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	if (crashes_after > crashes_before) {
-		output += "\n\nCRASH DETECTED: " + std::to_string(crashes_after - crashes_before) +
-			  " new crash(es) occurred during execution. Please use the 'crashdump_list' and 'crashdump_get_info' tools to "
-			  "investigate.";
+		output += crashdump_manager::format_crash_notification(crashes_after - crashes_before);
 	}
 
 	// Cap output at 10,000 characters to protect context window

@@ -113,7 +113,7 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 				}
 
 				if (crashes_after > crashes_before) {
-					output += std::format("\n\nCRASH DETECTED: {} new crash(es) occurred during execution. Please use the 'crashdump_list' and 'crashdump_get_info' tools to investigate.", crashes_after - crashes_before);
+					output += crashdump_manager::format_crash_notification(crashes_after - crashes_before);
 				}
 
 				output = augment_compiler_output_with_codemap(output, nullptr, 3);
@@ -179,7 +179,7 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	if (crashes_after > crashes_before) {
-		output += std::format("\n\nCRASH DETECTED: {} new crash(es) occurred during execution. Please use the 'crashdump_list' and 'crashdump_get_info' tools to investigate.", crashes_after - crashes_before);
+		output += crashdump_manager::format_crash_notification(crashes_after - crashes_before);
 	}
 
 	output = augment_compiler_output_with_codemap(output, &ctx, 3);

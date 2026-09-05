@@ -63,6 +63,15 @@ int main()
 
 			std::string notif = crashdump_manager::format_crash_notification(dumps);
 			assert(notif.find("Summary: assertion fail at src/editor.cpp:42 `c != NULL` in update()") != std::string::npos);
+			assert(notif.find("Please use 'crashdump_get_info' with crash_id 'test123'") != std::string::npos);
+
+			// Test count overload (crash_count == 1 directs directly to crashdump_get_info with ID)
+			std::string notif_count1 = crashdump_manager::format_crash_notification(1);
+			assert(notif_count1.find("Please use 'crashdump_get_info' with crash_id 'test123'") != std::string::npos);
+
+			// Test count overload (crash_count > 1 directs to crashdump_list)
+			std::string notif_count2 = crashdump_manager::format_crash_notification(2);
+			assert(notif_count2.find("Please use 'crashdump_list' and 'crashdump_get_info'") != std::string::npos);
 
 			std::string res = registry.execute_tool("crashdump_list", "{}", ctx);
 			std::cout << "Crash list result: " << res << std::endl;

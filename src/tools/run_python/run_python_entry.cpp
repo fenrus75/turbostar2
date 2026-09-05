@@ -292,9 +292,7 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 	size_t crashes_after = crashdump_manager::get_instance().get_crashdumps().size();
 
 	if (crashes_after > crashes_before) {
-		output += "\n\nCRASH DETECTED: " + std::to_string(crashes_after - crashes_before) +
-			  " new crash(es) occurred during execution. Please use the 'crashdump_list' and 'crashdump_get_info' tools to "
-			  "investigate.";
+		output += crashdump_manager::format_crash_notification(crashes_after - crashes_before);
 	}
 
 	constexpr size_t kMaxPythonOutputBytes = 32 * 1024; // 32 KB cap
