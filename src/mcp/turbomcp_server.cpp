@@ -29,6 +29,22 @@ turbomcp_server::turbomcp_server()
 	: editor_instance_(std::make_shared<editor>(make_headless_editor_options()))
 	, mcp_root_agent_(ai_agent::create(9999, "mcp_root", ai_model_registry::get_instance().get_default_model(), &editor_instance_->get_global_queue(), editor_instance_.get()))
 {
+	mcp_context_.active_agent = mcp_root_agent_.get();
+	mcp_context_.properties.active_families = tool_registry::get_instance().get_all_registered_families();
+	mcp_context_.queue = &editor_instance_->get_global_queue();
+	mcp_context_.doc_provider = editor_instance_.get();
+
+	std::string workspace_root = project_manager::get_instance().get_project_root();
+	if (workspace_root.empty()) {
+		workspace_root = fs_utils::get_project_dir();
+	}
+	if (workspace_root.empty() || !std::filesystem::is_directory(workspace_root)) {
+		workspace_root = std::filesystem::current_path().string();
+	}
+	mcp_context_.fs_security.set_working_directory(workspace_root);
+	mcp_context_.fs_security.add_allowed_root(workspace_root, access_type::write);
+	mcp_context_.fs_security.set_vfs(skill_manager::get_instance().get_vfs());
+
 	start_event_loop();
 }
 
@@ -220,22 +236,21 @@ nlohmann::json turbomcp_server::handle_tools_call(const nlohmann::json &id, cons
 	} catch (...) {
 	}
 
-	tool_context ctx;
-	ctx.active_agent = mcp_root_agent_.get();
-	ctx.properties.active_families = tool_registry::get_instance().get_all_registered_families();
-	ctx.queue = &editor_instance_->get_global_queue();
-	ctx.doc_provider = editor_instance_.get();
-
+	// Ensure families and security working directory are current
+	mcp_context_.properties.active_families = tool_registry::get_instance().get_all_registered_families();
 	std::string workspace_root = project_manager::get_instance().get_project_root();
 	if (workspace_root.empty()) {
 		workspace_root = fs_utils::get_project_dir();
 	}
-	ctx.fs_security.set_working_directory(workspace_root);
-	ctx.fs_security.add_allowed_root(workspace_root, access_type::write);
-	ctx.fs_security.set_vfs(skill_manager::get_instance().get_vfs());
+	if (workspace_root.empty() || !std::filesystem::is_directory(workspace_root)) {
+		workspace_root = std::filesystem::current_path().string();
+	}
+	mcp_context_.fs_security.set_working_directory(workspace_root);
+	mcp_context_.fs_security.add_allowed_root(workspace_root, access_type::write);
+	mcp_context_.fs_security.set_vfs(skill_manager::get_instance().get_vfs());
 
 	std::string args_str = args.dump();
-	std::string res_text = tool_registry::get_instance().execute_tool(tool_name, args_str, ctx);
+	std::string res_text = tool_registry::get_instance().execute_tool(tool_name, args_str, mcp_context_);
 
 	bool is_error = res_text.starts_with("Error:") || res_text.starts_with("Validation Error:") || res_text.starts_with("Security Violation:");
 

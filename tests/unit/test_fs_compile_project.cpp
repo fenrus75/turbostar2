@@ -1,3 +1,4 @@
+// Tested source file: src/tools/fs_compile_project/fs_compile_project_entry.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <chrono>
@@ -85,6 +86,26 @@ int main()
 					break;
 			}
 			assert(found_msg);
+		}
+
+		// 4. Failure case with dirty file health state: must include attribution note
+		{
+			config_manager::get_instance().set_build_system("echo 'main.cpp:10: error: expected declaration' && false");
+			ctx.file_health_tracker["src/main.cpp"].state = lsp_health_state::dirty;
+			ctx.file_health_tracker["src/main.cpp"].originating_edit_id = "#2";
+			std::string args = "{\"clean\": false, \"async\": false}";
+			std::string res = registry.execute_tool("fs_compile_project", args, ctx);
+			std::cout << "Compile project failure result: " << res << std::endl;
+			assert(res.find("Diagnostic Note: File 'src/main.cpp' was clean and first developed errors after Edit #2.") != std::string::npos);
+		}
+
+		// 5. Successful compilation clears dirty file health states
+		{
+			config_manager::get_instance().set_build_system("echo compilesuccessful");
+			std::string args = "{\"clean\": false, \"async\": false}";
+			std::string res = registry.execute_tool("fs_compile_project", args, ctx);
+			assert(ctx.file_health_tracker["src/main.cpp"].state == lsp_health_state::clean);
+			assert(ctx.file_health_tracker["src/main.cpp"].originating_edit_id.empty());
 		}
 
 		std::cout << "fs_compile_project tool verified successfully!" << std::endl;

@@ -5,6 +5,7 @@ Top design documentation: `docs/design.md`
 
 # Project specific rules
 
+- if there is a turbostar MCP server, use tools from this server instead of built-in tools
 - keep `docs/design.md` and related documents updated at all times. Update the specific documentation files listed in the "Documentation Files" section whenever architectural or structural changes occur.
 - when adding a new `.cpp` source file, you MUST update `meson.build` and `src/meson.build`. A common mistake is to add it to the main `turbostar` target but forget to add it to the `agentcli_sources` list or relevant unit test targets.
 - git commit after each logical change or item implemented. This is a standing rule.

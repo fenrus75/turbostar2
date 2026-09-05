@@ -9,6 +9,7 @@
 #include "tools/output_filter.h"
 #include "tools/terminal_command_runner.h"
 #include "tools/fs_compile_project/fs_compile_project.h"
+#include "agentlib/file_health_utils.h"
 #include "codemap_utils.h"
 #include "event_logger.h"
 
@@ -72,9 +73,10 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 			weak_agent = ctx.active_agent->shared_from_this();
 		}
 		std::string captured_tool_call_id = ctx.tool_call_id;
+		std::string attribution_notes = agentlib::get_all_file_health_attribution_notes(ctx);
 
 		std::thread([runner = std::make_shared<terminal_command_runner>(interaction_, ctx.trigger_ui_update), cmd, weak_agent,
-			     captured_tool_call_id, workspace_dir = ctx.fs_security.get_working_directory().string(), timeout = args_.timeout]() {
+			     captured_tool_call_id, attribution_notes, workspace_dir = ctx.fs_security.get_working_directory().string(), timeout = args_.timeout]() {
 			runner->set_enable_crash_catcher(true);
 			runner->set_project_dir(workspace_dir);
 			runner->set_timeout(timeout);
@@ -116,6 +118,10 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 					output += crashdump_manager::format_crash_notification(crashes_after - crashes_before);
 				}
 
+				if (exit_code != 0 && !attribution_notes.empty()) {
+					output += attribution_notes;
+				}
+
 				output = augment_compiler_output_with_codemap(output, nullptr, 3);
 				// Cap output at 10,000 characters to protect context window
 				if (output.length() > 10000) {
@@ -147,12 +153,24 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 	runner.set_project_dir(ctx.fs_security.get_working_directory().string());
 
 	size_t crashes_before = crashdump_manager::get_instance().get_crashdumps().size();
-	runner.execute(cmd);
+	int exit_code = runner.execute(cmd);
 
 	std::string output = runner.get_final_output();
 	build_error_manager::get_instance().set_last_raw_build_output(output);
 	runner.get_new_crashdumps(); // Trigger refresh in the runner to update the manager
 	size_t crashes_after = crashdump_manager::get_instance().get_crashdumps().size();
+
+	if (exit_code == 0) {
+		for (auto &[path, health] : ctx.file_health_tracker) {
+			health.state = agentlib::lsp_health_state::clean;
+			health.originating_edit_id.clear();
+		}
+	} else {
+		std::string attribution_notes = agentlib::get_all_file_health_attribution_notes(ctx);
+		if (!attribution_notes.empty()) {
+			output += attribution_notes;
+		}
+	}
 
 	// Apply output filters to summarize/prune execution logs proactively
 	std::vector<std::shared_ptr<output_filter>> filters;

@@ -6,6 +6,7 @@
 #include <thread>
 #include <nlohmann/json.hpp>
 #include "editor.h"
+#include "agentlib/tool_context.h"
 
 namespace agentlib
 {
@@ -19,8 +20,13 @@ public:
 	// Runs the stdio JSON-RPC loop reading stdin and writing to stdout
 	int run_stdio_loop();
 
-private:
+	// Handles a JSON-RPC request and returns the response
 	nlohmann::json handle_request(const nlohmann::json &req);
+
+	// Context accessor for inspection or testing
+	const tool_context &get_context() const { return mcp_context_; }
+
+private:
 	nlohmann::json handle_initialize(const nlohmann::json &id, const nlohmann::json &params);
 	nlohmann::json handle_tools_list(const nlohmann::json &id);
 	nlohmann::json handle_tools_call(const nlohmann::json &id, const nlohmann::json &params);
@@ -36,6 +42,7 @@ private:
 	std::shared_ptr<ai_agent> mcp_root_agent_;
 	std::atomic<bool> event_loop_running_{false};
 	std::thread event_loop_thread_;
+	tool_context mcp_context_;
 };
 
 } // namespace agentlib
