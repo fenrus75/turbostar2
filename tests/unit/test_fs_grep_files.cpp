@@ -9,6 +9,7 @@
 #include "../../src/agentlib/document_provider.h"
 #include "../../src/agentlib/tool_context.h"
 #include "../../src/tools/fs_grep_files/fs_grep_files.h"
+#include "fs_utils.h"
 
 namespace fs = std::filesystem;
 
@@ -450,6 +451,52 @@ int main()
 		assert(sres.find("* **Function `my_snippet_symbol`** is defined in `src/foo.cpp` at line 11 to 13:") != std::string::npos);
 		assert(sres.find("```cpp\n11: void my_snippet_symbol(\n12:     int a,\n13:     int b);\n```\n") != std::string::npos);
 		fs::remove_all(snippet_dir);
+	}
+
+	// Test nonexistent path handling and alternative suggestion
+	{
+		fs::path test_root = temp_dir / "grep_suggest_proj";
+		fs::create_directories(test_root / "src" / "tools");
+		fs::path existing_file = test_root / "src" / "tools" / "my_helper.cpp";
+		{
+			std::ofstream out(existing_file);
+			out << "void my_target_func() {}\n";
+		}
+
+		fs_utils::set_override_project_dir(test_root.string());
+
+		agentlib::tool_context ctx;
+		ctx.fs_security.set_working_directory(test_root);
+		ctx.fs_security.add_allowed_root(test_root, agentlib::access_type::read);
+
+		// 1. Search in nonexistent file that has matching alternative in src/tools/
+		tools::fs_grep_files_args args;
+		args.pattern = "my_target_func";
+		args.search_path = "tools/my_helper.cpp";
+		args.safe_search_path = (test_root / "tools" / "my_helper.cpp").string();
+
+		test_fs_grep_files_tool_mocked tool(args);
+		std::string res = tool.execute(ctx);
+
+		// Must NOT return raw recursive_directory_iterator exception
+		assert(res.find("Error during search traversal") == std::string::npos);
+		// Must return clean Path does not exist error with suggestion
+		assert(res.find("Path does not exist") != std::string::npos);
+		assert(res.find("Did you mean 'src/tools/my_helper.cpp'?") != std::string::npos);
+
+		// 2. Search in completely nonexistent path without alternative
+		tools::fs_grep_files_args args2;
+		args2.pattern = "my_target_func";
+		args2.search_path = "completely_bogus_dir";
+		args2.safe_search_path = (test_root / "completely_bogus_dir").string();
+
+		test_fs_grep_files_tool_mocked tool2(args2);
+		std::string res2 = tool2.execute(ctx);
+		assert(res2.find("Error during search traversal") == std::string::npos);
+		assert(res2.find("Path does not exist: 'completely_bogus_dir'.") != std::string::npos);
+
+		fs_utils::set_override_project_dir("");
+		fs::remove_all(test_root);
 	}
 
 	std::cout << "fs_grep_files unit test passed!\n";

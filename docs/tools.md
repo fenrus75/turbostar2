@@ -64,7 +64,7 @@ Turbostar supports tracing all LLM tool calls and outputs to sequential log file
     *   `max_symbols` *(integer, optional)*: Maximum symbol count cap (default: 0 for unlimited).
 
 ### `fs_grep_files`
-*   **Description:** Search for a pattern (string or RE2 regular expression) across files or directories. Use this instead of shell grep. Returns formatted markdown with line numbers, enclosing symbol annotations, and inline code snippets for matched LSP symbol definitions. Ideal for finding definitions, usages, or error messages across the codebase.
+*   **Description:** Search for a pattern (string or RE2 regular expression) across files or directories. Use this instead of shell grep. Returns formatted markdown with line numbers, enclosing symbol annotations, and inline code snippets for matched LSP symbol definitions. When a specified search path does not exist, validates the path and suggests closest matching alternatives by path prefix. Ideal for finding definitions, usages, or error messages across the codebase.
 *   **Arguments:**
     *   `pattern` *(string, required)*: The RE2 regular expression to search for.
     *   `case_insensitive` *(boolean, optional)*: Set to true to ignore case during regex/literal matching. Defaults to false (case-sensitive search).

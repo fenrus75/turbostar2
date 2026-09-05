@@ -345,6 +345,26 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 	// Use the resolved, safe starting path
 	fs::path search_path(args_.safe_search_path);
 
+	auto vfs = ctx.fs_security.get_vfs();
+	std::string raw_search_path = args_.safe_search_path;
+	if (raw_search_path.empty() && args_.search_path) {
+		raw_search_path = *args_.search_path;
+	}
+
+	bool is_vfs = (raw_search_path.find("://") != std::string::npos);
+	if (!is_vfs && vfs && !fs::exists(raw_search_path) && vfs->exists(raw_search_path)) {
+		is_vfs = true;
+	}
+
+	if (!is_vfs && !fs::exists(search_path)) {
+		std::string requested_display = args_.search_path ? *args_.search_path : search_path.string();
+		std::string alt = fs_utils::filename_suggest_alternative(requested_display);
+		if (!alt.empty()) {
+			return std::format("Error: Path does not exist: '{}'. Did you mean '{}'?", requested_display, alt);
+		}
+		return std::format("Error: Path does not exist: '{}'.", requested_display);
+	}
+
 	std::string lsp_section;
 	bool is_regular_word = !args_.is_regex && !args_.pattern.empty() &&
 		std::all_of(args_.pattern.begin(), args_.pattern.end(), [](char c) {
@@ -561,17 +581,6 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 			}
 		};
 
-		auto vfs = ctx.fs_security.get_vfs();
-		std::string raw_search_path = args_.safe_search_path;
-		if (raw_search_path.empty() && args_.search_path) {
-			raw_search_path = *args_.search_path;
-		}
-
-		bool is_vfs = (raw_search_path.find("://") != std::string::npos);
-		if (!is_vfs && vfs && !fs::exists(raw_search_path) && vfs->exists(raw_search_path)) {
-			is_vfs = true;
-		}
-
 		if (is_vfs && vfs) {
 			std::vector<std::string> file_uris;
 			std::function<void(const std::string &)> collect_uris = [&](const std::string &uri) {
@@ -633,7 +642,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 			}
 		} else if (fs::is_regular_file(search_path)) {
 			process_file(search_path);
-		} else {
+		} else if (fs::is_directory(search_path)) {
 			for (auto it = fs::recursive_directory_iterator(search_path, fs::directory_options::skip_permission_denied);
 			     it != fs::recursive_directory_iterator(); ++it) {
 
@@ -659,6 +668,9 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 
 				process_file(path);
 			}
+		} else {
+			std::string requested_display = args_.search_path ? *args_.search_path : search_path.string();
+			return std::format("Error: Path is neither a regular file nor a directory: '{}'.", requested_display);
 		}
 
 		std::stable_sort(raw_matches.begin(), raw_matches.end(), [](const raw_file_match &a, const raw_file_match &b) {
