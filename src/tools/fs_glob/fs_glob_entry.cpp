@@ -276,6 +276,10 @@ std::string fs_glob_tool::execute(agentlib::tool_context& ctx) {
         ss << "\n*Note: Limit of " << max_results << " results reached (showing first " << max_results << " of " << total_matches << " matches). Consider narrowing your pattern.*\n";
     }
 
+    if (args_.pattern == "*") {
+        ss << "\n*Tip: To inspect directory structure, subfolders, and permissions at a specific path, use `fs_list_dir(path='" << args_.path << "')`.*\n";
+    }
+
     set_success(ctx, "Found " + std::to_string(total_matches) + " matches");
     return fs_utils::wrap_prompt_untrusted_data_tag("fs_glob_result", ss.str());
 }

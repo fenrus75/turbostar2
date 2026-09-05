@@ -39,7 +39,11 @@ bool fs_list_dir_tool::validate_runtime(const agentlib::tool_context &ctx, std::
 	}
 
 	if (!std::filesystem::is_directory(args_.path)) {
-		out_error = "Path is not a directory: " + args_.path;
+		if (args_.path.find('*') != std::string::npos || args_.path.find('?') != std::string::npos) {
+			out_error = std::format("Path is not a directory: '{}'. To search for files matching a glob pattern, use fs_find_files(pattern='{}').", args_.path, args_.path);
+		} else {
+			out_error = "Path is not a directory: " + args_.path;
+		}
 		return false;
 	}
 	return true;

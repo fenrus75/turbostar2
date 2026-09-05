@@ -33,26 +33,6 @@ nlohmann::json fs_glob_validator::get_parameters_schema() const {
 }
 
 bool fs_glob_validator::validate_args_impl(const nlohmann::json& args, const agentlib::tool_context& ctx, std::string& out_error) const {
-    std::string untrusted_pattern;
-    if (args.contains("pattern") && args["pattern"].is_string()) {
-        untrusted_pattern = args["pattern"].get<std::string>();
-    } else if (args.contains("query") && args["query"].is_string()) {
-        untrusted_pattern = args["query"].get<std::string>();
-    } else {
-        out_error = "Missing or invalid 'pattern' string parameter.";
-        return false;
-    }
-
-    if (untrusted_pattern.empty()) {
-        out_error = "Parameter 'pattern' cannot be empty.";
-        return false;
-    }
-
-    if (untrusted_pattern.find("..") != std::string::npos) {
-        out_error = "Glob pattern cannot contain '..' directory traversal.";
-        return false;
-    }
-
     std::string untrusted_path = ".";
     if (args.contains("path") && args["path"].is_string()) {
         untrusted_path = args["path"].get<std::string>();
@@ -68,6 +48,31 @@ bool fs_glob_validator::validate_args_impl(const nlohmann::json& args, const age
 
     if (untrusted_path.find("..") != std::string::npos) {
         out_error = "Directory path cannot contain '..' directory traversal.";
+        return false;
+    }
+
+    std::string untrusted_pattern;
+    if (args.contains("pattern") && args["pattern"].is_string()) {
+        untrusted_pattern = args["pattern"].get<std::string>();
+    } else if (args.contains("query") && args["query"].is_string()) {
+        untrusted_pattern = args["query"].get<std::string>();
+    } else {
+        // Hybrid default: if an explicit subdirectory is targeted (not root), default pattern to "*"
+        if (untrusted_path != "." && untrusted_path != "./") {
+            untrusted_pattern = "*";
+        } else {
+            out_error = "Missing 'pattern' parameter. If you want to list the contents of a directory, use fs_list_dir(path='...'). To search files recursively across the project, specify a pattern (e.g. pattern='*.cpp').";
+            return false;
+        }
+    }
+
+    if (untrusted_pattern.empty()) {
+        out_error = "Parameter 'pattern' cannot be empty.";
+        return false;
+    }
+
+    if (untrusted_pattern.find("..") != std::string::npos) {
+        out_error = "Glob pattern cannot contain '..' directory traversal.";
         return false;
     }
 

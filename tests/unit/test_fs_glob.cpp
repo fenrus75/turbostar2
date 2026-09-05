@@ -132,6 +132,22 @@ int main()
 			assert(res.find("docs/design.md") != std::string::npos);
 		}
 
+		// 13. Hybrid pattern default: path specified without pattern defaults to "*"
+		{
+			std::string args = "{\"path\": \"docs\"}";
+			std::string res = registry.execute_tool("fs_find_files", args, ctx);
+			assert(res.find("docs/design.md") != std::string::npos);
+			assert(res.find("fs_list_dir") != std::string::npos);
+		}
+
+		// 14. Omitted pattern with root path fails with informative guidance towards fs_list_dir
+		{
+			std::string args = "{\"path\": \".\"}";
+			auto prep = registry.prepare_tool("fs_find_files", args, ctx);
+			assert(prep.tool == nullptr);
+			assert(prep.error_message.find("fs_list_dir") != std::string::npos);
+		}
+
 		std::cout << "fs_glob tool verified successfully!" << std::endl;
 	}
 

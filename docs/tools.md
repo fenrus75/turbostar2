@@ -102,9 +102,9 @@ Turbostar supports tracing all LLM tool calls and outputs to sequential log file
     *   `pattern` *(string, optional)*: Optional pattern (string or RE2 regular expression) to filter test names.
 
 ### `fs_glob`
-*   **Description:** Returns a list of files matching a glob pattern (e.g. `src/**/*.cpp`, supporting double-star ** wildcards) relative to the project root. Can be scoped to a directory with `path`.
+*   **Description:** Returns a list of files matching a glob pattern (e.g. `src/**/*.cpp`, supporting double-star ** wildcards) relative to the project root. Can be scoped to a directory with `path`. Registered with alias `fs_find_files`. When `path` is an explicit directory (not `.`), `pattern` defaults to `*`.
 *   **Arguments:**
-    *   `pattern` *(string, required)*: The glob pattern to search for (e.g. `*.cpp`, `src/**/*.cpp`, or `*turbomcp*`). Alias: `query`.
+    *   `pattern` *(string, optional)*: The glob pattern to search for (e.g. `*.cpp`, `src/**/*.cpp`, or `*turbomcp*`). Alias: `query`. Required when `path` is project root (`.`), defaults to `*` when `path` is a subdirectory.
     *   `path` *(string, optional)*: The root directory to search within, relative to the project root or VFS URI (e.g. `src`, `build`, or `include://`). Defaults to project root (`.`). Aliases: `search_path`, `directory`.
 
 ### `fs_man`
