@@ -77,11 +77,15 @@ int main()
 			assert(res.find("Error: No crashdump found") != std::string::npos);
 		}
 
-		// 3. Stage 1 validation failure: reject empty crash_id (based on review recommendations)
+		// 3. Optional crash_id: defaults to most recent crash
 		{
-			auto prep = registry.prepare_tool("crashdump_get_info", "{\"crash_id\": \"\"}", ctx);
-			assert(prep.tool == nullptr); // This will fail initially as expected
-			assert(!prep.error_message.empty());
+			std::string res = registry.execute_tool("crashdump_get_info", "{}", ctx);
+			assert(res.find("Mock crash dump backtrace detail") != std::string::npos);
+			assert(res.find("test123") != std::string::npos);
+
+			std::string res_empty = registry.execute_tool("crashdump_get_info", "{\"crash_id\": \"\"}", ctx);
+			assert(res_empty.find("Mock crash dump backtrace detail") != std::string::npos);
+			assert(res_empty.find("test123") != std::string::npos);
 		}
 
 		// 4. Stage 1 validation failure: reject unexpected properties (based on review recommendations)
@@ -154,6 +158,44 @@ int main()
 			assert(res.find("crash handling") != std::string::npos);
 			std::cout << "GDB enriched report generation verified!" << std::endl;
 		}
+	}
+
+	// 7. Verify crashdump_manager::format_crash_notification format for 1 crash and multiple crashes
+	{
+		crashdump_manager::get_instance().clear_all();
+
+		// Case A: 0 crashes
+		assert(crashdump_manager::format_crash_notification(0).empty());
+
+		// Case B: Exactly 1 crash
+		fs::path c1 = fs::path(dump_dir) / "crash_test999";
+		fs::create_directories(c1);
+		{
+			std::ofstream ofs(c1 / "info.txt");
+			ofs << "Signal: 11 (SIGSEGV)\nExecutable: /bin/test_app\n";
+		}
+		crashdump_manager::get_instance().refresh("dummy_hash");
+
+		std::string notif1 = crashdump_manager::format_crash_notification(1);
+		std::cout << "1 crash notification:\n" << notif1 << "\n";
+		assert(notif1.find("CRASH DETECTED: Application crashed (Crash ID: test999)") != std::string::npos);
+		assert(notif1.find("Please use 'crashdump_get_info' with crash_id 'test999'") != std::string::npos);
+
+		// Case C: Multiple crashes (2 crashes)
+		fs::path c2 = fs::path(dump_dir) / "crash_test1000";
+		fs::create_directories(c2);
+		{
+			std::ofstream ofs(c2 / "info.txt");
+			ofs << "Signal: 6 (SIGABRT)\nExecutable: /bin/test_app2\n";
+		}
+		crashdump_manager::get_instance().refresh("dummy_hash");
+
+		std::string notif2 = crashdump_manager::format_crash_notification(2);
+		std::cout << "2 crashes notification:\n" << notif2 << "\n";
+		assert(notif2.find("2 crash(es) occurred during execution") != std::string::npos);
+		assert(notif2.find("test999") != std::string::npos);
+		assert(notif2.find("test1000") != std::string::npos);
+		assert(notif2.find("Please use 'crashdump_list' and 'crashdump_get_info' to investigate.") != std::string::npos);
 	}
 
 	// Clean up mock files

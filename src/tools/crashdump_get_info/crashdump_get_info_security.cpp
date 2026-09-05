@@ -26,14 +26,14 @@ class crashdump_get_info_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Retrieves detailed backtrace analysis and info for a specific crashdump by process ID (PID).";;
+		return "Retrieves detailed backtrace analysis and info for a specific crashdump by process ID (PID). If crash_id is omitted or empty, retrieves information for the most recent crash.";
 	}
 
 	nlohmann::json get_parameters_schema() const override
 	{
 		return {{"type", "object"},
-			{"properties", {{"crash_id", {{"type", "string"}, {"description", "The Crash ID of the crashed executable."}}}}},
-			{"required", nlohmann::json::array({"crash_id"})}};
+			{"properties", {{"crash_id", {{"type", "string"}, {"description", "Optional. The Crash ID of the crashed executable. If omitted, defaults to the most recent crash."}}}}},
+			{"required", nlohmann::json::array()}};
 	}
 
       protected:
@@ -42,8 +42,8 @@ class crashdump_get_info_validator : public agentlib::tool_validator
 	{
 		try {
 			crashdump_get_info_raw_args raw_args = args_json.get<crashdump_get_info_raw_args>();
-			if (raw_args.crash_id.empty() || raw_args.crash_id.length() > 128) {
-				out_error = "Validation Error: crash_id must be non-empty and max 128 characters.";
+			if (raw_args.crash_id.length() > 128) {
+				out_error = "Validation Error: crash_id must be max 128 characters.";
 				return false;
 			}
 			for (char c : raw_args.crash_id) {

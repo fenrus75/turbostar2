@@ -35,7 +35,7 @@ public:
 
 
     // Returns a markdown formatted string of newly discovered crashdumps, or empty string if none.
-    std::string refresh(std::string_view project_hash);
+    std::string refresh(std::string_view project_hash = "");
     const std::vector<crashdump_info>& get_crashdumps() const;
     std::vector<crashdump_info> get_crashdumps_for_cookie(std::string_view cookie) const;
     std::vector<crashdump_info> get_crashdumps_for_run(int run_id) const;

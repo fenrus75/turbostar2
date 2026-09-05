@@ -40,11 +40,22 @@ bool crashdump_get_info_tool::validate_runtime(const agentlib::tool_context & /*
 
 std::string crashdump_get_info_tool::execute(agentlib::tool_context & /*ctx*/)
 {
-	const auto &dumps = crashdump_manager::get_instance().get_crashdumps();
+	auto &mgr = crashdump_manager::get_instance();
+	mgr.refresh();
+	const auto &dumps = mgr.get_crashdumps();
+	if (dumps.empty()) {
+		return "Error: No crashdumps found.";
+	}
+
+	std::string target_id = args_.crash_id;
+	if (target_id.empty()) {
+		target_id = dumps.back().crash_id;
+	}
+
 	for (const auto &dump : dumps) {
-		if (dump.crash_id == args_.crash_id) {
+		if (dump.crash_id == target_id) {
 			std::string result = dump.raw_info;
-			if (has_coredump(args_.crash_id)) {
+			if (has_coredump(target_id)) {
 				result += std::format(
 					"\n\n### Optional: Interactive Coredump Debugging\n"
 					"The backtrace and parameters above already show the crash location, call stack, and function arguments.\n"
@@ -57,7 +68,7 @@ std::string crashdump_get_info_tool::execute(agentlib::tool_context & /*ctx*/)
 					"  }}\n"
 					"}}\n"
 					"```\n",
-					args_.crash_id
+					target_id
 				);
 			}
 			if (result.length() > 20000) {
@@ -67,7 +78,7 @@ std::string crashdump_get_info_tool::execute(agentlib::tool_context & /*ctx*/)
 			return fs_utils::wrap_prompt_untrusted_data_tag("crashdump_get_info_result", result);
 		}
 	}
-	return "Error: No crashdump found with ID " + args_.crash_id;
+	return "Error: No crashdump found with ID " + target_id;
 }
 
 } // namespace tools

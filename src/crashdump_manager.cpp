@@ -831,14 +831,20 @@ std::string crashdump_manager::format_crash_notification(size_t crash_count)
 	if (crash_count == 0)
 		return "";
 
-	const auto &dumps = get_instance().get_crashdumps();
+	auto &mgr = get_instance();
+	mgr.refresh();
+	const auto &dumps = mgr.get_crashdumps();
 	if (crash_count <= dumps.size()) {
 		return format_crash_notification(std::span<const crashdump_info>(dumps.data() + dumps.size() - crash_count, crash_count));
 	}
 
 	if (crash_count == 1) {
+		if (!dumps.empty()) {
+			return format_crash_notification(std::span<const crashdump_info>(dumps.data() + dumps.size() - 1, 1));
+		}
 		return "\n\nCRASH DETECTED: 1 new crash occurred during execution. Please use 'crashdump_get_info' to investigate stack trace and details.";
 	}
+
 	return std::format(
 	    "\n\nCRASH DETECTED: {} new crash(es) occurred during execution. Please use 'crashdump_list' and 'crashdump_get_info' to investigate.",
 	    crash_count);

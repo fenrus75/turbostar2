@@ -458,9 +458,9 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
     *   `limit` *(integer, optional)*: Optional limit on the maximum number of recent crash dumps to return. Defaults to 20.
 
 ### `crashdump_get_info`
-*   **Description:** Retrieves detailed backtrace analysis and info for a specific crashdump by process ID (PID).
+*   **Description:** Retrieves detailed backtrace analysis and info for a specific crashdump by Crash ID (PID). If `crash_id` is omitted, retrieves information for the most recent crash.
 *   **Arguments:**
-    *   `pid` *(integer, required)*: The Process ID (PID) of the crashed executable.
+    *   `crash_id` *(string, optional)*: The Crash ID of the crashed executable. If omitted, defaults to the latest crash.
 
 ### `crashdump_clear`
 *   **Description:** Deletes all crash dumps from the disk and clears the internal crash dump list. Use this to remove stale crash dumps after they have been investigated.
