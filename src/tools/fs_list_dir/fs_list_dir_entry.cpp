@@ -1,11 +1,8 @@
 #include <algorithm>
-#include <cstring>
-#include <fcntl.h>
 #include <filesystem>
+#include <format>
 #include <sstream>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#include <string>
 #include <vector>
 #include "agentlib/document_provider.h"
 #include "agentlib/virtual_file_system.h"
@@ -177,75 +174,92 @@ list_dir_result fs_list_dir_tool::scan_local_disk(const std::string &path, agent
 			  [](const auto &a, const auto &b) { return a.path().filename().string() < b.path().filename().string(); });
 
 		for (const auto &entry : fs_entries) {
-			std::string path_str = entry.path().string();
-			std::string resolved_path;
-			std::string error;
+			try {
+				std::string path_str = entry.path().string();
+				std::string resolved_path;
+				std::string error;
 
-			// Strict visibility check: Only list files the LLM is allowed to read.
-			if (!ctx.fs_security.validate_access(path_str, agentlib::access_type::read, resolved_path, error)) {
-				continue;
-			}
+				// Strict visibility check: Only list files the LLM is allowed to read.
+				if (!ctx.fs_security.validate_access(path_str, agentlib::access_type::read, resolved_path, error)) {
+					continue;
+				}
 
-			dir_entry_metadata meta;
-			meta.filename = entry.path().filename().string();
+				dir_entry_metadata meta;
+				meta.filename = entry.path().filename().string();
 
-			if (entry.is_symlink()) {
-				meta.type = 'L';
-			} else if (entry.is_directory()) {
-				meta.type = 'D';
-			} else if (entry.is_regular_file()) {
-				meta.type = 'F';
+				std::error_code ec;
+				bool is_sym = entry.is_symlink(ec);
+				if (is_sym) {
+					meta.type = 'L';
+				} else if (entry.is_directory(ec)) {
+					meta.type = 'D';
+				} else if (entry.is_regular_file(ec)) {
+					meta.type = 'F';
 
-				// Check if the file is currently open in active editor buffers
-				// to report the live line count and byte size including unsaved user modifications.
-				bool read_from_editor = false;
-				if (ctx.doc_provider) {
-					auto doc_snapshot = ctx.doc_provider->get_open_document(resolved_path);
-					if (doc_snapshot) {
-						read_from_editor = true;
-						size_t line_count = doc_snapshot->get_line_count();
-						meta.size_lines = std::to_string(line_count);
+					// Check if the file is currently open in active editor buffers
+					// to report the live line count and byte size including unsaved user modifications.
+					bool read_from_editor = false;
+					if (ctx.doc_provider) {
+						auto doc_snapshot = ctx.doc_provider->get_open_document(resolved_path);
+						if (doc_snapshot) {
+							read_from_editor = true;
+							size_t line_count = doc_snapshot->get_line_count();
+							meta.size_lines = std::to_string(line_count);
 
-						// Sum up characters in each line plus 1 byte for each newline character to get byte size.
-						size_t total_bytes = 0;
-						for (size_t i = 0; i < line_count; ++i) {
-							total_bytes += doc_snapshot->get_line_text(i).length() + 1;
+							// Sum up characters in each line plus 1 byte for each newline character to get byte size.
+							size_t total_bytes = 0;
+							for (size_t i = 0; i < line_count; ++i) {
+								total_bytes += doc_snapshot->get_line_text(i).length() + 1;
+							}
+							meta.size_bytes = std::to_string(total_bytes);
 						}
-						meta.size_bytes = std::to_string(total_bytes);
+					}
+
+					if (!read_from_editor) {
+						auto sz = entry.file_size(ec);
+						if (!ec) {
+							meta.size_bytes = std::to_string(sz);
+							meta.size_lines = fs_utils::count_lines_in_file(resolved_path);
+						}
 					}
 				}
 
-				if (!read_from_editor) {
-					meta.size_bytes = std::to_string(entry.file_size());
-					meta.size_lines = fs_utils::count_lines_in_file(resolved_path);
+				// For symlinks, use symlink_status to check the link itself rather than following target
+				std::filesystem::file_status st = is_sym ? entry.symlink_status(ec) : entry.status(ec);
+				if (ec || !std::filesystem::status_known(st)) {
+					meta.permissions = "---";
+				} else {
+					auto p = st.permissions();
+					meta.permissions += (p & std::filesystem::perms::owner_read) != std::filesystem::perms::none ? "R" : "-";
+
+					// Only report Write capability if not a symlink, host OS permission allows write,
+					// AND the sandbox security manager allows it.
+					bool os_can_write = (p & std::filesystem::perms::owner_write) != std::filesystem::perms::none;
+					bool agent_can_write = false;
+					if (os_can_write && !is_sym) {
+						std::string dump_path;
+						std::string dump_err;
+						agent_can_write =
+						    ctx.fs_security.validate_access(path_str, agentlib::access_type::write, dump_path, dump_err);
+					}
+					meta.permissions += agent_can_write ? "W" : "-";
+					meta.permissions += (p & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ? "X" : "-";
 				}
-			}
 
-			auto p = entry.status().permissions();
-			meta.permissions += (p & std::filesystem::perms::owner_read) != std::filesystem::perms::none ? "R" : "-";
-
-			// Only report Write capability if the host OS permission is set AND the sandbox security manager allows it.
-			bool os_can_write = (p & std::filesystem::perms::owner_write) != std::filesystem::perms::none;
-			bool agent_can_write = false;
-			if (os_can_write) {
-				std::string dump_path;
-				std::string dump_err;
-				agent_can_write =
-				    ctx.fs_security.validate_access(path_str, agentlib::access_type::write, dump_path, dump_err);
-			}
-			meta.permissions += agent_can_write ? "W" : "-";
-			meta.permissions += (p & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ? "X" : "-";
-
-			// Inspect the file format and append file details.
-			if (args_.rich_metadata && entry.is_regular_file()) {
-				std::string desc = mime::detect_file_description(resolved_path);
-				if (desc != "Unknown file type") {
-					meta.details = desc;
-					std::replace(meta.details.begin(), meta.details.end(), '|', ',');
+				// Inspect the file format and append file details.
+				if (args_.rich_metadata && meta.type == 'F') {
+					std::string desc = mime::detect_file_description(resolved_path);
+					if (desc != "Unknown file type") {
+						meta.details = desc;
+						std::replace(meta.details.begin(), meta.details.end(), '|', ',');
+					}
 				}
-			}
 
-			result.entries.push_back(meta);
+				result.entries.push_back(meta);
+			} catch (const std::exception &) {
+				// Resilient per-entry error handling: skip or continue scanning rest of directory
+				continue;
+			}
 		}
 	} catch (const std::exception &e) {
 		result.success = false;
@@ -278,7 +292,7 @@ std::string fs_list_dir_tool::format_entries_table(const list_dir_result &result
 	}
 
 	std::stringstream ss;
-	ss << "### Directory Listing: " << result.directory_name << "\n\n";
+	ss << "### Directory Listing: " << escape_markdown_table_cell(result.directory_name) << "\n\n";
 
 	if (result.total_items == 0) {
 		ss << "*Directory is empty.*\n";

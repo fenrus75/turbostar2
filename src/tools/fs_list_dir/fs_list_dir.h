@@ -66,7 +66,7 @@ class fs_list_dir_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Lists the contents of a directory as a Markdown table (Type, Size, Lines, Permissions, and optional rich metadata). ALWAYS use this tool to list directory contents instead of running 'ls' in a shell command.";;
+		return "Lists the contents of a directory as a Markdown table (Type, Size, Lines, Permissions, and optional rich metadata). ALWAYS use this tool to list directory contents instead of running 'ls' in a shell command.";
 	}
 	nlohmann::json get_parameters_schema() const override;
 

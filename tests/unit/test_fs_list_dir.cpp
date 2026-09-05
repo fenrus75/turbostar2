@@ -1,5 +1,7 @@
+// Tested source file: src/tools/fs_list_dir/fs_list_dir_entry.cpp
 #include "test_watchdog.h"
 #include <cassert>
+#include <fstream>
 #include <iostream>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
@@ -58,7 +60,7 @@ int main()
 		{
 			std::string args = "{\"path\": \"" + project_root + "/src\", \"unexpected_arg\": 123}";
 			auto prep = registry.prepare_tool("fs_list_dir", args, ctx);
-			assert(prep.tool == nullptr); // This will fail initially as expected
+			assert(prep.tool == nullptr); // Rejects unexpected arguments per schema
 			assert(!prep.error_message.empty());
 		}
 
@@ -121,6 +123,52 @@ int main()
 			std::string args = "{\"path\": \"src/*.cpp\"}";
 			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
 			assert(res.find("fs_find_files(pattern='src/*.cpp')") != std::string::npos);
+		}
+
+		// 7. Robustness: Directory containing unreadable file and broken symlink does not abort entire listing
+		{
+			std::filesystem::path test_dir = std::filesystem::path(project_root) / "test_unreadable_dir";
+			std::filesystem::create_directories(test_dir);
+			std::filesystem::path regular_file = test_dir / "a_regular.txt";
+			{
+				std::ofstream ofs(regular_file);
+				ofs << "hello world\n";
+			}
+			std::filesystem::path broken_symlink = test_dir / "b_broken_link";
+			std::error_code ec;
+			std::filesystem::create_symlink(test_dir / "nonexistent_target.txt", broken_symlink, ec);
+
+			std::filesystem::path unreadable_file = test_dir / "c_unreadable.txt";
+			{
+				std::ofstream ofs(unreadable_file);
+				ofs << "secret\n";
+			}
+			std::filesystem::permissions(unreadable_file, std::filesystem::perms::none, std::filesystem::perm_options::replace, ec);
+
+			std::string args = "{\"path\": \"" + test_dir.string() + "\"}";
+			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
+
+			// Clean up permissions so cleanup succeeds
+			std::filesystem::permissions(unreadable_file, std::filesystem::perms::owner_all, std::filesystem::perm_options::replace, ec);
+			std::filesystem::remove_all(test_dir, ec);
+
+			std::cout << "Robustness test result:\n" << res << std::endl;
+			assert(res.find("Error reading directory") == std::string::npos);
+			assert(res.find("a_regular.txt") != std::string::npos);
+			assert(res.find("b_broken_link") != std::string::npos);
+			// Symlinks should not report misleading RWX permissions from target status
+			assert(res.find("b_broken_link | L |  |  | RWX") == std::string::npos);
+		}
+
+		// 8. Empty directory returns empty notice
+		{
+			std::filesystem::path empty_dir = std::filesystem::path(project_root) / "test_empty_dir";
+			std::error_code ec;
+			std::filesystem::create_directories(empty_dir, ec);
+			std::string args = "{\"path\": \"" + empty_dir.string() + "\"}";
+			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
+			std::filesystem::remove(empty_dir, ec);
+			assert(res.find("Directory is empty") != std::string::npos);
 		}
 
 		std::cout << "fs_list_dir tool verified successfully." << std::endl;

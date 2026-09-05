@@ -8,6 +8,7 @@ namespace tools
 nlohmann::json fs_list_dir_validator::get_parameters_schema() const
 {
 	return {{"type", "object"},
+		{"additionalProperties", false},
 		{"properties",
 		 {{"path", {{"type", "string"}, {"description", "The path to the directory, relative to the project root."}}},
 		  {"rich_metadata",
