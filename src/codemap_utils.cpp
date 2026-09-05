@@ -8,6 +8,7 @@
 #include <fstream>
 #include <format>
 #include <regex>
+#include <set>
 #include <sstream>
 #include <unordered_set>
 #include <re2/re2.h>
@@ -1018,6 +1019,395 @@ std::string find_matching_impl_file(const std::string &header_path, agentlib::to
 	}
 
 	return "";
+}
+
+std::string find_matching_header_file(const std::string &impl_path, agentlib::tool_context &/*ctx*/)
+{
+	std::filesystem::path ip(impl_path);
+	std::string ext = ip.extension().string();
+	std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+	if (ext != ".cpp" && ext != ".c" && ext != ".cc" && ext != ".cxx") {
+		return "";
+	}
+
+	std::vector<std::string> candidates = {
+		(ip.parent_path() / (ip.stem().string() + ".h")).string(),
+		(ip.parent_path() / (ip.stem().string() + ".hpp")).string(),
+		(ip.parent_path() / (ip.stem().string() + ".hh")).string(),
+		(ip.parent_path() / (ip.stem().string() + ".hxx")).string()
+	};
+
+	std::error_code ec;
+	for (const auto &cand : candidates) {
+		if (std::filesystem::exists(cand, ec) && is_project_file(cand) && fs_utils::is_regular_file(cand)) {
+			return cand;
+		}
+	}
+
+	return "";
+}
+
+static bool is_ident_char(char c)
+{
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+}
+
+static bool contains_identifier(std::string_view text, std::string_view ident)
+{
+	if (ident.empty() || text.empty())
+		return false;
+	size_t pos = 0;
+	while ((pos = text.find(ident, pos)) != std::string_view::npos) {
+		bool left_ok = (pos == 0 || !is_ident_char(text[pos - 1]));
+		bool right_ok = (pos + ident.size() >= text.size() || !is_ident_char(text[pos + ident.size()]));
+		if (left_ok && right_ok) {
+			return true;
+		}
+		pos += ident.size();
+	}
+	return false;
+}
+
+static const lsp_manager::symbol_node* find_class_symbol_node(
+	const std::vector<lsp_manager::symbol_node> &nodes,
+	std::string_view target_class_name)
+{
+	for (const auto &node : nodes) {
+		if ((node.kind == 5 || node.kind == 23) && node.name == target_class_name) {
+			return &node;
+		}
+		auto child_match = find_class_symbol_node(node.children, target_class_name);
+		if (child_match) {
+			return child_match;
+		}
+	}
+	return nullptr;
+}
+
+std::string extract_class_context_preview(
+	const std::string &cpp_path,
+	int start_line,
+	int end_line,
+	const std::vector<std::string> &read_lines,
+	agentlib::tool_context &ctx)
+{
+	std::filesystem::path ip(cpp_path);
+	std::string ext = ip.extension().string();
+	std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+	if (ext != ".cpp" && ext != ".c" && ext != ".cc" && ext != ".cxx") {
+		return "";
+	}
+	if (read_lines.empty()) {
+		return "";
+	}
+
+	auto symbols = get_document_codemap_symbols(cpp_path, ctx, 1);
+	const codemap_symbol_info *enclosing = find_enclosing_symbol(symbols, start_line);
+	if (!enclosing && end_line > start_line) {
+		enclosing = find_enclosing_symbol(symbols, end_line);
+	}
+	if (!enclosing) {
+		for (int l = start_line; l <= end_line; ++l) {
+			enclosing = find_enclosing_symbol(symbols, l);
+			if (enclosing) break;
+		}
+	}
+
+	std::string simple_class_name;
+	std::string method_name;
+	if (enclosing) {
+		std::string enclosing_name = enclosing->name;
+		size_t last_colons = enclosing_name.rfind("::");
+		if (last_colons != std::string::npos) {
+			std::string class_scope = enclosing_name.substr(0, last_colons);
+			method_name = enclosing_name.substr(last_colons + 2);
+			size_t prev_colons = class_scope.rfind("::");
+			simple_class_name = (prev_colons != std::string::npos) ? class_scope.substr(prev_colons + 2) : class_scope;
+		} else if (enclosing->kind_str == "Class" || enclosing->kind_str == "Struct" || enclosing->kind_str == "Class/Struct") {
+			simple_class_name = enclosing_name;
+		}
+	}
+
+	if (simple_class_name.empty()) {
+		static const re2::RE2 class_method_re(R"(([A-Za-z_][A-Za-z0-9_]*)::([A-Za-z_][A-Za-z0-9_]*))");
+		std::string c_name, m_name;
+		for (const auto &line : read_lines) {
+			if (re2::RE2::PartialMatch(line, class_method_re, &c_name, &m_name)) {
+				if (c_name != "std" && c_name != "boost" && c_name != "tools" && c_name != "agentlib" && c_name != "re2" && c_name != "fs_utils") {
+					simple_class_name = c_name;
+					method_name = m_name;
+					break;
+				}
+			}
+		}
+	}
+
+	if (simple_class_name.empty()) {
+		return "";
+	}
+
+	// Locate header file using LSP definition query
+	std::string header_path;
+	int lsp_line = -1;
+	int lsp_col = -1;
+
+	for (size_t i = 0; i < read_lines.size(); ++i) {
+		size_t pos = read_lines[i].find(simple_class_name + "::");
+		if (pos != std::string::npos) {
+			lsp_line = (start_line + static_cast<int>(i)) - 1;
+			lsp_col = static_cast<int>(pos);
+			break;
+		}
+	}
+
+	if (lsp_line < 0 && enclosing && enclosing->start_line > 0) {
+		std::string line_content;
+		if (ctx.doc_provider && ctx.doc_provider->get_open_document(cpp_path)) {
+			auto doc = ctx.doc_provider->get_open_document(cpp_path);
+			if (enclosing->start_line <= static_cast<int>(doc->get_line_count())) {
+				line_content = doc->get_line_text(enclosing->start_line - 1);
+			}
+		} else {
+			std::ifstream f(cpp_path);
+			std::string l;
+			int cur = 1;
+			while (cur <= enclosing->start_line && std::getline(f, l)) {
+				if (cur == enclosing->start_line) {
+					line_content = l;
+					break;
+				}
+				cur++;
+			}
+		}
+		size_t pos = line_content.find(simple_class_name + "::");
+		if (pos != std::string::npos) {
+			lsp_line = enclosing->start_line - 1;
+			lsp_col = static_cast<int>(pos);
+		}
+	}
+
+	if (lsp_line >= 0) {
+		auto locs = project_manager::get_instance().lsp_query_definition(cpp_path, lsp_line, lsp_col);
+		for (const auto &loc : locs) {
+			std::filesystem::path lp(loc.path);
+			std::string lext = lp.extension().string();
+			std::transform(lext.begin(), lext.end(), lext.begin(), ::tolower);
+			if (lext == ".h" || lext == ".hpp" || lext == ".hh" || lext == ".hxx") {
+				header_path = loc.path;
+				break;
+			}
+		}
+	}
+
+	if (header_path.empty()) {
+		header_path = find_matching_header_file(cpp_path, ctx);
+	}
+
+	if (header_path.empty()) {
+		return "";
+	}
+
+	if (!is_project_file(header_path) || !fs_utils::is_regular_file(header_path)) {
+		return "";
+	}
+
+	std::string safe_header_path = header_path;
+
+	std::vector<std::string> header_lines;
+	if (ctx.doc_provider && ctx.doc_provider->get_open_document(safe_header_path)) {
+		auto doc = ctx.doc_provider->get_open_document(safe_header_path);
+		size_t count = doc->get_line_count();
+		header_lines.reserve(count);
+		for (size_t i = 0; i < count; ++i) {
+			header_lines.push_back(doc->get_line_text(i));
+		}
+	} else {
+		std::ifstream f(safe_header_path);
+		if (!f.is_open()) return "";
+		std::string l;
+		while (std::getline(f, l)) {
+			if (!l.empty() && l.back() == '\r') l.pop_back();
+			header_lines.push_back(l);
+		}
+	}
+
+	if (header_lines.empty()) {
+		return "";
+	}
+
+	struct member_item {
+		std::string name;
+		int kind;
+		int start_line;
+		int end_line;
+	};
+
+	std::vector<member_item> candidate_fields;
+	std::vector<member_item> candidate_methods;
+
+	std::string header_content;
+	for (const auto &l : header_lines) {
+		header_content += l;
+		header_content += "\n";
+	}
+	project_manager::get_instance().lsp_open_document(safe_header_path, header_content);
+	auto root_symbols = project_manager::get_instance().lsp_query_document_symbols(safe_header_path);
+	const lsp_manager::symbol_node *class_node = find_class_symbol_node(root_symbols, simple_class_name);
+
+	if (class_node) {
+		for (const auto &child : class_node->children) {
+			int start = child.range.start_y + 1;
+			int end = child.range.end_y + 1;
+			if (child.kind == 8 || child.kind == 13 || child.kind == 7) {
+				candidate_fields.push_back({child.name, child.kind, start, end});
+			} else if (child.kind == 6 || child.kind == 12 || child.kind == 9) {
+				candidate_methods.push_back({child.name, child.kind, start, end});
+			}
+		}
+	} else {
+		// Fallback parse of class in header
+		std::string class_decl = "class " + simple_class_name;
+		std::string struct_decl = "struct " + simple_class_name;
+		int brace_depth = 0;
+		bool in_class = false;
+
+		for (size_t i = 0; i < header_lines.size(); ++i) {
+			const auto &line = header_lines[i];
+			int line_num = static_cast<int>(i + 1);
+			if (!in_class) {
+				if (line.find(class_decl) != std::string::npos || line.find(struct_decl) != std::string::npos) {
+					in_class = true;
+					for (char c : line) {
+						if (c == '{') brace_depth++;
+						else if (c == '}') brace_depth--;
+					}
+				}
+			} else {
+				for (char c : line) {
+					if (c == '{') brace_depth++;
+					else if (c == '}') {
+						brace_depth--;
+						if (brace_depth <= 0) {
+							in_class = false;
+							break;
+						}
+					}
+				}
+				if (in_class && brace_depth >= 1) {
+					std::string_view trimmed = line;
+					size_t first = trimmed.find_first_not_of(" \t");
+					if (first != std::string_view::npos) {
+						trimmed.remove_prefix(first);
+						if (trimmed.starts_with("//") || trimmed.starts_with("/*") || trimmed.starts_with("*")) {
+							continue;
+						}
+						if (trimmed.starts_with("public:") || trimmed.starts_with("protected:") || trimmed.starts_with("private:")) {
+							continue;
+						}
+						size_t sc = trimmed.find(';');
+						if (sc != std::string_view::npos) {
+							std::string_view decl = trimmed.substr(0, sc);
+							size_t paren = decl.find('(');
+							if (paren != std::string_view::npos) {
+								size_t name_end = decl.find_last_not_of(" \t", paren - 1);
+								if (name_end != std::string_view::npos) {
+									size_t name_start = decl.find_last_of(" \t*&", name_end);
+									std::string mname = std::string(decl.substr(name_start == std::string_view::npos ? 0 : name_start + 1, name_end - (name_start == std::string_view::npos ? 0 : name_start + 1) + 1));
+									if (!mname.empty() && is_ident_char(mname[0])) {
+										candidate_methods.push_back({mname, 6, line_num, line_num});
+									}
+								}
+							} else {
+								size_t eq = decl.find('{');
+								if (eq == std::string_view::npos) eq = decl.find('=');
+								std::string_view var_part = (eq != std::string_view::npos) ? decl.substr(0, eq) : decl;
+								size_t name_end = var_part.find_last_not_of(" \t");
+								if (name_end != std::string_view::npos) {
+									size_t name_start = var_part.find_last_of(" \t*&", name_end);
+									std::string vname = std::string(var_part.substr(name_start == std::string_view::npos ? 0 : name_start + 1, name_end - (name_start == std::string_view::npos ? 0 : name_start + 1) + 1));
+									if (!vname.empty() && is_ident_char(vname[0])) {
+										candidate_fields.push_back({vname, 8, line_num, line_num});
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	std::string combined_read_text;
+	for (const auto &l : read_lines) {
+		combined_read_text += l;
+		combined_read_text += "\n";
+	}
+
+	std::vector<member_item> used_fields;
+	std::vector<member_item> used_methods;
+
+	for (const auto &f : candidate_fields) {
+		if (used_fields.size() >= 10) break;
+		if (contains_identifier(combined_read_text, f.name)) {
+			used_fields.push_back(f);
+		}
+	}
+
+	for (const auto &m : candidate_methods) {
+		if (used_methods.size() >= 5) break;
+		if (contains_identifier(combined_read_text, m.name)) {
+			used_methods.push_back(m);
+		}
+	}
+
+	if (used_fields.empty() && used_methods.empty()) {
+		return "";
+	}
+
+	std::sort(used_fields.begin(), used_fields.end(), [](const member_item &a, const member_item &b) {
+		return a.start_line < b.start_line;
+	});
+	std::sort(used_methods.begin(), used_methods.end(), [](const member_item &a, const member_item &b) {
+		return a.start_line < b.start_line;
+	});
+
+	std::string display_header_path = normalize_display_path(safe_header_path, &ctx);
+	std::stringstream ss;
+	ss << std::format("### Class Context: `{}` (extracted from `{}` for referenced members):\n",
+			  simple_class_name, display_header_path);
+	ss << "```cpp\n";
+
+	if (!used_fields.empty()) {
+		ss << "// Referenced member variables:\n";
+		std::set<int> emitted_lines;
+		for (const auto &f : used_fields) {
+			for (int ln = f.start_line; ln <= f.end_line && ln <= static_cast<int>(header_lines.size()); ++ln) {
+				if (emitted_lines.insert(ln).second) {
+					ss << std::format("{}: {}\n", ln, header_lines[ln - 1]);
+				}
+			}
+		}
+	}
+
+	if (!used_methods.empty()) {
+		if (!used_fields.empty()) {
+			ss << "\n";
+		}
+		ss << "// Referenced member functions:\n";
+		std::set<int> emitted_lines;
+		for (const auto &m : used_methods) {
+			int max_l = std::min(m.end_line, m.start_line + 2);
+			for (int ln = m.start_line; ln <= max_l && ln <= static_cast<int>(header_lines.size()); ++ln) {
+				if (emitted_lines.insert(ln).second) {
+					ss << std::format("{}: {}\n", ln, header_lines[ln - 1]);
+				}
+			}
+		}
+	}
+
+	ss << "```\n";
+	return ss.str();
 }
 
 const codemap_symbol_info* find_enclosing_symbol(const std::vector<codemap_symbol_info> &symbols, int line_number)

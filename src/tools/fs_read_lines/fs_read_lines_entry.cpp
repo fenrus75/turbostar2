@@ -297,6 +297,13 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 			is_header = true;
 		}
 
+		if (!is_header && !read_whole_file) {
+			std::string class_preview = extract_class_context_preview(args_.safe_path, start, adjusted_end, read_res.lines, ctx);
+			if (!class_preview.empty()) {
+				ss << "\n" << class_preview;
+			}
+		}
+
 		if (!read_whole_file) {
 			auto symbols = get_document_codemap_symbols(args_.safe_path, ctx, /*min_lines=*/1);
 			if (!symbols.empty()) {

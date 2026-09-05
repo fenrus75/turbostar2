@@ -85,6 +85,17 @@ std::string format_codemap_table(
 // Find matching implementation file for a header file (e.g. .h -> .cpp, .hpp -> .cpp)
 std::string find_matching_impl_file(const std::string &header_path, agentlib::tool_context &ctx);
 
+// Find matching header file for an implementation file (e.g. .cpp -> .h, .cpp -> .hpp)
+std::string find_matching_header_file(const std::string &impl_path, agentlib::tool_context &ctx);
+
+// Extract mini class definition preview (referenced member variables and called member methods)
+std::string extract_class_context_preview(
+	const std::string &cpp_path,
+	int start_line,
+	int end_line,
+	const std::vector<std::string> &read_lines,
+	agentlib::tool_context &ctx);
+
 // Find the innermost symbol enclosing line_number in a list of codemap symbols
 const codemap_symbol_info* find_enclosing_symbol(const std::vector<codemap_symbol_info> &symbols, int line_number);
 

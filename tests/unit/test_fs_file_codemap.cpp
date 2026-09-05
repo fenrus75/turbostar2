@@ -1,3 +1,4 @@
+// Tested source file: src/codemap_utils.cpp
 #include "test_watchdog.h"
 #include "agentlib/tool_context.h"
 #include "agentlib/tool_registry.h"
@@ -324,6 +325,70 @@ int main()
 		assert(augmented.find("test_sample_impl.cpp:5:20: error: secondary error on same line\n") != std::string::npos);
 		assert(augmented.find("test_sample_impl.cpp:5:20: error: secondary error on same line [symbol:") == std::string::npos);
 		assert(augmented.find("test_sample_impl.cpp:9:12: warning: unused variable 'x' [symbol: sample_bar (lines 8-11)]") != std::string::npos);
+	}
+
+	// 12. Test find_matching_header_file
+	{
+		std::string found_hdr = tools::find_matching_header_file(impl_file, ctx);
+		assert(!found_hdr.empty());
+		assert(found_hdr.find("test_sample_impl.h") != std::string::npos);
+	}
+
+	// 13. Test extract_class_context_preview and fs_read_lines class context preview
+	{
+		std::string preview_hdr = "test_preview_class.h";
+		std::ofstream out_h(preview_hdr);
+		out_h << "#pragma once\n"
+		      << "#include <string>\n\n"
+		      << "class preview_widget {\n"
+		      << "public:\n"
+		      << "    void render();\n"
+		      << "    void reset();\n"
+		      << "    void unused_method();\n"
+		      << "private:\n"
+		      << "    int width_;\n"
+		      << "    int height_;\n"
+		      << "    std::string title_;\n"
+		      << "    int unused_field_;\n"
+		      << "};\n";
+		out_h.close();
+
+		std::string preview_cpp = "test_preview_class.cpp";
+		std::ofstream out_c(preview_cpp);
+		out_c << "#include \"test_preview_class.h\"\n\n"
+		      << "void preview_widget::render()\n"
+		      << "{\n"
+		      << "    width_ = 80;\n"
+		      << "    height_ = 24;\n"
+		      << "    reset();\n"
+		      << "}\n\n";
+		for (int i = 0; i < 30; ++i) {
+			out_c << "// Padding line " << i << "\n";
+		}
+		out_c << "\nvoid preview_widget::reset()\n"
+		      << "{\n"
+		      << "    title_ = \"default\";\n"
+		      << "}\n";
+		out_c.close();
+
+		// Execute fs_read_lines for lines 3 to 8 of test_preview_class.cpp
+		nlohmann::json read_args = {{"path", preview_cpp}, {"start_line", 3}, {"end_line", 8}};
+		std::string read_out = registry.execute_tool("fs_read_lines", read_args.dump(), ctx);
+		std::cout << "fs_read_lines class context preview output:\n" << read_out << "\n";
+
+		assert(read_out.find("### Class Context: `preview_widget`") != std::string::npos);
+		assert(read_out.find("test_preview_class.h") != std::string::npos);
+		assert(read_out.find("// Referenced member variables:") != std::string::npos);
+		assert(read_out.find("width_") != std::string::npos);
+		assert(read_out.find("height_") != std::string::npos);
+		assert(read_out.find("title_") == std::string::npos);
+		assert(read_out.find("unused_field_") == std::string::npos);
+		assert(read_out.find("// Referenced member functions:") != std::string::npos);
+		assert(read_out.find("reset()") != std::string::npos);
+		assert(read_out.find("unused_method") == std::string::npos);
+
+		std::remove(preview_hdr.c_str());
+		std::remove(preview_cpp.c_str());
 	}
 
 	// Cleanup
