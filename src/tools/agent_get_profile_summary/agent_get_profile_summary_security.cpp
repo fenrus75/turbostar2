@@ -37,7 +37,7 @@ class agent_get_profile_summary_validator : public agentlib::tool_validator
 		    {"properties",
 		     {{"run_id",
 		       {{"description",
-			 "Optional execution run ID returned by agent_start_app (e.g., '1', '2', or 'editor'). Omit for latest profile."},
+			 "Optional execution run ID returned by run_executable (e.g., '1', '2', or 'editor'). Omit for latest profile."},
 			{"oneOf", nlohmann::json::array({nlohmann::json{{"type", "string"}}, nlohmann::json{{"type", "integer"}}})}}},
 		      {"limit",
 		       {{"type", "integer"},

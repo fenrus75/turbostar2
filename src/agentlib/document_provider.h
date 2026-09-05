@@ -80,7 +80,7 @@ public:
     virtual void check_files_changed() {}
 
     // Unified app execution and debugging agent APIs
-    virtual start_app_result start_app(std::string_view /*args*/, bool /*use_debugger*/, bool /*auto_continue*/ = true, bool /*collect_performance*/ = false) { return {-1, -1}; }
+    virtual start_app_result start_app(std::string_view /*args*/, bool /*use_debugger*/, bool /*auto_continue*/ = true, bool /*collect_performance*/ = false, std::string_view /*binary*/ = "") { return {-1, -1}; }
     virtual start_app_result start_coredump_gdb(std::string_view /*crash_id*/) { return {-1, -1}; }
     virtual bool write_to_run(int /*run_id*/, std::string_view /*data*/) { return false; }
     virtual run_screenshot_data get_run_screenshot(int /*run_id*/) { return {}; }

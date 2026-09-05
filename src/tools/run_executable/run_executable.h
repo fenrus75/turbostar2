@@ -1,24 +1,25 @@
 #pragma once
 
-#include "../../agentlib/llm_tool_action.h"
-#include "../../agentlib/tool_context.h"
+#include "agentlib/llm_tool_action.h"
+#include "agentlib/tool_context.h"
 #include <string>
 
 namespace tools
 {
 
-struct agent_start_app_args {
+struct run_executable_args {
+	std::string binary;
 	std::string args;
 	bool debugger{false};
 	int wait_for_time{0};
 	bool collect_performance{false};
 };
 
-class agent_start_app_tool : public agentlib::llm_tool_action
+class run_executable_tool : public agentlib::llm_tool_action
 {
       public:
-	explicit agent_start_app_tool(agent_start_app_args args)
-	    : llm_tool_action("Starting application"), args_(std::move(args))
+	explicit run_executable_tool(run_executable_args args)
+	    : llm_tool_action("Running executable"), args_(std::move(args))
 	{
 	}
 
@@ -26,7 +27,7 @@ class agent_start_app_tool : public agentlib::llm_tool_action
 	std::string execute(agentlib::tool_context &ctx) override;
 
       private:
-	agent_start_app_args args_;
+	run_executable_args args_;
 };
 
 } // namespace tools

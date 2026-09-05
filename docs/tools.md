@@ -605,10 +605,12 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the main application executable, relative to the `build/` directory.
 
-### `agent_start_app`
-*   **Description:** Starts the main application executable, optionally under GDB debugging with split screen or CPU performance sampling. Returns JSON with app_run_id and gdb_run_id. In GDB mode, send `continue` to gdb to start application execution.
+### `run_executable`
+*   **Description:** Runs a binary/executable located within the project directory (or the configured main application if omitted), optionally under GDB debugging with split screen or CPU performance sampling. Returns JSON with app_run_id and gdb_run_id. In GDB mode, send `continue` to gdb to start application execution.
 *   **Arguments:**
-    *   `args` *(string, optional)*: Command line arguments to pass to the application.
+    *   `binary` *(string, optional)*: Optional relative or build path to the executable within the project directory (e.g., `'crash'`, `'build/crash'`, `'turbostar'`). Defaults to the configured main application binary. Aliased by `executable` and `path`.
+    *   `arguments` *(string, optional)*: Command line arguments to pass to the application. Aliased by `args`.
+    *   `args` *(string, optional)*: Command line arguments to pass to the application. Alias for `arguments`.
     *   `debugger` *(boolean, optional)*: If true, starts the application with a split screen debugger (GDB/GDBServer). Defaults to false.
     *   `wait_for_time` *(integer, optional)*: Optional time in seconds to wait for the application to finish or exit after starting. Defaults to 0 (async execution).
     *   `collect_performance` *(boolean, optional)*: If true, enables CPU cycle performance profiling sampling via `LD_PRELOAD` during execution. Defaults to false.
@@ -616,45 +618,45 @@ These tools allow the agent to interact with the project's Git repository.
 ### `agent_get_profile_summary`
 *   **Description:** Returns top functions and source lines ranked by CPU cycle percentage from the active or specified performance profile run.
 *   **Arguments:**
-    *   `run_id` *(string or integer, optional)*: The execution run ID returned by `agent_start_app` (e.g. `'run_1'`, `1`, or `'editor'`). If omitted or empty, returns the active profile from the most recent run.
+    *   `run_id` *(string or integer, optional)*: The execution run ID returned by `run_executable` (e.g. `'run_1'`, `1`, or `'editor'`). If omitted or empty, returns the active profile from the most recent run.
     *   `limit` *(integer, optional)*: Maximum number of top functions and lines to return. Defaults to 10.
 
 ### `agent_get_profile_details`
 *   **Description:** Returns line-by-line performance profiling details with source lines and CPU cycle percentages (file_percentage or function_percentage) for a target source file or function name.
 *   **Arguments:**
-    *   `run_id` *(string or integer, optional)*: The execution run ID returned by `agent_start_app` (e.g. `'run_1'`, `1`, or `'editor'`). If omitted or empty, returns details for the active profile from the most recent run.
+    *   `run_id` *(string or integer, optional)*: The execution run ID returned by `run_executable` (e.g. `'run_1'`, `1`, or `'editor'`). If omitted or empty, returns details for the active profile from the most recent run.
     *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Source file path to filter line performance samples.
     *   `function_name` *(string, optional)*: Function name to filter line performance samples.
 
 ### `agent_wait_for_app`
 *   **Description:** Waits until a running process has either ended/crashed or reached a settled state without output for at least 500ms. Returns JSON with execution status, is_alive, age_ms, and optional crash_notification.
 *   **Arguments:**
-    *   `run_id` *(integer, required)*: The unique execution ID returned by `agent_start_app`.
+    *   `run_id` *(integer, required)*: The unique execution ID returned by `run_executable`.
     *   `type` *(string, optional)*: The wait condition: `'ended'` (default) waits for process termination or crash, `'settled'` waits for either termination or 500ms of no output.
     *   `timeout_sec` *(integer, optional)*: Maximum time in seconds to wait before returning status `'timeout'`. Defaults to 30.
 
 ### `agent_debug_coredump`
-*   **Description:** Launches a GDB session attached to the coredump for a given crash_id. Returns JSON containing gdb_run_id. Next, send `bt` via `agent_write_to_run` to locate crash frame N, then `frame <N>` to inspect variables, and clean up with `agent_terminate_run\.
+*   **Description:** Launches a GDB session attached to the coredump for a given crash_id. Returns JSON containing gdb_run_id. Next, send `bt` via `agent_write_to_run` to locate crash frame N, then `frame <N>` to inspect variables, and clean up with `agent_terminate_run`.
 *   **Arguments:**
     *   `crash_id` *(string, required)*: The unique crash ID from the crash database to debug.
 
 ### `agent_write_to_run`
 *   **Description:** Writes/injects keyboard input sequences into the application or debugger PTY master stream (e.g. sending commands to GDB).
 *   **Arguments:**
-    *   `run_id` *(integer, required)*: The unique execution ID returned by `agent_start_app`.
+    *   `run_id` *(integer, required)*: The unique execution ID returned by `run_executable`.
     *   `data` *(string, required)*: The raw string data or escape sequence to inject.
     *   `output` *(boolean, optional)*: If true, records terminal output, waits for the terminal state to settle, and returns the recorded text in the tool response. Defaults to false.
 
 ### `agent_get_run_screenshot`
 *   **Description:** Returns a snapshot/screenshot of the terminal buffer grid, cursor coordinates, process alive status (is_alive), and optional crash_notification for a given run ID.
 *   **Arguments:**
-    *   `run_id` *(integer, required)*: The unique execution ID returned by `agent_start_app`.
+    *   `run_id` *(integer, required)*: The unique execution ID returned by `run_executable`.
     *   `settle` *(boolean, optional)*: If true, waits up to 3 seconds for terminal content to settle before capturing screenshot.
 
 ### `agent_terminate_run`
 *   **Description:** Terminates/stops a running process and closes its window based on its run ID.
 *   **Arguments:**
-    *   `run_id` *(integer, required)*: The unique execution ID returned by `agent_start_app`.
+    *   `run_id` *(integer, required)*: The unique execution ID returned by `run_executable`.
 
 ---
 

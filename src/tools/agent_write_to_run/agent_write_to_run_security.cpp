@@ -49,7 +49,7 @@ class agent_write_to_run_validator : public agentlib::tool_validator
 		return {
 		    {"type", "object"},
 		    {"properties",
-		     {{"run_id", {{"type", "integer"}, {"description", "The unique execution ID returned by agent_start_app."}}},
+		     {{"run_id", {{"type", "integer"}, {"description", "The unique execution ID returned by run_executable."}}},
 		      {"data", {{"type", "string"}, {"description", "The raw string data or escape sequence to inject."}}},
 		      {"output", {{"type", "boolean"}, {"description", "Optional. If true, returns the new application output that results from this command. Highly recommended for gdb session."}}}}},
 		    {"required", nlohmann::json::array({"run_id", "data"})}};

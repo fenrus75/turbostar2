@@ -134,7 +134,7 @@ To allow developers to quickly cycle through performance bottlenecks across open
 
 To enable LLM agents to compare "before" vs. "after" optimization benchmarks across multiple runs:
 - **In-Memory Run Dictionary**: `perf_manager` maintains a dictionary `saved_reports_[run_id]` mapping string IDs (e.g. `"run_1"`, `"run_2"`, `"editor"`) to resolved `perf_profile_report` objects.
-- **Exact `run_id` Alignment**: Tool queries and background sessions use the exact string execution ID returned by `agent_start_app` (or numeric string format `"run_N"`). Re-running an app session under an existing `run_id` automatically overwrites that report.
+- **Exact `run_id` Alignment**: Tool queries and background sessions use the exact string execution ID returned by `run_executable` (or numeric string format `"run_N"`). Re-running an app session under an existing `run_id` automatically overwrites that report.
 - **Tool Schema Parameters**: `agent_get_profile_summary` and `agent_get_profile_details` accept an optional `run_id` argument (string or int in JSON). Omitting `run_id` or passing `"latest"` returns the active profile for editor visualization.
 
 ---

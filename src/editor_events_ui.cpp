@@ -77,7 +77,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 	}
 
 	if (ev.type == event_type::agent_start_app) {
-		auto res = start_app(ev.payload, ev.alt_pressed, ev.auto_continue, ev.collect_performance);
+		auto res = start_app(ev.payload, ev.alt_pressed, ev.auto_continue, ev.collect_performance, ev.target_binary);
 		if (ev.generic_promise) {
 			auto prom = std::static_pointer_cast<std::promise<agentlib::start_app_result>>(ev.generic_promise);
 			prom->set_value(res);
@@ -873,7 +873,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 	}
 }
 
-agentlib::start_app_result editor::start_app(std::string_view args, bool use_debugger, bool auto_continue, bool collect_performance)
+agentlib::start_app_result editor::start_app(std::string_view args, bool use_debugger, bool auto_continue, bool collect_performance, std::string_view binary)
 {
 	if (!is_main_thread()) {
 		auto prom = std::make_shared<std::promise<agentlib::start_app_result>>();
@@ -884,27 +884,67 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 		ev.alt_pressed = use_debugger;
 		ev.auto_continue = auto_continue;
 		ev.collect_performance = collect_performance;
+		ev.target_binary = std::string(binary);
 		ev.generic_promise = prom;
 		global_queue_.push(ev);
 		return fut.get();
 	}
 
 	auto &logger = event_logger::get_instance();
-	logger.log(std::format("start_app called with args: '{}', debugger: {}", args, use_debugger ? "true" : "false"));
+	logger.log(std::format("start_app called with binary: '{}', args: '{}', debugger: {}", binary, args, use_debugger ? "true" : "false"));
 
-	std::string exe = config_manager::get_instance().get_main_executable();
+	std::string exe;
+	if (!binary.empty()) {
+		exe = std::string(binary);
+	} else {
+		exe = config_manager::get_instance().get_main_executable();
+	}
+
 	if (exe.empty()) {
-		logger.log("start_app failed: no main executable configured.");
+		logger.log("start_app failed: no binary specified and no main executable configured.");
 		return {-1, -1};
 	}
 
 	std::string project_root = project_manager::get_instance().get_project_root();
-	std::filesystem::path build_exe = std::filesystem::path(project_root) / "build" / exe;
-	if (!std::filesystem::exists(build_exe)) {
-		build_exe = std::filesystem::path(project_root) / exe;
-		if (!std::filesystem::exists(build_exe)) {
-			build_exe = exe;
-		}
+	std::filesystem::path proj_root_path = std::filesystem::weakly_canonical(project_root);
+
+	std::string norm_exe = exe;
+	if (norm_exe.starts_with("./")) {
+		norm_exe = norm_exe.substr(2);
+	}
+
+	std::string stripped_exe = norm_exe;
+	if (stripped_exe.starts_with("build/")) {
+		stripped_exe = stripped_exe.substr(6);
+	}
+
+	std::filesystem::path build_exe;
+	std::filesystem::path c1 = proj_root_path / "build" / stripped_exe;
+	std::filesystem::path c2 = proj_root_path / stripped_exe;
+	std::filesystem::path c3 = proj_root_path / norm_exe;
+	std::filesystem::path c4 = std::filesystem::path(exe);
+
+	if (std::filesystem::exists(c1)) {
+		build_exe = c1;
+	} else if (std::filesystem::exists(c2)) {
+		build_exe = c2;
+	} else if (std::filesystem::exists(c3)) {
+		build_exe = c3;
+	} else if (c4.is_absolute() && std::filesystem::exists(c4)) {
+		build_exe = c4;
+	} else {
+		build_exe = c1;
+	}
+
+	// Security validation: verify canonical executable path resides within project_root
+	std::filesystem::path canonical_exe = std::filesystem::weakly_canonical(build_exe);
+	std::string proj_root_str = proj_root_path.string();
+	if (!proj_root_str.ends_with('/')) {
+		proj_root_str += '/';
+	}
+	if (!canonical_exe.string().starts_with(proj_root_str) && canonical_exe != proj_root_path) {
+		logger.log(std::format("start_app rejected: executable '{}' is outside project root '{}'", canonical_exe.string(), proj_root_str));
+		return {-1, -1};
 	}
 
 	// Clean up any existing terminal windows
@@ -1008,7 +1048,7 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 		auto tw = std::make_unique<ui::terminal_window>(app_id, 0, 1, cols, lines - 2, "Run Output");
 		tw->set_display_priority(10);
 
-		std::string raw_cmd = build_exe.string();
+		std::string raw_cmd = fs_utils::escape_shell_arg(build_exe.string());
 		if (!args.empty()) {
 			raw_cmd += std::format(" {}", args);
 		}

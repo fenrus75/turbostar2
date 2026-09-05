@@ -98,7 +98,7 @@ class editor : public agentlib::document_provider
 	void set_focus(focus_target target, std::string_view source = "unknown");
 
 	// unified app execution and debugging agent APIs
-	agentlib::start_app_result start_app(std::string_view args, bool use_debugger, bool auto_continue = true, bool collect_performance = false) override;
+	agentlib::start_app_result start_app(std::string_view args, bool use_debugger, bool auto_continue = true, bool collect_performance = false, std::string_view binary = "") override;
 	agentlib::start_app_result start_coredump_gdb(std::string_view crash_id) override;
 	bool write_to_run(int run_id, std::string_view data) override;
 	agentlib::run_screenshot_data get_run_screenshot(int run_id) override;

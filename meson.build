@@ -986,13 +986,13 @@ test_agent_set_status = executable('test_agent_set_status',
   include_directories: inc)
 test('unit_test_agent_set_status', test_agent_set_status, suite: 'agent')
 
-test_agent_start_app = executable('test_agent_start_app',
-  ['tests/unit/test_agent_start_app.cpp',
-   'src/tools/agent_start_app/agent_start_app_entry.cpp',
-   'src/tools/agent_start_app/agent_start_app_security.cpp'],
+test_run_executable = executable('test_run_executable',
+  ['tests/unit/test_run_executable.cpp',
+   'src/tools/run_executable/run_executable_entry.cpp',
+   'src/tools/run_executable/run_executable_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_agent_start_app', test_agent_start_app, suite: 'agent')
+test('unit_test_run_executable', test_run_executable, suite: 'agent')
 
 test_agent_debug_coredump = executable('test_agent_debug_coredump',
   ['tests/unit/test_agent_debug_coredump.cpp',

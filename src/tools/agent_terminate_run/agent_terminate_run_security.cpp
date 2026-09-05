@@ -34,7 +34,7 @@ class agent_terminate_run_validator : public agentlib::tool_validator
 		return {
 		    {"type", "object"},
 		    {"properties",
-		     {{"run_id", {{"type", "integer"}, {"description", "The unique execution ID returned by agent_start_app."}}}}},
+		     {{"run_id", {{"type", "integer"}, {"description", "The unique execution ID returned by run_executable."}}}}},
 		    {"required", nlohmann::json::array({"run_id"})}};
 	}
 

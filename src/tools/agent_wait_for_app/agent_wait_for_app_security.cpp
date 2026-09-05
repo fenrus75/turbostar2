@@ -38,7 +38,7 @@ class agent_wait_for_app_validator : public agentlib::tool_validator
 		return {
 		    {"type", "object"},
 		    {"properties",
-		     {{"run_id", {{"type", "integer"}, {"description", "The unique execution ID returned by agent_start_app."}}},
+		     {{"run_id", {{"type", "integer"}, {"description", "The unique execution ID returned by run_executable."}}},
 		      {"type", {{"type", "string"}, {"enum", {"ended", "settled"}}, {"default", "ended"}, {"description", "The wait condition: 'ended' waits for process termination or crash, 'settled' waits for either termination or 500ms of no output."}}},
 		      {"timeout_sec", {{"type", "integer"}, {"default", 30}, {"description", "Maximum time in seconds to wait before returning status 'timeout'."}}}}},
 		    {"required", nlohmann::json::array({"run_id"})}};

@@ -1,4 +1,4 @@
-#include "agent_start_app.h"
+#include "run_executable.h"
 #include "fs_utils.h"
 #include "perf_manager.h"
 #include <format>
@@ -7,7 +7,7 @@
 namespace tools
 {
 
-bool agent_start_app_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const
+bool run_executable_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const
 {
 	if (!ctx.doc_provider) {
 		out_error = "Execution Error: No document provider context available.";
@@ -16,14 +16,14 @@ bool agent_start_app_tool::validate_runtime(const agentlib::tool_context &ctx, s
 	return true;
 }
 
-std::string agent_start_app_tool::execute(agentlib::tool_context &ctx)
+std::string run_executable_tool::execute(agentlib::tool_context &ctx)
 {
 	if (!ctx.doc_provider) {
 		set_failure(ctx, "Internal Error: document provider is not available");
 		return "Error: Internal engine type mismatch.";
 	}
 
-	agentlib::start_app_result res = ctx.doc_provider->start_app(args_.args, args_.debugger, false, args_.collect_performance);
+	agentlib::start_app_result res = ctx.doc_provider->start_app(args_.args, args_.debugger, false, args_.collect_performance, args_.binary);
 	if (res.app_run_id < 0) {
 		set_failure(ctx, "Failed to start application.");
 		return "Error: Failed to start application process.";
@@ -58,7 +58,7 @@ std::string agent_start_app_tool::execute(agentlib::tool_context &ctx)
 		    report.total_samples, run_id_str);
 	}
 
-	return fs_utils::wrap_prompt_untrusted_data_tag("agent_start_app_result", output.dump(2));
+	return fs_utils::wrap_prompt_untrusted_data_tag("run_executable_result", output.dump(2));
 }
 
 } // namespace tools
