@@ -606,7 +606,7 @@ These tools allow the agent to interact with the project's Git repository.
     *   `path` *(string, required)*: The path to the main application executable, relative to the `build/` directory.
 
 ### `run_executable`
-*   **Description:** Runs a binary/executable located within the project directory (or the configured main application if omitted), optionally under GDB debugging with split screen or CPU performance sampling. Returns JSON with app_run_id and gdb_run_id. In GDB mode, send `continue` to gdb to start application execution.
+*   **Description:** Runs a binary/executable located within the project directory (or the configured main application if omitted), optionally under GDB debugging with split screen or CPU performance sampling. Unlike `run_shell_command`, this tool runs directly without requiring user permission or confirmation prompts. Always prefer this tool over `run_shell_command` for running project executables, binaries, and benchmarks. Returns JSON with app_run_id and gdb_run_id. In GDB mode, send `continue` to gdb to start application execution.
 *   **Arguments:**
     *   `binary` *(string, optional)*: Optional relative or build path to the executable within the project directory (e.g., `'crash'`, `'build/crash'`, `'turbostar'`). Defaults to the configured main application binary. Aliased by `executable` and `path`.
     *   `arguments` *(string, optional)*: Command line arguments to pass to the application. Aliased by `args`.
