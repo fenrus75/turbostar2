@@ -248,6 +248,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 # Done
 
 ## 4-09-2026
+- Test watchdog signal handler chaining: chained `test_watchdog` crash handlers to previous handlers (e.g. `libturbocatch.so`) so watchdog unwinds the stack while allowing `libturbocatch` to capture full crashdumps (registers, maps, backtrace, coredump) during assertion aborts and fatal crashes. (Completed)
 - `fs_read_lines` mini class context preview: when reading class method implementations in C/C++ files, automatically queries LSP definition to locate the class header, extracts referenced member variables (up to 10) and sibling methods (up to 5) actually used in the read lines, and presents them in a formatted Class Context code block (`<line_num>: <code_text>`) above the codemap table. (Completed)
 - `fs_glob` directory scoping and aliases: added optional `path` parameter (with aliases `search_path`, `directory`) to `fs_glob` allowing scoping to subdirectories or VFS URIs without pruning `build` or `tmp` directories when explicitly targeted; registered `fs_find_files` as an alias tool in the tool registry; updated `run_shell_command` resteer to recommend `fs_glob(pattern=\"...\", path=\"...\")`. (Completed)
 

@@ -1,3 +1,4 @@
+// Tested source file: src/crash_catcher/crash_catcher.c
 #include "test_watchdog.h"
 #include <cassert>
 #include <cstdlib>
@@ -16,7 +17,7 @@ namespace fs = std::filesystem;
 
 int main(int argc, char **argv)
 {
-	test_watchdog::setup_watchdog(30, false);
+	test_watchdog::setup_watchdog(30, true);
 #if defined(__SANITIZE_ADDRESS__) || (defined(__has_feature) && __has_feature(address_sanitizer))
 	std::cout << "Skipping test_assert_fail because it is incompatible with AddressSanitizer (ASan)." << std::endl;
 	return 77;

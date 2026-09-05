@@ -177,9 +177,11 @@ static void alarm_handler(int sig, siginfo_t *info, void *ucontext)
 	_exit(128 + SIGALRM);
 }
 
+inline struct sigaction g_prev_crash_sa[32];
+inline bool g_has_prev_crash_sa[32]{false};
+
 static void crash_handler(int sig, siginfo_t *info, void *ucontext)
 {
-	(void)info; (void)ucontext;
 	const char *sig_name = "UNKNOWN";
 	if (sig == SIGSEGV) sig_name = "SIGSEGV - Segmentation Fault";
 	else if (sig == SIGABRT) sig_name = "SIGABRT - Aborted";
@@ -192,6 +194,22 @@ static void crash_handler(int sig, siginfo_t *info, void *ucontext)
 		 sig, sig_name, get_current_tid(), get_elapsed_seconds());
 	write(STDOUT_FILENO, msg, strlen(msg));
 	print_stack_trace();
+
+	// If a previous handler was installed (e.g. libturbocatch.so crash dump collector), chain to it!
+	if (sig >= 0 && sig < 32 && g_has_prev_crash_sa[sig]) {
+		const struct sigaction &prev = g_prev_crash_sa[sig];
+		void *handler_ptr = (void *)prev.sa_sigaction;
+		void *crash_handler_ptr = (void *)crash_handler;
+		if (handler_ptr != nullptr && handler_ptr != crash_handler_ptr) {
+			if ((prev.sa_flags & SA_SIGINFO) && prev.sa_sigaction) {
+				prev.sa_sigaction(sig, info, ucontext);
+				return;
+			} else if (!(prev.sa_flags & SA_SIGINFO) && prev.sa_handler != SIG_DFL && prev.sa_handler != SIG_IGN) {
+				prev.sa_handler(sig);
+				return;
+			}
+		}
+	}
 
 	// Restore default handler and re-raise signal to cleanly terminate process
 	signal(sig, SIG_DFL);
@@ -219,11 +237,15 @@ inline void setup_watchdog(unsigned int seconds = 30, bool catch_crashes = true,
 		crash_sa.sa_sigaction = crash_handler;
 		crash_sa.sa_flags = SA_SIGINFO | SA_RESETHAND;
 		sigemptyset(&crash_sa.sa_mask);
-		sigaction(SIGSEGV, &crash_sa, nullptr);
-		sigaction(SIGABRT, &crash_sa, nullptr);
-		sigaction(SIGILL, &crash_sa, nullptr);
-		sigaction(SIGFPE, &crash_sa, nullptr);
-		sigaction(SIGBUS, &crash_sa, nullptr);
+		int fatal_sigs[] = {SIGSEGV, SIGABRT, SIGILL, SIGFPE, SIGBUS};
+		for (int s : fatal_sigs) {
+			struct sigaction prev_sa;
+			memset(&prev_sa, 0, sizeof(prev_sa));
+			if (sigaction(s, &crash_sa, &prev_sa) == 0) {
+				g_prev_crash_sa[s] = prev_sa;
+				g_has_prev_crash_sa[s] = true;
+			}
+		}
 	}
 }
 
