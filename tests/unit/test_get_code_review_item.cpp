@@ -1,3 +1,4 @@
+// Tested source file: src/tools/get_code_review_item/get_code_review_item_entry.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
@@ -78,6 +79,15 @@ void test_get_tool_execution()
 	assert(res_j["id"].get<int>() == 2);
 	assert(res_j["state"].get<std::string>() == "resolved");
 	assert(res_j["resolved_in_commit"].get<std::string>() == "commit123");
+
+	// Test 4: Fetch item using canonical 'item_id' parameter
+	args_json = "{\"item_id\": 1}";
+	agent->set_role(agent_role::developer);
+	res_str = registry.execute_tool("get_code_review_item", args_json, ctx);
+	res_j = nlohmann::json::parse(fs_utils::unwrap_prompt_untrusted_data_tag(res_str));
+	assert(res_j["id"].get<int>() == 1);
+	assert(res_j.contains("item_id") && res_j["item_id"].get<int>() == 1);
+	assert(res_j["state"].get<std::string>() == "new");
 
 	// Cleanup
 	fs_utils::set_override_project_dir("");

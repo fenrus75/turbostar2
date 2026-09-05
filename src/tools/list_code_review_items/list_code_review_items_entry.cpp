@@ -21,14 +21,23 @@ bool list_code_review_items_tool::validate_runtime(const agentlib::tool_context&
 std::string list_code_review_items_tool::execute(agentlib::tool_context& ctx)
 {
 	bool include_resolved = args_.include_resolved;
+	std::string state_filter = args_.state;
+
+	if (state_filter == "all" || state_filter == "resolved" || state_filter == "verified-fixed") {
+		include_resolved = true;
+	}
 
 	// Enforce visibility restriction: only verifier can see resolved items
 	agentlib::agent_role role = ctx.active_agent ? ctx.active_agent->get_role() : ctx.properties.role;
 	if (role != agentlib::agent_role::verifier) {
 		include_resolved = false;
+		if (state_filter == "resolved" || state_filter == "verified-fixed") {
+			set_success(ctx);
+			return fs_utils::wrap_prompt_untrusted_data_tag("list_code_review_items_result", "No code review items found matching the filters.");
+		}
 	}
 
-	auto items = codereview_manager::get_instance().list_code_review_items(args_.filename, args_.severity, include_resolved);
+	auto items = codereview_manager::get_instance().list_code_review_items(args_.filename, args_.severity, include_resolved, state_filter);
 
 	if (items.empty()) {
 		set_success(ctx);

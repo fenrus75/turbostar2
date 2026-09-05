@@ -834,7 +834,7 @@ These tools allow the agent to interact with the project's Git repository.
 ### `update_code_review_item`
 *   **Description:** Updates fields (state, severity, description, proposed_fix) of an existing code review item in the database.
 *   **Arguments:**
-    *   `id` *(integer, required)*: The unique ID of the code review item.
+    *   `item_id` *(integer, required)*: The unique ID of the code review item (`id` is accepted as an alias).
     *   `state` *(string, optional)*: The new state (`'invalid'`, `'new'`, `'confirmed'`, `'disputed'`, `'stale'`, `'resolved'`, `'verified-fixed'`).
     *   `severity` *(string, optional)*: The new severity.
     *   `description` *(string, optional)*: Updated description.
@@ -843,25 +843,27 @@ These tools allow the agent to interact with the project's Git repository.
 ### `confirm_code_review_item`
 *   **Description:** Confirms the correctness of a code review item (new -> confirmed) or verifies its resolution (resolved -> verified-fixed). Only accessible by the verifier role.
 *   **Arguments:**
-    *   `id` *(integer, required)*: The unique ID of the code review item to confirm/verify.
+    *   `item_id` *(integer, required)*: The unique ID of the code review item to confirm/verify (`id` is accepted as an alias).
 
 ### `resolve_code_review_item`
-*   **Description:** Resolves a code review item by marking its state as `resolved` and recording the commit hash where the fix was implemented. Only accessible by developer and verifier roles.
+*   **Description:** Resolves a code review item (or multiple items in batch) by marking their state as `resolved` and recording the commit hash where the fix was implemented. Only accessible by developer and verifier roles.
 *   **Arguments:**
-    *   `id` *(integer, required)*: The unique ID of the code review item to resolve.
+    *   `item_id` *(integer, optional)*: The unique ID of the code review item to resolve (`id` is accepted as an alias).
+    *   `item_ids` *(array of integers, optional)*: Array of code review item IDs to resolve together in a single batch (`ids` is accepted as an alias). Either `item_id` or `item_ids` must be provided.
     *   `commit_hash` *(string, required)*: The git commit hash containing the resolution/fix.
 
 ### `list_code_review_items`
-*   **Description:** Lists all code review items as a compact Markdown table, with optional filters for filename, severity, and resolution status.
+*   **Description:** Lists all code review items as a compact Markdown table, with optional filters for filename, severity, state, and resolution status.
 *   **Arguments:**
     *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt'). Optional file path prefix to filter items.
     *   `severity` *(string, optional)*: Optional severity filter (one of: `nit`, `low`, `medium`, `high`, `critical`). Specifying a level returns all items of that severity or more severe.
+    *   `state` *(string, optional)*: Optional state filter (one of: `active` (default), `new`, `confirmed`, `disputed`, `stale`, `resolved`, `verified-fixed`, `all`).
     *   `include_resolved` *(boolean, optional)*: If true, lists resolved/verified items (restricted to verifiers).
 
 ### `get_code_review_item`
 *   **Description:** Retrieves the full details of a specific code review item by its unique ID. Access to resolved items is restricted to the verifier role.
 *   **Arguments:**
-    *   `id` *(integer, required)*: The unique ID of the code review item.
+    *   `item_id` *(integer, required)*: The unique ID of the code review item (`id` is accepted as an alias).
 
 ### `security_review_with_agent`
 *   **Description:** Spawns a dedicated security code review subagent (equipped with security scanning tools) to perform an audit of a set of files.

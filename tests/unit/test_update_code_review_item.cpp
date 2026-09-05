@@ -1,3 +1,4 @@
+// Tested source file: src/tools/update_code_review_item/update_code_review_item_entry.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
@@ -116,6 +117,16 @@ void test_update_tool_execution()
 	prep = registry.prepare_tool("update_code_review_item", bad_severity_args, ctx);
 	assert(prep.tool == nullptr);
 	assert(!prep.error_message.empty());
+
+	// Valid update using canonical item_id parameter
+	std::string item_id_args = "{"
+	                           "\"item_id\": 1,"
+	                           "\"description\": \"Updated via item_id\""
+	                           "}";
+	res_str = registry.execute_tool("update_code_review_item", item_id_args, ctx);
+	assert(!res_str.starts_with("Error: "));
+	item_opt = codereview_manager::get_instance().get_code_review_item(1);
+	assert(item_opt->description == "Updated via item_id");
 
 	// Cleanup
 	fs_utils::set_override_project_dir("");

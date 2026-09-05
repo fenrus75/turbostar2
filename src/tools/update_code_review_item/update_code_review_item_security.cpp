@@ -24,12 +24,23 @@ bool update_code_review_item_validator::validate_args_impl(
 	std::string& out_error
 ) const {
 	try {
-		update_code_review_item_raw_args parsed = raw_json.get<update_code_review_item_raw_args>();
-
-		if (parsed.id <= 0) {
-			out_error = "ID must be a positive integer greater than 0.";
+		int id = 0;
+		if (raw_json.contains("item_id") && raw_json["item_id"].is_number_integer()) {
+			id = raw_json["item_id"].get<int>();
+		} else if (raw_json.contains("id") && raw_json["id"].is_number_integer()) {
+			id = raw_json["id"].get<int>();
+		} else {
+			out_error = "Missing required argument: 'item_id'.";
 			return false;
 		}
+
+		if (id <= 0) {
+			out_error = "item_id must be a positive integer greater than 0.";
+			return false;
+		}
+
+		update_code_review_item_raw_args parsed = raw_json.get<update_code_review_item_raw_args>();
+		parsed.id = id;
 
 		if (parsed.state) {
 			static const std::set<std::string> allowed_states = {

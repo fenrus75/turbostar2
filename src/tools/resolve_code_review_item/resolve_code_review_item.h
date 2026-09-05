@@ -7,7 +7,7 @@
 namespace tools {
 
 struct resolve_code_review_item_args {
-	int id{0};
+	std::vector<int> item_ids;
 	std::string commit_hash;
 };
 
@@ -29,23 +29,37 @@ public:
 	std::string get_family() const override { return "code_review"; }
 	std::string get_name() const override { return "resolve_code_review_item"; }
 	std::string get_description() const override {
-		return "Resolves a code review item by marking its state as 'resolved' and recording the commit hash where the fix was implemented. Only accessible by developer and verifier roles.";;
+		return "Resolves a code review item (or multiple items in batch) by marking their state as 'resolved' and recording the commit hash where the fix was implemented. Only accessible by developer and verifier roles.";
 	}
 
 	nlohmann::json get_parameters_schema() const override {
 		return {
 			{"type", "object"},
 			{"properties", {
-				{"id", {
+				{"item_id", {
 					{"type", "integer"},
 					{"description", "The unique ID of the code review item to resolve."}
+				}},
+				{"item_ids", {
+					{"type", "array"},
+					{"items", {{"type", "integer"}}},
+					{"description", "Optional array of code review item IDs to resolve in batch."}
+				}},
+				{"id", {
+					{"type", "integer"},
+					{"description", "Alias for item_id."}
+				}},
+				{"ids", {
+					{"type", "array"},
+					{"items", {{"type", "integer"}}},
+					{"description", "Alias for item_ids."}
 				}},
 				{"commit_hash", {
 					{"type", "string"},
 					{"description", "The git commit hash containing the resolution/fix."}
 				}}
 			}},
-			{"required", nlohmann::json::array({"id", "commit_hash"})}
+			{"required", nlohmann::json::array({"commit_hash"})}
 		};
 	}
 

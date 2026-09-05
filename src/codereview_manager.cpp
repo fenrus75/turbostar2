@@ -11,6 +11,7 @@
 void to_json(nlohmann::json &j, const review_item &item)
 {
 	j = nlohmann::json{{"id", item.id},
+			   {"item_id", item.id},
 			   {"datestamp", item.datestamp},
 			   {"git_hash", item.git_hash},
 			   {"summary", item.summary},
@@ -26,7 +27,7 @@ void to_json(nlohmann::json &j, const review_item &item)
 
 void from_json(const nlohmann::json &j, review_item &item)
 {
-	item.id = j.value("id", 0);
+	item.id = j.contains("item_id") ? j.value("item_id", 0) : j.value("id", 0);
 	item.datestamp = j.value<uint64_t>("datestamp", 0);
 	item.git_hash = j.value("git_hash", "");
 	item.summary = j.value("summary", "");
@@ -265,13 +266,22 @@ static int severity_to_int(const std::string &sev)
 }
 
 std::vector<review_item> codereview_manager::list_code_review_items(const std::string &filename_filter, const std::string &severity_filter,
-								    bool include_resolved) const
+								    bool include_resolved, const std::string &state_filter) const
 {
 	std::shared_lock lock(mutex_);
 	std::vector<review_item> res;
 	for (const auto &item : items_) {
 		if (!include_resolved) {
 			if (item.state == "resolved" || item.state == "verified-fixed") {
+				continue;
+			}
+		}
+		if (!state_filter.empty() && state_filter != "all") {
+			if (state_filter == "active") {
+				if (item.state == "resolved" || item.state == "verified-fixed") {
+					continue;
+				}
+			} else if (item.state != state_filter) {
 				continue;
 			}
 		}

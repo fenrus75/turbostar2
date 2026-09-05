@@ -36,16 +36,20 @@ public:
 	std::string get_family() const override { return "code_review"; }
 	std::string get_name() const override { return "update_code_review_item"; }
 	std::string get_description() const override {
-		return "Updates fields (state, severity, description, proposed_fix) of an existing code review item in the database.";;
+		return "Updates fields (state, severity, description, proposed_fix) of an existing code review item in the database.";
 	}
 
 	nlohmann::json get_parameters_schema() const override {
 		return {
 			{"type", "object"},
 			{"properties", {
-				{"id", {
+				{"item_id", {
 					{"type", "integer"},
 					{"description", "The unique ID of the code review item to update."}
+				}},
+				{"id", {
+					{"type", "integer"},
+					{"description", "Alias for item_id."}
 				}},
 				{"state", {
 					{"type", "string"},
@@ -63,8 +67,7 @@ public:
 					{"type", "string"},
 					{"description", "Updated proposed code snippet or description."}
 				}}
-			}},
-			{"required", nlohmann::json::array({"id"})}
+			}}
 		};
 	}
 

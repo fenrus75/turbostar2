@@ -9,6 +9,7 @@ namespace tools {
 struct list_code_review_items_args {
 	std::string filename;
 	std::string severity;
+	std::string state;
 	bool include_resolved{false};
 };
 
@@ -28,7 +29,7 @@ public:
 	std::string get_family() const override { return "code_review"; }
 	std::string get_name() const override { return "list_code_review_items"; }
 	std::string get_description() const override {
-		return "Lists all code review items as a compact Markdown table, with optional filters for filename, severity, and resolution status.";;
+		return "Lists all code review items as a compact Markdown table, with optional filters for filename, severity, state, and resolution status.";
 	}
 
 	nlohmann::json get_parameters_schema() const override {
@@ -42,6 +43,10 @@ public:
 				{"severity", {
 					{"type", "string"},
 					{"description", "Optional severity filter. Must be one of: nit, low, medium, high, critical. Specifying a level returns all items of that severity or more severe (e.g. 'medium' returns medium, high, and critical issues)."}
+				}},
+				{"state", {
+					{"type", "string"},
+					{"description", "Optional state filter. Must be one of: active (default), new, confirmed, disputed, stale, resolved, verified-fixed, all."}
 				}},
 				{"include_resolved", {
 					{"type", "boolean"},

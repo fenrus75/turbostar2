@@ -26,19 +26,22 @@ public:
 	std::string get_family() const override { return "code_review"; }
 	std::string get_name() const override { return "get_code_review_item"; }
 	std::string get_description() const override {
-		return "Retrieves the full details of a specific code review item by its unique ID. Access to resolved items is restricted to the verifier role.";;
+		return "Retrieves the full details of a specific code review item by its unique ID. Access to resolved items is restricted to the verifier role.";
 	}
 
 	nlohmann::json get_parameters_schema() const override {
 		return {
 			{"type", "object"},
 			{"properties", {
-				{"id", {
+				{"item_id", {
 					{"type", "integer"},
 					{"description", "The unique ID of the code review item to retrieve."}
+				}},
+				{"id", {
+					{"type", "integer"},
+					{"description", "Alias for item_id."}
 				}}
-			}},
-			{"required", nlohmann::json::array({"id"})}
+			}}
 		};
 	}
 

@@ -65,7 +65,7 @@ class codereview_manager : public document_listener
 
 	// List all code review items, with optional filters.
 	std::vector<review_item> list_code_review_items(const std::string &filename_filter = "", const std::string &severity_filter = "",
-							bool include_resolved = false) const;
+							bool include_resolved = false, const std::string &state_filter = "") const;
 
 	// Returns the ID that will be assigned to the next created item. Callers can use this as a
 	// watermark to distinguish items created *after* a given point (e.g. by a single review run)

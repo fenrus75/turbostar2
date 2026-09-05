@@ -4,29 +4,28 @@
 
 namespace tools {
 
-struct get_code_review_item_raw_args {
-	int id = 0;
-};
-
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
-	get_code_review_item_raw_args,
-	id
-);
-
 bool get_code_review_item_validator::validate_args_impl(
 	const nlohmann::json& raw_json,
 	const agentlib::tool_context& /*ctx*/,
 	std::string& out_error
 ) const {
 	try {
-		get_code_review_item_raw_args parsed = raw_json.get<get_code_review_item_raw_args>();
-
-		if (parsed.id <= 0) {
-			out_error = "ID must be a positive integer greater than 0.";
+		int id = 0;
+		if (raw_json.contains("item_id") && raw_json["item_id"].is_number_integer()) {
+			id = raw_json["item_id"].get<int>();
+		} else if (raw_json.contains("id") && raw_json["id"].is_number_integer()) {
+			id = raw_json["id"].get<int>();
+		} else {
+			out_error = "Missing required argument: 'item_id'.";
 			return false;
 		}
 
-		args_.id = parsed.id;
+		if (id <= 0) {
+			out_error = "item_id must be a positive integer greater than 0.";
+			return false;
+		}
+
+		args_.id = id;
 		return true;
 	} catch (const std::exception& e) {
 		out_error = "Invalid arguments: " + std::string(e.what());

@@ -1,3 +1,4 @@
+// Tested source file: src/tools/confirm_code_review_item/confirm_code_review_item_entry.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
@@ -97,6 +98,18 @@ void test_confirm_tool_execution()
 
 	item_opt = codereview_manager::get_instance().get_code_review_item(1);
 	assert(item_opt->state == "verified-fixed");
+
+	// Test 4: Confirm using canonical 'item_id' parameter
+	int id2 = codereview_manager::get_instance().create_code_review_item(
+	    "Bug 2", "src/b.cpp", 5, "x = null", "low", "Desc", "Fix"
+	);
+	assert(id2 == 2);
+	std::string args_item_id = "{\"item_id\": 2}";
+	res_str = registry.execute_tool("confirm_code_review_item", args_item_id, ctx);
+	res_j = nlohmann::json::parse(res_str);
+	assert(res_j["status"].get<std::string>() == "confirmed");
+	item_opt = codereview_manager::get_instance().get_code_review_item(2);
+	assert(item_opt->state == "confirmed");
 
 	// Cleanup
 	fs_utils::set_override_project_dir("");

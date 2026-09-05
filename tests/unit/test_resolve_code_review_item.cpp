@@ -1,3 +1,4 @@
+// Tested source file: src/tools/resolve_code_review_item/resolve_code_review_item_entry.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
@@ -87,6 +88,36 @@ void test_resolve_tool_execution()
 	assert(ev_opt.has_value());
 	assert(ev_opt->type == event_type::codereview_updated);
 	assert(ev_opt->payload == "1");
+
+	// Test 3: item_id parameter (canonical name)
+	int id2 = codereview_manager::get_instance().create_code_review_item(
+	    "Resource Leak", "src/file.cpp", 12, "FILE* f = fopen(...);", "medium", "Desc", "fclose(f);"
+	);
+	assert(id2 == 2);
+	std::string args_item_id = "{\"item_id\": 2, \"commit_hash\": \"112233445566\"}";
+	std::string res_item_id = registry.execute_tool("resolve_code_review_item", args_item_id, ctx);
+	nlohmann::json j_item_id = nlohmann::json::parse(fs_utils::unwrap_prompt_untrusted_data_tag(res_item_id));
+	assert(j_item_id["status"].get<std::string>() == "resolved");
+	assert(j_item_id.contains("item_id") && j_item_id["item_id"].get<int>() == 2);
+
+	// Test 4: Batch resolution with item_ids array
+	int id3 = codereview_manager::get_instance().create_code_review_item(
+	    "Issue 3", "src/a.cpp", 1, "code", "low", "Desc3", "Fix3"
+	);
+	int id4 = codereview_manager::get_instance().create_code_review_item(
+	    "Issue 4", "src/b.cpp", 2, "code", "low", "Desc4", "Fix4"
+	);
+	assert(id3 == 3);
+	assert(id4 == 4);
+	std::string args_batch = "{\"item_ids\": [3, 4], \"commit_hash\": \"aabbccddeeff\"}";
+	std::string res_batch = registry.execute_tool("resolve_code_review_item", args_batch, ctx);
+	nlohmann::json j_batch = nlohmann::json::parse(fs_utils::unwrap_prompt_untrusted_data_tag(res_batch));
+	assert(j_batch["status"].get<std::string>() == "resolved");
+	assert(j_batch.contains("resolved_items") || j_batch.contains("item_ids"));
+	auto item3_opt = codereview_manager::get_instance().get_code_review_item(3);
+	auto item4_opt = codereview_manager::get_instance().get_code_review_item(4);
+	assert(item3_opt.has_value() && item3_opt->state == "resolved");
+	assert(item4_opt.has_value() && item4_opt->state == "resolved");
 
 	// Cleanup
 	fs_utils::set_override_project_dir("");
