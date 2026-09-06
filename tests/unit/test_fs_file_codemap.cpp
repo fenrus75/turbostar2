@@ -527,6 +527,17 @@ int main()
 		assert(res_default.find("`Section 0`") != std::string::npos);
 		assert(res_default.find("`Section 59`") != std::string::npos);
 
+		// Also test a large source file with 60 1-line getter functions and verify header format
+		// when symbols are pruned vs unpruned.
+		// Directly test format_codemap_table with pruned_count > 0:
+		std::vector<tools::codemap_symbol_info> mock_syms;
+		for (int i = 0; i < 493; ++i) {
+			mock_syms.push_back({std::format("func_{}", i), std::format("func_{}", i), "Function", i * 2 + 1, i * 2 + 2, 2, 0, ""});
+		}
+		std::string pruned_table = tools::format_codemap_table("mock_large.h", mock_syms, 3581, 493, 0, &ctx, /*full=*/true, /*pruned_count=*/31, /*raw_total_symbols=*/524);
+		assert(pruned_table.find("### Codemap for `mock_large.h` (493/524 symbols (31 pruned), 3581 lines):") != std::string::npos);
+		assert(pruned_table.find("Full ") == std::string::npos);
+
 		std::remove(large_md.c_str());
 	}
 
