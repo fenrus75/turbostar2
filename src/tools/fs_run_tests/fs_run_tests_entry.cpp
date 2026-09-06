@@ -238,13 +238,13 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 			cmd += " --output-on-failure";
 		}
 		if (!resolved.empty()) {
-			cmd += " -R \"(";
+			cmd += " -R \"^(";
 			for (size_t i = 0; i < resolved.size(); ++i) {
 				cmd += escape_ctest_regex(resolved[i]);
 				if (i < resolved.size() - 1)
 					cmd += "|";
 			}
-			cmd += ")\"";
+			cmd += ")$\"";
 		}
 	} else if (build_system == "make") {
 		cmd = "make test -C " + build_path.string();

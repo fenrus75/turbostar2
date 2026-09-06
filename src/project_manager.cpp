@@ -647,43 +647,134 @@ void project_manager::invalidate_available_tests_cache() noexcept
 	tests_ready_ = false;
 }
 
+static bool is_build_directory_valid(const fs::path &dir, std::string_view build_system)
+{
+	std::error_code ec;
+	if (!fs::is_directory(dir, ec)) {
+		return false;
+	}
+	if (build_system == "meson") {
+		return fs::exists(dir / "build.ninja", ec);
+	}
+	if (build_system == "cmake") {
+		return fs::exists(dir / "CMakeCache.txt", ec) ||
+		       fs::exists(dir / "CTestTestfile.cmake", ec) ||
+		       fs::exists(dir / "build.ninja", ec) ||
+		       fs::exists(dir / "Makefile", ec);
+	}
+	// General/fallback check
+	return fs::exists(dir / "build.ninja", ec) ||
+	       fs::exists(dir / "CMakeCache.txt", ec) ||
+	       fs::exists(dir / "CTestTestfile.cmake", ec) ||
+	       fs::exists(dir / "Makefile", ec);
+}
+
+std::vector<std::string> project_manager::parse_ctest_test_list(std::string_view output)
+{
+	std::vector<std::string> tests;
+	std::istringstream ss{std::string(output)};
+	std::string line;
+	while (std::getline(ss, line)) {
+		if (line.empty()) {
+			continue;
+		}
+		// Trim whitespace
+		line.erase(0, line.find_first_not_of(" \t\r\n"));
+		line.erase(line.find_last_not_of(" \t\r\n") + 1);
+		if (line.empty()) {
+			continue;
+		}
+		// Lines from `ctest -N` look like:
+		// "Test  #1: assert-test"
+		// "Test #10: ostream-test"
+		if (!line.starts_with("Test")) {
+			continue;
+		}
+		size_t hash_pos = line.find('#');
+		if (hash_pos == std::string::npos) {
+			continue;
+		}
+		std::string_view prefix = std::string_view(line).substr(0, hash_pos);
+		while (!prefix.empty() && (prefix.back() == ' ' || prefix.back() == '\t')) {
+			prefix.remove_suffix(1);
+		}
+		if (prefix != "Test") {
+			continue;
+		}
+
+		size_t colon_pos = line.find(':', hash_pos + 1);
+		if (colon_pos == std::string::npos) {
+			continue;
+		}
+
+		bool has_digit = false;
+		bool valid_num = true;
+		for (size_t i = hash_pos + 1; i < colon_pos; ++i) {
+			if (std::isdigit(static_cast<unsigned char>(line[i]))) {
+				has_digit = true;
+			} else if (line[i] == ' ' || line[i] == '\t') {
+				// skip whitespace
+			} else {
+				valid_num = false;
+				break;
+			}
+		}
+		if (!has_digit || !valid_num) {
+			continue;
+		}
+
+		std::string_view name_view = std::string_view(line).substr(colon_pos + 1);
+		while (!name_view.empty() && (name_view.front() == ' ' || name_view.front() == '\t')) {
+			name_view.remove_prefix(1);
+		}
+		while (!name_view.empty() && (name_view.back() == ' ' || name_view.back() == '\t')) {
+			name_view.remove_suffix(1);
+		}
+		if (!name_view.empty()) {
+			tests.emplace_back(name_view);
+		}
+	}
+	return tests;
+}
+
 bool project_manager::build_definition_changed() const
 {
-	if (config_manager::get_instance().get_build_system() != "meson") {
+	std::string build_system = config_manager::get_instance().get_build_system();
+	if (build_system != "meson" && build_system != "cmake") {
 		return false;
 	}
-	if (tests_meson_build_mtime_ == std::filesystem::file_time_type{}) {
+	if (tests_build_def_mtime_ == std::filesystem::file_time_type{}) {
 		return false;
 	}
-	// The meson.build that feeds the test list lives in the project root. Compare
-	// its current mtime against the one recorded when the list was last refreshed.
-	const fs::path meson_build = fs::path(project_root_) / "meson.build";
+	fs::path build_def;
+	if (build_system == "meson") {
+		build_def = fs::path(project_root_) / "meson.build";
+	} else if (build_system == "cmake") {
+		build_def = fs::path(project_root_) / "CMakeLists.txt";
+	}
 	std::error_code ec;
-	auto mtime = fs::last_write_time(meson_build, ec);
+	auto mtime = fs::last_write_time(build_def, ec);
 	if (ec) {
-		// If meson.build cannot be stat'd, conservatively treat it as unchanged to
-		// avoid spurious refresh churn (the initial populate already happened).
 		return false;
 	}
-	return mtime != tests_meson_build_mtime_;
+	return mtime != tests_build_def_mtime_;
 }
 
 std::string project_manager::resolve_build_dir() const
 {
+	std::string build_system = config_manager::get_instance().get_build_system();
 	std::string build_dir = config_manager::get_instance().get_build_directory();
 	fs::path build_path(build_dir);
 	if (build_path.is_relative() && !project_root_.empty()) {
 		build_path = fs::path(project_root_) / build_path;
 	}
 
-	// If the configured build dir exists and looks like a meson build (has
-	// build.ninja), use it directly.
 	std::error_code ec;
-	if (!build_path.empty() && fs::is_directory(build_path, ec) && fs::exists(build_path / "build.ninja", ec)) {
+	if (!build_path.empty() && is_build_directory_valid(build_path, build_system)) {
 		return build_path.string();
 	}
 
-	// Fallback: scan the project root for a directory containing build.ninja
+	// Fallback: scan the project root for a directory containing build artifacts
 	// (e.g. build/) so test listing works even when no build dir is configured
 	// (headless / unit-test environments).
 	if (!project_root_.empty()) {
@@ -693,12 +784,12 @@ std::string project_manager::resolve_build_dir() const
 				break;
 			}
 			std::error_code ec2;
-			if (entry.is_directory(ec2) && fs::exists(entry.path() / "build.ninja", ec2)) {
+			if (entry.is_directory(ec2) && is_build_directory_valid(entry.path(), build_system)) {
 				return entry.path().string();
 			}
 		}
 	}
-	return (fs::is_directory(build_path, ec) && fs::exists(build_path / "build.ninja", ec)) ? build_path.string() : "";
+	return (fs::is_directory(build_path, ec) && is_build_directory_valid(build_path, build_system)) ? build_path.string() : "";
 }
 
 void project_manager::refresh_available_tests()
@@ -710,6 +801,8 @@ void project_manager::refresh_available_tests()
 
 	if (build_system == "meson") {
 		cmd = std::format("meson test -C {} --list", build_path.string());
+	} else if (build_system == "cmake") {
+		cmd = std::format("ctest --test-dir {} -N", build_path.string());
 	} else {
 		// Fallback or not supported for other systems yet
 		tests_ready_ = true;
@@ -718,18 +811,24 @@ void project_manager::refresh_available_tests()
 		return;
 	}
 
-	// Record the current meson.build mtime so a subsequent change is detected by
+	// Record the current build definition file mtime so a subsequent change is detected by
 	// build_definition_changed(). Capture before the (potentially slow) listing so
 	// an edit racing with this refresh still triggers the next refresh.
 	std::error_code ec;
-	const fs::path meson_build = fs::path(project_root_) / "meson.build";
-	auto mtime = fs::last_write_time(meson_build, ec);
-	if (!ec) {
-		tests_meson_build_mtime_ = mtime;
-	} else {
-		// If stat fails, leave the previous mtime in place so the cache stays
-		// valid until a successful refresh records a fresh timestamp.
-		event_logger::get_instance().log("project_manager: could not stat meson.build: {}", ec.message());
+	fs::path build_def;
+	if (build_system == "meson") {
+		build_def = fs::path(project_root_) / "meson.build";
+	} else if (build_system == "cmake") {
+		build_def = fs::path(project_root_) / "CMakeLists.txt";
+	}
+
+	if (!build_def.empty()) {
+		auto mtime = fs::last_write_time(build_def, ec);
+		if (!ec) {
+			tests_build_def_mtime_ = mtime;
+		} else {
+			event_logger::get_instance().log("project_manager: could not stat {}: {}", build_def.string(), ec.message());
+		}
 	}
 
 	sync_command_runner runner;
@@ -737,10 +836,8 @@ void project_manager::refresh_available_tests()
 	runner.set_project_dir(project_root_);
 
 	std::string output = runner.execute_and_get_output(cmd);
-	// Record the refresh time regardless of success/failure so a failing `meson
-	// test --list` (e.g. transient) does not cause every subsequent lookup to
-	// retry the slow command in a tight loop. A failed refresh simply leaves the
-	// previous list (if any) in place but re-arms after the staleness bound.
+	// Record the refresh time regardless of success/failure so a failing command
+	// does not cause every subsequent lookup to retry the slow command in a tight loop.
 	tests_list_refreshed_at_ = std::chrono::steady_clock::now();
 	if (runner.get_exit_code() != 0) {
 		event_logger::get_instance().log("Failed to list tests: {}", output);
@@ -750,27 +847,31 @@ void project_manager::refresh_available_tests()
 	}
 
 	available_tests_.clear();
-	std::stringstream ss(output);
-	std::string line;
-	while (std::getline(ss, line)) {
-		if (line.empty())
-			continue;
-		// Trim potential whitespace
-		line.erase(0, line.find_first_not_of(" \t\r\n"));
-		line.erase(line.find_last_not_of(" \t\r\n") + 1);
-		if (line.empty())
-			continue;
-		// `meson test --list` prefixes each test with a display-group label (e.g.
-		// "agent - turbostar:unit_..."). That prefix is not part of the runnable Meson
-		// test selector, so strip everything up to and including the first " - ". This keeps
-		// the returned names directly usable with `meson test <name>` (and by fs_run_tests).
-		auto sep = line.find(" - ");
-		if (sep != std::string::npos) {
-			line = line.substr(sep + 3);
+	if (build_system == "meson") {
+		std::stringstream ss(output);
+		std::string line;
+		while (std::getline(ss, line)) {
+			if (line.empty())
+				continue;
+			// Trim potential whitespace
+			line.erase(0, line.find_first_not_of(" \t\r\n"));
+			line.erase(line.find_last_not_of(" \t\r\n") + 1);
+			if (line.empty())
+				continue;
+			// `meson test --list` prefixes each test with a display-group label (e.g.
+			// "agent - turbostar:unit_..."). That prefix is not part of the runnable Meson
+			// test selector, so strip everything up to and including the first " - ". This keeps
+			// the returned names directly usable with `meson test <name>` (and by fs_run_tests).
+			auto sep = line.find(" - ");
+			if (sep != std::string::npos) {
+				line = line.substr(sep + 3);
+			}
+			if (!line.empty()) {
+				available_tests_.push_back(line);
+			}
 		}
-		if (!line.empty()) {
-			available_tests_.push_back(line);
-		}
+	} else if (build_system == "cmake") {
+		available_tests_ = parse_ctest_test_list(output);
 	}
 
 	std::sort(available_tests_.begin(), available_tests_.end());

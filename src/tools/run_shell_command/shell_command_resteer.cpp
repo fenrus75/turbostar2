@@ -44,9 +44,9 @@ shell_command_recommendation evaluate_shell_command_resteer(const std::string &c
 	cmd = std::regex_replace(cmd, cd_prefix_regex, "");
 	cmd = trim_str(cmd);
 
-	// 1. Test Discovery: meson test --list / ninja -t targets
-	static const std::regex test_list_grep_regex(R"(^meson\s+test.*--list.*\|\s*grep\s+(?:-i\s+)?["']?([^"'\s]+)["']?)", std::regex::icase);
-	static const std::regex test_list_regex(R"(^(?:meson\s+test.*--list|ninja\s+-t\s+targets))", std::regex::icase);
+	// 1. Test Discovery: meson test --list / ctest -N / ninja -t targets
+	static const std::regex test_list_grep_regex(R"(^(?:meson\s+test.*--list|ctest.*(?:-N|--show-only)).*\|\s*grep\s+(?:-i\s+)?["']?([^"'\s]+)["']?)", std::regex::icase);
+	static const std::regex test_list_regex(R"(^(?:meson\s+test.*--list|ctest.*(?:-N|--show-only)|ninja\s+-t\s+targets))", std::regex::icase);
 	std::smatch match;
 
 	if (std::regex_search(cmd, match, test_list_grep_regex)) {
@@ -54,14 +54,14 @@ shell_command_recommendation evaluate_shell_command_resteer(const std::string &c
 		rec.matched = true;
 		rec.confidence = 0.95;
 		rec.suggested_tool = std::format("fs_read_lines(path=\"system://project/testlist.md?search={}\")", kw);
-		rec.explanation = std::format("To discover test names matching '{}', read the live system://project/testlist.md VFS file using fs_read_lines instead of running 'meson test --list' via shell.", kw);
+		rec.explanation = std::format("To discover test names matching '{}', read the live system://project/testlist.md VFS file using fs_read_lines instead of running test list commands via shell.", kw);
 		return rec;
 	}
 	if (std::regex_search(cmd, test_list_regex)) {
 		rec.matched = true;
 		rec.confidence = 0.95;
 		rec.suggested_tool = "fs_read_lines(path=\"system://project/testlist.md\")";
-		rec.explanation = "To discover available test names, read the live system://project/testlist.md VFS file using fs_read_lines instead of running 'meson test --list' via shell.";
+		rec.explanation = "To discover available test names, read the live system://project/testlist.md VFS file using fs_read_lines instead of running test list commands via shell.";
 		return rec;
 	}
 

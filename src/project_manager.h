@@ -36,6 +36,12 @@ class project_manager
 		return project_root_;
 	}
 
+	void set_project_root(std::string_view root)
+	{
+		project_root_ = root;
+		invalidate_available_tests_cache();
+	}
+
 	void set_enforce_initialization(bool enforce)
 	{
 		enforce_initialization_ = enforce;
@@ -143,10 +149,12 @@ class project_manager
 	// (e.g. meson.build edited) or when a lookup for a requested test name missed
 	// (so newly-registered tests become discoverable without a restart).
 	void invalidate_available_tests_cache() noexcept;
-	// Resolves the build directory used for meson test listing. Prefers the
-	// configured build directory; if empty or lacking build.ninja, falls back to a
-	// build directory found under the project root (e.g. build/). Returns empty if
-	// none is usable.
+	// Parses the raw output of `ctest -N` (or `ctest --show-only`) and extracts test names.
+	static std::vector<std::string> parse_ctest_test_list(std::string_view output);
+	// Resolves the build directory used for test listing and project builds. Prefers the
+	// configured build directory; if empty or lacking build artifacts (build.ninja, CMakeCache.txt,
+	// CTestTestfile.cmake, Makefile), falls back to a build directory found under the project root
+	// (e.g. build/). Returns empty if none is usable.
 	std::string resolve_build_dir() const;
 
 	// Executable candidate scanning
@@ -161,10 +169,10 @@ class project_manager
 	void load_instructions();
 	void scan_dependencies();
 	void inventory_project(std::stop_token stop);
-	// Returns true if the meson.build used to populate the available-test list
-	// has a different mtime than when the list was last refreshed. Used by
-	// get_available_tests() to invalidate the cached list when build definitions
-	// change (e.g. new test targets added to meson.build).
+	// Returns true if the build definition file (meson.build or CMakeLists.txt) used to populate
+	// the available-test list has a different mtime than when the list was last refreshed.
+	// Used by get_available_tests() to invalidate the cached list when build definitions
+	// change (e.g. new test targets added).
 	bool build_definition_changed() const;
 
 	struct directory_info {
@@ -189,21 +197,21 @@ class project_manager
 
 	/*
 	 * available_tests_mutex_ protects available_tests_, tests_ready_,
-	 * tests_meson_build_mtime_, and tests_list_refreshed_at_.
+	 * tests_build_def_mtime_, and tests_list_refreshed_at_.
 	 * Locking Rules:
 	 * - Synchronizes access across queries, invalidations, and background/tool-driven refreshes.
 	 */
 	mutable std::mutex available_tests_mutex_;
 	std::vector<std::string> available_tests_;
 	bool tests_ready_{false};
-	// Last-modified time of the build definition file (meson.build) seen when the
+	// Last-modified time of the build definition file (meson.build or CMakeLists.txt) seen when the
 	// available-test list was last refreshed. When get_available_tests() is called
-	// and this timestamp is older than the on-disk meson.build mtime, the cached
+	// and this timestamp is older than the on-disk build definition mtime, the cached
 	// list is considered stale because newly-registered test binaries would not
-	// appear in `meson test --list` output.
-	std::filesystem::file_time_type tests_meson_build_mtime_;
+	// appear in test list output.
+	std::filesystem::file_time_type tests_build_def_mtime_;
 	// Wall-clock time (steady clock) when the available-test list was last
-	// refreshed. Provides an upper bound on staleness: even if meson.build is
+	// refreshed. Provides an upper bound on staleness: even if the build definition is
 	// unchanged, a very old cached list is refreshed so a long-running editor
 	// session does not miss tests added/changed through other means (e.g. a
 	// different working copy checked out, generated test fixtures, etc.),

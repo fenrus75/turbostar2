@@ -5,10 +5,12 @@
 #include "test_watchdog.h"
 #include <algorithm>
 #include <cassert>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
 
+#include "config_manager.h"
 #include "project_manager.h"
 #include "tools/fs_run_tests/fs_run_tests.h"
 
@@ -131,6 +133,94 @@ int main()
 		assert(res.unresolved_queries[0] == "nonexistent_xyz");
 	}
 
-	std::cout << "All tokenized fuzzy test resolution tests passed!" << std::endl;
+	std::cout << "\nTesting CMake / CTest test list parser..." << std::endl;
+	{
+		std::string sample_ctest_output =
+			"Test project /home/arjan/git/fmt/build\n"
+			"  Test  #1: assert-test\n"
+			"  Test  #2: chrono-test\n"
+			"  Test  #3: color-test\n"
+			"  Test  #4: core-test\n"
+			"  Test  #5: grisu-test\n"
+			"  Test  #6: gtest-extra-test\n"
+			"  Test  #7: format-test\n"
+			"  Test  #8: format-impl-test\n"
+			"  Test  #9: locale-test\n"
+			"  Test #10: ostream-test\n"
+			"  Test #11: compile-test\n"
+			"  Test #12: printf-test\n"
+			"  Test #13: custom-formatter-test\n"
+			"  Test #14: ranges-test\n"
+			"  Test #15: scan-test\n"
+			"  Test #16: posix-mock-test\n"
+			"  Test #17: os-test\n"
+			"\n"
+			"Total Tests: 17\n";
+
+		std::vector<std::string> parsed = project_manager::parse_ctest_test_list(sample_ctest_output);
+		assert(parsed.size() == 17);
+		assert(parsed[0] == "assert-test");
+		assert(parsed[1] == "chrono-test");
+		assert(parsed[2] == "color-test");
+		assert(parsed[3] == "core-test");
+		assert(parsed[4] == "grisu-test");
+		assert(parsed[5] == "gtest-extra-test");
+		assert(parsed[6] == "format-test");
+		assert(parsed[7] == "format-impl-test");
+		assert(parsed[8] == "locale-test");
+		assert(parsed[9] == "ostream-test");
+		assert(parsed[10] == "compile-test");
+		assert(parsed[11] == "printf-test");
+		assert(parsed[12] == "custom-formatter-test");
+		assert(parsed[13] == "ranges-test");
+		assert(parsed[14] == "scan-test");
+		assert(parsed[15] == "posix-mock-test");
+		assert(parsed[16] == "os-test");
+
+		// Test empty and malformed outputs
+		assert(project_manager::parse_ctest_test_list("").empty());
+		assert(project_manager::parse_ctest_test_list("Test project /foo/bar\nTotal Tests: 0\n").empty());
+		assert(project_manager::parse_ctest_test_list("Random text without test definitions").empty());
+
+		// Test resolution with parsed CTest test names
+		std::vector<std::string> query = {"format"};
+		auto res = tools::fs_run_tests_tool::resolve_test_names_detailed(query, parsed);
+		// "format" matches format-test, format-impl-test, custom-formatter-test
+		assert(!res.suggestions.empty() || res.resolved_names.size() >= 1);
+		std::cout << "CTest test list parsing verified successfully!" << std::endl;
+	}
+
+	// Live CMake project test discovery on /home/arjan/git/fmt if present
+	if (std::filesystem::exists("/home/arjan/git/fmt/build/CTestTestfile.cmake")) {
+		std::cout << "\nTesting live CMake test discovery with /home/arjan/git/fmt..." << std::endl;
+		std::string orig_root = pm.get_project_root();
+		std::string orig_bs = config_manager::get_instance().get_build_system();
+		std::string orig_bd = config_manager::get_instance().get_build_directory();
+
+		pm.set_project_root("/home/arjan/git/fmt");
+		config_manager::get_instance().set_build_system("cmake", true);
+		config_manager::get_instance().set_build_directory("build");
+
+		std::vector<std::string> fmt_tests = pm.get_available_tests();
+		std::cout << "Discovered " << fmt_tests.size() << " tests in fmt project." << std::endl;
+		assert(fmt_tests.size() == 17);
+		assert(std::find(fmt_tests.begin(), fmt_tests.end(), "assert-test") != fmt_tests.end());
+		assert(std::find(fmt_tests.begin(), fmt_tests.end(), "format-test") != fmt_tests.end());
+		assert(std::find(fmt_tests.begin(), fmt_tests.end(), "ranges-test") != fmt_tests.end());
+
+		// Test exact resolution on fmt tests
+		const std::vector<std::string> fmt_query = {"assert-test"};
+		auto res = tools::fs_run_tests_tool::resolve_test_names_detailed(fmt_query, fmt_tests);
+		assert(res.resolved_names.size() == 1);
+		assert(res.resolved_names[0] == "assert-test");
+
+		// Restore original project state
+		pm.set_project_root(orig_root);
+		config_manager::get_instance().set_build_system(orig_bs, false);
+		config_manager::get_instance().set_build_directory(orig_bd);
+		std::cout << "Live CMake test discovery verified successfully!" << std::endl;
+	}
+
+	std::cout << "All tokenized fuzzy test resolution and CMake test parsing tests passed!" << std::endl;
 	return 0;
 }
