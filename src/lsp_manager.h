@@ -116,7 +116,7 @@ class lsp_manager
 	 *   of LSP servers.
 	 */
 	std::mutex servers_mutex_;
-	event_queue *global_queue_{nullptr};
+	std::atomic<event_queue*> global_queue_{nullptr};
 
 	/*
 	 * doc_mutex_ protects the doc_versions_ map of document URIs to document versions.

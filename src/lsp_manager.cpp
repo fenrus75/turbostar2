@@ -102,11 +102,12 @@ void lsp_manager::start_server(const std::string &name, const std::vector<std::s
 			    std::string path_str = std::string(params.uri.path());
 			    store_file_diagnostics(path_str, diagnostics);
 
-			    if (global_queue_) {
+			    auto *q = global_queue_.load();
+			    if (q) {
 				    editor_event ev;
 				    ev.type = event_type::lsp_diagnostics_result;
 				    ev.diagnostics = diagnostics;
-				    global_queue_->push(ev);
+				    q->push(ev);
 			    }
 		    });
 
@@ -120,11 +121,12 @@ void lsp_manager::start_server(const std::string &name, const std::vector<std::s
 
 void lsp_manager::start(event_queue &queue)
 {
-	global_queue_ = &queue;
+	global_queue_.store(&queue);
 }
 
 void lsp_manager::stop()
 {
+	global_queue_.store(nullptr);
 	std::lock_guard<std::mutex> lock(servers_mutex_);
 
 	// Terminate all active language server processes in parallel.
@@ -437,11 +439,12 @@ void lsp_manager::request_hover(const std::string &filepath, int line, int chara
 					    payload = contents->value;
 				    }
 
-				    if (!payload.empty() && global_queue_) {
+				    auto *q = global_queue_.load();
+				    if (!payload.empty() && q) {
 					    editor_event ev;
 					    ev.type = event_type::lsp_hover_result;
 					    ev.payload = payload;
-					    global_queue_->push(ev);
+					    q->push(ev);
 				    }
 			    }
 		    },
@@ -465,8 +468,9 @@ void lsp_manager::request_document_highlight(const std::string &filepath, int li
 		server->message_handler->sendRequest<lsp::requests::TextDocument_DocumentHighlight>(
 		    std::move(highlightParams),
 		    [this](const lsp::requests::TextDocument_DocumentHighlight::Result &result) {
+			    auto *q = global_queue_.load();
 			    if (!result.isNull()) {
-				    if (global_queue_) {
+				    if (q) {
 					    editor_event ev;
 					    ev.type = event_type::lsp_highlight_result;
 					    for (const auto &hl : result.value()) {
@@ -474,13 +478,13 @@ void lsp_manager::request_document_highlight(const std::string &filepath, int li
 							{static_cast<int>(hl.range.start.line), static_cast<int>(hl.range.start.character),
 							 static_cast<int>(hl.range.end.line), static_cast<int>(hl.range.end.character)});
 					    }
-					    global_queue_->push(ev);
+					    q->push(ev);
 				    }
 			    } else {
-				    if (global_queue_) {
+				    if (q) {
 					    editor_event ev;
 					    ev.type = event_type::lsp_highlight_result;
-					    global_queue_->push(ev);
+					    q->push(ev);
 				    }
 			    }
 		    },
@@ -505,7 +509,8 @@ void lsp_manager::request_selection_range(const std::string &filepath, int line,
 		    std::move(selectionParams),
 		    [this](const lsp::requests::TextDocument_SelectionRange::Result &result) {
 			    if (!result.isNull() && !result.value().empty()) {
-				    if (global_queue_) {
+				    auto *q = global_queue_.load();
+				    if (q) {
 					    editor_event ev;
 					    ev.type = event_type::lsp_selection_range_result;
 
@@ -518,7 +523,7 @@ void lsp_manager::request_selection_range(const std::string &filepath, int line,
 						    current = current->parent.get();
 					    }
 
-					    global_queue_->push(ev);
+					    q->push(ev);
 				    }
 			    }
 		    },

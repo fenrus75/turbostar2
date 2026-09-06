@@ -88,9 +88,13 @@ public:
     // By default, summarizers are allowed no tools, while other roles can run any tool.
     virtual bool is_allowed_for_agent(const agent_properties &properties) const;
 
+    // Parameter alias mapping: maps incoming alias parameter names to canonical schema property names.
+    // Derived classes may override to declare custom tool-specific aliases.
+    virtual std::unordered_map<std::string, std::string> get_custom_parameter_aliases() const { return {}; }
+
     // Non-Virtual Interface (NVI): Enforces state and execution order.
     // Parses and validates args before the tool is allowed to be instantiated.
-    bool validate_args(const nlohmann::json& args, const tool_context& ctx, std::string& out_error) {
+    bool validate_args(const nlohmann::json& raw_args, const tool_context& ctx, std::string& out_error) {
         is_validated_ = false;
         
         // Centralized Automated Schema Validation
@@ -111,6 +115,57 @@ public:
                 schema["required"] = new_req;
             }
         }
+
+        // Apply parameter alias rewriting to resolve common variations to canonical parameter names.
+        nlohmann::json args = raw_args.is_object() ? raw_args : nlohmann::json::object();
+        if (schema.contains("properties") && schema["properties"].is_object() && args.is_object()) {
+            const auto &props = schema["properties"];
+            std::unordered_map<std::string, std::string> alias_map;
+
+            // 1. Standard global parameter aliases according to docs/tools.md guidelines:
+            // If the tool schema declares 'path', accept common file path variations:
+            if (props.contains("path")) {
+                for (const auto &alias : {"file_path", "filepath", "filename", "file", "target_file"}) {
+                    if (!props.contains(alias)) {
+                        alias_map[alias] = "path";
+                    }
+                }
+            }
+            // If the tool schema declares 'limit', accept common count/limit variations:
+            if (props.contains("limit")) {
+                for (const auto &alias : {"count", "max_results"}) {
+                    if (!props.contains(alias)) {
+                        alias_map[alias] = "limit";
+                    }
+                }
+            }
+            // If the tool schema declares 'args', accept 'arguments':
+            if (props.contains("args") && !props.contains("arguments")) {
+                alias_map["arguments"] = "args";
+            }
+            // If the tool schema declares 'arguments', accept 'args':
+            if (props.contains("arguments") && !props.contains("args")) {
+                alias_map["args"] = "arguments";
+            }
+
+            // 2. Merge tool-specific custom aliases (overrides default if any collision):
+            for (const auto &[alias, canonical] : get_custom_parameter_aliases()) {
+                alias_map[alias] = canonical;
+            }
+
+            // 3. Rewrite arguments: if an alias is provided and canonical is missing, map it.
+            for (const auto &[alias, canonical] : alias_map) {
+                if (args.contains(alias) && !args.contains(canonical)) {
+                    args[canonical] = args[alias];
+                    args.erase(alias);
+                } else if (args.contains(alias) && args.contains(canonical)) {
+                    // Both provided; remove the redundant alias
+                    args.erase(alias);
+                }
+            }
+        }
+        validated_args_ = args;
+
         if (schema.contains("required") && schema["required"].is_array()) {
             for (const auto& req : schema["required"]) {
                 if (!req.is_string()) continue;
@@ -180,6 +235,10 @@ public:
         if (!is_validated_) {
             return nullptr;
         }
+        // If args is empty or matches original, prioritize the alias-rewritten validated_args_
+        if (!validated_args_.is_null()) {
+            return create_tool_impl(validated_args_);
+        }
         return create_tool_impl(args);
     }
 
@@ -190,6 +249,7 @@ protected:
 
 private:
     bool is_validated_ = false;
+    nlohmann::json validated_args_;
 };
 
 } // namespace agentlib

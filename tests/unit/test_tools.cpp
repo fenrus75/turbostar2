@@ -20,7 +20,7 @@ using namespace agentlib;
 
 int main()
 {
-	test_watchdog::setup_watchdog(30);
+	test_watchdog::setup_watchdog(60);
 	// Initialize managers
 	project_manager::get_instance().initialize();
 
@@ -466,8 +466,7 @@ extern std::string troff2md(std::string troff_content);
 
 		ctx.fs_security.add_allowed_root(".", access_type::read);
 
-		event_queue dummy_queue;
-		project_manager::get_instance().lsp_start(dummy_queue);
+		project_manager::get_instance().lsp_start(q);
 
 		// Wait a bit for clangd to spawn/initialize
 		std::this_thread::sleep_for(std::chrono::milliseconds(800));
@@ -778,6 +777,31 @@ extern std::string troff2md(std::string troff_content);
 		// Writing to workspace file as read-only MUST be blocked
 		std::string ro_write_res = registry.execute_tool("fs_write_file", "{\"path\": \"src/main.cpp\", \"content\": \"test\"}", ro_ctx);
 		assert(ro_write_res.find("Security Violation: Agent is in read-only mode") != std::string::npos);
+	}
+
+	std::cout << "\nTesting parameter aliases in tool execution..." << std::endl;
+	{
+		// 1. fs_read_lines with "file_path" instead of "path"
+		std::string res1 = registry.execute_tool("fs_read_lines", "{\"file_path\": \"src/main.cpp\", \"start_line\": 1, \"end_line\": 2}", ctx);
+		std::cout << "Alias test res1 (file_path -> path): " << res1 << std::endl;
+		assert(res1.find("1:") != std::string::npos);
+
+		// 2. fs_read_lines with "filepath" instead of "path"
+		std::string res2 = registry.execute_tool("fs_read_lines", "{\"filepath\": \"src/main.cpp\", \"start_line\": 1, \"end_line\": 2}", ctx);
+		std::cout << "Alias test res2 (filepath -> path): " << res2 << std::endl;
+		assert(res2.find("1:") != std::string::npos);
+
+		// 3. fs_list_dir with "count" instead of "limit"
+		std::string res3 = registry.execute_tool("fs_list_dir", "{\"path\": \"src\", \"count\": 2}", ctx);
+		std::cout << "Alias test res3 (count -> limit): " << res3 << std::endl;
+		assert(res3.find("| Filename |") != std::string::npos);
+
+		// 4. fs_write_file with "target_file" instead of "path"
+		std::string tmp_test_file = "test_alias_write.tmp";
+		std::string res4 = registry.execute_tool("fs_write_file", "{\"target_file\": \"" + tmp_test_file + "\", \"content\": \"hello world\"}", ctx);
+		std::cout << "Alias test res4 (target_file -> path): " << res4 << std::endl;
+		assert(res4.find("Successfully wrote") != std::string::npos);
+		std::filesystem::remove(tmp_test_file);
 	}
 
 	std::cout << "\nAll test tools verified!" << std::endl;

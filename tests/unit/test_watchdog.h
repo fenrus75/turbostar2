@@ -219,6 +219,8 @@ static void crash_handler(int sig, siginfo_t *info, void *ucontext)
 
 inline void setup_watchdog(unsigned int seconds = 30, bool catch_crashes = true, bool auto_isolate_home = true)
 {
+	signal(SIGPIPE, SIG_IGN);
+
 	if (auto_isolate_home && !get_global_test_home()) {
 		isolate_home();
 	}
