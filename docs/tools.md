@@ -649,11 +649,12 @@ These tools allow the agent to interact with the project's Git repository.
     *   `data` *(string, required)*: The raw string data or escape sequence to inject.
     *   `output` *(boolean, optional)*: If true, records terminal output, waits for the terminal state to settle, and returns the recorded text in the tool response. Defaults to false.
 
-### `agent_get_run_screenshot`
-*   **Description:** Returns a snapshot/screenshot of the terminal buffer grid, cursor coordinates, process alive status (is_alive), and optional crash_notification for a given run ID.
+### `agent_get_run_terminaldump`
+*   **Description:** Returns an ASCII terminal dump of the screen buffer, cursor coordinates, and process alive status (`process running` / `process ended`) for a given run ID formatted as clean Markdown with a fenced code block (with trailing spaces per line and trailing empty lines stripped).
+*   **Aliases:** `agent_get_run_screenshot`, `agent_run_get_terminaldump`, `agent_run_get_screenshot`.
 *   **Arguments:**
     *   `run_id` *(integer, required)*: The unique execution ID returned by `run_executable`.
-    *   `settle` *(boolean, optional)*: If true, waits up to 3 seconds for terminal content to settle before capturing screenshot.
+    *   `settle` *(boolean, optional)*: If true, waits up to 3 seconds for terminal content to settle before dumping the screen.
 
 ### `agent_terminate_run`
 *   **Description:** Terminates/stops a running process and closes its window based on its run ID.

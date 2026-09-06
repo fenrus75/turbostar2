@@ -1,8 +1,9 @@
+#include <format>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include "agentlib/tool_registry.h"
 #include "agentlib/tool_validator.h"
-#include "agent_get_run_screenshot.h"
+#include "tools/agent_get_run_screenshot/agent_get_run_screenshot.h"
 
 namespace tools
 {
@@ -16,67 +17,47 @@ struct agent_get_run_screenshot_raw_args {
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(agent_get_run_screenshot_raw_args, run_id, settle);
 
-/**
- * @brief Validator for the agent_get_run_screenshot tool.
- */
-class agent_get_run_screenshot_validator final : public agentlib::tool_validator
+nlohmann::json agent_get_run_terminaldump_validator::get_parameters_schema() const
 {
-      public:
-	bool is_pure() const override
-	{
+	return {
+	    {"type", "object"},
+	    {"properties",
+	     {{"run_id", {{"type", "integer"}, {"description", "The unique execution ID returned by run_executable."}}},
+	      {"settle", {{"type", "boolean"}, {"description", "Optional. If true, waits up to 3 seconds for the screen content to settle (no changes for 250 ms) before dumping the terminal screen."}}}}},
+	    {"required", nlohmann::json::array({"run_id"})}};
+}
+
+bool agent_get_run_terminaldump_validator::validate_args_impl(const nlohmann::json &untrusted_args, const agentlib::tool_context & /*ctx*/,
+							      std::string &out_error) const
+{
+	if (!untrusted_args.contains("run_id")) {
+		out_error = "Argument parsing error: missing required field 'run_id'";
+		return false;
+	}
+	try {
+		agent_get_run_screenshot_raw_args raw = untrusted_args.get<agent_get_run_screenshot_raw_args>();
+		if (raw.run_id < 0) {
+			out_error = "Invalid run_id specified: must be non-negative.";
+			return false;
+		}
+		args_ = agent_get_run_screenshot_args{raw.run_id, raw.settle, get_name()};
 		return true;
-	} // Reads screen buffer snapshot without side effects.
-
-	std::string get_name() const override
-	{
-		return "agent_get_run_screenshot";
+	} catch (const std::exception &e) {
+		out_error = std::format("Argument parsing error: {}", e.what());
+		return false;
 	}
-	std::string get_description() const override
-	{
-		return "Returns a snapshot/screenshot of the terminal buffer grid, cursor coordinates, process alive status (is_alive), and optional crash_notification for a given run ID.";;
-	}
+}
 
-	nlohmann::json get_parameters_schema() const override
-	{
-		return {
-		    {"type", "object"},
-		    {"properties",
-		     {{"run_id", {{"type", "integer"}, {"description", "The unique execution ID returned by run_executable."}}},
-		      {"settle", {{"type", "boolean"}, {"description", "Optional. If true, waits up to 3 seconds for the screen content to settle (no changes for 250 ms) before taking the screenshot."}}}}},
-		    {"required", nlohmann::json::array({"run_id"})}};
-	}
+std::unique_ptr<agentlib::llm_tool> agent_get_run_terminaldump_validator::create_tool_impl(const nlohmann::json & /*args*/) const
+{
+	args_.tool_name = get_name();
+	return std::make_unique<agent_get_run_screenshot_tool>(args_);
+}
 
-      protected:
-	bool validate_args_impl(const nlohmann::json &args_json, const agentlib::tool_context & /*ctx*/,
-				std::string &out_error) const override
-	{
-		if (!args_json.contains("run_id")) {
-			out_error = "Argument parsing error: missing required field 'run_id'";
-			return false;
-		}
-		try {
-			agent_get_run_screenshot_raw_args raw = args_json.get<agent_get_run_screenshot_raw_args>();
-			if (raw.run_id < 0) {
-				out_error = "Invalid run_id specified: must be non-negative.";
-				return false;
-			}
-			args_ = agent_get_run_screenshot_args{raw.run_id, raw.settle};
-			return true;
-		} catch (const std::exception &e) {
-			out_error = "Argument parsing error: " + std::string(e.what());
-			return false;
-		}
-	}
-
-	std::unique_ptr<agentlib::llm_tool> create_tool_impl(const nlohmann::json & /*args*/) const override
-	{
-		return std::make_unique<agent_get_run_screenshot_tool>(args_);
-	}
-
-      private:
-	mutable agent_get_run_screenshot_args args_;
-};
-
+REGISTER_TOOL(agent_get_run_terminaldump_validator)
 REGISTER_TOOL(agent_get_run_screenshot_validator)
+REGISTER_TOOL(agent_run_get_terminaldump_validator)
+REGISTER_TOOL(agent_run_get_screenshot_validator)
 
 } // namespace tools
+
