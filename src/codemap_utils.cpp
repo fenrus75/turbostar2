@@ -1139,6 +1139,16 @@ static bool contains_identifier(std::string_view text, std::string_view ident)
 		bool left_ok = (pos == 0 || !is_ident_char(text[pos - 1]));
 		bool right_ok = (pos + ident.size() >= text.size() || !is_ident_char(text[pos + ident.size()]));
 		if (left_ok && right_ok) {
+			size_t after = pos + ident.size();
+			while (after < text.size() && (text[after] == ' ' || text[after] == '\t')) {
+				after++;
+			}
+			if (after + 1 < text.size() && text[after] == ':' && text[after + 1] == ':') {
+				// Followed by scope resolution operator "::", indicating a type or namespace qualifier
+				// rather than a member variable or member function invocation.
+				pos += ident.size();
+				continue;
+			}
 			return true;
 		}
 		pos += ident.size();
@@ -1473,6 +1483,12 @@ std::string extract_class_context_preview(
 
 	for (const auto &m : candidate_methods) {
 		if (used_methods.size() >= 5) break;
+
+		// Do not list the method currently being defined/read as a referenced sibling method
+		if (!method_name.empty() && m.name == method_name) {
+			continue;
+		}
+
 		if (contains_identifier(combined_read_text, m.name)) {
 			used_methods.push_back(m);
 		}

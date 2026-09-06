@@ -412,11 +412,19 @@ int main()
 		nlohmann::json read_args = {{"path", "src/document.cpp"}, {"start_line", 410}, {"end_line", 418}};
 		std::string read_out = registry.execute_tool("fs_read_lines", read_args.dump(), ctx);
 		std::cout << "fs_read_lines document.cpp 410-418 class context output:\n" << read_out << "\n";
-		assert(read_out.find("### Class Context: `document`") != std::string::npos);
-		assert(read_out.find("mutex_") != std::string::npos);
-		assert(read_out.find("restore_cursor_state_unlocked") != std::string::npos);
-		assert(read_out.find("notify_cursor_changed") != std::string::npos);
-		assert(read_out.find("request_redraw") != std::string::npos);
+		size_t ctx_pos = read_out.find("### Class Context: `document`");
+		assert(ctx_pos != std::string::npos);
+		std::string class_ctx = read_out.substr(ctx_pos);
+		// Must find member variable mutex_
+		assert(class_ctx.find("mutex_") != std::string::npos);
+		// Must find sibling member functions
+		assert(class_ctx.find("restore_cursor_state_unlocked") != std::string::npos);
+		assert(class_ctx.find("notify_cursor_changed") != std::string::npos);
+		assert(class_ctx.find("request_redraw") != std::string::npos);
+		// Must NOT falsely include constructor
+		assert(class_ctx.find("document(") == std::string::npos);
+		// Must NOT falsely include the function itself being defined
+		assert(class_ctx.find("int restore_cursor_state(") == std::string::npos);
 	}
 
 	// 16. Test called dependencies line attribution via resolve_outgoing_call_target
