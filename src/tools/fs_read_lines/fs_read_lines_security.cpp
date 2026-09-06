@@ -39,11 +39,23 @@ class fs_read_lines_validator : public agentlib::tool_validator
 		       {{"type", "integer"}, {"description", "The 1-based line number to start reading from. Defaults to 1 if omitted. Mutually exclusive with 'tail'."}}},
 		      {"end_line",
 		       {{"type", "integer"},
-			{"description", "The 1-based line number to end reading at (inclusive). Optional. Mutually exclusive with 'tail'."}}},
+			{"description", "The 1-based line number to end reading at (inclusive). Optional. Mutually exclusive with 'tail' and 'length'."}}},
+		      {"length",
+		       {{"type", "integer"},
+			{"description", "Optional. The number of lines to read starting from 'start_line'. Mutually exclusive with 'end_line' and 'tail'."}}},
 		      {"tail",
 		       {{"type", "integer"},
-			{"description", "Optional. The number of lines to read from the end of the file. Mutually exclusive with 'start_line' and 'end_line'."}}}}},
+			{"description", "Optional. The number of lines to read from the end of the file. Mutually exclusive with 'start_line', 'end_line', and 'length'."}}}}},
 		    {"required", nlohmann::json::array({"path"})}};
+	}
+
+	std::unordered_map<std::string, std::string> get_custom_parameter_aliases() const override
+	{
+		return {
+			{"num_lines", "length"},
+			{"line_count", "length"},
+			{"lines_count", "length"}
+		};
 	}
 
 	std::vector<agentlib::tool_example> get_examples() const override
@@ -74,10 +86,12 @@ class fs_read_lines_validator : public agentlib::tool_validator
 			int start_line = -1;
 			int end_line = -1;
 			int tail = -1;
+			int length = -1;
 
 			if (!json_utils::get_number(raw_json, "start_line", start_line, -1, out_error)) return false;
 			if (!json_utils::get_number(raw_json, "end_line", end_line, -1, out_error)) return false;
 			if (!json_utils::get_number(raw_json, "tail", tail, -1, out_error)) return false;
+			if (!json_utils::get_number(raw_json, "length", length, -1, out_error)) return false;
 
 			if (raw_path.empty()) {
 				out_error = "Path parameter cannot be empty.";
@@ -100,8 +114,8 @@ class fs_read_lines_validator : public agentlib::tool_validator
 			args_.safe_path = canonical_path;
 
 			if (tail != -1) {
-				if (start_line != -1 || end_line != -1) {
-					out_error = "'tail' parameter cannot be used together with 'start_line' or 'end_line'.";
+				if (start_line != -1 || end_line != -1 || length != -1) {
+					out_error = "'tail' parameter cannot be used together with 'start_line', 'end_line', or 'length'.";
 					return false;
 				}
 				if (tail <= 0) {
@@ -109,10 +123,28 @@ class fs_read_lines_validator : public agentlib::tool_validator
 					return false;
 				}
 				args_.tail = tail;
+				args_.length = std::nullopt;
 				args_.start_line = 1;
 				args_.end_line = 1000000;
+			} else if (length != -1) {
+				if (end_line != -1) {
+					out_error = "'length' parameter cannot be used together with 'end_line'. Specify either 'end_line' or 'length'.";
+					return false;
+				}
+				if (length <= 0) {
+					out_error = "'length' parameter must be greater than 0.";
+					return false;
+				}
+				args_.tail = std::nullopt;
+				args_.length = length;
+				args_.start_line = (start_line == -1) ? 1 : start_line;
+				if (args_.start_line < 1)
+					args_.start_line = 1;
+				int64_t calc_end = static_cast<int64_t>(args_.start_line) + length - 1;
+				args_.end_line = static_cast<int>(std::min<int64_t>(calc_end, 10000000));
 			} else {
 				args_.tail = std::nullopt;
+				args_.length = std::nullopt;
 				args_.start_line = (start_line == -1) ? 1 : start_line;
 				args_.end_line = (end_line == -1) ? 1000000 : end_line;
 

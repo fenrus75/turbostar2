@@ -804,6 +804,46 @@ extern std::string troff2md(std::string troff_content);
 		std::filesystem::remove(tmp_test_file);
 	}
 
+	std::cout << "\nTesting fs_read_lines 'length' parameter and aliases..." << std::endl;
+	{
+		// 1. start_line + length
+		std::string res_len1 = registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"start_line\": 1, \"length\": 2}", ctx);
+		assert(res_len1.find("1:") != std::string::npos);
+		assert(res_len1.find("2:") != std::string::npos);
+		assert(res_len1.find("3:") == std::string::npos);
+
+		// 2. length without start_line (defaults start_line to 1)
+		std::string res_len2 = registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"length\": 3}", ctx);
+		assert(res_len2.find("1:") != std::string::npos);
+		assert(res_len2.find("3:") != std::string::npos);
+		assert(res_len2.find("4:") == std::string::npos);
+
+		// 3. alias num_lines -> length
+		std::string res_alias1 = registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"start_line\": 1, \"num_lines\": 2}", ctx);
+		assert(res_alias1.find("1:") != std::string::npos);
+		assert(res_alias1.find("2:") != std::string::npos);
+		assert(res_alias1.find("3:") == std::string::npos);
+
+		// 4. alias line_count -> length
+		std::string res_alias2 = registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"start_line\": 1, \"line_count\": 2}", ctx);
+		assert(res_alias2.find("1:") != std::string::npos);
+		assert(res_alias2.find("2:") != std::string::npos);
+		assert(res_alias2.find("3:") == std::string::npos);
+
+		// 5. length + end_line mutual exclusivity error
+		std::string res_err1 = registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"start_line\": 1, \"end_line\": 5, \"length\": 2}", ctx);
+		assert(res_err1.find("'length' parameter cannot be used together with 'end_line'") != std::string::npos);
+
+		// 6. length + tail mutual exclusivity error
+		std::string res_err2 = registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"tail\": 5, \"length\": 2}", ctx);
+		assert(res_err2.find("'tail' parameter cannot be used together with 'start_line', 'end_line', or 'length'") != std::string::npos);
+
+		// 7. length <= 0 error
+		std::string res_err3 = registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"length\": 0}", ctx);
+		assert(res_err3.find("'length' parameter must be greater than 0") != std::string::npos);
+		std::cout << "fs_read_lines 'length' parameter and aliases verified successfully!" << std::endl;
+	}
+
 	std::cout << "\nAll test tools verified!" << std::endl;
 	return 0;
 }

@@ -46,8 +46,9 @@ Turbostar supports tracing all LLM tool calls and outputs to sequential log file
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt').
     *   `start_line` *(integer, optional)*: The 1-based line number to start reading from. Defaults to 1 if omitted. Mutually exclusive with `tail`.
-    *   `end_line` *(integer, optional)*: The 1-based line number to end reading at (inclusive). Defaults to reading the rest of the file if omitted. Mutually exclusive with `tail`.
-    *   `tail` *(integer, optional)*: Reads the specified number of lines from the end of the file. Mutually exclusive with `start_line` and `end_line`.
+    *   `end_line` *(integer, optional)*: The 1-based line number to end reading at (inclusive). Defaults to reading the rest of the file if omitted. Mutually exclusive with `tail` and `length`.
+    *   `length` *(integer, optional)*: The number of lines to read starting from `start_line`. Mutually exclusive with `end_line` and `tail`. (Aliases: `num_lines`, `line_count`, `lines_count`.)
+    *   `tail` *(integer, optional)*: Reads the specified number of lines from the end of the file. Mutually exclusive with `start_line`, `end_line`, and `length`.
 
 ### `fs_read_symbol`
 *   **Description:** Read the full definition of a function, method, class, struct, or variable by name from a file. Use this to inspect a specific symbol`s implementation without guessing line numbers or reading full files.
