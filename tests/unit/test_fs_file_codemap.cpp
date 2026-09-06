@@ -1,4 +1,4 @@
-// Tested source file: src/codemap_utils.cpp
+// Tested source file: src/codemap_utils.cpp, src/tools/fs_file_codemap/fs_file_codemap_entry.cpp
 #include "test_watchdog.h"
 #include "agentlib/tool_context.h"
 #include "agentlib/tool_registry.h"
@@ -505,6 +505,29 @@ int main()
 		assert(ref.target_file == "src/config_manager.cpp");
 		assert(ref.target_start_line == 24);
 		assert(ref.target_end_line == 28);
+	}
+
+	// 17. Test kind-aware adaptive pruning for large symbol sets (> 50 symbols)
+	{
+		std::string large_md = "test_large_headings.md";
+		{
+			std::ofstream out_md(large_md);
+			out_md << "# Top Document\n\n";
+			for (int i = 0; i < 60; ++i) {
+				out_md << "# Section " << i << "\n\nContent for section " << i << ".\n\n";
+			}
+			out_md.close();
+		}
+
+		nlohmann::json args_default = {{"path", large_md}};
+		std::string res_default = registry.execute_tool("fs_file_codemap", args_default.dump(), ctx);
+
+		// Must contain the headings (headings are structural!)
+		assert(res_default.find("Codemap for `test_large_headings.md`") != std::string::npos);
+		assert(res_default.find("`Section 0`") != std::string::npos);
+		assert(res_default.find("`Section 59`") != std::string::npos);
+
+		std::remove(large_md.c_str());
 	}
 
 	// Cleanup

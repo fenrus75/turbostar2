@@ -10,6 +10,7 @@ struct fs_file_codemap_args {
     std::string requested_path;
     std::string safe_path; // Resolved and validated by Stage 1 security
     int min_lines{1};
+    bool min_lines_explicit{false}; // True if min_lines was explicitly provided by caller
     bool full{true};
     int max_symbols{0}; // 0 = unlimited / no cap
 };

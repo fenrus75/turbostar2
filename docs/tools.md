@@ -57,10 +57,10 @@ Turbostar supports tracing all LLM tool calls and outputs to sequential log file
     *   `symbol_name` *(string, required)*: The name of the function, method, class, struct, or variable to read. Supports namespace/class scopes (e.g. `Class::method`).
 
 ### `fs_file_codemap`
-*   **Description:** Provide a symbol codemap overview table for a file showing functions, methods, classes, and structs along with their start line and end line numbers. Use this tool to inspect symbol boundaries and locate specific functions before reading full source files into context.
+*   **Description:** Provide a symbol codemap overview table for a file showing functions, methods, classes, and structs along with their start line and end line numbers. Use this tool to inspect symbol boundaries and locate specific functions before reading full source files into context. When a file contains more than 50 symbols and `min_lines` is not explicitly passed, automatically performs kind-aware adaptive pruning to filter out trivial 1-line fields and enum members while preserving function/method declarations and class structures, appending a transparent disclosure note.
 *   **Arguments:**
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'src/ui/terminal_window.cpp').
-    *   `min_lines` *(integer, optional)*: Minimum line count threshold to filter out trivial inline declarations (default: 1).
+    *   `min_lines` *(integer, optional)*: Minimum line count threshold to filter out trivial inline declarations (default: 1). If explicitly passed as `1`, disables kind-aware adaptive pruning.
     *   `full` *(boolean, optional)*: Whether to return un-truncated whole-file symbols and section headings (default: true).
     *   `max_symbols` *(integer, optional)*: Maximum symbol count cap (default: 0 for unlimited).
 

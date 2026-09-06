@@ -63,12 +63,14 @@ protected:
 		}
 
 		int min_lines_arg = 1;
+		bool min_lines_explicit = false;
 		if (raw_json.contains("min_lines")) {
 			if (!raw_json["min_lines"].is_number_integer()) {
 				out_error = "Invalid 'min_lines' integer parameter.";
 				return false;
 			}
 			min_lines_arg = std::max(1, raw_json["min_lines"].get<int>());
+			min_lines_explicit = true;
 		}
 
 		bool full_arg = true;
@@ -103,6 +105,7 @@ protected:
 		args_.requested_path = path_arg;
 		args_.safe_path = canonical_path;
 		args_.min_lines = min_lines_arg;
+		args_.min_lines_explicit = min_lines_explicit;
 		args_.full = full_arg;
 		args_.max_symbols = max_symbols_arg;
 
