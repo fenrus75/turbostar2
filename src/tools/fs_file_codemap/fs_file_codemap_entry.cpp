@@ -65,7 +65,7 @@ std::string fs_file_codemap_tool::execute(agentlib::tool_context &ctx)
 		symbols.resize(args_.max_symbols);
 	}
 
-	std::string table = format_codemap_table(args_.requested_path, symbols, /*rich_format=*/true, total_lines, total_symbols_count, omitted_count, &ctx);
+	std::string table = format_codemap_table(args_.requested_path, symbols, total_lines, total_symbols_count, omitted_count, &ctx);
 
 	// Check if this is a header file with a matching implementation file
 	std::string matching_impl = find_matching_impl_file(args_.safe_path, ctx);
@@ -82,7 +82,7 @@ std::string fs_file_codemap_tool::execute(agentlib::tool_context &ctx)
 					impl_symbols.resize(args_.max_symbols);
 				}
 				std::filesystem::path ip(safe_impl);
-				table += format_codemap_table(ip.filename().string(), impl_symbols, /*rich_format=*/true, 0, impl_total, impl_omitted, &ctx);
+				table += format_codemap_table(ip.filename().string(), impl_symbols, 0, impl_total, impl_omitted, &ctx);
 			}
 		}
 	}

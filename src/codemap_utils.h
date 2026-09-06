@@ -71,12 +71,10 @@ codemap_selection_result select_prioritized_codemap_symbols(
 	size_t max_items = 10);
 
 // Format codemap symbols into Markdown table
-// If rich_format is true: 5 columns (| Symbol | Kind | Start Line | End Line | Lines |)
-// If rich_format is false: 3 columns (| Function | Start Line | End Line |)
+// Always 4 columns (| Symbol | Start Line | End Line | Lines |)
 std::string format_codemap_table(
 	const std::string &display_path,
 	const std::vector<codemap_symbol_info> &symbols,
-	bool rich_format,
 	size_t total_file_lines = 0,
 	size_t total_symbols_count = 0,
 	size_t omitted_count = 0,

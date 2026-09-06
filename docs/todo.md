@@ -250,6 +250,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 # Done
 
 ## 6-09-2026
+- Unified codemap table formatting & removed 'rich_format': removed the `rich_format` parameter from `tools::format_codemap_table`, standardizing all codemap tables across tools (`fs_file_codemap`, `fs_read_lines`, and cross-file dependencies) on a consistent 4-column schema (`| Symbol | Start Line | End Line | Lines |`) to provide symbol line counts directly for LLM context planning while eliminating redundant branching. Updated unit tests in `tests/unit/test_fs_file_codemap.cpp`. (Completed)
 - Streamlined crashdump backtrace reporting: fixed whitespace trimming bug in GDB function signature parsing (`find_last_of` -> `find_last_not_of`) that previously truncated arguments and parentheses; stripped `<optimized out>` arguments from function signatures across all backtrace frames to eliminate token bloat and line wrapping; collapsed contiguous leading crash-handling frames into a single summary row (`0-4`); accurately tagged external locations (`<libc>`, `<turbocatch>`, `<external>`); omitted addresses for non-project external frames; and removed redundant 'Frame Note' column from Codemap Summary table to save tokens and eliminate frame desynchronization. Added unit tests in `tests/unit/test_crashdump_get_info.cpp`. (Completed)
 
 ## 5-09-2026

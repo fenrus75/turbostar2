@@ -977,7 +977,6 @@ codemap_selection_result select_prioritized_codemap_symbols(
 std::string format_codemap_table(
 	const std::string &display_path,
 	const std::vector<codemap_symbol_info> &symbols,
-	bool rich_format,
 	size_t total_file_lines,
 	size_t total_symbols_count,
 	size_t omitted_count,
@@ -1004,39 +1003,24 @@ std::string format_codemap_table(
 	size_t effective_total = (total_symbols_count > 0) ? total_symbols_count : primary_symbols.size();
 
 	std::stringstream ss;
-	if (rich_format) {
-		if (!primary_symbols.empty()) {
-			if (total_file_lines > 0) {
-				if (effective_total > primary_symbols.size()) {
-					ss << std::format("### Codemap for `{}` (Top {} of {} symbols, {} lines):\n\n", display_path, primary_symbols.size(), effective_total, total_file_lines);
-				} else {
-					ss << std::format("### Codemap for `{}` (Full {} symbols, {} lines):\n\n", display_path, effective_total, total_file_lines);
-				}
+	if (!primary_symbols.empty()) {
+		if (total_file_lines > 0) {
+			if (effective_total > primary_symbols.size()) {
+				ss << std::format("### Codemap for `{}` (Top {} of {} symbols, {} lines):\n\n", display_path, primary_symbols.size(), effective_total, total_file_lines);
 			} else {
-				if (effective_total > primary_symbols.size()) {
-					ss << std::format("### Codemap for `{}` (Top {} of {} symbols):\n\n", display_path, primary_symbols.size(), effective_total);
-				} else {
-					ss << std::format("### Codemap for `{}` (Full {} symbols):\n\n", display_path, effective_total);
-				}
+				ss << std::format("### Codemap for `{}` (Full {} symbols, {} lines):\n\n", display_path, effective_total, total_file_lines);
 			}
-			ss << "| Symbol | Start Line | End Line | Lines |\n";
-			ss << "| :--- | :---: | :---: | :---: |\n";
-			for (const auto &sym : primary_symbols) {
-				ss << std::format("| `{}` | {} | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line, sym.line_count);
-			}
-		}
-	} else {
-		if (!primary_symbols.empty()) {
+		} else {
 			if (effective_total > primary_symbols.size()) {
 				ss << std::format("### Codemap for `{}` (Top {} of {} symbols):\n\n", display_path, primary_symbols.size(), effective_total);
 			} else {
-				ss << std::format("### Codemap for `{}` ({} symbols):\n\n", display_path, primary_symbols.size());
+				ss << std::format("### Codemap for `{}` (Full {} symbols):\n\n", display_path, effective_total);
 			}
-			ss << "| Function | Start Line | End Line |\n";
-			ss << "| :--- | :---: | :---: |\n";
-			for (const auto &sym : primary_symbols) {
-				ss << std::format("| `{}` | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line);
-			}
+		}
+		ss << "| Symbol | Start Line | End Line | Lines |\n";
+		ss << "| :--- | :---: | :---: | :---: |\n";
+		for (const auto &sym : primary_symbols) {
+			ss << std::format("| `{}` | {} | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line, sym.line_count);
 		}
 	}
 
@@ -1052,18 +1036,10 @@ std::string format_codemap_table(
 	// Render Option D secondary dependency codemap sections
 	for (const auto &[dep_path, dep_syms] : dependency_symbols) {
 		ss << std::format("\n### Codemap for `{}` (Called Dependency):\n\n", dep_path);
-		if (rich_format) {
-			ss << "| Symbol | Start Line | End Line | Lines |\n";
-			ss << "| :--- | :---: | :---: | :---: |\n";
-			for (const auto &sym : dep_syms) {
-				ss << std::format("| `{}` | {} | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line, sym.line_count);
-			}
-		} else {
-			ss << "| Function | Start Line | End Line |\n";
-			ss << "| :--- | :---: | :---: |\n";
-			for (const auto &sym : dep_syms) {
-				ss << std::format("| `{}` | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line);
-			}
+		ss << "| Symbol | Start Line | End Line | Lines |\n";
+		ss << "| :--- | :---: | :---: | :---: |\n";
+		for (const auto &sym : dep_syms) {
+			ss << std::format("| `{}` | {} | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line, sym.line_count);
 		}
 	}
 

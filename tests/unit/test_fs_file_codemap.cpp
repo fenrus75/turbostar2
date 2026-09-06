@@ -56,18 +56,18 @@ int main()
 	assert(codemap_res.find("`sample_foo`") != std::string::npos);
 	assert(codemap_res.find("`sample_bar`") != std::string::npos);
 
-	// 4. Test fs_read_lines partial read (Compact 3-column format)
+	// 4. Test fs_read_lines partial read (Unconditionally includes 4-column codemap table)
 	nlohmann::json read_partial_args = {{"path", impl_file}, {"start_line", 1}, {"end_line", 5}};
 	std::string read_partial_res = registry.execute_tool("fs_read_lines", read_partial_args.dump(), ctx);
 	std::cout << "fs_read_lines partial read output:\n" << read_partial_res << "\n";
-	assert(read_partial_res.find("| Function | Start Line | End Line |") != std::string::npos);
+	assert(read_partial_res.find("| Symbol | Start Line | End Line | Lines |") != std::string::npos);
 	assert(read_partial_res.find("`sample_foo`") != std::string::npos);
 
 	// 5. Test fs_read_lines full read (SKIP table rule)
 	nlohmann::json read_full_args = {{"path", impl_file}, {"start_line", 1}, {"end_line", 100}};
 	std::string read_full_res = registry.execute_tool("fs_read_lines", read_full_args.dump(), ctx);
 	std::cout << "fs_read_lines full read output:\n" << read_full_res << "\n";
-	assert(read_full_res.find("| Function | Start Line | End Line |") == std::string::npos);
+	assert(read_full_res.find("| Symbol | Start Line | End Line | Lines |") == std::string::npos);
 
 	// 6. Test fs_read_lines on header file (Header -> Impl magic)
 	nlohmann::json read_hdr_args = {{"path", header_file}, {"start_line", 1}, {"end_line", 4}};
@@ -149,13 +149,13 @@ int main()
 
 		// Test 1st call table formatting with tool_context (should include one-time hint)
 		ctx.has_hinted_fs_file_codemap = false;
-		std::string formatted_table1 = tools::format_codemap_table("dummy.cpp", sel.selected_symbols, /*rich_format=*/false, 0, sel.total_symbols, sel.omitted_count, &ctx);
+		std::string formatted_table1 = tools::format_codemap_table("dummy.cpp", sel.selected_symbols, 0, sel.total_symbols, sel.omitted_count, &ctx);
 		assert(formatted_table1.find("### Codemap for `dummy.cpp` (Top 5 of 15 symbols):") != std::string::npos);
 		assert(formatted_table1.find("*... [10 other symbols omitted (use fs_file_codemap if full symbol table is needed)]*") != std::string::npos);
 		assert(ctx.has_hinted_fs_file_codemap == true);
 
 		// Test 2nd call table formatting with tool_context (should NOT repeat hint)
-		std::string formatted_table2 = tools::format_codemap_table("dummy.cpp", sel.selected_symbols, /*rich_format=*/false, 0, sel.total_symbols, sel.omitted_count, &ctx);
+		std::string formatted_table2 = tools::format_codemap_table("dummy.cpp", sel.selected_symbols, 0, sel.total_symbols, sel.omitted_count, &ctx);
 		assert(formatted_table2.find("*... [10 other symbols omitted]*") != std::string::npos);
 		assert(formatted_table2.find("use fs_file_codemap") == std::string::npos);
 	}
@@ -295,7 +295,7 @@ int main()
 
 		auto all_syms = tools::get_document_codemap_symbols(main_file, ctx, 1);
 		auto selected = tools::select_prioritized_codemap_symbols(all_syms, 3, 6, main_file, ctx, 10);
-		std::string table_md = tools::format_codemap_table(main_file, selected.selected_symbols, false, 35, selected.total_symbols, selected.omitted_count, &ctx);
+		std::string table_md = tools::format_codemap_table(main_file, selected.selected_symbols, 35, selected.total_symbols, selected.omitted_count, &ctx);
 
 		std::cout << "Option D codemap table output:\n" << table_md << "\n";
 		assert(table_md.find("### Codemap for `test_opt_d_main.cpp`") != std::string::npos);
