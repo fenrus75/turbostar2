@@ -158,8 +158,6 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 			int start_line;
 			int end_line;
 			int line_count;
-			int frame_idx;
-			int frame_line;
 		};
 
 		std::vector<codemap_report_row> codemap_rows;
@@ -395,7 +393,7 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 								if (!seen_symbols.contains(sym_key)) {
 									seen_symbols.insert(sym_key);
 									int count = std::max(1, enc_sym->end_line - enc_sym->start_line + 1);
-									codemap_rows.push_back({rel_file_path, enc_sym->name, enc_sym->start_line, enc_sym->end_line, count, frame.frame_idx, line_num});
+									codemap_rows.push_back({rel_file_path, enc_sym->name, enc_sym->start_line, enc_sym->end_line, count});
 								}
 							}
 						}
@@ -477,7 +475,7 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 								if (!seen_symbols.contains(sym_key)) {
 									seen_symbols.insert(sym_key);
 									int count = std::max(1, enc_sym->end_line - enc_sym->start_line + 1);
-									codemap_rows.push_back({rel_file_path, enc_sym->name, enc_sym->start_line, enc_sym->end_line, count, frame_idx, line_num});
+									codemap_rows.push_back({rel_file_path, enc_sym->name, enc_sym->start_line, enc_sym->end_line, count});
 								}
 							}
 						}
@@ -492,11 +490,11 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 
 		if (!codemap_rows.empty()) {
 			report << "\n### Codemap Summary\n\n";
-			report << "| File | Symbol | Start Line | End Line | Lines | Frame Note |\n";
-			report << "|---|---|---|---|---|---|\n";
+			report << "| File | Symbol | Start Line | End Line | Lines |\n";
+			report << "|---|---|---|---|---|\n";
 			for (const auto &row : codemap_rows) {
-				report << std::format("| `{}` | `{}` | {} | {} | {} | Frame {} (Line {}) |\n",
-					row.rel_path, row.symbol_name, row.start_line, row.end_line, row.line_count, row.frame_idx, row.frame_line);
+				report << std::format("| `{}` | `{}` | {} | {} | {} |\n",
+					row.rel_path, row.symbol_name, row.start_line, row.end_line, row.line_count);
 			}
 		}
 	}
