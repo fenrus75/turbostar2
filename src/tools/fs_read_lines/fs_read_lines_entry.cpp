@@ -286,8 +286,8 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 
 		// Codemap integration rules:
 		// Rule 1: If read_res reads whole implementation file (start == 1 && adjusted_end >= read_res.total_file_lines), skip codemap for this file.
-		// Rule 2: If partial read and total file symbols < 10, append compact 3-column codemap.
-		// Rule 3: If reading a header file (.h / .hpp), find matching implementation file (.cpp) and append its compact codemap.
+		// Rule 2: If partial read and total file symbols < 10, append compact 4-column codemap.
+		// Rule 3: If reading a header file (.h / .hpp), find matching implementation file (.cpp) and append its compact 4-column codemap.
 		bool read_whole_file = (start == 1 && static_cast<size_t>(adjusted_end) >= read_res.total_file_lines);
 		bool is_header = false;
 		std::filesystem::path p(args_.safe_path);

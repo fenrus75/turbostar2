@@ -47,7 +47,7 @@ int main()
 		<< "int sample_bar(int x);\n";
 	out_hdr.close();
 
-	// 3. Test fs_file_codemap standalone tool (Rich format)
+	// 3. Test fs_file_codemap standalone tool (unified 4-column format)
 	nlohmann::json codemap_args = {{"path", impl_file}};
 	std::string codemap_res = registry.execute_tool("fs_file_codemap", codemap_args.dump(), ctx);
 	std::cout << "fs_file_codemap output:\n" << codemap_res << "\n";
