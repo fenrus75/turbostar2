@@ -980,7 +980,8 @@ std::string format_codemap_table(
 	size_t total_file_lines,
 	size_t total_symbols_count,
 	size_t omitted_count,
-	agentlib::tool_context *ctx)
+	agentlib::tool_context *ctx,
+	bool full)
 {
 	if (symbols.empty()) {
 		return "";
@@ -1002,16 +1003,22 @@ std::string format_codemap_table(
 
 	size_t effective_total = (total_symbols_count > 0) ? total_symbols_count : primary_symbols.size();
 
+	// The "(Full N symbols)" header is only honest when the caller requested the
+	// complete (un-truncated) symbol set and all symbols actually fit. If `full`
+	// is false, the user explicitly did NOT ask for the whole file, so never label
+	// the output as "Full" -- always use the "(Top X of M symbols)" wording.
+	bool show_full = full && effective_total <= primary_symbols.size();
+
 	std::stringstream ss;
 	if (!primary_symbols.empty()) {
 		if (total_file_lines > 0) {
-			if (effective_total > primary_symbols.size()) {
+			if (!show_full) {
 				ss << std::format("### Codemap for `{}` (Top {} of {} symbols, {} lines):\n\n", display_path, primary_symbols.size(), effective_total, total_file_lines);
 			} else {
 				ss << std::format("### Codemap for `{}` (Full {} symbols, {} lines):\n\n", display_path, effective_total, total_file_lines);
 			}
 		} else {
-			if (effective_total > primary_symbols.size()) {
+			if (!show_full) {
 				ss << std::format("### Codemap for `{}` (Top {} of {} symbols):\n\n", display_path, primary_symbols.size(), effective_total);
 			} else {
 				ss << std::format("### Codemap for `{}` (Full {} symbols):\n\n", display_path, effective_total);

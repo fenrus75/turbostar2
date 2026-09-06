@@ -305,6 +305,37 @@ int main()
 		std::remove(dep_file.c_str());
 	}
 
+	// 15b. Test the 'full' flag in format_codemap_table (item #13 fix):
+	// when full=false and all symbols fit, the header must NOT claim "(Full N symbols)".
+	// It should force the "(Top X of M symbols)" wording to stay honest.
+	{
+		std::vector<tools::codemap_symbol_info> syms;
+		for (int i = 1; i <= 3; ++i) {
+			tools::codemap_symbol_info s;
+			s.name = std::format("full_test_func_{}", i);
+			s.display_name = s.name;
+			s.start_line = i * 10;
+			s.end_line = i * 10 + 5;
+			s.line_count = 6;
+			syms.push_back(s);
+		}
+
+		// Default full=true, all symbols fit and none omitted -> "(Full 3 symbols)"
+		std::string full_default = tools::format_codemap_table("dummy_full.cpp", syms, 0, syms.size(), 0, &ctx);
+		assert(full_default.find("### Codemap for `dummy_full.cpp` (Full 3 symbols):") != std::string::npos);
+		assert(full_default.find("Top 3 of 3 symbols") == std::string::npos);
+
+		// full=false, all symbols fit -> must be "(Top 3 of 3 symbols)", never "Full".
+		std::string full_false = tools::format_codemap_table("dummy_full.cpp", syms, 0, syms.size(), 0, &ctx, /*full=*/false);
+		assert(full_false.find("### Codemap for `dummy_full.cpp` (Top 3 of 3 symbols):") != std::string::npos);
+		assert(full_false.find("Full 3 symbols") == std::string::npos);
+
+		// full=false with total_file_lines set still forces Top wording.
+		std::string full_false_lines = tools::format_codemap_table("dummy_full.cpp", syms, 40, syms.size(), 0, &ctx, /*full=*/false);
+		assert(full_false_lines.find("### Codemap for `dummy_full.cpp` (Top 3 of 3 symbols, 40 lines):") != std::string::npos);
+		assert(full_false_lines.find("Full 3 symbols") == std::string::npos);
+	}
+
 	// Test get_line_symbol_annotation helper
 	{
 		std::vector<tools::codemap_symbol_info> dummy_symbols = {

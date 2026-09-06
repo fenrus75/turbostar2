@@ -78,7 +78,8 @@ std::string format_codemap_table(
 	size_t total_file_lines = 0,
 	size_t total_symbols_count = 0,
 	size_t omitted_count = 0,
-	agentlib::tool_context *ctx = nullptr);
+	agentlib::tool_context *ctx = nullptr,
+	bool full = true);
 
 // Resolve an outgoing call hierarchy item to its true definition file and bounds via LSP / dedicated codemap
 bool resolve_outgoing_call_target(
