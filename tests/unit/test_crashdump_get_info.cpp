@@ -223,6 +223,47 @@ int main()
 		assert(notif2.find("Please use 'crashdump_list' and 'crashdump_get_info' to investigate.") != std::string::npos);
 	}
 
+	// 8. Verify clean_function_signature and classify_location
+	{
+		// A. clean_function_signature removes <optimized out> arguments and preserves valid args
+		std::string f1 = crashdump_manager::clean_function_signature(
+			"__pthread_kill_implementation (threadid=<optimized out>, signo=signo@entry=6, no_tid=no_tid@entry=0)");
+		std::cout << "Cleaned f1: " << f1 << std::endl;
+		assert(f1 == "__pthread_kill_implementation (signo=signo@entry=6, no_tid=no_tid@entry=0)");
+
+		std::string f2 = crashdump_manager::clean_function_signature(
+			"__GI___wait4 (pid=<optimized out>, stat_loc=<optimized out>, options=<optimized out>, usage=<optimized out>)");
+		std::cout << "Cleaned f2: " << f2 << std::endl;
+		assert(f2 == "__GI___wait4 (...)");
+
+		std::string f3 = crashdump_manager::clean_function_signature("foo ()");
+		std::cout << "Cleaned f3: " << f3 << std::endl;
+		assert(f3 == "foo ()");
+
+		std::string f4 = crashdump_manager::clean_function_signature("main (argc=1, argv=0x7ffedf235548)");
+		std::cout << "Cleaned f4: " << f4 << std::endl;
+		assert(f4 == "main (argc=1, argv=0x7ffedf235548)");
+
+		std::string f5 = crashdump_manager::clean_function_signature(
+			"__assert_fail (assertion=0x562180f73020 \"c != NULL\", file=0x562180f73014 \"../main.cpp\", line=8, function=0x562180f73004 \"void foo(char*)\")");
+		std::cout << "Cleaned f5: " << f5 << std::endl;
+		assert(f5.find("\"c != NULL\"") != std::string::npos);
+		assert(f5.find("\"void foo(char*)\"") != std::string::npos);
+
+		// B. classify_location accurately identifies libc, turbocatch, external, and project paths
+		std::string proj_root = project_manager::get_instance().get_project_root();
+		std::string build_dir = project_manager::get_instance().resolve_build_dir();
+
+		assert(crashdump_manager::classify_location("./nptl/cancellation.c:44", proj_root, build_dir) == "<libc>");
+		assert(crashdump_manager::classify_location("../sysdeps/unix/sysv/linux/wait4.c:30", proj_root, build_dir) == "<libc>");
+		assert(crashdump_manager::classify_location("./assert/assert.c:118", proj_root, build_dir) == "<libc>");
+		assert(crashdump_manager::classify_location("./stdlib/abort.c:77", proj_root, build_dir) == "<libc>");
+		assert(crashdump_manager::classify_location("/lib/x86_64-linux-gnu/libc.so.6", proj_root, build_dir) == "<libc>");
+		assert(crashdump_manager::classify_location("../src/crash_catcher/crash_catcher.c:337", proj_root, build_dir) == "<turbocatch>");
+		assert(crashdump_manager::classify_location("/opt/custom/libunknown.so", proj_root, build_dir) == "<external>");
+		assert(crashdump_manager::classify_location("src/editor.cpp:42", proj_root, build_dir) == "src/editor.cpp:42");
+	}
+
 	// Clean up mock files
 	crashdump_manager::get_instance().clear_all();
 	return 0;

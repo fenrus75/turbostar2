@@ -306,8 +306,8 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 				}
 
 				size_t f_first = fd.function.find_first_not_of(" \t");
-				size_t f_last = fd.function.find_last_of(" \t");
-				if (f_first != std::string::npos) {
+				size_t f_last = fd.function.find_last_not_of(" \t");
+				if (f_first != std::string::npos && f_last != std::string::npos) {
 					fd.function = fd.function.substr(f_first, f_last - f_first + 1);
 				}
 
@@ -344,54 +344,42 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 			report << "| Frame | Address | Function | Location | Note |\n";
 			report << "|---|---|---|---|---|\n";
 
-			for (const auto &frame : gdb_frames) {
+			// Collapse contiguous leading crash handling frames: [0, crash_end - 1]
+			size_t crash_end = 0;
+			while (crash_end < gdb_frames.size() && gdb_frames[crash_end].is_crash_handling) {
+				crash_end++;
+			}
+
+			if (crash_end > 0) {
+				std::string frame_range_str;
+				if (crash_end == 1) {
+					frame_range_str = std::to_string(gdb_frames[0].frame_idx);
+				} else {
+					frame_range_str = std::format("{}-{}", gdb_frames[0].frame_idx, gdb_frames[crash_end - 1].frame_idx);
+				}
+				report << std::format("| {} | | `<crash handling frames>` | <turbocatch> | crash handling |\n", frame_range_str);
+			}
+
+			for (size_t idx = crash_end; idx < gdb_frames.size(); ++idx) {
+				const auto &frame = gdb_frames[idx];
 				if (frame.function == "__libc_start_main" || frame.function == "__libc_start_call_main" ||
 				    frame.function == "__libc_start_main_impl" || frame.function == "_start") {
 					break;
 				}
 
-				std::string location = frame.location;
-				std::string rel_file_path;
-				int line_num = 0;
-				bool is_project = false;
+				std::string location = classify_location(frame.location, project_root, build_dir);
+				bool is_project = (!location.empty() && location[0] != '<');
 
-				size_t colon_pos = location.find_last_of(':');
-				if (colon_pos != std::string::npos && !location.empty() && location[0] != '?') {
+				if (is_project) {
 					size_t first_colon = location.find(':');
-					std::string raw_file = location.substr(0, first_colon);
-					std::string line_part = location.substr(first_colon);
-
-					fs::path p(raw_file);
-					fs::path full_p;
-					if (p.is_absolute()) {
-						full_p = p.lexically_normal();
-					} else {
-						if (fs::exists(fs::path(project_root) / p)) {
-							full_p = (fs::path(project_root) / p).lexically_normal();
-						} else if (!build_dir.empty() && fs::exists(fs::path(build_dir) / p)) {
-							full_p = (fs::path(build_dir) / p).lexically_normal();
-						} else {
-							full_p = (fs::path(project_root) / p).lexically_normal();
-						}
-					}
-
-					std::string full_path_str = full_p.string();
-					rel_file_path = fs_utils::make_relative_to_project(full_path_str);
-					if (full_path_str.starts_with(prefix) && fs::exists(full_p)) {
-						is_project = true;
-					}
-
-					if (is_project) {
-						location = rel_file_path + line_part;
-					} else if (location.starts_with(prefix)) {
-						location = location.substr(prefix.length());
-					}
-
-					if (is_project) {
+					if (first_colon != std::string::npos) {
+						std::string rel_file_path = location.substr(0, first_colon);
+						std::string line_part = location.substr(first_colon);
 						size_t num_start = (line_part.length() > 1 && line_part[0] == ':') ? 1 : 0;
 						size_t num_end = line_part.find(':', num_start);
 						std::string line_num_str = (num_end != std::string::npos) ?
 							line_part.substr(num_start, num_end - num_start) : line_part.substr(num_start);
+						int line_num = 0;
 						try {
 							line_num = std::stoi(line_num_str);
 						} catch (...) {
@@ -399,6 +387,7 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 						}
 
 						if (line_num > 0) {
+							std::string full_path_str = (fs::path(project_root) / rel_file_path).lexically_normal().string();
 							auto symbols = tools::get_document_codemap_symbols(full_path_str, /*min_lines=*/1);
 							const tools::codemap_symbol_info *enc_sym = tools::find_enclosing_symbol(symbols, line_num);
 							if (enc_sym) {
@@ -411,24 +400,25 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 							}
 						}
 					}
-				} else if (location.starts_with(prefix)) {
-					location = location.substr(prefix.length());
 				}
 
-				std::string addr_str = (frame.address != 0) ? std::format("`0x{:x}`", frame.address) : "";
+				std::string addr_str = (is_project && frame.address != 0) ? std::format("`0x{:x}`", frame.address) : "";
 				std::string note_str = frame.is_crash_handling ? "crash handling" : "";
 
+				// Clean function signature (strip <optimized out> arguments and excess whitespace)
+				std::string clean_func = clean_function_signature(frame.function);
+
 				// Escape any pipe characters in function signature for markdown table formatting
-				std::string safe_func = frame.function;
 				size_t pipe_pos = 0;
-				while ((pipe_pos = safe_func.find('|', pipe_pos)) != std::string::npos) {
-					safe_func.replace(pipe_pos, 1, "\\|");
+				while ((pipe_pos = clean_func.find('|', pipe_pos)) != std::string::npos) {
+					clean_func.replace(pipe_pos, 1, "\\|");
 					pipe_pos += 2;
 				}
 
-				report << std::format("| {} | {} | `{}` | {} | {} |\n", frame.frame_idx, addr_str, safe_func, location, note_str);
+				report << std::format("| {} | {} | `{}` | {} | {} |\n", frame.frame_idx, addr_str, clean_func, location, note_str);
 			}
-		} else {
+		}
+ else {
 			// Fallback: unwinder-based backtrace
 			report << "### Backtrace\n\n";
 			report << "| Frame | Address | Function | Location |\n";
@@ -728,6 +718,190 @@ std::vector<crashdump_info> crashdump_manager::get_crashdumps_for_cookie(std::st
 		}
 	}
 	return res;
+}
+
+std::string crashdump_manager::clean_function_signature(std::string_view raw_func)
+{
+	if (raw_func.empty()) {
+		return "";
+	}
+
+	size_t open_paren = raw_func.find('(');
+	if (open_paren == std::string::npos) {
+		return std::string(raw_func);
+	}
+	size_t close_paren = raw_func.rfind(')');
+	if (close_paren == std::string::npos || close_paren < open_paren) {
+		return std::string(raw_func);
+	}
+
+	std::string func_prefix(raw_func.substr(0, open_paren));
+	while (!func_prefix.empty() && std::isspace(static_cast<unsigned char>(func_prefix.back()))) {
+		func_prefix.pop_back();
+	}
+
+	std::string_view args_sv = raw_func.substr(open_paren + 1, close_paren - (open_paren + 1));
+	while (!args_sv.empty() && std::isspace(static_cast<unsigned char>(args_sv.front()))) {
+		args_sv.remove_prefix(1);
+	}
+	while (!args_sv.empty() && std::isspace(static_cast<unsigned char>(args_sv.back()))) {
+		args_sv.remove_suffix(1);
+	}
+
+	if (args_sv.empty()) {
+		return std::format("{} ()", func_prefix);
+	}
+
+	std::vector<std::string> args;
+	std::string current_arg;
+	bool in_quotes = false;
+	bool in_single_quotes = false;
+	bool escape = false;
+
+	for (size_t i = 0; i < args_sv.size(); ++i) {
+		char c = args_sv[i];
+		if (escape) {
+			current_arg += c;
+			escape = false;
+			continue;
+		}
+		if (c == '\\') {
+			escape = true;
+			current_arg += c;
+			continue;
+		}
+		if (c == '"' && !in_single_quotes) {
+			in_quotes = !in_quotes;
+			current_arg += c;
+			continue;
+		}
+		if (c == '\'' && !in_quotes) {
+			in_single_quotes = !in_single_quotes;
+			current_arg += c;
+			continue;
+		}
+		if (c == ',' && !in_quotes && !in_single_quotes) {
+			size_t s = current_arg.find_first_not_of(" \t");
+			size_t e = current_arg.find_last_not_of(" \t");
+			if (s != std::string::npos) {
+				args.push_back(current_arg.substr(s, e - s + 1));
+			}
+			current_arg.clear();
+			continue;
+		}
+		current_arg += c;
+	}
+	size_t s = current_arg.find_first_not_of(" \t");
+	size_t e = current_arg.find_last_not_of(" \t");
+	if (s != std::string::npos) {
+		args.push_back(current_arg.substr(s, e - s + 1));
+	}
+
+	std::vector<std::string> kept_args;
+	bool had_optimized_out = false;
+	for (const auto &a : args) {
+		if (a.find("<optimized out>") != std::string::npos) {
+			had_optimized_out = true;
+		} else {
+			kept_args.push_back(a);
+		}
+	}
+
+	if (kept_args.empty()) {
+		if (had_optimized_out) {
+			return std::format("{} (...)", func_prefix);
+		}
+		return std::format("{} ()", func_prefix);
+	}
+
+	std::string joined_args;
+	for (size_t i = 0; i < kept_args.size(); ++i) {
+		if (i > 0) {
+			joined_args += ", ";
+		}
+		joined_args += kept_args[i];
+	}
+	return std::format("{} ({})", func_prefix, joined_args);
+}
+
+std::string crashdump_manager::classify_location(std::string_view raw_loc, std::string_view project_root, std::string_view build_dir)
+{
+	if (raw_loc.empty()) {
+		return "";
+	}
+
+	// 1. Check if turbocatch
+	if (raw_loc.contains("crash_catcher") || raw_loc.contains("turbocatch")) {
+		return "<turbocatch>";
+	}
+
+	// 2. Check if glibc (verified standard libc source directories and DSO patterns)
+	if (raw_loc.contains("libc.so") ||
+	    raw_loc.contains("/nptl/") || raw_loc.starts_with("nptl/") || raw_loc.starts_with("./nptl/") ||
+	    raw_loc.contains("/sysdeps/") || raw_loc.starts_with("sysdeps/") || raw_loc.starts_with("../sysdeps/") ||
+	    raw_loc.contains("/assert/") || raw_loc.starts_with("assert/") || raw_loc.starts_with("./assert/") ||
+	    raw_loc.contains("/stdlib/") || raw_loc.starts_with("stdlib/") || raw_loc.starts_with("./stdlib/") ||
+	    raw_loc.contains("/stdio-common/") || raw_loc.starts_with("stdio-common/") ||
+	    raw_loc.contains("/malloc/") || raw_loc.starts_with("malloc/") ||
+	    raw_loc.contains("/string/") || raw_loc.starts_with("string/") ||
+	    raw_loc.contains("/posix/") || raw_loc.starts_with("posix/") ||
+	    raw_loc.contains("/elf/") || raw_loc.starts_with("elf/") ||
+	    raw_loc.contains("/dlfcn/") || raw_loc.starts_with("dlfcn/") ||
+	    raw_loc.contains("/signal/") || raw_loc.starts_with("signal/") ||
+	    raw_loc.contains("/misc/") || raw_loc.starts_with("misc/") ||
+	    raw_loc.contains("/csu/") || raw_loc.starts_with("csu/") ||
+	    raw_loc.contains("/usr/src/glibc") || raw_loc.contains("/usr/src/debug/glibc")) {
+		return "<libc>";
+	}
+
+	// 3. Check if it resolves within the project workspace or build directory
+	size_t colon_pos = raw_loc.find_last_of(':');
+	if (colon_pos != std::string::npos && raw_loc[0] != '?') {
+		size_t first_colon = raw_loc.find(':');
+		std::string raw_file = std::string(raw_loc.substr(0, first_colon));
+		std::string line_part = std::string(raw_loc.substr(first_colon));
+
+		fs::path p(raw_file);
+		fs::path full_p;
+		if (p.is_absolute()) {
+			full_p = p.lexically_normal();
+		} else {
+			if (fs::exists(fs::path(project_root) / p)) {
+				full_p = (fs::path(project_root) / p).lexically_normal();
+			} else if (!build_dir.empty() && fs::exists(fs::path(build_dir) / p)) {
+				full_p = (fs::path(build_dir) / p).lexically_normal();
+			} else {
+				full_p = (fs::path(project_root) / p).lexically_normal();
+			}
+		}
+
+		std::string full_path_str = full_p.string();
+		std::string prefix = std::string(project_root);
+		if (!prefix.empty() && prefix.back() != '/') {
+			prefix += "/";
+		}
+		if (full_path_str.starts_with(prefix) && fs::exists(full_p)) {
+			return fs_utils::make_relative_to_project(full_path_str) + line_part;
+		}
+	} else {
+		fs::path p(raw_loc);
+		fs::path full_p;
+		if (p.is_absolute()) {
+			full_p = p.lexically_normal();
+		} else if (fs::exists(fs::path(project_root) / p)) {
+			full_p = (fs::path(project_root) / p).lexically_normal();
+		}
+		std::string prefix = std::string(project_root);
+		if (!prefix.empty() && prefix.back() != '/') {
+			prefix += "/";
+		}
+		if (!full_p.empty() && full_p.string().starts_with(prefix) && fs::exists(full_p)) {
+			return fs_utils::make_relative_to_project(full_p.string());
+		}
+	}
+
+	// 4. Anything else outside the workspace
+	return "<external>";
 }
 
 std::vector<crashdump_info> crashdump_manager::get_crashdumps_for_run(int run_id) const

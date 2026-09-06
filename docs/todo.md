@@ -19,6 +19,8 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- add "grep_search" to the tool alias table for fs_grep_files
+
 - `fs_run_tests` suite filter (`suite: "unit"` / `"e2e"`): allow running only fast local unit tests without invoking slower external/e2e test suites to prevent 3-minute MCP timeouts when building and running tests.
 
 - feature: we have "yolo" mode already -- add a /yolo slash command to the agent window
@@ -246,6 +248,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # Done
+
+## 6-09-2026
+- Streamlined crashdump backtrace reporting: fixed whitespace trimming bug in GDB function signature parsing (`find_last_of` -> `find_last_not_of`) that previously truncated arguments and parentheses; stripped `<optimized out>` arguments from function signatures across all backtrace frames to eliminate token bloat and line wrapping; collapsed contiguous leading crash-handling frames into a single summary row (`0-4`); accurately tagged external locations (`<libc>`, `<turbocatch>`, `<external>`); and omitted addresses for non-project external frames. Added unit tests in `tests/unit/test_crashdump_get_info.cpp`. (Completed)
 
 ## 5-09-2026
 - Compiler health check ANSI sanitization & exit code verification: sanitized raw compiler output in `update_file_health_state` via `utf8::sanitize_terminal_output` to strip ANSI escape sequences emitted by `-fdiagnostics-color=always` before matching `: error:` and `fatal error:`; verified `Process exited with code 0` to reliably catch compile failures during single-file health checks; added diagnostic event logging in `mcp_mode` and expanded `tests/unit/test_file_health_tracker.cpp` with an RAII-guarded clean-to-dirty compiler transition test. (Completed)

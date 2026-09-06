@@ -33,6 +33,12 @@ public:
     // Parses crash dump report to extract the primary crash frame index, function name, and candidate variable name
     crash_frame_info get_crash_frame_info(std::string_view crash_id) const;
 
+    // Cleans GDB function signatures by stripping <optimized out> arguments and excess whitespace
+    static std::string clean_function_signature(std::string_view raw_func);
+
+    // Classifies a source location into project-relative path, <libc>, <turbocatch>, or <external>
+    static std::string classify_location(std::string_view raw_loc, std::string_view project_root, std::string_view build_dir);
+
 
     // Returns a markdown formatted string of newly discovered crashdumps, or empty string if none.
     std::string refresh(std::string_view project_hash = "");
