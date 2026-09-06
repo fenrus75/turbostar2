@@ -1,8 +1,9 @@
-// Tested source file: src/tools/run_executable/run_executable_security.cpp
+// Tested source file: src/tools/run_executable/run_executable_security.cpp, src/tools/run_executable/run_executable_entry.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <string>
+#include <vector>
 #include "agentlib/ai_agent.h"
 #include "agentlib/tool_registry.h"
 #include "project_manager.h"
@@ -16,6 +17,36 @@ public:
 	std::unique_ptr<document_snapshot> get_open_document(std::string_view) const override { return nullptr; }
 	bool apply_live_edits(std::string_view, std::string_view) override { return false; }
 	void save_all_documents() override {}
+
+	start_app_result start_app(std::string_view args, bool use_debugger, bool /*auto_continue*/, bool /*collect_performance*/, std::string_view binary) override {
+		last_args = std::string(args);
+		last_binary = std::string(binary);
+		last_debugger = use_debugger;
+		return {1001, use_debugger ? 2001 : -1};
+	}
+
+	wait_for_app_result wait_for_app(int run_id, std::string_view /*type*/, int timeout_sec) override {
+		last_wait_run_id = run_id;
+		last_wait_timeout = timeout_sec;
+		return {"ended", 150, false, ""};
+	}
+
+	void set_run_recording(int, bool recording) override {
+		is_recording = recording;
+		recording_history.push_back(recording);
+	}
+
+	std::vector<std::string> get_run_recorded_data(int) override {
+		return {"Hello from executable\n", "Second line\n"};
+	}
+
+	std::string last_args;
+	std::string last_binary;
+	bool last_debugger{false};
+	bool is_recording{false};
+	std::vector<bool> recording_history;
+	int last_wait_run_id{-1};
+	int last_wait_timeout{0};
 };
 
 int main()
@@ -113,6 +144,31 @@ int main()
 		auto prep_invalid_wait2 = registry.prepare_tool("run_executable", "{\"wait_for_time\": 301}", ctx);
 		assert(prep_invalid_wait2.tool == nullptr);
 		assert(!prep_invalid_wait2.error_message.empty());
+
+		// 12. Success case with output: true
+		auto prep_output = registry.prepare_tool("run_executable", "{\"binary\": \"crash\", \"output\": true}", ctx);
+		assert(prep_output.tool != nullptr);
+		assert(prep_output.error_message.empty());
+
+		// 13. Execution with output: true and wait_for_time: 0 (should default wait_time to 5)
+		dummy.recording_history.clear();
+		std::string exec_res = registry.execute_tool("run_executable", "{\"binary\": \"crash\", \"output\": true}", ctx);
+		std::cout << "execute with output: true:\n" << exec_res << std::endl;
+		assert(dummy.last_wait_timeout == 5);
+		assert(!dummy.recording_history.empty());
+		assert(dummy.recording_history.front() == true); // started recording
+		assert(dummy.recording_history.back() == false); // stopped recording
+		assert(exec_res.find("\"output\": \"Hello from executable\\nSecond line\\n\"") != std::string::npos);
+		assert(exec_res.find("\"status\": \"ended\"") != std::string::npos);
+
+		// 14. Execution with output: true and explicit wait_for_time: 15
+		std::string exec_res2 = registry.execute_tool("run_executable", "{\"binary\": \"crash\", \"output\": true, \"wait_for_time\": 15}", ctx);
+		assert(dummy.last_wait_timeout == 15);
+		assert(exec_res2.find("\"output\":") != std::string::npos);
+
+		// 15. Execution with output: false (should not include output field)
+		std::string exec_res3 = registry.execute_tool("run_executable", "{\"binary\": \"crash\", \"output\": false}", ctx);
+		assert(exec_res3.find("\"output\":") == std::string::npos);
 
 		std::cout << "run_executable tool verified successfully!" << std::endl;
 	}

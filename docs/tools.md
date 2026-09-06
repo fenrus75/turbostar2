@@ -613,8 +613,9 @@ These tools allow the agent to interact with the project's Git repository.
     *   `arguments` *(string, optional)*: Command line arguments to pass to the application. Aliased by `args`.
     *   `args` *(string, optional)*: Command line arguments to pass to the application. Alias for `arguments`.
     *   `debugger` *(boolean, optional)*: If true, starts the application with a split screen debugger (GDB/GDBServer). Defaults to false.
-    *   `wait_for_time` *(integer, optional)*: Optional time in seconds to wait for the application to finish or exit after starting. Defaults to 0 (async execution).
+    *   `wait_for_time` *(integer, optional)*: Optional time in seconds to wait for the application to finish or exit after starting. Defaults to 0 (async execution), or 5 if `output` is true and `wait_for_time` is omitted.
     *   `collect_performance` *(boolean, optional)*: If true, enables CPU cycle performance profiling sampling via `LD_PRELOAD` during execution. Defaults to false.
+    *   `output` *(boolean, optional)*: Optional. If true, captures and returns the application output that results from running the executable. When true, waits up to `wait_for_time` seconds (defaulting to 5s if omitted) for the process to finish before returning. Defaults to false.
 
 ### `agent_get_profile_summary`
 *   **Description:** Returns top functions and source lines ranked by CPU cycle percentage from the active or specified performance profile run.

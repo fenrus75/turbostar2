@@ -1,11 +1,26 @@
 #include "run_executable.h"
 #include "fs_utils.h"
 #include "perf_manager.h"
+#include "utf8.h"
 #include <format>
+#include <numeric>
 #include <nlohmann/json.hpp>
 
 namespace tools
 {
+
+static std::string sanitize_pty_output(const std::string &raw)
+{
+	std::string out = utf8::sanitize_terminal_output(raw);
+	std::string clean;
+	clean.reserve(out.size());
+	for (char c : out) {
+		if (c == '\n' || c == '\r' || c == '\t' || (static_cast<unsigned char>(c) >= 32 && c != 127)) {
+			clean += c;
+		}
+	}
+	return clean;
+}
 
 bool run_executable_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const
 {
@@ -29,21 +44,42 @@ std::string run_executable_tool::execute(agentlib::tool_context &ctx)
 		return "Error: Failed to start application process.";
 	}
 
+	if (args_.output) {
+		ctx.doc_provider->set_run_recording(res.app_run_id, true);
+	}
+
 	nlohmann::json output = {
 	    {"app_run_id", res.app_run_id},
 	    {"gdb_run_id", res.gdb_run_id >= 0 ? nlohmann::json(res.gdb_run_id) : nlohmann::json(nullptr)}};
 
-	if (args_.wait_for_time > 0) {
-		agentlib::wait_for_app_result wait_res = ctx.doc_provider->wait_for_app(res.app_run_id, "ended", args_.wait_for_time);
+	int wait_time = args_.wait_for_time;
+	if (args_.output && wait_time <= 0) {
+		wait_time = 5;
+	}
+
+	if (wait_time > 0) {
+		agentlib::wait_for_app_result wait_res = ctx.doc_provider->wait_for_app(res.app_run_id, "ended", wait_time);
 		output["status"] = wait_res.status;
 		output["is_alive"] = wait_res.is_alive;
 		output["age_ms"] = wait_res.age_ms;
 		if (!wait_res.crash_notification.empty()) {
 			output["crash_notification"] = wait_res.crash_notification;
 		}
-		set_success(ctx, "Started run_id " + std::to_string(res.app_run_id) + " (status: " + wait_res.status + ")");
+		set_success(ctx, std::format("Started run_id {} (status: {})", res.app_run_id, wait_res.status));
 	} else {
-		set_success(ctx, "Started run_id " + std::to_string(res.app_run_id));
+		set_success(ctx, std::format("Started run_id {}", res.app_run_id));
+	}
+
+	if (args_.output) {
+		ctx.doc_provider->set_run_recording(res.app_run_id, false);
+		std::vector<std::string> recorded = ctx.doc_provider->get_run_recorded_data(res.app_run_id);
+		std::string output_str = std::accumulate(recorded.begin(), recorded.end(), std::string{});
+		output_str = sanitize_pty_output(output_str);
+		if (output_str.length() > 20000) {
+			output_str.resize(20000);
+			output_str += "\n\n*(Output truncated at 20,000 characters)*\n";
+		}
+		output["output"] = output_str;
 	}
 
 	std::string run_id_str = std::to_string(res.app_run_id);

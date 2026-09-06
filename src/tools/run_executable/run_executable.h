@@ -13,6 +13,7 @@ struct run_executable_args {
 	bool debugger{false};
 	int wait_for_time{0};
 	bool collect_performance{false};
+	bool output{false};
 };
 
 class run_executable_tool : public agentlib::llm_tool_action

@@ -63,6 +63,11 @@ class run_executable_validator : public agentlib::tool_validator
 		       {{"type", "boolean"},
 			{"description",
 			 "If true, enables performance CPU cycle profiling sampling via LD_PRELOAD during execution."},
+			{"default", false}}},
+		      {"output",
+		       {{"type", "boolean"},
+			{"description",
+			 "Optional. If true, captures and returns the application output emitted during execution. Defaults to false."},
 			{"default", false}}}}}};
 	}
 
@@ -100,6 +105,11 @@ class run_executable_validator : public agentlib::tool_validator
 			bool collect_performance = false;
 			if (untrusted_args_json.contains("collect_performance") && untrusted_args_json["collect_performance"].is_boolean()) {
 				collect_performance = untrusted_args_json["collect_performance"].get<bool>();
+			}
+
+			bool output = false;
+			if (untrusted_args_json.contains("output") && untrusted_args_json["output"].is_boolean()) {
+				output = untrusted_args_json["output"].get<bool>();
 			}
 
 			if (untrusted_args.length() > 1024) {
@@ -178,6 +188,7 @@ class run_executable_validator : public agentlib::tool_validator
 			args_.debugger = debugger;
 			args_.wait_for_time = wait_for_time;
 			args_.collect_performance = collect_performance;
+			args_.output = output;
 			return true;
 		} catch (const std::exception &e) {
 			out_error = "Argument parsing error: " + std::string(e.what());
