@@ -1,3 +1,4 @@
+// Tested source file: src/project_template_manager.cpp
 #include "test_watchdog.h"
 #include "project_template_manager.h"
 #include <cassert>
@@ -81,6 +82,58 @@ int main()
 		// Verify C++17 override main.cpp content was selected (std::cout instead of std::println)
 		assert(main_cpp.find("std::cout") != std::string::npos);
 		assert(main_cpp.find("std::println") == std::string::npos);
+	}
+
+	// 4. Instantiate CMake C++ project (verifying CMAKE_EXPORT_COMPILE_COMMANDS)
+	{
+		turbostar::project_create_options opts;
+		opts.project_name = "demo_cmake_cpp";
+		opts.executable_name = "demo_cmake_cpp";
+		opts.language = "C++";
+		opts.buildsystem = "CMake";
+		opts.language_standard = "C++23";
+		opts.target_directory = temp_dir / "demo_cmake_cpp";
+		opts.init_git = true;
+
+		std::string err;
+		bool ok = mgr.create_project(opts, err);
+		assert(ok);
+		assert(err.empty());
+
+		assert(std::filesystem::exists(opts.target_directory / "CMakeLists.txt"));
+		assert(std::filesystem::exists(opts.target_directory / "src/main.cpp"));
+		assert(std::filesystem::exists(opts.target_directory / "AGENTS.md"));
+		assert(std::filesystem::exists(opts.target_directory / ".gitignore"));
+
+		std::string cmake_content = read_file_content(opts.target_directory / "CMakeLists.txt");
+		assert(cmake_content.find("set(CMAKE_EXPORT_COMPILE_COMMANDS ON)") != std::string::npos);
+		assert(cmake_content.find("project(demo_cmake_cpp") != std::string::npos);
+		assert(cmake_content.find("set(CMAKE_CXX_STANDARD 23)") != std::string::npos);
+	}
+
+	// 5. Instantiate CMake C project (verifying CMAKE_EXPORT_COMPILE_COMMANDS)
+	{
+		turbostar::project_create_options opts;
+		opts.project_name = "demo_cmake_c";
+		opts.executable_name = "demo_cmake_c";
+		opts.language = "C";
+		opts.buildsystem = "CMake";
+		opts.language_standard = "C17";
+		opts.target_directory = temp_dir / "demo_cmake_c";
+		opts.init_git = false;
+
+		std::string err;
+		bool ok = mgr.create_project(opts, err);
+		assert(ok);
+		assert(err.empty());
+
+		assert(std::filesystem::exists(opts.target_directory / "CMakeLists.txt"));
+		assert(std::filesystem::exists(opts.target_directory / "src/main.c"));
+
+		std::string cmake_content = read_file_content(opts.target_directory / "CMakeLists.txt");
+		assert(cmake_content.find("set(CMAKE_EXPORT_COMPILE_COMMANDS ON)") != std::string::npos);
+		assert(cmake_content.find("project(demo_cmake_c") != std::string::npos);
+		assert(cmake_content.find("set(CMAKE_C_STANDARD 17)") != std::string::npos);
 	}
 
 	// Cleanup

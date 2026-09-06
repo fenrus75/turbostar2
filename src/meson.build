@@ -209,8 +209,37 @@ turbostar_movie_h = custom_target('turbostar_movie.h',
   command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_text.py'), '@INPUT@', '@OUTPUT@', 'turbostar_movie_json']
 )
 
+project_template_files = files(
+  '../templates/cargo_rust/.gitignore',
+  '../templates/cargo_rust/AGENTS.md',
+  '../templates/cargo_rust/Cargo.toml',
+  '../templates/cargo_rust/src/main.rs',
+  '../templates/cmake_c/.gitignore',
+  '../templates/cmake_c/AGENTS.md',
+  '../templates/cmake_c/CMakeLists.txt',
+  '../templates/cmake_c/src/main.c',
+  '../templates/cmake_cpp/.gitignore',
+  '../templates/cmake_cpp/AGENTS.md',
+  '../templates/cmake_cpp/CMakeLists.txt',
+  '../templates/cmake_cpp/src/main.cpp',
+  '../templates/meson_c/.gitignore',
+  '../templates/meson_c/AGENTS.md',
+  '../templates/meson_c/meson.build',
+  '../templates/meson_c/src/main.c',
+  '../templates/meson_cpp/.gitignore',
+  '../templates/meson_cpp/AGENTS.md',
+  '../templates/meson_cpp/meson.build',
+  '../templates/meson_cpp/src/main.cpp',
+  '../templates/meson_cpp/src/main.cpp.C++17',
+  '../templates/python_basic/.gitignore',
+  '../templates/python_basic/AGENTS.md',
+  '../templates/python_basic/pyproject.toml',
+  '../templates/python_basic/src/__main__.py',
+)
+
 project_templates_embedded_h = custom_target('project_templates_embedded.h',
   output : 'project_templates_embedded.h',
+  depend_files : project_template_files,
   command : [embed_prog, join_paths(meson.project_source_root(), 'scripts/embed_templates.py'), join_paths(meson.project_source_root(), 'templates'), '@OUTPUT@']
 )
 
