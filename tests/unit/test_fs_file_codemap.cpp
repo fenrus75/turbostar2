@@ -391,6 +391,30 @@ int main()
 		std::remove(preview_cpp.c_str());
 	}
 
+	// 14. Test extract_class_context_preview on document.cpp
+	{
+		nlohmann::json read_args = {{"path", "src/document.cpp"}, {"start_line", 851}, {"end_line", 858}};
+		std::string read_out = registry.execute_tool("fs_read_lines", read_args.dump(), ctx);
+		std::cout << "fs_read_lines document.cpp class context output:\n" << read_out << "\n";
+		assert(read_out.find("### Class Context: `document`") != std::string::npos);
+		assert(read_out.find("lines_") != std::string::npos);
+		assert(read_out.find("cursor_x_") != std::string::npos);
+		assert(read_out.find("cursor_y_") != std::string::npos);
+		assert(read_out.find("target_cursor_x_") != std::string::npos);
+	}
+
+	// 15. Test extract_class_context_preview on document.cpp lines 410 to 418
+	{
+		nlohmann::json read_args = {{"path", "src/document.cpp"}, {"start_line", 410}, {"end_line", 418}};
+		std::string read_out = registry.execute_tool("fs_read_lines", read_args.dump(), ctx);
+		std::cout << "fs_read_lines document.cpp 410-418 class context output:\n" << read_out << "\n";
+		assert(read_out.find("### Class Context: `document`") != std::string::npos);
+		assert(read_out.find("mutex_") != std::string::npos);
+		assert(read_out.find("restore_cursor_state_unlocked") != std::string::npos);
+		assert(read_out.find("notify_cursor_changed") != std::string::npos);
+		assert(read_out.find("request_redraw") != std::string::npos);
+	}
+
 	// Cleanup
 	std::remove(impl_file.c_str());
 	std::remove(header_file.c_str());

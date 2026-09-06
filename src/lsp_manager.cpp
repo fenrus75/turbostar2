@@ -71,7 +71,8 @@ void lsp_manager::start_server(const std::string &name, const std::vector<std::s
 		initializeParams.rootUri = lsp::DocumentUri::fromPath(cwd);
 		initializeParams.capabilities = {
 		    .textDocument = lsp::TextDocumentClientCapabilities{
-			.hover = lsp::HoverClientCapabilities{.contentFormat = {{lsp::MarkupKind::PlainText}}}}};
+			.hover = lsp::HoverClientCapabilities{.contentFormat = {{lsp::MarkupKind::PlainText}}},
+			.documentSymbol = lsp::DocumentSymbolClientCapabilities{.hierarchicalDocumentSymbolSupport = true}}};
 
 		auto initializeRequest = server->message_handler->sendRequest<lsp::requests::Initialize>(std::move(initializeParams));
 		auto initializeResult = initializeRequest.result.get();

@@ -1255,7 +1255,7 @@ std::string extract_class_context_preview(
 	auto root_symbols = project_manager::get_instance().lsp_query_document_symbols(safe_header_path);
 	const lsp_manager::symbol_node *class_node = find_class_symbol_node(root_symbols, simple_class_name);
 
-	if (class_node) {
+	if (class_node && !class_node->children.empty()) {
 		for (const auto &child : class_node->children) {
 			int start = child.range.start_y + 1;
 			int end = child.range.end_y + 1;
@@ -1265,10 +1265,38 @@ std::string extract_class_context_preview(
 				candidate_methods.push_back({child.name, child.kind, start, end});
 			}
 		}
-	} else {
-		// Fallback parse of class in header
-		std::string class_decl = "class " + simple_class_name;
-		std::string struct_decl = "struct " + simple_class_name;
+	} else if (class_node && class_node->children.empty()) {
+		// When clangd returns flat SymbolInformation instead of hierarchical DocumentSymbol,
+		// root_symbols contains symbols whose line ranges fall within class_node's range.
+		int class_start_y = class_node->range.start_y;
+		int class_end_y = class_node->range.end_y;
+		for (const auto &sym : root_symbols) {
+			if (&sym == class_node) continue;
+			if (sym.range.start_y >= class_start_y && sym.range.end_y <= class_end_y) {
+				int start = sym.range.start_y + 1;
+				int end = sym.range.end_y + 1;
+				if (sym.kind == 8 || sym.kind == 13 || sym.kind == 7) {
+					candidate_fields.push_back({sym.name, sym.kind, start, end});
+				} else if (sym.kind == 6 || sym.kind == 12 || sym.kind == 9) {
+					candidate_methods.push_back({sym.name, sym.kind, start, end});
+				}
+			}
+		}
+	}
+
+	// Hybrid strategy: If LSP produced zero fields or zero methods, run the fast header parser
+	// to fill in any missing members without duplicating already detected symbols.
+	if (candidate_fields.empty() || candidate_methods.empty()) {
+		auto has_field = [&](std::string_view name) {
+			return std::any_of(candidate_fields.begin(), candidate_fields.end(),
+					   [&](const auto &item) { return item.name == name; });
+		};
+		auto has_method = [&](std::string_view name) {
+			return std::any_of(candidate_methods.begin(), candidate_methods.end(),
+					   [&](const auto &item) { return item.name == name; });
+		};
+
+		re2::RE2 class_decl_re(std::format(R"(\b(?:class|struct)\s+{}\b)", simple_class_name));
 		int brace_depth = 0;
 		bool in_class = false;
 
@@ -1276,7 +1304,19 @@ std::string extract_class_context_preview(
 			const auto &line = header_lines[i];
 			int line_num = static_cast<int>(i + 1);
 			if (!in_class) {
-				if (line.find(class_decl) != std::string::npos || line.find(struct_decl) != std::string::npos) {
+				std::string_view trimmed_check = line;
+				size_t first_non_ws = trimmed_check.find_first_not_of(" \t");
+				if (first_non_ws != std::string_view::npos) {
+					trimmed_check.remove_prefix(first_non_ws);
+					if (trimmed_check.starts_with("//") || trimmed_check.starts_with("/*") || trimmed_check.starts_with("*")) {
+						continue;
+					}
+					// Ignore forward declarations like "class document;"
+					if (trimmed_check.find(';') != std::string_view::npos && trimmed_check.find('{') == std::string_view::npos) {
+						continue;
+					}
+				}
+				if (re2::RE2::PartialMatch(line, class_decl_re)) {
 					in_class = true;
 					for (char c : line) {
 						if (c == '{') brace_depth++;
@@ -1294,7 +1334,7 @@ std::string extract_class_context_preview(
 						}
 					}
 				}
-				if (in_class && brace_depth >= 1) {
+				if (in_class && brace_depth == 1) {
 					std::string_view trimmed = line;
 					size_t first = trimmed.find_first_not_of(" \t");
 					if (first != std::string_view::npos) {
@@ -1314,7 +1354,7 @@ std::string extract_class_context_preview(
 								if (name_end != std::string_view::npos) {
 									size_t name_start = decl.find_last_of(" \t*&", name_end);
 									std::string mname = std::string(decl.substr(name_start == std::string_view::npos ? 0 : name_start + 1, name_end - (name_start == std::string_view::npos ? 0 : name_start + 1) + 1));
-									if (!mname.empty() && is_ident_char(mname[0])) {
+									if (!mname.empty() && is_ident_char(mname[0]) && !has_method(mname)) {
 										candidate_methods.push_back({mname, 6, line_num, line_num});
 									}
 								}
@@ -1326,7 +1366,7 @@ std::string extract_class_context_preview(
 								if (name_end != std::string_view::npos) {
 									size_t name_start = var_part.find_last_of(" \t*&", name_end);
 									std::string vname = std::string(var_part.substr(name_start == std::string_view::npos ? 0 : name_start + 1, name_end - (name_start == std::string_view::npos ? 0 : name_start + 1) + 1));
-									if (!vname.empty() && is_ident_char(vname[0])) {
+									if (!vname.empty() && is_ident_char(vname[0]) && !has_field(vname)) {
 										candidate_fields.push_back({vname, 8, line_num, line_num});
 									}
 								}
