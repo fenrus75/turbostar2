@@ -6,6 +6,7 @@
 #include "fs_utils.h"
 #include "project_manager.h"
 #include "tool_context.h"
+#include "utf8.h"
 
 namespace agentlib {
 
@@ -26,10 +27,13 @@ inline std::string update_file_health_state(tool_context &ctx, const std::string
 	if (!compile_cmd.empty()) {
 		std::string full_cmd = "export LC_ALL=C.UTF-8 LANG=C.UTF-8 && " + compile_cmd;
 		std::string output = fs_utils::execute_command_sync(full_cmd);
+		std::string clean_output = utf8::sanitize_terminal_output(output);
 		has_health_data = true;
-		is_clean = (output.find(": error:") == std::string::npos && output.find("fatal error:") == std::string::npos);
+		is_clean = (clean_output.find(": error:") == std::string::npos &&
+			    clean_output.find("fatal error:") == std::string::npos &&
+			    clean_output.find("Process exited with code 0") != std::string::npos);
 		event_logger::get_instance().log("[file_health] single-file compile check: is_clean={}, output_snippet='{}'",
-						 is_clean, output.substr(0, std::min<size_t>(output.length(), 200)));
+						 is_clean, clean_output.substr(0, std::min<size_t>(clean_output.length(), 200)));
 	} else {
 		auto diags_opt = project_manager::get_instance().lsp_query_file_diagnostics(safe_path);
 		if (diags_opt.has_value()) {

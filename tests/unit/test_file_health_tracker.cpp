@@ -1,3 +1,4 @@
+// Tested source file: src/agentlib/file_health_utils.h
 #include <cassert>
 #include <iostream>
 #include "../../src/agentlib/file_health_utils.h"
@@ -39,6 +40,44 @@ int main()
 	ctx.file_health_tracker[test_path].state = agentlib::lsp_health_state::clean;
 	ctx.file_health_tracker[test_path].originating_edit_id.clear();
 	assert(agentlib::get_file_health_attribution_note(ctx, test_path).empty());
+
+	// 6. Real compile check with clean file and subsequent compiler error (ANSI colored diagnostics)
+	{
+		std::string main_path = fs_utils::safe_absolute("src/main.cpp").string();
+		std::string original_content;
+		{
+			std::ifstream ifs(main_path);
+			original_content.assign((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+		}
+		struct file_restorer {
+			std::string path;
+			std::string content;
+			~file_restorer() {
+				std::ofstream ofs(path);
+				ofs << content;
+			}
+		} restorer{main_path, original_content};
+
+		// 6a. Clean state on clean file
+		ctx.file_health_tracker[main_path].state = agentlib::lsp_health_state::unknown;
+		ctx.file_health_tracker[main_path].originating_edit_id.clear();
+		std::string edit_id1 = agentlib::update_file_health_state(ctx, main_path);
+		assert(ctx.file_health_tracker[main_path].state == agentlib::lsp_health_state::clean);
+		assert(ctx.file_health_tracker[main_path].originating_edit_id.empty());
+
+		// 6b. Introduce syntax error: append invalid closing brace
+		{
+			std::ofstream ofs(main_path, std::ios::app);
+			ofs << "\n}}\n";
+		}
+		std::string edit_id2 = agentlib::update_file_health_state(ctx, main_path);
+		assert(ctx.file_health_tracker[main_path].state == agentlib::lsp_health_state::dirty);
+		assert(ctx.file_health_tracker[main_path].originating_edit_id == edit_id2);
+
+		// Attribution note should blame edit_id2
+		std::string note = agentlib::get_file_health_attribution_note(ctx, main_path);
+		assert(note.find("after Edit " + edit_id2) != std::string::npos);
+	}
 
 	std::cout << "test_file_health_tracker passed successfully." << std::endl;
 	return 0;
