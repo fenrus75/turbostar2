@@ -121,7 +121,7 @@ static void fallback_find_symbols(const std::string &safe_path, int min_lines, s
 	}
 	bool is_py = (ext == ".py");
 
-	static const std::regex cpp_func_regex(R"(^\s*(?:[\w:\<\>]+\s+)+([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*)\s*\([^\)]*\)\s*(?:const|noexcept)?\s*\{?)");
+	static const std::regex cpp_func_regex(R"(^\s*(?:[\w:\<\>]+\s*[\*\&]*\s+)+[\*\&]*\s*([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*)\s*\([^\)]*\)\s*(?:const|noexcept)?\s*\{?)");
 	static const std::regex cpp_class_regex(R"(^\s*(?:class|struct)\s+([a-zA-Z_]\w*))");
 	static const std::regex py_func_regex(R"(^\s*def\s+([a-zA-Z_]\w*)\s*\()");
 	static const std::regex py_class_regex(R"(^\s*class\s+([a-zA-Z_]\w*))");
@@ -422,6 +422,160 @@ static int get_symbol_name_column(const std::string &file_path, int start_line)
 	return 0;
 }
 
+static bool is_project_file(const std::string &path, agentlib::tool_context * /*ctx*/ = nullptr)
+{
+	if (path.empty()) return false;
+	if (path.starts_with("/usr/") || path.starts_with("/opt/") || path.starts_with("/lib/") ||
+	    path.starts_with("/tmp/") || path.starts_with("/etc/") || path.starts_with("/var/")) {
+		return false;
+	}
+	if (path.find("/include/") != std::string::npos || path.find("/bits/") != std::string::npos ||
+	    path.find("gcc/") != std::string::npos || path.find("clang/") != std::string::npos) {
+		return false;
+	}
+
+	std::filesystem::path abs_p = fs_utils::safe_absolute(path);
+	std::string rel = fs_utils::make_relative_to_project(abs_p.string());
+	if (rel.empty() || rel.starts_with("/") || rel.starts_with("inc://") || rel.starts_with("..")) {
+		return false;
+	}
+	return true;
+}
+
+static bool is_matching_function_symbol(const codemap_symbol_info *sym, std::string_view name)
+{
+	if (!sym) return false;
+	if (sym->kind_str.find("Class") != std::string::npos || sym->kind_str.find("Struct") != std::string::npos ||
+	    sym->kind_str.find("Namespace") != std::string::npos) {
+		return false;
+	}
+	if (sym->name == name || sym->display_name == name) {
+		return true;
+	}
+	if (sym->name.ends_with("::" + std::string(name))) {
+		return true;
+	}
+	return false;
+}
+
+bool resolve_outgoing_call_target(
+	outgoing_call_reference &ref,
+	const lsp_manager::call_hierarchy_item &item,
+	std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
+	agentlib::tool_context *ctx)
+{
+	if (!is_project_file(item.uri, ctx)) {
+		return false;
+	}
+
+	std::string target_uri_path = fs_utils::make_relative_to_project(item.uri);
+
+	std::string def_path;
+	int def_pos_line = -1;
+
+	// 1. Primary resolution: ask LSP for the true definition location of the symbol.
+	// For C++, if a function is declared in a header but implemented in a .cpp file,
+	// lsp_query_definition on the declaration returns the .cpp definition line!
+	// If it is defined inline in the header (e.g. is_force_ascii), it returns the header location.
+	if (item.selection_range.start_y >= 0 && item.selection_range.start_x >= 0) {
+		auto defs = project_manager::get_instance().lsp_query_definition(
+			target_uri_path, item.selection_range.start_y, item.selection_range.start_x);
+		for (const auto &def : defs) {
+			if (!def.path.empty() && is_project_file(def.path, ctx)) {
+				def_path = fs_utils::make_relative_to_project(def.path);
+				def_pos_line = def.range.start_y + 1;
+				break;
+			}
+		}
+	}
+
+	// 2. Fallback resolution: if LSP definition query returned empty or is unavailable,
+	// check if implementation exists and actually contains the symbol.
+	if (def_path.empty()) {
+		if (target_uri_path.ends_with(".h") || target_uri_path.ends_with(".hpp")) {
+			std::string impl = find_matching_impl_file(target_uri_path, ctx);
+			if (!impl.empty()) {
+				if (!symbols_cache.contains(impl)) {
+					std::vector<codemap_symbol_info> syms;
+					fallback_find_symbols(impl, 1, syms);
+					symbols_cache[impl] = std::move(syms);
+				}
+				const auto &impl_syms = symbols_cache[impl];
+				if (find_symbol_by_hint(impl_syms, item.name)) {
+					def_path = impl;
+				}
+			}
+		}
+		if (def_path.empty()) {
+			def_path = target_uri_path;
+		}
+	}
+
+	// 3. Factual symbol bounds from dedicated codemap of def_path
+	if (!symbols_cache.contains(def_path)) {
+		std::vector<codemap_symbol_info> syms;
+		fallback_find_symbols(def_path, 1, syms);
+		symbols_cache[def_path] = std::move(syms);
+	}
+	const auto &target_syms = symbols_cache[def_path];
+	const codemap_symbol_info *found = nullptr;
+	if (def_pos_line > 0) {
+		const codemap_symbol_info *encl = find_enclosing_symbol(target_syms, def_pos_line);
+		if (is_matching_function_symbol(encl, item.name)) {
+			found = encl;
+		}
+	}
+	if (!found) {
+		const codemap_symbol_info *hint_sym = find_symbol_by_hint(target_syms, item.name);
+		if (is_matching_function_symbol(hint_sym, item.name)) {
+			found = hint_sym;
+		}
+	}
+
+	// If symbol is not defined in def_path and def_path is a header, look for matching .cpp implementation
+	if (!found && (def_path.ends_with(".h") || def_path.ends_with(".hpp"))) {
+		std::string impl = find_matching_impl_file(def_path, ctx);
+		if (!impl.empty()) {
+			if (!symbols_cache.contains(impl)) {
+				std::vector<codemap_symbol_info> syms;
+				fallback_find_symbols(impl, 1, syms);
+				symbols_cache[impl] = std::move(syms);
+			}
+			const auto &impl_syms = symbols_cache[impl];
+			const codemap_symbol_info *impl_found = find_symbol_by_hint(impl_syms, item.name);
+			if (is_matching_function_symbol(impl_found, item.name)) {
+				found = impl_found;
+				def_path = impl;
+			}
+		}
+	}
+
+	// If not found in def_path and def_path != target_uri_path, check target_uri_path (e.g. inline method in header)
+	if (!found && def_path != target_uri_path) {
+		if (!symbols_cache.contains(target_uri_path)) {
+			std::vector<codemap_symbol_info> syms;
+			fallback_find_symbols(target_uri_path, 1, syms);
+			symbols_cache[target_uri_path] = std::move(syms);
+		}
+		const auto &hdr_syms = symbols_cache[target_uri_path];
+		const codemap_symbol_info *hdr_found = find_symbol_by_hint(hdr_syms, item.name);
+		if (is_matching_function_symbol(hdr_found, item.name)) {
+			found = hdr_found;
+			def_path = target_uri_path;
+		}
+	}
+
+	if (!found) {
+		// Factual data principle: do not report unverified, guessed, or whole-class lines.
+		return false;
+	}
+
+	ref.target_file = def_path;
+	ref.target_start_line = found->start_line;
+	ref.target_end_line = found->end_line;
+	return true;
+}
+
 static void refresh_outgoing_calls_async(
 	std::string safe_path,
 	std::vector<codemap_symbol_info> doc_symbols,
@@ -455,6 +609,7 @@ static void refresh_outgoing_calls_async(
 			auto lsp_items = project_manager::get_instance().lsp_query_call_hierarchy_outgoing_batch(safe_path, positions, deadline);
 			if (lsp_items.empty()) return;
 
+			std::unordered_map<std::string, std::vector<codemap_symbol_info>> symbols_cache;
 			std::vector<outgoing_call_reference> all_calls;
 			for (const auto &item : lsp_items) {
 				outgoing_call_reference ref;
@@ -463,34 +618,9 @@ static void refresh_outgoing_calls_async(
 				ref.target_name = item.item.name;
 				ref.target_kind = lsp_kind_to_string(item.item.kind);
 
-				std::string target_uri_path = item.item.uri;
-				if (target_uri_path.starts_with("file://")) {
-					target_uri_path = target_uri_path.substr(7);
+				if (resolve_outgoing_call_target(ref, item.item, symbols_cache, ctx)) {
+					all_calls.push_back(ref);
 				}
-
-				std::string resolved_impl_path = target_uri_path;
-				if (ctx && (target_uri_path.ends_with(".h") || target_uri_path.ends_with(".hpp"))) {
-					std::string impl = find_matching_impl_file(target_uri_path, *ctx);
-					if (!impl.empty()) {
-						resolved_impl_path = impl;
-					}
-				}
-
-				ref.target_file = resolved_impl_path;
-				ref.target_start_line = item.item.range.start_y + 1;
-				ref.target_end_line = item.item.range.end_y + 1;
-
-				if (resolved_impl_path != target_uri_path) {
-					std::vector<codemap_symbol_info> impl_symbols;
-					fallback_find_symbols(resolved_impl_path, 1, impl_symbols);
-					const codemap_symbol_info *found = find_symbol_by_hint(impl_symbols, item.item.name);
-					if (found) {
-						ref.target_start_line = found->start_line;
-						ref.target_end_line = found->end_line;
-					}
-				}
-
-				all_calls.push_back(ref);
 			}
 
 			if (!all_calls.empty()) {
@@ -500,49 +630,6 @@ static void refresh_outgoing_calls_async(
 			}
 		} catch (...) {}
 	}).detach();
-}
-
-static bool is_project_file(const std::string &path, agentlib::tool_context * /*ctx*/ = nullptr)
-{
-	if (path.empty()) return false;
-	if (path.starts_with("/usr/") || path.starts_with("/opt/") || path.starts_with("/lib/") ||
-	    path.starts_with("/tmp/") || path.starts_with("/etc/") || path.starts_with("/var/")) {
-		return false;
-	}
-	if (path.find("/include/") != std::string::npos || path.find("/bits/") != std::string::npos ||
-	    path.find("gcc/") != std::string::npos || path.find("clang/") != std::string::npos) {
-		return false;
-	}
-
-	// If absolute path, check if it resides within current project working directory
-	if (path.starts_with("/")) {
-		std::error_code ec;
-		std::string cwd = std::filesystem::current_path(ec).string();
-		if (!ec && !cwd.empty()) {
-			if (!path.starts_with(cwd)) {
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-static std::string normalize_display_path(const std::string &path, agentlib::tool_context * /*ctx*/ = nullptr)
-{
-	if (path.empty()) return path;
-	std::string p = path;
-	if (p.starts_with("file://")) {
-		p = p.substr(7);
-	}
-	std::error_code ec;
-	std::string cwd = std::filesystem::current_path(ec).string();
-	if (!ec && !cwd.empty()) {
-		if (!cwd.ends_with("/")) cwd += "/";
-		if (p.starts_with(cwd)) {
-			p = p.substr(cwd.length());
-		}
-	}
-	return p;
 }
 
 
@@ -608,26 +695,41 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
 
 	std::vector<std::pair<int, int>> positions;
 	for (const auto &sym : effective_symbols) {
+		if (sym.kind_str == "Class" || sym.kind_str == "Struct" || sym.kind_str == "Namespace") {
+			continue;
+		}
 		if (sym.start_line <= end_line && sym.end_line >= start_line) {
 			int col = get_symbol_name_column(safe_path, sym.start_line);
 			positions.push_back({sym.start_line - 1, col});
 		}
 	}
 
-	if (positions.empty() && start_line > 0) {
-		int col = get_symbol_name_column(safe_path, start_line);
-		positions.push_back({start_line - 1, col});
+	if (positions.empty()) {
+		const codemap_symbol_info *encl = find_enclosing_symbol(effective_symbols, start_line);
+		if (encl && encl->kind_str != "Class" && encl->kind_str != "Struct" && encl->kind_str != "Namespace") {
+			int col = get_symbol_name_column(safe_path, encl->start_line);
+			positions.push_back({encl->start_line - 1, col});
+		} else if (start_line > 0) {
+			int col = get_symbol_name_column(safe_path, start_line);
+			positions.push_back({start_line - 1, col});
+		}
 	}
 
 	if (positions.size() > 10) {
 		positions.resize(10);
 	}
 
+	std::unordered_map<std::string, std::vector<codemap_symbol_info>> symbols_cache;
 	std::vector<outgoing_call_reference> all_calls;
 
 	auto lsp_items = project_manager::get_instance().lsp_query_call_hierarchy_outgoing_batch(safe_path, positions, deadline);
 
 	if (!lsp_items.empty()) {
+		std::stable_partition(lsp_items.begin(), lsp_items.end(), [start_line, end_line](const auto &item) {
+			int line = item.call_line + 1;
+			return line >= start_line && line <= end_line;
+		});
+
 		for (const auto &item : lsp_items) {
 			if (std::chrono::steady_clock::now() >= deadline)
 				break;
@@ -638,34 +740,9 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(
 			ref.target_kind = lsp_kind_to_string(item.item.kind);
 			ref.is_direct_read_call = (ref.call_line >= start_line && ref.call_line <= end_line);
 
-			std::string target_uri_path = item.item.uri;
-			if (target_uri_path.starts_with("file://")) {
-				target_uri_path = target_uri_path.substr(7);
+			if (resolve_outgoing_call_target(ref, item.item, symbols_cache, ctx)) {
+				all_calls.push_back(ref);
 			}
-
-			std::string resolved_impl_path = target_uri_path;
-			if (ctx && (target_uri_path.ends_with(".h") || target_uri_path.ends_with(".hpp"))) {
-				std::string impl = find_matching_impl_file(target_uri_path, *ctx);
-				if (!impl.empty()) {
-					resolved_impl_path = impl;
-				}
-			}
-
-			ref.target_file = resolved_impl_path;
-			ref.target_start_line = item.item.range.start_y + 1;
-			ref.target_end_line = item.item.range.end_y + 1;
-
-			if (resolved_impl_path != target_uri_path) {
-				std::vector<codemap_symbol_info> impl_symbols;
-				fallback_find_symbols(resolved_impl_path, 1, impl_symbols);
-				const codemap_symbol_info *found = find_symbol_by_hint(impl_symbols, item.item.name);
-				if (found) {
-					ref.target_start_line = found->start_line;
-					ref.target_end_line = found->end_line;
-				}
-			}
-
-			all_calls.push_back(ref);
 		}
 	}
 
@@ -862,14 +939,14 @@ codemap_selection_result select_prioritized_codemap_symbols(
 	// Append up to 10 cross-file outgoing dependency call symbols under Option D
 	size_t cross_file_count = 0;
 	std::unordered_set<std::string> added_cross_file_keys;
-	std::string norm_safe_path = normalize_display_path(safe_path, &ctx);
+	std::string norm_safe_path = fs_utils::make_relative_to_project(safe_path);
 
 	for (const auto &call : direct_outgoing_calls) {
 		if (cross_file_count >= 10)
 			break;
 
 		if (!call.target_file.empty() && call.target_start_line > 0 && is_project_file(call.target_file, &ctx)) {
-			std::string norm_target = normalize_display_path(call.target_file, &ctx);
+			std::string norm_target = fs_utils::make_relative_to_project(call.target_file);
 			if (norm_target == norm_safe_path)
 				continue;
 
@@ -913,10 +990,10 @@ std::string format_codemap_table(
 	// Separate primary file symbols from cross-file dependency symbols (Option D)
 	std::vector<codemap_symbol_info> primary_symbols;
 	std::unordered_map<std::string, std::vector<codemap_symbol_info>> dependency_symbols;
-	std::string norm_primary = normalize_display_path(display_path, ctx);
+	std::string norm_primary = fs_utils::make_relative_to_project(display_path);
 
 	for (const auto &sym : symbols) {
-		std::string norm_source = normalize_display_path(sym.source_file, ctx);
+		std::string norm_source = fs_utils::make_relative_to_project(sym.source_file);
 		if (norm_source.empty() || norm_source == norm_primary) {
 			primary_symbols.push_back(sym);
 		} else {
@@ -994,7 +1071,7 @@ std::string format_codemap_table(
 	return ss.str();
 }
 
-std::string find_matching_impl_file(const std::string &header_path, agentlib::tool_context &/*ctx*/)
+std::string find_matching_impl_file(const std::string &header_path, agentlib::tool_context * /*ctx*/)
 {
 	std::filesystem::path hp(header_path);
 	std::string ext = hp.extension().string();
@@ -1021,7 +1098,7 @@ std::string find_matching_impl_file(const std::string &header_path, agentlib::to
 	return "";
 }
 
-std::string find_matching_header_file(const std::string &impl_path, agentlib::tool_context &/*ctx*/)
+std::string find_matching_header_file(const std::string &impl_path, agentlib::tool_context * /*ctx*/)
 {
 	std::filesystem::path ip(impl_path);
 	std::string ext = ip.extension().string();
@@ -1412,7 +1489,7 @@ std::string extract_class_context_preview(
 		return a.start_line < b.start_line;
 	});
 
-	std::string display_header_path = normalize_display_path(safe_header_path, &ctx);
+	std::string display_header_path = fs_utils::make_relative_to_project(safe_header_path);
 	std::stringstream ss;
 	ss << std::format("### Class Context: `{}` (extracted from `{}` for referenced members):\n",
 			  simple_class_name, display_header_path);
@@ -1480,6 +1557,10 @@ const codemap_symbol_info* find_symbol_by_hint(const std::vector<codemap_symbol_
 			clean_display.remove_prefix(first_non_space);
 		}
 		if (sym.name == hint || clean_display == hint) {
+			return &sym;
+		}
+		size_t colons = sym.name.rfind("::");
+		if (colons != std::string::npos && sym.name.substr(colons + 2) == hint) {
 			return &sym;
 		}
 	}

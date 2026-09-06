@@ -13,6 +13,10 @@ int main()
 {
 	test_watchdog::setup_watchdog(30);
 
+	if (!std::filesystem::exists("src/document.cpp") && std::filesystem::exists("../src/document.cpp")) {
+		std::filesystem::current_path("..");
+	}
+
 	agentlib::tool_registry &registry = agentlib::tool_registry::get_instance();
 	agentlib::tool_context ctx;
 	ctx.fs_security.set_working_directory(std::filesystem::current_path());
@@ -413,6 +417,55 @@ int main()
 		assert(read_out.find("restore_cursor_state_unlocked") != std::string::npos);
 		assert(read_out.find("notify_cursor_changed") != std::string::npos);
 		assert(read_out.find("request_redraw") != std::string::npos);
+	}
+
+	// 16. Test called dependencies line attribution via resolve_outgoing_call_target
+	{
+		std::unordered_map<std::string, std::vector<tools::codemap_symbol_info>> syms_cache;
+		tools::outgoing_call_reference ref;
+
+		// (a) Test inline method in header: is_force_ascii declared in src/config_manager.h
+		lsp_manager::call_hierarchy_item item_ascii;
+		item_ascii.name = "is_force_ascii";
+		item_ascii.kind = 6;
+		item_ascii.uri = "src/config_manager.h";
+		item_ascii.range = {133, 1, 136, 2};
+		item_ascii.selection_range = {133, 6, 133, 20};
+
+		bool ok = tools::resolve_outgoing_call_target(ref, item_ascii, syms_cache, &ctx);
+		assert(ok);
+		// Must be attributed to config_manager.h (where it is defined), NOT config_manager.cpp!
+		assert(ref.target_file == "src/config_manager.h");
+		assert(ref.target_start_line == 134);
+		assert(ref.target_end_line == 137);
+
+		// (b) Test function implemented in cpp: get_file_type declared in fs_utils.h, defined in fs_utils.cpp
+		lsp_manager::call_hierarchy_item item_file_type;
+		item_file_type.name = "get_file_type";
+		item_file_type.kind = 12;
+		item_file_type.uri = "src/fs_utils.h";
+		item_file_type.range = {58, 0, 58, 56};
+		item_file_type.selection_range = {58, 12, 58, 25};
+
+		ok = tools::resolve_outgoing_call_target(ref, item_file_type, syms_cache, &ctx);
+		assert(ok);
+		assert(ref.target_file == "src/fs_utils.cpp");
+		assert(ref.target_start_line >= 220 && ref.target_start_line <= 260);
+		assert(ref.target_end_line >= 250);
+
+		// (c) Test function implemented in cpp: get_instance declared in config_manager.h, defined in config_manager.cpp
+		lsp_manager::call_hierarchy_item item_get_inst;
+		item_get_inst.name = "get_instance";
+		item_get_inst.kind = 6;
+		item_get_inst.uri = "src/config_manager.h";
+		item_get_inst.range = {11, 1, 11, 40};
+		item_get_inst.selection_range = {11, 25, 11, 37};
+
+		ok = tools::resolve_outgoing_call_target(ref, item_get_inst, syms_cache, &ctx);
+		assert(ok);
+		assert(ref.target_file == "src/config_manager.cpp");
+		assert(ref.target_start_line == 24);
+		assert(ref.target_end_line == 28);
 	}
 
 	// Cleanup

@@ -173,6 +173,9 @@ std::string make_relative_to_project(std::string_view path_str, std::string_view
 	if (path_str.empty()) {
 		return std::string(path_str);
 	}
+	if (path_str.starts_with("file://")) {
+		path_str.remove_prefix(7);
+	}
 
 	std::string inc_uri = system_header_to_include_uri(path_str);
 	if (!inc_uri.empty()) {
@@ -190,6 +193,13 @@ std::string make_relative_to_project(std::string_view path_str, std::string_view
 	}
 	if (!working_dir.empty()) {
 		roots.push_back(std::string(working_dir));
+	}
+	if (roots.empty()) {
+		std::error_code ec;
+		std::string cwd = std::filesystem::current_path(ec).string();
+		if (!ec && !cwd.empty()) {
+			roots.push_back(cwd);
+		}
 	}
 
 	std::filesystem::path target_p(path_str);

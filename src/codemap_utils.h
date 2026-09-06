@@ -82,11 +82,24 @@ std::string format_codemap_table(
 	size_t omitted_count = 0,
 	agentlib::tool_context *ctx = nullptr);
 
+// Resolve an outgoing call hierarchy item to its true definition file and bounds via LSP / dedicated codemap
+bool resolve_outgoing_call_target(
+	outgoing_call_reference &ref,
+	const lsp_manager::call_hierarchy_item &item,
+	std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
+	agentlib::tool_context *ctx = nullptr);
+
 // Find matching implementation file for a header file (e.g. .h -> .cpp, .hpp -> .cpp)
-std::string find_matching_impl_file(const std::string &header_path, agentlib::tool_context &ctx);
+std::string find_matching_impl_file(const std::string &header_path, agentlib::tool_context *ctx = nullptr);
+inline std::string find_matching_impl_file(const std::string &header_path, agentlib::tool_context &ctx) {
+	return find_matching_impl_file(header_path, &ctx);
+}
 
 // Find matching header file for an implementation file (e.g. .cpp -> .h, .cpp -> .hpp)
-std::string find_matching_header_file(const std::string &impl_path, agentlib::tool_context &ctx);
+std::string find_matching_header_file(const std::string &impl_path, agentlib::tool_context *ctx = nullptr);
+inline std::string find_matching_header_file(const std::string &impl_path, agentlib::tool_context &ctx) {
+	return find_matching_header_file(impl_path, &ctx);
+}
 
 // Extract mini class definition preview (referenced member variables and called member methods)
 std::string extract_class_context_preview(
