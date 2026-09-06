@@ -74,6 +74,8 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 		}
 		std::string captured_tool_call_id = ctx.tool_call_id;
 		std::string attribution_notes = agentlib::get_all_file_health_attribution_notes(ctx);
+		event_logger::get_instance().log("[fs_compile_project] async branch: tracker_size={}, attribution_notes='{}'",
+						 ctx.file_health_tracker.size(), attribution_notes);
 
 		std::thread([runner = std::make_shared<terminal_command_runner>(interaction_, ctx.trigger_ui_update), cmd, weak_agent,
 			     captured_tool_call_id, attribution_notes, workspace_dir = ctx.fs_security.get_working_directory().string(), timeout = args_.timeout]() {
@@ -167,6 +169,8 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 		}
 	} else {
 		std::string attribution_notes = agentlib::get_all_file_health_attribution_notes(ctx);
+		event_logger::get_instance().log("[fs_compile_project] exit_code={}, tracker_size={}, attribution_notes='{}'",
+						 exit_code, ctx.file_health_tracker.size(), attribution_notes);
 		if (!attribution_notes.empty()) {
 			output += attribution_notes;
 		}

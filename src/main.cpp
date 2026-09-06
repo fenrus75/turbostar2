@@ -169,6 +169,12 @@ int main(int argc, char **argv)
 		}
 		fs_utils::set_override_project_dir(project_dir);
 
+		if (log_file.empty()) {
+			std::string default_log = fs_utils::get_project_cache_root() + "/session.log";
+			event_logger::get_instance().set_log_file(default_log);
+		}
+		event_logger::get_instance().log("Turbomcp server starting. Project dir: '{}'", project_dir);
+
 		config_manager::get_instance().load();
 		config_manager::get_instance().set_yolo_mode(true);
 		config_manager::get_instance().set_all_tool_families_enabled(true);
