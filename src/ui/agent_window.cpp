@@ -53,6 +53,7 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	    "Only use `run_shell_command` when absolutely necessary for tasks that cannot be accomplished with built-in tools.\n\n"
 	    "*** TURBOSTAR UNIQUE TOOL CALLS ***\n"
 	    "Prefer these specialized tools for speed, token efficiency, and editing precision:\n"
+	    "-  run_executable(binary=\"...\"): runs a built application or test. Optionally returns the output. Can run fully in GDB which is better for debugging than adding print statements!\n"
 	    "- `fs_file_codemap(path=\"...\")`: Quickly outlines source file structure (classes, functions, structs, line numbers). Use this to inspect file structure without reading entire files into context.\n"
 	    "- `markdown_extract(path=\"...\", query=\"...\")`: Extracts targeted sections, headings, or topics from Markdown files, documentation, or `system://man/` pages without reading entire files into context.\n"
 	    "- `fs_replace_content` with `function_hint`: Performs function-scoped line replacements. Passing `function_hint=\"<function_name>\"` isolates edits to that exact function scope, preventing line-shift ambiguity.\n"
