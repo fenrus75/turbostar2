@@ -59,6 +59,7 @@ system_docs_files = files(
   'system/languages/verilog.md',
   'system/workflows/code_review.md',
   'system/workflows/crash_analysis.md',
+  'system/workflows/bugfixing.md',
 )
 
 system_docs_embedded_h = custom_target('system_docs_embedded.h',
