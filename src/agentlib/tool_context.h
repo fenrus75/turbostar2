@@ -1,4 +1,5 @@
 #pragma once
+#include <chrono>
 #include <deque>
 #include <filesystem>
 #include <functional>
@@ -33,7 +34,8 @@ struct file_health_state {
 
 struct codemap_history_entry {
 	std::filesystem::file_time_type last_mtime{};
-	std::set<std::string> reported_symbol_names;
+	// Maps symbol name -> steady_clock timestamp when it was reported
+	std::unordered_map<std::string, std::chrono::steady_clock::time_point> reported_symbols;
 };
 
 // A placeholder for the context that tools will receive.

@@ -104,6 +104,13 @@ std::string fs_file_codemap_tool::execute(agentlib::tool_context &ctx)
 		symbols.resize(args_.max_symbols);
 	}
 
+	// Record reported symbol timestamps in codemap history
+	auto now = std::chrono::steady_clock::now();
+	auto &history = ctx.codemap_history[args_.safe_path];
+	for (const auto &sym : symbols) {
+		history.reported_symbols[sym.name] = now;
+	}
+
 	std::string table = format_codemap_table(args_.requested_path, symbols, total_lines, total_symbols_count, omitted_count, &ctx, args_.full, pruned_count, raw_symbols_count);
 	if (pruned_count > 0) {
 		table += std::format("*Note: {} total symbols found. Pruned {} 1-line fields/enum members. Pass min_lines=1 to view all symbols or min_lines=2/3 to filter getters.*\n\n", raw_symbols_count, pruned_count);
@@ -142,6 +149,10 @@ std::string fs_file_codemap_tool::execute(agentlib::tool_context &ctx)
 					impl_symbols.resize(args_.max_symbols);
 				}
 				std::filesystem::path ip(safe_impl);
+				auto &impl_history = ctx.codemap_history[safe_impl];
+				for (const auto &sym : impl_symbols) {
+					impl_history.reported_symbols[sym.name] = now;
+				}
 				table += format_codemap_table(ip.filename().string(), impl_symbols, 0, impl_total, impl_omitted, &ctx, args_.full, impl_pruned_count, raw_impl_count);
 				if (impl_pruned_count > 0) {
 					table += std::format("*Note: {} total symbols found. Pruned {} 1-line fields/enum members. Pass min_lines=1 to view all symbols or min_lines=2/3 to filter getters.*\n\n", raw_impl_count, impl_pruned_count);

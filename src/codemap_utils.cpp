@@ -808,7 +808,7 @@ codemap_selection_result select_prioritized_codemap_symbols(
 	auto current_mtime = std::filesystem::last_write_time(safe_path, ec);
 	auto &history = ctx.codemap_history[safe_path];
 	if (!ec && history.last_mtime != current_mtime) {
-		history.reported_symbol_names.clear();
+		history.reported_symbols.clear();
 		history.last_mtime = current_mtime;
 	}
 
@@ -906,10 +906,26 @@ codemap_selection_result select_prioritized_codemap_symbols(
 			score -= 5.0;
 		}
 
-		// 5. Deduplication penalty if previously reported
-		if (history.reported_symbol_names.contains(sym.name)) {
+		// 5. Recency / age metric & deduplication penalty
+		// Previously reported symbols receive a -3.0 deduplication penalty.
+		// Additionally, an age metric in range [0.0, +0.5] is added based on how long ago
+		// the symbol was reported (capped at 3600 seconds, divided by 7200).
+		// Symbols never reported before (or reported >= 3600s ago) receive the full +0.5 bonus,
+		// while recently reported symbols receive near 0.0 bonus. This cleanly breaks ties
+		// in favor of never/least-recently seen items without altering major category ranks.
+		auto now = std::chrono::steady_clock::now();
+		auto it = history.reported_symbols.find(sym.name);
+		double delta_seconds = 3600.0;
+		if (it != history.reported_symbols.end()) {
 			score -= 3.0;
+			delta_seconds = std::chrono::duration<double>(now - it->second).count();
+			if (delta_seconds < 0.0) {
+				delta_seconds = 0.0;
+			} else if (delta_seconds > 3600.0) {
+				delta_seconds = 3600.0;
+			}
 		}
+		score += (delta_seconds / 7200.0);
 
 		scored.push_back({&sym, score, idx});
 	}
@@ -926,9 +942,10 @@ codemap_selection_result select_prioritized_codemap_symbols(
 	size_t take_count = std::min(primary_max, scored.size());
 	res.selected_symbols.reserve(take_count + 10);
 
+	auto report_time = std::chrono::steady_clock::now();
 	for (size_t i = 0; i < take_count; ++i) {
 		res.selected_symbols.push_back(*scored[i].info);
-		history.reported_symbol_names.insert(scored[i].info->name);
+		history.reported_symbols[scored[i].info->name] = report_time;
 	}
 
 	// Re-sort primary file symbols by start_line ascending for document order display

@@ -158,6 +158,44 @@ int main()
 		std::string formatted_table2 = tools::format_codemap_table("dummy.cpp", sel.selected_symbols, 0, sel.total_symbols, sel.omitted_count, &ctx);
 		assert(formatted_table2.find("*... [10 other symbols omitted]*") != std::string::npos);
 		assert(formatted_table2.find("use fs_file_codemap") == std::string::npos);
+
+		// 11b. Test recency scoring & tie-breaking:
+		// Construct three candidate symbols that have identical base scores (outside read range, same line length).
+		// Symbol C: never reported (delta = 3600s -> +0.50 score)
+		// Symbol B: reported 1800s ago (delta = 1800s -> -3.0 penalty + (1800/7200) = -2.75)
+		// Symbol A: reported 10s ago (delta = 10s -> -3.0 penalty + (10/7200) = -2.9986)
+		// Even though Symbol A appears at line 100, B at line 200, and C at line 300,
+		// tie-breaking must prioritize C first, then B, then A.
+		std::string recency_file = "recency_test.cpp";
+		auto &rec_hist = ctx.codemap_history[recency_file];
+		rec_hist.reported_symbols.clear();
+		auto now = std::chrono::steady_clock::now();
+		rec_hist.reported_symbols["sym_a"] = now - std::chrono::seconds(10);
+		rec_hist.reported_symbols["sym_b"] = now - std::chrono::seconds(1800);
+		// sym_c is omitted from history (never reported)
+
+		std::vector<tools::codemap_symbol_info> recency_syms = {
+			{"sym_a", "sym_a", "Function", 1000, 1010, 11, 0, ""},
+			{"sym_b", "sym_b", "Function", 2000, 2010, 11, 0, ""},
+			{"sym_c", "sym_c", "Function", 3000, 3010, 11, 0, ""},
+		};
+
+		// Read range 1..10 (far from 1000, 2000, 3000 so base proximity score is 0.0)
+		auto rec_sel = tools::select_prioritized_codemap_symbols(recency_syms, 1, 10, recency_file, ctx, /*max_items=*/1);
+		assert(rec_sel.selected_symbols.size() == 1);
+		// Top selected item must be sym_c (never reported)
+		// Take top 2: reset sym_c so we test selecting from the same baseline.
+		// Should be sym_c (unreported), then sym_b (reported 1800s ago), NOT sym_a (reported 10s ago)
+		rec_hist.reported_symbols.erase("sym_c");
+		auto rec_sel2 = tools::select_prioritized_codemap_symbols(recency_syms, 1, 10, recency_file, ctx, /*max_items=*/2);
+		assert(rec_sel2.selected_symbols.size() == 2);
+		bool found_a = false, found_b = false, found_c = false;
+		for (const auto &s : rec_sel2.selected_symbols) {
+			if (s.name == "sym_a") found_a = true;
+			if (s.name == "sym_b") found_b = true;
+			if (s.name == "sym_c") found_c = true;
+		}
+		assert(found_c && found_b && !found_a);
 	}
 
 	// 12. Test Markdown mini-LSP: headings produce a codemap outline
