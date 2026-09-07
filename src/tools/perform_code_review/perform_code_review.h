@@ -34,6 +34,10 @@ class perform_code_review_validator : public agentlib::tool_validator
 	{
 		return true;
 	}
+	bool expose_in_mcp() const override
+	{
+		return false;
+	}
 	std::string get_family() const override
 	{
 		return "base|code_review";

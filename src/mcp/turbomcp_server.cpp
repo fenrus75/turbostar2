@@ -236,6 +236,26 @@ nlohmann::json turbomcp_server::handle_tools_call(const nlohmann::json &id, cons
 	} catch (...) {
 	}
 
+	// Reject execution of tools not exposed over the MCP interface
+	for (const auto &val : tool_registry::get_instance().get_all_registered_validators()) {
+		if (val && val->get_name() == tool_name) {
+			if (!val->expose_in_mcp()) {
+				nlohmann::json content_item;
+				content_item["type"] = "text";
+				content_item["text"] = "Error: Tool '" + tool_name + "' is not available via MCP.";
+				nlohmann::json result_obj;
+				result_obj["content"] = nlohmann::json::array({content_item});
+				result_obj["isError"] = true;
+				nlohmann::json resp;
+				resp["jsonrpc"] = "2.0";
+				resp["id"] = id;
+				resp["result"] = result_obj;
+				return resp;
+			}
+			break;
+		}
+	}
+
 	// Ensure families and security working directory are current
 	mcp_context_.properties.active_families = tool_registry::get_instance().get_all_registered_families();
 	std::string workspace_root = project_manager::get_instance().get_project_root();

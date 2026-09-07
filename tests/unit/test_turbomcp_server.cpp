@@ -15,6 +15,7 @@ int main()
 	auto validators = agentlib::tool_registry::get_instance().get_all_registered_validators();
 	bool found_open_in_editor = false;
 	bool found_fs_read_binary = false;
+	bool found_perform_code_review = false;
 
 	for (const auto &val : validators) {
 		if (!val) continue;
@@ -26,15 +27,50 @@ int main()
 			found_fs_read_binary = true;
 			assert(val->expose_in_mcp() == true);
 		}
+		if (val->get_name() == "perform_code_review") {
+			found_perform_code_review = true;
+			assert(val->expose_in_mcp() == false);
+		}
 	}
 
 	assert(found_open_in_editor);
 	assert(found_fs_read_binary);
+	assert(found_perform_code_review);
 
 	// Verify that turbomcp_server retains tool_context across consecutive calls
 	{
 		agentlib::turbomcp_server server;
 		assert(server.get_context().edit_sequence_counter == 0);
+
+		// Verify tools/list does not include perform_code_review or open_in_editor
+		nlohmann::json list_req = {
+			{"jsonrpc", "2.0"},
+			{"id", "list-1"},
+			{"method", "tools/list"},
+			{"params", nlohmann::json::object()}
+		};
+		nlohmann::json list_resp = server.handle_request(list_req);
+		bool list_has_perform_code_review = false;
+		bool list_has_open_in_editor = false;
+		for (const auto &tool : list_resp["result"]["tools"]) {
+			if (tool["name"] == "perform_code_review") list_has_perform_code_review = true;
+			if (tool["name"] == "open_in_editor") list_has_open_in_editor = true;
+		}
+		assert(!list_has_perform_code_review);
+		assert(!list_has_open_in_editor);
+
+		// Calling an unexposed tool via tools/call returns an error
+		nlohmann::json unexposed_call = {
+			{"jsonrpc", "2.0"},
+			{"id", "call-unexposed"},
+			{"method", "tools/call"},
+			{"params", {
+				{"name", "perform_code_review"},
+				{"arguments", {{"files", nlohmann::json::array({"src/main.cpp"})}}}
+			}}
+		};
+		nlohmann::json unexposed_resp = server.handle_request(unexposed_call);
+		assert(unexposed_resp["result"]["isError"] == true);
 
 		// Call an edit tool that updates file health state, or simulate sequence advancement
 		nlohmann::json edit_req1 = {
