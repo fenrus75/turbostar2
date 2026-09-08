@@ -249,3 +249,17 @@ To support modular and context-efficient tool management, tools are organized in
 ## Plugins
 Turbostar supports dynamic plugin loading to extend the editor's capabilities at runtime.
 For details on dynamic loading architecture, C-linkage entry points, dynamic symbol linkage, tool registration lifecycles, and unit test lifecycle initialization, refer to `docs/design-plugin.md`.
+
+## Project Templates
+Turbostar provides a built-in project creation wizard (`ui_dialog_project`) and template engine (`project_template_manager`).
+- **Template Embedding**: Template files in `templates/` are embedded at build time into `src/project_templates_embedded.h` via `scripts/embed_templates.py`. This ensures TurboStar can instantiate new projects without runtime dependency on external filesystem assets.
+- **Available Templates**:
+  - `meson_cpp`: C++ application with Meson build system (supports C++23, C++20, C++17).
+  - `meson_c`: C application with Meson build system (supports C17, C11, C99).
+  - `cmake_cpp`: C++ application with CMake build system.
+  - `cmake_c`: C application with CMake build system.
+  - `python_basic`: Python application with `pyproject.toml`.
+  - `cargo_rust`: Rust application with Cargo.
+  - `verilator_sv`: SystemVerilog simulation and linting project with Verilator.
+  - `fpga_ice40`: SystemVerilog FPGA hardware synthesis and implementation project targeting the Lattice iCE40-HX8K (Alchitry Cu) using Yosys, nextpnr-ice40, Project IceStorm (`icepack`), and `iceprog` with `pins.pcf` physical pin constraints.
+- **Variable Substitution & Overrides**: The template manager performs token expansion (`@@PROJECT_NAME@@`, `@@PROJECT_NAME_LOWER@@`, `@@LANGUAGE_STD@@`) and resolves standard-specific file overrides (e.g., `.C++17`).

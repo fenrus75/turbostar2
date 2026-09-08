@@ -1,0 +1,10 @@
+Alchitry IO 7-Segment Display Bit Mapping (Active Low)
+------------------------------------------------------
+0 = dot (decimal point)
+1 = MM  (middle horizontal)
+2 = LT  (top-left vertical)
+3 = LB  (bottom-left vertical)
+4 = MB  (bottom horizontal)
+5 = RB  (bottom-right vertical)
+6 = RT  (top-right vertical)
+7 = MT  (top horizontal)

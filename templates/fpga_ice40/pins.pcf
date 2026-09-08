@@ -1,0 +1,84 @@
+#
+# Lattice iCE40-HX8K Pin Constraints (Alchitry Cu)
+#
+
+# 100 MHz Clock
+set_io clk P7
+
+# Active-low Reset
+set_io rst_n P8
+
+# Onboard LEDs, bottom to top (led[0] -> led[7])
+set_io led[0] N14
+set_io led[1] M12
+set_io led[2] L14
+set_io led[3] L12
+set_io led[4] K14
+set_io led[5] K12
+set_io led[6] K11
+set_io led[7] J11
+
+## Alchitry IO Shield Expansion (Uncomment when used)
+
+# Bank 3 LEDs, right-to-left
+# set_io io_led3[0] G14 # BB21, IOR_141_GBIN2
+# set_io io_led3[1] F14 # BB20, IOR_140_GBIN3
+# set_io io_led3[2] E12 # BB18, IOR_147
+# set_io io_led3[3] E14 # BB17, IOR_148
+# set_io io_led3[4] D14 # BB15, IOR_152
+# set_io io_led3[5] C14 # BB14, IOR_154
+# set_io io_led3[6] B14 # BB12, IOR_161
+# set_io io_led3[7] A12 # BB11, IOT_170
+
+# Bank 2 LEDs
+# set_io io_led2[0] C10 # BB9, IOT_186
+# set_io io_led2[1] C9  # BB8, IOT_190
+# set_io io_led2[2] A11 # BB6, IOT_179
+# set_io io_led2[3] A10 # BB5, IOT_181
+# set_io io_led2[4] A7  # BB3, IOT_197_GBIN1
+# set_io io_led2[5] A6  # BB2, IOT_198_GBIN0
+# set_io io_led2[6] A4  # AB24, IOT_219
+# set_io io_led2[7] A3  # AB23, IOT_222
+
+# Bank 1 LEDs
+# set_io io_led1[0] A2  # AB21, IOT_223
+# set_io io_led1[1] A1  # AB20, IOT_225
+# set_io io_led1[2] C3  # AB18, IOL_4_P
+# set_io io_led1[3] D3  # AB17, IOL_4_N
+# set_io io_led1[4] B1  # AB15, IOL_2_P
+# set_io io_led1[5] C1  # AB14, IOL_2_N
+# set_io io_led1[6] D1  # AB12, IOL_5_P
+# set_io io_led1[7] E1  # AB11, IOL_5_N
+
+# DIP Switches
+# set_io io_dip1[7] C11 # BB40
+# set_io io_dip1[6] C12 # BB39
+# set_io io_dip1[5] D11 # BB37
+# set_io io_dip1[4] D12 # BB36
+# set_io io_dip1[3] E11 # BB34
+# set_io io_dip1[2] F11 # BB33
+# set_io io_dip1[1] F12 # BB31
+# set_io io_dip1[0] G12 # BB30
+
+# Buttons
+# set_io io_button[0] G11 # BB28
+# set_io io_button[1] H11 # BB27
+# set_io io_button[2] H12 # BB23
+# set_io io_button[3] J12 # BB24
+# set_io io_button[4] P2  # CB49
+
+# 7-Segment Displays, right to left (active-low)
+# set_io io_segsel[0] G3 # AB9
+# set_io io_segsel[1] G1 # AB8
+# set_io io_segsel[2] H1 # AB42
+# set_io io_segsel[3] H3 # AB43
+
+# Segment lines: 0=dot, 1=MM, 2=LT, 3=LB, 4=MB, 5=RB, 6=RT, 7=MT
+# set_io io_seg[0] J1 # AB5
+# set_io io_seg[1] J3 # AB6
+# set_io io_seg[2] N1 # AB48
+# set_io io_seg[3] K4 # AB46
+# set_io io_seg[4] K3 # AB45
+# set_io io_seg[5] L1 # AB3
+# set_io io_seg[6] M1 # AB2
+# set_io io_seg[7] P1 # AB49

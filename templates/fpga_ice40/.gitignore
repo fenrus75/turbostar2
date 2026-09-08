@@ -1,0 +1,6 @@
+synth/
+obj_dir/
+*.vcd
+*.bin
+*.asc
+*.json

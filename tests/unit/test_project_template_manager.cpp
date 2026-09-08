@@ -1,10 +1,10 @@
 // Tested source file: src/project_template_manager.cpp
-#include "test_watchdog.h"
-#include "project_template_manager.h"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include "project_template_manager.h"
+#include "test_watchdog.h"
 
 static std::string read_file_content(const std::filesystem::path &p)
 {
@@ -20,7 +20,7 @@ int main()
 
 	auto &mgr = turbostar::project_template_manager::get_instance();
 	auto templates = mgr.get_available_templates();
-	assert(templates.size() >= 6);
+	assert(templates.size() >= 7);
 
 	test_watchdog::scoped_test_home guard("project_template_test");
 	std::filesystem::path temp_dir = std::filesystem::path(guard.get_path()) / "test_new_project_output";
@@ -160,6 +160,51 @@ int main()
 		std::string top_sv = read_file_content(opts.target_directory / "src/top.sv");
 		assert(top_sv.find("module top") != std::string::npos);
 		assert(top_sv.find("IEEE 1800-2017") != std::string::npos);
+	}
+
+	// 6. Instantiate SystemVerilog FPGA iCE40 project
+	{
+		turbostar::project_create_options opts;
+		opts.project_name = "fpga_demo";
+		opts.executable_name = "fpga_demo";
+		opts.language = "SystemVerilog";
+		opts.buildsystem = "Yosys (FPGA)";
+		opts.language_standard = "IEEE 1800-2017";
+		opts.target_directory = temp_dir / "demo_fpga";
+		opts.init_git = true;
+
+		std::string err;
+		bool ok = mgr.create_project(opts, err);
+		assert(ok);
+		assert(err.empty());
+
+		assert(std::filesystem::exists(opts.target_directory / "Makefile"));
+		assert(std::filesystem::exists(opts.target_directory / "pins.pcf"));
+		assert(std::filesystem::exists(opts.target_directory / "8segbits.txt"));
+		assert(std::filesystem::exists(opts.target_directory / "src/top.sv"));
+		assert(std::filesystem::exists(opts.target_directory / "src/top_tb.sv"));
+		assert(std::filesystem::exists(opts.target_directory / "AGENTS.md"));
+		assert(std::filesystem::exists(opts.target_directory / ".gitignore"));
+
+		std::string makefile_content = read_file_content(opts.target_directory / "Makefile");
+		assert(makefile_content.find("yosys") != std::string::npos);
+		assert(makefile_content.find("nextpnr-ice40") != std::string::npos);
+		assert(makefile_content.find("icepack") != std::string::npos);
+		assert(makefile_content.find("iceprog") != std::string::npos);
+		assert(makefile_content.find("fpga_demo") != std::string::npos);
+
+		std::string pcf_content = read_file_content(opts.target_directory / "pins.pcf");
+		assert(pcf_content.find("set_io clk P7") != std::string::npos);
+		assert(pcf_content.find("set_io rst_n P8") != std::string::npos);
+		assert(pcf_content.find("set_io led[0] N14") != std::string::npos);
+
+		std::string top_sv = read_file_content(opts.target_directory / "src/top.sv");
+		assert(top_sv.find("module top") != std::string::npos);
+		assert(top_sv.find("counter_reg") != std::string::npos);
+
+		std::string agents_md = read_file_content(opts.target_directory / "AGENTS.md");
+		assert(agents_md.find("Lattice iCE40-HX8K") != std::string::npos);
+		assert(agents_md.find("fpga_demo") != std::string::npos);
 	}
 
 	// Cleanup

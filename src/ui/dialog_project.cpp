@@ -5,7 +5,6 @@
  *	dlg->set_height(flow_ptr->height());
  */
 
-#include "ui/dialog_factories.h"
 #include "codereview_manager.h"
 #include "config_manager.h"
 #include "fs_utils.h"
@@ -13,13 +12,13 @@
 #include "ncurses.h"
 #include "project_manager.h"
 #include "project_template_manager.h"
+#include "ui/dialog_factories.h"
 
 #include "ui/components/ui_button.h"
 #include "ui/components/ui_buttons_horizontal.h"
 #include "ui/components/ui_buttons_vertical.h"
 #include "ui/components/ui_checkbox.h"
 #include "ui/components/ui_dropdown.h"
-#include "ui/components/ui_fileselector.h"
 #include "ui/components/ui_fileselector.h"
 #include "ui/components/ui_group_box.h"
 #include "ui/components/ui_horizontal_flow.h"
@@ -56,7 +55,8 @@ class file_dialog_impl : public dialog
 			if (final_val.empty())
 				return;
 
-			fs::path entered_path = fs::path(final_val).is_absolute() ? fs::path(final_val) : (get_fs_view()->get_current_path() / final_val);
+			fs::path entered_path =
+			    fs::path(final_val).is_absolute() ? fs::path(final_val) : (get_fs_view()->get_current_path() / final_val);
 			if (fs::exists(entered_path) && fs::is_directory(entered_path)) {
 				get_fs_view()->set_current_path(fs::canonical(entered_path));
 				get_textbox()->set_buffer("");
@@ -99,7 +99,8 @@ class file_dialog_impl : public dialog
 		btns->add_child(std::make_unique<ui_button>("btn_ok", "Ok", 'o', [this]() {
 			std::string val = *get_value("filename");
 			if (!val.empty()) {
-				fs::path entered_path = fs::path(val).is_absolute() ? fs::path(val) : (get_fs_view()->get_current_path() / val);
+				fs::path entered_path =
+				    fs::path(val).is_absolute() ? fs::path(val) : (get_fs_view()->get_current_path() / val);
 				if (fs::exists(entered_path) && fs::is_directory(entered_path)) {
 					get_fs_view()->set_current_path(fs::canonical(entered_path));
 					get_textbox()->set_buffer("");
@@ -195,12 +196,12 @@ std::unique_ptr<dialog> create_code_review_edit_dialog(const review_item &item)
 		d->set_result("ok");
 	}));
 	btns->add_child(std::make_unique<ui_button>(
-		"btn_cancel", "Cancel", 'C',
-		[d = dlg.get()]() {
-			d->set_action(dialog_result::cancelled);
-			d->set_result("cancel");
-		},
-		true));
+	    "btn_cancel", "Cancel", 'C',
+	    [d = dlg.get()]() {
+		    d->set_action(dialog_result::cancelled);
+		    d->set_result("cancel");
+	    },
+	    true));
 	flow->add_child(std::move(btns));
 
 	auto flow_ptr = flow.get();
@@ -220,13 +221,9 @@ class image_manager_dialog_impl : public dialog
       public:
 	image_manager_dialog_impl() : dialog("Image VFS Manager", 72, 21)
 	{
-		auto on_selection_changed = [this](int idx) {
-			update_selection(idx);
-		};
+		auto on_selection_changed = [this](int idx) { update_selection(idx); };
 
-		auto on_submit = [this](int /*idx*/) {
-			save_selected();
-		};
+		auto on_submit = [this](int /*idx*/) { save_selected(); };
 
 		auto flow = std::make_unique<ui_vertical_flow>("main_flow", 2, 1, 0);
 
@@ -282,15 +279,9 @@ class image_manager_dialog_impl : public dialog
 
 		auto btns = std::make_unique<ui_buttons_horizontal>("buttons");
 		btns->set_centered(true);
-		btns->add_child(std::make_unique<ui_button>("btn_import", "Import", 'i', [this]() {
-			import_image();
-		}));
-		btns->add_child(std::make_unique<ui_button>("btn_save", "Save", 's', [this]() {
-			save_selected();
-		}));
-		btns->add_child(std::make_unique<ui_button>("btn_delete", "Delete", 'd', [this]() {
-			delete_selected();
-		}));
+		btns->add_child(std::make_unique<ui_button>("btn_import", "Import", 'i', [this]() { import_image(); }));
+		btns->add_child(std::make_unique<ui_button>("btn_save", "Save", 's', [this]() { save_selected(); }));
+		btns->add_child(std::make_unique<ui_button>("btn_delete", "Delete", 'd', [this]() { delete_selected(); }));
 		btns->add_child(std::make_unique<ui_button>("btn_close", "Close", 'c', [this]() {
 			set_action(dialog_result::cancelled);
 			set_result("cancel");
@@ -503,7 +494,8 @@ std::unique_ptr<dialog> create_new_project_dialog()
 				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("C99", "C99", '9', false));
 				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'r', false));
 			} else if (selected_lang == "Python") {
-				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("pyproject.toml", "pyproject.toml", 'p', true));
+				build_group_ptr->add_child(
+				    std::make_unique<ui_radio_choice>("pyproject.toml", "pyproject.toml", 'p', true));
 				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Meson", "Meson", 'M', false));
 				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'O', false));
 
@@ -520,6 +512,7 @@ std::unique_ptr<dialog> create_new_project_dialog()
 				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'r', false));
 			} else if (selected_lang == "SystemVerilog") {
 				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Verilator", "Verilator", 'V', true));
+				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Yosys (FPGA)", "Yosys (FPGA)", 'Y', false));
 				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("None / Custom", "None / Custom", 'N', false));
 				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'O', false));
 
@@ -530,7 +523,8 @@ std::unique_ptr<dialog> create_new_project_dialog()
 			} else {
 				// Other language
 				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("None / Custom", "None / Custom", 'N', true));
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("Custom / Default", "Custom / Default", 'D', true));
+				std_group_ptr->add_child(
+				    std::make_unique<ui_radio_choice>("Custom / Default", "Custom / Default", 'D', true));
 			}
 			build_group_ptr->flow();
 			std_group_ptr->flow();
