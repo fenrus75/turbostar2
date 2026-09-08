@@ -671,7 +671,8 @@ system_vfs_provider::system_vfs_provider()
 	register_description("languages/python311.md", "Read when writing or refactoring Python code.");
 	register_description("languages/rust2021.md", "Read when writing or refactoring Rust 2021 code.");
 	register_description("languages/typescript.md", "Read when writing or refactoring TypeScript/JavaScript code.");
-	register_description("languages/verilog.md", "Read when writing or refactoring Verilog/SystemVerilog code.");
+	register_description("languages/verilog.md", "Read when writing or refactoring Verilog code.");
+	register_description("languages/systemverilog.md", "Read when writing or refactoring SystemVerilog code.");
 
 	register_description("workflows/code_review.md", "Read before conducting multi-file code reviews, performing file slicing, or managing review item checklists.");
 	register_description("workflows/crash_analysis.md", "Read when investigating crash reports, core dumps, log tracebacks, or test failures via What-How-Where protocol.");
@@ -754,8 +755,11 @@ std::string system_vfs_provider::resolve_path(const std::string &uri, std::strin
 	if (path == "typescript.md" || path == "ts.md" || path == "js.md") {
 		return "languages/typescript.md";
 	}
-	if (path == "verilog.md" || path == "v.md" || path == "sv.md") {
+	if (path == "verilog.md" || path == "v.md") {
 		return "languages/verilog.md";
+	}
+	if (path == "systemverilog.md" || path == "sv.md") {
+		return "languages/systemverilog.md";
 	}
 	if (path == "code_review.md") {
 		return "workflows/code_review.md";

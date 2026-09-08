@@ -57,6 +57,7 @@ system_docs_files = files(
   'system/languages/rust2021.md',
   'system/languages/typescript.md',
   'system/languages/verilog.md',
+  'system/languages/systemverilog.md',
   'system/workflows/code_review.md',
   'system/workflows/crash_analysis.md',
   'system/workflows/bugfixing.md',

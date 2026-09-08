@@ -1,3 +1,4 @@
+// Tested source file: src/highlighter/verilog_highlighter.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
@@ -15,6 +16,13 @@ void test_verilog_file_support()
 	assert(hl.supports_file("package.svh") == true);
 	assert(hl.supports_file("main.cpp") == false);
 	assert(hl.supports_file("script.py") == false);
+
+	assert(hl.supports_language("verilog") == true);
+	assert(hl.supports_language("v") == true);
+	assert(hl.supports_language("SystemVerilog") == true);
+	assert(hl.supports_language("systemverilog") == true);
+	assert(hl.supports_language("sv") == true);
+	assert(hl.supports_language("cpp") == false);
 }
 
 void test_verilog_keywords()
@@ -36,6 +44,21 @@ void test_verilog_keywords()
 	assert(l->get_attribute(24) == syntax_attribute::keyword);
 	assert(l->get_attribute(27) == syntax_attribute::keyword);
 	assert(l->get_attribute(28) == syntax_attribute::normal);
+
+	// SystemVerilog always_ff and logic
+	auto l_sv = std::make_shared<line>("always_ff @(posedge clk) logic [7:0] data;");
+	hl.highlight(l_sv);
+	assert(l_sv->get_attribute(0) == syntax_attribute::keyword); // always_ff
+	assert(l_sv->get_attribute(8) == syntax_attribute::keyword);
+	assert(l_sv->get_attribute(9) == syntax_attribute::normal);
+	assert(l_sv->get_attribute(25) == syntax_attribute::keyword); // logic
+	assert(l_sv->get_attribute(29) == syntax_attribute::keyword);
+
+	// Compiler directive
+	auto l_dir = std::make_shared<line>("`timescale 1ns/1ps");
+	hl.highlight(l_dir);
+	assert(l_dir->get_attribute(0) == syntax_attribute::keyword);
+	assert(l_dir->get_attribute(9) == syntax_attribute::keyword);
 }
 
 void test_verilog_comments()

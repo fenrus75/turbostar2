@@ -100,6 +100,9 @@ agent_window::agent_window(int id, int x, int y, int width, int height, std::sha
 	} else if (prim_lang == "Verilog" || prim_lang == "v") {
 		vfs_lang_full_uri = "system://languages/verilog.md";
 		vfs_lang_short_uri = "system://languages/verilog.md";
+	} else if (prim_lang == "SystemVerilog" || prim_lang == "systemverilog" || prim_lang == "sv") {
+		vfs_lang_full_uri = "system://languages/systemverilog.md";
+		vfs_lang_short_uri = "system://languages/systemverilog.md";
 	} else {
 		vfs_lang_full_uri = "system://languages/default.md";
 		vfs_lang_short_uri = "system://languages/default_short.md";

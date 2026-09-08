@@ -11,6 +11,85 @@ namespace turbostar {
 inline const std::unordered_map<std::string, std::string_view> &get_embedded_system_docs()
 {
     static const std::unordered_map<std::string, std::string_view> docs = {
+        {"workflows/bugfixing.md", R"raw_embed(# Bugfixing Protocol (Assess – Reproduce – Verify – Fix – Confirm)
+
+When fixing a reported bug (wrong output, missed feature, edge-case logic, or test
+failure), you **MUST** execute the following protocol in order. It guarantees the fix
+is correct, covered, and confined to the true root cause.
+
+---
+
+## Step 1: ASSESS (Gauge test coverage in the suspected area)
+
+Before writing or changing any source, determine how well the affected area is tested
+so you know how much guard-railing the fix will need.
+
+- **Locate the relevant test file(s)** and check the coverage around the suspected
+  surface (matching format/flag/type combinations, boundaries, edge cases).
+- **If testing is weak or absent, add more (or many) baseline tests first** to pin the
+  current behavior — under-tested areas are where regressions ship — before attempting
+  to reproduce or fix. Note that this may uncover other bugs in the underlying code.
+- **Record what is already covered** so you add tests for the gaps rather than
+  duplicating existing ones.
+
+---
+
+## Step 2: REPRODUCE (Get a failing case BEFORE touching source)
+
+Do not edit source until you can observe the bug.
+
+- **Build a minimal failing reproducer** from the report (minimal inputs, minimal
+  format/arguments/call site).
+- **Prefer the project's real test harness** (`fs_run_tests` on the existing suite)
+  over throwaway probes. The correct reproducer *is* a new test in the trailing
+  baseline suite from Step 1.
+- **Confirm the failure** is observed (test FAILS, or output differs from expected)
+  before proceeding. An unobserved bug is not yet a bug you understand.
+- **Admit defeat** when the issue is so complicated that no reasonable test can be
+  created — raise this early rather than burning time on speculative fixes.
+
+---
+
+## Step 3: VERIFY (Pin the expected behavior with a failing test)
+
+With baseline coverage in place (Step 1), add the test that pins the *correct*,
+post-fix behavior **before** implementing the fix.
+
+- **Add a test for the reported case** that asserts the correct (post-fix) behavior.
+- **Cover the fix's neighbors**, not just the exact report — flag combinations,
+  boundaries, wide/narrow variants.
+- **Run the new test and confirm it FAILS** against the current code. A test that
+  passes before the fix is testing nothing.
+
+---
+
+## Step 4: FIX (Root cause, not symptom)
+
+Locate and fix the true root cause.
+
+- **Trace to the origin** of the incorrect behavior, not the first place you notice it
+  (see `crash_analysis.md` for the What/How/Where technique applied to failure states).
+- **Root-Cause Fix (Preferred)**: change the origin site so the behavior is correct.
+- **No Superficial Symptom Patches**: avoid masking, special-casing, or
+  swallow-guarding at the symptoms unless that is valid domain logic.
+- **Add comments**: Presume something is unusual in this area; add comments that
+  describe the correct high level intent and boundary conditions.
+---
+
+## Step 5: CONFIRM (Fail-then-Pass)
+
+- **Re-run the full relevant suite**: the new tests must now PASS, and existing
+  tests must not REGRESS (run neighboring test files too).
+- **Sanity-check neighbors**: confirm the fix did not alter unrelated behaviors
+  (e.g. default and adjacent flag paths).
+- Keep the change **focused**: code + tests for this bug only. Leave chore/tracking
+  files, unrelated formatting, and changelog curation out unless instructed otherwise.
+
+---
+
+*Companion protocol: `crash_analysis.md` for crash/undefined-state analysis. Share the
+test-verification (fail-then-pass) and root-cause-over-symptom principles with it to
+avoid drift.*)raw_embed"},
         {"workflows/code_review.md", R"raw_embed(# Code Review Subagent Workflow
 
 ## Guidelines
@@ -75,7 +154,7 @@ Determine the correct location in the codebase for the fix based on Step 2.
         {"languages/cpp23.md", R"raw_embed(# C++23 Development Guidelines
 
 ## Code Conventions
-- **Language Standard**: C++23. Use modern features (`std::format`, `std::string_view`, `std::span`, `constexpr`, `noexcept`, structured bindings).
+- **Language Standard**: C++23. Use modern features (`std::format`, `std::string_view`, `std::span`, `constexpr`, `noexcept`, structured bindings, ranged for loops).
 - **Include Guards**: Prefer `#pragma once`.
 - **Memory Management**: Follow RAII strictly; avoid raw `new` and `delete`, favoring `std::make_unique` and `std::make_shared`.
 - **String & Sequence Handling**: Prefer `std::string_view` for read-only string function parameters over `const std::string &`, and `std::span<const T>` for read-only contiguous sequence parameters over `const std::vector<T> &` to avoid unnecessary heap allocations; use `std::string` / `std::vector` when ownership or mutation is required. Avoid raw `char *` except when interfacing with C APIs or the OS kernel.
@@ -106,10 +185,9 @@ Determine the correct location in the codebase for the fix based on Step 2.
 | <subclass 1> | <project relative path to the header for subclass 1> |
 
 */
-```
-)raw_embed"},
+```)raw_embed"},
         {"languages/cpp23_short.md", R"raw_embed(# C++23 Development Guidelines Summary
-- **Standard & Memory**: C++23. Strictly follow RAII (`make_unique`/`make_shared`, avoid raw `new`/`delete`). Use modern features (`std::format`, `std::string_view`, `std::span`, `constexpr`, `noexcept`, `#pragma once`).
+- **Standard & Memory**: C++23. Strictly follow RAII (`make_unique`/`make_shared`, avoid raw `new`/`delete`). Use modern features (`std::format`, `std::string_view`, `std::span`, `constexpr`, `noexcept`, `#pragma once`, ranged for loops).
 - **Security-First**: Adopt a security-first mindset across all generated code. Document and sanity-check untrusted input early and verify buffer/array bounds.
 - **Organization**: Place each class in matching `.h`/`.cpp` files.
 - **Comments**: Document rationale ("why"), thread ownership, and mutex locking rules.
@@ -154,6 +232,26 @@ Determine the correct location in the codebase for the fix based on Step 2.
 - **Error Handling**: Use `Result<T, E>` and `Option<T>` with `?` operator propagation. Avoid `panic!` or `unwrap()` in library code.
 - **Safety**: Avoid `unsafe` blocks unless interfacing directly with C FFI or OS primitives. Document all safety invariants with `# Safety` comments.
 - **Documentation**: Document all public types, traits, and functions with doc comments (`///`).
+)raw_embed"},
+        {"languages/systemverilog.md", R"raw_embed(# SystemVerilog Guidelines (IEEE 1800)
+
+## Core Principles
+- **Modeling Precision**: Use `logic` for general design signals rather than legacy `reg` or `wire`. Reserve `wire` strictly for structural nets with multiple drivers (e.g., tri-state buses).
+- **Explicit Procedural Blocks**:
+  - `always_comb` for pure combinational logic (enforces sensitivity list inference and zero-delay simulation semantics).
+  - `always_ff @(posedge clk or negedge rst_n)` for sequential registers and flip-flops.
+  - `always_latch` when level-sensitive latches are deliberately intended.
+- **Non-Blocking vs. Blocking Assignments**:
+  - Use non-blocking assignments (`<=`) inside `always_ff` blocks.
+  - Use blocking assignments (`=`) inside `always_comb` blocks.
+  - Never mix blocking and non-blocking assignments to the same signal.
+- **Interfaces & Modports**: Bundle inter-module signals into `interface` definitions with dedicated `modport` views for master/slave roles.
+- **Packages**: Encapsulate shared parameters, types, `typedef struct packed`, and enumeration definitions inside named `package` declarations and import them explicitly (`import my_pkg::*;`).
+- **SystemVerilog Assertions (SVA)**:
+  - Embed immediate (`assert (cond) else $error(...)`) and concurrent (`assert property (...)`) checks directly in RTL.
+- **Synthesis & Linting**:
+  - Keep RTL synthesizable; avoid delays (`#`), unsynthesizable initial blocks, and non-constant division.
+  - Check code using `verilator --lint-only -Wall` or similar linter.
 )raw_embed"},
         {"languages/typescript.md", R"raw_embed(# TypeScript / JavaScript Guidelines
 

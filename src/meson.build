@@ -235,6 +235,11 @@ project_template_files = files(
   '../templates/python_basic/AGENTS.md',
   '../templates/python_basic/pyproject.toml',
   '../templates/python_basic/src/__main__.py',
+  '../templates/verilator_sv/.gitignore',
+  '../templates/verilator_sv/AGENTS.md',
+  '../templates/verilator_sv/Makefile',
+  '../templates/verilator_sv/src/top.sv',
+  '../templates/verilator_sv/src/top_tb.sv',
 )
 
 project_templates_embedded_h = custom_target('project_templates_embedded.h',

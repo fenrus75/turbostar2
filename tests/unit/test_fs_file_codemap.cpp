@@ -579,6 +579,32 @@ int main()
 		std::remove(large_md.c_str());
 	}
 
+	// 17. Test SystemVerilog codemap parsing (.sv)
+	std::string sv_file = "test_design.sv";
+	{
+		std::ofstream out_sv(sv_file);
+		out_sv << "module alu_top (\n"
+		       << "    input logic clk,\n"
+		       << "    output logic [7:0] out\n"
+		       << ");\n"
+		       << "    function automatic [7:0] add(input [7:0] a, input [7:0] b);\n"
+		       << "        return a + b;\n"
+		       << "    endfunction\n"
+		       << "    task automatic reset_alu();\n"
+		       << "        out <= 0;\n"
+		       << "    endtask\n"
+		       << "endmodule\n";
+		out_sv.close();
+
+		nlohmann::json args_sv = {{"path", sv_file}};
+		std::string res_sv = registry.execute_tool("fs_file_codemap", args_sv.dump(), ctx);
+		assert(res_sv.find("`alu_top`") != std::string::npos);
+		assert(res_sv.find("`add`") != std::string::npos);
+		assert(res_sv.find("`reset_alu`") != std::string::npos);
+
+		std::remove(sv_file.c_str());
+	}
+
 	// Cleanup
 	std::remove(impl_file.c_str());
 	std::remove(header_file.c_str());

@@ -136,6 +136,32 @@ int main()
 		assert(cmake_content.find("set(CMAKE_C_STANDARD 17)") != std::string::npos);
 	}
 
+	// 5. Instantiate SystemVerilog Verilator project
+	{
+		turbostar::project_create_options opts;
+		opts.project_name = "sv_demo";
+		opts.executable_name = "sv_demo";
+		opts.language = "SystemVerilog";
+		opts.buildsystem = "Verilator";
+		opts.language_standard = "IEEE 1800-2017";
+		opts.target_directory = temp_dir / "demo_sv";
+		opts.init_git = true;
+
+		std::string err;
+		bool ok = mgr.create_project(opts, err);
+		assert(ok);
+		assert(err.empty());
+
+		assert(std::filesystem::exists(opts.target_directory / "Makefile"));
+		assert(std::filesystem::exists(opts.target_directory / "src/top.sv"));
+		assert(std::filesystem::exists(opts.target_directory / "src/top_tb.sv"));
+		assert(std::filesystem::exists(opts.target_directory / "AGENTS.md"));
+
+		std::string top_sv = read_file_content(opts.target_directory / "src/top.sv");
+		assert(top_sv.find("module top") != std::string::npos);
+		assert(top_sv.find("IEEE 1800-2017") != std::string::npos);
+	}
+
 	// Cleanup
 	std::filesystem::remove_all(temp_dir);
 

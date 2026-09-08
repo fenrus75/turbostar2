@@ -14,7 +14,11 @@ bool verilog_highlighter::supports_file(const std::string &filename) const
 
 bool verilog_highlighter::supports_language(const std::string &lang) const
 {
-	return lang == "verilog" || lang == "v";
+	std::string l = lang;
+	for (char &c : l) {
+		c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+	}
+	return l == "verilog" || l == "v" || l == "systemverilog" || l == "sv";
 }
 
 void verilog_highlighter::highlight(std::shared_ptr<line> l)
@@ -31,20 +35,39 @@ void verilog_highlighter::highlight(std::shared_ptr<line> l)
 	// Helper to convert byte offset to char offset
 	auto byte_to_char = [&](size_t byte_pos) -> int { return static_cast<int>(utf8::byte_to_char_pos(text, byte_pos)); };
 
-	// 1. Keywords (Verilog & SystemVerilog)
+	// 1. Keywords (Verilog & SystemVerilog IEEE 1800)
 	static const std::unique_ptr<re2::RE2> kw_regex = std::make_unique<re2::RE2>(
-		"\\b(module|endmodule|input|output|inout|wire|reg|logic|always|always_comb|always_ff|always_latch|"
-		"assign|begin|end|parameter|localparam|initial|if|else|case|default|endcase|generate|endgenerate|"
-		"function|endfunction|task|endtask|integer|genvar|real|time|typedef|struct|enum|package|endpackage|"
-		"import|export|interface|endinterface|class|endclass|fork|join|join_any|join_none|automatic|ref|"
-		"const|virtual|static|extern|pure|packed|unsigned|signed|void|new|null|this|super|assert|property|"
-		"endproperty|sequence|endsequence|cover|assume|disable|forever|repeat|while|for|inside|unique|"
-		"priority|casex|casez)\\b");
+		"\\b(module|endmodule|input|output|inout|wire|reg|logic|bit|byte|shortint|int|longint|integer|time|"
+		"shortreal|real|chandle|string|event|always|always_comb|always_ff|always_latch|assign|alias|bind|"
+		"begin|end|parameter|localparam|initial|final|if|else|case|default|endcase|casex|casez|generate|"
+		"endgenerate|function|endfunction|task|endtask|genvar|typedef|struct|enum|union|package|endpackage|"
+		"import|export|interface|endinterface|modport|clocking|endclocking|program|endprogram|class|endclass|"
+		"extends|implements|virtual|local|protected|fork|join|join_any|join_none|automatic|ref|const|static|"
+		"extern|pure|packed|unsigned|signed|void|new|null|this|super|return|break|continue|assert|property|"
+		"endproperty|sequence|endsequence|checker|endchecker|cover|assume|disable|iff|forever|repeat|while|for|"
+		"inside|unique|unique0|priority|rand|randc|constraint|covergroup|endgroup|coverpoint|cross|bins|binsof|"
+		"intersect|dist|matches|tagged|wait|wait_order)\\b");
 
 	re2::StringPiece input(text);
 	re2::StringPiece match;
 	size_t search_start = 0;
 	while (kw_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
+		search_start = (match.data() - input.data()) + match.size();
+		int char_pos = byte_to_char(match.data() - text.data());
+		int char_end = byte_to_char(match.data() - text.data() + match.size());
+
+		for (int j = char_pos; j < char_end; ++j) {
+			if (j < static_cast<int>(attrs.size())) {
+				attrs[j] = syntax_attribute::keyword;
+			}
+		}
+	}
+
+	// 2. System Tasks and Compiler Directives (`include, $display, etc.)
+	static const std::unique_ptr<re2::RE2> sys_regex = std::make_unique<re2::RE2>(
+		"(\\$[a-zA-Z_]\\w*|`[a-zA-Z_]\\w*)");
+	search_start = 0;
+	while (sys_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
 		search_start = (match.data() - input.data()) + match.size();
 		int char_pos = byte_to_char(match.data() - text.data());
 		int char_end = byte_to_char(match.data() - text.data() + match.size());

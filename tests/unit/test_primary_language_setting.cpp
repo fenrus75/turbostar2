@@ -1,9 +1,10 @@
+// Tested source file: src/config_manager.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <filesystem>
 #include <iostream>
-#include "../../src/config_manager.h"
-#include "../../src/fs_utils.h"
+#include "config_manager.h"
+#include "fs_utils.h"
 
 namespace fs = std::filesystem;
 
@@ -19,12 +20,19 @@ int main()
 	assert(cfg.get_primary_language() == "C++");
 	assert(cfg.get_primary_language_version() == "C++23");
 
-	// 2. Modify settings
+	// 2. Modify settings (Python)
 	cfg.set_primary_language("Python");
 	cfg.set_primary_language_version("3.11+");
 
 	assert(cfg.get_primary_language() == "Python");
 	assert(cfg.get_primary_language_version() == "3.11+");
+
+	// 2b. Modify settings (SystemVerilog)
+	cfg.set_primary_language("SystemVerilog");
+	cfg.set_primary_language_version("IEEE 1800-2017");
+
+	assert(cfg.get_primary_language() == "SystemVerilog");
+	assert(cfg.get_primary_language_version() == "IEEE 1800-2017");
 
 	// 3. Save to a temporary config file and reload
 	fs::path temp_dir = fs::temp_directory_path() / "test_primary_lang_cfg";
@@ -40,8 +48,8 @@ int main()
 
 	// Load from file
 	cfg.load_from_file(config_file.string());
-	assert(cfg.get_primary_language() == "Python");
-	assert(cfg.get_primary_language_version() == "3.11+");
+	assert(cfg.get_primary_language() == "SystemVerilog");
+	assert(cfg.get_primary_language_version() == "IEEE 1800-2017");
 
 	// Clean up
 	fs::remove_all(temp_dir);

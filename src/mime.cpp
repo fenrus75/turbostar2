@@ -113,6 +113,12 @@ std::string get_language_from_extension(std::string_view path)
 	if (ext == "lua") {
 		return "lua";
 	}
+	if (ext == "sv" || ext == "svh") {
+		return "systemverilog";
+	}
+	if (ext == "v" || ext == "vh") {
+		return "verilog";
+	}
 	return "";
 }
 
@@ -246,7 +252,8 @@ bool uses_brace_syntax(std::string_view path_or_ext)
 
 	return (ext == "cs" || ext == "php" || ext == "kt" || ext == "kts" ||
 		ext == "swift" || ext == "scala" || ext == "d" || ext == "glsl" ||
-		ext == "hlsl" || ext == "verilog" || ext == "v" || ext == "jsonc");
+		ext == "hlsl" || ext == "verilog" || ext == "v" || ext == "vh" ||
+		ext == "sv" || ext == "svh" || ext == "systemverilog" || ext == "jsonc");
 }
 
 } // namespace mime

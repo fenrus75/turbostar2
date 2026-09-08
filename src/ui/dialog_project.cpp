@@ -442,6 +442,7 @@ std::unique_ptr<dialog> create_new_project_dialog()
 	lang_group->add_child(std::make_unique<ui_radio_choice>("C", "C", 'a', false));
 	lang_group->add_child(std::make_unique<ui_radio_choice>("Python", "Python", 'P', false));
 	lang_group->add_child(std::make_unique<ui_radio_choice>("Rust", "Rust", 'R', false));
+	lang_group->add_child(std::make_unique<ui_radio_choice>("SystemVerilog", "SystemVerilog", 'S', false));
 	lang_group->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'O', false));
 	page1->add_child(std::move(lang_group));
 
@@ -516,6 +517,15 @@ std::unique_ptr<dialog> create_new_project_dialog()
 
 				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("2021 Edition", "2021 Edition", '1', true));
 				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("2018 Edition", "2018 Edition", '8', false));
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'r', false));
+			} else if (selected_lang == "SystemVerilog") {
+				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Verilator", "Verilator", 'V', true));
+				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("None / Custom", "None / Custom", 'N', false));
+				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'O', false));
+
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("IEEE 1800-2017", "IEEE 1800-2017", '7', true));
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("IEEE 1800-2012", "IEEE 1800-2012", '2', false));
+				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("IEEE 1800-2005", "IEEE 1800-2005", '5', false));
 				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'r', false));
 			} else {
 				// Other language

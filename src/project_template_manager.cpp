@@ -29,6 +29,7 @@ std::vector<template_info> project_template_manager::get_available_templates() c
 	    {"cmake_c", "CMake + C", "C", "CMake", {"C17", "C11", "C99"}, "C17"},
 	    {"python_basic", "Python Application", "Python", "pyproject.toml", {"3.11+", "3.10", "3.9"}, "3.11+"},
 	    {"cargo_rust", "Rust Cargo Application", "Rust", "Cargo", {"2021 Edition", "2018 Edition"}, "2021 Edition"},
+	    {"verilator_sv", "Verilator + SystemVerilog", "SystemVerilog", "Verilator", {"IEEE 1800-2017", "IEEE 1800-2012", "IEEE 1800-2005"}, "IEEE 1800-2017"},
 	};
 }
 

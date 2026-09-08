@@ -50,6 +50,7 @@ int main()
 	assert(vfs.exists("system://languages/rust2021.md"));
 	assert(vfs.exists("system://languages/typescript.md"));
 	assert(vfs.exists("system://languages/verilog.md"));
+	assert(vfs.exists("system://languages/systemverilog.md"));
 	assert(vfs.exists("system://workflows/code_review.md"));
 	assert(vfs.exists("system://workflows/crash_analysis.md"));
 
@@ -65,6 +66,8 @@ int main()
 	assert(vfs.exists("system://rust.md"));
 	assert(vfs.exists("system://ts.md"));
 	assert(vfs.exists("system://verilog.md"));
+	assert(vfs.exists("system://systemverilog.md"));
+	assert(vfs.exists("system://sv.md"));
 	auto alias_doc = vfs.read_file("system://cpp23.md");
 	assert(alias_doc.has_value());
 	assert(std::string((*alias_doc)->view()) == cpp_text);

@@ -120,11 +120,19 @@ static void fallback_find_symbols(const std::string &safe_path, int min_lines, s
 		c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
 	}
 	bool is_py = (ext == ".py");
+	bool is_sv = (ext == ".sv" || ext == ".svh" || ext == ".v" || ext == ".vh");
 
 	static const std::regex cpp_func_regex(R"(^\s*(?:[\w:\<\>]+\s*[\*\&]*\s+)+[\*\&]*\s*([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*)\s*\([^\)]*\)\s*(?:const|noexcept)?\s*\{?)");
 	static const std::regex cpp_class_regex(R"(^\s*(?:class|struct)\s+([a-zA-Z_]\w*))");
 	static const std::regex py_func_regex(R"(^\s*def\s+([a-zA-Z_]\w*)\s*\()");
 	static const std::regex py_class_regex(R"(^\s*class\s+([a-zA-Z_]\w*))");
+
+	static const std::regex sv_module_regex(R"(^\s*(?:extern\s+)?module\s+([a-zA-Z_]\w*))");
+	static const std::regex sv_interface_regex(R"(^\s*(?:extern\s+)?interface\s+([a-zA-Z_]\w*))");
+	static const std::regex sv_package_regex(R"(^\s*package\s+([a-zA-Z_]\w*))");
+	static const std::regex sv_class_regex(R"(^\s*(?:virtual\s+)?class\s+([a-zA-Z_]\w*))");
+	static const std::regex sv_func_regex(R"(^\s*(?:(?:pure\s+virtual|virtual|static|local|protected)\s+)*function\s+(?:.*?\s+)?([a-zA-Z_]\w*)\s*[\(;])");
+	static const std::regex sv_task_regex(R"(^\s*(?:(?:pure\s+virtual|virtual|static|local|protected)\s+)*task\s+(?:.*?\s+)?([a-zA-Z_]\w*)\s*[\(;])");
 
 	for (size_t i = 0; i < lines.size(); ++i) {
 		int line_num = static_cast<int>(i + 1);
@@ -134,6 +142,53 @@ static void fallback_find_symbols(const std::string &safe_path, int min_lines, s
 			if (std::regex_search(lines[i], match, py_class_regex) || std::regex_search(lines[i], match, py_func_regex)) {
 				std::string name = match[1].str();
 				out.push_back({name, name, "Function", line_num, line_num, 1, 0, ""});
+			}
+			continue;
+		}
+
+		if (is_sv) {
+			std::string name;
+			std::string kind;
+			std::string end_kw;
+
+			if (std::regex_search(lines[i], match, sv_module_regex)) {
+				name = match[1].str();
+				kind = "Module";
+				end_kw = "endmodule";
+			} else if (std::regex_search(lines[i], match, sv_interface_regex)) {
+				name = match[1].str();
+				kind = "Interface";
+				end_kw = "endinterface";
+			} else if (std::regex_search(lines[i], match, sv_package_regex)) {
+				name = match[1].str();
+				kind = "Package";
+				end_kw = "endpackage";
+			} else if (std::regex_search(lines[i], match, sv_class_regex)) {
+				name = match[1].str();
+				kind = "Class";
+				end_kw = "endclass";
+			} else if (std::regex_search(lines[i], match, sv_func_regex)) {
+				name = match[1].str();
+				kind = "Function";
+				end_kw = "endfunction";
+			} else if (std::regex_search(lines[i], match, sv_task_regex)) {
+				name = match[1].str();
+				kind = "Task";
+				end_kw = "endtask";
+			}
+
+			if (!name.empty()) {
+				int end_line = line_num;
+				for (size_t j = i + 1; j < lines.size(); ++j) {
+					if (lines[j].find(end_kw) != std::string::npos) {
+						end_line = static_cast<int>(j + 1);
+						break;
+					}
+				}
+				int len = end_line - line_num + 1;
+				if (len >= min_lines) {
+					out.push_back({name, name, kind, line_num, end_line, len, 0, ""});
+				}
 			}
 			continue;
 		}
@@ -1089,16 +1144,22 @@ std::string find_matching_impl_file(const std::string &header_path, agentlib::to
 	std::string ext = hp.extension().string();
 	std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
-	if (ext != ".h" && ext != ".hpp" && ext != ".hh" && ext != ".hxx") {
+	std::vector<std::string> candidates;
+	if (ext == ".h" || ext == ".hpp" || ext == ".hh" || ext == ".hxx") {
+		candidates = {
+			(hp.parent_path() / (hp.stem().string() + ".cpp")).string(),
+			(hp.parent_path() / (hp.stem().string() + ".c")).string(),
+			(hp.parent_path() / (hp.stem().string() + ".cc")).string(),
+			(hp.parent_path() / (hp.stem().string() + ".cxx")).string()
+		};
+	} else if (ext == ".svh" || ext == ".vh") {
+		candidates = {
+			(hp.parent_path() / (hp.stem().string() + ".sv")).string(),
+			(hp.parent_path() / (hp.stem().string() + ".v")).string()
+		};
+	} else {
 		return "";
 	}
-
-	std::vector<std::string> candidates = {
-		(hp.parent_path() / (hp.stem().string() + ".cpp")).string(),
-		(hp.parent_path() / (hp.stem().string() + ".c")).string(),
-		(hp.parent_path() / (hp.stem().string() + ".cc")).string(),
-		(hp.parent_path() / (hp.stem().string() + ".cxx")).string()
-	};
 
 	std::error_code ec;
 	for (const auto &cand : candidates) {
@@ -1116,16 +1177,22 @@ std::string find_matching_header_file(const std::string &impl_path, agentlib::to
 	std::string ext = ip.extension().string();
 	std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
 
-	if (ext != ".cpp" && ext != ".c" && ext != ".cc" && ext != ".cxx") {
+	std::vector<std::string> candidates;
+	if (ext == ".cpp" || ext == ".c" || ext == ".cc" || ext == ".cxx") {
+		candidates = {
+			(ip.parent_path() / (ip.stem().string() + ".h")).string(),
+			(ip.parent_path() / (ip.stem().string() + ".hpp")).string(),
+			(ip.parent_path() / (ip.stem().string() + ".hh")).string(),
+			(ip.parent_path() / (ip.stem().string() + ".hxx")).string()
+		};
+	} else if (ext == ".sv" || ext == ".v") {
+		candidates = {
+			(ip.parent_path() / (ip.stem().string() + ".svh")).string(),
+			(ip.parent_path() / (ip.stem().string() + ".vh")).string()
+		};
+	} else {
 		return "";
 	}
-
-	std::vector<std::string> candidates = {
-		(ip.parent_path() / (ip.stem().string() + ".h")).string(),
-		(ip.parent_path() / (ip.stem().string() + ".hpp")).string(),
-		(ip.parent_path() / (ip.stem().string() + ".hh")).string(),
-		(ip.parent_path() / (ip.stem().string() + ".hxx")).string()
-	};
 
 	std::error_code ec;
 	for (const auto &cand : candidates) {
