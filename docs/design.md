@@ -260,6 +260,6 @@ Turbostar provides a built-in project creation wizard (`ui_dialog_project`) and 
   - `cmake_c`: C application with CMake build system.
   - `python_basic`: Python application with `pyproject.toml`.
   - `cargo_rust`: Rust application with Cargo.
-  - `verilator_sv`: SystemVerilog simulation and linting project with Verilator.
-  - `fpga_ice40`: SystemVerilog FPGA hardware synthesis and implementation project targeting the Lattice iCE40-HX8K (Alchitry Cu) using Yosys, nextpnr-ice40, Project IceStorm (`icepack`), and `iceprog` with `pins.pcf` physical pin constraints.
+  - `verilator_sv`: SystemVerilog simulation and linting project with Verilator and Meson (`meson compile -C build`, `meson test -C build`).
+  - `fpga_ice40`: SystemVerilog FPGA hardware synthesis and implementation project targeting the Lattice iCE40-HX8K (Alchitry Cu) with Meson, Yosys, nextpnr-ice40, Project IceStorm (`icepack`), and `iceprog` with `pins.pcf` physical pin constraints.
 - **Variable Substitution & Overrides**: The template manager performs token expansion (`@@PROJECT_NAME@@`, `@@PROJECT_NAME_LOWER@@`, `@@LANGUAGE_STD@@`) and resolves standard-specific file overrides (e.g., `.C++17`).

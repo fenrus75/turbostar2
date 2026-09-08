@@ -1,9 +1,10 @@
 # @@PROJECT_NAME@@ Development Guidelines
 
 ## Build & Test Instructions
-- **Lint**: `make lint` or `verilator --lint-only -Wall -sv src/top.sv`
-- **Build Simulation**: `make`
-- **Run Testbench**: `make test`
+- **Setup Build Directory**: `meson setup build`
+- **Compile / Lint RTL**: `meson compile -C build` (or `fs_compile_project`)
+- **Run Verification Tests**: `meson test -C build` (or `fs_run_tests`)
+- **Clean Build Directory**: `ninja -C build clean`
 
 ## Code Conventions
 - Language Standard: @@LANGUAGE_STD@@

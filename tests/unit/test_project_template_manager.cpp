@@ -142,7 +142,7 @@ int main()
 		opts.project_name = "sv_demo";
 		opts.executable_name = "sv_demo";
 		opts.language = "SystemVerilog";
-		opts.buildsystem = "Verilator";
+		opts.buildsystem = "Meson (Verilator)";
 		opts.language_standard = "IEEE 1800-2017";
 		opts.target_directory = temp_dir / "demo_sv";
 		opts.init_git = true;
@@ -152,10 +152,14 @@ int main()
 		assert(ok);
 		assert(err.empty());
 
-		assert(std::filesystem::exists(opts.target_directory / "Makefile"));
+		assert(std::filesystem::exists(opts.target_directory / "meson.build"));
 		assert(std::filesystem::exists(opts.target_directory / "src/top.sv"));
 		assert(std::filesystem::exists(opts.target_directory / "src/top_tb.sv"));
 		assert(std::filesystem::exists(opts.target_directory / "AGENTS.md"));
+
+		std::string meson_build = read_file_content(opts.target_directory / "meson.build");
+		assert(meson_build.find("find_program('verilator'") != std::string::npos);
+		assert(meson_build.find("sv_demo") != std::string::npos);
 
 		std::string top_sv = read_file_content(opts.target_directory / "src/top.sv");
 		assert(top_sv.find("module top") != std::string::npos);
@@ -168,7 +172,7 @@ int main()
 		opts.project_name = "fpga_demo";
 		opts.executable_name = "fpga_demo";
 		opts.language = "SystemVerilog";
-		opts.buildsystem = "Yosys (FPGA)";
+		opts.buildsystem = "Meson (FPGA)";
 		opts.language_standard = "IEEE 1800-2017";
 		opts.target_directory = temp_dir / "demo_fpga";
 		opts.init_git = true;
@@ -178,7 +182,7 @@ int main()
 		assert(ok);
 		assert(err.empty());
 
-		assert(std::filesystem::exists(opts.target_directory / "Makefile"));
+		assert(std::filesystem::exists(opts.target_directory / "meson.build"));
 		assert(std::filesystem::exists(opts.target_directory / "pins.pcf"));
 		assert(std::filesystem::exists(opts.target_directory / "8segbits.txt"));
 		assert(std::filesystem::exists(opts.target_directory / "src/top.sv"));
@@ -186,12 +190,12 @@ int main()
 		assert(std::filesystem::exists(opts.target_directory / "AGENTS.md"));
 		assert(std::filesystem::exists(opts.target_directory / ".gitignore"));
 
-		std::string makefile_content = read_file_content(opts.target_directory / "Makefile");
-		assert(makefile_content.find("yosys") != std::string::npos);
-		assert(makefile_content.find("nextpnr-ice40") != std::string::npos);
-		assert(makefile_content.find("icepack") != std::string::npos);
-		assert(makefile_content.find("iceprog") != std::string::npos);
-		assert(makefile_content.find("fpga_demo") != std::string::npos);
+		std::string meson_build = read_file_content(opts.target_directory / "meson.build");
+		assert(meson_build.find("find_program('yosys'") != std::string::npos);
+		assert(meson_build.find("find_program('nextpnr-ice40'") != std::string::npos);
+		assert(meson_build.find("find_program('icepack'") != std::string::npos);
+		assert(meson_build.find("pins.pcf") != std::string::npos);
+		assert(meson_build.find("fpga_demo") != std::string::npos);
 
 		std::string pcf_content = read_file_content(opts.target_directory / "pins.pcf");
 		assert(pcf_content.find("set_io clk P7") != std::string::npos);

@@ -1,16 +1,14 @@
 # @@PROJECT_NAME@@ Development Guidelines
 
 ## Project Overview
-This project is an FPGA hardware design targeting the **Lattice iCE40-HX8K** (e.g. Alchitry Cu board) using the open-source FPGA toolchain (Yosys, nextpnr-ice40, Project IceStorm) and SystemVerilog.
+This project is an FPGA hardware design targeting the **Lattice iCE40-HX8K** (e.g. Alchitry Cu board) using the open-source FPGA toolchain (Yosys, nextpnr-ice40, Project IceStorm) and SystemVerilog, built and verified using the **Meson** build system.
 
 ## Build & Synthesis Instructions
-- **Lint RTL**: `make lint` (runs `verilator --lint-only -Wall -sv src/top.sv`)
-- **Simulate / Test**: `make test` (runs testbench verification)
-- **Synthesize Netlist**: `make synth` (runs `yosys` to generate `synth/top.json`)
-- **Place & Route**: `make pnr` (runs `nextpnr-ice40` using `pins.pcf` to generate `synth/top.asc`)
-- **Generate Bitstream**: `make bitstream` (runs `icepack` to generate `synth/top.bin`)
-- **Program Hardware**: `make flash` or `make program` (programs bitstream to SPI flash using `iceprog`)
-- **Clean Build Outputs**: `make clean`
+- **Setup Build Directory**: `meson setup build`
+- **Build Bitstream**: `meson compile -C build` (or `fs_compile_project` - synthesizes with Yosys, routes with nextpnr, and packs bitstream with icepack)
+- **Run Verification Tests**: `meson test -C build` (or `fs_run_tests` - runs lint and testbench verification via Verilator)
+- **Program Hardware**: `meson compile -C build flash` (or `ninja -C build flash` - programs bitstream to SPI flash using iceprog)
+- **Clean Build Outputs**: `ninja -C build clean`
 
 ## Hardware & Pin Constraints
 - Pin definitions are specified in `pins.pcf`.

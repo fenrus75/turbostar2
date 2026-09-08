@@ -511,8 +511,9 @@ std::unique_ptr<dialog> create_new_project_dialog()
 				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("2018 Edition", "2018 Edition", '8', false));
 				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'r', false));
 			} else if (selected_lang == "SystemVerilog") {
-				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Verilator", "Verilator", 'V', true));
-				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Yosys (FPGA)", "Yosys (FPGA)", 'Y', false));
+				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Meson (FPGA)", "Meson (FPGA)", 'F', true));
+				build_group_ptr->add_child(
+				    std::make_unique<ui_radio_choice>("Meson (Verilator)", "Meson (Verilator)", 'V', false));
 				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("None / Custom", "None / Custom", 'N', false));
 				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'O', false));
 

@@ -225,7 +225,7 @@ project_template_files = files(
   '../templates/fpga_ice40/.gitignore',
   '../templates/fpga_ice40/8segbits.txt',
   '../templates/fpga_ice40/AGENTS.md',
-  '../templates/fpga_ice40/Makefile',
+  '../templates/fpga_ice40/meson.build',
   '../templates/fpga_ice40/pins.pcf',
   '../templates/fpga_ice40/src/top.sv',
   '../templates/fpga_ice40/src/top_tb.sv',
@@ -244,7 +244,7 @@ project_template_files = files(
   '../templates/python_basic/src/__main__.py',
   '../templates/verilator_sv/.gitignore',
   '../templates/verilator_sv/AGENTS.md',
-  '../templates/verilator_sv/Makefile',
+  '../templates/verilator_sv/meson.build',
   '../templates/verilator_sv/src/top.sv',
   '../templates/verilator_sv/src/top_tb.sv',
 )

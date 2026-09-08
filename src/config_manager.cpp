@@ -34,6 +34,9 @@ void config_manager::set_build_system(const std::string &sys, bool explicit_user
 	if (bs == "pyproject.toml") {
 		bs = "python";
 	}
+	if (bs.starts_with("meson")) {
+		bs = "meson";
+	}
 	build_system_ = bs;
 	if (explicit_user_set) {
 		is_build_system_explicit_ = true;
@@ -160,7 +163,8 @@ void config_manager::load_turboserver_config()
 			} else if (key == "port" || key == "server_port") {
 				try {
 					port = std::stoi(value);
-				} catch (...) {}
+				} catch (...) {
+				}
 			}
 		}
 		file.close();
@@ -189,7 +193,8 @@ void config_manager::load_turboserver_config()
 	if (env_port && *env_port) {
 		try {
 			port = std::stoi(env_port);
-		} catch (...) {}
+		} catch (...) {
+		}
 	}
 
 	a2a_server_token_ = token;
@@ -674,14 +679,13 @@ std::string config_manager::auto_detect_main_executable() const
 	for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
 		std::smatch match = *i;
 		std::string name = match[1].str();
-		
+
 		// Skip test and utility helper targets
-		if (name.starts_with("test_") || name.find("test") != std::string::npos ||
-			name.starts_with("unit_") || name == "agentcli_record" ||
-			name == "agentcli_replay") {
+		if (name.starts_with("test_") || name.find("test") != std::string::npos || name.starts_with("unit_") ||
+		    name == "agentcli_record" || name == "agentcli_replay") {
 			continue;
 		}
-		
+
 		main_executable_ = name;
 		return main_executable_;
 	}

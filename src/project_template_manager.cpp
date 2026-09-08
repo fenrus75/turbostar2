@@ -30,15 +30,15 @@ std::vector<template_info> project_template_manager::get_available_templates() c
 	    {"python_basic", "Python Application", "Python", "pyproject.toml", {"3.11+", "3.10", "3.9"}, "3.11+"},
 	    {"cargo_rust", "Rust Cargo Application", "Rust", "Cargo", {"2021 Edition", "2018 Edition"}, "2021 Edition"},
 	    {"verilator_sv",
-	     "Verilator + SystemVerilog",
+	     "Meson + Verilator (Simulation)",
 	     "SystemVerilog",
-	     "Verilator",
+	     "Meson (Verilator)",
 	     {"IEEE 1800-2017", "IEEE 1800-2012", "IEEE 1800-2005"},
 	     "IEEE 1800-2017"},
 	    {"fpga_ice40",
-	     "FPGA - iCE40 (Yosys + nextpnr)",
+	     "Meson + iCE40 FPGA (Yosys)",
 	     "SystemVerilog",
-	     "Yosys (FPGA)",
+	     "Meson (FPGA)",
 	     {"IEEE 1800-2017", "IEEE 1800-2012", "IEEE 1800-2005"},
 	     "IEEE 1800-2017"},
 	};
@@ -101,6 +101,11 @@ bool project_template_manager::create_project(const project_create_options &opts
 		if (tmpl.language == opts.language && tmpl.buildsystem == opts.buildsystem) {
 			target_template_id = tmpl.id;
 			break;
+		}
+	}
+	if (target_template_id.empty() && opts.language == "SystemVerilog") {
+		if (opts.buildsystem == "Meson" || opts.buildsystem == "meson") {
+			target_template_id = "fpga_ice40";
 		}
 	}
 
