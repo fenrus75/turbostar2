@@ -5,6 +5,7 @@
 #include <fstream>
 #include <mutex>
 #include <regex>
+#include <unistd.h>
 #include "command_runner.h"
 #include "config_manager.h"
 #include "document.h"

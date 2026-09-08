@@ -11,6 +11,7 @@
 #include <ucontext.h>
 #include <sys/wait.h>
 #include <sys/prctl.h>
+#include <unistd.h>
 #ifndef PR_SET_PTRACER
 #define PR_SET_PTRACER 0x59616d61
 #endif

@@ -1,3 +1,4 @@
+// Tested source file: src/tools/perform_code_review/perform_code_review_entry.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <filesystem>
@@ -5,6 +6,7 @@
 #include <iostream>
 #include <set>
 #include <csignal>
+#include <unistd.h>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/subagent_manager.h"
 #include "../../src/agentlib/tool_registry.h"

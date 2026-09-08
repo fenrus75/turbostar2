@@ -1,8 +1,10 @@
+// Tested source file: src/tools/run_python/run_python_entry.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <unistd.h>
 #include <nlohmann/json.hpp>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"

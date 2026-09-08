@@ -1,9 +1,11 @@
+// Tested source file: src/mcp/mcp_manager.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <unistd.h>
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/config_manager.h"
 #include "../../src/event_logger.h"
