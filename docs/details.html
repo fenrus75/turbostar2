@@ -51,6 +51,7 @@
           <li><a href="#crash-catching"><strong>2. Catching Crashes &amp; GDB</strong></a> — Providing the agent explicit crash steering and GDB integration.</li>
           <li><a href="#perf-profiling"><strong>3. Performance Profiling</strong></a> — Translating raw Linux perf data into LLM-friendly formats.</li>
           <li><a href="#compile-context"><strong>4. Compile Output Awareness</strong></a> — Reduce context consumption of compile and test output.</li>
+          <li><a href="#presentations"><strong>5. Presentations &amp; Whitepapers</strong></a> — Slide decks and guides on native agent architecture and building Agent CLIs.</li>
         </ul>
       </div>
     </section>
@@ -271,6 +272,29 @@ c = 0x0</code></pre>
         </div>
       </div>
     </section>
+
+    <section class="features-section" id="presentations" style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 4rem; margin-top: 2rem;">
+      <div class="section-header">
+        <h2 class="section-title">5. Presentations &amp; Whitepapers</h2>
+        <p>Architectural slide decks on designing AI coding agents for low-level systems.</p>
+      </div>
+
+      <div class="grid">
+        <article class="card" id="card-pres-native-languages">
+          <span class="card-icon">📊</span>
+          <h3 class="card-title">AI Coding for Native Languages</h3>
+          <p class="card-desc">Slide deck exploring why systems development (C, C++, Rust) demands specialized agent tools—from LSP X-ray vision and curated compiler diagnostics to GDB coredump analysis and cycle-accurate performance profiling.</p>
+          <a href="assets/agent-for-native-languages.pdf" class="card-link" id="link-pres-native" target="_blank" rel="noopener noreferrer">View Presentation (PDF) &rarr;</a>
+        </article>
+
+        <article class="card" id="card-pres-agent-cli">
+          <span class="card-icon">🛠️</span>
+          <h3 class="card-title">Building an Agent CLI from Scratch</h3>
+          <p class="card-desc">Architectural presentation detailing how to build a headless, sandboxed Agent CLI with tool registration, execution pipelines, session recovery, and subagent orchestration.</p>
+          <a href="assets/building-an-agent.pdf" class="card-link" id="link-pres-agent-cli" target="_blank" rel="noopener noreferrer">View Presentation (PDF) &rarr;</a>
+        </article>
+      </div>
+    </section>
   </main>
 
   <!-- Footer -->
@@ -282,7 +306,7 @@ c = 0x0</code></pre>
         <a href="editor.html" id="foot-editor">Editor</a>
         <a href="ai.html" id="foot-ai">AI Agents</a>
         <a href="details.html" id="foot-details">Technical Details</a>
-        <a href="ai.html#see-also" id="foot-presentations">Presentations</a>
+        <a href="#presentations" id="foot-presentations">Presentations</a>
         <a href="https://github.com/fenrus75/turbostar2/blob/main/docs/tools.md" id="foot-tools" target="_blank" rel="noopener noreferrer">Tools Reference</a>
         <a href="https://github.com/fenrus75/turbostar2" id="foot-github" target="_blank" rel="noopener noreferrer">GitHub</a>
       </div>
