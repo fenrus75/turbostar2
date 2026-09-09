@@ -1,0 +1,7 @@
+[wrap-git]
+url = https://github.com/fenrus75/lsp-framework.git
+revision = master
+depth = 1
+
+[provide]
+dependency_names = lsp_dep

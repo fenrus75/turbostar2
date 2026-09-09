@@ -22,4 +22,5 @@ agent*json
 .bandit_tmp_*.py
 tests/unit/tmp_git_*/
 assets/
+subprojects/lsp-framework/
 
