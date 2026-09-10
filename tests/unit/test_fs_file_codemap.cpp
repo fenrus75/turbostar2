@@ -1,4 +1,4 @@
-// Tested source file: src/codemap_utils.cpp, src/tools/fs_file_codemap/fs_file_codemap_entry.cpp
+// Tested source file: src/codemap_utils.cpp, src/tools/fs_file_codemap/fs_file_codemap_entry.cpp, src/tools/fs_read_lines/fs_read_lines_entry.cpp
 #include "test_watchdog.h"
 #include "agentlib/tool_context.h"
 #include "agentlib/tool_registry.h"
@@ -603,6 +603,35 @@ int main()
 		assert(res_sv.find("`reset_alu`") != std::string::npos);
 
 		std::remove(sv_file.c_str());
+	}
+
+	// 18. Test fs_read_lines does NOT snap to EOF when near end of file (< 25 lines total)
+	{
+		std::string small_file = "test_small_read_eof.cpp";
+		{
+			std::ofstream out_small(small_file);
+			out_small << "void first_func()\n"
+				  << "{\n"
+				  << "    int a = 1;\n"
+				  << "}\n\n"
+				  << "void second_func()\n"
+				  << "{\n"
+				  << "    int b = 2;\n"
+				  << "}\n";
+			out_small.close();
+		}
+
+		// File is only 9 lines long. Request lines 1 to 3 (inside first_func).
+		// Function snapping should extend to line 4 (end of first_func), but NOT line 9 (EOF).
+		nlohmann::json small_args = {{"path", small_file}, {"start_line", 1}, {"end_line", 3}};
+		std::string small_res = registry.execute_tool("fs_read_lines", small_args.dump(), ctx);
+		std::cout << "fs_read_lines small file near EOF output:\n" << small_res << "\n";
+		assert(small_res.find("Code for lines 1 - 4 of test_small_read_eof.cpp (total 9 lines):") != std::string::npos);
+		assert(small_res.find("1: void first_func()") != std::string::npos);
+		assert(small_res.find("4: }") != std::string::npos);
+		assert(small_res.find("second_func()") == std::string::npos);
+
+		std::remove(small_file.c_str());
 	}
 
 	// Cleanup

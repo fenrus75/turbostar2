@@ -8,11 +8,11 @@
 #include <string_view>
 #include <sys/stat.h>
 #include <unistd.h>
-#include "fs_utils.h"
-#include "mime.h"
-#include "fs_read_lines.h"
 #include "codemap_utils.h"
 #include "event_logger.h"
+#include "fs_read_lines.h"
+#include "fs_utils.h"
+#include "mime.h"
 
 #include "agentlib/document_provider.h"
 #include "agentlib/interactions/action.h"
@@ -41,24 +41,26 @@ size_t count_max_consecutive_backticks(const std::vector<std::string> &lines)
 	return max_count;
 }
 
-int determine_adjusted_end_line(int start, int requested_end, const std::vector<std::string> &lines, const std::string &path, agentlib::tool_context &ctx)
+int determine_adjusted_end_line(int start, int requested_end, const std::vector<std::string> &lines, const std::string &path,
+				agentlib::tool_context &ctx)
 {
 	int total_lines_read = static_cast<int>(lines.size());
 	int file_end_line = start + total_lines_read - 1;
 
-	// Rule 1: If we reached EOF within the extra 25 lines, return file_end_line.
-	if (file_end_line < requested_end + 25) {
+	// If requested_end is at or beyond EOF, clamp to file_end_line.
+	if (requested_end >= file_end_line) {
 		return file_end_line;
 	}
 
-	// Rule 2: Fetch exact document symbols from central codemap infrastructure
+	// Fetch exact document symbols from central codemap infrastructure
 	std::vector<codemap_symbol_info> symbols = get_document_codemap_symbols(path, ctx, 1);
 	if (!symbols.empty()) {
 		// Case A: If requested_end falls inside a symbol, extend to that symbol's end_line if <= requested_end + 25
 		const codemap_symbol_info *enclosing_sym = nullptr;
 		for (const auto &sym : symbols) {
 			if (sym.start_line <= requested_end && sym.end_line > requested_end) {
-				if (!enclosing_sym || (sym.end_line - sym.start_line < enclosing_sym->end_line - enclosing_sym->start_line)) {
+				if (!enclosing_sym ||
+				    (sym.end_line - sym.start_line < enclosing_sym->end_line - enclosing_sym->start_line)) {
 					enclosing_sym = &sym;
 				}
 			}
@@ -244,7 +246,6 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-
 	// Store bounded range back to args so that all retrieval mechanisms share the same range values.
 	args_.start_line = start;
 	args_.end_line = adjusted_end;
@@ -285,9 +286,9 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		ss << std::format("{}\n", fence);
 
 		// Codemap integration rules:
-		// Rule 1: If read_res reads whole implementation file (start == 1 && adjusted_end >= read_res.total_file_lines), skip codemap for this file.
-		// Rule 2: If partial read and total file symbols < 10, append compact 4-column codemap.
-		// Rule 3: If reading a header file (.h / .hpp), find matching implementation file (.cpp) and append its compact 4-column codemap.
+		// Rule 1: If read_res reads whole implementation file (start == 1 && adjusted_end >= read_res.total_file_lines), skip
+		// codemap for this file. Rule 2: If partial read and total file symbols < 10, append compact 4-column codemap. Rule 3: If
+		// reading a header file (.h / .hpp), find matching implementation file (.cpp) and append its compact 4-column codemap.
 		bool read_whole_file = (start == 1 && static_cast<size_t>(adjusted_end) >= read_res.total_file_lines);
 		bool is_header = false;
 		std::filesystem::path p(args_.safe_path);
@@ -298,7 +299,8 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		if (!is_header && !read_whole_file) {
-			std::string class_preview = extract_class_context_preview(args_.safe_path, start, adjusted_end, read_res.lines, ctx);
+			std::string class_preview =
+			    extract_class_context_preview(args_.safe_path, start, adjusted_end, read_res.lines, ctx);
 			if (!class_preview.empty()) {
 				ss << "\n" << class_preview;
 			}
@@ -307,12 +309,15 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		if (!read_whole_file) {
 			auto symbols = get_document_codemap_symbols(args_.safe_path, ctx, /*min_lines=*/1);
 			if (!symbols.empty()) {
-				auto selection = select_prioritized_codemap_symbols(symbols, start, adjusted_end, args_.safe_path, ctx, /*max_items=*/10);
+				auto selection = select_prioritized_codemap_symbols(symbols, start, adjusted_end, args_.safe_path, ctx,
+										    /*max_items=*/10);
 				if (!selection.selected_symbols.empty()) {
-					event_logger::get_instance().log(
-						std::format("fs_read_lines: path='{}', range={}-{}, codemap generated {} symbols across sections",
-							args_.safe_path, start, adjusted_end, selection.selected_symbols.size()));
-					ss << "\n" << format_codemap_table(args_.requested_path, selection.selected_symbols, /*total_file_lines=*/0, selection.total_symbols, selection.omitted_count, &ctx);
+					event_logger::get_instance().log(std::format(
+					    "fs_read_lines: path='{}', range={}-{}, codemap generated {} symbols across sections",
+					    args_.safe_path, start, adjusted_end, selection.selected_symbols.size()));
+					ss << "\n"
+					   << format_codemap_table(args_.requested_path, selection.selected_symbols, /*total_file_lines=*/0,
+								   selection.total_symbols, selection.omitted_count, &ctx);
 				}
 			}
 		}
@@ -323,9 +328,13 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 				auto impl_symbols = get_document_codemap_symbols(matching_impl, ctx, /*min_lines=*/1);
 				if (!impl_symbols.empty()) {
 					std::filesystem::path ip(matching_impl);
-					auto selection = select_prioritized_codemap_symbols(impl_symbols, 1, 1000000, matching_impl, ctx, /*max_items=*/10);
+					auto selection = select_prioritized_codemap_symbols(impl_symbols, 1, 1000000, matching_impl, ctx,
+											    /*max_items=*/10);
 					if (!selection.selected_symbols.empty()) {
-						ss << "\n" << format_codemap_table(ip.filename().string(), selection.selected_symbols, /*total_file_lines=*/0, selection.total_symbols, selection.omitted_count, &ctx);
+						ss << "\n"
+						   << format_codemap_table(ip.filename().string(), selection.selected_symbols,
+									   /*total_file_lines=*/0, selection.total_symbols,
+									   selection.omitted_count, &ctx);
 					}
 				}
 			}

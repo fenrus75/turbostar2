@@ -343,9 +343,11 @@ extern std::string troff2md(std::string troff_content);
 			std::string args = "{\"path\": \"" + temp_file + "\", \"start_line\": 1, \"end_line\": 4}";
 			std::string res = registry.execute_tool("fs_read_lines", args, ctx);
 
-			assert(res.find("Code for lines 1 - 10 of " + temp_file + " (total 10 lines):") != std::string::npos);
+			assert(res.find("Code for lines 1 - 7 of " + temp_file + " (total 10 lines):") != std::string::npos);
 			assert(res.find("1: line 1") != std::string::npos);
-			assert(res.find("10: line 10") != std::string::npos);
+			assert(res.find("6: line 6") != std::string::npos);
+			assert(res.find("8: def func():") == std::string::npos);
+			assert(res.find("10: line 10") == std::string::npos);
 		}
 
 		{
