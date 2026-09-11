@@ -1,16 +1,16 @@
 #include <algorithm>
-#include <format>
 #include <dtl/dtl.hpp>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <sstream>
 #include "../../agentlib/file_health_utils.h"
 #include "../../fs_utils.h"
-#include "../../project_manager.h"
-#include "../../utf8.h"
 #include "../../mime.h"
+#include "../../project_manager.h"
+#include "../../type_definition_cache.h"
+#include "../../utf8.h"
 #include "fs_replace_lines.h"
-
 
 namespace tools
 {
@@ -80,8 +80,7 @@ static int calculate_brace_balance(const std::vector<std::string> &lines, int st
 	return balance;
 }
 
-static void collect_functions(const std::vector<lsp_manager::symbol_node> &nodes,
-                              std::vector<lsp_manager::symbol_node> &out_funcs)
+static void collect_functions(const std::vector<lsp_manager::symbol_node> &nodes, std::vector<lsp_manager::symbol_node> &out_funcs)
 {
 	for (const auto &n : nodes) {
 		if (n.kind == 6 || n.kind == 12 || n.kind == 11) {
@@ -91,10 +90,8 @@ static void collect_functions(const std::vector<lsp_manager::symbol_node> &nodes
 	}
 }
 
-static std::string check_brace_warnings(const std::string &safe_path,
-                                        const std::vector<std::string> &before_lines,
-                                        const std::vector<std::string> &after_lines,
-                                        const std::vector<edit_operation> &edits)
+static std::string check_brace_warnings(const std::string &safe_path, const std::vector<std::string> &before_lines,
+					const std::vector<std::string> &after_lines, const std::vector<edit_operation> &edits)
 {
 	bool file_has_braces = false;
 	for (const auto &l : before_lines) {
@@ -117,12 +114,14 @@ static std::string check_brace_warnings(const std::string &safe_path,
 		// Case A: Global was balanced (0) and became unbalanced (non-0) -> emit file-scope warning
 		if (before_whole == 0 && after_whole != 0) {
 			if (after_whole > 0) {
-				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces (net balance: +{}, missing {} closing '}}' brace{})\n",
-				                        after_whole, after_whole, (after_whole == 1 ? "" : "s"));
+				warnings += std::format(
+				    "⚠️ Warning: Edit introduced unbalanced braces (net balance: +{}, missing {} closing '}}' brace{})\n",
+				    after_whole, after_whole, (after_whole == 1 ? "" : "s"));
 			} else {
 				int abs_bal = std::abs(after_whole);
-				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces (net balance: {}, possible extra {} closing '}}' brace{})\n",
-				                        after_whole, abs_bal, (abs_bal == 1 ? "" : "s"));
+				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces (net balance: {}, possible extra {} "
+							"closing '}}' brace{})\n",
+							after_whole, abs_bal, (abs_bal == 1 ? "" : "s"));
 			}
 			return warnings;
 		}
@@ -184,12 +183,16 @@ static std::string check_brace_warnings(const std::string &safe_path,
 					int after_bal = calculate_brace_balance(after_lines, f_start, after_end);
 					if (before_bal == 0 && after_bal != 0) {
 						if (after_bal > 0) {
-							warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces in function '{}' (net balance: +{}, missing {} closing '}}' brace{})\n",
-							                        func.name, after_bal, after_bal, (after_bal == 1 ? "" : "s"));
+							warnings +=
+							    std::format("⚠️ Warning: Edit introduced unbalanced braces in function '{}' "
+									"(net balance: +{}, missing {} closing '}}' brace{})\n",
+									func.name, after_bal, after_bal, (after_bal == 1 ? "" : "s"));
 						} else {
 							int abs_bal = std::abs(after_bal);
-							warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces in function '{}' (net balance: {}, possible extra {} closing '}}' brace{})\n",
-							                        func.name, after_bal, abs_bal, (abs_bal == 1 ? "" : "s"));
+							warnings +=
+							    std::format("⚠️ Warning: Edit introduced unbalanced braces in function '{}' "
+									"(net balance: {}, possible extra {} closing '}}' brace{})\n",
+									func.name, after_bal, abs_bal, (abs_bal == 1 ? "" : "s"));
 						}
 					}
 				}
@@ -199,7 +202,6 @@ static std::string check_brace_warnings(const std::string &safe_path,
 
 	return warnings;
 }
-
 
 } // namespace
 
@@ -211,11 +213,23 @@ class interaction_fs_replace_lines : public agentlib::agent_interaction
 		call_text_ = "Applying " + std::to_string(num_edits) + " operation" + (num_edits == 1 ? "" : "s") + " to " + path;
 	}
 
-	agentlib::interaction_type get_type() const override { return agentlib::interaction_type::action; }
-	agentlib::interaction_role get_role() const override { return agentlib::interaction_role::agent; }
+	agentlib::interaction_type get_type() const override
+	{
+		return agentlib::interaction_type::action;
+	}
+	agentlib::interaction_role get_role() const override
+	{
+		return agentlib::interaction_role::agent;
+	}
 
-	bool needs_subpanel_header() const override { return true; }
-	std::string get_subpanel_label() const override { return "Applying edits"; }
+	bool needs_subpanel_header() const override
+	{
+		return true;
+	}
+	std::string get_subpanel_label() const override
+	{
+		return "Applying edits";
+	}
 
 	void set_result(const std::string &res)
 	{
@@ -329,7 +343,7 @@ std::shared_ptr<agentlib::agent_interaction> fs_replace_lines_tool::get_interact
 bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const
 {
 	std::string path_to_use = args_.safe_path;
-	auto* vfs = ctx.fs_security.get_vfs();
+	auto *vfs = ctx.fs_security.get_vfs();
 	if (vfs && vfs->is_local_path_available(args_.safe_path)) {
 		path_to_use = vfs->get_local_path(args_.safe_path);
 	}
@@ -380,7 +394,9 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context &ctx, 
 
 		if (edit.type == "add") {
 			if (idx < 0 || idx > max_idx) {
-				mismatch_errors.push_back(std::format("Verification Error: line_number {} is out of bounds. The file is {} lines long.", edit.line_number, lines.size()));
+				mismatch_errors.push_back(
+				    std::format("Verification Error: line_number {} is out of bounds. The file is {} lines long.",
+						edit.line_number, lines.size()));
 			}
 			continue;
 		}
@@ -400,7 +416,8 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context &ctx, 
 		std::vector<int> matching_lines;
 		int check_radius = 25;
 		int start_search = std::max(1, edit.line_number - check_radius);
-		int end_search = std::min(static_cast<int>(lines.size()) - static_cast<int>(expected_lines.size()) + 1, edit.line_number + check_radius);
+		int end_search =
+		    std::min(static_cast<int>(lines.size()) - static_cast<int>(expected_lines.size()) + 1, edit.line_number + check_radius);
 
 		for (int test_line = start_search; test_line <= end_search; ++test_line) {
 			bool matches = true;
@@ -428,7 +445,9 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context &ctx, 
 
 		if (matching_lines.empty()) {
 			std::string actual_content = (idx >= 0 && idx < static_cast<int>(lines.size())) ? lines[idx] : "(Out of bounds)";
-			mismatch_errors.push_back(std::format("Verification Error at line {}. \nExpected starting with: '{}'\nActual content: '{}'", edit.line_number, expected_lines[0], actual_content));
+			mismatch_errors.push_back(
+			    std::format("Verification Error at line {}. \nExpected starting with: '{}'\nActual content: '{}'",
+					edit.line_number, expected_lines[0], actual_content));
 		} else if (matching_lines.size() == 1) {
 			int matched_line = matching_lines[0];
 			int offset = std::abs(matched_line - edit.line_number);
@@ -436,11 +455,16 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context &ctx, 
 				// Perfect match
 			} else if (offset <= 3) {
 				// Auto-correct
-				args_.adjustment_notes.push_back(std::format("Edit originally at line {} was automatically shifted to line {} because the original_text matched there.", edit.line_number, matched_line));
+				args_.adjustment_notes.push_back(std::format("Edit originally at line {} was automatically shifted to line "
+									     "{} because the original_text matched there.",
+									     edit.line_number, matched_line));
 				edit.line_number = matched_line;
 			} else {
 				// Too far, reject with hint
-				std::string error_msg = std::format("Verification Error: The block you provided is not at line {}, but it matches starting at line {}. Please update your line_number.\n\nCode snippet showing the shifted range:\n", edit.line_number, matched_line);
+				std::string error_msg =
+				    std::format("Verification Error: The block you provided is not at line {}, but it matches starting at "
+						"line {}. Please update your line_number.\n\nCode snippet showing the shifted range:\n",
+						edit.line_number, matched_line);
 				int print_start = std::min(edit.line_number, matched_line) - 2;
 				int print_end = std::max(edit.line_number, matched_line + static_cast<int>(expected_lines.size()) - 1) + 2;
 				print_start = std::max(1, print_start);
@@ -460,7 +484,10 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context &ctx, 
 				for (size_t i = 0; i < matching_lines.size(); ++i) {
 					match_list += (i > 0 ? ", " : "") + std::to_string(matching_lines[i]);
 				}
-				mismatch_errors.push_back(std::format("Verification Error: Multiple matches found for your block within +/- 25 lines (at lines [{}]). Please provide more context or verify your line numbers.", match_list));
+				mismatch_errors.push_back(
+				    std::format("Verification Error: Multiple matches found for your block within +/- 25 lines (at lines "
+						"[{}]). Please provide more context or verify your line numbers.",
+						match_list));
 			}
 		}
 	}
@@ -468,9 +495,8 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context &ctx, 
 	// Check for duplicate line numbers after updates/shifts
 	if (mismatch_errors.empty()) {
 		// Sort descending
-		std::sort(verified_edits.begin(), verified_edits.end(), [](const edit_operation &a, const edit_operation &b) {
-			return a.line_number > b.line_number;
-		});
+		std::sort(verified_edits.begin(), verified_edits.end(),
+			  [](const edit_operation &a, const edit_operation &b) { return a.line_number > b.line_number; });
 
 		bool has_duplicates = false;
 		for (size_t i = 1; i < verified_edits.size(); ++i) {
@@ -502,10 +528,11 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context &ctx, 
 				correct_order += (i > 0 ? ", " : "") + std::to_string(sorted_lines[i]);
 			}
 
-			out_error += std::format("\n\nError: Edits MUST be sorted in strictly DESCENDING order (strictly bottom to top) by line_number to prevent index shifting.\n"
-						"You provided edits in this order: [{}]\n"
-						"Please sort your edits to target line_numbers in this order: [{}]",
-						original_order, correct_order);
+			out_error += std::format("\n\nError: Edits MUST be sorted in strictly DESCENDING order (strictly bottom to top) by "
+						 "line_number to prevent index shifting.\n"
+						 "You provided edits in this order: [{}]\n"
+						 "Please sort your edits to target line_numbers in this order: [{}]",
+						 original_order, correct_order);
 		}
 		return false;
 	}
@@ -565,7 +592,7 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 	if (path_to_use.find("file://") == 0) {
 		path_to_use = path_to_use.substr(7);
 	}
-	auto* vfs = ctx.fs_security.get_vfs();
+	auto *vfs = ctx.fs_security.get_vfs();
 	if (vfs && vfs->is_local_path_available(path_to_use)) {
 		path_to_use = vfs->get_local_path(path_to_use);
 	}
@@ -721,7 +748,9 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 	bool show_shift_zones = (total_drift < 15);
 
 	std::string edit_id = agentlib::update_file_health_state(ctx, args_.safe_path);
-	std::string result_msg = std::format("Successfully applied {} edits to {} [Edit ID: {}]\n\n", args_.edits.size(), args_.path, edit_id);
+	type_definition_cache::get_instance().invalidate_file(args_.safe_path);
+	std::string result_msg =
+	    std::format("Successfully applied {} edits to {} [Edit ID: {}]\n\n", args_.edits.size(), args_.path, edit_id);
 	std::string brace_warnings = check_brace_warnings(args_.safe_path, before_lines, lines, args_.edits);
 
 	// Strict mode: if the edit left braces unbalanced, revert the disk file to its original
@@ -734,7 +763,8 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 			}
 			revert_out.close();
 		}
-		std::string err = "Error: Edit rejected (strict mode): it would leave unbalanced braces and was not applied.\n" + brace_warnings + "\n";
+		std::string err =
+		    "Error: Edit rejected (strict mode): it would leave unbalanced braces and was not applied.\n" + brace_warnings + "\n";
 		if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_replace_lines>(interaction_)) {
 			custom_interaction->set_diff(before_lines, before_lines);
 			custom_interaction->set_result(err);
@@ -758,7 +788,9 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 	}
 
 	if (!show_shift_zones && total_drift > 0) {
-		result_msg += std::format("Mandatory: File has drifted by {} lines. Before making further edits, you must refresh your view with fs_read_lines(path=\"{}\").\n\n", total_drift, args_.path);
+		result_msg += std::format("Mandatory: File has drifted by {} lines. Before making further edits, you must refresh your "
+					  "view with fs_read_lines(path=\"{}\").\n\n",
+					  total_drift, args_.path);
 	}
 
 	int current_shift = 0;
@@ -774,14 +806,16 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 				result_msg += std::format("{}: {}\n", l, lines[l - 1]);
 			}
 		} else {
-			result_msg += std::format("Code after edit for lines {} - {} ({} lines, truncated):\n", r.first, r.second, range_len);
+			result_msg +=
+			    std::format("Code after edit for lines {} - {} ({} lines, truncated):\n", r.first, r.second, range_len);
 			for (int l = r.first; l < r.first + CONTEXT_HALF; ++l) {
 				result_msg += std::format("{}: {}\n", l, lines[l - 1]);
 			}
 			int omitted_start = r.first + CONTEXT_HALF;
 			int omitted_end = r.second - CONTEXT_HALF;
 			int omitted_count = omitted_end - omitted_start + 1;
-			result_msg += std::format("... [{} lines omitted (lines {} - {})] ...\n", omitted_count, omitted_start, omitted_end);
+			result_msg +=
+			    std::format("... [{} lines omitted (lines {} - {})] ...\n", omitted_count, omitted_start, omitted_end);
 			for (int l = r.second - CONTEXT_HALF + 1; l <= r.second; ++l) {
 				result_msg += std::format("{}: {}\n", l, lines[l - 1]);
 			}
@@ -799,7 +833,8 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 		}
 
 		if (show_shift_zones && current_shift != 0 && r.second < static_cast<int>(lines.size())) {
-			result_msg += std::format("- Note: Lines below this section are shifted by {} lines relative to the original file.\n", current_shift);
+			result_msg += std::format(
+			    "- Note: Lines below this section are shifted by {} lines relative to the original file.\n", current_shift);
 		}
 		result_msg += "\n";
 	}

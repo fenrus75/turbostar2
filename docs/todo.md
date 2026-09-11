@@ -249,6 +249,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # Done
 
+## 11-09-2026
+- `fs_read_lines` asynchronous Data Type Map & opportunistic type cache: implemented opportunistic background data type mapping for `fs_read_lines` to surface user-defined struct, class, and enum definition locations without blocking tool execution. Added `tools::type_definition_cache` for thread-safe non-blocking lookup, pre-warming via document symbols and companion headers during codemap parsing, in-flight `pending` stubs, and background LSP `textDocument/definition` resolution; added `tools::type_token_extractor` for fast heuristic candidate extraction with keyword and STL filtering; formatted compact `### Type Definitions:` overview tables capped at 3 items per call; implemented session deduplication via `ctx.reported_type_definitions`; and automated cache invalidation on file edits in `fs_replace_lines` and `fs_replace_content`. Added unit tests in `tests/unit/test_type_definition_cache.cpp` and integration tests in `tests/unit/test_tools.cpp`. (Completed)
+
 ## 6-09-2026
 
 - `fs_file_codemap` adaptive pruning: automatically prune 1-line fields, variables, and enum members when total symbol count > 50 and `min_lines` is not explicitly passed, while preserving 1-line function/method prototypes and class structures, and emitting a transparent disclosure note. Pass `min_lines=1` to disable pruning.

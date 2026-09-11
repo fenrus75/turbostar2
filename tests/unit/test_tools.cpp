@@ -1,20 +1,21 @@
-#include "test_watchdog.h"
 #include <cassert>
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <thread>
-#include <chrono>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/compaction_engine.h"
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/agentlib/virtual_file_system.h"
-#include "../../src/images/image_manager.h"
 #include "../../src/config_manager.h"
 #include "../../src/event_queue.h"
-#include "../../src/git_manager.h"
-#include "../../src/project_manager.h"
 #include "../../src/fs_utils.h"
+#include "../../src/git_manager.h"
+#include "../../src/images/image_manager.h"
+#include "../../src/project_manager.h"
 #include "filter_registry.h"
+#include "test_watchdog.h"
+#include "type_definition_cache.h"
 
 using namespace agentlib;
 
@@ -24,11 +25,9 @@ int main()
 	// Initialize managers
 	project_manager::get_instance().initialize();
 
-extern std::string troff2md(std::string troff_content);
+	extern std::string troff2md(std::string troff_content);
 
-	filter_registry::get_instance().register_filter("troff_to_markdown", [](const std::string &input) {
-		return troff2md(input);
-	});
+	filter_registry::get_instance().register_filter("troff_to_markdown", [](const std::string &input) { return troff2md(input); });
 
 	tool_registry &registry = tool_registry::get_instance();
 	tool_context ctx;
@@ -39,7 +38,6 @@ extern std::string troff2md(std::string troff_content);
 	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::write);
 	ctx.fs_security.add_allowed_root(test_watchdog::get_global_test_home()->get_path(), access_type::read);
 	ctx.fs_security.add_allowed_root(test_watchdog::get_global_test_home()->get_path(), access_type::write);
-
 
 	std::cout << "\nTesting fs_run_tests with specific tests..." << std::endl;
 	// We'll run a fast test like unit_event_logger
@@ -67,20 +65,24 @@ extern std::string troff2md(std::string troff_content);
 
 	std::cout << "\nTesting fs_run_tests verbose flag behaviors..." << std::endl;
 	// Test verbose=auto (default for single test) includes --print-errorlogs
-	std::string auto_run_result = registry.execute_tool("fs_run_tests", "{\"test_names\": [\"unit_event_logger\"], \"verbose\": \"auto\"}", ctx);
+	std::string auto_run_result =
+	    registry.execute_tool("fs_run_tests", "{\"test_names\": [\"unit_event_logger\"], \"verbose\": \"auto\"}", ctx);
 	assert(auto_run_result.find("--print-errorlogs") != std::string::npos);
 
 	// Test verbose=true includes -v in the command
-	std::string verbose_run_result = registry.execute_tool("fs_run_tests", "{\"test_names\": [\"unit_event_logger\"], \"verbose\": true}", ctx);
+	std::string verbose_run_result =
+	    registry.execute_tool("fs_run_tests", "{\"test_names\": [\"unit_event_logger\"], \"verbose\": true}", ctx);
 	assert(verbose_run_result.find(" -v ") != std::string::npos || verbose_run_result.find(" -v '") != std::string::npos);
 
 	// Test verbose=false suppresses both -v and --print-errorlogs
-	std::string quiet_run_result = registry.execute_tool("fs_run_tests", "{\"test_names\": [\"unit_event_logger\"], \"verbose\": false}", ctx);
+	std::string quiet_run_result =
+	    registry.execute_tool("fs_run_tests", "{\"test_names\": [\"unit_event_logger\"], \"verbose\": false}", ctx);
 	assert(quiet_run_result.find(" -v ") == std::string::npos);
 	assert(quiet_run_result.find("--print-errorlogs") == std::string::npos);
 
 	// Test invalid verbose value is rejected by validator
-	std::string invalid_verbose_result = registry.execute_tool("fs_run_tests", "{\"test_names\": [\"unit_event_logger\"], \"verbose\": \"invalid_mode\"}", ctx);
+	std::string invalid_verbose_result =
+	    registry.execute_tool("fs_run_tests", "{\"test_names\": [\"unit_event_logger\"], \"verbose\": \"invalid_mode\"}", ctx);
 	assert(invalid_verbose_result.find("Invalid 'verbose' parameter") != std::string::npos);
 
 	std::cout << "\nTesting agent_set_timer..." << std::endl;
@@ -316,8 +318,6 @@ extern std::string troff2md(std::string troff_content);
 		std::cout << "Tool call boundary protection verified successfully!" << std::endl;
 	}
 
-
-
 	std::cout << "\nTesting fs_read_lines boundary heuristics..." << std::endl;
 	{
 		std::string proj_root = project_manager::get_instance().get_project_root();
@@ -430,6 +430,43 @@ extern std::string troff2md(std::string troff_content);
 		std::cout << "fs_read_lines boundary heuristics verified successfully!" << std::endl;
 	}
 
+	std::cout << "\nTesting fs_read_lines type definition map & deduplication..." << std::endl;
+	{
+		std::string proj_root = project_manager::get_instance().get_project_root();
+		std::filesystem::path type_cpp_path = std::filesystem::path(proj_root) / "test_type_def_read.cpp";
+		std::string type_file = "test_type_def_read.cpp";
+
+		// Pre-warm a type into the cache
+		tools::type_definition_cache::get_instance().register_resolved_type("AwesomeAgentStruct", "struct", "src/awesome_agent.h",
+										    25, 60);
+
+		// Write a file that references AwesomeAgentStruct
+		{
+			std::ofstream out(type_cpp_path);
+			out << "#include \"awesome_agent.h\"\n";
+			out << "void handle_agent(const AwesomeAgentStruct &agent) {\n";
+			out << "    (void)agent;\n";
+			out << "}\n";
+		}
+
+		std::string args = "{\"path\": \"" + type_file + "\", \"start_line\": 1, \"end_line\": 4}";
+		std::string res1 = registry.execute_tool("fs_read_lines", args, ctx);
+		std::cout << "Type definition result 1:\n" << res1 << std::endl;
+
+		assert(res1.find("### Type Definitions:") != std::string::npos);
+		assert(res1.find("`AwesomeAgentStruct`") != std::string::npos);
+		assert(res1.find("`src/awesome_agent.h`") != std::string::npos);
+		assert(res1.find("25-60") != std::string::npos);
+		assert(ctx.reported_type_definitions.contains("AwesomeAgentStruct"));
+
+		// Second read of same code in same session must omit already-reported type definition
+		std::string res2 = registry.execute_tool("fs_read_lines", args, ctx);
+		assert(res2.find("### Type Definitions:") == std::string::npos);
+
+		std::filesystem::remove(type_cpp_path);
+		std::cout << "fs_read_lines type definition map verified successfully!" << std::endl;
+	}
+
 	std::cout << "\nTesting fs_read_lines nonexistent file and directory error messages..." << std::endl;
 	{
 		std::string args_nonexistent = "{\"path\": \"nonexistent_dummy_file_12345.txt\", \"start_line\": 1, \"end_line\": 10}";
@@ -495,29 +532,25 @@ extern std::string troff2md(std::string troff_content);
 
 		// Test 1: Simple filter execution returning value
 		std::string result = registry.execute_tool(
-			"apply_text_filter",
-			"{\"text\": \"\\u001b[31mHello\\u001b[0m World\", \"filter\": \"strip_ansi\"}",
-			ctx
-		);
+		    "apply_text_filter", "{\"text\": \"\\u001b[31mHello\\u001b[0m World\", \"filter\": \"strip_ansi\"}", ctx);
 		std::cout << "Result: " << result << std::endl;
 		assert(result.find("Hello World") != std::string::npos);
 
 		// Test 1b: Simple filter execution with literal \x1b and \u001b
-		std::string result_literal = registry.execute_tool(
-			"apply_text_filter",
-			"{\"text\": \"\\\\x1b[32mThis is green text\\\\x1b[0m and \\\\u001b[31mred text\\\\u001b[0m\", \"filter\": \"strip_ansi\"}",
-			ctx
-		);
+		std::string result_literal = registry.execute_tool("apply_text_filter",
+								   "{\"text\": \"\\\\x1b[32mThis is green text\\\\x1b[0m and "
+								   "\\\\u001b[31mred text\\\\u001b[0m\", \"filter\": \"strip_ansi\"}",
+								   ctx);
 		std::cout << "Result Literal: " << result_literal << std::endl;
 		assert(result_literal.find("This is green text and red text") != std::string::npos);
 
 		// Test 2: Filter execution writing to output_path
 		std::string output_file = "test_filtered_out.txt";
 		std::string result_write = registry.execute_tool(
-			"apply_text_filter",
-			"{\"text\": \"\\u001b[31mHello\\u001b[0m World\", \"filter\": \"strip_ansi\", \"output_path\": \"" + output_file + "\"}",
-			ctx
-		);
+		    "apply_text_filter",
+		    "{\"text\": \"\\u001b[31mHello\\u001b[0m World\", \"filter\": \"strip_ansi\", \"output_path\": \"" + output_file +
+			"\"}",
+		    ctx);
 		std::cout << "Write result: " << result_write << std::endl;
 		assert(result_write.find("Successfully applied filter") != std::string::npos);
 
@@ -531,11 +564,8 @@ extern std::string troff2md(std::string troff_content);
 		std::filesystem::remove(full_out_path);
 
 		// Test 3: Invalid filter name error validation
-		auto prep_invalid_filter = registry.prepare_tool(
-			"apply_text_filter",
-			"{\"text\": \"Hello\", \"filter\": \"nonexistent_filter_name_xyz\"}",
-			ctx
-		);
+		auto prep_invalid_filter =
+		    registry.prepare_tool("apply_text_filter", "{\"text\": \"Hello\", \"filter\": \"nonexistent_filter_name_xyz\"}", ctx);
 		assert(prep_invalid_filter.tool == nullptr);
 		std::cout << "Invalid filter error: " << prep_invalid_filter.error_message << std::endl;
 		assert(prep_invalid_filter.error_message.find("Invalid filter name") != std::string::npos);
@@ -543,24 +573,18 @@ extern std::string troff2md(std::string troff_content);
 
 		// Test 4: Security violation on write path
 		auto prep_security = registry.prepare_tool(
-			"apply_text_filter",
-			"{\"text\": \"Hello\", \"filter\": \"strip_ansi\", \"output_path\": \"../../unsafe.txt\"}",
-			ctx
-		);
+		    "apply_text_filter", "{\"text\": \"Hello\", \"filter\": \"strip_ansi\", \"output_path\": \"../../unsafe.txt\"}", ctx);
 		assert(prep_security.tool == nullptr);
 		assert(prep_security.error_message.find("Validation Error") != std::string::npos ||
 		       prep_security.error_message.find("Security Violation") != std::string::npos ||
 		       prep_security.error_message.find("Access Denied") != std::string::npos ||
 		       prep_security.error_message.find("outside workspace") != std::string::npos);
 
-
 		// Test 5: troff_to_markdown filter
 		{
 			std::string result_troff = registry.execute_tool(
-				"apply_text_filter",
-				"{\"text\": \".SH Header\\nSome\\n.B \\\"bold text.\\\"\", \"filter\": \"troff_to_markdown\"}",
-				ctx
-			);
+			    "apply_text_filter",
+			    "{\"text\": \".SH Header\\nSome\\n.B \\\"bold text.\\\"\", \"filter\": \"troff_to_markdown\"}", ctx);
 			std::cout << "Troff result:\n" << result_troff << std::endl;
 			assert(result_troff.find("# Header") != std::string::npos);
 			assert(result_troff.find("**bold text.**") != std::string::npos);
@@ -568,11 +592,10 @@ extern std::string troff2md(std::string troff_content);
 
 		// Test 6: troff_to_markdown filter with code blocks suppressing bold/italic
 		{
-			std::string result_troff = registry.execute_tool(
-				"apply_text_filter",
-				"{\"text\": \".nf\\nSome .B \\\"bold text\\\" and \\\\fBfont bold\\\\fR\\n.fi\", \"filter\": \"troff_to_markdown\"}",
-				ctx
-			);
+			std::string result_troff = registry.execute_tool("apply_text_filter",
+									 "{\"text\": \".nf\\nSome .B \\\"bold text\\\" and \\\\fBfont "
+									 "bold\\\\fR\\n.fi\", \"filter\": \"troff_to_markdown\"}",
+									 ctx);
 			std::cout << "Troff code block result:\n" << result_troff << std::endl;
 			assert(result_troff.find("```c") != std::string::npos);
 			assert(result_troff.find("bold text") != std::string::npos);
@@ -589,10 +612,8 @@ extern std::string troff2md(std::string troff_content);
 
 			std::string out_file = "test_filter_in_out.txt";
 			std::string result_path = registry.execute_tool(
-				"apply_text_filter",
-				"{\"path\": \"" + in_file + "\", \"filter\": \"strip_ansi\", \"output_path\": \"" + out_file + "\"}",
-				ctx
-			);
+			    "apply_text_filter",
+			    "{\"path\": \"" + in_file + "\", \"filter\": \"strip_ansi\", \"output_path\": \"" + out_file + "\"}", ctx);
 			std::cout << "Path filter result: " << result_path << std::endl;
 			assert(result_path.find("Successfully applied filter") != std::string::npos);
 
@@ -622,8 +643,6 @@ extern std::string troff2md(std::string troff_content);
 		ctx.fs_security.add_allowed_root(tmp_dir, agentlib::access_type::write);
 		vfs.register_provider("tmp", std::make_shared<agentlib::file_vfs_provider>("tmp", tmp_dir));
 		ctx.fs_security.set_vfs(&vfs);
-
-
 
 		// Write via tool execution
 		std::string args = "{\"path\": \"" + target_uri + "\", \"content\": \"VFS tool write!\", \"append\": false}";
@@ -670,7 +689,8 @@ extern std::string troff2md(std::string troff_content);
 
 		// Write to test_auto_mkdir/models/new_file.txt ("models" vs "model" distance == 1)
 		std::string target_similar = base_dir + "/models/new_file.txt";
-		std::string sim_args = "{\"path\": \"" + target_similar + "\", \"content\": \"Auto mkdir similarity test!\", \"append\": false}";
+		std::string sim_args =
+		    "{\"path\": \"" + target_similar + "\", \"content\": \"Auto mkdir similarity test!\", \"append\": false}";
 		std::string sim_res = registry.execute_tool("fs_write_file", sim_args, ctx);
 
 		std::cout << "Auto-mkdir result with similarity warning:\n" << sim_res << std::endl;
@@ -695,9 +715,12 @@ extern std::string troff2md(std::string troff_content);
 		std::string purge_file2 = "tmp://test_keep_task_2.txt";
 		std::string purge_file3 = "tmp://test_unique_purge_task_3.txt";
 
-		registry.execute_tool("fs_write_file", "{\"path\": \"" + purge_file1 + "\", \"content\": \"purge me!\", \"append\": false}", ctx);
-		registry.execute_tool("fs_write_file", "{\"path\": \"" + purge_file2 + "\", \"content\": \"keep me!\", \"append\": false}", ctx);
-		registry.execute_tool("fs_write_file", "{\"path\": \"" + purge_file3 + "\", \"content\": \"purge me!\", \"append\": false}", ctx);
+		registry.execute_tool("fs_write_file", "{\"path\": \"" + purge_file1 + "\", \"content\": \"purge me!\", \"append\": false}",
+				      ctx);
+		registry.execute_tool("fs_write_file", "{\"path\": \"" + purge_file2 + "\", \"content\": \"keep me!\", \"append\": false}",
+				      ctx);
+		registry.execute_tool("fs_write_file", "{\"path\": \"" + purge_file3 + "\", \"content\": \"purge me!\", \"append\": false}",
+				      ctx);
 
 		assert(vfs.exists(purge_file1));
 		assert(vfs.exists(purge_file2));
@@ -706,7 +729,6 @@ extern std::string troff2md(std::string troff_content);
 		// Purge with substring "unique_purge_task"
 		std::string purge_res1 = registry.execute_tool("fs_purge_tmp", "{\"substring\": \"unique_purge_task\"}", ctx);
 		assert(purge_res1.find("Successfully purged 2 files") != std::string::npos);
-
 
 		assert(!vfs.exists(purge_file1));
 		assert(vfs.exists(purge_file2));
@@ -754,7 +776,8 @@ extern std::string troff2md(std::string troff_content);
 
 		auto find_val = [&](const std::string &name) -> std::shared_ptr<tool_validator> {
 			for (const auto &v : registry.get_all_registered_validators()) {
-				if (v->get_name() == name) return v;
+				if (v->get_name() == name)
+					return v;
 			}
 			return nullptr;
 		};
@@ -777,19 +800,22 @@ extern std::string troff2md(std::string troff_content);
 		assert(val_write->is_pure(nlohmann::json{{"path", "images://test.png"}}));
 
 		// Writing to workspace file as read-only MUST be blocked
-		std::string ro_write_res = registry.execute_tool("fs_write_file", "{\"path\": \"src/main.cpp\", \"content\": \"test\"}", ro_ctx);
+		std::string ro_write_res =
+		    registry.execute_tool("fs_write_file", "{\"path\": \"src/main.cpp\", \"content\": \"test\"}", ro_ctx);
 		assert(ro_write_res.find("Security Violation: Agent is in read-only mode") != std::string::npos);
 	}
 
 	std::cout << "\nTesting parameter aliases in tool execution..." << std::endl;
 	{
 		// 1. fs_read_lines with "file_path" instead of "path"
-		std::string res1 = registry.execute_tool("fs_read_lines", "{\"file_path\": \"src/main.cpp\", \"start_line\": 1, \"end_line\": 2}", ctx);
+		std::string res1 =
+		    registry.execute_tool("fs_read_lines", "{\"file_path\": \"src/main.cpp\", \"start_line\": 1, \"end_line\": 2}", ctx);
 		std::cout << "Alias test res1 (file_path -> path): " << res1 << std::endl;
 		assert(res1.find("1:") != std::string::npos);
 
 		// 2. fs_read_lines with "filepath" instead of "path"
-		std::string res2 = registry.execute_tool("fs_read_lines", "{\"filepath\": \"src/main.cpp\", \"start_line\": 1, \"end_line\": 2}", ctx);
+		std::string res2 =
+		    registry.execute_tool("fs_read_lines", "{\"filepath\": \"src/main.cpp\", \"start_line\": 1, \"end_line\": 2}", ctx);
 		std::cout << "Alias test res2 (filepath -> path): " << res2 << std::endl;
 		assert(res2.find("1:") != std::string::npos);
 
@@ -800,7 +826,8 @@ extern std::string troff2md(std::string troff_content);
 
 		// 4. fs_write_file with "target_file" instead of "path"
 		std::string tmp_test_file = "test_alias_write.tmp";
-		std::string res4 = registry.execute_tool("fs_write_file", "{\"target_file\": \"" + tmp_test_file + "\", \"content\": \"hello world\"}", ctx);
+		std::string res4 = registry.execute_tool("fs_write_file",
+							 "{\"target_file\": \"" + tmp_test_file + "\", \"content\": \"hello world\"}", ctx);
 		std::cout << "Alias test res4 (target_file -> path): " << res4 << std::endl;
 		assert(res4.find("Successfully wrote") != std::string::npos);
 		std::filesystem::remove(tmp_test_file);
@@ -809,7 +836,8 @@ extern std::string troff2md(std::string troff_content);
 	std::cout << "\nTesting fs_read_lines 'length' parameter and aliases..." << std::endl;
 	{
 		// 1. start_line + length
-		std::string res_len1 = registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"start_line\": 1, \"length\": 2}", ctx);
+		std::string res_len1 =
+		    registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"start_line\": 1, \"length\": 2}", ctx);
 		assert(res_len1.find("1:") != std::string::npos);
 		assert(res_len1.find("2:") != std::string::npos);
 		assert(res_len1.find("3:") == std::string::npos);
@@ -821,24 +849,29 @@ extern std::string troff2md(std::string troff_content);
 		assert(res_len2.find("4:") == std::string::npos);
 
 		// 3. alias num_lines -> length
-		std::string res_alias1 = registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"start_line\": 1, \"num_lines\": 2}", ctx);
+		std::string res_alias1 =
+		    registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"start_line\": 1, \"num_lines\": 2}", ctx);
 		assert(res_alias1.find("1:") != std::string::npos);
 		assert(res_alias1.find("2:") != std::string::npos);
 		assert(res_alias1.find("3:") == std::string::npos);
 
 		// 4. alias line_count -> length
-		std::string res_alias2 = registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"start_line\": 1, \"line_count\": 2}", ctx);
+		std::string res_alias2 =
+		    registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"start_line\": 1, \"line_count\": 2}", ctx);
 		assert(res_alias2.find("1:") != std::string::npos);
 		assert(res_alias2.find("2:") != std::string::npos);
 		assert(res_alias2.find("3:") == std::string::npos);
 
 		// 5. length + end_line mutual exclusivity error
-		std::string res_err1 = registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"start_line\": 1, \"end_line\": 5, \"length\": 2}", ctx);
+		std::string res_err1 = registry.execute_tool(
+		    "fs_read_lines", "{\"path\": \"src/main.cpp\", \"start_line\": 1, \"end_line\": 5, \"length\": 2}", ctx);
 		assert(res_err1.find("'length' parameter cannot be used together with 'end_line'") != std::string::npos);
 
 		// 6. length + tail mutual exclusivity error
-		std::string res_err2 = registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"tail\": 5, \"length\": 2}", ctx);
-		assert(res_err2.find("'tail' parameter cannot be used together with 'start_line', 'end_line', or 'length'") != std::string::npos);
+		std::string res_err2 =
+		    registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"tail\": 5, \"length\": 2}", ctx);
+		assert(res_err2.find("'tail' parameter cannot be used together with 'start_line', 'end_line', or 'length'") !=
+		       std::string::npos);
 
 		// 7. length <= 0 error
 		std::string res_err3 = registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"length\": 0}", ctx);

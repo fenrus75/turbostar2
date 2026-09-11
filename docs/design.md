@@ -243,6 +243,13 @@ To support modular and context-efficient tool management, tools are organized in
 - **Persistence**: Configuration settings for enabling/disabling tool families are stored in `config.ini` files using the `family.<family_name>.enabled` key, separating global (system) and project-local configurations.
 - **Multi-Family Tools**: A tool can register under multiple families by returning a `|`-separated string from `tool_validator::get_family()` (e.g., `"binary|hexedit"`). The tool is available if *any* of its registered families are active.
 
+## Data Type Map & Opportunistic Type Cache
+To provide agents with high-value architectural awareness without token bloat or blocking tool latency:
+- **Opportunistic Pre-Warming**: When files or companion headers are parsed for codemaps, discovered `Class`, `Struct`, and `Enum` symbols are automatically registered into `type_definition_cache`.
+- **Zero-Latency In-Flight Stubs**: `fs_read_lines` scans read line buffers using `type_token_extractor` to identify candidate types, immediately registering `pending` stubs and queuing asynchronous LSP definition queries in a detached background worker.
+- **Deduplication & Throttling**: Disclosed definitions are tracked per agent session in `ctx.reported_type_definitions` and capped at <= 3 definitions per tool call, excluding types defined in the read file itself or its companion header.
+- **Cache Invalidation**: Mutations via `fs_replace_lines` or `fs_replace_content` immediately invalidate cached definitions originating from the modified file.
+
 ## Profiling and Debugging
 - **Memory Profiling**: To diagnose Out of Memory (OOM) errors, identify allocation bottlenecks, or track down memory leaks, use `heaptrack`. A detailed guide for agents is available at `docs/heaptrack.md`.
 

@@ -53,7 +53,9 @@ core_sources = files(
   'ansi.cpp',
   'pluginloader.cpp',
   'images/image_manager.cpp',
-  'tools/troff2md.cpp'
+  'tools/troff2md.cpp',
+  'type_definition_cache.cpp',
+  'type_token_extractor.cpp'
 )
 
 

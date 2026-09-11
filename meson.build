@@ -375,6 +375,12 @@ test_clear_command = executable('test_clear_command',
   include_directories: inc)
 test('unit_clear_command', test_clear_command, suite: 'agent')
 
+test_type_definition_cache = executable('test_type_definition_cache',
+  ['tests/unit/test_type_definition_cache.cpp'],
+  dependencies : [core_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep],
+  include_directories: inc)
+test('unit_type_definition_cache', test_type_definition_cache, suite: 'agent')
+
 test_address_lookup = executable('test_address_lookup',
   ['tests/unit/test_address_lookup.cpp', 'src/address_lookup.cpp'],
   dependencies : [nlohmann_json_dep, thread_dep],

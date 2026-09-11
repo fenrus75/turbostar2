@@ -13,6 +13,8 @@
 #include "fs_read_lines.h"
 #include "fs_utils.h"
 #include "mime.h"
+#include "type_definition_cache.h"
+#include "type_token_extractor.h"
 
 #include "agentlib/document_provider.h"
 #include "agentlib/interactions/action.h"
@@ -250,6 +252,17 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 	args_.start_line = start;
 	args_.end_line = adjusted_end;
 
+	// Early harvest: extract candidate type tokens from read range and dispatch async LSP queries
+	std::vector<candidate_type_token> candidate_types;
+	if (read_res.success && !read_res.lines.empty()) {
+		candidate_types = type_token_extractor::extract_candidates(read_res.lines, start);
+		for (const auto &cand : candidate_types) {
+			if (!type_definition_cache::get_instance().contains(cand.name)) {
+				type_definition_cache::get_instance().request_async(cand.name, args_.safe_path, cand.line - 1, cand.col);
+			}
+		}
+	}
+
 	if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
 		custom_interaction->set_range(start, adjusted_end);
 		custom_interaction->set_total(read_res.total_file_lines);
@@ -337,6 +350,34 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 									   selection.omitted_count, &ctx);
 					}
 				}
+			}
+		}
+
+		// Type Definitions: gather candidate types that have resolved in the cache
+		std::string companion_header = is_header ? "" : find_matching_header_file(args_.safe_path, ctx);
+		std::vector<type_definition_entry> resolved_types;
+		for (const auto &cand : candidate_types) {
+			auto entry = type_definition_cache::get_instance().lookup(cand.name);
+			if (entry && entry->state == type_cache_state::resolved) {
+				// Exclude if defined in current file or its companion header
+				if (entry->safe_file_path == args_.safe_path || entry->safe_file_path == companion_header) {
+					continue;
+				}
+				// Exclude if already reported in this agent session
+				if (ctx.reported_type_definitions.find(entry->type_name) != ctx.reported_type_definitions.end()) {
+					continue;
+				}
+				resolved_types.push_back(*entry);
+				if (resolved_types.size() >= 3) {
+					break;
+				}
+			}
+		}
+
+		if (!resolved_types.empty()) {
+			ss << type_definition_cache::format_type_definition_table(resolved_types);
+			for (const auto &t : resolved_types) {
+				ctx.reported_type_definitions.insert(t.type_name);
 			}
 		}
 

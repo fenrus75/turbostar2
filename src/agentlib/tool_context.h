@@ -7,9 +7,9 @@
 #include <string>
 #include <unordered_map>
 #include "../event_queue.h"
+#include "agent_properties.h"
 #include "document_provider.h"
 #include "file_security_manager.h"
-#include "agent_properties.h"
 
 namespace agentlib
 {
@@ -21,11 +21,7 @@ struct file_drift_state {
 	int edit_turns = 0;
 };
 
-enum class lsp_health_state {
-	unknown,
-	clean,
-	dirty
-};
+enum class lsp_health_state { unknown, clean, dirty };
 
 struct file_health_state {
 	lsp_health_state state = lsp_health_state::unknown;
@@ -73,6 +69,9 @@ class tool_context
 
 	// One-time session hint flag for fs_file_codemap tool availability in truncated codemaps
 	bool has_hinted_fs_file_codemap = false;
+
+	// Set of type definitions already reported to the agent in this session (for deduplication)
+	std::set<std::string> reported_type_definitions;
 };
 
 } // namespace agentlib

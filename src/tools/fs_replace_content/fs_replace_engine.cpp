@@ -1,19 +1,21 @@
 #include "fs_replace_engine.h"
 
+#include <algorithm>
+#include <cmath>
+#include <filesystem>
+#include <format>
+#include <fstream>
+#include <sstream>
+#include <unistd.h>
 #include "agentlib/file_health_utils.h"
 #include "agentlib/virtual_file_system.h"
 #include "codemap_utils.h"
 #include "mime.h"
 #include "project_manager.h"
-#include <algorithm>
-#include <cmath>
-#include <filesystem>
-#include <fstream>
-#include <format>
-#include <sstream>
-#include <unistd.h>
+#include "type_definition_cache.h"
 
-namespace tools {
+namespace tools
+{
 
 static std::vector<std::string> split_lines(const std::string &str)
 {
@@ -52,7 +54,8 @@ static std::string normalize_line_for_relaxed(std::string_view line, bool strip_
 	return res;
 }
 
-static void get_line_byte_range(const std::string &text, int start_line_1based, int num_lines, bool target_ends_with_newline, size_t &out_start, size_t &out_len)
+static void get_line_byte_range(const std::string &text, int start_line_1based, int num_lines, bool target_ends_with_newline,
+				size_t &out_start, size_t &out_len)
 {
 	int current_line = 1;
 	size_t idx = 0;
@@ -139,13 +142,10 @@ int fs_replace_engine::calculate_brace_balance(const std::vector<std::string> &l
 	return balance;
 }
 
-std::string fs_replace_engine::check_brace_warnings(
-	const std::string &safe_path,
-	agentlib::tool_context &ctx,
-	const std::vector<std::string> &before_lines,
-	const std::vector<std::string> &after_lines,
-	const std::vector<std::pair<int, int>> &edited_ranges_0based,
-	int net_line_delta)
+std::string fs_replace_engine::check_brace_warnings(const std::string &safe_path, agentlib::tool_context &ctx,
+						    const std::vector<std::string> &before_lines,
+						    const std::vector<std::string> &after_lines,
+						    const std::vector<std::pair<int, int>> &edited_ranges_0based, int net_line_delta)
 {
 	bool file_has_braces = false;
 	for (const auto &l : before_lines) {
@@ -168,12 +168,14 @@ std::string fs_replace_engine::check_brace_warnings(
 		// Case A: Global was balanced (0) and became unbalanced (non-0) -> emit file-scope warning
 		if (before_whole == 0 && after_whole != 0) {
 			if (after_whole > 0) {
-				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces at file scope (net balance: +{}, missing {} closing '}}' brace{})\n",
-						        after_whole, after_whole, (after_whole == 1 ? "" : "s"));
+				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces at file scope (net balance: +{}, "
+							"missing {} closing '}}' brace{})\n",
+							after_whole, after_whole, (after_whole == 1 ? "" : "s"));
 			} else {
 				int abs_bal = std::abs(after_whole);
-				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces at file scope (net balance: {}, possible extra {} closing '}}' brace{})\n",
-						        after_whole, abs_bal, (abs_bal == 1 ? "" : "s"));
+				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces at file scope (net balance: {}, "
+							"possible extra {} closing '}}' brace{})\n",
+							after_whole, abs_bal, (abs_bal == 1 ? "" : "s"));
 			}
 			return warnings;
 		}
@@ -196,8 +198,8 @@ std::string fs_replace_engine::check_brace_warnings(
 	auto symbols = get_document_codemap_symbols(safe_path, ctx);
 	if (!symbols.empty()) {
 		for (const auto &sym : symbols) {
-			if (sym.kind_str != "Function" && sym.kind_str != "Method" &&
-			    sym.kind_str != "Class" && sym.kind_str != "Struct" && sym.kind_str != "Interface") {
+			if (sym.kind_str != "Function" && sym.kind_str != "Method" && sym.kind_str != "Class" && sym.kind_str != "Struct" &&
+			    sym.kind_str != "Interface") {
 				continue;
 			}
 
@@ -222,12 +224,16 @@ std::string fs_replace_engine::check_brace_warnings(
 					int after_sym_bal = calculate_brace_balance(after_lines, f_start, after_f_end);
 					if (before_sym_bal == 0 && after_sym_bal != 0) {
 						if (after_sym_bal > 0) {
-							warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces in {} '{}' (net balance: +{}, missing {} closing '}}' brace{})\n",
-										sym.kind_str, sym.name, after_sym_bal, after_sym_bal, (after_sym_bal == 1 ? "" : "s"));
+							warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces in {} '{}' "
+										"(net balance: +{}, missing {} closing '}}' brace{})\n",
+										sym.kind_str, sym.name, after_sym_bal, after_sym_bal,
+										(after_sym_bal == 1 ? "" : "s"));
 						} else {
 							int abs_bal = std::abs(after_sym_bal);
-							warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces in {} '{}' (net balance: {}, possible extra {} closing '}}' brace{})\n",
-										sym.kind_str, sym.name, after_sym_bal, abs_bal, (abs_bal == 1 ? "" : "s"));
+							warnings += std::format(
+							    "⚠️ Warning: Edit introduced unbalanced braces in {} '{}' (net balance: {}, "
+							    "possible extra {} closing '}}' brace{})\n",
+							    sym.kind_str, sym.name, after_sym_bal, abs_bal, (abs_bal == 1 ? "" : "s"));
 						}
 					}
 				}
@@ -236,8 +242,6 @@ std::string fs_replace_engine::check_brace_warnings(
 	}
 
 	return warnings;
-
-
 }
 
 replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, const replace_engine_args &args)
@@ -292,8 +296,10 @@ replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, co
 				scope_end_line = sym->end_line;
 			}
 		} else if (chunk.start_line > 0 || chunk.end_line > 0) {
-			if (chunk.start_line > 0) scope_start_line = chunk.start_line;
-			if (chunk.end_line > 0) scope_end_line = chunk.end_line;
+			if (chunk.start_line > 0)
+				scope_start_line = chunk.start_line;
+			if (chunk.end_line > 0)
+				scope_end_line = chunk.end_line;
 		}
 
 		scope_start_line = std::clamp(scope_start_line, 1, static_cast<int>(current_lines.size()));
@@ -311,7 +317,8 @@ replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, co
 		// Scope search window check
 		size_t scope_byte_start = 0;
 		size_t scope_byte_len = work_content.size();
-		get_line_byte_range(work_content, scope_start_line, scope_end_line - scope_start_line + 1, true, scope_byte_start, scope_byte_len);
+		get_line_byte_range(work_content, scope_start_line, scope_end_line - scope_start_line + 1, true, scope_byte_start,
+				    scope_byte_len);
 
 		// Collect all occurrences of target_content in search scope
 		std::vector<std::pair<size_t, int>> exact_occurrences;
@@ -324,7 +331,8 @@ replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, co
 			}
 			int line_num = 1;
 			for (size_t idx = 0; idx < found; ++idx) {
-				if (work_content[idx] == '\n') line_num++;
+				if (work_content[idx] == '\n')
+					line_num++;
 			}
 			exact_occurrences.push_back({found, line_num});
 			search_pos = found + std::max<size_t>(1, chunk.target_content.size());
@@ -347,15 +355,19 @@ replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, co
 				matched_start_line_1based = exact_occurrences[best_idx].second;
 			} else {
 				std::stringstream err_ss;
-				err_ss << "Error: Multiple matches (" << exact_occurrences.size() << ") found for target_content in " << args.path << " at line numbers: [";
+				err_ss << "Error: Multiple matches (" << exact_occurrences.size() << ") found for target_content in "
+				       << args.path << " at line numbers: [";
 				for (size_t k = 0; k < exact_occurrences.size(); ++k) {
 					err_ss << exact_occurrences[k].second << (k + 1 < exact_occurrences.size() ? ", " : "");
 				}
 				err_ss << "]. ";
 				if (!chunk.function_scope.empty()) {
-					err_ss << "Multiple occurrences exist even within function/scope '" << chunk.function_scope << "'. Please pass 'line_hint' to specify which line to edit, or include more context lines in target_content.";
+					err_ss << "Multiple occurrences exist even within function/scope '" << chunk.function_scope
+					       << "'. Please pass 'line_hint' to specify which line to edit, or include more context lines "
+						  "in target_content.";
 				} else {
-					err_ss << "Please pass 'function_hint' parameter with the enclosing function/method name (e.g. 'execute_disk_fallback'), or pass 'line_hint' to specify which occurrence to edit.";
+					err_ss << "Please pass 'function_hint' parameter with the enclosing function/method name (e.g. "
+						  "'execute_disk_fallback'), or pass 'line_hint' to specify which occurrence to edit.";
 				}
 				res.error_message = err_ss.str();
 				return res;
@@ -374,7 +386,8 @@ replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, co
 			}
 
 			int max_search_start = static_cast<int>(current_lines.size()) - target_line_count;
-			for (int start_idx = scope_start_line - 1; start_idx <= scope_end_line - 1 && start_idx <= max_search_start; ++start_idx) {
+			for (int start_idx = scope_start_line - 1; start_idx <= scope_end_line - 1 && start_idx <= max_search_start;
+			     ++start_idx) {
 				bool match = true;
 				for (int k = 0; k < target_line_count; ++k) {
 					std::string curr_norm = normalize_line_for_relaxed(current_lines[start_idx + k], true);
@@ -385,7 +398,8 @@ replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, co
 				}
 				if (match) {
 					matched_start_line_1based = start_idx + 1;
-					get_line_byte_range(work_content, matched_start_line_1based, target_line_count, target_ends_with_newline, match_pos, match_len);
+					get_line_byte_range(work_content, matched_start_line_1based, target_line_count,
+							    target_ends_with_newline, match_pos, match_len);
 					break;
 				}
 			}
@@ -403,20 +417,25 @@ replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, co
 					}
 					if (match) {
 						matched_start_line_1based = start_idx + 1;
-						get_line_byte_range(work_content, matched_start_line_1based, target_line_count, target_ends_with_newline, match_pos, match_len);
+						get_line_byte_range(work_content, matched_start_line_1based, target_line_count,
+								    target_ends_with_newline, match_pos, match_len);
 						break;
 					}
 				}
 			}
 
-			if (matched_start_line_1based >= 1 && matched_start_line_1based <= static_cast<int>(current_lines.size()) && !target_lines.empty()) {
+			if (matched_start_line_1based >= 1 && matched_start_line_1based <= static_cast<int>(current_lines.size()) &&
+			    !target_lines.empty()) {
 				size_t file_indent_len = 0;
 				const std::string &file_line = current_lines[matched_start_line_1based - 1];
-				while (file_indent_len < file_line.size() && (file_line[file_indent_len] == ' ' || file_line[file_indent_len] == '\t')) {
+				while (file_indent_len < file_line.size() &&
+				       (file_line[file_indent_len] == ' ' || file_line[file_indent_len] == '\t')) {
 					file_indent_len++;
 				}
 				size_t replacement_indent_len = 0;
-				while (replacement_indent_len < chunk.replacement_content.size() && (chunk.replacement_content[replacement_indent_len] == ' ' || chunk.replacement_content[replacement_indent_len] == '\t')) {
+				while (replacement_indent_len < chunk.replacement_content.size() &&
+				       (chunk.replacement_content[replacement_indent_len] == ' ' ||
+					chunk.replacement_content[replacement_indent_len] == '\t')) {
 					replacement_indent_len++;
 				}
 				if (file_indent_len > 0 && replacement_indent_len == 0) {
@@ -432,7 +451,8 @@ replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, co
 			if (args.chunks.size() == 1) {
 				res.error_message = std::format("Error: target_content not found in {}.", args.path);
 			} else {
-				res.error_message = std::format("Error: Could not locate target_content for chunk {} in {}.", chunk_idx + 1, args.path);
+				res.error_message =
+				    std::format("Error: Could not locate target_content for chunk {} in {}.", chunk_idx + 1, args.path);
 			}
 			return res;
 		}
@@ -462,7 +482,8 @@ replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, co
 
 		int replacement_line_count = 1;
 		for (char c : chunk.replacement_content) {
-			if (c == '\n') replacement_line_count++;
+			if (c == '\n')
+				replacement_line_count++;
 		}
 		int line_delta = replacement_line_count - target_line_count;
 		cumulative_line_delta += line_delta;
@@ -478,11 +499,12 @@ replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, co
 	res.after_lines = current_lines;
 
 	// 3. Brace balance check
-	std::string brace_warnings = check_brace_warnings(
-		args.safe_path, ctx, res.before_lines, res.after_lines, edited_ranges_0based, cumulative_line_delta);
+	std::string brace_warnings =
+	    check_brace_warnings(args.safe_path, ctx, res.before_lines, res.after_lines, edited_ranges_0based, cumulative_line_delta);
 
 	if (args.strict && !brace_warnings.empty()) {
-		res.error_message = "Error: Edit rejected (strict mode): it would leave unbalanced braces and was not applied.\n" + brace_warnings;
+		res.error_message =
+		    "Error: Edit rejected (strict mode): it would leave unbalanced braces and was not applied.\n" + brace_warnings;
 		return res;
 	}
 
@@ -512,12 +534,13 @@ replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, co
 	}
 
 	std::string edit_id = agentlib::update_file_health_state(ctx, args.safe_path);
+	type_definition_cache::get_instance().invalidate_file(args.safe_path);
 	if (res.chunks_applied == 1 && !edited_ranges_0based.empty()) {
-		res.result_text = std::format("Successfully replaced target_content in {} starting at line {} [Edit ID: {}].",
-					      args.path, edited_ranges_0based[0].first + 1, edit_id);
+		res.result_text = std::format("Successfully replaced target_content in {} starting at line {} [Edit ID: {}].", args.path,
+					      edited_ranges_0based[0].first + 1, edit_id);
 	} else {
-		res.result_text = std::format("Successfully applied {} chunk replacements in {} [Edit ID: {}].",
-					      res.chunks_applied, args.path, edit_id);
+		res.result_text =
+		    std::format("Successfully applied {} chunk replacements in {} [Edit ID: {}].", res.chunks_applied, args.path, edit_id);
 	}
 
 	if (!brace_warnings.empty()) {
