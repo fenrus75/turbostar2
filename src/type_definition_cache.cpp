@@ -166,12 +166,10 @@ std::string type_definition_cache::format_type_definition_table(const std::vecto
 
 	std::stringstream ss;
 	ss << "\n### Type Definitions:\n\n";
-	ss << "| Type | Kind | Defined In | Lines |\n";
-	ss << "| :--- | :--- | :--- | :---: |\n";
+	ss << "| Type | Kind | Defined In | Start | End |\n";
+	ss << "| :--- | :--- | :--- | :---: | :---: |\n";
 	for (const auto &t : types) {
-		std::string lines_str =
-		    (t.start_line == t.end_line) ? std::format("{}", t.start_line) : std::format("{}-{}", t.start_line, t.end_line);
-		ss << std::format("| `{}` | {} | `{}` | {} |\n", t.type_name, t.kind, t.safe_file_path, lines_str);
+		ss << std::format("| `{}` | {} | `{}` | {} | {} |\n", t.type_name, t.kind, t.safe_file_path, t.start_line, t.end_line);
 	}
 	return ss.str();
 }

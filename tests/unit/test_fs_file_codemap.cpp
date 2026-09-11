@@ -1,13 +1,14 @@
-// Tested source file: src/codemap_utils.cpp, src/tools/fs_file_codemap/fs_file_codemap_entry.cpp, src/tools/fs_read_lines/fs_read_lines_entry.cpp
-#include "test_watchdog.h"
-#include "agentlib/tool_context.h"
-#include "agentlib/tool_registry.h"
-#include "codemap_utils.h"
-#include "lsp_manager.h"
+// Tested source file: src/codemap_utils.cpp, src/tools/fs_file_codemap/fs_file_codemap_entry.cpp,
+// src/tools/fs_read_lines/fs_read_lines_entry.cpp
 #include <cassert>
 #include <fstream>
 #include <iostream>
 #include <string>
+#include "agentlib/tool_context.h"
+#include "agentlib/tool_registry.h"
+#include "codemap_utils.h"
+#include "lsp_manager.h"
+#include "test_watchdog.h"
 
 int main()
 {
@@ -149,13 +150,16 @@ int main()
 
 		// Test 1st call table formatting with tool_context (should include one-time hint)
 		ctx.has_hinted_fs_file_codemap = false;
-		std::string formatted_table1 = tools::format_codemap_table("dummy.cpp", sel.selected_symbols, 0, sel.total_symbols, sel.omitted_count, &ctx);
+		std::string formatted_table1 =
+		    tools::format_codemap_table("dummy.cpp", sel.selected_symbols, 0, sel.total_symbols, sel.omitted_count, &ctx);
 		assert(formatted_table1.find("### Codemap for `dummy.cpp` (Top 5 of 15 symbols):") != std::string::npos);
-		assert(formatted_table1.find("*... [10 other symbols omitted (use fs_file_codemap if full symbol table is needed)]*") != std::string::npos);
+		assert(formatted_table1.find("*... [10 other symbols omitted (use fs_file_codemap if full symbol table is needed)]*") !=
+		       std::string::npos);
 		assert(ctx.has_hinted_fs_file_codemap == true);
 
 		// Test 2nd call table formatting with tool_context (should NOT repeat hint)
-		std::string formatted_table2 = tools::format_codemap_table("dummy.cpp", sel.selected_symbols, 0, sel.total_symbols, sel.omitted_count, &ctx);
+		std::string formatted_table2 =
+		    tools::format_codemap_table("dummy.cpp", sel.selected_symbols, 0, sel.total_symbols, sel.omitted_count, &ctx);
 		assert(formatted_table2.find("*... [10 other symbols omitted]*") != std::string::npos);
 		assert(formatted_table2.find("use fs_file_codemap") == std::string::npos);
 
@@ -175,9 +179,9 @@ int main()
 		// sym_c is omitted from history (never reported)
 
 		std::vector<tools::codemap_symbol_info> recency_syms = {
-			{"sym_a", "sym_a", "Function", 1000, 1010, 11, 0, ""},
-			{"sym_b", "sym_b", "Function", 2000, 2010, 11, 0, ""},
-			{"sym_c", "sym_c", "Function", 3000, 3010, 11, 0, ""},
+		    {"sym_a", "sym_a", "Function", 1000, 1010, 11, 0, ""},
+		    {"sym_b", "sym_b", "Function", 2000, 2010, 11, 0, ""},
+		    {"sym_c", "sym_c", "Function", 3000, 3010, 11, 0, ""},
 		};
 
 		// Read range 1..10 (far from 1000, 2000, 3000 so base proximity score is 0.0)
@@ -191,9 +195,12 @@ int main()
 		assert(rec_sel2.selected_symbols.size() == 2);
 		bool found_a = false, found_b = false, found_c = false;
 		for (const auto &s : rec_sel2.selected_symbols) {
-			if (s.name == "sym_a") found_a = true;
-			if (s.name == "sym_b") found_b = true;
-			if (s.name == "sym_c") found_c = true;
+			if (s.name == "sym_a")
+				found_a = true;
+			if (s.name == "sym_b")
+				found_b = true;
+			if (s.name == "sym_c")
+				found_c = true;
 		}
 		assert(found_c && found_b && !found_a);
 	}
@@ -232,7 +239,7 @@ int main()
 	assert(md_res.find("`    Subsection B`") != std::string::npos);
 	assert(md_res.find("`Second Top`") != std::string::npos);
 	// Heading lines should be reported at their correct 1-based line numbers
-	assert(md_res.find("| `Top Heading` | 1 | 1 | 1 |") != std::string::npos);   // line 1
+	assert(md_res.find("| `Top Heading` | 1 | 1 | 1 |") != std::string::npos);	// line 1
 	assert(md_res.find("| `    Subsection A` | 5 | 5 | 1 |") != std::string::npos); // line 5
 
 	// Test find_enclosing_symbol works on markdown headings
@@ -274,7 +281,8 @@ int main()
 	{
 		auto vfs = std::make_shared<agentlib::virtual_file_system>();
 		ctx.fs_security.set_vfs(vfs.get());
-		std::string jfif_content = "# JFIF Format Specification\n\n## Section 1: Intro\nText.\n\n## Section 2: Headers\nHeader details.\n";
+		std::string jfif_content =
+		    "# JFIF Format Specification\n\n## Section 1: Intro\nText.\n\n## Section 2: Headers\nHeader details.\n";
 		vfs->write_file("tmp://jfif.md", jfif_content.data(), jfif_content.size());
 		nlohmann::json vfs_md_args = {{"path", "tmp://jfif.md"}};
 		std::string vfs_md_res = registry.execute_tool("fs_file_codemap", vfs_md_args.dump(), ctx);
@@ -333,11 +341,31 @@ int main()
 
 		auto all_syms = tools::get_document_codemap_symbols(main_file, ctx, 1);
 		auto selected = tools::select_prioritized_codemap_symbols(all_syms, 3, 6, main_file, ctx, 10);
-		std::string table_md = tools::format_codemap_table(main_file, selected.selected_symbols, 35, selected.total_symbols, selected.omitted_count, &ctx);
+		std::string table_md = tools::format_codemap_table(main_file, selected.selected_symbols, 35, selected.total_symbols,
+								   selected.omitted_count, &ctx);
 
 		std::cout << "Option D codemap table output:\n" << table_md << "\n";
 		assert(table_md.find("### Codemap for `test_opt_d_main.cpp`") != std::string::npos);
 		assert(table_md.find("`main_caller_func`") != std::string::npos);
+
+		// Verify consolidated Called Dependencies table with Start and End columns
+		tools::codemap_symbol_info dep_sym;
+		dep_sym.name = "external_func";
+		dep_sym.display_name = "external_func";
+		dep_sym.kind_str = "Function";
+		dep_sym.start_line = 10;
+		dep_sym.end_line = 25;
+		dep_sym.line_count = 16;
+		dep_sym.depth = 0;
+		dep_sym.source_file = "src/other_dep.cpp";
+
+		std::vector<tools::codemap_symbol_info> combined_syms = selected.selected_symbols;
+		combined_syms.push_back(dep_sym);
+
+		std::string dep_table_md = tools::format_codemap_table(main_file, combined_syms, 35, combined_syms.size(), 0, &ctx);
+		assert(dep_table_md.find("### Called Dependencies:") != std::string::npos);
+		assert(dep_table_md.find("| Symbol | Defined In | Start | End |") != std::string::npos);
+		assert(dep_table_md.find("| `external_func` | `src/other_dep.cpp` | 10 | 25 |") != std::string::npos);
 
 		std::remove(main_file.c_str());
 		std::remove(dep_file.c_str());
@@ -369,17 +397,16 @@ int main()
 		assert(full_false.find("Full 3 symbols") == std::string::npos);
 
 		// full=false with total_file_lines set still forces Top wording.
-		std::string full_false_lines = tools::format_codemap_table("dummy_full.cpp", syms, 40, syms.size(), 0, &ctx, /*full=*/false);
+		std::string full_false_lines =
+		    tools::format_codemap_table("dummy_full.cpp", syms, 40, syms.size(), 0, &ctx, /*full=*/false);
 		assert(full_false_lines.find("### Codemap for `dummy_full.cpp` (Top 3 of 3 symbols, 40 lines):") != std::string::npos);
 		assert(full_false_lines.find("Full 3 symbols") == std::string::npos);
 	}
 
 	// Test get_line_symbol_annotation helper
 	{
-		std::vector<tools::codemap_symbol_info> dummy_symbols = {
-			{"my_foo_func", "my_foo_func", "Function", 10, 20, 11, 0, ""},
-			{"my_bar_func", "my_bar_func", "Function", 25, 40, 16, 0, ""}
-		};
+		std::vector<tools::codemap_symbol_info> dummy_symbols = {{"my_foo_func", "my_foo_func", "Function", 10, 20, 11, 0, ""},
+									 {"my_bar_func", "my_bar_func", "Function", 25, 40, 16, 0, ""}};
 
 		assert(tools::get_line_symbol_annotation(dummy_symbols, 15) == "[symbol: my_foo_func (lines 10-20)]");
 		assert(tools::get_line_symbol_annotation(dummy_symbols, 30) == "[symbol: my_bar_func (lines 25-40)]");
@@ -387,17 +414,18 @@ int main()
 		assert(tools::get_line_symbol_annotation(dummy_symbols, 22) == "");
 
 		// Test augment_compiler_output_with_codemap
-		std::string raw_gcc_log =
-			"test_sample_impl.cpp:5:10: error: 'a' was not declared\n"
-			"test_sample_impl.cpp:5:20: error: secondary error on same line\n"
-			"test_sample_impl.cpp:9:12: warning: unused variable 'x'\n"
-			"test_sample_impl.cpp:50:1: error: out of range error\n";
+		std::string raw_gcc_log = "test_sample_impl.cpp:5:10: error: 'a' was not declared\n"
+					  "test_sample_impl.cpp:5:20: error: secondary error on same line\n"
+					  "test_sample_impl.cpp:9:12: warning: unused variable 'x'\n"
+					  "test_sample_impl.cpp:50:1: error: out of range error\n";
 
 		std::string augmented = tools::augment_compiler_output_with_codemap(raw_gcc_log, nullptr, 2);
-		assert(augmented.find("test_sample_impl.cpp:5:10: error: 'a' was not declared [symbol: sample_foo (lines 3-6)]") != std::string::npos);
+		assert(augmented.find("test_sample_impl.cpp:5:10: error: 'a' was not declared [symbol: sample_foo (lines 3-6)]") !=
+		       std::string::npos);
 		assert(augmented.find("test_sample_impl.cpp:5:20: error: secondary error on same line\n") != std::string::npos);
 		assert(augmented.find("test_sample_impl.cpp:5:20: error: secondary error on same line [symbol:") == std::string::npos);
-		assert(augmented.find("test_sample_impl.cpp:9:12: warning: unused variable 'x' [symbol: sample_bar (lines 8-11)]") != std::string::npos);
+		assert(augmented.find("test_sample_impl.cpp:9:12: warning: unused variable 'x' [symbol: sample_bar (lines 8-11)]") !=
+		       std::string::npos);
 	}
 
 	// 12. Test find_matching_header_file
@@ -570,9 +598,11 @@ int main()
 		// Directly test format_codemap_table with pruned_count > 0:
 		std::vector<tools::codemap_symbol_info> mock_syms;
 		for (int i = 0; i < 493; ++i) {
-			mock_syms.push_back({std::format("func_{}", i), std::format("func_{}", i), "Function", i * 2 + 1, i * 2 + 2, 2, 0, ""});
+			mock_syms.push_back(
+			    {std::format("func_{}", i), std::format("func_{}", i), "Function", i * 2 + 1, i * 2 + 2, 2, 0, ""});
 		}
-		std::string pruned_table = tools::format_codemap_table("mock_large.h", mock_syms, 3581, 493, 0, &ctx, /*full=*/true, /*pruned_count=*/31, /*raw_total_symbols=*/524);
+		std::string pruned_table = tools::format_codemap_table("mock_large.h", mock_syms, 3581, 493, 0, &ctx, /*full=*/true,
+								       /*pruned_count=*/31, /*raw_total_symbols=*/524);
 		assert(pruned_table.find("### Codemap for `mock_large.h` (493/524 symbols (31 pruned), 3581 lines):") != std::string::npos);
 		assert(pruned_table.find("Full ") == std::string::npos);
 

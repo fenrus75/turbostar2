@@ -456,7 +456,8 @@ int main()
 		assert(res1.find("### Type Definitions:") != std::string::npos);
 		assert(res1.find("`AwesomeAgentStruct`") != std::string::npos);
 		assert(res1.find("`src/awesome_agent.h`") != std::string::npos);
-		assert(res1.find("25-60") != std::string::npos);
+		assert(res1.find("| Start | End |") != std::string::npos);
+		assert(res1.find("| 25 | 60 |") != std::string::npos);
 		assert(ctx.reported_type_definitions.contains("AwesomeAgentStruct"));
 
 		// Second read of same code in same session must omit already-reported type definition

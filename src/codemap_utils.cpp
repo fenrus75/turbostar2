@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <map>
 #include <re2/re2.h>
 #include <regex>
 #include <set>
@@ -1077,7 +1078,7 @@ std::string format_codemap_table(const std::string &display_path, const std::vec
 
 	// Separate primary file symbols from cross-file dependency symbols (Option D)
 	std::vector<codemap_symbol_info> primary_symbols;
-	std::unordered_map<std::string, std::vector<codemap_symbol_info>> dependency_symbols;
+	std::map<std::string, std::vector<codemap_symbol_info>> dependency_symbols;
 	std::string norm_primary = fs_utils::make_relative_to_project(display_path);
 
 	for (const auto &sym : symbols) {
@@ -1142,13 +1143,15 @@ std::string format_codemap_table(const std::string &display_path, const std::vec
 		}
 	}
 
-	// Render Option D secondary dependency codemap sections
-	for (const auto &[dep_path, dep_syms] : dependency_symbols) {
-		ss << std::format("\n### Codemap for `{}` (Called Dependency):\n\n", dep_path);
-		ss << "| Symbol | Start Line | End Line | Lines |\n";
-		ss << "| :--- | :---: | :---: | :---: |\n";
-		for (const auto &sym : dep_syms) {
-			ss << std::format("| `{}` | {} | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line, sym.line_count);
+	// Render Option D secondary dependency codemap section as a single consolidated table
+	if (!dependency_symbols.empty()) {
+		ss << "\n### Called Dependencies:\n\n";
+		ss << "| Symbol | Defined In | Start | End |\n";
+		ss << "| :--- | :--- | :---: | :---: |\n";
+		for (const auto &[dep_path, dep_syms] : dependency_symbols) {
+			for (const auto &sym : dep_syms) {
+				ss << std::format("| `{}` | `{}` | {} | {} |\n", sym.display_name, dep_path, sym.start_line, sym.end_line);
+			}
 		}
 	}
 
