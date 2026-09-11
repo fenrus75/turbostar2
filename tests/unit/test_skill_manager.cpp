@@ -1,16 +1,17 @@
-#include "test_watchdog.h"
+// Tested source file: src/agentlib/skill_manager.cpp
 #include <cassert>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <cstdlib>
 #include "agentlib/skill_manager.h"
 #include "event_logger.h"
+#include "test_watchdog.h"
 
 using namespace agentlib;
 
 // Helper to write file contents
-void write_file(const std::filesystem::path& path, const std::string& content)
+void write_file(const std::filesystem::path &path, const std::string &content)
 {
 	std::filesystem::create_directories(path.parent_path());
 	std::ofstream out(path);
@@ -33,28 +34,27 @@ void test_robust_skill_parsing()
 	std::filesystem::path skill_dir = temp_home / ".copilot" / "skills" / "test_skill";
 	std::filesystem::create_directories(skill_dir);
 
-	std::string skill_content = 
-		"---  \n"  // Trailing space in delimiter
-		"  name: test_name  \n"  // Leading and trailing spaces
-		"  description: a description with spaces   \n"  // Leading/trailing spaces
-		"--- \n"  // Trailing space in end delimiter
-		"Some extra content here.\n";
+	std::string skill_content = "---  \n"					    // Trailing space in delimiter
+				    "  name: test_name  \n"			    // Leading and trailing spaces
+				    "  description: a description with spaces   \n" // Leading/trailing spaces
+				    "--- \n"					    // Trailing space in end delimiter
+				    "Some extra content here.\n";
 
 	write_file(skill_dir / "SKILL.md", skill_content);
 	write_file(skill_dir / "some_file.txt", "File contents");
 
 	// 3. Initialize skill manager
-	auto& manager = skill_manager::get_instance();
+	auto &manager = skill_manager::get_instance();
 	manager.initialize();
 
 	// 4. Verify skill is parsed and trailing/leading spaces are trimmed
-	const auto& skills = manager.get_skills();
-	
+	const auto &skills = manager.get_skills();
+
 	// We check if the skill was successfully parsed
 	assert(!skills.empty());
-	
+
 	bool found = false;
-	for (const auto& s : skills) {
+	for (const auto &s : skills) {
 		if (s.name == "test_name") {
 			found = true;
 			assert(s.description == "a description with spaces");
@@ -69,7 +69,7 @@ void test_robust_skill_parsing()
 
 void test_hidden_skills()
 {
-	auto& manager = skill_manager::get_instance();
+	auto &manager = skill_manager::get_instance();
 	manager.initialize();
 
 	// Register a dynamic visible skill
@@ -77,11 +77,11 @@ void test_hidden_skills()
 	// Register a dynamic hidden skill
 	manager.register_skill("hidden_test", "Hidden skill desc", "skills://hidden_test/", false);
 
-	const auto& skills = manager.get_skills();
+	const auto &skills = manager.get_skills();
 	bool found_visible = false;
 	bool found_hidden = false;
 
-	for (const auto& s : skills) {
+	for (const auto &s : skills) {
 		if (s.name == "visible_test") {
 			found_visible = true;
 			assert(s.visible == true);
@@ -96,9 +96,9 @@ void test_hidden_skills()
 
 	// Verify we can change visibility
 	manager.set_visibility("hidden_test", true);
-	const auto& skills_updated = manager.get_skills();
+	const auto &skills_updated = manager.get_skills();
 	bool found_updated = false;
-	for (const auto& s : skills_updated) {
+	for (const auto &s : skills_updated) {
 		if (s.name == "hidden_test") {
 			assert(s.visible == true);
 			found_updated = true;
@@ -109,22 +109,21 @@ void test_hidden_skills()
 
 void test_dynamic_registration()
 {
-	auto& manager = skill_manager::get_instance();
+	auto &manager = skill_manager::get_instance();
 	manager.initialize();
 
 	// 1. Register via string content
-	std::string string_skill = 
-		"---\n"
-		"name: string_skill_test\n"
-		"description: String skill description\n"
-		"---\n"
-		"String instructions go here.\n";
+	std::string string_skill = "---\n"
+				   "name: string_skill_test\n"
+				   "description: String skill description\n"
+				   "---\n"
+				   "String instructions go here.\n";
 
 	manager.register_skill(string_skill, false);
 
-	const auto& skills = manager.get_skills();
+	const auto &skills = manager.get_skills();
 	bool found_string_skill = false;
-	for (const auto& s : skills) {
+	for (const auto &s : skills) {
 		if (s.name == "string_skill_test") {
 			found_string_skill = true;
 			assert(s.description == "String skill description");
@@ -140,20 +139,19 @@ void test_dynamic_registration()
 
 	// 2. Register via map of files
 	std::map<std::string, std::string> files;
-	std::string map_skill = 
-		"---\n"
-		"name: map_skill_test\n"
-		"description: Map skill description\n"
-		"---\n"
-		"Map instructions go here.\n";
+	std::string map_skill = "---\n"
+				"name: map_skill_test\n"
+				"description: Map skill description\n"
+				"---\n"
+				"Map instructions go here.\n";
 	files["SKILL.md"] = map_skill;
 	files["helper.txt"] = "helper content";
 
 	manager.register_skill(files, true);
 
-	const auto& skills2 = manager.get_skills();
+	const auto &skills2 = manager.get_skills();
 	bool found_map_skill = false;
-	for (const auto& s : skills2) {
+	for (const auto &s : skills2) {
 		if (s.name == "map_skill_test") {
 			found_map_skill = true;
 			assert(s.description == "Map skill description");
@@ -173,9 +171,9 @@ void test_dynamic_registration()
 
 	// 3. Test unregistering
 	manager.unregister_skill("map_skill_test");
-	const auto& skills3 = manager.get_skills();
+	const auto &skills3 = manager.get_skills();
 	bool found_after_unreg = false;
-	for (const auto& s : skills3) {
+	for (const auto &s : skills3) {
 		if (s.name == "map_skill_test") {
 			found_after_unreg = true;
 		}
@@ -187,9 +185,81 @@ void test_dynamic_registration()
 	assert(!unreg_skill_md);
 }
 
+void test_malformed_yaml()
+{
+	test_watchdog::scoped_test_home guard("test_malformed_yaml");
+	std::filesystem::path temp_home = guard.get_path();
+
+	std::filesystem::path skills_base = temp_home / ".copilot" / "skills";
+
+	// 1. Skill with unclosed syntax error
+	std::filesystem::path bad_syntax_dir = skills_base / "bad_syntax";
+	std::filesystem::create_directories(bad_syntax_dir);
+	std::string bad_syntax = "---\n"
+				 "name: bad_syntax\n"
+				 "description: [unclosed bracket\n"
+				 "---\n"
+				 "# Bad Syntax Skill\n";
+	write_file(bad_syntax_dir / "SKILL.md", bad_syntax);
+
+	// 2. Skill with scalar frontmatter instead of mapping
+	std::filesystem::path bad_scalar_dir = skills_base / "bad_scalar";
+	std::filesystem::create_directories(bad_scalar_dir);
+	std::string bad_scalar = "---\n"
+				 "just a scalar string\n"
+				 "---\n"
+				 "# Bad Scalar Skill\n";
+	write_file(bad_scalar_dir / "SKILL.md", bad_scalar);
+
+	// 3. Skill with sequence frontmatter
+	std::filesystem::path bad_seq_dir = skills_base / "bad_sequence";
+	std::filesystem::create_directories(bad_seq_dir);
+	std::string bad_seq = "---\n"
+			      "- item1\n"
+			      "- item2\n"
+			      "---\n"
+			      "# Bad Sequence Skill\n";
+	write_file(bad_seq_dir / "SKILL.md", bad_seq);
+
+	// 4. Valid skill alongside the bad ones
+	std::filesystem::path good_dir = skills_base / "good_skill";
+	std::filesystem::create_directories(good_dir);
+	std::string good_content = "---\n"
+				   "name: good_skill\n"
+				   "description: A valid skill alongside malformed ones\n"
+				   "---\n"
+				   "# Good Skill\n";
+	write_file(good_dir / "SKILL.md", good_content);
+
+	auto &manager = skill_manager::get_instance();
+	manager.initialize();
+
+	// Verify error log for bad_syntax
+	auto msg1 = event_logger::get_instance().get_latest_matching_message("bad_syntax");
+	assert(msg1.has_value());
+	assert(msg1->find("YAML parse error") != std::string::npos);
+
+	// Verify error log for bad_scalar
+	auto msg2 = event_logger::get_instance().get_latest_matching_message("bad_scalar");
+	assert(msg2.has_value());
+	assert(msg2->find("YAML parse error") != std::string::npos);
+
+	// Verify that good_skill was successfully mounted despite malformed skills
+	const auto &skills = manager.get_skills();
+	bool found_good = false;
+	for (const auto &s : skills) {
+		if (s.name == "good_skill") {
+			found_good = true;
+			break;
+		}
+	}
+	assert(found_good);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
+	test_malformed_yaml();
 	test_robust_skill_parsing();
 	test_hidden_skills();
 	test_dynamic_registration();

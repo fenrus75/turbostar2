@@ -1,8 +1,8 @@
 #include "skill_manager.h"
 #include <cstdlib>
+#include <format>
 #include <fstream>
 #include <iostream>
-#include <format>
 #include <sstream>
 #include <yaml-cpp/yaml.h>
 #include "event_logger.h"
@@ -92,14 +92,16 @@ void skill_manager::register_skill(const std::map<std::string, std::string> &fil
 					description = config["description"].as<std::string>();
 				}
 			} catch (const std::exception &e) {
-				event_logger::get_instance().log("skill_manager: YAML parse error during dynamic registration: {}", e.what());
+				event_logger::get_instance().log("skill_manager: YAML parse error during dynamic registration: {}",
+								 e.what());
 				return;
 			}
 		}
 	}
 
 	if (name.empty()) {
-		event_logger::get_instance().log("skill_manager: Failed to register skill: Could not parse name from SKILL.md frontmatter.");
+		event_logger::get_instance().log(
+		    "skill_manager: Failed to register skill: Could not parse name from SKILL.md frontmatter.");
 		return;
 	}
 
@@ -139,11 +141,13 @@ void skill_manager::initialize()
 		return;
 	}
 	try {
-		for (const auto &entry : std::filesystem::recursive_directory_iterator(skills_base, std::filesystem::directory_options::skip_permission_denied)) {
+		for (const auto &entry : std::filesystem::recursive_directory_iterator(
+			 skills_base, std::filesystem::directory_options::skip_permission_denied)) {
 			if (entry.is_regular_file() && entry.path().filename().string() == "SKILL.md") {
+				std::string skill_path = entry.path().string();
 				std::ifstream file(entry.path());
 				if (!file.is_open()) {
-					event_logger::get_instance().log("skill_manager: Failed to open SKILL.md at {}", entry.path().string());
+					event_logger::get_instance().log("skill_manager: Failed to open SKILL.md at {}", skill_path);
 					continue;
 				}
 
@@ -160,6 +164,12 @@ void skill_manager::initialize()
 
 					try {
 						YAML::Node config = YAML::Load(frontmatter);
+						if (!config || !config.IsMap()) {
+							event_logger::get_instance().log(
+							    "skill_manager: YAML parse error at {}: frontmatter root is not a map",
+							    skill_path);
+							continue;
+						}
 						std::string name;
 						if (config["name"]) {
 							name = config["name"].as<std::string>();
@@ -181,7 +191,13 @@ void skill_manager::initialize()
 							scan_and_mount(physical_root, name);
 						}
 					} catch (const std::exception &e) {
-						event_logger::get_instance().log("skill_manager: YAML parse error at {}: {}", entry.path().string(), e.what());
+						const char *what_str = e.what();
+						std::string safe_what = what_str ? what_str : "unknown error";
+						event_logger::get_instance().log("skill_manager: YAML parse error at {}: {}", skill_path,
+										 safe_what);
+					} catch (...) {
+						event_logger::get_instance().log("skill_manager: Unknown YAML parse error at {}",
+										 skill_path);
 					}
 				}
 			}
@@ -196,7 +212,8 @@ void skill_manager::initialize()
 void skill_manager::scan_and_mount(const std::filesystem::path &base_dir, const std::string &skill_name)
 {
 	try {
-		for (const auto &entry : std::filesystem::recursive_directory_iterator(base_dir, std::filesystem::directory_options::skip_permission_denied)) {
+		for (const auto &entry :
+		     std::filesystem::recursive_directory_iterator(base_dir, std::filesystem::directory_options::skip_permission_denied)) {
 			if (entry.is_regular_file()) {
 				// Compute relative path
 				std::string rel_path = std::filesystem::relative(entry.path(), base_dir).string();

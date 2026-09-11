@@ -1,7 +1,7 @@
 #pragma once
 #include <atomic>
-#include <cstddef>
 #include <chrono>
+#include <cstddef>
 #include <format>
 #include <fstream>
 #include <mutex>
@@ -27,9 +27,9 @@ class event_logger
 	void log(std::string_view message);
 	void enable_stdout_logging(bool enable);
 
-	template <typename... Args>
-	void log(std::string_view fmt, const Args&... args) {
-		log(std::vformat(fmt, std::make_format_args(args...)));
+	template <typename... Args> void log(std::format_string<Args...> fmt, Args &&...args)
+	{
+		log(std::format(fmt, std::forward<Args>(args)...));
 	}
 	std::optional<std::string> get_latest_matching_message(std::string_view substring = "") const;
 	uint64_t get_total_event_count() const;
