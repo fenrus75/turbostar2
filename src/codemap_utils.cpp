@@ -1126,7 +1126,7 @@ std::string format_codemap_table(const std::string &display_path, const std::vec
 				ss << std::format("### Codemap for `{}` (Full {} symbols):\n\n", display_path, effective_total);
 			}
 		}
-		ss << "| Symbol | Start Line | End Line | Lines |\n";
+		ss << "| Symbol | start_line | end_line | lines |\n";
 		ss << "| :--- | :---: | :---: | :---: |\n";
 		for (const auto &sym : primary_symbols) {
 			ss << std::format("| `{}` | {} | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line, sym.line_count);
@@ -1146,7 +1146,7 @@ std::string format_codemap_table(const std::string &display_path, const std::vec
 	// Render Option D secondary dependency codemap section as a single consolidated table
 	if (!dependency_symbols.empty()) {
 		ss << "\n### Called Dependencies:\n\n";
-		ss << "| Symbol | Defined In | Start | End |\n";
+		ss << "| Symbol | path | start_line | end_line |\n";
 		ss << "| :--- | :--- | :---: | :---: |\n";
 		for (const auto &[dep_path, dep_syms] : dependency_symbols) {
 			for (const auto &sym : dep_syms) {

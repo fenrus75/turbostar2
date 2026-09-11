@@ -166,7 +166,7 @@ std::string type_definition_cache::format_type_definition_table(const std::vecto
 
 	std::stringstream ss;
 	ss << "\n### Type Definitions:\n\n";
-	ss << "| Type | Kind | Defined In | Start | End |\n";
+	ss << "| Type | Kind | path | start_line | end_line |\n";
 	ss << "| :--- | :--- | :--- | :---: | :---: |\n";
 	for (const auto &t : types) {
 		ss << std::format("| `{}` | {} | `{}` | {} | {} |\n", t.type_name, t.kind, t.safe_file_path, t.start_line, t.end_line);

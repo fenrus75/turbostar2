@@ -134,7 +134,7 @@ int main()
 		assert(table.find("`TypeBeta`") != std::string::npos);
 		assert(table.find("src/alpha.h") != std::string::npos);
 		assert(table.find("src/beta.h") != std::string::npos);
-		assert(table.find("| Start | End |") != std::string::npos);
+		assert(table.find("| path | start_line | end_line |") != std::string::npos);
 		assert(table.find("| 10 | 30 |") != std::string::npos);
 		assert(table.find("| 5 | 25 |") != std::string::npos);
 	}

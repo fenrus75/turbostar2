@@ -53,7 +53,7 @@ int main()
 	std::string codemap_res = registry.execute_tool("fs_file_codemap", codemap_args.dump(), ctx);
 	std::cout << "fs_file_codemap output:\n" << codemap_res << "\n";
 	assert(codemap_res.find("Codemap for `test_sample_impl.cpp`") != std::string::npos);
-	assert(codemap_res.find("| Symbol | Start Line | End Line | Lines |") != std::string::npos);
+	assert(codemap_res.find("| Symbol | start_line | end_line | lines |") != std::string::npos);
 	assert(codemap_res.find("`sample_foo`") != std::string::npos);
 	assert(codemap_res.find("`sample_bar`") != std::string::npos);
 
@@ -61,14 +61,14 @@ int main()
 	nlohmann::json read_partial_args = {{"path", impl_file}, {"start_line", 1}, {"end_line", 5}};
 	std::string read_partial_res = registry.execute_tool("fs_read_lines", read_partial_args.dump(), ctx);
 	std::cout << "fs_read_lines partial read output:\n" << read_partial_res << "\n";
-	assert(read_partial_res.find("| Symbol | Start Line | End Line | Lines |") != std::string::npos);
+	assert(read_partial_res.find("| Symbol | start_line | end_line | lines |") != std::string::npos);
 	assert(read_partial_res.find("`sample_foo`") != std::string::npos);
 
 	// 5. Test fs_read_lines full read (SKIP table rule)
 	nlohmann::json read_full_args = {{"path", impl_file}, {"start_line", 1}, {"end_line", 100}};
 	std::string read_full_res = registry.execute_tool("fs_read_lines", read_full_args.dump(), ctx);
 	std::cout << "fs_read_lines full read output:\n" << read_full_res << "\n";
-	assert(read_full_res.find("| Symbol | Start Line | End Line | Lines |") == std::string::npos);
+	assert(read_full_res.find("| Symbol | start_line | end_line | lines |") == std::string::npos);
 
 	// 6. Test fs_read_lines on header file (Header -> Impl magic)
 	nlohmann::json read_hdr_args = {{"path", header_file}, {"start_line", 1}, {"end_line", 4}};
@@ -364,7 +364,7 @@ int main()
 
 		std::string dep_table_md = tools::format_codemap_table(main_file, combined_syms, 35, combined_syms.size(), 0, &ctx);
 		assert(dep_table_md.find("### Called Dependencies:") != std::string::npos);
-		assert(dep_table_md.find("| Symbol | Defined In | Start | End |") != std::string::npos);
+		assert(dep_table_md.find("| Symbol | path | start_line | end_line |") != std::string::npos);
 		assert(dep_table_md.find("| `external_func` | `src/other_dep.cpp` | 10 | 25 |") != std::string::npos);
 
 		std::remove(main_file.c_str());

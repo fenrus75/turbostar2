@@ -1,5 +1,4 @@
 #include "crashdump_manager.h"
-#include "address_lookup.h"
 #include <cstdlib>
 #include <filesystem>
 #include <format>
@@ -9,10 +8,11 @@
 #include <set>
 #include <sstream>
 #include <tuple>
+#include "address_lookup.h"
+#include "codemap_utils.h"
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "project_manager.h"
-#include "codemap_utils.h"
 #include "utf8.h"
 
 namespace fs = std::filesystem;
@@ -193,7 +193,8 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 				while (std::getline(iin, l)) {
 					if (l.starts_with(exe_pref)) {
 						std::string cand = l.substr(exe_pref.length());
-						if (fs::exists(cand)) exe_path = cand;
+						if (fs::exists(cand))
+							exe_path = cand;
 						break;
 					}
 				}
@@ -221,8 +222,10 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 			std::vector<std::string> stitched_lines;
 			for (const auto &raw_l : gdb_raw_lines) {
 				std::string l = utf8::sanitize_terminal_output(raw_l);
-				while (!l.empty() && (l.back() == '\r' || l.back() == '\n' || l.back() == ' ' || l.back() == '\t')) l.pop_back();
-				if (l.empty()) continue;
+				while (!l.empty() && (l.back() == '\r' || l.back() == '\n' || l.back() == ' ' || l.back() == '\t'))
+					l.pop_back();
+				if (l.empty())
+					continue;
 				if (l[0] == '#') {
 					stitched_lines.push_back(l);
 				} else if (!stitched_lines.empty()) {
@@ -235,9 +238,11 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 
 			bool seen_signal_boundary = false;
 			for (const auto &line : stitched_lines) {
-				if (line.empty() || line[0] != '#') continue;
+				if (line.empty() || line[0] != '#')
+					continue;
 				size_t space_pos = line.find(' ');
-				if (space_pos == std::string::npos || space_pos < 2) continue;
+				if (space_pos == std::string::npos || space_pos < 2)
+					continue;
 
 				int f_idx = -1;
 				try {
@@ -253,7 +258,8 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 
 				std::string rest = line.substr(space_pos);
 				size_t non_ws = rest.find_first_not_of(" \t");
-				if (non_ws == std::string::npos) continue;
+				if (non_ws == std::string::npos)
+					continue;
 				rest = rest.substr(non_ws);
 
 				gdb_frame_data fd;
@@ -272,7 +278,8 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 					if (addr_end != std::string::npos) {
 						try {
 							fd.address = std::stoull(rest.substr(0, addr_end), nullptr, 16);
-						} catch (...) {}
+						} catch (...) {
+						}
 						rest = rest.substr(addr_end);
 						size_t next_nw = rest.find_first_not_of(" \t");
 						if (next_nw != std::string::npos) {
@@ -309,12 +316,9 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 					fd.function = fd.function.substr(f_first, f_last - f_first + 1);
 				}
 
-				if (!seen_signal_boundary ||
-				    fd.function.starts_with("turbocatch_handle_signal") ||
-				    fd.function.starts_with("__internal_syscall_cancel") ||
-				    fd.function.starts_with("__syscall_cancel") ||
-				    fd.function.starts_with("__GI___wait4") ||
-				    fd.function.starts_with("wait4")) {
+				if (!seen_signal_boundary || fd.function.starts_with("turbocatch_handle_signal") ||
+				    fd.function.starts_with("__internal_syscall_cancel") || fd.function.starts_with("__syscall_cancel") ||
+				    fd.function.starts_with("__GI___wait4") || fd.function.starts_with("wait4")) {
 					fd.is_crash_handling = true;
 				}
 
@@ -325,7 +329,8 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 			if (!raw_ips.empty()) {
 				size_t unw_idx = 0;
 				for (auto &gf : gdb_frames) {
-					if (gf.is_crash_handling) continue;
+					if (gf.is_crash_handling)
+						continue;
 					if (gf.address == 0 && unw_idx < raw_ips.size()) {
 						gf.address = raw_ips[unw_idx];
 					}
@@ -353,9 +358,11 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 				if (crash_end == 1) {
 					frame_range_str = std::to_string(gdb_frames[0].frame_idx);
 				} else {
-					frame_range_str = std::format("{}-{}", gdb_frames[0].frame_idx, gdb_frames[crash_end - 1].frame_idx);
+					frame_range_str =
+					    std::format("{}-{}", gdb_frames[0].frame_idx, gdb_frames[crash_end - 1].frame_idx);
 				}
-				report << std::format("| {} | | `<crash handling frames>` | <turbocatch> | crash handling |\n", frame_range_str);
+				report << std::format("| {} | | `<crash handling frames>` | <turbocatch> | crash handling |\n",
+						      frame_range_str);
 			}
 
 			for (size_t idx = crash_end; idx < gdb_frames.size(); ++idx) {
@@ -375,8 +382,9 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 						std::string line_part = location.substr(first_colon);
 						size_t num_start = (line_part.length() > 1 && line_part[0] == ':') ? 1 : 0;
 						size_t num_end = line_part.find(':', num_start);
-						std::string line_num_str = (num_end != std::string::npos) ?
-							line_part.substr(num_start, num_end - num_start) : line_part.substr(num_start);
+						std::string line_num_str = (num_end != std::string::npos)
+									       ? line_part.substr(num_start, num_end - num_start)
+									       : line_part.substr(num_start);
 						int line_num = 0;
 						try {
 							line_num = std::stoi(line_num_str);
@@ -385,15 +393,21 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 						}
 
 						if (line_num > 0) {
-							std::string full_path_str = (fs::path(project_root) / rel_file_path).lexically_normal().string();
+							std::string full_path_str =
+							    (fs::path(project_root) / rel_file_path).lexically_normal().string();
 							auto symbols = tools::get_document_codemap_symbols(full_path_str, /*min_lines=*/1);
-							const tools::codemap_symbol_info *enc_sym = tools::find_enclosing_symbol(symbols, line_num);
+							const tools::codemap_symbol_info *enc_sym =
+							    tools::find_enclosing_symbol(symbols, line_num);
 							if (enc_sym) {
-								auto sym_key = std::make_tuple(rel_file_path, enc_sym->name, enc_sym->start_line);
+								auto sym_key =
+								    std::make_tuple(rel_file_path, enc_sym->name, enc_sym->start_line);
 								if (!seen_symbols.contains(sym_key)) {
 									seen_symbols.insert(sym_key);
-									int count = std::max(1, enc_sym->end_line - enc_sym->start_line + 1);
-									codemap_rows.push_back({rel_file_path, enc_sym->name, enc_sym->start_line, enc_sym->end_line, count});
+									int count =
+									    std::max(1, enc_sym->end_line - enc_sym->start_line + 1);
+									codemap_rows.push_back({rel_file_path, enc_sym->name,
+												enc_sym->start_line, enc_sym->end_line,
+												count});
 								}
 							}
 						}
@@ -413,10 +427,10 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 					pipe_pos += 2;
 				}
 
-				report << std::format("| {} | {} | `{}` | {} | {} |\n", frame.frame_idx, addr_str, clean_func, location, note_str);
+				report << std::format("| {} | {} | `{}` | {} | {} |\n", frame.frame_idx, addr_str, clean_func, location,
+						      note_str);
 			}
-		}
- else {
+		} else {
 			// Fallback: unwinder-based backtrace
 			report << "### Backtrace\n\n";
 			report << "| Frame | Address | Function | Location |\n";
@@ -458,8 +472,9 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 					if (is_project && fs::exists(full_file_path)) {
 						size_t num_start = (line_part.length() > 1 && line_part[0] == ':') ? 1 : 0;
 						size_t num_end = line_part.find(':', num_start);
-						std::string line_num_str = (num_end != std::string::npos) ?
-							line_part.substr(num_start, num_end - num_start) : line_part.substr(num_start);
+						std::string line_num_str = (num_end != std::string::npos)
+									       ? line_part.substr(num_start, num_end - num_start)
+									       : line_part.substr(num_start);
 						int line_num = 0;
 						try {
 							line_num = std::stoi(line_num_str);
@@ -469,13 +484,18 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 
 						if (line_num > 0) {
 							auto symbols = tools::get_document_codemap_symbols(full_file_path, /*min_lines=*/1);
-							const tools::codemap_symbol_info *enc_sym = tools::find_enclosing_symbol(symbols, line_num);
+							const tools::codemap_symbol_info *enc_sym =
+							    tools::find_enclosing_symbol(symbols, line_num);
 							if (enc_sym) {
-								auto sym_key = std::make_tuple(rel_file_path, enc_sym->name, enc_sym->start_line);
+								auto sym_key =
+								    std::make_tuple(rel_file_path, enc_sym->name, enc_sym->start_line);
 								if (!seen_symbols.contains(sym_key)) {
 									seen_symbols.insert(sym_key);
-									int count = std::max(1, enc_sym->end_line - enc_sym->start_line + 1);
-									codemap_rows.push_back({rel_file_path, enc_sym->name, enc_sym->start_line, enc_sym->end_line, count});
+									int count =
+									    std::max(1, enc_sym->end_line - enc_sym->start_line + 1);
+									codemap_rows.push_back({rel_file_path, enc_sym->name,
+												enc_sym->start_line, enc_sym->end_line,
+												count});
 								}
 							}
 						}
@@ -484,17 +504,18 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 					location = location.substr(prefix.length());
 				}
 
-				report << std::format("| {} | `0x{:x}` | `{}` | {} |\n", frame_idx, raw_ips[i], res.function_name, location);
+				report << std::format("| {} | `0x{:x}` | `{}` | {} |\n", frame_idx, raw_ips[i], res.function_name,
+						      location);
 			}
 		}
 
 		if (!codemap_rows.empty()) {
 			report << "\n### Codemap Summary\n\n";
-			report << "| File | Symbol | Start Line | End Line | Lines |\n";
+			report << "| path | Symbol | start_line | end_line | lines |\n";
 			report << "|---|---|---|---|---|\n";
 			for (const auto &row : codemap_rows) {
-				report << std::format("| `{}` | `{}` | {} | {} | {} |\n",
-					row.rel_path, row.symbol_name, row.start_line, row.end_line, row.line_count);
+				report << std::format("| `{}` | `{}` | {} | {} | {} |\n", row.rel_path, row.symbol_name, row.start_line,
+						      row.end_line, row.line_count);
 			}
 		}
 	}
@@ -568,15 +589,18 @@ static std::string extract_summary(const fs::path &entry_path, const std::string
 						std::string fn = parts[3];
 						std::string loc = parts[4];
 						auto trim = [](std::string &s) {
-							while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front()))) s.erase(s.begin());
-							while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back()))) s.pop_back();
+							while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front())))
+								s.erase(s.begin());
+							while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back())))
+								s.pop_back();
 							if (s.starts_with('`') && s.ends_with('`') && s.length() >= 2) {
 								s = s.substr(1, s.length() - 2);
 							}
 						};
 						trim(fn);
 						trim(loc);
-						if (!loc.empty() && loc != "?" && !loc.starts_with("??") && loc.find(':') != std::string::npos) {
+						if (!loc.empty() && loc != "?" && !loc.starts_with("??") &&
+						    loc.find(':') != std::string::npos) {
 							if (!fn.empty() && fn != "?" && fn != "??") {
 								return std::format("{} at {} in {}()", sig_str, loc, fn);
 							} else {
@@ -603,7 +627,6 @@ std::string crashdump_manager::refresh(std::string_view /*project_hash*/)
 	std::string new_dumps_report;
 	std::string first_new_crash_id;
 	bool found_new = false;
-
 
 	for (const auto &entry : fs::directory_iterator(dump_dir)) {
 		if (!entry.is_directory())
@@ -693,12 +716,13 @@ std::string crashdump_manager::refresh(std::string_view /*project_hash*/)
 	}
 
 	if (found_new && !first_new_crash_id.empty()) {
-		new_dumps_report += std::format("\nHint: To inspect backtrace, stack frames, and local variables for this crash, call `crashdump_get_info(crash_id=\"{}\")`.\n", first_new_crash_id);
+		new_dumps_report += std::format("\nHint: To inspect backtrace, stack frames, and local variables for this crash, call "
+						"`crashdump_get_info(crash_id=\"{}\")`.\n",
+						first_new_crash_id);
 	}
 
 	return new_dumps_report;
 }
-
 
 std::vector<crashdump_info> crashdump_manager::get_crashdumps() const
 {
@@ -834,21 +858,16 @@ std::string crashdump_manager::classify_location(std::string_view raw_loc, std::
 	}
 
 	// 2. Check if glibc (verified standard libc source directories and DSO patterns)
-	if (raw_loc.contains("libc.so") ||
-	    raw_loc.contains("/nptl/") || raw_loc.starts_with("nptl/") || raw_loc.starts_with("./nptl/") ||
+	if (raw_loc.contains("libc.so") || raw_loc.contains("/nptl/") || raw_loc.starts_with("nptl/") || raw_loc.starts_with("./nptl/") ||
 	    raw_loc.contains("/sysdeps/") || raw_loc.starts_with("sysdeps/") || raw_loc.starts_with("../sysdeps/") ||
 	    raw_loc.contains("/assert/") || raw_loc.starts_with("assert/") || raw_loc.starts_with("./assert/") ||
 	    raw_loc.contains("/stdlib/") || raw_loc.starts_with("stdlib/") || raw_loc.starts_with("./stdlib/") ||
-	    raw_loc.contains("/stdio-common/") || raw_loc.starts_with("stdio-common/") ||
-	    raw_loc.contains("/malloc/") || raw_loc.starts_with("malloc/") ||
-	    raw_loc.contains("/string/") || raw_loc.starts_with("string/") ||
-	    raw_loc.contains("/posix/") || raw_loc.starts_with("posix/") ||
-	    raw_loc.contains("/elf/") || raw_loc.starts_with("elf/") ||
-	    raw_loc.contains("/dlfcn/") || raw_loc.starts_with("dlfcn/") ||
-	    raw_loc.contains("/signal/") || raw_loc.starts_with("signal/") ||
-	    raw_loc.contains("/misc/") || raw_loc.starts_with("misc/") ||
-	    raw_loc.contains("/csu/") || raw_loc.starts_with("csu/") ||
-	    raw_loc.contains("/usr/src/glibc") || raw_loc.contains("/usr/src/debug/glibc")) {
+	    raw_loc.contains("/stdio-common/") || raw_loc.starts_with("stdio-common/") || raw_loc.contains("/malloc/") ||
+	    raw_loc.starts_with("malloc/") || raw_loc.contains("/string/") || raw_loc.starts_with("string/") ||
+	    raw_loc.contains("/posix/") || raw_loc.starts_with("posix/") || raw_loc.contains("/elf/") || raw_loc.starts_with("elf/") ||
+	    raw_loc.contains("/dlfcn/") || raw_loc.starts_with("dlfcn/") || raw_loc.contains("/signal/") ||
+	    raw_loc.starts_with("signal/") || raw_loc.contains("/misc/") || raw_loc.starts_with("misc/") || raw_loc.contains("/csu/") ||
+	    raw_loc.starts_with("csu/") || raw_loc.contains("/usr/src/glibc") || raw_loc.contains("/usr/src/debug/glibc")) {
 		return "<libc>";
 	}
 
@@ -971,13 +990,13 @@ std::string crashdump_manager::format_crash_notification(std::span<const crashdu
 	if (dumps.size() == 1) {
 		const auto &d = dumps[0];
 		if (!d.summary.empty()) {
-			return std::format(
-			    "\n\nCRASH DETECTED: Application crashed (Crash ID: {}).\nSummary: {}\nPlease use 'crashdump_get_info' with crash_id '{}' to investigate stack trace and details.",
-			    d.crash_id, d.summary, d.crash_id);
+			return std::format("\n\nCRASH DETECTED: Application crashed (Crash ID: {}).\nSummary: {}\nPlease use "
+					   "'crashdump_get_info' with crash_id '{}' to investigate stack trace and details.",
+					   d.crash_id, d.summary, d.crash_id);
 		}
-		return std::format(
-		    "\n\nCRASH DETECTED: Application crashed (Crash ID: {}). Please use 'crashdump_get_info' with crash_id '{}' to investigate stack trace and details.",
-		    dumps[0].crash_id, dumps[0].crash_id);
+		return std::format("\n\nCRASH DETECTED: Application crashed (Crash ID: {}). Please use 'crashdump_get_info' with crash_id "
+				   "'{}' to investigate stack trace and details.",
+				   dumps[0].crash_id, dumps[0].crash_id);
 	}
 
 	std::string ids;
@@ -991,13 +1010,13 @@ std::string crashdump_manager::format_crash_notification(std::span<const crashdu
 		}
 	}
 	if (!summaries.empty()) {
-		return std::format(
-		    "\n\nCRASH DETECTED: {} crash(es) occurred during execution (Crash IDs: {}).{}\nPlease use 'crashdump_list' and 'crashdump_get_info' to investigate.",
-		    dumps.size(), ids, summaries);
+		return std::format("\n\nCRASH DETECTED: {} crash(es) occurred during execution (Crash IDs: {}).{}\nPlease use "
+				   "'crashdump_list' and 'crashdump_get_info' to investigate.",
+				   dumps.size(), ids, summaries);
 	}
-	return std::format(
-	    "\n\nCRASH DETECTED: {} crash(es) occurred during execution (Crash IDs: {}). Please use 'crashdump_list' and 'crashdump_get_info' to investigate.",
-	    dumps.size(), ids);
+	return std::format("\n\nCRASH DETECTED: {} crash(es) occurred during execution (Crash IDs: {}). Please use 'crashdump_list' and "
+			   "'crashdump_get_info' to investigate.",
+			   dumps.size(), ids);
 }
 
 std::string crashdump_manager::format_crash_notification(size_t crash_count)
@@ -1016,12 +1035,13 @@ std::string crashdump_manager::format_crash_notification(size_t crash_count)
 		if (!dumps.empty()) {
 			return format_crash_notification(std::span<const crashdump_info>(dumps.data() + dumps.size() - 1, 1));
 		}
-		return "\n\nCRASH DETECTED: 1 new crash occurred during execution. Please use 'crashdump_get_info' to investigate stack trace and details.";
+		return "\n\nCRASH DETECTED: 1 new crash occurred during execution. Please use 'crashdump_get_info' to investigate stack "
+		       "trace and details.";
 	}
 
-	return std::format(
-	    "\n\nCRASH DETECTED: {} new crash(es) occurred during execution. Please use 'crashdump_list' and 'crashdump_get_info' to investigate.",
-	    crash_count);
+	return std::format("\n\nCRASH DETECTED: {} new crash(es) occurred during execution. Please use 'crashdump_list' and "
+			   "'crashdump_get_info' to investigate.",
+			   crash_count);
 }
 
 crash_frame_info crashdump_manager::get_crash_frame_info(std::string_view crash_id) const
@@ -1056,7 +1076,8 @@ crash_frame_info crashdump_manager::get_crash_frame_info(std::string_view crash_
 			while (std::getline(info_in, l)) {
 				if (l.starts_with(exe_pref)) {
 					std::string cand = l.substr(exe_pref.length());
-					if (fs::exists(cand)) exe_path = cand;
+					if (fs::exists(cand))
+						exe_path = cand;
 					break;
 				}
 			}
@@ -1075,20 +1096,28 @@ crash_frame_info crashdump_manager::get_crash_frame_info(std::string_view crash_
 		auto gdb_lines = turbostar::address_lookup::run_command(gdb_bin, gdb_args);
 		for (const auto &l : gdb_lines) {
 			// Expect lines like: #5  0x00005563f993f145 in compute_bonus (e=0x0) at /path/to/crash_probe.c:12
-			if (l.empty() || l[0] != '#') continue;
+			if (l.empty() || l[0] != '#')
+				continue;
 
 			size_t space_pos = l.find(' ');
-			if (space_pos == std::string::npos || space_pos < 2) continue;
+			if (space_pos == std::string::npos || space_pos < 2)
+				continue;
 			std::string frame_str = l.substr(1, space_pos - 1);
 			int gdb_frame_idx = -1;
-			try { gdb_frame_idx = std::stoi(frame_str); } catch (...) { continue; }
+			try {
+				gdb_frame_idx = std::stoi(frame_str);
+			} catch (...) {
+				continue;
+			}
 
 			size_t in_pos = l.find(" in ");
-			if (in_pos == std::string::npos) continue;
+			if (in_pos == std::string::npos)
+				continue;
 
 			size_t func_start = in_pos + 4;
 			size_t paren_pos = l.find('(', func_start);
-			if (paren_pos == std::string::npos) continue;
+			if (paren_pos == std::string::npos)
+				continue;
 
 			std::string func_name = l.substr(func_start, paren_pos - func_start);
 			size_t f_first = func_name.find_first_not_of(" \t");
@@ -1098,9 +1127,8 @@ crash_frame_info crashdump_manager::get_crash_frame_info(std::string_view crash_
 			}
 
 			// Skip signal handler / syscall / wrapper frames
-			if (func_name == "__internal_syscall_cancel" || func_name == "__syscall_cancel" ||
-			    func_name == "__GI___wait4" || func_name == "wait4" ||
-			    func_name == "turbocatch_handle_signal" || func_name == "_start" ||
+			if (func_name == "__internal_syscall_cancel" || func_name == "__syscall_cancel" || func_name == "__GI___wait4" ||
+			    func_name == "wait4" || func_name == "turbocatch_handle_signal" || func_name == "_start" ||
 			    func_name.contains("signal") || func_name.contains("syscall")) {
 				continue;
 			}
@@ -1141,7 +1169,6 @@ crash_frame_info crashdump_manager::get_crash_frame_info(std::string_view crash_
 	if (!fs::exists(report_path)) {
 		return res;
 	}
-
 
 	std::ifstream in(report_path);
 	std::string line;
@@ -1234,7 +1261,10 @@ crash_frame_info crashdump_manager::get_crash_frame_info(std::string_view crash_
 		}
 
 		int line_num = 0;
-		try { line_num = std::stoi(line_part); } catch (...) {}
+		try {
+			line_num = std::stoi(line_part);
+		} catch (...) {
+		}
 
 		if (line_num > 0 && fs::exists(full_p)) {
 			std::ifstream src_in(full_p);
@@ -1247,7 +1277,8 @@ crash_frame_info crashdump_manager::get_crash_frame_info(std::string_view crash_
 					if (arrow_pos != std::string::npos && arrow_pos > 0) {
 						size_t var_end = arrow_pos;
 						size_t var_start = var_end;
-						while (var_start > 0 && (std::isalnum(src_line[var_start - 1]) || src_line[var_start - 1] == '_')) {
+						while (var_start > 0 &&
+						       (std::isalnum(src_line[var_start - 1]) || src_line[var_start - 1] == '_')) {
 							--var_start;
 						}
 						if (var_start < var_end) {
@@ -1258,16 +1289,19 @@ crash_frame_info crashdump_manager::get_crash_frame_info(std::string_view crash_
 						size_t star_pos = src_line.find('*');
 						if (star_pos != std::string::npos && star_pos + 1 < src_line.length()) {
 							size_t var_start = star_pos + 1;
-							while (var_start < src_line.length() && (src_line[var_start] == ' ' || src_line[var_start] == '\t')) {
+							while (var_start < src_line.length() &&
+							       (src_line[var_start] == ' ' || src_line[var_start] == '\t')) {
 								++var_start;
 							}
 							size_t var_end = var_start;
-							while (var_end < src_line.length() && (std::isalnum(src_line[var_end]) || src_line[var_end] == '_')) {
+							while (var_end < src_line.length() &&
+							       (std::isalnum(src_line[var_end]) || src_line[var_end] == '_')) {
 								++var_end;
 							}
 							if (var_end > var_start) {
 								std::string cand = src_line.substr(var_start, var_end - var_start);
-								if (cand != "int" && cand != "char" && cand != "void" && cand != "double" && cand != "float" && cand != "const") {
+								if (cand != "int" && cand != "char" && cand != "void" && cand != "double" &&
+								    cand != "float" && cand != "const") {
 									res.suggested_var = cand;
 								}
 							}
