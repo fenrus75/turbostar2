@@ -43,7 +43,16 @@ static void parse_file_and_line_locations(std::string_view text, std::string_vie
 				if (non_ws != std::string_view::npos) {
 					l = l.substr(non_ws);
 					size_t dash = l.find('-');
+					int end_line_num = -1;
 					if (dash != std::string_view::npos) {
+						std::string_view end_part = l.substr(dash + 1);
+						size_t end_non_ws = end_part.find_first_not_of(" \t");
+						if (end_non_ws != std::string_view::npos) {
+							try {
+								end_line_num = std::stoi(std::string(end_part.substr(end_non_ws)));
+							} catch (...) {
+							}
+						}
 						l = l.substr(0, dash);
 					}
 					try {
@@ -54,8 +63,9 @@ static void parse_file_and_line_locations(std::string_view text, std::string_vie
 						}
 						lsp_backend::location_info loc;
 						loc.path = full_path.string();
-						int zero_line = std::max(0, line_num - 1);
-						loc.range = text_range{zero_line, 0, zero_line, 0};
+						int zero_start = std::max(0, line_num - 1);
+						int zero_end = (end_line_num >= line_num) ? std::max(0, end_line_num - 1) : zero_start;
+						loc.range = text_range{zero_start, 0, zero_end, 0};
 						out.push_back(std::move(loc));
 					} catch (...) {
 					}
@@ -118,7 +128,16 @@ static bool parse_definition_locations_strict_unique(std::string_view text, std:
 				if (non_ws != std::string_view::npos) {
 					l = l.substr(non_ws);
 					size_t dash = l.find('-');
+					int end_line_num = -1;
 					if (dash != std::string_view::npos) {
+						std::string_view end_part = l.substr(dash + 1);
+						size_t end_non_ws = end_part.find_first_not_of(" \t");
+						if (end_non_ws != std::string_view::npos) {
+							try {
+								end_line_num = std::stoi(std::string(end_part.substr(end_non_ws)));
+							} catch (...) {
+							}
+						}
 						l = l.substr(0, dash);
 					}
 					try {
@@ -129,8 +148,9 @@ static bool parse_definition_locations_strict_unique(std::string_view text, std:
 						}
 						lsp_backend::location_info loc;
 						loc.path = full_path.string();
-						int zero_line = std::max(0, line_num - 1);
-						loc.range = text_range{zero_line, 0, zero_line, 0};
+						int zero_start = std::max(0, line_num - 1);
+						int zero_end = (end_line_num >= line_num) ? std::max(0, end_line_num - 1) : zero_start;
+						loc.range = text_range{zero_start, 0, zero_end, 0};
 						out.push_back(std::move(loc));
 					} catch (...) {
 					}

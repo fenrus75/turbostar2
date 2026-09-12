@@ -286,6 +286,7 @@ static void test_hybrid_cli_queries()
 	assert(!defs_unique.empty());
 	assert(defs_unique[0].path.find("dep.c") != std::string::npos);
 	assert(defs_unique[0].range.start_y == 0);
+	assert(defs_unique[0].range.end_y == 2);
 
 	// Multiple definitions across files (target_func): must fail immediately and return empty!
 	auto defs_ambig_target = backend.query_definition(src_file, 6, 6);

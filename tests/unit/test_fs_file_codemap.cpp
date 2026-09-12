@@ -799,6 +799,60 @@ int main()
 		std::remove(dep_file.c_str());
 	}
 
+	// Test multi-line C function declaration (kernel style) with fallback_find_symbols / fs_file_codemap
+	{
+		std::string multiline_file = "test_multiline_func.c";
+		{
+			std::ofstream out(multiline_file);
+			out << "// line 1\n"
+			    << "static int prev_func(void)\n"
+			    << "{\n"
+			    << "    return 0;\n"
+			    << "}\n\n"
+			    << "#ifdef CONFIG_SUSPEND\n"
+			    << "static noinstr void enter_s2idle_proper(struct cpuidle_driver *drv,\n"
+			    << "                                         struct cpuidle_device *dev, int index)\n"
+			    << "{\n"
+			    << "    int state = index;\n"
+			    << "}\n"
+			    << "#endif\n";
+		}
+
+		nlohmann::json args = {{"path", multiline_file}};
+		std::string res = registry.execute_tool("fs_file_codemap", args.dump(), ctx);
+		std::cout << "fs_file_codemap multiline output:\n" << res << "\n";
+		assert(res.find("`enter_s2idle_proper`") != std::string::npos);
+		assert(res.find("| `enter_s2idle_proper` | 8 | 12 | 5 |") != std::string::npos);
+		// Ensure struct cpuidle_device is NOT mistakenly parsed as a class/struct
+		assert(res.find("`cpuidle_device`") == std::string::npos);
+
+		std::remove(multiline_file.c_str());
+	}
+
+	// Test C function with return type and attributes on preceding line
+	{
+		std::string split_sig_file = "test_split_sig.c";
+		{
+			std::ofstream out(split_sig_file);
+			out << "// line 1\n"
+			    << "\n"
+			    << "static noinstr void\n"
+			    << "my_split_func(int a,\n"
+			    << "              int b)\n"
+			    << "{\n"
+			    << "    return;\n"
+			    << "}\n";
+		}
+
+		nlohmann::json args = {{"path", split_sig_file}};
+		std::string res = registry.execute_tool("fs_file_codemap", args.dump(), ctx);
+		std::cout << "fs_file_codemap split_sig output:\n" << res << "\n";
+		assert(res.find("`my_split_func`") != std::string::npos);
+		assert(res.find("| `my_split_func` | 3 | 8 | 6 |") != std::string::npos);
+
+		std::remove(split_sig_file.c_str());
+	}
+
 	// Cleanup
 	std::remove(impl_file.c_str());
 	std::remove(header_file.c_str());

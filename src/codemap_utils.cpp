@@ -126,6 +126,19 @@ static std::vector<codemap_symbol_info> structure_symbol_hierarchy(const std::ve
 	return structured;
 }
 
+static bool is_cpp_function_specifier_word(std::string_view word)
+{
+	static const std::unordered_set<std::string_view> keywords = {
+		"static", "inline", "virtual", "explicit", "extern", "constexpr", "consteval",
+		"noexcept", "noinstr", "__always_inline", "__init", "__exit", "asmlinkage",
+		"__sched", "void", "int", "bool", "char", "long", "short", "unsigned",
+		"signed", "size_t", "ssize_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t",
+		"int8_t", "int16_t", "int32_t", "int64_t", "u8", "u16", "u32", "u64",
+		"s8", "s16", "s32", "s64", "ktime_t", "auto", "double", "float", "const"
+	};
+	return keywords.contains(word);
+}
+
 static void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vector<codemap_symbol_info> &out)
 {
 	std::ifstream in(safe_path);
@@ -145,8 +158,8 @@ static void fallback_find_symbols(const std::string &safe_path, int min_lines, s
 	bool is_py = (ext == ".py");
 	bool is_sv = (ext == ".sv" || ext == ".svh" || ext == ".v" || ext == ".vh");
 
-	static const std::regex cpp_func_regex(
-	    R"(^\s*(?:[\w:\<\>]+\s*[\*\&]*\s+)+[\*\&]*\s*([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*)\s*\([^\)]*\)\s*(?:const|noexcept)?\s*\{?)");
+	static const std::regex cpp_func_head_regex(
+	    R"(^\s*(?:[\w:\<\>]+\s*[\*\&]*\s+)*[\*\&]*\s*([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*)\s*\()");
 	static const std::regex cpp_class_regex(R"(^\s*(?:typedef\s+)?(?:class|struct)\s+([a-zA-Z_]\w*))");
 	static const std::regex cpp_enum_regex(R"(^\s*(?:typedef\s+)?enum(?:\s+class|\s+struct)?\s+([a-zA-Z_]\w*))");
 	static const std::regex py_func_regex(R"(^\s*def\s+([a-zA-Z_]\w*)\s*\()");
@@ -220,7 +233,26 @@ static void fallback_find_symbols(const std::string &safe_path, int min_lines, s
 			continue;
 		}
 
+		bool is_class_candidate = false;
 		if (std::regex_search(lines[i], match, cpp_class_regex)) {
+			is_class_candidate = true;
+			// Filter out parameter usages such as 'struct cpuidle_device *dev, int index)'
+			std::string_view suffix = match.suffix().str();
+			size_t first_non_ws = suffix.find_first_not_of(" \t\r\n");
+			if (first_non_ws != std::string_view::npos) {
+				char next_ch = suffix[first_non_ws];
+				if (next_ch == '*' || next_ch == '&' || next_ch == ',' || next_ch == ')') {
+					is_class_candidate = false;
+				}
+			}
+			size_t close_paren = lines[i].find(')');
+			size_t open_brace = lines[i].find('{');
+			if (close_paren != std::string::npos && (open_brace == std::string::npos || close_paren < open_brace)) {
+				is_class_candidate = false;
+			}
+		}
+
+		if (is_class_candidate) {
 			std::string_view trimmed_line = lines[i];
 			size_t last_non_ws = trimmed_line.find_last_not_of(" \t\r\n");
 			if (last_non_ws != std::string_view::npos && trimmed_line[last_non_ws] == ';') {
@@ -280,19 +312,108 @@ static void fallback_find_symbols(const std::string &safe_path, int min_lines, s
 					out.push_back({match[1].str(), match[1].str(), "Enum", line_num, end_line, len, 0, ""});
 				}
 			}
-		} else if (std::regex_search(lines[i], match, cpp_func_regex)) {
+		} else if (std::regex_search(lines[i], match, cpp_func_head_regex)) {
 			std::string name = match[1].str();
 			if (name != "if" && name != "for" && name != "while" && name != "switch" && name != "catch") {
-				std::string_view trimmed_line = lines[i];
-				size_t last_non_ws = trimmed_line.find_last_not_of(" \t\r\n");
-				if (last_non_ws != std::string_view::npos && trimmed_line[last_non_ws] == ';') {
+				// Forward scan to find body '{' and verify it's not a prototype ';'
+				int paren_depth = 0;
+				bool found_brace = false;
+				size_t brace_line_idx = i;
+				bool is_prototype = false;
+
+				for (size_t j = i; j < std::min(lines.size(), i + 40); ++j) {
+					std::string_view scan_line = lines[j];
+					size_t comment_pos = scan_line.find("//");
+					if (comment_pos != std::string_view::npos) {
+						scan_line = scan_line.substr(0, comment_pos);
+					}
+
+					for (size_t char_idx = (j == i ? match.position(0) : 0); char_idx < scan_line.size(); ++char_idx) {
+						char c = scan_line[char_idx];
+						if (c == '(') {
+							paren_depth++;
+						} else if (c == ')') {
+							paren_depth--;
+						} else if (c == ';' && paren_depth <= 0) {
+							is_prototype = true;
+							break;
+						} else if (c == '{' && paren_depth <= 0) {
+							found_brace = true;
+							brace_line_idx = j;
+							break;
+						}
+					}
+					if (is_prototype || found_brace) {
+						break;
+					}
+				}
+
+				if (!found_brace || is_prototype) {
 					continue;
 				}
 
-				int end_line = line_num;
+				// Find upper bound by searching backwards from line i for previous '}'
+				int upper_bound_idx = -1;
+				for (int k = static_cast<int>(i) - 1; k >= 0; --k) {
+					std::string_view rev_line = lines[k];
+					size_t comment_pos = rev_line.find("//");
+					if (comment_pos != std::string_view::npos) {
+						rev_line = rev_line.substr(0, comment_pos);
+					}
+					if (rev_line.find('}') != std::string_view::npos) {
+						upper_bound_idx = k;
+						break;
+					}
+				}
+
+				// Walk backwards from line i to find the true function start line
+				int func_start = static_cast<int>(i + 1);
+				for (int k = static_cast<int>(i) - 1; k > upper_bound_idx; --k) {
+					std::string_view l_view = lines[k];
+					size_t c_pos = l_view.find("//");
+					if (c_pos != std::string_view::npos) {
+						l_view = l_view.substr(0, c_pos);
+					}
+					size_t first_non = l_view.find_first_not_of(" \t\r\n");
+					if (first_non == std::string_view::npos) {
+						// Blank line provides a bound on the start of the function
+						break;
+					}
+					std::string_view trimmed = l_view.substr(first_non);
+					if (trimmed.starts_with('#') || trimmed.starts_with("/*") || trimmed.ends_with("*/") ||
+					    trimmed.find(';') != std::string_view::npos || trimmed.find('}') != std::string_view::npos) {
+						break;
+					}
+
+					// Check if line contains function specifier keywords (static, void, inline, etc.)
+					bool has_specifier = false;
+					std::string token;
+					for (size_t ci = 0; ci <= trimmed.size(); ++ci) {
+						char c = (ci < trimmed.size()) ? trimmed[ci] : ' ';
+						if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
+							token += c;
+						} else {
+							if (!token.empty()) {
+								if (is_cpp_function_specifier_word(token)) {
+									has_specifier = true;
+									break;
+								}
+								token.clear();
+							}
+						}
+					}
+					if (has_specifier) {
+						func_start = k + 1;
+					} else {
+						break;
+					}
+				}
+
+				// Match braces starting from brace_line_idx to determine end_line
+				int end_line = func_start;
 				int depth = 0;
 				bool started = false;
-				for (size_t j = i; j < lines.size(); ++j) {
+				for (size_t j = brace_line_idx; j < lines.size(); ++j) {
 					for (char c : lines[j]) {
 						if (c == '{') {
 							depth++;
@@ -306,13 +427,12 @@ static void fallback_find_symbols(const std::string &safe_path, int min_lines, s
 						break;
 					}
 				}
-				if (!started) {
-					continue;
-				}
 
-				int len = std::max(1, end_line - line_num + 1);
-				if (len >= min_lines) {
-					out.push_back({name, name, "Function", line_num, end_line, len, 0, ""});
+				if (started) {
+					int len = std::max(1, end_line - func_start + 1);
+					if (len >= min_lines) {
+						out.push_back({name, name, "Function", func_start, end_line, len, 0, ""});
+					}
 				}
 			}
 		}
@@ -767,9 +887,10 @@ bool resolve_outgoing_call_target(outgoing_call_reference &ref, const lsp_manage
 		return false;
 	}
 
+	int lsp_start = (def_pos_line > 0) ? def_pos_line : found->start_line;
 	ref.target_file = def_path;
-	ref.target_start_line = found->start_line;
-	ref.target_end_line = found->end_line;
+	ref.target_start_line = std::min(found->start_line, lsp_start);
+	ref.target_end_line = std::max(found->end_line, ref.target_start_line);
 	return true;
 }
 
@@ -951,24 +1072,25 @@ static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
 		ref.call_line = cand.line;
 		ref.target_name = cand.name;
 		ref.target_file = norm_def;
-		ref.target_start_line = chosen_def->range.start_y + 1;
-		ref.target_end_line = (chosen_def->range.end_y > chosen_def->range.start_y) ? (chosen_def->range.end_y + 1) : ref.target_start_line;
+		int lsp_start = chosen_def->range.start_y + 1;
+		int lsp_end = (chosen_def->range.end_y >= chosen_def->range.start_y) ? (chosen_def->range.end_y + 1) : lsp_start;
+		ref.target_start_line = lsp_start;
+		ref.target_end_line = lsp_end;
 		ref.target_kind = "Function";
 		ref.is_direct_read_call = true;
 
-		// If end_line == start_line, attempt to look up exact symbol bounds in symbols_cache
-		if (ref.target_end_line == ref.target_start_line) {
-			if (!symbols_cache.contains(norm_def)) {
-				std::vector<codemap_symbol_info> syms;
-				fallback_find_symbols(norm_def, 1, syms);
-				symbols_cache[norm_def] = std::move(syms);
-			}
-			const auto &syms = symbols_cache[norm_def];
-			const auto *found = find_symbol_by_hint(syms, cand.name);
-			if (found && is_matching_function_symbol(found, cand.name)) {
-				ref.target_start_line = found->start_line;
-				ref.target_end_line = found->end_line;
-			}
+		// Attempt to look up or expand exact symbol bounds in symbols_cache
+		if (!symbols_cache.contains(norm_def)) {
+			std::vector<codemap_symbol_info> syms;
+			fallback_find_symbols(norm_def, 1, syms);
+			symbols_cache[norm_def] = std::move(syms);
+		}
+		const auto &syms = symbols_cache[norm_def];
+		const auto *found = find_symbol_by_hint(syms, cand.name);
+		if (found && is_matching_function_symbol(found, cand.name)) {
+			// Always include at least the LSP/semcode reported range
+			ref.target_start_line = std::min(found->start_line, lsp_start);
+			ref.target_end_line = std::max(found->end_line, lsp_end);
 		}
 
 		results.push_back(std::move(ref));
