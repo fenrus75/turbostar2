@@ -877,8 +877,6 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 		});
 
 		for (const auto &item : lsp_items) {
-			if (std::chrono::steady_clock::now() >= deadline)
-				break;
 			outgoing_call_reference ref;
 			ref.caller_file = safe_path;
 			ref.call_line = item.call_line + 1;
@@ -895,7 +893,7 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 	if (!ec && !all_calls.empty()) {
 		std::lock_guard<std::mutex> lock(g_outgoing_calls_cache_mutex);
 		g_outgoing_calls_cache[safe_path] = {current_mtime, std::chrono::steady_clock::now(), all_calls};
-	} else if (lsp_items.empty()) {
+	} else if (all_calls.empty()) {
 		// Synchronous lookup timed out or returned empty: launch background refresh thread with 10s deadline
 		// so if clangd finishes after the synchronous deadline, the result is saved to cache for the next call!
 		refresh_outgoing_calls_async(safe_path, doc_symbols, ctx);
@@ -988,8 +986,8 @@ codemap_selection_result select_prioritized_codemap_symbols(const std::vector<co
 		ctx.codemap_history[safe_path] = history;
 	}
 
-	// Query outgoing calls inside the read line range and enclosing function scope (bound total codemap LSP latency to 1100ms)
-	auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(1100);
+	// Query outgoing calls inside the read line range and enclosing function scope (bound total codemap LSP latency to 3500ms)
+	auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(3500);
 	auto direct_outgoing_calls = get_outgoing_calls_in_range(safe_path, read_start, read_end, all_symbols, &ctx, deadline);
 	std::unordered_set<std::string> direct_call_targets;
 	std::unordered_set<std::string> enclosing_call_targets;

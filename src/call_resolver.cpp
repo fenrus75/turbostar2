@@ -282,8 +282,10 @@ bool call_resolver::resolve_target(
 	std::string def_path;
 	int def_pos_line = -1;
 
-	// 1. Primary resolution: ask LSP for definition location of the symbol
-	if (item.selection_range.start_y >= 0 && item.selection_range.start_x >= 0 && !target_uri_path.empty()) {
+	// 1. If target_uri_path points to caller_file, it represents a call site inside the caller,
+	// so query LSP definition at that position to locate where the symbol is implemented
+	if (!target_uri_path.empty() && target_uri_path == norm_caller &&
+	    item.selection_range.start_y >= 0 && item.selection_range.start_x >= 0) {
 		auto defs = project_manager::get_instance().lsp_query_definition(
 			target_uri_path, item.selection_range.start_y, item.selection_range.start_x);
 
@@ -294,7 +296,37 @@ bool call_resolver::resolve_target(
 		}
 	}
 
-	// If URI was empty (e.g. semcode returned callee name only), attempt workspace symbol query
+	// 2. If target_uri_path is already an external target file (e.g. from calls -v or LSP call hierarchy item)
+	if (def_path.empty() && !target_uri_path.empty() && target_uri_path != norm_caller) {
+		// If it's a header, check if matching implementation file exists and contains the symbol
+		if (target_uri_path.ends_with(".h") || target_uri_path.ends_with(".hpp")) {
+			std::string impl = find_matching_impl_file(target_uri_path, ctx);
+			if (!impl.empty()) {
+				if (!symbols_cache.contains(impl)) {
+					std::vector<codemap_symbol_info> syms;
+					fallback_find_symbols(impl, 1, syms);
+					symbols_cache[impl] = std::move(syms);
+				}
+				const auto &impl_syms = symbols_cache[impl];
+				if (find_symbol_by_hint(impl_syms, item.name)) {
+					def_path = impl;
+				}
+			}
+		}
+
+		// If not found in matching implementation file, target_uri_path is directly the target file
+		if (def_path.empty()) {
+			if (!caller_is_test && is_test_path(target_uri_path)) {
+				return false;
+			}
+			def_path = target_uri_path;
+			if (item.selection_range.start_y >= 0) {
+				def_pos_line = item.selection_range.start_y + 1;
+			}
+		}
+	}
+
+	// 3. If URI was empty (e.g. semcode returned callee name only), attempt workspace symbol query
 	if (def_path.empty() && !item.name.empty()) {
 		auto ws_syms = project_manager::get_instance().lsp_query_workspace_symbols(item.name);
 		std::vector<lsp_backend::location_info> locs;
@@ -310,33 +342,6 @@ bool call_resolver::resolve_target(
 		}
 	}
 
-	// 2. Fallback resolution: if def_path is a header, check if matching .cpp exists
-	if (def_path.empty() && !target_uri_path.empty()) {
-		if (target_uri_path.ends_with(".h") || target_uri_path.ends_with(".hpp")) {
-			std::string impl = find_matching_impl_file(target_uri_path, ctx);
-			if (!impl.empty()) {
-				if (!symbols_cache.contains(impl)) {
-					std::vector<codemap_symbol_info> syms;
-					fallback_find_symbols(impl, 1, syms);
-					symbols_cache[impl] = std::move(syms);
-				}
-				const auto &impl_syms = symbols_cache[impl];
-				if (find_symbol_by_hint(impl_syms, item.name)) {
-					def_path = impl;
-				}
-			}
-		}
-		if (def_path.empty()) {
-			if (!caller_is_test && is_test_path(target_uri_path)) {
-				return false;
-			}
-			if (target_uri_path.ends_with(".c") && norm_caller.ends_with(".c") && target_uri_path != norm_caller) {
-				return false;
-			}
-			def_path = target_uri_path;
-		}
-	}
-
 	if (def_path.empty()) {
 		event_logger::get_instance().log(std::format(
 			"call_resolver::resolve_target: name='{}', caller='{}', definition file not found",
@@ -344,7 +349,7 @@ bool call_resolver::resolve_target(
 		return false;
 	}
 
-	// 3. Factual symbol bounds from dedicated codemap of def_path
+	// 4. Factual symbol bounds from dedicated codemap of def_path
 	if (!symbols_cache.contains(def_path)) {
 		std::vector<codemap_symbol_info> syms;
 		fallback_find_symbols(def_path, 1, syms);
@@ -384,6 +389,18 @@ bool call_resolver::resolve_target(
 	}
 
 	if (!found) {
+		// If symbol bounds aren't found in codemap (e.g. macro definition or inline wrapper),
+		// but we have a valid line hint from LSP/calls -v: use def_pos_line as fallback bounds
+		if (def_pos_line > 0) {
+			ref.target_file = def_path;
+			ref.target_start_line = def_pos_line;
+			ref.target_end_line = def_pos_line;
+			event_logger::get_instance().log(std::format(
+				"call_resolver::resolve_target: name='{}', caller='{}', resolved using line hint '{}:{}'",
+				item.name, ref.caller_file, ref.target_file, def_pos_line));
+			return true;
+		}
+
 		event_logger::get_instance().log(std::format(
 			"call_resolver::resolve_target: name='{}', caller='{}', target_file='{}', symbol not found in bounds",
 			item.name, ref.caller_file, def_path));

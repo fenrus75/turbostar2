@@ -146,6 +146,56 @@ static void test_arrow_calls_parsing()
 	std::cout << "  Passed!" << std::endl;
 }
 
+static void test_resolve_target_direct_and_cross_c()
+{
+	std::cout << "Testing resolve_target direct URI and cross-file C call..." << std::endl;
+
+	std::string test_dir = fs_utils::get_project_tmp_dir() + "/test_cross_c";
+	fs::create_directories(test_dir + "/drivers/cpuidle");
+	fs::create_directories(test_dir + "/kernel/time");
+
+	std::string caller_file = test_dir + "/drivers/cpuidle/cpuidle.c";
+	{
+		std::ofstream out(caller_file);
+		out << "void enter_s2idle_proper(void) {\n"
+		    << "    tick_freeze();\n"
+		    << "}\n";
+	}
+
+	std::string callee_file = test_dir + "/kernel/time/tick-common.c";
+	{
+		std::ofstream out(callee_file);
+		out << "void tick_freeze(void) {\n"
+		    << "    return;\n"
+		    << "}\n";
+	}
+
+	fs_utils::set_override_project_dir(test_dir);
+
+	lsp_manager::call_hierarchy_item item;
+	item.name = "tick_freeze";
+	item.kind = 12; // Function
+	item.uri = "file://" + callee_file;
+	item.selection_range = text_range{0, 0, 0, 0}; // line 1 (0-indexed 0)
+
+	tools::outgoing_call_reference ref;
+	ref.caller_file = caller_file;
+	ref.call_line = 2;
+	ref.target_name = "tick_freeze";
+
+	std::unordered_map<std::string, std::vector<tools::codemap_symbol_info>> symbols_cache;
+	bool resolved = tools::call_resolver::resolve_target(ref, item, symbols_cache, nullptr);
+
+	assert(resolved);
+	assert(ref.target_file == "kernel/time/tick-common.c");
+	assert(ref.target_start_line == 1);
+	assert(ref.target_end_line >= 1);
+
+	fs_utils::set_override_project_dir("");
+	fs::remove_all(test_dir);
+	std::cout << "  Passed!" << std::endl;
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -154,6 +204,7 @@ int main()
 	test_disambiguation_rejects_test_files_for_production();
 	test_extract_identifier_skips_specifiers();
 	test_arrow_calls_parsing();
+	test_resolve_target_direct_and_cross_c();
 
 	std::cout << "All call_resolver tests passed successfully!" << std::endl;
 	return 0;
