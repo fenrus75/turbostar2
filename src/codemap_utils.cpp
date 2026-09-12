@@ -849,21 +849,20 @@ static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
 		seen_names.insert(cand.name);
 
 		auto raw_defs = project_manager::get_instance().lsp_query_definition(safe_path, cand.line - 1, cand.col);
-		// If any definition points to the exact candidate position or line within the same file,
-		// this token is the definition site itself (or a recursion/declaration), not an outgoing call.
-		bool is_self_definition = false;
+		// If any definition points to the same file,
+		// this token is an intra-file call or the definition site itself, not an external outgoing call.
+		bool is_intra_file = false;
 		for (const auto &def : raw_defs) {
 			if (def.path.empty()) {
 				continue;
 			}
 			std::string norm_def = fs_utils::make_relative_to_project(def.path);
-			if (norm_def == norm_safe_path && (def.range.start_y + 1 == cand.line ||
-			    (cand.line >= def.range.start_y + 1 && cand.line <= def.range.end_y + 1 && def.range.start_y + 1 == cand.line))) {
-				is_self_definition = true;
+			if (norm_def == norm_safe_path) {
+				is_intra_file = true;
 				break;
 			}
 		}
-		if (is_self_definition) {
+		if (is_intra_file) {
 			continue;
 		}
 
@@ -1277,6 +1276,7 @@ codemap_selection_result select_prioritized_codemap_symbols(const std::vector<co
 	size_t cross_file_count = 0;
 	std::unordered_set<std::string> added_cross_file_keys;
 	std::string norm_safe_path = fs_utils::make_relative_to_project(safe_path);
+	bool caller_is_test = is_test_file_path(norm_safe_path);
 
 	for (const auto &call : direct_outgoing_calls) {
 		if (cross_file_count >= 10)
@@ -1285,6 +1285,8 @@ codemap_selection_result select_prioritized_codemap_symbols(const std::vector<co
 		if (!call.target_file.empty() && call.target_start_line > 0 && is_project_file(call.target_file, &ctx)) {
 			std::string norm_target = fs_utils::make_relative_to_project(call.target_file);
 			if (norm_target == norm_safe_path)
+				continue;
+			if (!caller_is_test && is_test_file_path(norm_target))
 				continue;
 
 			std::string key = norm_target + ":" + call.target_name;

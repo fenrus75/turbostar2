@@ -109,6 +109,7 @@ static void test_hybrid_cli_queries()
 		    << "    ambig_call();\n"
 		    << "    unique_header_op();\n"
 		    << "    selftest_func();\n"
+		    << "    cleanup();\n"
 		    << "    return 42;\n"
 		    << "}\n";
 	}
@@ -230,6 +231,20 @@ static void test_hybrid_cli_queries()
 		    << "    echo 'Function Definition:'\n"
 		    << "    echo 'void selftest_func(void)'\n"
 		    << "    ;;\n"
+		    << "  *\"func cleanup\"*)\n"
+		    << "    echo 'Note: Found 2 function definitions with name '\\''cleanup'\\'''\n"
+		    << "    echo 'File: tools/testing/selftests/bpf/xdp_synproxy.c'\n"
+		    << "    echo 'Line: 10-15'\n"
+		    << "    echo 'Return type: void'\n"
+		    << "    echo 'Function Definition:'\n"
+		    << "    echo 'void cleanup(void)'\n"
+		    << "    echo ''\n"
+		    << "    echo 'File: drivers/net/cleanup.c'\n"
+		    << "    echo 'Line: 20-25'\n"
+		    << "    echo 'Return type: void'\n"
+		    << "    echo 'Function Definition:'\n"
+		    << "    echo 'void cleanup(void)'\n"
+		    << "    ;;\n"
 		    << "  *\"func target_func\"*)\n"
 		    << "    echo 'File: main.c'\n"
 		    << "    echo 'Line: 5-8'\n"
@@ -265,11 +280,20 @@ static void test_hybrid_cli_queries()
 
 	semcode_backend backend(test_dir);
 
-	// 1. Definition query via hybrid fallback
-	auto defs = backend.query_definition(src_file, 6, 6); // on target_func (line 7)
-	assert(!defs.empty());
-	assert(defs[0].path.find("main.c") != std::string::npos);
-	assert(defs[0].range.start_y == 4); // 0-based index for line 5
+	// 1. Definition query via hybrid fallback:
+	// Single unique definition: callee_sub (line 8) -> dep.c
+	auto defs_unique = backend.query_definition(src_file, 7, 6);
+	assert(!defs_unique.empty());
+	assert(defs_unique[0].path.find("dep.c") != std::string::npos);
+	assert(defs_unique[0].range.start_y == 0);
+
+	// Multiple definitions across files (target_func): must fail immediately and return empty!
+	auto defs_ambig_target = backend.query_definition(src_file, 6, 6);
+	assert(defs_ambig_target.empty());
+
+	// Multiple definitions across files (cleanup): must fail immediately and return empty!
+	auto defs_ambig_cleanup = backend.query_definition(src_file, 12, 6);
+	assert(defs_ambig_cleanup.empty());
 
 	// 2. References query via hybrid fallback
 	auto refs = backend.query_references(src_file, 6, 6);
@@ -345,7 +369,7 @@ static void test_hybrid_cli_queries()
 	// - does NOT treat target_func definition header as an outgoing call to ext.c!
 	project_manager::get_instance().set_project_root(test_dir);
 	project_manager::get_instance().set_lsp_backend_for_testing(std::make_unique<semcode_backend>(test_dir));
-	auto outgoing_calls = tools::get_outgoing_calls_in_range(src_file, 7, 14, nullptr);
+	auto outgoing_calls = tools::get_outgoing_calls_in_range(src_file, 7, 15, nullptr);
 	assert(!outgoing_calls.empty());
 	bool found_callee_sub = false;
 	bool found_unique_header_op = false;
@@ -354,6 +378,7 @@ static void test_hybrid_cli_queries()
 		assert(call.target_name != "disambig_func"); // Must be punted due to cross-file ambiguity!
 		assert(call.target_name != "ambig_call");    // Must be punted due to cross-file ambiguity!
 		assert(call.target_name != "selftest_func"); // Must be punted/excluded (test directory)!
+		assert(call.target_name != "cleanup");       // Must be punted due to cross-file ambiguity!
 		if (call.target_name == "callee_sub") {
 			assert(call.target_file.find("dep.c") != std::string::npos);
 			found_callee_sub = true;
@@ -371,8 +396,8 @@ static void test_hybrid_cli_queries()
 	ctx.fs_security.set_working_directory(test_dir);
 	ctx.fs_security.add_allowed_root(test_dir, agentlib::access_type::read);
 	auto all_syms = tools::get_document_codemap_symbols(src_file, ctx, 1);
-	auto selected = tools::select_prioritized_codemap_symbols(all_syms, 7, 14, src_file, ctx, 10);
-	std::string table_md = tools::format_codemap_table(src_file, selected.selected_symbols, 14, selected.total_symbols, selected.omitted_count, &ctx);
+	auto selected = tools::select_prioritized_codemap_symbols(all_syms, 7, 15, src_file, ctx, 10);
+	std::string table_md = tools::format_codemap_table(src_file, selected.selected_symbols, 15, selected.total_symbols, selected.omitted_count, &ctx);
 	assert(table_md.find("### Called Dependencies:") != std::string::npos);
 	assert(table_md.find("`callee_sub`") != std::string::npos);
 	assert(table_md.find("dep.c") != std::string::npos);
@@ -386,6 +411,8 @@ static void test_hybrid_cli_queries()
 	assert(table_md.find("ambig_call") == std::string::npos);
 	assert(table_md.find("ambig_a.c") == std::string::npos);
 	assert(table_md.find("ambig_b.c") == std::string::npos);
+	assert(table_md.find("cleanup") == std::string::npos);
+	assert(table_md.find("xdp_synproxy.c") == std::string::npos);
 
 	unsetenv("SEMCODE_BIN");
 	fs::remove_all(test_dir);

@@ -66,6 +66,88 @@ static void parse_file_and_line_locations(std::string_view text, std::string_vie
 	}
 }
 
+// Parses definition locations from semcode CLI 'func' or 'type' query.
+// Strictly fails immediately if multiple definitions or locations are detected or if
+// semcode's multi-definition banner is present, ensuring zero false dependencies.
+// Returns false if ambiguous (multiple definitions found), true if unambiguous (0 or 1 location).
+static bool parse_definition_locations_strict_unique(std::string_view text, std::string_view root,
+						     std::vector<lsp_backend::location_info> &out)
+{
+	out.clear();
+
+	// Check for semcode multi-definition banner: e.g. "Found 5 function definitions with name ..."
+	if (text.find(" definitions with name ") != std::string_view::npos) {
+		return false;
+	}
+
+	std::istringstream stream{std::string(text)};
+	std::string line_str;
+	std::string current_file;
+
+	while (std::getline(stream, line_str)) {
+		while (!line_str.empty() && (line_str.back() == '\r' || line_str.back() == ' ')) {
+			line_str.pop_back();
+		}
+		size_t first = line_str.find_first_not_of(" \t");
+		if (first == std::string::npos) {
+			continue;
+		}
+		std::string_view trimmed = std::string_view(line_str).substr(first);
+
+		if (trimmed.starts_with("File:")) {
+			// If we already resolved a definition location, seeing another File: indicates multiple locations: fail immediately!
+			if (!out.empty()) {
+				out.clear();
+				return false;
+			}
+			std::string_view f = trimmed.substr(5);
+			size_t non_ws = f.find_first_not_of(" \t");
+			if (non_ws != std::string_view::npos) {
+				current_file = std::string(f.substr(non_ws));
+			}
+		} else if (trimmed.starts_with("Line:") || trimmed.starts_with("Lines:")) {
+			if (!current_file.empty()) {
+				// If we already resolved a definition location, another line definition means multiple locations: fail immediately!
+				if (!out.empty()) {
+					out.clear();
+					return false;
+				}
+				size_t colon = trimmed.find(':');
+				std::string_view l = trimmed.substr(colon + 1);
+				size_t non_ws = l.find_first_not_of(" \t");
+				if (non_ws != std::string_view::npos) {
+					l = l.substr(non_ws);
+					size_t dash = l.find('-');
+					if (dash != std::string_view::npos) {
+						l = l.substr(0, dash);
+					}
+					try {
+						int line_num = std::stoi(std::string(l));
+						fs::path full_path = fs::path(current_file);
+						if (!full_path.is_absolute() && !root.empty()) {
+							full_path = fs::path(root) / full_path;
+						}
+						lsp_backend::location_info loc;
+						loc.path = full_path.string();
+						int zero_line = std::max(0, line_num - 1);
+						loc.range = text_range{zero_line, 0, zero_line, 0};
+						out.push_back(std::move(loc));
+					} catch (...) {
+					}
+				}
+				current_file.clear();
+			}
+		}
+	}
+
+	if (out.size() > 1) {
+		out.clear();
+		return false;
+	}
+
+	return true;
+}
+
 static void parse_callers_locations(std::string_view text, std::string_view root, std::vector<lsp_backend::location_info> &out)
 {
 	std::istringstream stream{std::string(text)};
@@ -419,24 +501,44 @@ std::vector<text_range> semcode_backend::query_selection_ranges(const std::strin
 
 std::vector<lsp_backend::location_info> semcode_backend::query_definition(const std::string &filepath, int line, int character)
 {
-	// 1. First attempt JSON-RPC query via semcode-lsp
-	std::vector<location_info> results = standard_lsp_backend::query_definition(filepath, line, character);
-	if (!results.empty()) {
-		return results;
-	}
+	std::vector<location_info> results;
 
-	// 2. Hybrid fallback: query semcode CLI for symbol definition
+	// 1. Primary resolution: query semcode CLI for symbol definition
+	// Semcode CLI searches across the entire indexed codebase. If multiple definitions
+	// exist, we strictly fail immediately to prevent returning incorrect definitions.
 	if (!semcode_cli_path_.empty()) {
 		std::string identifier = extract_identifier_at(filepath, line, character);
 		if (!identifier.empty()) {
 			std::string func_out = run_semcode_query(std::format("func {}", identifier));
-			parse_file_and_line_locations(func_out, project_root_, results);
+			bool func_ok = parse_definition_locations_strict_unique(func_out, project_root_, results);
+			if (!func_ok) {
+				// Ambiguity detected: multiple function definitions exist, fail immediately
+				return {};
+			}
 
-			if (results.empty()) {
-				std::string type_out = run_semcode_query(std::format("type {}", identifier));
-				parse_file_and_line_locations(type_out, project_root_, results);
+			if (!results.empty()) {
+				return results;
+			}
+
+			// If not a function, check if it is a type definition
+			std::string type_out = run_semcode_query(std::format("type {}", identifier));
+			bool type_ok = parse_definition_locations_strict_unique(type_out, project_root_, results);
+			if (!type_ok) {
+				// Ambiguity detected: multiple type definitions exist, fail immediately
+				return {};
+			}
+
+			if (!results.empty()) {
+				return results;
 			}
 		}
+		return {};
+	}
+
+	// 2. Fallback if semcode CLI binary is not available: JSON-RPC query via semcode-lsp
+	results = standard_lsp_backend::query_definition(filepath, line, character);
+	if (results.size() > 1) {
+		return {};
 	}
 
 	return results;
