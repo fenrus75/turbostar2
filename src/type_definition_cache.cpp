@@ -110,13 +110,73 @@ void type_definition_cache::request_async(std::string_view type_name, const std:
 
 			// Obtain document symbols to find the enclosing struct/class scope
 			auto doc_symbols = get_document_codemap_symbols(rel_path, 1);
-			const codemap_symbol_info *enclosing = find_enclosing_symbol(doc_symbols, def_start);
+			const codemap_symbol_info *target_sym = find_symbol_by_hint(doc_symbols, t_name);
+			if (!target_sym) {
+				target_sym = find_enclosing_symbol(doc_symbols, def_start);
+			}
+
 			std::string kind = "struct";
-			if (enclosing && (enclosing->kind_str == "Class" || enclosing->kind_str == "Struct" ||
-					  enclosing->kind_str == "Enum" || enclosing->kind_str == "Interface")) {
-				def_start = enclosing->start_line;
-				def_end = enclosing->end_line;
-				kind = (enclosing->kind_str == "Class") ? "class" : ((enclosing->kind_str == "Enum") ? "enum" : "struct");
+			if (target_sym && (target_sym->kind_str.find("Class") != std::string::npos ||
+					   target_sym->kind_str.find("Struct") != std::string::npos ||
+					   target_sym->kind_str == "Enum" || target_sym->kind_str == "Interface")) {
+				def_start = target_sym->start_line;
+				def_end = target_sym->end_line;
+				if (target_sym->kind_str == "Class") {
+					kind = "class";
+				} else if (target_sym->kind_str == "Enum") {
+					kind = "enum";
+				} else if (target_sym->kind_str == "Interface") {
+					kind = "interface";
+				} else {
+					kind = "struct";
+				}
+			}
+
+			// If end line is still equal to or smaller than start line (e.g. LSP returned a 1-line range
+			// or symbol AST didn't capture the full block), inspect the target file to determine the true
+			// closing brace of the struct/class/enum definition.
+			if (def_end <= def_start) {
+				std::ifstream file(abs_path);
+				if (file.is_open()) {
+					std::string line_content;
+					int current_line = 1;
+					int depth = 0;
+					bool started = false;
+					int scanned_end = def_start;
+
+					while (std::getline(file, line_content)) {
+						if (current_line >= def_start) {
+							if (!started) {
+								if (line_content.find("enum ") != std::string::npos) {
+									kind = "enum";
+								} else if (line_content.find("class ") != std::string::npos) {
+									kind = "class";
+								} else if (line_content.find("struct ") != std::string::npos) {
+									kind = "struct";
+								}
+							}
+							for (char c : line_content) {
+								if (c == '{') {
+									depth++;
+									started = true;
+								} else if (c == '}') {
+									depth--;
+								}
+							}
+							if (started && depth <= 0) {
+								scanned_end = current_line;
+								break;
+							}
+						}
+						if (current_line > def_start + 1000) {
+							break;
+						}
+						++current_line;
+					}
+					if (started && scanned_end > def_start) {
+						def_end = scanned_end;
+					}
+				}
 			}
 
 			std::lock_guard<std::mutex> lock(mutex_);

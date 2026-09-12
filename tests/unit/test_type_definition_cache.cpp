@@ -3,12 +3,17 @@
 
 #include <cassert>
 #include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <set>
 #include <string>
 #include <thread>
 #include <vector>
 
+#include "fs_utils.h"
+#include "lsp_backend.h"
+#include "project_manager.h"
 #include "type_definition_cache.h"
 #include "type_token_extractor.h"
 
@@ -179,6 +184,113 @@ int main()
 		auto entry = cache.lookup("NonExistent");
 		assert(entry.has_value());
 		assert(entry->state == type_cache_state::failed || entry->state == type_cache_state::unresolved);
+	}
+
+	// ==========================================
+	// Test 7: Async Resolution with 1-Line Range (e.g. semcode)
+	// ==========================================
+	{
+		auto &cache = type_definition_cache::get_instance();
+		cache.clear();
+
+		std::string test_dir = fs_utils::get_project_tmp_dir() + "/test_type_cache_range";
+		std::filesystem::create_directories(test_dir);
+		std::string target_file = test_dir + "/fsmap.c";
+		{
+			std::ofstream out(target_file);
+			for (int i = 1; i <= 41; ++i) {
+				out << "// line " << i << "\n";
+			}
+			out << "struct ext4_getfsmap_info {\n";
+			out << "    int field1;\n";
+			out << "    int field2;\n";
+			out << "};\n";
+		}
+
+		class mock_single_line_lsp : public lsp_backend {
+		public:
+			std::string tgt_;
+			std::string macro_tgt_;
+			mock_single_line_lsp(std::string tgt, std::string macro_tgt)
+				: tgt_(std::move(tgt)), macro_tgt_(std::move(macro_tgt)) {}
+			void start(event_queue &) override {}
+			void stop() override {}
+			void open_document(const std::string &, const std::string &) override {}
+			void update_document(const std::string &, const std::string &) override {}
+			void request_hover(const std::string &, int, int) override {}
+			void request_document_highlight(const std::string &, int, int) override {}
+			void request_selection_range(const std::string &, int, int) override {}
+			[[nodiscard]] bool is_supported_file(const std::string &) const override { return true; }
+			[[nodiscard]] std::vector<text_range> query_selection_ranges(const std::string &, int, int) override { return {}; }
+			[[nodiscard]] std::vector<location_info> query_definition(const std::string &filepath, int line, int) override
+			{
+				location_info loc;
+				if (filepath.find("macro") != std::string::npos || line == 1) {
+					loc.path = macro_tgt_;
+					loc.range = {1, 0, 1, 0}; // Line 2 to 2 (1-line range)
+				} else {
+					loc.path = tgt_;
+					loc.range = {41, 0, 41, 0}; // Line 42 to 42 (1-line range like semcode)
+				}
+				return {loc};
+			}
+			[[nodiscard]] std::vector<location_info> query_references(const std::string &, int, int) override { return {}; }
+			[[nodiscard]] std::vector<symbol_info> query_workspace_symbols(const std::string &) override { return {}; }
+			[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &) override { return {}; }
+			void invalidate_symbol_cache(const std::string &) override {}
+			[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &, int, int) override { return {}; }
+			[[nodiscard]] std::vector<outgoing_call_item> query_call_hierarchy_outgoing_batch(
+				const std::string &, const std::vector<std::pair<int, int>> &,
+				std::chrono::steady_clock::time_point) override { return {}; }
+			[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &, int, int) override { return {}; }
+			[[nodiscard]] std::optional<std::vector<diagnostic_info>> query_file_diagnostics(const std::string &) override { return std::nullopt; }
+			void store_file_diagnostics(const std::string &, const std::vector<diagnostic_info> &) override {}
+		};
+
+		std::string macro_target = test_dir + "/macro_type.h";
+		{
+			std::ofstream out(macro_target);
+			out << "// line 1\n";
+			out << "struct __attribute__((aligned(64))) macro_wrapped_type {\n";
+			out << "    int a;\n";
+			out << "    int b;\n";
+			out << "    char buf[16];\n";
+			out << "};\n";
+		}
+
+		project_manager::get_instance().set_project_root(test_dir);
+		project_manager::get_instance().set_lsp_backend_for_testing(
+			std::make_unique<mock_single_line_lsp>(target_file, macro_target));
+
+		cache.request_async("ext4_getfsmap_info", target_file, 41, 0);
+		cache.request_async("macro_wrapped_type", macro_target, 1, 0);
+
+		int waited_ms = 0;
+		while (waited_ms < 2000) {
+			auto entry1 = cache.lookup("ext4_getfsmap_info");
+			auto entry2 = cache.lookup("macro_wrapped_type");
+			if (entry1.has_value() && entry1->state == type_cache_state::resolved &&
+			    entry2.has_value() && entry2->state == type_cache_state::resolved) {
+				break;
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(20));
+			waited_ms += 20;
+		}
+
+		auto entry = cache.lookup("ext4_getfsmap_info");
+		assert(entry.has_value());
+		assert(entry->state == type_cache_state::resolved);
+		assert(entry->start_line == 42);
+		assert(entry->end_line == 45); // Line 42 to 45! Not 42!
+
+		auto entry_macro = cache.lookup("macro_wrapped_type");
+		assert(entry_macro.has_value());
+		assert(entry_macro->state == type_cache_state::resolved);
+		assert(entry_macro->start_line == 2);
+		assert(entry_macro->end_line == 6); // Line 2 to 6! Not 2!
+		assert(entry_macro->kind == "struct");
+
+		std::filesystem::remove_all(test_dir);
 	}
 
 	std::cout << "All type_definition_cache unit tests passed successfully!\n";

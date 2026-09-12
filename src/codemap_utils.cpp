@@ -147,7 +147,8 @@ static void fallback_find_symbols(const std::string &safe_path, int min_lines, s
 
 	static const std::regex cpp_func_regex(
 	    R"(^\s*(?:[\w:\<\>]+\s*[\*\&]*\s+)+[\*\&]*\s*([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*)\s*\([^\)]*\)\s*(?:const|noexcept)?\s*\{?)");
-	static const std::regex cpp_class_regex(R"(^\s*(?:class|struct)\s+([a-zA-Z_]\w*))");
+	static const std::regex cpp_class_regex(R"(^\s*(?:typedef\s+)?(?:class|struct)\s+([a-zA-Z_]\w*))");
+	static const std::regex cpp_enum_regex(R"(^\s*(?:typedef\s+)?enum(?:\s+class|\s+struct)?\s+([a-zA-Z_]\w*))");
 	static const std::regex py_func_regex(R"(^\s*def\s+([a-zA-Z_]\w*)\s*\()");
 	static const std::regex py_class_regex(R"(^\s*class\s+([a-zA-Z_]\w*))");
 
@@ -220,23 +221,64 @@ static void fallback_find_symbols(const std::string &safe_path, int min_lines, s
 		}
 
 		if (std::regex_search(lines[i], match, cpp_class_regex)) {
+			std::string_view trimmed_line = lines[i];
+			size_t last_non_ws = trimmed_line.find_last_not_of(" \t\r\n");
+			if (last_non_ws != std::string_view::npos && trimmed_line[last_non_ws] == ';') {
+				continue;
+			}
+
 			int end_line = line_num;
 			int depth = 0;
+			bool started = false;
 			for (size_t j = i; j < lines.size(); ++j) {
 				for (char c : lines[j]) {
-					if (c == '{')
+					if (c == '{') {
 						depth++;
-					else if (c == '}')
+						started = true;
+					} else if (c == '}') {
 						depth--;
+					}
 				}
-				if (depth == 0 && j > i) {
+				if (started && depth == 0) {
 					end_line = static_cast<int>(j + 1);
 					break;
 				}
 			}
-			int len = end_line - line_num + 1;
-			if (len >= min_lines) {
-				out.push_back({match[1].str(), match[1].str(), "Class/Struct", line_num, end_line, len, 0, ""});
+			if (started) {
+				int len = end_line - line_num + 1;
+				if (len >= min_lines) {
+					out.push_back({match[1].str(), match[1].str(), "Class/Struct", line_num, end_line, len, 0, ""});
+				}
+			}
+		} else if (std::regex_search(lines[i], match, cpp_enum_regex)) {
+			std::string_view trimmed_line = lines[i];
+			size_t last_non_ws = trimmed_line.find_last_not_of(" \t\r\n");
+			if (last_non_ws != std::string_view::npos && trimmed_line[last_non_ws] == ';') {
+				continue;
+			}
+
+			int end_line = line_num;
+			int depth = 0;
+			bool started = false;
+			for (size_t j = i; j < lines.size(); ++j) {
+				for (char c : lines[j]) {
+					if (c == '{') {
+						depth++;
+						started = true;
+					} else if (c == '}') {
+						depth--;
+					}
+				}
+				if (started && depth == 0) {
+					end_line = static_cast<int>(j + 1);
+					break;
+				}
+			}
+			if (started) {
+				int len = end_line - line_num + 1;
+				if (len >= min_lines) {
+					out.push_back({match[1].str(), match[1].str(), "Enum", line_num, end_line, len, 0, ""});
+				}
 			}
 		} else if (std::regex_search(lines[i], match, cpp_func_regex)) {
 			std::string name = match[1].str();
