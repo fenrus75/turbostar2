@@ -568,6 +568,21 @@ static bool is_matching_function_symbol(const codemap_symbol_info *sym, std::str
 	return false;
 }
 
+static bool is_test_file_path(std::string_view p)
+{
+	if (p.starts_with("test/") || p.starts_with("tests/") ||
+	    p.starts_with("selftest/") || p.starts_with("selftests/") ||
+	    p.starts_with("tools/testing/")) {
+		return true;
+	}
+	if (p.find("/test/") != std::string_view::npos || p.find("/tests/") != std::string_view::npos ||
+	    p.find("/selftest/") != std::string_view::npos || p.find("/selftests/") != std::string_view::npos ||
+	    p.find("tools/testing/") != std::string_view::npos) {
+		return true;
+	}
+	return false;
+}
+
 bool resolve_outgoing_call_target(outgoing_call_reference &ref, const lsp_manager::call_hierarchy_item &item,
 				  std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
 				  agentlib::tool_context *ctx)
@@ -577,6 +592,13 @@ bool resolve_outgoing_call_target(outgoing_call_reference &ref, const lsp_manage
 	}
 
 	std::string target_uri_path = fs_utils::make_relative_to_project(item.uri);
+	std::string norm_caller = fs_utils::make_relative_to_project(ref.caller_file);
+	bool caller_is_test = is_test_file_path(norm_caller);
+
+	// Never allow non-test production code to depend on test/selftest files
+	if (!caller_is_test && is_test_file_path(target_uri_path)) {
+		return false;
+	}
 
 	std::string def_path;
 	int def_pos_line = -1;
@@ -588,11 +610,29 @@ bool resolve_outgoing_call_target(outgoing_call_reference &ref, const lsp_manage
 	if (item.selection_range.start_y >= 0 && item.selection_range.start_x >= 0) {
 		auto defs = project_manager::get_instance().lsp_query_definition(target_uri_path, item.selection_range.start_y,
 										 item.selection_range.start_x);
+		std::vector<std::string> distinct_files;
 		for (const auto &def : defs) {
 			if (!def.path.empty() && is_project_file(def.path, ctx)) {
-				def_path = fs_utils::make_relative_to_project(def.path);
-				def_pos_line = def.range.start_y + 1;
-				break;
+				std::string norm = fs_utils::make_relative_to_project(def.path);
+				if (!caller_is_test && is_test_file_path(norm)) {
+					continue;
+				}
+				if (!norm.empty() && std::find(distinct_files.begin(), distinct_files.end(), norm) == distinct_files.end()) {
+					distinct_files.push_back(norm);
+				}
+			}
+		}
+		// Strict cross-file ambiguity check: if symbol is defined across multiple files, punt!
+		if (distinct_files.size() > 1) {
+			return false;
+		}
+		if (distinct_files.size() == 1) {
+			def_path = distinct_files.front();
+			for (const auto &def : defs) {
+				if (!def.path.empty() && fs_utils::make_relative_to_project(def.path) == def_path) {
+					def_pos_line = def.range.start_y + 1;
+					break;
+				}
 			}
 		}
 	}
@@ -615,6 +655,13 @@ bool resolve_outgoing_call_target(outgoing_call_reference &ref, const lsp_manage
 			}
 		}
 		if (def_path.empty()) {
+			if (!caller_is_test && is_test_file_path(target_uri_path)) {
+				return false;
+			}
+			if (target_uri_path.ends_with(".c") && norm_caller.ends_with(".c") &&
+			    target_uri_path != norm_caller) {
+				return false;
+			}
 			def_path = target_uri_path;
 		}
 	}
@@ -743,44 +790,6 @@ static void refresh_outgoing_calls_async(std::string safe_path, std::vector<code
 	}).detach();
 }
 
-static std::vector<std::string> extract_included_header_suffixes(const std::string &safe_path)
-{
-	std::ifstream in(safe_path);
-	if (!in.is_open()) {
-		return {};
-	}
-	std::vector<std::string> includes;
-	std::string line;
-	int count = 0;
-	// Scan initial chunk of file for includes (up to first 500 lines)
-	while (std::getline(in, line) && count < 500) {
-		++count;
-		size_t pos = line.find_first_not_of(" \t");
-		if (pos == std::string::npos || line[pos] != '#') {
-			continue;
-		}
-		std::string_view rest = std::string_view(line).substr(pos + 1);
-		size_t inc_pos = rest.find_first_not_of(" \t");
-		if (inc_pos == std::string::npos || !rest.substr(inc_pos).starts_with("include")) {
-			continue;
-		}
-		size_t after_inc = inc_pos + 7;
-		size_t open_delim = rest.find_first_of("<\"", after_inc);
-		if (open_delim == std::string::npos) {
-			continue;
-		}
-		char close_char = (rest[open_delim] == '<') ? '>' : '"';
-		size_t close_delim = rest.find(close_char, open_delim + 1);
-		if (close_delim != std::string::npos && close_delim > open_delim + 1) {
-			std::string inc_target(rest.substr(open_delim + 1, close_delim - open_delim - 1));
-			if (!inc_target.empty()) {
-				includes.push_back(std::move(inc_target));
-			}
-		}
-	}
-	return includes;
-}
-
 static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
 	const std::string &safe_path, int start_line, int end_line,
 	const std::vector<codemap_symbol_info> &doc_symbols,
@@ -823,7 +832,7 @@ static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
 	}
 
 	std::string norm_safe_path = fs_utils::make_relative_to_project(safe_path);
-	std::vector<std::string> included_headers = extract_included_header_suffixes(safe_path);
+	bool caller_is_test = is_test_file_path(norm_safe_path);
 	std::vector<outgoing_call_reference> results;
 	std::unordered_set<std::string> seen_names;
 
@@ -868,6 +877,9 @@ static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
 			if (norm_def.empty() || norm_def == norm_safe_path) {
 				continue;
 			}
+			if (!caller_is_test && is_test_file_path(norm_def)) {
+				continue;
+			}
 			valid_defs.push_back(def);
 		}
 
@@ -876,7 +888,7 @@ static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
 		}
 
 		// Disambiguate multiple candidate definitions across different files:
-		// 1. Group valid definitions by normalized target file
+		// Group valid definitions by normalized target file
 		std::vector<std::string> distinct_files;
 		for (const auto &def : valid_defs) {
 			std::string norm_def = fs_utils::make_relative_to_project(def.path);
@@ -885,44 +897,13 @@ static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
 			}
 		}
 
-		const lsp_backend::location_info *chosen_def = nullptr;
-		if (distinct_files.size() == 1) {
-			// All definitions live in the same file (e.g. declaration + definition in one header)
-			chosen_def = &valid_defs.front();
-		} else if (!included_headers.empty()) {
-			// Direct Include Tie-Breaker: Check if exactly one candidate file matches an #include directive in safe_path
-			std::vector<const lsp_backend::location_info *> include_matched_defs;
-			for (const auto &def : valid_defs) {
-				std::string norm_def = fs_utils::make_relative_to_project(def.path);
-				for (const auto &inc : included_headers) {
-					if (norm_def == inc || norm_def.ends_with("/" + inc)) {
-						include_matched_defs.push_back(&def);
-						break;
-					}
-				}
-			}
-
-			// Check if include-matched definitions point to a unique file
-			if (!include_matched_defs.empty()) {
-				std::string matched_file = fs_utils::make_relative_to_project(include_matched_defs.front()->path);
-				bool all_same_file = true;
-				for (const auto *m : include_matched_defs) {
-					if (fs_utils::make_relative_to_project(m->path) != matched_file) {
-						all_same_file = false;
-						break;
-					}
-				}
-				if (all_same_file) {
-					chosen_def = include_matched_defs.front();
-				}
-			}
-		}
-
-		// If still ambiguous across multiple distinct files, punt rather than returning the wrong target!
-		if (!chosen_def) {
+		// Strictly punt on any ambiguity across multiple files:
+		// If multiple distinct files define the symbol, returning the wrong target is worse than returning nothing.
+		if (distinct_files.size() != 1) {
 			continue;
 		}
 
+		const lsp_backend::location_info *chosen_def = &valid_defs.front();
 		std::string norm_def = fs_utils::make_relative_to_project(chosen_def->path);
 		outgoing_call_reference ref;
 		ref.caller_file = safe_path;
@@ -1079,18 +1060,29 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 		}
 	}
 
-	// Fallback/In-slice extraction (Approach A):
-	// If standard LSP call hierarchy returned no calls in range (e.g. semcode_backend
-	// or servers lacking call hierarchy support), scan the slice directly for call candidates
-	// and resolve their definitions via LSP/semcode.
-	if (range_result.empty() && std::chrono::steady_clock::now() < deadline) {
-		range_result = extract_outgoing_calls_from_slice(safe_path, start_line, end_line, effective_symbols, symbols_cache, ctx, deadline);
-		if (!range_result.empty()) {
-			all_calls.insert(all_calls.end(), range_result.begin(), range_result.end());
-			if (!ec) {
-				std::lock_guard<std::mutex> lock(g_outgoing_calls_cache_mutex);
-				g_outgoing_calls_cache[safe_path] = {current_mtime, std::chrono::steady_clock::now(), all_calls};
+	// In-slice extraction (Approach A):
+	// Directly scan the slice for call candidates and resolve definitions via LSP/semcode.
+	// Merges any calls present in the slice that standard call hierarchy missed.
+	if (std::chrono::steady_clock::now() < deadline) {
+		auto slice_calls = extract_outgoing_calls_from_slice(safe_path, start_line, end_line, effective_symbols, symbols_cache, ctx, deadline);
+		bool added_any = false;
+		for (auto &sc : slice_calls) {
+			bool already_present = false;
+			for (const auto &rc : range_result) {
+				if (rc.target_name == sc.target_name && rc.call_line == sc.call_line) {
+					already_present = true;
+					break;
+				}
 			}
+			if (!already_present) {
+				range_result.push_back(sc);
+				all_calls.push_back(sc);
+				added_any = true;
+			}
+		}
+		if (!ec && added_any) {
+			std::lock_guard<std::mutex> lock(g_outgoing_calls_cache_mutex);
+			g_outgoing_calls_cache[safe_path] = {current_mtime, std::chrono::steady_clock::now(), all_calls};
 		}
 	}
 

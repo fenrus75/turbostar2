@@ -107,6 +107,8 @@ static void test_hybrid_cli_queries()
 		    << "    callee_sub(123);\n"
 		    << "    disambig_func();\n"
 		    << "    ambig_call();\n"
+		    << "    unique_header_op();\n"
+		    << "    selftest_func();\n"
 		    << "    return 42;\n"
 		    << "}\n";
 	}
@@ -129,7 +131,15 @@ static void test_hybrid_cli_queries()
 	std::string hdr_file = include_dir + "/my_ops.h";
 	{
 		std::ofstream out(hdr_file);
-		out << "void disambig_func(void);\n";
+		out << "void disambig_func(void);\n"
+		    << "void unique_header_op(void) {}\n";
+	}
+	std::string selftest_dir = test_dir + "/tools/testing/selftests";
+	fs::create_directories(selftest_dir);
+	std::string selftest_file = selftest_dir + "/selftest.c";
+	{
+		std::ofstream out(selftest_file);
+		out << "void selftest_func(void) {}\n";
 	}
 	std::string wrong_arch_file = test_dir + "/wrong_arch.c";
 	{
@@ -205,6 +215,20 @@ static void test_hybrid_cli_queries()
 		    << "    echo 'Return type: void'\n"
 		    << "    echo 'Function Definition:'\n"
 		    << "    echo 'void ambig_call(void)'\n"
+		    << "    ;;\n"
+		    << "  *\"func unique_header_op\"*)\n"
+		    << "    echo 'File: include/my_ops.h'\n"
+		    << "    echo 'Line: 2-2'\n"
+		    << "    echo 'Return type: void'\n"
+		    << "    echo 'Function Definition:'\n"
+		    << "    echo 'void unique_header_op(void)'\n"
+		    << "    ;;\n"
+		    << "  *\"func selftest_func\"*)\n"
+		    << "    echo 'File: tools/testing/selftests/selftest.c'\n"
+		    << "    echo 'Line: 1-1'\n"
+		    << "    echo 'Return type: void'\n"
+		    << "    echo 'Function Definition:'\n"
+		    << "    echo 'void selftest_func(void)'\n"
 		    << "    ;;\n"
 		    << "  *\"func target_func\"*)\n"
 		    << "    echo 'File: main.c'\n"
@@ -312,45 +336,52 @@ static void test_hybrid_cli_queries()
 	backend.stop();
 
 	// 9. Called dependencies test under semcode_backend:
-	// Verify that get_outgoing_calls_in_range resolves callee_sub(123) in main.c lines 7-12 to dep.c,
-	// resolves disambig_func() via #include <my_ops.h> tie-breaker to include/my_ops.h,
-	// punts on ambig_call() (multiple candidates ambig_a.c / ambig_b.c without matching include),
-	// and does NOT treat target_func definition header as an outgoing call to ext.c!
+	// Verify that get_outgoing_calls_in_range:
+	// - resolves callee_sub(123) in main.c to dep.c (unambiguous),
+	// - resolves unique_header_op() to include/my_ops.h (unambiguous header function),
+	// - punts on disambig_func() (multiple candidates wrong_arch.c / my_ops.h -> cross-file ambiguity),
+	// - punts on ambig_call() (multiple candidates ambig_a.c / ambig_b.c -> cross-file ambiguity),
+	// - punts on selftest_func() (defined in tools/testing/selftests/ -> test file excluded for non-test caller),
+	// - does NOT treat target_func definition header as an outgoing call to ext.c!
 	project_manager::get_instance().set_project_root(test_dir);
 	project_manager::get_instance().set_lsp_backend_for_testing(std::make_unique<semcode_backend>(test_dir));
-	auto outgoing_calls = tools::get_outgoing_calls_in_range(src_file, 7, 12, nullptr);
+	auto outgoing_calls = tools::get_outgoing_calls_in_range(src_file, 7, 14, nullptr);
 	assert(!outgoing_calls.empty());
 	bool found_callee_sub = false;
-	bool found_disambig_func = false;
+	bool found_unique_header_op = false;
 	for (const auto &call : outgoing_calls) {
 		assert(call.target_name != "target_func");
-		assert(call.target_name != "ambig_call"); // Must be punted due to unresolved cross-file ambiguity!
+		assert(call.target_name != "disambig_func"); // Must be punted due to cross-file ambiguity!
+		assert(call.target_name != "ambig_call");    // Must be punted due to cross-file ambiguity!
+		assert(call.target_name != "selftest_func"); // Must be punted/excluded (test directory)!
 		if (call.target_name == "callee_sub") {
 			assert(call.target_file.find("dep.c") != std::string::npos);
 			found_callee_sub = true;
 		}
-		if (call.target_name == "disambig_func") {
+		if (call.target_name == "unique_header_op") {
 			assert(call.target_file.find("my_ops.h") != std::string::npos);
-			assert(call.target_file.find("wrong_arch.c") == std::string::npos);
-			found_disambig_func = true;
+			found_unique_header_op = true;
 		}
 	}
 	assert(found_callee_sub);
-	assert(found_disambig_func);
+	assert(found_unique_header_op);
 
 	// 10. Verify that select_prioritized_codemap_symbols and format_codemap_table format the Called Dependencies table under semcode_backend
 	agentlib::tool_context ctx;
 	ctx.fs_security.set_working_directory(test_dir);
 	ctx.fs_security.add_allowed_root(test_dir, agentlib::access_type::read);
 	auto all_syms = tools::get_document_codemap_symbols(src_file, ctx, 1);
-	auto selected = tools::select_prioritized_codemap_symbols(all_syms, 7, 12, src_file, ctx, 10);
-	std::string table_md = tools::format_codemap_table(src_file, selected.selected_symbols, 12, selected.total_symbols, selected.omitted_count, &ctx);
+	auto selected = tools::select_prioritized_codemap_symbols(all_syms, 7, 14, src_file, ctx, 10);
+	std::string table_md = tools::format_codemap_table(src_file, selected.selected_symbols, 14, selected.total_symbols, selected.omitted_count, &ctx);
 	assert(table_md.find("### Called Dependencies:") != std::string::npos);
 	assert(table_md.find("`callee_sub`") != std::string::npos);
 	assert(table_md.find("dep.c") != std::string::npos);
-	assert(table_md.find("`disambig_func`") != std::string::npos);
+	assert(table_md.find("`unique_header_op`") != std::string::npos);
 	assert(table_md.find("my_ops.h") != std::string::npos);
+	assert(table_md.find("disambig_func") == std::string::npos);
 	assert(table_md.find("wrong_arch.c") == std::string::npos);
+	assert(table_md.find("selftest_func") == std::string::npos);
+	assert(table_md.find("selftest.c") == std::string::npos);
 	assert(table_md.find("ext.c") == std::string::npos);
 	assert(table_md.find("ambig_call") == std::string::npos);
 	assert(table_md.find("ambig_a.c") == std::string::npos);
