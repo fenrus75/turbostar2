@@ -214,28 +214,55 @@ int main()
 			out << "};\n";
 		}
 
-		class mock_single_line_lsp : public lsp_backend {
-		public:
+		class mock_single_line_lsp : public lsp_backend
+		{
+		      public:
 			std::string tgt_;
 			std::string macro_tgt_;
 			std::string typedef_tgt_;
 			mock_single_line_lsp(std::string tgt, std::string macro_tgt, std::string typedef_tgt = "")
-				: tgt_(std::move(tgt)), macro_tgt_(std::move(macro_tgt)), typedef_tgt_(std::move(typedef_tgt)) {}
-			void start(event_queue &) override {}
-			void stop() override {}
-			void open_document(const std::string &, const std::string &) override {}
-			void update_document(const std::string &, const std::string &) override {}
-			void request_hover(const std::string &, int, int) override {}
-			void request_document_highlight(const std::string &, int, int) override {}
-			void request_selection_range(const std::string &, int, int) override {}
-			[[nodiscard]] bool is_supported_file(const std::string &) const override { return true; }
-			[[nodiscard]] std::vector<text_range> query_selection_ranges(const std::string &, int, int) override { return {}; }
+			    : tgt_(std::move(tgt)), macro_tgt_(std::move(macro_tgt)), typedef_tgt_(std::move(typedef_tgt))
+			{
+			}
+			void start(event_queue &) override
+			{
+			}
+			void stop() override
+			{
+			}
+			void open_document(const std::string &, const std::string &) override
+			{
+			}
+			void update_document(const std::string &, const std::string &) override
+			{
+			}
+			void request_hover(const std::string &, int, int) override
+			{
+			}
+			void request_document_highlight(const std::string &, int, int) override
+			{
+			}
+			void request_selection_range(const std::string &, int, int) override
+			{
+			}
+			[[nodiscard]] bool is_supported_file(const std::string &) const override
+			{
+				return true;
+			}
+			[[nodiscard]] std::vector<text_range> query_selection_ranges(const std::string &, int, int) override
+			{
+				return {};
+			}
 			[[nodiscard]] std::vector<location_info> query_definition(const std::string &filepath, int line, int) override
 			{
 				location_info loc;
 				if (filepath.find("my_types") != std::string::npos) {
 					loc.path = typedef_tgt_;
 					loc.range = {line, 0, line, 0};
+					if (line == 1) {
+						loc.kind = "typedef";
+						loc.underlying_type = "s64";
+					}
 				} else if (filepath.find("macro") != std::string::npos || line == 1) {
 					loc.path = macro_tgt_;
 					loc.range = {1, 0, 1, 0}; // Line 2 to 2 (1-line range)
@@ -245,21 +272,48 @@ int main()
 				}
 				return {loc};
 			}
-			[[nodiscard]] std::vector<location_info> query_type_definition(const std::string &filepath, int line, int character) override
+			[[nodiscard]] std::vector<location_info> query_type_definition(const std::string &filepath, int line,
+										       int character) override
 			{
 				return query_definition(filepath, line, character);
 			}
-			[[nodiscard]] std::vector<location_info> query_references(const std::string &, int, int) override { return {}; }
-			[[nodiscard]] std::vector<symbol_info> query_workspace_symbols(const std::string &) override { return {}; }
-			[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &) override { return {}; }
-			void invalidate_symbol_cache(const std::string &) override {}
-			[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &, int, int) override { return {}; }
-			[[nodiscard]] std::vector<outgoing_call_item> query_call_hierarchy_outgoing_batch(
-				const std::string &, const std::vector<std::pair<int, int>> &,
-				std::chrono::steady_clock::time_point) override { return {}; }
-			[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &, int, int) override { return {}; }
-			[[nodiscard]] std::optional<std::vector<diagnostic_info>> query_file_diagnostics(const std::string &) override { return std::nullopt; }
-			void store_file_diagnostics(const std::string &, const std::vector<diagnostic_info> &) override {}
+			[[nodiscard]] std::vector<location_info> query_references(const std::string &, int, int) override
+			{
+				return {};
+			}
+			[[nodiscard]] std::vector<symbol_info> query_workspace_symbols(const std::string &) override
+			{
+				return {};
+			}
+			[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &) override
+			{
+				return {};
+			}
+			void invalidate_symbol_cache(const std::string &) override
+			{
+			}
+			[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &, int, int) override
+			{
+				return {};
+			}
+			[[nodiscard]] std::vector<outgoing_call_item>
+			query_call_hierarchy_outgoing_batch(const std::string &, const std::vector<std::pair<int, int>> &,
+							    std::chrono::steady_clock::time_point) override
+			{
+				return {};
+			}
+			[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &, int,
+												       int) override
+			{
+				return {};
+			}
+			[[nodiscard]] std::optional<std::vector<diagnostic_info>> query_file_diagnostics(const std::string &) override
+			{
+				return std::nullopt;
+			}
+			void store_file_diagnostics(const std::string &, const std::vector<diagnostic_info> &) override
+			{
+			}
 		};
 
 		std::string macro_target = test_dir + "/macro_type.h";
@@ -277,13 +331,16 @@ int main()
 		{
 			std::ofstream out(typedef_target);
 			out << "// line 1\n";
-			out << "typedef s64 ktime_t;\n";
+			out << "typedef s64\tktime_t;\n";
 			out << "using custom_alias = uint32_t;\n";
+			out << "struct unrelated_trailing_struct {\n";
+			out << "    int dummy;\n";
+			out << "};\n";
 		}
 
 		project_manager::get_instance().set_project_root(test_dir);
 		project_manager::get_instance().set_lsp_backend_for_testing(
-			std::make_unique<mock_single_line_lsp>(target_file, macro_target, typedef_target));
+		    std::make_unique<mock_single_line_lsp>(target_file, macro_target, typedef_target));
 
 		cache.request_async("ext4_getfsmap_info", target_file, 41, 0);
 		cache.request_async("macro_wrapped_type", macro_target, 1, 0);
@@ -296,10 +353,10 @@ int main()
 			auto entry2 = cache.lookup("macro_wrapped_type");
 			auto entry3 = cache.lookup("ktime_t");
 			auto entry4 = cache.lookup("custom_alias");
-			if (entry1.has_value() && entry1->state == type_cache_state::resolved &&
-			    entry2.has_value() && entry2->state == type_cache_state::resolved &&
-			    entry3.has_value() && entry3->state == type_cache_state::resolved &&
-			    entry4.has_value() && entry4->state == type_cache_state::resolved) {
+			if (entry1.has_value() && entry1->state == type_cache_state::resolved && entry2.has_value() &&
+			    entry2->state == type_cache_state::resolved && entry3.has_value() &&
+			    entry3->state == type_cache_state::resolved && entry4.has_value() &&
+			    entry4->state == type_cache_state::resolved) {
 				break;
 			}
 			std::this_thread::sleep_for(std::chrono::milliseconds(20));

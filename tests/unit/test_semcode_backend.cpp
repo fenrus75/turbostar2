@@ -1,10 +1,11 @@
 // Tested source file: src/semcode_backend.cpp, src/codemap_utils.cpp, src/call_token_extractor.cpp
 #include <cassert>
-#include <sys/stat.h>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <nlohmann/json.hpp>
+#include <sys/stat.h>
 #include "agentlib/tool_context.h"
 #include "agentlib/tool_registry.h"
 #include "codemap_utils.h"
@@ -15,7 +16,6 @@
 #include "semcode_backend.h"
 #include "standard_lsp_backend.h"
 #include "test_watchdog.h"
-#include <nlohmann/json.hpp>
 
 namespace fs = std::filesystem;
 
@@ -201,9 +201,11 @@ static void test_hybrid_cli_queries()
 		    << "    echo 'Name: type_and_typedef_t'\n"
 		    << "    echo 'File: main.c'\n"
 		    << "    echo 'Line: 17-17'\n"
+		    << "    echo 'Underlying Type: long'\n"
 		    << "    ;;\n"
 		    << "  *\"func custom_type_t\"*)\n"
-		    << "    echo 'Info: No exact match found for '\\''custom_type_t'\\'' (no function found with this name), but found functions using it as a regex pattern:'\n"
+		    << "    echo 'Info: No exact match found for '\\''custom_type_t'\\'' (no function found with this name), but found "
+		       "functions using it as a regex pattern:'\n"
 		    << "    echo '=== Functions (regex matches) ==='\n"
 		    << "    echo 'File: dep.c'\n"
 		    << "    echo 'Line: 1-3'\n"
@@ -340,6 +342,8 @@ static void test_hybrid_cli_queries()
 	assert(!dual_defs.empty());
 	assert(dual_defs[0].path.find("main.c") != std::string::npos);
 	assert(dual_defs[0].range.start_y == 16);
+	assert(dual_defs[0].kind == "typedef");
+	assert(dual_defs[0].underlying_type == "long");
 
 	// 2. References query via hybrid fallback
 	auto refs = backend.query_references(src_file, 6, 6);
@@ -424,7 +428,7 @@ static void test_hybrid_cli_queries()
 		assert(call.target_name != "disambig_func"); // Must be punted due to cross-file ambiguity!
 		assert(call.target_name != "ambig_call");    // Must be punted due to cross-file ambiguity!
 		assert(call.target_name != "selftest_func"); // Must be punted/excluded (test directory)!
-		assert(call.target_name != "cleanup");       // Must be punted due to cross-file ambiguity!
+		assert(call.target_name != "cleanup");	     // Must be punted due to cross-file ambiguity!
 		if (call.target_name == "callee_sub") {
 			assert(call.target_file.find("dep.c") != std::string::npos);
 			found_callee_sub = true;
@@ -437,13 +441,15 @@ static void test_hybrid_cli_queries()
 	assert(found_callee_sub);
 	assert(found_unique_header_op);
 
-	// 10. Verify that select_prioritized_codemap_symbols and format_codemap_table format the Called Dependencies table under semcode_backend
+	// 10. Verify that select_prioritized_codemap_symbols and format_codemap_table format the Called Dependencies table under
+	// semcode_backend
 	agentlib::tool_context ctx;
 	ctx.fs_security.set_working_directory(test_dir);
 	ctx.fs_security.add_allowed_root(test_dir, agentlib::access_type::read);
 	auto all_syms = tools::get_document_codemap_symbols(src_file, ctx, 1);
 	auto selected = tools::select_prioritized_codemap_symbols(all_syms, 7, 15, src_file, ctx, 10);
-	std::string table_md = tools::format_codemap_table(src_file, selected.selected_symbols, 15, selected.total_symbols, selected.omitted_count, &ctx);
+	std::string table_md =
+	    tools::format_codemap_table(src_file, selected.selected_symbols, 15, selected.total_symbols, selected.omitted_count, &ctx);
 	assert(table_md.find("### Called Dependencies:") != std::string::npos);
 	assert(table_md.find("`callee_sub`") != std::string::npos);
 	assert(table_md.find("dep.c") != std::string::npos);

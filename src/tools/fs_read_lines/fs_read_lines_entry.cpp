@@ -112,11 +112,9 @@ int determine_adjusted_end_line(int start, int requested_end, const std::vector<
 
 		// If requested_end is ALREADY at a closing delimiter, do not extend into subsequent blocks/functions!
 		std::string_view end_line_trimmed = trim(lines[requested_end_idx]);
-		if (end_line_trimmed == "}" || end_line_trimmed == "};" ||
-		    end_line_trimmed.starts_with("} //") || end_line_trimmed.starts_with("} /*") ||
-		    end_line_trimmed == "]" || end_line_trimmed == ")" ||
-		    end_line_trimmed == "end" || end_line_trimmed == "fi" ||
-		    end_line_trimmed == "done") {
+		if (end_line_trimmed == "}" || end_line_trimmed == "};" || end_line_trimmed.starts_with("} //") ||
+		    end_line_trimmed.starts_with("} /*") || end_line_trimmed == "]" || end_line_trimmed == ")" ||
+		    end_line_trimmed == "end" || end_line_trimmed == "fi" || end_line_trimmed == "done") {
 			return requested_end;
 		}
 
@@ -283,9 +281,8 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 				type_definition_cache::get_instance().request_async(cand.name, args_.safe_path, cand.line - 1, cand.col);
 			}
 		}
-		event_logger::get_instance().log(std::format(
-			"fs_read_lines: path='{}', range={}-{}, extracted {} candidate types: [{}]",
-			args_.safe_path, start, adjusted_end, candidate_types.size(), cand_names));
+		event_logger::get_instance().log(std::format("fs_read_lines: path='{}', range={}-{}, extracted {} candidate types: [{}]",
+							     args_.safe_path, start, adjusted_end, candidate_types.size(), cand_names));
 	}
 
 	if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
@@ -407,16 +404,16 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 					continue;
 				}
 				resolved_types.push_back(*entry);
-				if (resolved_types.size() >= 3) {
+				if (resolved_types.size() >= 5) {
 					break;
 				}
 			}
 		}
 
-		event_logger::get_instance().log(std::format(
-			"fs_read_lines: path='{}', candidate_types={}, resolved={}, pending={}, excluded_file={}, already_reported={}, not_found={}",
-			args_.safe_path, candidate_types.size(), resolved_types.size(), pending_count, excluded_file_count,
-			already_reported_count, not_found_count));
+		event_logger::get_instance().log(std::format("fs_read_lines: path='{}', candidate_types={}, resolved={}, pending={}, "
+							     "excluded_file={}, already_reported={}, not_found={}",
+							     args_.safe_path, candidate_types.size(), resolved_types.size(), pending_count,
+							     excluded_file_count, already_reported_count, not_found_count));
 
 		if (!resolved_types.empty()) {
 			ss << type_definition_cache::format_type_definition_table(resolved_types);

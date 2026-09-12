@@ -65,7 +65,7 @@ std::vector<candidate_type_token> type_token_extractor::extract_candidates(const
 	    R"(\b([A-Za-z_][A-Za-z0-9_]*)::|)"
 	    R"(<(?:\s*const\s+)?([A-Za-z_][A-Za-z0-9_]*)(?:\s*[*&])?\s*>|)"
 	    R"(\b([A-Za-z_][A-Za-z0-9_]*)\s+(?:const\s+)?(?:\*|&)+\s*[A-Za-z_]|)"
-	    R"(\b(?:const\s+)?([A-Za-z_][A-Za-z0-9_]*)\s+(?:\*|&)*\s*[A-Za-z_][A-Za-z0-9_]*\s*[\(\{\;\,])");
+	    R"(\b(?:const\s+)?([A-Za-z_][A-Za-z0-9_]*)\s+(?:\*|&)*\s*[A-Za-z_][A-Za-z0-9_]*\s*[\(\)\{\;\,])");
 
 	for (size_t i = 0; i < lines.size(); ++i) {
 		const std::string &line = lines[i];

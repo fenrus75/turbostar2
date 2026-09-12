@@ -436,16 +436,23 @@ int main()
 		std::filesystem::path type_cpp_path = std::filesystem::path(proj_root) / "test_type_def_read.cpp";
 		std::string type_file = "test_type_def_read.cpp";
 
-		// Pre-warm a type into the cache
+		// Pre-warm 5 types into the cache to verify the limit of 5 is supported
 		tools::type_definition_cache::get_instance().register_resolved_type("AwesomeAgentStruct", "struct", "src/awesome_agent.h",
 										    25, 60);
+		tools::type_definition_cache::get_instance().register_resolved_type("AgentTypeTwo", "struct", "src/agent_two.h", 1, 10);
+		tools::type_definition_cache::get_instance().register_resolved_type("AgentTypeThree", "struct", "src/agent_three.h", 1, 10);
+		tools::type_definition_cache::get_instance().register_resolved_type("AgentTypeFour", "typedef", "src/agent_four.h", 5, 5,
+										    "uint64_t");
+		tools::type_definition_cache::get_instance().register_resolved_type("AgentTypeFive", "typedef", "src/agent_five.h", 8, 8,
+										    "int32_t");
 
-		// Write a file that references AwesomeAgentStruct
+		// Write a file that references all 5 types
 		{
 			std::ofstream out(type_cpp_path);
 			out << "#include \"awesome_agent.h\"\n";
-			out << "void handle_agent(const AwesomeAgentStruct &agent) {\n";
-			out << "    (void)agent;\n";
+			out << "void handle_agent(const AwesomeAgentStruct &agent, const AgentTypeTwo &a2, const AgentTypeThree &a3, "
+			       "AgentTypeFour a4, AgentTypeFive a5) {\n";
+			out << "    (void)agent; (void)a2; (void)a3; (void)a4; (void)a5;\n";
 			out << "}\n";
 		}
 
@@ -456,9 +463,17 @@ int main()
 		assert(res1.find("### Type Definitions:") != std::string::npos);
 		assert(res1.find("`AwesomeAgentStruct`") != std::string::npos);
 		assert(res1.find("`src/awesome_agent.h`") != std::string::npos);
+		assert(res1.find("`AgentTypeTwo`") != std::string::npos);
+		assert(res1.find("`AgentTypeThree`") != std::string::npos);
+		assert(res1.find("`AgentTypeFour`") != std::string::npos);
+		assert(res1.find("typedef (uint64_t)") != std::string::npos);
+		assert(res1.find("`AgentTypeFive`") != std::string::npos);
+		assert(res1.find("typedef (int32_t)") != std::string::npos);
 		assert(res1.find("| path | start_line | end_line |") != std::string::npos);
 		assert(res1.find("| 25 | 60 |") != std::string::npos);
 		assert(ctx.reported_type_definitions.contains("AwesomeAgentStruct"));
+		assert(ctx.reported_type_definitions.contains("AgentTypeFour"));
+		assert(ctx.reported_type_definitions.contains("AgentTypeFive"));
 
 		// Second read of same code in same session must omit already-reported type definition
 		std::string res2 = registry.execute_tool("fs_read_lines", args, ctx);

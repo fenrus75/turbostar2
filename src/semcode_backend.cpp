@@ -87,24 +87,25 @@ static bool parse_definition_locations_strict_unique(std::string_view text, std:
 	out.clear();
 
 	// If semcode reports no exact match found, or only regex fallback matches, treat as 0 exact locations (unambiguous empty).
-	if (text.find("No exact match found") != std::string_view::npos ||
-	    text.find("(regex matches)") != std::string_view::npos ||
+	if (text.find("No exact match found") != std::string_view::npos || text.find("(regex matches)") != std::string_view::npos ||
 	    text.find("No results found") != std::string_view::npos) {
-		event_logger::get_instance().log(
-			"parse_definition_locations_strict_unique: 'No exact match found' / '(regex matches)' detected -> 0 exact locations (true)");
+		event_logger::get_instance().log("parse_definition_locations_strict_unique: 'No exact match found' / '(regex matches)' "
+						 "detected -> 0 exact locations (true)");
 		return true;
 	}
 
 	// Check for semcode multi-definition banner: e.g. "Found 5 function definitions with name ..."
 	if (text.find(" definitions with name ") != std::string_view::npos) {
 		event_logger::get_instance().log(
-			"parse_definition_locations_strict_unique: multi-definition banner detected -> ambiguous (false)");
+		    "parse_definition_locations_strict_unique: multi-definition banner detected -> ambiguous (false)");
 		return false;
 	}
 
 	std::istringstream stream{std::string(text)};
 	std::string line_str;
 	std::string current_file;
+	std::string current_kind;
+	std::string current_underlying;
 
 	while (std::getline(stream, line_str)) {
 		while (!line_str.empty() && (line_str.back() == '\r' || line_str.back() == ' ')) {
@@ -116,7 +117,33 @@ static bool parse_definition_locations_strict_unique(std::string_view text, std:
 		}
 		std::string_view trimmed = std::string_view(line_str).substr(first);
 
-		if (trimmed.starts_with("File:")) {
+		if (trimmed.starts_with("=== Typedef Information ===")) {
+			current_kind = "typedef";
+		} else if (trimmed.starts_with("Name:")) {
+			if (trimmed.find("typedef") != std::string_view::npos) {
+				current_kind = "typedef";
+			} else if (trimmed.find("struct") != std::string_view::npos) {
+				current_kind = "struct";
+			} else if (trimmed.find("class") != std::string_view::npos) {
+				current_kind = "class";
+			} else if (trimmed.find("enum") != std::string_view::npos) {
+				current_kind = "enum";
+			}
+		} else if (trimmed.starts_with("Underlying Type:") || trimmed.starts_with("Underlying type:") ||
+			   trimmed.starts_with("// Underlying type:") || trimmed.starts_with("// Underlying Type:")) {
+			size_t colon = trimmed.find(':');
+			std::string_view ut = trimmed.substr(colon + 1);
+			size_t ut_first = ut.find_first_not_of(" \t");
+			size_t ut_last = ut.find_last_not_of(" \t\r\n");
+			if (ut_first != std::string_view::npos && ut_last != std::string_view::npos && ut_first <= ut_last) {
+				current_underlying = std::string(ut.substr(ut_first, ut_last - ut_first + 1));
+				current_kind = "typedef";
+				if (!out.empty()) {
+					out.back().underlying_type = current_underlying;
+					out.back().kind = "typedef";
+				}
+			}
+		} else if (trimmed.starts_with("File:")) {
 			std::string_view f = trimmed.substr(5);
 			size_t non_ws = f.find_first_not_of(" \t");
 			if (non_ws != std::string_view::npos) {
@@ -153,15 +180,24 @@ static bool parse_definition_locations_strict_unique(std::string_view text, std:
 						int zero_start = std::max(0, line_num - 1);
 						int zero_end = (end_line_num >= line_num) ? std::max(0, end_line_num - 1) : zero_start;
 						loc.range = text_range{zero_start, 0, zero_end, 0};
+						loc.kind = current_kind;
+						loc.underlying_type = current_underlying;
 
 						// Check if identical location was already parsed (e.g. semcode emitting both
-						// 'Type Information' and 'Typedef Information' where the second is a refinement of the first).
+						// 'Type Information' and 'Typedef Information' where the second is a refinement of the
+						// first).
 						bool already_present = false;
 						for (auto &existing : out) {
 							if (existing.path == loc.path && existing.range.start_y == loc.range.start_y) {
 								already_present = true;
 								if (loc.range.end_y > existing.range.end_y) {
 									existing.range.end_y = loc.range.end_y;
+								}
+								if (!loc.kind.empty()) {
+									existing.kind = loc.kind;
+								}
+								if (!loc.underlying_type.empty()) {
+									existing.underlying_type = loc.underlying_type;
 								}
 								break;
 							}
@@ -178,16 +214,13 @@ static bool parse_definition_locations_strict_unique(std::string_view text, std:
 	}
 
 	if (out.size() > 1) {
-		event_logger::get_instance().log(std::format(
-			"parse_definition_locations_strict_unique: out.size() = {} > 1 -> ambiguous (false)",
-			out.size()));
+		event_logger::get_instance().log(
+		    std::format("parse_definition_locations_strict_unique: out.size() = {} > 1 -> ambiguous (false)", out.size()));
 		out.clear();
 		return false;
 	}
 
-	event_logger::get_instance().log(std::format(
-		"parse_definition_locations_strict_unique: parsed {} unique location(s)",
-		out.size()));
+	event_logger::get_instance().log(std::format("parse_definition_locations_strict_unique: parsed {} unique location(s)", out.size()));
 	return true;
 }
 
@@ -335,8 +368,7 @@ static void parse_calls_hierarchy(std::string_view text, std::string_view root, 
 	flush_current();
 }
 
-semcode_backend::semcode_backend(std::string project_root)
-	: project_root_(std::move(project_root))
+semcode_backend::semcode_backend(std::string project_root) : project_root_(std::move(project_root))
 {
 	if (project_root_.empty()) {
 		project_root_ = project_manager::get_instance().get_project_root();
@@ -344,9 +376,8 @@ semcode_backend::semcode_backend(std::string project_root)
 	semcode_lsp_path_ = find_semcode_lsp();
 	semcode_cli_path_ = find_semcode_cli();
 
-	event_logger::get_instance().log(
-		"semcode_backend initialized for root '{}' (semcode-lsp: '{}', semcode-cli: '{}')",
-		project_root_, semcode_lsp_path_, semcode_cli_path_);
+	event_logger::get_instance().log("semcode_backend initialized for root '{}' (semcode-lsp: '{}', semcode-cli: '{}')", project_root_,
+					 semcode_lsp_path_, semcode_cli_path_);
 }
 
 semcode_backend::~semcode_backend()
@@ -480,9 +511,8 @@ void semcode_backend::hover_worker_loop()
 		hover_request req;
 		{
 			std::unique_lock<std::mutex> lock(hover_mutex_);
-			hover_cv_.wait(lock, [this] {
-				return pending_hover_request_.has_value() || hover_stopping_.load(std::memory_order_relaxed);
-			});
+			hover_cv_.wait(
+			    lock, [this] { return pending_hover_request_.has_value() || hover_stopping_.load(std::memory_order_relaxed); });
 			if (hover_stopping_.load(std::memory_order_relaxed)) {
 				break;
 			}
@@ -519,9 +549,9 @@ void semcode_backend::hover_worker_loop()
 
 		// 1. Try type lookup via semcode CLI (utilizing query cache)
 		std::string type_output = run_semcode_query(std::format("type {}", identifier));
-		if (!type_output.empty() && (type_output.find("=== Type Information ===") != std::string::npos ||
-					     type_output.find("Type Definition:") != std::string::npos ||
-					     type_output.find("Fields:") != std::string::npos)) {
+		if (!type_output.empty() &&
+		    (type_output.find("=== Type Information ===") != std::string::npos ||
+		     type_output.find("Type Definition:") != std::string::npos || type_output.find("Fields:") != std::string::npos)) {
 			set_cached_hover(key, type_output);
 			if (!hover_stopping_.load(std::memory_order_relaxed) &&
 			    req.request_id == hover_counter_.load(std::memory_order_relaxed)) {
@@ -536,8 +566,7 @@ void semcode_backend::hover_worker_loop()
 			continue;
 		}
 
-		if (hover_stopping_.load(std::memory_order_relaxed) ||
-		    req.request_id != hover_counter_.load(std::memory_order_relaxed)) {
+		if (hover_stopping_.load(std::memory_order_relaxed) || req.request_id != hover_counter_.load(std::memory_order_relaxed)) {
 			continue;
 		}
 
@@ -560,12 +589,12 @@ void semcode_backend::hover_worker_loop()
 	}
 }
 
-void semcode_backend::request_document_highlight(const std::string &/*filepath*/, int /*line*/, int /*character*/)
+void semcode_backend::request_document_highlight(const std::string & /*filepath*/, int /*line*/, int /*character*/)
 {
 	// semcode does not track in-memory AST token highlights; gracefully no-op
 }
 
-void semcode_backend::request_selection_range(const std::string &/*filepath*/, int /*line*/, int /*character*/)
+void semcode_backend::request_selection_range(const std::string & /*filepath*/, int /*line*/, int /*character*/)
 {
 	// semcode does not compute semantic selection ranges; gracefully no-op
 }
@@ -576,11 +605,11 @@ bool semcode_backend::is_supported_file(const std::string &filepath) const
 	for (auto &c : ext) {
 		c = std::tolower(c);
 	}
-	return (ext == ".cpp" || ext == ".c" || ext == ".h" || ext == ".hpp" ||
-		ext == ".cc" || ext == ".cxx" || ext == ".py" || ext == ".rs" || ext == ".zig");
+	return (ext == ".cpp" || ext == ".c" || ext == ".h" || ext == ".hpp" || ext == ".cc" || ext == ".cxx" || ext == ".py" ||
+		ext == ".rs" || ext == ".zig");
 }
 
-std::vector<text_range> semcode_backend::query_selection_ranges(const std::string &/*filepath*/, int /*line*/, int /*character*/)
+std::vector<text_range> semcode_backend::query_selection_ranges(const std::string & /*filepath*/, int /*line*/, int /*character*/)
 {
 	return {};
 }
@@ -598,22 +627,21 @@ std::vector<lsp_backend::location_info> semcode_backend::query_definition(const 
 			std::string func_out = run_semcode_query(std::format("func {}", identifier));
 			bool func_ok = parse_definition_locations_strict_unique(func_out, project_root_, results);
 			if (!func_ok) {
-				event_logger::get_instance().log(std::format(
-					"semcode_backend::query_definition: identifier='{}', ambiguous func definitions, aborting",
-					identifier));
+				event_logger::get_instance().log(
+				    std::format("semcode_backend::query_definition: identifier='{}', ambiguous func definitions, aborting",
+						identifier));
 				return {};
 			}
 
 			if (!results.empty()) {
-				event_logger::get_instance().log(std::format(
-					"semcode_backend::query_definition: identifier='{}', found {} locations via func",
-					identifier, results.size()));
+				event_logger::get_instance().log(
+				    std::format("semcode_backend::query_definition: identifier='{}', found {} locations via func",
+						identifier, results.size()));
 				return results;
 			}
 
 			event_logger::get_instance().log(std::format(
-				"semcode_backend::query_definition: identifier='{}', no func definition found, checking type",
-				identifier));
+			    "semcode_backend::query_definition: identifier='{}', no func definition found, checking type", identifier));
 
 			// If not a function, check if it is a type definition
 			std::string type_out = run_semcode_query(std::format("type {}", identifier));
@@ -621,21 +649,19 @@ std::vector<lsp_backend::location_info> semcode_backend::query_definition(const 
 			if (!type_ok) {
 				// Ambiguity detected: multiple type definitions exist, fail immediately
 				event_logger::get_instance().log(std::format(
-					"semcode_backend::query_definition: identifier='{}', ambiguous type definitions",
-					identifier));
+				    "semcode_backend::query_definition: identifier='{}', ambiguous type definitions", identifier));
 				return {};
 			}
 
 			if (!results.empty()) {
-				event_logger::get_instance().log(std::format(
-					"semcode_backend::query_definition: identifier='{}', found {} locations via type",
-					identifier, results.size()));
+				event_logger::get_instance().log(
+				    std::format("semcode_backend::query_definition: identifier='{}', found {} locations via type",
+						identifier, results.size()));
 				return results;
 			}
 
-			event_logger::get_instance().log(std::format(
-				"semcode_backend::query_definition: identifier='{}', no type definition found",
-				identifier));
+			event_logger::get_instance().log(
+			    std::format("semcode_backend::query_definition: identifier='{}', no type definition found", identifier));
 		}
 		return {};
 	}
@@ -661,21 +687,19 @@ std::vector<lsp_backend::location_info> semcode_backend::query_type_definition(c
 			bool type_ok = parse_definition_locations_strict_unique(type_out, project_root_, results);
 			if (!type_ok) {
 				event_logger::get_instance().log(std::format(
-					"semcode_backend::query_type_definition: identifier='{}', ambiguous type definitions",
-					identifier));
+				    "semcode_backend::query_type_definition: identifier='{}', ambiguous type definitions", identifier));
 				return {};
 			}
 
 			if (!results.empty()) {
-				event_logger::get_instance().log(std::format(
-					"semcode_backend::query_type_definition: identifier='{}', found {} locations via type",
-					identifier, results.size()));
+				event_logger::get_instance().log(
+				    std::format("semcode_backend::query_type_definition: identifier='{}', found {} locations via type",
+						identifier, results.size()));
 				return results;
 			}
 
-			event_logger::get_instance().log(std::format(
-				"semcode_backend::query_type_definition: identifier='{}', no type definition found",
-				identifier));
+			event_logger::get_instance().log(
+			    std::format("semcode_backend::query_type_definition: identifier='{}', no type definition found", identifier));
 		}
 		return {};
 	}
@@ -742,21 +766,21 @@ std::vector<lsp_backend::symbol_info> semcode_backend::query_workspace_symbols(c
 		symbols.push_back(std::move(s));
 	}
 
-	event_logger::get_instance().log(std::format(
-		"semcode_backend::query_workspace_symbols: query='{}', found {} symbols (func={}, type={})",
-		query, symbols.size(), func_locs.size(), type_locs.size()));
+	event_logger::get_instance().log(
+	    std::format("semcode_backend::query_workspace_symbols: query='{}', found {} symbols (func={}, type={})", query, symbols.size(),
+			func_locs.size(), type_locs.size()));
 
 	return symbols;
 }
 
-std::vector<lsp_backend::symbol_node> semcode_backend::query_document_symbols(const std::string &/*filepath*/)
+std::vector<lsp_backend::symbol_node> semcode_backend::query_document_symbols(const std::string & /*filepath*/)
 {
 	// semcode does not implement per-file hierarchical symbol trees; return empty
 	return {};
 }
 
-std::vector<lsp_backend::call_hierarchy_item> semcode_backend::query_call_hierarchy_outgoing(
-	const std::string &filepath, int line, int character)
+std::vector<lsp_backend::call_hierarchy_item> semcode_backend::query_call_hierarchy_outgoing(const std::string &filepath, int line,
+											     int character)
 {
 	if (semcode_cli_path_.empty()) {
 		return {};
@@ -775,17 +799,16 @@ std::vector<lsp_backend::call_hierarchy_item> semcode_backend::query_call_hierar
 		parse_calls_hierarchy(plain_calls, project_root_, items);
 	}
 
-	event_logger::get_instance().log(std::format(
-		"semcode_backend::query_call_hierarchy_outgoing: identifier='{}', found {} raw calls from semcode CLI",
-		identifier, items.size()));
+	event_logger::get_instance().log(
+	    std::format("semcode_backend::query_call_hierarchy_outgoing: identifier='{}', found {} raw calls from semcode CLI", identifier,
+			items.size()));
 
 	return items;
 }
 
-std::vector<lsp_backend::outgoing_call_item> semcode_backend::query_call_hierarchy_outgoing_batch(
-	const std::string &filepath,
-	const std::vector<std::pair<int, int>> &positions,
-	std::chrono::steady_clock::time_point deadline)
+std::vector<lsp_backend::outgoing_call_item>
+semcode_backend::query_call_hierarchy_outgoing_batch(const std::string &filepath, const std::vector<std::pair<int, int>> &positions,
+						     std::chrono::steady_clock::time_point deadline)
 {
 	std::vector<outgoing_call_item> batch_results;
 	for (const auto &[line, character] : positions) {
@@ -803,8 +826,8 @@ std::vector<lsp_backend::outgoing_call_item> semcode_backend::query_call_hierarc
 	return batch_results;
 }
 
-std::vector<lsp_backend::type_hierarchy_item> semcode_backend::query_type_hierarchy_supertypes(
-	const std::string &filepath, int line, int character)
+std::vector<lsp_backend::type_hierarchy_item> semcode_backend::query_type_hierarchy_supertypes(const std::string &filepath, int line,
+											       int character)
 {
 	if (semcode_cli_path_.empty()) {
 		return {};
@@ -844,8 +867,7 @@ std::shared_ptr<standard_lsp_backend::server_instance> semcode_backend::get_serv
 		return standard_lsp_backend::get_server_for_file(filepath);
 	}
 
-	bool is_c_cpp = (ext == ".cpp" || ext == ".c" || ext == ".h" || ext == ".hpp" ||
-			 ext == ".cc" || ext == ".cxx");
+	bool is_c_cpp = (ext == ".cpp" || ext == ".c" || ext == ".h" || ext == ".hpp" || ext == ".cc" || ext == ".cxx");
 	if (!is_c_cpp) {
 		return nullptr;
 	}
@@ -885,10 +907,8 @@ std::string semcode_backend::run_semcode_query(const std::string &query) const
 		}
 	}
 
-	std::string cmd = std::format("{} -d {} --git-repo {} -q {}",
-				      fs_utils::escape_shell_arg(semcode_cli_path_),
-				      fs_utils::escape_shell_arg(project_root_),
-				      fs_utils::escape_shell_arg(project_root_),
+	std::string cmd = std::format("{} -d {} --git-repo {} -q {}", fs_utils::escape_shell_arg(semcode_cli_path_),
+				      fs_utils::escape_shell_arg(project_root_), fs_utils::escape_shell_arg(project_root_),
 				      fs_utils::escape_shell_arg(query));
 
 	std::string raw_output = fs_utils::execute_command_sync(cmd, 10);
@@ -943,23 +963,22 @@ std::string semcode_backend::extract_identifier_at(const std::string &filepath, 
 	std::string token = current_line.substr(start, end - start);
 
 	static const std::unordered_set<std::string_view> specifiers = {
-		"static", "inline", "virtual", "explicit", "extern", "constexpr", "consteval",
-		"noexcept", "noinstr", "__always_inline", "__init", "__exit", "asmlinkage",
-		"__sched", "void", "int", "bool", "char", "long", "short", "unsigned",
-		"signed", "size_t", "ssize_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t",
-		"int8_t", "int16_t", "int32_t", "int64_t", "u8", "u16", "u32", "u64",
-		"s8", "s16", "s32", "s64", "ktime_t", "auto", "double", "float", "const",
-		"struct", "class", "enum"
-	};
+	    "static",	"inline",  "virtual",	 "explicit", "extern",	"constexpr", "consteval", "noexcept", "noinstr", "__always_inline",
+	    "__init",	"__exit",  "asmlinkage", "__sched",  "void",	"int",	     "bool",	  "char",     "long",	 "short",
+	    "unsigned", "signed",  "size_t",	 "ssize_t",  "uint8_t", "uint16_t",  "uint32_t",  "uint64_t", "int8_t",	 "int16_t",
+	    "int32_t",	"int64_t", "u8",	 "u16",	     "u32",	"u64",	     "s8",	  "s16",      "s32",	 "s64",
+	    "ktime_t",	"auto",	   "double",	 "float",    "const",	"struct",    "class",	  "enum"};
 
 	if (character == 0 && specifiers.contains(token)) {
 		size_t scan = end;
 		while (scan < current_line.size()) {
-			while (scan < current_line.size() && !std::isalpha(static_cast<unsigned char>(current_line[scan])) && current_line[scan] != '_') {
+			while (scan < current_line.size() && !std::isalpha(static_cast<unsigned char>(current_line[scan])) &&
+			       current_line[scan] != '_') {
 				scan++;
 			}
 			size_t w_start = scan;
-			while (scan < current_line.size() && (std::isalnum(static_cast<unsigned char>(current_line[scan])) || current_line[scan] == '_')) {
+			while (scan < current_line.size() &&
+			       (std::isalnum(static_cast<unsigned char>(current_line[scan])) || current_line[scan] == '_')) {
 				scan++;
 			}
 			if (scan > w_start) {
