@@ -1,10 +1,13 @@
-// Tested source file: src/semcode_backend.cpp
+// Tested source file: src/semcode_backend.cpp, src/codemap_utils.cpp, src/call_token_extractor.cpp
 #include <cassert>
 #include <sys/stat.h>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include "agentlib/tool_context.h"
+#include "agentlib/tool_registry.h"
+#include "codemap_utils.h"
 #include "event_queue.h"
 #include "fs_utils.h"
 #include "lsp_manager.h"
@@ -12,6 +15,7 @@
 #include "semcode_backend.h"
 #include "standard_lsp_backend.h"
 #include "test_watchdog.h"
+#include <nlohmann/json.hpp>
 
 namespace fs = std::filesystem;
 
@@ -86,7 +90,7 @@ static void test_hybrid_cli_queries()
 {
 	std::cout << "Testing hybrid semcode CLI integration..." << std::endl;
 
-	std::string test_dir = fs_utils::get_project_tmp_dir() + "/test_semcode_cli";
+	std::string test_dir = fs_utils::safe_absolute(fs_utils::get_project_tmp_dir() + "/test_semcode_cli").string();
 	fs::create_directories(test_dir);
 
 	// Create a dummy source file
@@ -98,7 +102,15 @@ static void test_hybrid_cli_queries()
 		    << "};\n"
 		    << "\n"
 		    << "int target_func(void) {\n"
+		    << "    callee_sub(123);\n"
 		    << "    return 42;\n"
+		    << "}\n";
+	}
+	std::string dep_file = test_dir + "/dep.c";
+	{
+		std::ofstream out(dep_file);
+		out << "void callee_sub(int x) {\n"
+		    << "    (void)x;\n"
 		    << "}\n";
 	}
 
@@ -128,9 +140,16 @@ static void test_hybrid_cli_queries()
 		    << "    echo 'Fields:'\n"
 		    << "    echo '  - int field'\n"
 		    << "    ;;\n"
+		    << "  *\"func callee_sub\"*)\n"
+		    << "    echo 'File: dep.c'\n"
+		    << "    echo 'Line: 1-3'\n"
+		    << "    echo 'Return type: void'\n"
+		    << "    echo 'Function Definition:'\n"
+		    << "    echo 'void callee_sub(int x)'\n"
+		    << "    ;;\n"
 		    << "  *\"func target_func\"*)\n"
 		    << "    echo 'File: main.c'\n"
-		    << "    echo 'Line: 5-7'\n"
+		    << "    echo 'Line: 5-8'\n"
 		    << "    echo 'Return type: int'\n"
 		    << "    echo 'Function Definition:'\n"
 		    << "    echo 'int target_func(void)'\n"
@@ -226,6 +245,27 @@ static void test_hybrid_cli_queries()
 	assert(cached_ev->payload.find("dummy_struct") != std::string::npos);
 
 	backend.stop();
+
+	// 9. Called dependencies test under semcode_backend:
+	// Verify that get_outgoing_calls_in_range resolves callee_sub(123) in main.c lines 5-8 to dep.c
+	project_manager::get_instance().set_project_root(test_dir);
+	project_manager::get_instance().set_lsp_backend_for_testing(std::make_unique<semcode_backend>(test_dir));
+	auto outgoing_calls = tools::get_outgoing_calls_in_range(src_file, 5, 8, nullptr);
+	assert(!outgoing_calls.empty());
+	assert(outgoing_calls[0].target_name == "callee_sub");
+	assert(outgoing_calls[0].target_file.find("dep.c") != std::string::npos);
+
+	// 10. Verify that select_prioritized_codemap_symbols and format_codemap_table format the Called Dependencies table under semcode_backend
+	agentlib::tool_context ctx;
+	ctx.fs_security.set_working_directory(test_dir);
+	ctx.fs_security.add_allowed_root(test_dir, agentlib::access_type::read);
+	auto all_syms = tools::get_document_codemap_symbols(src_file, ctx, 1);
+	auto selected = tools::select_prioritized_codemap_symbols(all_syms, 5, 8, src_file, ctx, 10);
+	std::string table_md = tools::format_codemap_table(src_file, selected.selected_symbols, 8, selected.total_symbols, selected.omitted_count, &ctx);
+	assert(table_md.find("### Called Dependencies:") != std::string::npos);
+	assert(table_md.find("`callee_sub`") != std::string::npos);
+	assert(table_md.find("dep.c") != std::string::npos);
+
 	unsetenv("SEMCODE_BIN");
 	fs::remove_all(test_dir);
 	std::cout << "  Passed!" << std::endl;

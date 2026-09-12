@@ -1,5 +1,5 @@
 // Tested source file: src/codemap_utils.cpp, src/tools/fs_file_codemap/fs_file_codemap_entry.cpp,
-// src/tools/fs_read_lines/fs_read_lines_entry.cpp
+// src/tools/fs_read_lines/fs_read_lines_entry.cpp, src/call_token_extractor.cpp
 #include <cassert>
 #include <fstream>
 #include <iostream>
@@ -8,7 +8,47 @@
 #include "agentlib/tool_registry.h"
 #include "codemap_utils.h"
 #include "lsp_manager.h"
+#include "project_manager.h"
 #include "test_watchdog.h"
+
+namespace {
+
+class mock_no_hierarchy_backend : public lsp_backend {
+public:
+	void start(event_queue &) override {}
+	void stop() override {}
+	void open_document(const std::string &, const std::string &) override {}
+	void update_document(const std::string &, const std::string &) override {}
+	void request_hover(const std::string &, int, int) override {}
+	void request_document_highlight(const std::string &, int, int) override {}
+	void request_selection_range(const std::string &, int, int) override {}
+	[[nodiscard]] bool is_supported_file(const std::string &) const override { return true; }
+	[[nodiscard]] std::vector<text_range> query_selection_ranges(const std::string &, int, int) override { return {}; }
+	[[nodiscard]] std::vector<location_info> query_definition(const std::string &filepath, int line, int col) override
+	{
+		(void)filepath; (void)line; (void)col;
+		location_info loc;
+		loc.path = "test_opt_a_dep.cpp";
+		loc.range = {0, 0, 3, 0};
+		return {loc};
+	}
+	[[nodiscard]] std::vector<location_info> query_references(const std::string &, int, int) override { return {}; }
+	[[nodiscard]] std::vector<symbol_info> query_workspace_symbols(const std::string &) override { return {}; }
+	[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &) override { return {}; }
+	void invalidate_symbol_cache(const std::string &) override {}
+	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &, int, int) override { return {}; }
+	[[nodiscard]] std::vector<outgoing_call_item> query_call_hierarchy_outgoing_batch(
+		const std::string &, const std::vector<std::pair<int, int>> &,
+		std::chrono::steady_clock::time_point) override
+	{
+		return {}; // Intentionally empty to simulate LSP servers without call hierarchy (like semcode-lsp)
+	}
+	[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &, int, int) override { return {}; }
+	[[nodiscard]] std::optional<std::vector<diagnostic_info>> query_file_diagnostics(const std::string &) override { return std::nullopt; }
+	void store_file_diagnostics(const std::string &, const std::vector<diagnostic_info> &) override {}
+};
+
+} // namespace
 
 int main()
 {
@@ -722,6 +762,36 @@ int main()
 		assert(plain_res.find("4: block_two") == std::string::npos);
 
 		std::remove(plain_file.c_str());
+	}
+
+	// 21. Test Approach A: In-slice outgoing call extraction when LSP backend lacks call hierarchy (e.g. semcode)
+	{
+		std::string dep_file = "test_opt_a_dep.cpp";
+		{
+			std::ofstream out_dep(dep_file);
+			out_dep << "void callee_slice_func(int x)\n{\n    (void)x;\n}\n";
+		}
+
+		std::string main_file = "test_opt_a_main.cpp";
+		{
+			std::ofstream out_main(main_file);
+			out_main << "void caller_slice_func()\n{\n    callee_slice_func(99);\n}\n";
+			for (int i = 0; i < 30; ++i) {
+				out_main << "// padding " << i << "\n";
+			}
+		}
+
+		project_manager::get_instance().set_lsp_backend_for_testing(std::make_unique<mock_no_hierarchy_backend>());
+
+		nlohmann::json read_slice_args = {{"path", main_file}, {"start_line", 1}, {"end_line", 5}};
+		std::string read_slice_res = registry.execute_tool("fs_read_lines", read_slice_args.dump(), ctx);
+		std::cout << "fs_read_lines Approach A output:\n" << read_slice_res << "\n";
+		assert(read_slice_res.find("### Called Dependencies:") != std::string::npos);
+		assert(read_slice_res.find("`callee_slice_func`") != std::string::npos);
+		assert(read_slice_res.find("test_opt_a_dep.cpp") != std::string::npos);
+
+		std::remove(main_file.c_str());
+		std::remove(dep_file.c_str());
 	}
 
 	// Cleanup

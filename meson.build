@@ -290,9 +290,15 @@ test('unit_lsp_backend', test_lsp_backend, suite: 'editor')
 
 test_semcode_backend = executable('test_semcode_backend',
   ['tests/unit/test_semcode_backend.cpp'],
-  dependencies : [core_dep, lsp_dep],
+  dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep],
   include_directories: inc)
 test('unit_semcode_backend', test_semcode_backend, suite: 'editor')
+
+test_call_token_extractor = executable('test_call_token_extractor',
+  ['tests/unit/test_call_token_extractor.cpp'],
+  dependencies : [core_dep],
+  include_directories: inc)
+test('unit_call_token_extractor', test_call_token_extractor, suite: 'editor')
 
 test_ansi_terminal_emulator = executable('test_ansi_terminal_emulator',
   ['tests/unit/test_ansi_terminal_emulator.cpp', 'src/ui/ansi_terminal_emulator.cpp', 'src/event_logger.cpp', 'src/utf8.cpp', 'src/mime.cpp'],

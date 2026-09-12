@@ -50,6 +50,15 @@ class project_manager
 		enforce_initialization_ = enforce;
 	}
 
+	void set_lsp_backend_for_testing(std::unique_ptr<lsp_backend> backend)
+	{
+		if (!lsp_manager_) {
+			lsp_manager_ = std::make_unique<lsp_manager>(std::move(backend));
+		} else {
+			lsp_manager_->set_backend(std::move(backend));
+		}
+	}
+
 	bool is_exiting() const
 	{
 		return is_exiting_;

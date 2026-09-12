@@ -58,7 +58,8 @@ core_sources = files(
   'images/image_manager.cpp',
   'tools/troff2md.cpp',
   'type_definition_cache.cpp',
-  'type_token_extractor.cpp'
+  'type_token_extractor.cpp',
+  'call_token_extractor.cpp'
 )
 
 

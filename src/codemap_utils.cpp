@@ -1,4 +1,5 @@
 #include "codemap_utils.h"
+#include "call_token_extractor.h"
 #include "event_logger.h"
 #include "type_definition_cache.h"
 
@@ -510,20 +511,39 @@ static int get_symbol_name_column(const std::string &file_path, int start_line)
 	return 0;
 }
 
-static bool is_project_file(const std::string &path, agentlib::tool_context * /*ctx*/ = nullptr)
+static bool is_project_file(std::string_view path, agentlib::tool_context * /*ctx*/ = nullptr)
 {
 	if (path.empty())
 		return false;
+	if (path.starts_with("file://")) {
+		path.remove_prefix(7);
+	}
+	if (path.empty())
+		return false;
+
+	std::filesystem::path abs_p = fs_utils::safe_absolute(std::string(path));
+	std::string proj_root = project_manager::get_instance().get_project_root();
+	if (proj_root.empty()) {
+		proj_root = fs_utils::get_project_dir();
+	}
+	if (!proj_root.empty()) {
+		std::filesystem::path root_p = fs_utils::safe_absolute(proj_root);
+		std::error_code ec;
+		auto rel_p = std::filesystem::relative(abs_p, root_p, ec);
+		if (!ec && !rel_p.empty() && rel_p.string() != "." && !rel_p.string().starts_with("..") && !rel_p.is_absolute()) {
+			return true;
+		}
+	}
+
 	if (path.starts_with("/usr/") || path.starts_with("/opt/") || path.starts_with("/lib/") || path.starts_with("/tmp/") ||
 	    path.starts_with("/etc/") || path.starts_with("/var/")) {
 		return false;
 	}
-	if (path.find("/include/") != std::string::npos || path.find("/bits/") != std::string::npos ||
-	    path.find("gcc/") != std::string::npos || path.find("clang/") != std::string::npos) {
+	if (path.find("/include/") != std::string_view::npos || path.find("/bits/") != std::string_view::npos ||
+	    path.find("gcc/") != std::string_view::npos || path.find("clang/") != std::string_view::npos) {
 		return false;
 	}
 
-	std::filesystem::path abs_p = fs_utils::safe_absolute(path);
 	std::string rel = fs_utils::make_relative_to_project(abs_p.string());
 	if (rel.empty() || rel.starts_with("/") || rel.starts_with("inc://") || rel.starts_with("..")) {
 		return false;
@@ -723,6 +743,99 @@ static void refresh_outgoing_calls_async(std::string safe_path, std::vector<code
 	}).detach();
 }
 
+static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
+	const std::string &safe_path, int start_line, int end_line,
+	std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
+	agentlib::tool_context *ctx,
+	std::chrono::steady_clock::time_point deadline)
+{
+	std::ifstream in(safe_path);
+	if (!in.is_open()) {
+		return {};
+	}
+
+	std::vector<std::string> slice_lines;
+	std::string current_line_text;
+	int current_line_num = 1;
+	while (std::getline(in, current_line_text)) {
+		if (current_line_num >= start_line && current_line_num <= end_line) {
+			slice_lines.push_back(current_line_text);
+		}
+		if (current_line_num > end_line) {
+			break;
+		}
+		++current_line_num;
+	}
+
+	if (slice_lines.empty()) {
+		return {};
+	}
+
+	auto candidates = call_token_extractor::extract_candidates(slice_lines, start_line);
+	if (candidates.empty()) {
+		return {};
+	}
+
+	std::string norm_safe_path = fs_utils::make_relative_to_project(safe_path);
+	std::vector<outgoing_call_reference> results;
+	std::unordered_set<std::string> seen_names;
+
+	for (const auto &cand : candidates) {
+		if (std::chrono::steady_clock::now() >= deadline) {
+			break;
+		}
+		if (seen_names.contains(cand.name)) {
+			continue;
+		}
+		seen_names.insert(cand.name);
+
+		auto defs = project_manager::get_instance().lsp_query_definition(safe_path, cand.line - 1, cand.col);
+		for (const auto &def : defs) {
+			if (def.path.empty() || !is_project_file(def.path, ctx)) {
+				continue;
+			}
+			std::string norm_def = fs_utils::make_relative_to_project(def.path);
+			if (norm_def.empty() || norm_def == norm_safe_path) {
+				continue;
+			}
+
+			outgoing_call_reference ref;
+			ref.caller_file = safe_path;
+			ref.call_line = cand.line;
+			ref.target_name = cand.name;
+			ref.target_file = norm_def;
+			ref.target_start_line = def.range.start_y + 1;
+			ref.target_end_line = (def.range.end_y > def.range.start_y) ? (def.range.end_y + 1) : ref.target_start_line;
+			ref.target_kind = "Function";
+			ref.is_direct_read_call = true;
+
+			// If end_line == start_line, attempt to look up exact symbol bounds in symbols_cache
+			if (ref.target_end_line == ref.target_start_line) {
+				if (!symbols_cache.contains(norm_def)) {
+					std::vector<codemap_symbol_info> syms;
+					fallback_find_symbols(norm_def, 1, syms);
+					symbols_cache[norm_def] = std::move(syms);
+				}
+				const auto &syms = symbols_cache[norm_def];
+				const auto *found = find_symbol_by_hint(syms, cand.name);
+				if (found && is_matching_function_symbol(found, cand.name)) {
+					ref.target_start_line = found->start_line;
+					ref.target_end_line = found->end_line;
+				}
+			}
+
+			results.push_back(std::move(ref));
+			break;
+		}
+
+		if (results.size() >= 10) {
+			break;
+		}
+	}
+
+	return results;
+}
+
 std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::string &safe_path, int start_line, int end_line,
 								 agentlib::tool_context *ctx,
 								 std::chrono::steady_clock::time_point deadline)
@@ -841,6 +954,21 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 	for (const auto &call : all_calls) {
 		if (call.call_line >= start_line && call.call_line <= end_line) {
 			range_result.push_back(call);
+		}
+	}
+
+	// Fallback/In-slice extraction (Approach A):
+	// If standard LSP call hierarchy returned no calls in range (e.g. semcode_backend
+	// or servers lacking call hierarchy support), scan the slice directly for call candidates
+	// and resolve their definitions via LSP/semcode.
+	if (range_result.empty() && std::chrono::steady_clock::now() < deadline) {
+		range_result = extract_outgoing_calls_from_slice(safe_path, start_line, end_line, symbols_cache, ctx, deadline);
+		if (!range_result.empty()) {
+			all_calls.insert(all_calls.end(), range_result.begin(), range_result.end());
+			if (!ec) {
+				std::lock_guard<std::mutex> lock(g_outgoing_calls_cache_mutex);
+				g_outgoing_calls_cache[safe_path] = {current_mtime, std::chrono::steady_clock::now(), all_calls};
+			}
 		}
 	}
 
