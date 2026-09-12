@@ -139,6 +139,14 @@ public:
                     }
                 }
             }
+            // If the tool schema declares 'paths', accept common file/path list variations:
+            if (props.contains("paths")) {
+                for (const auto &alias : {"files", "file_paths", "filepaths", "file", "path"}) {
+                    if (!props.contains(alias)) {
+                        alias_map[alias] = "paths";
+                    }
+                }
+            }
             // If the tool schema declares 'args', accept 'arguments':
             if (props.contains("args") && !props.contains("arguments")) {
                 alias_map["arguments"] = "args";
@@ -200,7 +208,14 @@ public:
                         }
                     }
                     else if (expected_type == "boolean" && it.value().is_boolean()) type_ok = true;
-                    else if (expected_type == "array" && it.value().is_array()) type_ok = true;
+                    else if (expected_type == "array") {
+                        if (it.value().is_array()) {
+                            type_ok = true;
+                        } else if (it.value().is_string()) {
+                            it.value() = nlohmann::json::array({it.value().get<std::string>()});
+                            type_ok = true;
+                        }
+                    }
                     else if (expected_type == "object" && it.value().is_object()) type_ok = true;
                     else if (expected_type == "number") {
                         if (it.value().is_number()) {
@@ -221,6 +236,8 @@ public:
                 }
             }
         }
+
+        validated_args_ = args;
 
         // Delegate to tool-specific validation
         if (validate_args_impl(args, ctx, out_error)) {

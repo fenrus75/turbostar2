@@ -1,4 +1,4 @@
-#include "test_watchdog.h"
+// Tested source file: src/tools/git_unstage/git_unstage_security.cpp
 #include <cassert>
 #include <filesystem>
 #include <fstream>
@@ -8,6 +8,7 @@
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/fs_utils.h"
 #include "../../src/project_manager.h"
+#include "test_watchdog.h"
 
 #include "git_test_helper.h"
 
@@ -36,29 +37,87 @@ int main()
 
 	std::cout << "Testing git_unstage..." << std::endl;
 
-	// 1. Success case: stage a file, then unstage it
+	// 1. Success case: stage a file, then unstage it using canonical paths array
 	{
 		std::filesystem::path dummy_file = std::filesystem::path(test_dir) / "temp_unstage_test.txt";
 		write_file(dummy_file, "content\n");
 
-		// Stage file
 		fs_utils::execute_command_sync("git add temp_unstage_test.txt");
 
-		// Verify it is staged
 		std::string status1 = fs_utils::execute_command_sync("git status --porcelain");
 		assert(status1.find("A  temp_unstage_test.txt") != std::string::npos);
 
-		// Unstage file
 		nlohmann::json args = {{"paths", {"temp_unstage_test.txt"}}};
 		std::string result = registry.execute_tool("git_unstage", args.dump(), ctx);
-		std::cout << "Result: " << result << std::endl;
 		assert(result.find("Successfully unstaged") != std::string::npos);
 
-		// Verify it is unstaged
 		std::string status2 = fs_utils::execute_command_sync("git status --porcelain");
 		assert(status2.find("?? temp_unstage_test.txt") != std::string::npos);
 
-		// Clean up
+		std::filesystem::remove(dummy_file);
+	}
+
+	// 1b. Single string in paths
+	{
+		std::filesystem::path dummy_file = std::filesystem::path(test_dir) / "unstage_str.txt";
+		write_file(dummy_file, "content\n");
+		fs_utils::execute_command_sync("git add unstage_str.txt");
+
+		nlohmann::json args = {{"paths", "unstage_str.txt"}};
+		std::string result = registry.execute_tool("git_unstage", args.dump(), ctx);
+		assert(result.find("Successfully unstaged") != std::string::npos);
+
+		std::string status = fs_utils::execute_command_sync("git status --porcelain");
+		assert(status.find("?? unstage_str.txt") != std::string::npos);
+
+		std::filesystem::remove(dummy_file);
+	}
+
+	// 1c. Alias 'files' array
+	{
+		std::filesystem::path dummy_file = std::filesystem::path(test_dir) / "unstage_files.txt";
+		write_file(dummy_file, "content\n");
+		fs_utils::execute_command_sync("git add unstage_files.txt");
+
+		nlohmann::json args = {{"files", {"unstage_files.txt"}}};
+		std::string result = registry.execute_tool("git_unstage", args.dump(), ctx);
+		assert(result.find("Successfully unstaged") != std::string::npos);
+
+		std::string status = fs_utils::execute_command_sync("git status --porcelain");
+		assert(status.find("?? unstage_files.txt") != std::string::npos);
+
+		std::filesystem::remove(dummy_file);
+	}
+
+	// 1d. Alias 'path' single string
+	{
+		std::filesystem::path dummy_file = std::filesystem::path(test_dir) / "unstage_path.txt";
+		write_file(dummy_file, "content\n");
+		fs_utils::execute_command_sync("git add unstage_path.txt");
+
+		nlohmann::json args = {{"path", "unstage_path.txt"}};
+		std::string result = registry.execute_tool("git_unstage", args.dump(), ctx);
+		assert(result.find("Successfully unstaged") != std::string::npos);
+
+		std::string status = fs_utils::execute_command_sync("git status --porcelain");
+		assert(status.find("?? unstage_path.txt") != std::string::npos);
+
+		std::filesystem::remove(dummy_file);
+	}
+
+	// 1e. Alias 'file' single string
+	{
+		std::filesystem::path dummy_file = std::filesystem::path(test_dir) / "unstage_file.txt";
+		write_file(dummy_file, "content\n");
+		fs_utils::execute_command_sync("git add unstage_file.txt");
+
+		nlohmann::json args = {{"file", "unstage_file.txt"}};
+		std::string result = registry.execute_tool("git_unstage", args.dump(), ctx);
+		assert(result.find("Successfully unstaged") != std::string::npos);
+
+		std::string status = fs_utils::execute_command_sync("git status --porcelain");
+		assert(status.find("?? unstage_file.txt") != std::string::npos);
+
 		std::filesystem::remove(dummy_file);
 	}
 

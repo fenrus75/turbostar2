@@ -821,6 +821,14 @@ test_git_list_files = executable('test_git_list_files',
   include_directories: inc)
 test('unit_test_git_list_files', test_git_list_files, suite: 'agent')
 
+test_git_add = executable('test_git_add',
+  ['tests/unit/test_git_add.cpp',
+   'src/tools/git_add/git_add_entry.cpp',
+   'src/tools/git_add/git_add_security.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_git_add', test_git_add, suite: 'agent')
+
 test_git_unstage = executable('test_git_unstage',
   ['tests/unit/test_git_unstage.cpp',
    'src/tools/git_unstage/git_unstage_entry.cpp',

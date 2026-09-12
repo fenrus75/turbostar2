@@ -8,30 +8,44 @@ bool git_add_validator::validate_args_impl(const nlohmann::json &args, const age
 {
 	resolved_paths_.clear();
 
-	if (!args.contains("paths") || !args["paths"].is_array()) {
-		out_error = "Missing or invalid 'paths' array.";
+	if (!args.contains("paths")) {
+		out_error = "Missing required argument 'paths' (or 'files', 'path', 'file').";
 		return false;
 	}
 
-	if (args["paths"].empty()) {
-		out_error = "The 'paths' array cannot be empty.";
-		return false;
-	}
-
-	for (const auto &path_val : args["paths"]) {
-		if (!path_val.is_string()) {
-			out_error = "All items in 'paths' must be strings.";
+	std::vector<std::string> untrusted_raw_paths;
+	if (args["paths"].is_array()) {
+		if (args["paths"].empty()) {
+			out_error = "The 'paths' array cannot be empty.";
 			return false;
 		}
+		for (const auto &untrusted_val : args["paths"]) {
+			if (!untrusted_val.is_string()) {
+				out_error = "All items in 'paths' must be strings.";
+				return false;
+			}
+			untrusted_raw_paths.push_back(untrusted_val.get<std::string>());
+		}
+	} else if (args["paths"].is_string()) {
+		std::string s = args["paths"].get<std::string>();
+		if (s.empty()) {
+			out_error = "The 'paths' parameter cannot be empty.";
+			return false;
+		}
+		untrusted_raw_paths.push_back(std::move(s));
+	} else {
+		out_error = "Argument 'paths' must be an array of strings or a single string.";
+		return false;
+	}
 
-		std::string raw_path = path_val.get<std::string>();
+	for (const auto &untrusted_path : untrusted_raw_paths) {
 		std::string resolved_path;
 
 		// Stage 1 Security: Validate against the file_security_manager.
 		// Even though git add doesn't strictly 'read' the file into our process,
 		// it exposes file metadata to the git index, so we require read permission.
-		if (!ctx.fs_security.validate_access(raw_path, agentlib::access_type::read, resolved_path, out_error)) {
-			out_error = "Access denied for path '" + raw_path + "': " + out_error;
+		if (!ctx.fs_security.validate_access(untrusted_path, agentlib::access_type::read, resolved_path, out_error)) {
+			out_error = "Access denied for path '" + untrusted_path + "': " + out_error;
 			return false;
 		}
 
