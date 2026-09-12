@@ -123,7 +123,7 @@ int main()
 
 	// 4. Test agent_get_profile_summary hierarchy assertions with tolerances
 	{
-		std::string args = "{\"run_id\": \"e2e_prime\", \"limit\": 10}";
+		std::string args = "{\"run_id\": \"e2e_prime\", \"limit\": 10, \"format\": \"json\"}";
 		auto prep = registry.prepare_tool("agent_get_profile_summary", args, ctx);
 		assert(prep.tool != nullptr);
 		assert(prep.error_message.empty());
@@ -149,7 +149,7 @@ int main()
 
 	// 5. Test agent_get_profile_details for is_prime_vA (strict bounds [3, 9])
 	{
-		std::string args = std::format("{{\"function_name\": \"is_prime_vA\", \"path\": \"{}\", \"run_id\": \"e2e_prime\"}}",
+		std::string args = std::format("{{\"function_name\": \"is_prime_vA\", \"path\": \"{}\", \"run_id\": \"e2e_prime\", \"format\": \"json\"}}",
 					       prime_cpp_path.string());
 		auto prep = registry.prepare_tool("agent_get_profile_details", args, ctx);
 		assert(prep.tool != nullptr);
@@ -174,7 +174,7 @@ int main()
 
 	// 6. Test agent_get_profile_details for is_prime_vD (strict bounds [33, 41])
 	{
-		std::string args = std::format("{{\"function_name\": \"is_prime_vD\", \"path\": \"{}\", \"run_id\": \"e2e_prime\"}}",
+		std::string args = std::format("{{\"function_name\": \"is_prime_vD\", \"path\": \"{}\", \"run_id\": \"e2e_prime\", \"format\": \"json\"}}",
 					       prime_cpp_path.string());
 		auto prep = registry.prepare_tool("agent_get_profile_details", args, ctx);
 		assert(prep.tool != nullptr);

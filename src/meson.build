@@ -18,6 +18,8 @@ core_sources = files(
   'statistics_manager.cpp',
   'codereview_manager.cpp',
   'git_manager.cpp',
+  'lsp_backend.cpp',
+  'standard_lsp_backend.cpp',
   'lsp_manager.cpp',
   'project_manager.cpp',
   'project_template_manager.cpp',

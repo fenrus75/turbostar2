@@ -249,6 +249,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # Done
 
+## 12-09-2026
+- LSP architecture backend strategy split (Step 1): abstracted Language Server Protocol operations into an `lsp_backend` base class interface (`src/lsp_backend.h`, `src/lsp_backend.cpp`), extracted the standard language server implementation (`clangd`, `pylsp`, JSON-RPC process management, document version tracking, symbol caching) into `standard_lsp_backend` (`src/standard_lsp_backend.h`, `src/standard_lsp_backend.cpp`), and refactored `lsp_manager` into a clean facade delegating to `lsp_backend`. Added subclass documentation tables, documented architecture in `docs/design.md`, fixed redundant file stream reopen handling in `event_logger::set_log_file`, and added unit tests in `tests/unit/test_lsp_backend.cpp`. (Completed)
+
 ## 11-09-2026
 - Standardize all codemap tables to exact `fs_read_lines` parameter names: renamed column headers across all codemap tables (`format_codemap_table`, `Called Dependencies`, `Type Definitions`, and `crashdump_manager` summary) to use exact `fs_read_lines` argument names (`path`, `start_line`, `end_line`, `lines`) to enable zero-shot prompt copy/paste for LLM attention heads; updated unit test assertions in `tests/unit/test_type_definition_cache.cpp`, `tests/unit/test_tools.cpp`, and `tests/unit/test_fs_file_codemap.cpp`. (Completed)
 - Consolidated Called Dependencies table: replaced per-file cross-dependency codemap mini-tables with a single unified `### Called Dependencies:` table in `format_codemap_table`, reducing markdown boilerplate overhead by ~65%. (Completed)

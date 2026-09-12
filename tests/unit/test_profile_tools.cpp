@@ -45,7 +45,7 @@ int main()
 
 	// 1. Test agent_get_profile_summary
 	{
-		auto prep = registry.prepare_tool("agent_get_profile_summary", "{\"limit\": 5}", ctx);
+		auto prep = registry.prepare_tool("agent_get_profile_summary", "{\"limit\": 5, \"format\": \"json\"}", ctx);
 		assert(prep.tool != nullptr);
 		assert(prep.error_message.empty());
 
@@ -59,7 +59,7 @@ int main()
 
 	// 2. Test agent_get_profile_details by file
 	{
-		auto prep = registry.prepare_tool("agent_get_profile_details", "{\"path\": \"src/main.cpp\"}", ctx);
+		auto prep = registry.prepare_tool("agent_get_profile_details", "{\"path\": \"src/main.cpp\", \"format\": \"json\"}", ctx);
 		assert(prep.tool != nullptr);
 		assert(prep.error_message.empty());
 
@@ -90,7 +90,7 @@ int main()
 
 	// 3. Test agent_get_profile_details by function name (substring match)
 	{
-		auto prep = registry.prepare_tool("agent_get_profile_details", "{\"function_name\": \"test_func_a\"}", ctx);
+		auto prep = registry.prepare_tool("agent_get_profile_details", "{\"function_name\": \"test_func_a\", \"format\": \"json\"}", ctx);
 		assert(prep.tool != nullptr);
 		assert(prep.error_message.empty());
 
@@ -117,7 +117,7 @@ int main()
 			perf_line_sample{.file_path = "src/math.cpp", .line_number = 88, .function_name = "test_func_c(int, double)", .count = 200, .percentage = 20.0});
 		perf_manager::get_instance().set_active_profile(report);
 
-		auto prep = registry.prepare_tool("agent_get_profile_details", "{\"function_name\": \"test_func_c()\"}", ctx);
+		auto prep = registry.prepare_tool("agent_get_profile_details", "{\"function_name\": \"test_func_c()\", \"format\": \"json\"}", ctx);
 		assert(prep.tool != nullptr);
 		assert(prep.error_message.empty());
 
@@ -130,7 +130,7 @@ int main()
 
 	// 4. Test agent_get_profile_details all
 	{
-		auto prep = registry.prepare_tool("agent_get_profile_details", "{}", ctx);
+		auto prep = registry.prepare_tool("agent_get_profile_details", "{\"format\": \"json\"}", ctx);
 		assert(prep.tool != nullptr);
 		assert(prep.error_message.empty());
 
@@ -154,19 +154,19 @@ int main()
 		perf_manager::get_instance().set_active_profile(run_b, "run_2");
 
 		// Test summary for run_1 via string "run_1" and integer 1
-		auto prep1 = registry.prepare_tool("agent_get_profile_summary", "{\"run_id\": \"run_1\"}", ctx);
+		auto prep1 = registry.prepare_tool("agent_get_profile_summary", "{\"run_id\": \"run_1\", \"format\": \"json\"}", ctx);
 		assert(prep1.tool != nullptr);
 		auto res1 = parse_tool_json(prep1.tool->execute(ctx));
 		assert(res1["total_samples"] == 2000);
 		assert(res1["run_id"] == "run_1");
 
-		auto prep1_num = registry.prepare_tool("agent_get_profile_summary", "{\"run_id\": 1}", ctx);
+		auto prep1_num = registry.prepare_tool("agent_get_profile_summary", "{\"run_id\": 1, \"format\": \"json\"}", ctx);
 		assert(prep1_num.tool != nullptr);
 		auto res1_num = parse_tool_json(prep1_num.tool->execute(ctx));
 		assert(res1_num["total_samples"] == 2000);
 
 		// Test summary for run_2
-		auto prep2 = registry.prepare_tool("agent_get_profile_summary", "{\"run_id\": \"run_2\"}", ctx);
+		auto prep2 = registry.prepare_tool("agent_get_profile_summary", "{\"run_id\": \"run_2\", \"format\": \"json\"}", ctx);
 		assert(prep2.tool != nullptr);
 		auto res2 = parse_tool_json(prep2.tool->execute(ctx));
 		assert(res2["total_samples"] == 3000);
@@ -185,7 +185,7 @@ int main()
 
 		perf_manager::get_instance().set_active_profile(run_c, "run_3");
 
-		auto prep = registry.prepare_tool("agent_get_profile_details", "{\"run_id\": \"run_3\", \"function_name\": \"editor::dispatch\"}", ctx);
+		auto prep = registry.prepare_tool("agent_get_profile_details", "{\"run_id\": \"run_3\", \"function_name\": \"editor::dispatch\", \"format\": \"json\"}", ctx);
 		assert(prep.tool != nullptr);
 		auto res = parse_tool_json(prep.tool->execute(ctx));
 		assert(res["total_samples"] == 5000);
@@ -208,7 +208,7 @@ int main()
 
 		perf_manager::get_instance().set_active_profile(run_d, "run_4");
 
-		auto prep = registry.prepare_tool("agent_get_profile_details", "{\"run_id\": \"run_4\", \"function_name\": \"is_prime_vA\"}", ctx);
+		auto prep = registry.prepare_tool("agent_get_profile_details", "{\"run_id\": \"run_4\", \"function_name\": \"is_prime_vA\", \"format\": \"json\"}", ctx);
 		assert(prep.tool != nullptr);
 		auto res = parse_tool_json(prep.tool->execute(ctx));
 		assert(res["total_samples"] == 5000);

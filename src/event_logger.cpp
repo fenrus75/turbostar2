@@ -23,6 +23,10 @@ event_logger::~event_logger()
 void event_logger::set_log_file(std::string_view filename)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
+	if (log_stream_.is_open()) {
+		log_stream_.close();
+	}
+	log_stream_.clear();
 	log_stream_.open(std::string(filename), std::ios::app);
 }
 

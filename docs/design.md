@@ -272,3 +272,13 @@ Turbostar provides a built-in project creation wizard (`ui_dialog_project`) and 
   - `verilator_sv`: SystemVerilog simulation and linting project with Verilator and Meson (`meson compile -C build`, `meson test -C build`).
   - `fpga_ice40`: SystemVerilog FPGA hardware synthesis and implementation project targeting the Lattice iCE40-HX8K (Alchitry Cu) with Meson, Yosys, nextpnr-ice40, Project IceStorm (`icepack`), and `iceprog` with `pins.pcf` physical pin constraints.
 - **Variable Substitution & Overrides**: The template manager performs token expansion (`@@PROJECT_NAME@@`, `@@PROJECT_NAME_LOWER@@`, `@@LANGUAGE_STD@@`) and resolves standard-specific file overrides (e.g., `.C++17`).
+
+## Language Server Protocol (LSP) Architecture
+
+Turbostar integrates Language Server Protocol (LSP) intelligence across editor interactions (F3 definition jumps, F4 references, hovers, diagnostics) and LLM agent tools (`fs_read_symbol`, `code_get_definition`, `code_get_references`, `code_get_scope`, and `fs_file_codemap`).
+
+The LSP subsystem uses the **Strategy Pattern** to separate protocol abstraction from concrete language server backends:
+- **`lsp_backend` Interface** (`src/lsp_backend.h`): Abstract base class specifying virtual operations for document synchronization (`open_document`, `update_document`), interactive queries (`request_hover`, `request_document_highlight`, `request_selection_range`), symbol inspection (`query_definition`, `query_references`, `query_workspace_symbols`, `query_document_symbols`), call & type hierarchies, and diagnostics.
+- **`standard_lsp_backend` Implementation** (`src/standard_lsp_backend.h`, `src/standard_lsp_backend.cpp`): Subclass managing external language server processes (`clangd` for C/C++, `pylsp` for Python) spawned with lowered CPU priority (`nice -n 10`), stdio JSON-RPC streams, versioned document tracking, symbol caching, and parallel server teardown.
+- **`lsp_manager` Facade** (`src/lsp_manager.h`, `src/lsp_manager.cpp`): High-level facade owned by `project_manager`. Exposes a stable interface to the editor, codemap helpers, and agent tools while forwarding requests to the active `lsp_backend` strategy.
+- **Extensibility & Mocking**: Enables alternative backends (such as `semcode_backend` for Linux kernel repositories) and mock backends in unit tests to achieve high test coverage without requiring external server binaries.
