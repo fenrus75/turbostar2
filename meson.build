@@ -94,8 +94,8 @@ system_docs_embedded_h = custom_target('system_docs_embedded.h',
 httplib_dep = dependency('cpp-httplib', required : true)
 curl_dep = dependency('libcurl', required : true)
 openssl_dep = dependency('openssl', required : true)
-# 3.12 added the std::optional support the NLOHMANN_DEFINE_TYPE_* validators rely on.
-nlohmann_json_dep = dependency('nlohmann_json', version : '>=3.12', required : true)
+# 3.11 added the std::optional support the NLOHMANN_DEFINE_TYPE_* validators rely on.
+nlohmann_json_dep = dependency('nlohmann_json', version : '>=3.11', required : true)
 thread_dep = dependency('threads')
 re2_dep = dependency('re2', required : true)
 sqlite3_dep = dependency('sqlite3', required : true)
