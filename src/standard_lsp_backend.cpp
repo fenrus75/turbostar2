@@ -28,10 +28,10 @@ standard_lsp_backend::~standard_lsp_backend()
 
 void standard_lsp_backend::start_server(const std::string &name, const std::vector<std::string> &args, const std::string &language_id)
 {
-	// Check if the server executable exists directly in /usr/bin before starting
-	std::string server_path = std::format("/usr/bin/{}", name);
-	if (!fs::exists(server_path)) {
-		event_logger::get_instance().log("LSP server executable '{}' not found. Skipping start.", server_path);
+	// Resolve server executable path via ~/.local/bin, PATH, or system binaries
+	std::string server_path = fs_utils::find_executable(name);
+	if (server_path.empty()) {
+		event_logger::get_instance().log("LSP server executable '{}' not found. Skipping start.", name);
 		return;
 	}
 
@@ -40,7 +40,7 @@ void standard_lsp_backend::start_server(const std::string &name, const std::vect
 	try {
 		// Launch the LSP server with a lower CPU priority using 'nice'
 		// This keeps the editor UI responsive during heavy background indexing.
-		std::vector<std::string> nice_args = {"-n", "10", name};
+		std::vector<std::string> nice_args = {"-n", "10", server_path};
 		for (const auto &arg : args) {
 			nice_args.push_back(arg);
 		}
@@ -68,8 +68,17 @@ void standard_lsp_backend::start_server(const std::string &name, const std::vect
 
 		auto initializeParams = lsp::requests::Initialize::Params();
 		initializeParams.processId = lsp::Process::currentProcessId();
-		std::string cwd = fs::current_path().string();
-		initializeParams.rootUri = lsp::DocumentUri::fromPath(cwd);
+		std::string root_dir = project_manager::get_instance().get_project_root();
+		if (root_dir.empty()) {
+			root_dir = fs::current_path().string();
+		}
+		initializeParams.rootUri = lsp::DocumentUri::fromPath(root_dir);
+		lsp::WorkspaceFolder ws_folder;
+		ws_folder.uri = lsp::DocumentUri::fromPath(root_dir);
+		ws_folder.name = "root";
+		std::vector<lsp::WorkspaceFolder> folders;
+		folders.push_back(std::move(ws_folder));
+		initializeParams.workspaceFolders = std::move(folders);
 		initializeParams.capabilities = {
 		    .textDocument = lsp::TextDocumentClientCapabilities{
 			.hover = lsp::HoverClientCapabilities{.contentFormat = {{lsp::MarkupKind::PlainText}}},

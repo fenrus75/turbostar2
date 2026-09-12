@@ -40,6 +40,9 @@ class project_manager
 	{
 		project_root_ = root;
 		invalidate_available_tests_cache();
+		if (lsp_manager_) {
+			lsp_manager_->set_backend(lsp_manager::create_default_backend(project_root_));
+		}
 	}
 
 	void set_enforce_initialization(bool enforce)

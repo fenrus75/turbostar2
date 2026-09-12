@@ -25,6 +25,7 @@ namespace lsp {
 
 | subclass        | filename                  |
 | --------------- | ------------------------- |
+| semcode_backend | src/semcode_backend.h     |
 
 */
 /**

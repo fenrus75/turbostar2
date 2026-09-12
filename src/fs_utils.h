@@ -142,6 +142,13 @@ bool is_shell_safe(std::string_view s, bool allow_tilde = false) noexcept;
 std::string escape_shell_arg(std::string_view arg);
 
 /**
+ * @brief Searches for an executable file in ~/.local/bin, PATH directories, and system paths (/usr/local/bin, /usr/bin, /bin).
+ * If name is an absolute path, verifies existence and executable permissions directly.
+ * @return Absolute path to the executable if found, or empty string if not found.
+ */
+std::string find_executable(std::string_view name);
+
+/**
  * @brief Unescapes backslash sequences like \\n, \\t, etc. into literal characters.
  */
 std::string unescape_string(std::string_view input);

@@ -271,10 +271,10 @@ test_event_logger = executable('test_event_logger',
 test('unit_event_logger', test_event_logger, suite: 'agent')
 
 test_file_health_tracker = executable('test_file_health_tracker',
-  ['tests/unit/test_file_health_tracker.cpp', 'src/event_logger.cpp', 'src/lsp_backend.cpp', 'src/standard_lsp_backend.cpp', 'src/lsp_manager.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/address_lookup.cpp', 'src/project_manager.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
+  ['tests/unit/test_file_health_tracker.cpp', 'src/event_logger.cpp', 'src/lsp_backend.cpp', 'src/standard_lsp_backend.cpp', 'src/semcode_backend.cpp', 'src/lsp_manager.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/address_lookup.cpp', 'src/project_manager.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
   dependencies: [agent_dep, core_dep, lsp_dep, nlohmann_json_dep, thread_dep],
   include_directories: inc)
-test('unit_file_health_tracker', test_file_health_tracker, suite: 'agent')
+test('unit_file_health_tracker', test_file_health_tracker, suite: 'agent', workdir: meson.project_source_root())
 
 test_project_template_manager = executable('test_project_template_manager',
   ['tests/unit/test_project_template_manager.cpp'],
@@ -287,6 +287,12 @@ test_lsp_backend = executable('test_lsp_backend',
   dependencies : [core_dep, lsp_dep],
   include_directories: inc)
 test('unit_lsp_backend', test_lsp_backend, suite: 'editor')
+
+test_semcode_backend = executable('test_semcode_backend',
+  ['tests/unit/test_semcode_backend.cpp'],
+  dependencies : [core_dep, lsp_dep],
+  include_directories: inc)
+test('unit_semcode_backend', test_semcode_backend, suite: 'editor')
 
 test_ansi_terminal_emulator = executable('test_ansi_terminal_emulator',
   ['tests/unit/test_ansi_terminal_emulator.cpp', 'src/ui/ansi_terminal_emulator.cpp', 'src/event_logger.cpp', 'src/utf8.cpp', 'src/mime.cpp'],
@@ -375,13 +381,13 @@ test('unit_binary_plugin', test_binary_plugin_impl, suite: 'plugins')
 
 
 test_history_manager = executable('test_history_manager',
-  ['tests/unit/test_history_manager.cpp', 'src/history_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/codemap_utils.cpp', 'src/address_lookup.cpp', 'src/project_manager.cpp', 'src/lsp_backend.cpp', 'src/standard_lsp_backend.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
+  ['tests/unit/test_history_manager.cpp', 'src/history_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/command_runner.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/codemap_utils.cpp', 'src/address_lookup.cpp', 'src/project_manager.cpp', 'src/lsp_backend.cpp', 'src/standard_lsp_backend.cpp', 'src/semcode_backend.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
   dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
   include_directories: 'src')
 test('unit_history_manager', test_history_manager, suite: 'editor')
 
 test_command_runner = executable('test_command_runner',
-  ['tests/unit/test_command_runner.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/crashdump_manager.cpp', 'src/codemap_utils.cpp', 'src/address_lookup.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/project_manager.cpp', 'src/lsp_backend.cpp', 'src/standard_lsp_backend.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
+  ['tests/unit/test_command_runner.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/event_logger.cpp', 'src/crashdump_manager.cpp', 'src/codemap_utils.cpp', 'src/address_lookup.cpp', 'src/fs_utils.cpp', 'src/git_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/project_manager.cpp', 'src/lsp_backend.cpp', 'src/standard_lsp_backend.cpp', 'src/semcode_backend.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: 'src')
 test('unit_command_runner', test_command_runner, suite: 'editor')
@@ -718,7 +724,7 @@ test_git_branch_list = executable('test_git_branch_list',
 test('unit_test_git_branch_list', test_git_branch_list, suite: 'agent')
 
 test_git_manager = executable('test_git_manager',
-  ['tests/unit/test_git_manager.cpp', 'src/git_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/codemap_utils.cpp', 'src/address_lookup.cpp', 'src/project_manager.cpp', 'src/lsp_backend.cpp', 'src/standard_lsp_backend.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
+  ['tests/unit/test_git_manager.cpp', 'src/git_manager.cpp', 'src/event_logger.cpp', 'src/fs_utils.cpp', 'src/command_runner.cpp', 'src/config_manager.cpp', 'src/build_error_manager.cpp', 'src/gcc_log_parser.cpp', 'src/event_queue.cpp', 'src/crashdump_manager.cpp', 'src/codemap_utils.cpp', 'src/address_lookup.cpp', 'src/project_manager.cpp', 'src/lsp_backend.cpp', 'src/standard_lsp_backend.cpp', 'src/semcode_backend.cpp', 'src/lsp_manager.cpp', 'src/codereview_manager.cpp', 'src/perf_manager.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_manager', test_git_manager, suite: 'agent')

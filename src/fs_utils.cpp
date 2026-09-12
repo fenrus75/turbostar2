@@ -638,6 +638,66 @@ std::string escape_shell_arg(std::string_view arg)
 	return escaped;
 }
 
+std::string find_executable(std::string_view name)
+{
+	if (name.empty()) {
+		return "";
+	}
+	namespace fs = std::filesystem;
+	std::error_code ec;
+	if (name.starts_with('/')) {
+		if (fs::exists(name, ec) && access(std::string(name).c_str(), X_OK) == 0) {
+			return std::string(name);
+		}
+		return "";
+	}
+
+	// 1. Check ~/.local/bin/ (explicit user install prefix)
+	const char *home = std::getenv("HOME");
+	if (home && *home) {
+		fs::path local_bin = fs::path(home) / ".local" / "bin" / name;
+		if (fs::exists(local_bin, ec) && access(local_bin.c_str(), X_OK) == 0) {
+			return local_bin.string();
+		}
+	}
+
+	// 2. Check PATH
+	const char *path_env = std::getenv("PATH");
+	if (path_env && *path_env) {
+		std::string_view path_view(path_env);
+		size_t start = 0;
+		while (start < path_view.size()) {
+			size_t end = path_view.find(':', start);
+			if (end == std::string_view::npos) {
+				end = path_view.size();
+			}
+			std::string_view dir = path_view.substr(start, end - start);
+			if (!dir.empty()) {
+				fs::path p = fs::path(dir) / name;
+				if (fs::exists(p, ec) && access(p.c_str(), X_OK) == 0) {
+					return p.string();
+				}
+			}
+			start = end + 1;
+		}
+	}
+
+	// 3. Fallback standard system directories
+	static constexpr std::array<std::string_view, 3> fallbacks = {
+		"/usr/local/bin",
+		"/usr/bin",
+		"/bin"
+	};
+	for (const auto &dir : fallbacks) {
+		fs::path p = fs::path(dir) / name;
+		if (fs::exists(p, ec) && access(p.c_str(), X_OK) == 0) {
+			return p.string();
+		}
+	}
+
+	return "";
+}
+
 std::string unescape_string(std::string_view input)
 {
 	std::string result;

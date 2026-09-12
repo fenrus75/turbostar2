@@ -1,8 +1,29 @@
 #include "lsp_manager.h"
+#include "event_logger.h"
+#include "project_manager.h"
+#include "semcode_backend.h"
 #include "standard_lsp_backend.h"
 
+std::unique_ptr<lsp_backend> lsp_manager::create_default_backend(const std::string &project_root)
+{
+	std::string root = project_root;
+	if (root.empty()) {
+		root = project_manager::get_instance().get_project_root();
+	}
+	if (!root.empty() && semcode_backend::is_available(root)) {
+		event_logger::get_instance().log("semcode index detected in '{}' with semcode-lsp available. Activating semcode_backend.", root);
+		return std::make_unique<semcode_backend>(root);
+	}
+	return std::make_unique<standard_lsp_backend>();
+}
+
 lsp_manager::lsp_manager()
-	: backend_(std::make_unique<standard_lsp_backend>())
+	: backend_(create_default_backend())
+{
+}
+
+lsp_manager::lsp_manager(std::string_view project_root)
+	: backend_(create_default_backend(std::string(project_root)))
 {
 }
 

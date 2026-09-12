@@ -20,6 +20,7 @@ core_sources = files(
   'git_manager.cpp',
   'lsp_backend.cpp',
   'standard_lsp_backend.cpp',
+  'semcode_backend.cpp',
   'lsp_manager.cpp',
   'project_manager.cpp',
   'project_template_manager.cpp',

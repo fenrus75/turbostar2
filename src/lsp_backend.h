@@ -14,6 +14,7 @@
 | subclass             | filename                  |
 | -------------------- | ------------------------- |
 | standard_lsp_backend | src/standard_lsp_backend.h|
+| semcode_backend      | src/semcode_backend.h     |
 
 */
 /**

@@ -25,7 +25,10 @@ public:
 	using type_hierarchy_item = lsp_backend::type_hierarchy_item;
 
 	lsp_manager();
+	explicit lsp_manager(std::string_view project_root);
 	explicit lsp_manager(std::unique_ptr<lsp_backend> backend);
+
+	static std::unique_ptr<lsp_backend> create_default_backend(const std::string &project_root = "");
 	~lsp_manager();
 
 	void set_backend(std::unique_ptr<lsp_backend> backend);
