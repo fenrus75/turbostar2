@@ -124,19 +124,26 @@ int main()
 
 		cache.register_resolved_type("TypeAlpha", "struct", "src/alpha.h", 10, 30);
 		cache.register_resolved_type("TypeBeta", "class", "src/beta.h", 5, 25);
+		cache.register_resolved_type("ktime_t", "typedef", "include/linux/types.h", 126, 126, "s64");
 
 		auto entry_alpha = cache.lookup("TypeAlpha");
 		auto entry_beta = cache.lookup("TypeBeta");
+		auto entry_ktime = cache.lookup("ktime_t");
 		assert(entry_alpha.has_value());
 		assert(entry_beta.has_value());
+		assert(entry_ktime.has_value());
+		assert(entry_ktime->underlying_type == "s64");
 
-		std::vector<type_definition_entry> entries = {*entry_alpha, *entry_beta};
+		std::vector<type_definition_entry> entries = {*entry_alpha, *entry_beta, *entry_ktime};
 		std::string table = type_definition_cache::format_type_definition_table(entries);
 
 		assert(!table.empty());
 		assert(table.find("### Type Definitions:") != std::string::npos);
 		assert(table.find("`TypeAlpha`") != std::string::npos);
 		assert(table.find("`TypeBeta`") != std::string::npos);
+		assert(table.find("`ktime_t`") != std::string::npos);
+		assert(table.find("typedef (s64)") != std::string::npos);
+		assert(table.find("| `ktime_t` | typedef (s64) | `include/linux/types.h` | 126 | 126 |") != std::string::npos);
 		assert(table.find("src/alpha.h") != std::string::npos);
 		assert(table.find("src/beta.h") != std::string::npos);
 		assert(table.find("| path | start_line | end_line |") != std::string::npos);
@@ -211,8 +218,9 @@ int main()
 		public:
 			std::string tgt_;
 			std::string macro_tgt_;
-			mock_single_line_lsp(std::string tgt, std::string macro_tgt)
-				: tgt_(std::move(tgt)), macro_tgt_(std::move(macro_tgt)) {}
+			std::string typedef_tgt_;
+			mock_single_line_lsp(std::string tgt, std::string macro_tgt, std::string typedef_tgt = "")
+				: tgt_(std::move(tgt)), macro_tgt_(std::move(macro_tgt)), typedef_tgt_(std::move(typedef_tgt)) {}
 			void start(event_queue &) override {}
 			void stop() override {}
 			void open_document(const std::string &, const std::string &) override {}
@@ -225,7 +233,10 @@ int main()
 			[[nodiscard]] std::vector<location_info> query_definition(const std::string &filepath, int line, int) override
 			{
 				location_info loc;
-				if (filepath.find("macro") != std::string::npos || line == 1) {
+				if (filepath.find("my_types") != std::string::npos) {
+					loc.path = typedef_tgt_;
+					loc.range = {line, 0, line, 0};
+				} else if (filepath.find("macro") != std::string::npos || line == 1) {
 					loc.path = macro_tgt_;
 					loc.range = {1, 0, 1, 0}; // Line 2 to 2 (1-line range)
 				} else {
@@ -262,19 +273,33 @@ int main()
 			out << "};\n";
 		}
 
+		std::string typedef_target = test_dir + "/my_types.h";
+		{
+			std::ofstream out(typedef_target);
+			out << "// line 1\n";
+			out << "typedef s64 ktime_t;\n";
+			out << "using custom_alias = uint32_t;\n";
+		}
+
 		project_manager::get_instance().set_project_root(test_dir);
 		project_manager::get_instance().set_lsp_backend_for_testing(
-			std::make_unique<mock_single_line_lsp>(target_file, macro_target));
+			std::make_unique<mock_single_line_lsp>(target_file, macro_target, typedef_target));
 
 		cache.request_async("ext4_getfsmap_info", target_file, 41, 0);
 		cache.request_async("macro_wrapped_type", macro_target, 1, 0);
+		cache.request_async("ktime_t", typedef_target, 1, 0);
+		cache.request_async("custom_alias", typedef_target, 2, 0);
 
 		int waited_ms = 0;
 		while (waited_ms < 2000) {
 			auto entry1 = cache.lookup("ext4_getfsmap_info");
 			auto entry2 = cache.lookup("macro_wrapped_type");
+			auto entry3 = cache.lookup("ktime_t");
+			auto entry4 = cache.lookup("custom_alias");
 			if (entry1.has_value() && entry1->state == type_cache_state::resolved &&
-			    entry2.has_value() && entry2->state == type_cache_state::resolved) {
+			    entry2.has_value() && entry2->state == type_cache_state::resolved &&
+			    entry3.has_value() && entry3->state == type_cache_state::resolved &&
+			    entry4.has_value() && entry4->state == type_cache_state::resolved) {
 				break;
 			}
 			std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -293,6 +318,27 @@ int main()
 		assert(entry_macro->start_line == 2);
 		assert(entry_macro->end_line == 6); // Line 2 to 6! Not 2!
 		assert(entry_macro->kind == "struct");
+
+		auto entry_ktime = cache.lookup("ktime_t");
+		assert(entry_ktime.has_value());
+		assert(entry_ktime->state == type_cache_state::resolved);
+		assert(entry_ktime->kind == "typedef");
+		assert(entry_ktime->underlying_type == "s64");
+		assert(entry_ktime->start_line == 2);
+		assert(entry_ktime->end_line == 2);
+
+		auto entry_alias = cache.lookup("custom_alias");
+		assert(entry_alias.has_value());
+		assert(entry_alias->state == type_cache_state::resolved);
+		assert(entry_alias->kind == "typedef");
+		assert(entry_alias->underlying_type == "uint32_t");
+		assert(entry_alias->start_line == 3);
+		assert(entry_alias->end_line == 3);
+
+		std::vector<type_definition_entry> resolved_entries = {*entry_ktime, *entry_alias};
+		std::string typedef_table = type_definition_cache::format_type_definition_table(resolved_entries);
+		assert(typedef_table.find("| `ktime_t` | typedef (s64) |") != std::string::npos);
+		assert(typedef_table.find("| `custom_alias` | typedef (uint32_t) |") != std::string::npos);
 
 		std::filesystem::remove_all(test_dir);
 	}

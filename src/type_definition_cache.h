@@ -22,7 +22,8 @@ struct type_definition_entry {
 	std::string type_name;
 	type_cache_state state = type_cache_state::pending;
 	std::string safe_file_path; // Relative project workspace path, e.g. "src/agentlib/tool_context.h"
-	std::string kind;	    // "struct", "class", "enum"
+	std::string kind;	    // "struct", "class", "enum", "typedef"
+	std::string underlying_type; // e.g. "s64" for typedefs / type aliases
 	int start_line{0};
 	int end_line{0};
 	std::chrono::steady_clock::time_point requested_at;
@@ -56,7 +57,7 @@ class type_definition_cache
 	 * Used for zero-cost pre-warming from document symbols and companion headers.
 	 */
 	void register_resolved_type(std::string_view type_name, std::string_view kind, std::string_view safe_path, int start_line,
-				    int end_line);
+				    int end_line, std::string_view underlying_type = "");
 
 	/**
 	 * @brief Request async resolution of a type definition via LSP.

@@ -34,7 +34,7 @@ bool type_definition_cache::contains(std::string_view type_name)
 }
 
 void type_definition_cache::register_resolved_type(std::string_view type_name, std::string_view kind, std::string_view safe_path,
-						   int start_line, int end_line)
+						   int start_line, int end_line, std::string_view underlying_type)
 {
 	if (type_name.empty() || safe_path.empty()) {
 		return;
@@ -46,11 +46,64 @@ void type_definition_cache::register_resolved_type(std::string_view type_name, s
 	entry.state = type_cache_state::resolved;
 	entry.safe_file_path = std::string(safe_path);
 	entry.kind = std::string(kind);
+	entry.underlying_type = std::string(underlying_type);
 	entry.start_line = start_line;
 	entry.end_line = end_line;
 	entry.requested_at = std::chrono::steady_clock::now();
 
 	types_[std::string(type_name)] = std::move(entry);
+}
+
+static void extract_typedef_or_alias(std::string_view line, std::string_view type_name,
+				     std::string &kind, std::string &underlying_type)
+{
+	// 1. Check for C++ type alias: using <type_name> = <underlying>;
+	size_t using_pos = line.find("using ");
+	if (using_pos != std::string_view::npos) {
+		size_t name_pos = line.find(type_name, using_pos + 6);
+		if (name_pos != std::string_view::npos) {
+			size_t eq_pos = line.find('=', name_pos + type_name.size());
+			if (eq_pos != std::string_view::npos) {
+				std::string_view rhs = line.substr(eq_pos + 1);
+				size_t semi = rhs.find(';');
+				if (semi != std::string_view::npos) {
+					rhs = rhs.substr(0, semi);
+				}
+				size_t first = rhs.find_first_not_of(" \t");
+				size_t last = rhs.find_last_not_of(" \t\r\n");
+				if (first != std::string_view::npos && last != std::string_view::npos && first <= last) {
+					kind = "typedef";
+					underlying_type = std::string(rhs.substr(first, last - first + 1));
+					return;
+				}
+			}
+		}
+	}
+
+	// 2. Check for C/C++ typedef: typedef <underlying> <type_name>;
+	size_t td_pos = line.find("typedef ");
+	if (td_pos != std::string_view::npos) {
+		size_t semi = line.find(';', td_pos + 8);
+		std::string_view stmt = (semi != std::string_view::npos)
+			? line.substr(td_pos + 8, semi - (td_pos + 8))
+			: line.substr(td_pos + 8);
+
+		size_t name_pos = stmt.rfind(type_name);
+		if (name_pos != std::string_view::npos) {
+			bool start_ok = (name_pos == 0) || (!std::isalnum(static_cast<unsigned char>(stmt[name_pos - 1])) && stmt[name_pos - 1] != '_');
+			bool end_ok = (name_pos + type_name.size() == stmt.size()) || (!std::isalnum(static_cast<unsigned char>(stmt[name_pos + type_name.size()])) && stmt[name_pos + type_name.size()] != '_');
+			if (start_ok && end_ok) {
+				std::string_view underlying = stmt.substr(0, name_pos);
+				size_t first = underlying.find_first_not_of(" \t");
+				size_t last = underlying.find_last_not_of(" \t\r\n");
+				if (first != std::string_view::npos && last != std::string_view::npos && first <= last) {
+					kind = "typedef";
+					underlying_type = std::string(underlying.substr(first, last - first + 1));
+					return;
+				}
+			}
+		}
+	}
 }
 
 void type_definition_cache::request_async(std::string_view type_name, const std::string &referencing_file, int line, int character)
@@ -149,6 +202,7 @@ void type_definition_cache::request_async(std::string_view type_name, const std:
 			// If end line is still equal to or smaller than start line (e.g. LSP returned a 1-line range
 			// or symbol AST didn't capture the full block), inspect the target file to determine the true
 			// closing brace of the struct/class/enum definition.
+			std::string underlying_type;
 			if (def_end <= def_start) {
 				std::ifstream file(abs_path);
 				if (file.is_open()) {
@@ -168,6 +222,7 @@ void type_definition_cache::request_async(std::string_view type_name, const std:
 								} else if (line_content.find("struct ") != std::string::npos) {
 									kind = "struct";
 								}
+								extract_typedef_or_alias(line_content, t_name, kind, underlying_type);
 							}
 							for (char c : line_content) {
 								if (c == '{') {
@@ -199,6 +254,7 @@ void type_definition_cache::request_async(std::string_view type_name, const std:
 			entry.state = type_cache_state::resolved;
 			entry.safe_file_path = rel_path;
 			entry.kind = kind;
+			entry.underlying_type = underlying_type;
 			entry.start_line = def_start;
 			entry.end_line = def_end;
 			event_logger::get_instance().log(std::format(
@@ -250,7 +306,11 @@ std::string type_definition_cache::format_type_definition_table(const std::vecto
 	ss << "| Type | Kind | path | start_line | end_line |\n";
 	ss << "| :--- | :--- | :--- | :---: | :---: |\n";
 	for (const auto &t : types) {
-		ss << std::format("| `{}` | {} | `{}` | {} | {} |\n", t.type_name, t.kind, t.safe_file_path, t.start_line, t.end_line);
+		std::string kind_display = t.kind;
+		if (!t.underlying_type.empty()) {
+			kind_display = std::format("{} ({})", t.kind, t.underlying_type);
+		}
+		ss << std::format("| `{}` | {} | `{}` | {} | {} |\n", t.type_name, kind_display, t.safe_file_path, t.start_line, t.end_line);
 	}
 	return ss.str();
 }
