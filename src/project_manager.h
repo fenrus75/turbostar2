@@ -139,6 +139,7 @@ class project_manager
 	// Synchronous LSP queries
 	std::vector<text_range> lsp_query_selection_ranges(const std::string &filepath, int line, int character);
 	std::vector<lsp_manager::location_info> lsp_query_definition(const std::string &filepath, int line, int character);
+	std::vector<lsp_manager::location_info> lsp_query_type_definition(const std::string &filepath, int line, int character);
 	std::vector<lsp_manager::location_info> lsp_query_references(const std::string &filepath, int line, int character);
 	std::vector<lsp_manager::symbol_info> lsp_query_workspace_symbols(const std::string &query);
 	std::vector<lsp_manager::symbol_node> lsp_query_document_symbols(const std::string &filepath);

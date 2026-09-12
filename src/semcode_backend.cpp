@@ -86,6 +86,15 @@ static bool parse_definition_locations_strict_unique(std::string_view text, std:
 {
 	out.clear();
 
+	// If semcode reports no exact match found, or only regex fallback matches, treat as 0 exact locations (unambiguous empty).
+	if (text.find("No exact match found") != std::string_view::npos ||
+	    text.find("(regex matches)") != std::string_view::npos ||
+	    text.find("No results found") != std::string_view::npos) {
+		event_logger::get_instance().log(
+			"parse_definition_locations_strict_unique: 'No exact match found' / '(regex matches)' detected -> 0 exact locations (true)");
+		return true;
+	}
+
 	// Check for semcode multi-definition banner: e.g. "Found 5 function definitions with name ..."
 	if (text.find(" definitions with name ") != std::string_view::npos) {
 		event_logger::get_instance().log(
@@ -632,6 +641,46 @@ std::vector<lsp_backend::location_info> semcode_backend::query_definition(const 
 
 	// 2. Fallback if semcode CLI binary is not available: JSON-RPC query via semcode-lsp
 	results = standard_lsp_backend::query_definition(filepath, line, character);
+	if (results.size() > 1) {
+		return {};
+	}
+
+	return results;
+}
+
+std::vector<lsp_backend::location_info> semcode_backend::query_type_definition(const std::string &filepath, int line, int character)
+{
+	std::vector<location_info> results;
+
+	// 1. Primary resolution: query semcode CLI directly for type definition
+	if (!semcode_cli_path_.empty()) {
+		std::string identifier = extract_identifier_at(filepath, line, character);
+		if (!identifier.empty()) {
+			std::string type_out = run_semcode_query(std::format("type {}", identifier));
+			bool type_ok = parse_definition_locations_strict_unique(type_out, project_root_, results);
+			if (!type_ok) {
+				event_logger::get_instance().log(std::format(
+					"semcode_backend::query_type_definition: identifier='{}', ambiguous type definitions",
+					identifier));
+				return {};
+			}
+
+			if (!results.empty()) {
+				event_logger::get_instance().log(std::format(
+					"semcode_backend::query_type_definition: identifier='{}', found {} locations via type",
+					identifier, results.size()));
+				return results;
+			}
+
+			event_logger::get_instance().log(std::format(
+				"semcode_backend::query_type_definition: identifier='{}', no type definition found",
+				identifier));
+		}
+		return {};
+	}
+
+	// 2. Fallback if semcode CLI binary is not available: JSON-RPC query via semcode-lsp
+	results = standard_lsp_backend::query_type_definition(filepath, line, character);
 	if (results.size() > 1) {
 		return {};
 	}

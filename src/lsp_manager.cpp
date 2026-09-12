@@ -123,6 +123,14 @@ std::vector<lsp_manager::location_info> lsp_manager::query_definition(const std:
 	return {};
 }
 
+std::vector<lsp_manager::location_info> lsp_manager::query_type_definition(const std::string &filepath, int line, int character)
+{
+	if (backend_) {
+		return backend_->query_type_definition(filepath, line, character);
+	}
+	return {};
+}
+
 std::vector<lsp_manager::location_info> lsp_manager::query_references(const std::string &filepath, int line, int character)
 {
 	if (backend_) {

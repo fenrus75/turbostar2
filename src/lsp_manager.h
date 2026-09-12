@@ -47,6 +47,7 @@ public:
 	// Synchronous queries for tools
 	[[nodiscard]] std::vector<text_range> query_selection_ranges(const std::string &filepath, int line, int character);
 	[[nodiscard]] std::vector<location_info> query_definition(const std::string &filepath, int line, int character);
+	[[nodiscard]] std::vector<location_info> query_type_definition(const std::string &filepath, int line, int character);
 	[[nodiscard]] std::vector<location_info> query_references(const std::string &filepath, int line, int character);
 	[[nodiscard]] std::vector<symbol_info> query_workspace_symbols(const std::string &query);
 	[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &filepath);

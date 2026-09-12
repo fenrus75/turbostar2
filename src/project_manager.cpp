@@ -559,6 +559,13 @@ std::vector<lsp_manager::location_info> project_manager::lsp_query_definition(co
 	return {};
 }
 
+std::vector<lsp_manager::location_info> project_manager::lsp_query_type_definition(const std::string &filepath, int line, int character)
+{
+	if (lsp_manager_)
+		return lsp_manager_->query_type_definition(filepath, line, character);
+	return {};
+}
+
 std::vector<lsp_manager::location_info> project_manager::lsp_query_references(const std::string &filepath, int line, int character)
 {
 	if (lsp_manager_)

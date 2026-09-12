@@ -111,7 +111,8 @@ static void test_hybrid_cli_queries()
 		    << "    selftest_func();\n"
 		    << "    cleanup();\n"
 		    << "    return 42;\n"
-		    << "}\n";
+		    << "}\n"
+		    << "typedef int custom_type_t;\n";
 	}
 	std::string dep_file = test_dir + "/dep.c";
 	{
@@ -183,6 +184,18 @@ static void test_hybrid_cli_queries()
 		    << "    echo 'Line: 1'\n"
 		    << "    echo 'Fields:'\n"
 		    << "    echo '  - int field'\n"
+		    << "    ;;\n"
+		    << "  *\"type custom_type_t\"*)\n"
+		    << "    echo 'File: main.c'\n"
+		    << "    echo 'Line: 16-16'\n"
+		    << "    ;;\n"
+		    << "  *\"func custom_type_t\"*)\n"
+		    << "    echo 'Info: No exact match found for '\\''custom_type_t'\\'' (no function found with this name), but found functions using it as a regex pattern:'\n"
+		    << "    echo '=== Functions (regex matches) ==='\n"
+		    << "    echo 'File: dep.c'\n"
+		    << "    echo 'Line: 1-3'\n"
+		    << "    echo 'File: ext.c'\n"
+		    << "    echo 'Line: 1-3'\n"
 		    << "    ;;\n"
 		    << "  *\"func callee_sub\"*)\n"
 		    << "    echo 'File: dep.c'\n"
@@ -295,6 +308,19 @@ static void test_hybrid_cli_queries()
 	// Multiple definitions across files (cleanup): must fail immediately and return empty!
 	auto defs_ambig_cleanup = backend.query_definition(src_file, 12, 6);
 	assert(defs_ambig_cleanup.empty());
+
+	// Type definition queried directly via query_type_definition
+	auto type_defs = backend.query_type_definition(src_file, 15, 15);
+	assert(!type_defs.empty());
+	assert(type_defs[0].path.find("main.c") != std::string::npos);
+	assert(type_defs[0].range.start_y == 15);
+
+	// Definition query on type with regex function matches:
+	// func query returns "No exact match found", so it falls through cleanly to type query!
+	auto defs_type_fallback = backend.query_definition(src_file, 15, 15);
+	assert(!defs_type_fallback.empty());
+	assert(defs_type_fallback[0].path.find("main.c") != std::string::npos);
+	assert(defs_type_fallback[0].range.start_y == 15);
 
 	// 2. References query via hybrid fallback
 	auto refs = backend.query_references(src_file, 6, 6);

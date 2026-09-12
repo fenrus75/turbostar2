@@ -346,6 +346,12 @@ std::vector<standard_lsp_backend::location_info> standard_lsp_backend::query_def
 	return {};
 }
 
+std::vector<standard_lsp_backend::location_info> standard_lsp_backend::query_type_definition(const std::string &filepath, int line, int character)
+{
+	// Standard LSP fallback: query definition location
+	return query_definition(filepath, line, character);
+}
+
 std::vector<standard_lsp_backend::location_info> standard_lsp_backend::query_references(const std::string &filepath, int line, int character)
 {
 	auto server = get_server_for_file(filepath);

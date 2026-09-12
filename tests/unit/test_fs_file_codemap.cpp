@@ -32,6 +32,10 @@ public:
 		loc.range = {0, 0, 3, 0};
 		return {loc};
 	}
+	[[nodiscard]] std::vector<location_info> query_type_definition(const std::string &filepath, int line, int col) override
+	{
+		return query_definition(filepath, line, col);
+	}
 	[[nodiscard]] std::vector<location_info> query_references(const std::string &, int, int) override { return {}; }
 	[[nodiscard]] std::vector<symbol_info> query_workspace_symbols(const std::string &) override { return {}; }
 	[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &) override { return {}; }

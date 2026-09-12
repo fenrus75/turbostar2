@@ -93,7 +93,7 @@ void type_definition_cache::request_async(std::string_view type_name, const std:
 				return;
 			}
 
-			auto locs = project_manager::get_instance().lsp_query_definition(referencing_file, line, character);
+			auto locs = project_manager::get_instance().lsp_query_type_definition(referencing_file, line, character);
 			if (locs.empty()) {
 				std::lock_guard<std::mutex> lock(mutex_);
 				types_[t_name].state = type_cache_state::unresolved;

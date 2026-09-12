@@ -59,6 +59,17 @@ public:
 		return {};
 	}
 
+	[[nodiscard]] std::vector<location_info> query_type_definition(const std::string &filepath, int line, int col) override
+	{
+		if (filepath == "type_target.cpp" && line == 10 && col == 5) {
+			location_info loc;
+			loc.path = "type_target.h";
+			loc.range = {20, 0, 20, 30};
+			return {loc};
+		}
+		return {};
+	}
+
 	[[nodiscard]] std::vector<location_info> query_references(const std::string &filepath, int, int) override
 	{
 		if (filepath == "target.cpp") {
@@ -180,6 +191,11 @@ int main()
 
 		auto defs_empty = mgr.query_definition("target.cpp", 1, 1);
 		assert(defs_empty.empty());
+
+		auto type_defs = mgr.query_type_definition("type_target.cpp", 10, 5);
+		assert(type_defs.size() == 1);
+		assert(type_defs[0].path == "type_target.h");
+		assert(type_defs[0].range.start_y == 20);
 
 		auto refs = mgr.query_references("target.cpp", 0, 0);
 		assert(refs.size() == 1);
