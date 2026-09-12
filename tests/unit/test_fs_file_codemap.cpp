@@ -664,6 +664,66 @@ int main()
 		std::remove(small_file.c_str());
 	}
 
+	{
+		// Test: reading EXACTLY to the end of a function (e.g. inside a struct/class or followed by another function)
+		// must NOT extend to the enclosing class or into the next function.
+		std::string exact_boundary_file = "test_exact_boundary.cpp";
+		{
+			std::ofstream out_exact(exact_boundary_file);
+			out_exact << "struct MyService {\n"
+				  << "    void func_alpha()\n"
+				  << "    {\n"
+				  << "        int a = 1;\n"
+				  << "    }\n"
+				  << "    void func_beta()\n"
+				  << "    {\n"
+				  << "        int b = 2;\n"
+				  << "    }\n"
+				  << "};\n";
+			for (int i = 0; i < 30; ++i) {
+				out_exact << "// padding " << i << "\n";
+			}
+			out_exact.close();
+		}
+
+		// Request lines 2 to 5 (EXACTLY to the end of func_alpha)
+		nlohmann::json exact_args = {{"path", exact_boundary_file}, {"start_line", 2}, {"end_line", 5}};
+		std::string exact_res = registry.execute_tool("fs_read_lines", exact_args.dump(), ctx);
+		std::cout << "fs_read_lines exact boundary output:\n" << exact_res << "\n";
+		assert(exact_res.find("lines 2 - 5 of") != std::string::npos);
+		assert(exact_res.find("6:     void func_beta()") == std::string::npos);
+
+		std::remove(exact_boundary_file.c_str());
+	}
+
+	{
+		// Test: reading EXACTLY to closing delimiter in unstructured text file (.txt without symbols)
+		// must NOT extend to subsequent delimiters.
+		std::string plain_file = "test_boundary_plain.txt";
+		{
+			std::ofstream out_plain(plain_file);
+			out_plain << "block_one {\n"
+				  << "    val = 1\n"
+				  << "}\n"
+				  << "block_two {\n"
+				  << "    val = 2\n"
+				  << "}\n";
+			for (int i = 0; i < 30; ++i) {
+				out_plain << "# padding " << i << "\n";
+			}
+			out_plain.close();
+		}
+
+		// Request lines 1 to 3 (EXACTLY to end of block_one)
+		nlohmann::json plain_args = {{"path", plain_file}, {"start_line", 1}, {"end_line", 3}};
+		std::string plain_res = registry.execute_tool("fs_read_lines", plain_args.dump(), ctx);
+		std::cout << "fs_read_lines plain boundary output:\n" << plain_res << "\n";
+		assert(plain_res.find("lines 1 - 3 of") != std::string::npos);
+		assert(plain_res.find("4: block_two") == std::string::npos);
+
+		std::remove(plain_file.c_str());
+	}
+
 	// Cleanup
 	std::remove(impl_file.c_str());
 	std::remove(header_file.c_str());

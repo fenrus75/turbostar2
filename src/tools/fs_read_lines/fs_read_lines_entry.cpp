@@ -57,6 +57,13 @@ int determine_adjusted_end_line(int start, int requested_end, const std::vector<
 	// Fetch exact document symbols from central codemap infrastructure
 	std::vector<codemap_symbol_info> symbols = get_document_codemap_symbols(path, ctx, 1);
 	if (!symbols.empty()) {
+		// If requested_end is already exactly at the end boundary of any symbol, do not extend!
+		for (const auto &sym : symbols) {
+			if (sym.end_line == requested_end) {
+				return requested_end;
+			}
+		}
+
 		// Case A: If requested_end falls inside a symbol, extend to that symbol's end_line if <= requested_end + 25
 		const codemap_symbol_info *enclosing_sym = nullptr;
 		for (const auto &sym : symbols) {
@@ -102,6 +109,16 @@ int determine_adjusted_end_line(int start, int requested_end, const std::vector<
 			size_t last = s.find_last_not_of(" \t\r\n");
 			return s.substr(first, last - first + 1);
 		};
+
+		// If requested_end is ALREADY at a closing delimiter, do not extend into subsequent blocks/functions!
+		std::string_view end_line_trimmed = trim(lines[requested_end_idx]);
+		if (end_line_trimmed == "}" || end_line_trimmed == "};" ||
+		    end_line_trimmed.starts_with("} //") || end_line_trimmed.starts_with("} /*") ||
+		    end_line_trimmed == "]" || end_line_trimmed == ")" ||
+		    end_line_trimmed == "end" || end_line_trimmed == "fi" ||
+		    end_line_trimmed == "done") {
+			return requested_end;
+		}
 
 		for (int i = requested_end_idx + 1; i < total_lines_read; ++i) {
 			std::string_view line = lines[i];
