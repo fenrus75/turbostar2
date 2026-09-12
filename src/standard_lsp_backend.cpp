@@ -409,6 +409,8 @@ void standard_lsp_backend::open_document(const std::string &filepath, const std:
 
 void standard_lsp_backend::update_document(const std::string &filepath, const std::string &text)
 {
+	invalidate_hover_cache(filepath);
+
 	auto server = get_server_for_file(filepath);
 	if (!server)
 		return;
@@ -432,8 +434,50 @@ void standard_lsp_backend::update_document(const std::string &filepath, const st
 	}
 }
 
+std::optional<std::string> standard_lsp_backend::get_cached_hover(const std::string &key) const
+{
+	std::lock_guard<std::mutex> lock(hover_cache_mutex_);
+	auto it = hover_cache_.find(key);
+	if (it != hover_cache_.end()) {
+		return it->second.payload;
+	}
+	return std::nullopt;
+}
+
+void standard_lsp_backend::set_cached_hover(const std::string &key, std::string payload)
+{
+	std::lock_guard<std::mutex> lock(hover_cache_mutex_);
+	hover_cache_[key] = hover_cache_entry{std::move(payload), std::chrono::steady_clock::now()};
+}
+
+void standard_lsp_backend::invalidate_hover_cache(const std::string &filepath)
+{
+	std::string prefix = filepath + ":";
+	std::lock_guard<std::mutex> lock(hover_cache_mutex_);
+	for (auto it = hover_cache_.begin(); it != hover_cache_.end();) {
+		if (it->first.starts_with(prefix) || it->first == filepath) {
+			it = hover_cache_.erase(it);
+		} else {
+			++it;
+		}
+	}
+}
+
 void standard_lsp_backend::request_hover(const std::string &filepath, int line, int character)
 {
+	std::string key = std::format("{}:{}:{}", filepath, line, character);
+	auto cached = get_cached_hover(key);
+	if (cached.has_value()) {
+		auto *q = global_queue_.load();
+		if (q && !cached->empty()) {
+			editor_event ev;
+			ev.type = event_type::lsp_hover_result;
+			ev.payload = *cached;
+			q->push(ev);
+		}
+		return;
+	}
+
 	auto server = get_server_for_file(filepath);
 	if (!server)
 		return;
@@ -445,11 +489,15 @@ void standard_lsp_backend::request_hover(const std::string &filepath, int line, 
 
 		server->message_handler->sendRequest<lsp::requests::TextDocument_Hover>(
 		    std::move(hoverParams),
-		    [this](const lsp::requests::TextDocument_Hover::Result &result) {
+		    [this, key](const lsp::requests::TextDocument_Hover::Result &result) {
 			    if (!result.isNull()) {
 				    std::string payload;
 				    if (const auto *contents = std::get_if<lsp::MarkupContent>(&result->contents)) {
 					    payload = contents->value;
+				    }
+
+				    if (!payload.empty()) {
+					    set_cached_hover(key, payload);
 				    }
 
 				    auto *q = global_queue_.load();
@@ -1044,8 +1092,12 @@ std::vector<standard_lsp_backend::type_hierarchy_item> standard_lsp_backend::que
 void standard_lsp_backend::invalidate_symbol_cache(const std::string &filepath)
 {
 	std::string abs_path = std::filesystem::absolute(filepath).string();
-	std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
-	symbol_cache_.erase(abs_path);
+	{
+		std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+		symbol_cache_.erase(abs_path);
+	}
+	invalidate_hover_cache(filepath);
+	invalidate_hover_cache(abs_path);
 }
 
 std::vector<standard_lsp_backend::symbol_node> standard_lsp_backend::query_document_symbols(const std::string &filepath)

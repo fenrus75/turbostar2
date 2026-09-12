@@ -120,4 +120,22 @@ protected:
 	 */
 	mutable std::mutex diagnostics_mutex_;
 	std::unordered_map<std::string, std::vector<diagnostic_info>> file_diagnostics_;
+
+	struct hover_cache_entry {
+		std::string payload;
+		std::chrono::steady_clock::time_point cached_at{std::chrono::steady_clock::now()};
+	};
+
+	/*
+	 * hover_cache_mutex_ protects hover_cache_ map of hover keys (e.g. file:line:col) to cached payloads.
+	 * Locking Rules:
+	 * - Held briefly when reading, writing, or invalidating hover cache entries across
+	 *   the UI thread and background LSP reader threads or worker loops.
+	 */
+	mutable std::mutex hover_cache_mutex_;
+	std::unordered_map<std::string, hover_cache_entry> hover_cache_;
+
+	[[nodiscard]] std::optional<std::string> get_cached_hover(const std::string &key) const;
+	void set_cached_hover(const std::string &key, std::string payload);
+	void invalidate_hover_cache(const std::string &filepath);
 };

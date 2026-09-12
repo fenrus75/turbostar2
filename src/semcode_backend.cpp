@@ -186,6 +186,26 @@ semcode_backend::~semcode_backend()
 	stop();
 }
 
+void semcode_backend::start(event_queue &queue)
+{
+	standard_lsp_backend::start(queue);
+	std::lock_guard<std::mutex> lock(hover_mutex_);
+	hover_stopping_.store(false, std::memory_order_release);
+	if (!hover_thread_.joinable()) {
+		hover_thread_ = std::thread([this]() { hover_worker_loop(); });
+	}
+}
+
+void semcode_backend::stop()
+{
+	hover_stopping_.store(true, std::memory_order_release);
+	hover_cv_.notify_all();
+	if (hover_thread_.joinable()) {
+		hover_thread_.join();
+	}
+	standard_lsp_backend::stop();
+}
+
 bool semcode_backend::is_available(const std::string &project_root)
 {
 	if (project_root.empty()) {
@@ -238,6 +258,8 @@ void semcode_backend::open_document(const std::string &filepath, const std::stri
 
 void semcode_backend::update_document(const std::string &filepath, const std::string &text)
 {
+	invalidate_hover_cache(filepath);
+
 	std::string ext = fs::path(filepath).extension().string();
 	for (auto &c : ext) {
 		c = std::tolower(c);
@@ -257,36 +279,115 @@ void semcode_backend::request_hover(const std::string &filepath, int line, int c
 		return;
 	}
 
-	std::string identifier = extract_identifier_at(filepath, line, character);
-	if (identifier.empty()) {
-		return;
-	}
-
-	// 1. Try type lookup via semcode CLI
-	std::string type_output = run_semcode_query(std::format("type {}", identifier));
-	if (!type_output.empty() && (type_output.find("=== Type Information ===") != std::string::npos ||
-				     type_output.find("Type Definition:") != std::string::npos ||
-				     type_output.find("Fields:") != std::string::npos)) {
+	// 1. Cache hit check: immediate non-blocking return with cached payload
+	std::string key = std::format("{}:{}:{}", filepath, line, character);
+	auto cached = get_cached_hover(key);
+	if (cached.has_value()) {
 		auto *q = global_queue_.load();
-		if (q) {
+		if (q && !cached->empty()) {
 			editor_event ev;
 			ev.type = event_type::lsp_hover_result;
-			ev.payload = utf8::sanitize_terminal_output(type_output);
+			ev.payload = *cached;
 			q->push(ev);
 		}
 		return;
 	}
 
-	// 2. Fall back to function lookup via semcode CLI
-	std::string func_output = run_semcode_query(std::format("func {}", identifier));
-	if (!func_output.empty() && (func_output.find("Function Definition:") != std::string::npos ||
-				     func_output.find("Return type:") != std::string::npos)) {
-		auto *q = global_queue_.load();
-		if (q) {
-			editor_event ev;
-			ev.type = event_type::lsp_hover_result;
-			ev.payload = utf8::sanitize_terminal_output(func_output);
-			q->push(ev);
+	// 2. Cache miss: dispatch asynchronous background request without stalling UI thread
+	uint64_t req_id = ++hover_counter_;
+	{
+		std::lock_guard<std::mutex> lock(hover_mutex_);
+		if (!hover_thread_.joinable() && !hover_stopping_.load(std::memory_order_relaxed)) {
+			hover_thread_ = std::thread([this]() { hover_worker_loop(); });
+		}
+		pending_hover_request_ = hover_request{filepath, line, character, req_id};
+	}
+	hover_cv_.notify_one();
+}
+
+void semcode_backend::hover_worker_loop()
+{
+	fs_utils::set_current_thread_name("semcode_hover");
+	while (!hover_stopping_.load(std::memory_order_relaxed)) {
+		hover_request req;
+		{
+			std::unique_lock<std::mutex> lock(hover_mutex_);
+			hover_cv_.wait(lock, [this] {
+				return pending_hover_request_.has_value() || hover_stopping_.load(std::memory_order_relaxed);
+			});
+			if (hover_stopping_.load(std::memory_order_relaxed)) {
+				break;
+			}
+			req = std::move(*pending_hover_request_);
+			pending_hover_request_.reset();
+		}
+
+		if (hover_stopping_.load(std::memory_order_relaxed) || project_manager::get_instance().is_exiting()) {
+			break;
+		}
+
+		// Skip stale request if user already navigated to a subsequent token
+		if (req.request_id != hover_counter_.load(std::memory_order_relaxed)) {
+			continue;
+		}
+
+		std::string key = std::format("{}:{}:{}", req.filepath, req.line, req.character);
+		auto cached = get_cached_hover(key);
+		if (cached.has_value()) {
+			auto *q = global_queue_.load();
+			if (q && !cached->empty()) {
+				editor_event ev;
+				ev.type = event_type::lsp_hover_result;
+				ev.payload = *cached;
+				q->push(ev);
+			}
+			continue;
+		}
+
+		std::string identifier = extract_identifier_at(req.filepath, req.line, req.character);
+		if (identifier.empty()) {
+			continue;
+		}
+
+		// 1. Try type lookup via semcode CLI (utilizing query cache)
+		std::string type_output = run_semcode_query(std::format("type {}", identifier));
+		if (!type_output.empty() && (type_output.find("=== Type Information ===") != std::string::npos ||
+					     type_output.find("Type Definition:") != std::string::npos ||
+					     type_output.find("Fields:") != std::string::npos)) {
+			set_cached_hover(key, type_output);
+			if (!hover_stopping_.load(std::memory_order_relaxed) &&
+			    req.request_id == hover_counter_.load(std::memory_order_relaxed)) {
+				auto *q = global_queue_.load();
+				if (q) {
+					editor_event ev;
+					ev.type = event_type::lsp_hover_result;
+					ev.payload = type_output;
+					q->push(ev);
+				}
+			}
+			continue;
+		}
+
+		if (hover_stopping_.load(std::memory_order_relaxed) ||
+		    req.request_id != hover_counter_.load(std::memory_order_relaxed)) {
+			continue;
+		}
+
+		// 2. Fall back to function lookup via semcode CLI (utilizing query cache)
+		std::string func_output = run_semcode_query(std::format("func {}", identifier));
+		if (!func_output.empty() && (func_output.find("Function Definition:") != std::string::npos ||
+					     func_output.find("Return type:") != std::string::npos)) {
+			set_cached_hover(key, func_output);
+			if (!hover_stopping_.load(std::memory_order_relaxed) &&
+			    req.request_id == hover_counter_.load(std::memory_order_relaxed)) {
+				auto *q = global_queue_.load();
+				if (q) {
+					editor_event ev;
+					ev.type = event_type::lsp_hover_result;
+					ev.payload = func_output;
+					q->push(ev);
+				}
+			}
 		}
 	}
 }
@@ -514,13 +615,29 @@ std::string semcode_backend::run_semcode_query(const std::string &query) const
 		return "";
 	}
 
+	// Check CLI memoization cache first to eliminate duplicate subprocess launches
+	{
+		std::lock_guard<std::mutex> lock(cli_cache_mutex_);
+		auto it = cli_cache_.find(query);
+		if (it != cli_cache_.end()) {
+			return it->second;
+		}
+	}
+
 	std::string cmd = std::format("{} -d {} -q {}",
 				      fs_utils::escape_shell_arg(semcode_cli_path_),
 				      fs_utils::escape_shell_arg(project_root_),
 				      fs_utils::escape_shell_arg(query));
 
 	std::string raw_output = fs_utils::execute_command_sync(cmd, 10);
-	return utf8::sanitize_terminal_output(raw_output);
+	std::string sanitized = utf8::sanitize_terminal_output(raw_output);
+
+	{
+		std::lock_guard<std::mutex> lock(cli_cache_mutex_);
+		cli_cache_[query] = sanitized;
+	}
+
+	return sanitized;
 }
 
 std::string semcode_backend::extract_identifier_at(const std::string &filepath, int line, int character)

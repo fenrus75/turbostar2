@@ -285,4 +285,5 @@ The LSP subsystem uses the **Strategy Pattern** to separate protocol abstraction
   - **LSP Protocol (`semcode-lsp`)**: Handles fast stdio JSON-RPC queries for `textDocument/definition` (go to definition) and `textDocument/references` (caller lookup).
   - **CLI Query Engine (`semcode`)**: Powers rich semantic type inspection (`type`), function signatures (`func`), call hierarchies (`calls -v`), and workspace symbol discovery.
   - **Optimized Document Synchronization**: Leverages semcode's native working directory overlay to inspect uncommitted changes directly without streaming full file bodies over stdio.
+  - **Asynchronous Hover Worker & Caching**: Offloads CLI hover queries to a dedicated background worker thread (`hover_worker_loop`), returning immediately (<1ms) to keep the editor main UI loop non-blocking. Uses `hover_cache_` in `standard_lsp_backend` and `cli_cache_` in `semcode_backend` to memoize responses, providing instant zero-latency cache hits as queries resolve.
 - **Extensibility & Mocking**: Enables alternative backends and mock backends in unit tests to achieve high test coverage without requiring external server binaries.

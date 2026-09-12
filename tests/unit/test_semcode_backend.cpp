@@ -120,6 +120,7 @@ static void test_hybrid_cli_queries()
 		    << "done\n"
 		    << "case \"$QUERY\" in\n"
 		    << "  *\"type dummy_struct\"*)\n"
+		    << "    sleep 1\n"
 		    << "    echo '=== Type Information ==='\n"
 		    << "    printf '\\033[32mName: struct dummy_struct\\033[0m\\n'\n"
 		    << "    echo 'File: main.c'\n"
@@ -189,16 +190,40 @@ static void test_hybrid_cli_queries()
 	assert(!types.empty());
 	assert(types[0].name == "dummy_struct");
 
-	// 7. Hover request
+	// 7. Hover request (must be non-blocking and asynchronous)
 	event_queue queue;
 	backend.start(queue);
+	auto t0 = std::chrono::steady_clock::now();
 	backend.request_hover(src_file, 0, 8); // on dummy_struct
-	auto ev_opt = queue.pop();
+	auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+	std::cout << "  request_hover returned in " << elapsed_ms << "ms" << std::endl;
+	assert(elapsed_ms < 200);
+
+	// Result arrives asynchronously on event queue
+	std::optional<editor_event> ev_opt;
+	for (int i = 0; i < 60; ++i) {
+		ev_opt = queue.pop();
+		if (ev_opt.has_value()) {
+			break;
+		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(50));
+	}
 	assert(ev_opt.has_value());
 	assert(ev_opt->type == event_type::lsp_hover_result);
 	assert(ev_opt->payload.find("dummy_struct") != std::string::npos);
 	assert(ev_opt->payload.find("\033[") == std::string::npos);
 	assert(ev_opt->payload.find("\033") == std::string::npos);
+
+	// 8. Subsequent hover request on same location must be an instant cache hit
+	auto t1 = std::chrono::steady_clock::now();
+	backend.request_hover(src_file, 0, 8);
+	auto cache_hit_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t1).count();
+	std::cout << "  cached request_hover returned in " << cache_hit_elapsed << "ms" << std::endl;
+	assert(cache_hit_elapsed < 50);
+	auto cached_ev = queue.pop();
+	assert(cached_ev.has_value());
+	assert(cached_ev->type == event_type::lsp_hover_result);
+	assert(cached_ev->payload.find("dummy_struct") != std::string::npos);
 
 	backend.stop();
 	unsetenv("SEMCODE_BIN");

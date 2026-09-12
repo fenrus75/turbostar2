@@ -1,8 +1,13 @@
 #pragma once
 
+#include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <memory>
+#include <mutex>
+#include <optional>
 #include <string>
+#include <thread>
 #include <vector>
 #include "standard_lsp_backend.h"
 
@@ -21,6 +26,9 @@ class semcode_backend : public standard_lsp_backend {
 public:
 	explicit semcode_backend(std::string project_root = "");
 	~semcode_backend() override;
+
+	void start(event_queue &queue) override;
+	void stop() override;
 
 	[[nodiscard]] static bool is_available(const std::string &project_root);
 	[[nodiscard]] static std::string find_semcode_lsp();
@@ -58,6 +66,42 @@ private:
 	std::string project_root_;
 	std::string semcode_lsp_path_;
 	std::string semcode_cli_path_;
+
+	struct hover_request {
+		std::string filepath;
+		int line{0};
+		int character{0};
+		uint64_t request_id{0};
+	};
+
+	std::thread hover_thread_;
+	std::atomic<bool> hover_stopping_{false};
+	std::atomic<uint64_t> hover_counter_{0};
+
+	/**
+	 * @brief Mutex protecting the asynchronous hover request queue.
+	 *
+	 * (1) Protects `pending_hover_request_` against concurrent access between the editor/UI
+	 * thread dispatching `request_hover` and the background `hover_worker_loop` executing
+	 * CLI queries.
+	 * (2) Locking rules: Short, bounded critical section. Never call shell execution,
+	 * disk I/O, or acquire any other lock while holding `hover_mutex_`.
+	 */
+	std::mutex hover_mutex_;
+	std::condition_variable hover_cv_;
+	std::optional<hover_request> pending_hover_request_;
+
+	void hover_worker_loop();
+
+	/**
+	 * @brief Mutex protecting the semcode CLI query cache.
+	 *
+	 * (1) Protects `cli_cache_` memoization table against concurrent reads and writes
+	 * between the background hover worker and synchronous symbol/hierarchy queries.
+	 * (2) Locking rules: Short critical section. Never held during subprocess execution.
+	 */
+	mutable std::mutex cli_cache_mutex_;
+	mutable std::unordered_map<std::string, std::string> cli_cache_;
 
 	[[nodiscard]] std::string run_semcode_query(const std::string &query) const;
 	[[nodiscard]] static std::string extract_identifier_at(const std::string &filepath, int line, int character);
