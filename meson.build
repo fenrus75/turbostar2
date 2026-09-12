@@ -1155,7 +1155,7 @@ test_fallback_crash = executable('test_fallback_crash',
   ['tests/unit/test_fallback_crash.cpp', 'src/crash_handler.cpp', git_version_h],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
-test('unit_test_fallback_crash', test_fallback_crash, should_fail: true, suite: 'agent')
+test('unit_test_fallback_crash', test_fallback_crash, suite: 'agent')
 
 test_crash_process = executable('test_crash_process',
   ['tests/unit/test_crash_process.cpp'],

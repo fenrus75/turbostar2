@@ -8,6 +8,7 @@
 #include <fstream>
 #include <lsp/json/json.h>
 #include <nlohmann/json.hpp>
+#include <pthread.h>
 #include <sstream>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -1295,6 +1296,24 @@ std::string filename_suggest_alternative(/* untrusted */ std::string_view untrus
 	});
 
 	return matches.front().rel_path;
+}
+
+void set_current_thread_name(std::string_view name)
+{
+	char buf[16];
+	size_t len = std::min(name.size(), sizeof(buf) - 1);
+	std::memcpy(buf, name.data(), len);
+	buf[len] = '\0';
+	pthread_setname_np(pthread_self(), buf);
+}
+
+std::string get_current_thread_name()
+{
+	char buf[16] = {0};
+	if (pthread_getname_np(pthread_self(), buf, sizeof(buf)) == 0) {
+		return std::string(buf);
+	}
+	return {};
 }
 
 } // namespace fs_utils

@@ -1,4 +1,4 @@
-// test_crash_handler_race.cpp
+// Tested source file: src/crash_handler.cpp
 //
 // Unit test for dual-launch race condition on crash files (Option A implementation).
 

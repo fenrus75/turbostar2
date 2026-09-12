@@ -2,6 +2,7 @@
 #include "agentlib/subagent_manager.h"
 #include "config_manager.h"
 #include "event_logger.h"
+#include "fs_utils.h"
 #include "git_manager.h"
 #include "project_manager.h"
 #include <chrono>
@@ -74,6 +75,7 @@ bool a2a_server::start(int base_port, int *out_bound_port)
 	if (out_bound_port) *out_bound_port = bound;
 
 	server_thread_ = std::thread([this]() {
+		fs_utils::set_current_thread_name("a2a_server");
 		event_logger::get_instance().log("a2a_server: Listening on port {}", bound_port_.load());
 		server_->listen_after_bind();
 		running_ = false;
@@ -452,6 +454,7 @@ std::string a2a_server::create_task(const std::string &agent_name, const nlohman
 	}
 
 	std::thread worker([this, task_id, agent_name, input_params, task_dir]() {
+		fs_utils::set_current_thread_name("a2a_worker");
 		std::string prompt;
 		if (input_params.contains("instructions") && input_params["instructions"].is_string()) {
 			prompt = input_params["instructions"].get<std::string>();

@@ -79,6 +79,7 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 
 		std::thread([runner = std::make_shared<terminal_command_runner>(interaction_, ctx.trigger_ui_update), cmd, weak_agent,
 			     captured_tool_call_id, attribution_notes, workspace_dir = ctx.fs_security.get_working_directory().string(), timeout = args_.timeout]() {
+			fs_utils::set_current_thread_name("compile_proj");
 			runner->set_enable_crash_catcher(true);
 			runner->set_project_dir(workspace_dir);
 			runner->set_timeout(timeout);

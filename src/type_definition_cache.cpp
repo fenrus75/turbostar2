@@ -77,6 +77,7 @@ void type_definition_cache::request_async(std::string_view type_name, const std:
 
 	// Dispatch non-blocking background resolution worker
 	std::thread([this, t_name, referencing_file, line, character]() {
+		fs_utils::set_current_thread_name("type_cache");
 		try {
 			if (!project_manager::get_instance().lsp_is_supported_file(referencing_file)) {
 				std::lock_guard<std::mutex> lock(mutex_);

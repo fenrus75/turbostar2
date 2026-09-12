@@ -9,6 +9,7 @@
 #include <memory>
 #include "command_runner.h"
 #include "event_logger.h"
+#include "fs_utils.h"
 #include "project_manager.h"
 
 namespace fs = std::filesystem;
@@ -94,6 +95,7 @@ std::string git_manager::get_repository_root() const
 
 void git_manager::worker_loop()
 {
+	fs_utils::set_current_thread_name("git_worker");
 	event_logger::get_instance().log("Thread started: git_manager worker_loop");
         while (!stop_thread_ && !project_manager::get_instance().is_exiting()) {
                 git_request req;

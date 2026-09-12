@@ -1303,6 +1303,7 @@ void ai_agent::start_processing()
 	}
 
 	std::thread([self = shared_from_this()]() {
+		fs_utils::set_current_thread_name("agent_proc");
 		event_logger::get_instance().log("Thread started: ai_agent main loop ({})", self->id_);
 		std::vector<message> convo;
 
@@ -3032,6 +3033,7 @@ void ai_agent::update_episode_hint(const std::string &episode_id, const std::str
 
 void ai_agent::summary_worker_loop()
 {
+	fs_utils::set_current_thread_name("agent_summary");
 	event_logger::get_instance().log("Thread started: ai_agent summary worker");
 
 	while (!is_closed_ && !project_manager::get_instance().is_exiting()) {

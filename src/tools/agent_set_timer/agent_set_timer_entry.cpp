@@ -30,6 +30,7 @@ std::string agent_set_timer_tool::execute(agentlib::tool_context &ctx)
 {
 	// Detach a background thread to wait and then trigger
 	std::thread([agent = ctx.active_agent->shared_from_this(), seconds = args_.seconds]() {
+		fs_utils::set_current_thread_name("agent_timer");
 		event_logger::get_instance().log("Timer thread started: sleeping for {} seconds.", seconds);
 		std::this_thread::sleep_for(std::chrono::seconds(seconds));
 

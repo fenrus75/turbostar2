@@ -667,6 +667,7 @@ bool resolve_outgoing_call_target(outgoing_call_reference &ref, const lsp_manage
 static void refresh_outgoing_calls_async(std::string safe_path, std::vector<codemap_symbol_info> doc_symbols, agentlib::tool_context *ctx)
 {
 	std::thread([safe_path = std::move(safe_path), doc_symbols = std::move(doc_symbols), ctx]() {
+		fs_utils::set_current_thread_name("codemap_idx");
 		try {
 			std::error_code ec;
 			auto current_mtime = std::filesystem::last_write_time(safe_path, ec);

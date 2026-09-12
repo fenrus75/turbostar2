@@ -209,6 +209,7 @@ std::string run_shell_command_tool::execute(agentlib::tool_context &ctx)
 		std::string captured_tool_call_id = ctx.tool_call_id;
 
 		std::thread([runner, cmd = args_.command, weak_agent, captured_tool_call_id]() {
+			fs_utils::set_current_thread_name("shell_cmd");
 			runner->execute(cmd);
 
 			if (auto agent = weak_agent.lock()) {

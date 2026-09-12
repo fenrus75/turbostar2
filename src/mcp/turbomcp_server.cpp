@@ -73,6 +73,7 @@ void turbomcp_server::stop_event_loop()
 
 void turbomcp_server::event_loop_worker()
 {
+	fs_utils::set_current_thread_name("mcp_evloop");
 	event_logger::get_instance().log("turbomcp_server: editor event loop thread started");
 
 	while (event_loop_running_) {

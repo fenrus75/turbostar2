@@ -540,6 +540,7 @@ void mcp_server::send_notification(const std::string &method, const nlohmann::js
 
 void mcp_server::reader_loop()
 {
+	fs_utils::set_current_thread_name("mcp_reader");
 	std::string buffer;
 	char chunk[1024];
 	while (reader_running_ && !project_manager::get_instance().is_exiting()) {
@@ -590,6 +591,7 @@ void mcp_server::reader_loop()
 
 void mcp_server::stderr_loop()
 {
+	fs_utils::set_current_thread_name("mcp_stderr");
 	std::string buffer;
 	char chunk[1024];
 	while (reader_running_ && !project_manager::get_instance().is_exiting()) {

@@ -7,6 +7,7 @@
 #include "../agentlib/tool_registry.h"
 #include "../config_manager.h"
 #include "../event_logger.h"
+#include "fs_utils.h"
 #include "../project_manager.h"
 #include "../agentlib/ai_agent.h"
 #include "../agentlib/ai_model.h"
@@ -111,6 +112,7 @@ void mcp_manager::start_async(const std::string &project_root)
 	}
 	safe_lock_guard lock(mutex_);
 	startup_thread_ = std::thread([this, project_root]() {
+		fs_utils::set_current_thread_name("mcp_startup");
 		discover_and_load(project_root);
 		start_active_servers();
 	});
@@ -124,6 +126,7 @@ void mcp_manager::start_active_servers()
 		for (auto &server : servers_) {
 			if (server->is_enabled()) {
 				start_threads.push_back(std::thread([this, server]() {
+					fs_utils::set_current_thread_name("mcp_server_init");
 					if (project_manager::get_instance().is_exiting()) {
 						return;
 					}
@@ -387,6 +390,7 @@ void mcp_manager::queue_prompt_generation_unlocked(const std::string &server_nam
 
 void mcp_manager::prompt_worker_loop()
 {
+	fs_utils::set_current_thread_name("mcp_prompt");
 	event_logger::get_instance().log("Thread started: mcp prompt generation worker");
 
 	while (!project_manager::get_instance().is_exiting()) {

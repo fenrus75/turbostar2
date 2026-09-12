@@ -39,6 +39,7 @@ std::string get_home_dir()
 
 int main(int argc, char **argv)
 {
+	fs_utils::set_current_thread_name("main");
 	crash_handler::install_fallback_handler();
 
 	CLI::App app{"Turbostar Editor"};

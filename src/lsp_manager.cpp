@@ -51,6 +51,7 @@ void lsp_manager::start_server(const std::string &name, const std::vector<std::s
 		server->is_running.store(true);
 
 		server->message_thread = std::thread([s = server.get()]() {
+			fs_utils::set_current_thread_name("lsp_msg");
 			event_logger::get_instance().log("Thread started: lsp_manager message_thread");
 			try {
 				while (s->is_running.load() && !project_manager::get_instance().is_exiting()) {
@@ -139,6 +140,7 @@ void lsp_manager::stop()
 			continue;
 
 		stop_threads.push_back(std::thread([server]() {
+			fs_utils::set_current_thread_name("lsp_stop");
 			try {
 				(void)server->message_handler->sendRequest<lsp::requests::Shutdown>();
 			} catch (...) {
@@ -156,6 +158,7 @@ void lsp_manager::stop()
 			// and reap in the background without blocking the editor exit path.
 			if (server->process) {
 				std::thread([p = std::move(server->process)]() {
+					fs_utils::set_current_thread_name("lsp_reap");
 					// Destructor of Process runs here in the background
 				}).detach();
 			}

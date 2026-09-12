@@ -6,9 +6,10 @@
 #include <libunwind.h>
 #include <signal.h>
 #include <ucontext.h>
-#include <string.h>
+#include <cstring>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 #include <filesystem>
 #include <cstdlib>
@@ -31,6 +32,28 @@
 #include <charconv>
 #include <string_view>
 
+/*
+================================================================================
+                    CRASH HANDLER ASYNC-SIGNAL SAFETY RULES
+================================================================================
+Functions in this file fall into two distinct domains:
+
+1. [CRITICAL: MUST BE STRICTLY ASYNC-SIGNAL-SAFE]
+   Functions called directly or indirectly from `fallback_signal_handler`:
+   - ABSOLUTELY NO dynamic memory allocation (malloc, free, realloc, new, delete).
+   - ABSOLUTELY NO standard C/C++ formatted I/O (printf, sprintf, snprintf, cout).
+   - ABSOLUTELY NO mutexes, condition variables, or non-reentrant locks.
+   - ABSOLUTELY NO std::string, std::vector, or heap-allocating containers.
+   - ONLY stack-allocated fixed-size buffers, raw POSIX syscalls (open, close, read,
+     write, fork, execl, kill, _exit), and stack-only formatters (safe_itoa, safe_hex_toa, safe_hex_16).
+
+2. [INIT / NORMAL CONTEXT ONLY: NOT ASYNC-SIGNAL-SAFE]
+   Functions run once during startup (install_fallback_handler, setup_crash_file,
+   resolve_crashprocess_path, is_debugger_attached) or normal thread breadcrumbs
+   (set_breadcrumb, scoped_breadcrumb). Standard C++ libraries/allocations allowed.
+================================================================================
+*/
+
 namespace crash_handler
 {
 
@@ -39,8 +62,41 @@ static int reserved_fd = -1;
 static char crash_filepath[PATH_MAX + 1] = "";
 static char crashprocess_path[PATH_MAX + 1] = "";
 
-// [NOT Signal-Safe]
-// Checks /proc/self/status for TracerPid != 0 to detect if GDB or another debugger is attached.
+// Thread-local breadcrumb buffer. Reads from fallback_signal_handler are async-signal-safe.
+static thread_local char current_breadcrumb[128] = "";
+
+// -----------------------------------------------------------------------------
+// [NORMAL CONTEXT: THREAD-SAFE / SIGNAL-SAFE READ]
+// Called from normal execution threads to record active context breadcrumbs.
+// -----------------------------------------------------------------------------
+void set_breadcrumb(std::string_view breadcrumb)
+{
+	size_t len = std::min(breadcrumb.size(), sizeof(current_breadcrumb) - 1);
+	std::memcpy(current_breadcrumb, breadcrumb.data(), len);
+	current_breadcrumb[len] = '\0';
+}
+
+void clear_breadcrumb()
+{
+	current_breadcrumb[0] = '\0';
+}
+
+scoped_breadcrumb::scoped_breadcrumb(std::string_view breadcrumb)
+{
+	std::memcpy(prev_, current_breadcrumb, sizeof(prev_));
+	set_breadcrumb(breadcrumb);
+}
+
+scoped_breadcrumb::~scoped_breadcrumb()
+{
+	std::memcpy(current_breadcrumb, prev_, sizeof(current_breadcrumb));
+}
+
+// -----------------------------------------------------------------------------
+// [INIT ONLY: NOT ASYNC-SIGNAL-SAFE]
+// Checks /proc/self/status for TracerPid != 0 to detect if GDB is attached.
+// Uses std::ifstream and std::string; must ONLY run during startup.
+// -----------------------------------------------------------------------------
 bool is_debugger_attached()
 {
 	std::ifstream status_file("/proc/self/status");
@@ -67,8 +123,10 @@ bool is_debugger_attached()
 	return false;
 }
 
-// [Signal-Safe]
-// Computes string length using stack-only pointer traversal. Safe to call in signal handlers.
+// -----------------------------------------------------------------------------
+// [CRITICAL: MUST BE STRICTLY ASYNC-SIGNAL-SAFE]
+// Computes string length using stack-only pointer traversal.
+// -----------------------------------------------------------------------------
 static size_t safe_strlen(const char *s)
 {
 	size_t len = 0;
@@ -78,10 +136,11 @@ static size_t safe_strlen(const char *s)
 	return len;
 }
 
-// [NOT Signal-Safe]
-// Executed once during application setup (setup_crash_file). Resolves and caches the path
-// to the turbostar-crashprocess helper binary so signal handlers can invoke it directly without
-// dynamic path lookup or heap allocations at crash time.
+// -----------------------------------------------------------------------------
+// [INIT ONLY: NOT ASYNC-SIGNAL-SAFE]
+// Executed once during application setup (setup_crash_file). Resolves and caches
+// the path to the turbostar-crashprocess helper binary using std::filesystem.
+// -----------------------------------------------------------------------------
 static void resolve_crashprocess_path()
 {
 	namespace fs = std::filesystem;
@@ -115,8 +174,11 @@ static void resolve_crashprocess_path()
 	crashprocess_path[sizeof(crashprocess_path) - 1] = '\0';
 }
 
-// [Signal-Safe]
-// Formats a signed long into a caller-supplied buffer using stack storage only.
+// -----------------------------------------------------------------------------
+// [CRITICAL: MUST BE STRICTLY ASYNC-SIGNAL-SAFE]
+// Formats a signed long into caller-supplied buffer using stack storage only.
+// NO heap allocations, NO locks, NO sprintf/snprintf.
+// -----------------------------------------------------------------------------
 static void safe_itoa(long val, char *buf, int buf_size)
 {
 	if (buf_size < 2)
@@ -151,8 +213,11 @@ static void safe_itoa(long val, char *buf, int buf_size)
 	buf[j] = '\0';
 }
 
-// [Signal-Safe]
-// Formats an unsigned long hex value into a caller-supplied buffer using stack storage only.
+// -----------------------------------------------------------------------------
+// [CRITICAL: MUST BE STRICTLY ASYNC-SIGNAL-SAFE]
+// Formats an unsigned long hex value into caller-supplied buffer using stack storage only.
+// NO heap allocations, NO locks, NO sprintf/snprintf.
+// -----------------------------------------------------------------------------
 static void safe_hex_toa(unsigned long val, char *buf, int buf_size)
 {
 	if (buf_size < 2)
@@ -179,9 +244,29 @@ static void safe_hex_toa(unsigned long val, char *buf, int buf_size)
 	buf[j] = '\0';
 }
 
-// [Signal-Safe]
-// Opens the crash log file lazily on demand when a crash occurs. POSIX open() is async-signal-safe.
+// -----------------------------------------------------------------------------
+// [CRITICAL: MUST BE STRICTLY ASYNC-SIGNAL-SAFE]
+// Formats an unsigned long into a fixed 16-character 0-padded hex string using stack storage only.
+// NO heap allocations, NO locks, NO sprintf/snprintf.
+// -----------------------------------------------------------------------------
+static void safe_hex_16(unsigned long val, char *buf, int buf_size)
+{
+	if (buf_size < 17)
+		return;
+	const char *hex_chars = "0123456789abcdef";
+	for (int i = 15; i >= 0; --i) {
+		buf[i] = hex_chars[val & 0xf];
+		val >>= 4;
+	}
+	buf[16] = '\0';
+}
+
+// -----------------------------------------------------------------------------
+// [CRITICAL: MUST BE STRICTLY ASYNC-SIGNAL-SAFE]
+// Opens the crash log file lazily on demand when a crash occurs.
+// POSIX open() and close() are strictly async-signal-safe.
 // Closes pre-allocated reserved_fd to recover an FD slot if EMFILE occurs.
+// -----------------------------------------------------------------------------
 static void ensure_crash_file_open_signal_safe()
 {
 	if (crash_fd != -1 || safe_strlen(crash_filepath) == 0) {
@@ -198,8 +283,10 @@ static void ensure_crash_file_open_signal_safe()
 	}
 }
 
-// [Signal-Safe]
+// -----------------------------------------------------------------------------
+// [CRITICAL: MUST BE STRICTLY ASYNC-SIGNAL-SAFE]
 // Writes a null-terminated string to STDERR_FILENO and crash_fd using POSIX write().
+// -----------------------------------------------------------------------------
 static void safe_write(const char *msg)
 {
 	if (!msg) return;
@@ -211,9 +298,11 @@ static void safe_write(const char *msg)
 	}
 }
 
-// [NOT Signal-Safe]
+// -----------------------------------------------------------------------------
+// [INIT ONLY: NOT ASYNC-SIGNAL-SAFE]
 // Runs during application startup (install_fallback_handler). Pre-allocates reserved_fd,
 // resolves crashprocess_path, and initializes crash_filepath without creating the file.
+// -----------------------------------------------------------------------------
 static void setup_crash_file()
 {
 	namespace fs = std::filesystem;
@@ -259,9 +348,12 @@ static void setup_crash_file()
 	}
 }
 
-// [NOT Signal-Safe / Exception Handler]
-// Uncaught exception handler registered via std::set_terminate(). Runs before std::abort()
-// when a C++ exception is rethrown uncaught.
+// -----------------------------------------------------------------------------
+// [EXCEPTION TERMINATE HANDLER: NOT ASYNC-SIGNAL-SAFE]
+// Uncaught exception handler registered via std::set_terminate().
+// Runs in normal user thread context before std::abort(), so std::string,
+// std::format, and heap allocations are permissible here.
+// -----------------------------------------------------------------------------
 static void fallback_terminate_handler()
 {
 	std::string exc_info = "Unknown uncaught exception";
@@ -277,8 +369,29 @@ static void fallback_terminate_handler()
 	}
 
 	ensure_crash_file_open_signal_safe();
+	pid_t tid = static_cast<pid_t>(syscall(SYS_gettid));
+	char comm_buf[32] = {0};
+	int comm_fd = open("/proc/thread-self/comm", O_RDONLY | O_CLOEXEC);
+	if (comm_fd != -1) {
+		ssize_t n = read(comm_fd, comm_buf, sizeof(comm_buf) - 1);
+		close(comm_fd);
+		if (n > 0) {
+			while (n > 0 && (comm_buf[n - 1] == '\n' || comm_buf[n - 1] == '\r')) {
+				comm_buf[--n] = '\0';
+			}
+		}
+	}
+	std::string thread_info = std::format("Thread: {}", tid);
+	if (comm_buf[0] != '\0') {
+		thread_info += std::format(" ({})", comm_buf);
+	}
+	thread_info += "\n";
+	if (current_breadcrumb[0] != '\0') {
+		thread_info += std::format("Breadcrumb: {}\n", current_breadcrumb);
+	}
+
 	if (crash_fd != -1) {
-		std::string msg = "\n*** Turbostar Uncaught Exception ***\n" + exc_info + "\n";
+		std::string msg = "\n*** Turbostar Uncaught Exception ***\n" + exc_info + "\n" + thread_info;
 #ifdef TURBOSTAR_GIT_HASH
 		msg += "Git Commit: " TURBOSTAR_GIT_HASH "\n";
 #endif
@@ -286,15 +399,23 @@ static void fallback_terminate_handler()
 		write(crash_fd, msg.c_str(), msg.length());
 		event_logger::dump_recent_logs_signal_safe(crash_fd, 10);
 	}
+	write(STDERR_FILENO, thread_info.c_str(), thread_info.length());
 	event_logger::dump_recent_logs_signal_safe(STDERR_FILENO, 10);
 
 	std::abort();
 }
 
-// [MUST BE STRICTLY Signal-Safe]
+// -----------------------------------------------------------------------------
+// [CRITICAL: MUST BE STRICTLY ASYNC-SIGNAL-SAFE]
 // Core crash signal handler for SIGSEGV, SIGABRT, SIGFPE, SIGILL, SIGBUS.
-// MUST NOT perform heap allocations (malloc/new), standard stream I/O (printf/cout), or non-async-signal-safe calls.
-// Uses stack-only helpers (safe_write, safe_itoa, safe_hex_toa, libunwind) and direct POSIX syscalls (open, write, fork, execl, _exit).
+// 
+// STRICT SAFETY CONSTRAINTS:
+// - ABSOLUTELY NO dynamic memory allocations (malloc/free/new/delete).
+// - ABSOLUTELY NO formatted stdio (printf, sprintf, snprintf, std::cout).
+// - ABSOLUTELY NO mutexes, condition variables, or locks (deadlock hazard).
+// - ABSOLUTELY NO std::string, std::vector, or heap containers.
+// - ONLY fixed-size stack buffers, stack-only safe formatters, and POSIX syscalls.
+// -----------------------------------------------------------------------------
 static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 {
 	int is_write = 0;
@@ -366,6 +487,37 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 		}
 	}
 
+	// Thread ID & Name
+	safe_write("Thread: ");
+	pid_t tid = static_cast<pid_t>(syscall(SYS_gettid));
+	char tid_buf[16];
+	safe_itoa(static_cast<long>(tid), tid_buf, sizeof(tid_buf));
+	safe_write(tid_buf);
+
+	char comm_buf[32] = {0};
+	int comm_fd = open("/proc/thread-self/comm", O_RDONLY | O_CLOEXEC);
+	if (comm_fd != -1) {
+		ssize_t n = read(comm_fd, comm_buf, sizeof(comm_buf) - 1);
+		close(comm_fd);
+		if (n > 0) {
+			while (n > 0 && (comm_buf[n - 1] == '\n' || comm_buf[n - 1] == '\r')) {
+				comm_buf[--n] = '\0';
+			}
+		}
+	}
+	if (comm_buf[0] != '\0') {
+		safe_write(" (");
+		safe_write(comm_buf);
+		safe_write(")");
+	}
+	safe_write("\n");
+
+	if (current_breadcrumb[0] != '\0') {
+		safe_write("Breadcrumb: ");
+		safe_write(current_breadcrumb);
+		safe_write("\n");
+	}
+
 	char exe_path[PATH_MAX + 1];
 	ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
 	if (len > 0) {
@@ -381,6 +533,41 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 	safe_write("\n");
 #endif
 	safe_write("Analysis Protocol: See docs/turbostar-crash-analysis-protocol.md\n");
+
+#if defined(__x86_64__)
+	ucontext_t *uc = reinterpret_cast<ucontext_t *>(ucontext);
+	if (uc) {
+		safe_write("\nCPU Registers:\n");
+		struct reg_desc {
+			const char *name;
+			int reg_idx;
+		};
+		static const reg_desc regs[] = {
+			{"  RAX: 0x", REG_RAX}, {"  RBX: 0x", REG_RBX},
+			{"  RCX: 0x", REG_RCX}, {"  RDX: 0x", REG_RDX},
+			{"  RSI: 0x", REG_RSI}, {"  RDI: 0x", REG_RDI},
+			{"  RBP: 0x", REG_RBP}, {"  RSP: 0x", REG_RSP},
+			{"  R8:  0x", REG_R8},  {"  R9:  0x", REG_R9},
+			{"  R10: 0x", REG_R10}, {"  R11: 0x", REG_R11},
+			{"  R12: 0x", REG_R12}, {"  R13: 0x", REG_R13},
+			{"  R14: 0x", REG_R14}, {"  R15: 0x", REG_R15},
+			{"  RIP: 0x", REG_RIP}, {"  EFL: 0x", REG_EFL},
+		};
+		char r_buf[32];
+		for (size_t i = 0; i < sizeof(regs) / sizeof(regs[0]); i += 2) {
+			safe_write(regs[i].name);
+			safe_hex_16(static_cast<unsigned long>(uc->uc_mcontext.gregs[regs[i].reg_idx]), r_buf, sizeof(r_buf));
+			safe_write(r_buf);
+
+			if (i + 1 < sizeof(regs) / sizeof(regs[0])) {
+				safe_write(regs[i + 1].name);
+				safe_hex_16(static_cast<unsigned long>(uc->uc_mcontext.gregs[regs[i + 1].reg_idx]), r_buf, sizeof(r_buf));
+				safe_write(r_buf);
+			}
+			safe_write("\n");
+		}
+	}
+#endif
 
 	event_logger::dump_recent_logs_signal_safe(STDERR_FILENO, 10);
 	if (crash_fd != -1) {
@@ -457,9 +644,11 @@ static void fallback_signal_handler(int sig, siginfo_t *info, void *ucontext)
 	_exit(128 + sig);
 }
 
-// [NOT Signal-Safe]
-// Public entry point called once during application initialization to install fallback signal
-// handlers and set_terminate handler.
+// -----------------------------------------------------------------------------
+// [INIT ONLY: NOT ASYNC-SIGNAL-SAFE]
+// Public entry point called once during application initialization.
+// Installs fallback signal handlers and set_terminate handler.
+// -----------------------------------------------------------------------------
 void install_fallback_handler()
 {
 	if (is_debugger_attached()) {

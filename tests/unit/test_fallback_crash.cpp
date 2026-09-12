@@ -1,3 +1,4 @@
+// Tested source file: src/crash_handler.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <cstdlib>
@@ -33,6 +34,8 @@ static void run_child_and_verify(const std::string &child_mode, const std::strin
 		dup2(pipefd[1], STDERR_FILENO);
 		close(pipefd[1]);
 
+		unsetenv("LD_PRELOAD");
+
 		char *child_argv[] = {const_cast<char *>(argv0.c_str()), const_cast<char *>(child_mode.c_str()), nullptr};
 		execvp(argv0.c_str(), child_argv);
 		perror("execvp");
@@ -62,6 +65,17 @@ static void run_child_and_verify(const std::string &child_mode, const std::strin
 	assert(output.find("*** Turbostar Fallback Crash Catcher ***") != std::string::npos);
 	assert(output.find(expected_signal_name) != std::string::npos);
 	assert(output.find("Stack trace:") != std::string::npos);
+	assert(output.find("Thread: ") != std::string::npos);
+	assert(output.find("test_crash_th") != std::string::npos);
+	assert(output.find("Breadcrumb: test_breadcrumb_context") != std::string::npos);
+
+#if defined(__x86_64__)
+	if (child_mode == "child_sigsegv") {
+		assert(output.find("CPU Registers:") != std::string::npos);
+		assert(output.find("  RSP: 0x") != std::string::npos);
+		assert(output.find("  RIP: 0x") != std::string::npos);
+	}
+#endif
 
 	// Verify that the crash file was written to
 	namespace fs = std::filesystem;
@@ -88,6 +102,17 @@ static void run_child_and_verify(const std::string &child_mode, const std::strin
 	assert(crash_file_content.find("*** Turbostar Fallback Crash Catcher ***") != std::string::npos);
 	assert(crash_file_content.find(expected_signal_name) != std::string::npos);
 	assert(crash_file_content.find(expected_file_snippet) != std::string::npos);
+	assert(crash_file_content.find("Thread: ") != std::string::npos);
+	assert(crash_file_content.find("test_crash_th") != std::string::npos);
+	assert(crash_file_content.find("Breadcrumb: test_breadcrumb_context") != std::string::npos);
+
+#if defined(__x86_64__)
+	if (child_mode == "child_sigsegv") {
+		assert(crash_file_content.find("CPU Registers:") != std::string::npos);
+		assert(crash_file_content.find("  RSP: 0x") != std::string::npos);
+		assert(crash_file_content.find("  RIP: 0x") != std::string::npos);
+	}
+#endif
 
 	// Clean up test cache directory
 	std::error_code ec;
@@ -103,12 +128,25 @@ int main(int argc, char **argv)
 #endif
 
 	namespace fs = std::filesystem;
-	std::string temp_home = (fs::temp_directory_path() / std::format("test_fallback_crash_home_{}", getpid())).string();
-	fs::create_directories(temp_home);
-	setenv("HOME", temp_home.c_str(), 1);
+	std::string temp_home;
+	if (const char *env_home = getenv("HOME")) {
+		temp_home = env_home;
+	} else {
+		temp_home = (fs::temp_directory_path() / std::format("test_fallback_crash_home_{}", getpid())).string();
+		fs::create_directories(temp_home);
+		setenv("HOME", temp_home.c_str(), 1);
+	}
+	if (!getenv("TURBOSTAR_CACHE_DIR")) {
+		std::string temp_cache = temp_home + "/.cache/turbostar";
+		fs::create_directories(temp_cache);
+		setenv("TURBOSTAR_CACHE_DIR", temp_cache.c_str(), 1);
+	}
 
 	// Child process code path: triggers the signal handler
 	if (argc > 1 && (std::string(argv[1]) == "child" || std::string(argv[1]) == "child_sigsegv")) {
+		fs_utils::set_current_thread_name("test_crash_th");
+		crash_handler::set_breadcrumb("test_breadcrumb_context");
+
 		// Install the fallback signal handler
 		crash_handler::install_fallback_handler();
 
@@ -120,6 +158,9 @@ int main(int argc, char **argv)
 	}
 
 	if (argc > 1 && std::string(argv[1]) == "child_exception") {
+		fs_utils::set_current_thread_name("test_crash_th");
+		crash_handler::set_breadcrumb("test_breadcrumb_context");
+
 		// Install the fallback signal handler
 		crash_handler::install_fallback_handler();
 

@@ -9,6 +9,7 @@
 #include "build_error_manager.h"
 #include "command_runner.h"
 #include "event_logger.h"
+#include "fs_utils.h"
 
 process_runner::process_runner(std::shared_ptr<document> output_doc, int max_lines) : doc_(output_doc)
 {
@@ -114,6 +115,7 @@ class streaming_command_runner : public command_runner
 
 void process_runner::worker_loop(std::string command)
 {
+	fs_utils::set_current_thread_name("process_run");
 	event_logger::get_instance().log("Thread started: process_runner worker_loop ({})", command);
         streaming_command_runner runner(doc_, parser_.get(), stop_requested_, auto_scroll_);
         runner.apply_build_profile();

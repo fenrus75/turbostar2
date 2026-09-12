@@ -256,4 +256,14 @@ bool ensure_parent_directory_exists(const std::string &target_path, std::string 
  */
 std::string filename_suggest_alternative(/* untrusted */ std::string_view untrusted_filename);
 
+/**
+ * @brief Sets the name of the current calling thread (truncated to 15 characters for Linux pthread_setname_np).
+ */
+void set_current_thread_name(std::string_view name);
+
+/**
+ * @brief Returns the name of the current calling thread.
+ */
+std::string get_current_thread_name();
+
 } // namespace fs_utils

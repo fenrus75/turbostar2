@@ -154,6 +154,7 @@ void project_manager::initialize()
 
 	// Start the inventory thread with a 100ms delay
 	inventory_thread_ = std::jthread([this](std::stop_token stop) {
+		fs_utils::set_current_thread_name("proj_inventory");
 		event_logger::get_instance().log("Thread started: project_manager inventory_thread");
 		if (!interruptible_sleep(stop, std::chrono::milliseconds(100))) {
 			inventory_project(stop);

@@ -21,6 +21,7 @@ void document::mark_line_dirty(const std::shared_ptr<line> &l)
 
 void document::highlighter_thread_loop(std::stop_token stop_token)
 {
+	fs_utils::set_current_thread_name("highlighter");
 	event_logger::get_instance().log("Thread started: document highlighter_thread_loop ({})", filename_);
 	while (!stop_token.stop_requested()) {
 		std::shared_ptr<line> l;

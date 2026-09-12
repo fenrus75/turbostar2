@@ -58,6 +58,7 @@ static bool is_file_reviewable(const std::filesystem::path &full_path)
 static void run_verifier_async_thread(std::vector<std::weak_ptr<agentlib::ai_agent>> reviewer_agents_weak,
 				      std::weak_ptr<agentlib::ai_agent> parent_weak, perform_code_review_args args)
 {
+	fs_utils::set_current_thread_name("cr_verifier");
 	// Lock the agents - they may have been destroyed by the time this thread runs if the
 	// caller/editor shut down in the meantime. Detached threads MUST NOT keep parent/context
 	// objects alive via strong shared_ptr (docs/thread-lifecycle.md Pattern C).

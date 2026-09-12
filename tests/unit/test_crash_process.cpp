@@ -58,6 +58,8 @@ void test_crash_process_symbol_resolution()
 
 	assert(content.find("*** Resolved Stack Trace ***") != std::string::npos);
 	assert(content.find("Fault Address") != std::string::npos);
+	assert(content.find("*** Memory Region Analysis ***") != std::string::npos);
+	assert(content.find("CrashAddress 0x") != std::string::npos);
 
 	std::filesystem::remove(crash_file_path);
 	std::cout << "test_crash_process_symbol_resolution passed successfully!\n";

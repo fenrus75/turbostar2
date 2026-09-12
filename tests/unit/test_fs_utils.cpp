@@ -215,6 +215,14 @@ int main()
 		fs_utils::set_override_project_dir("");
 	}
 
+	// Thread naming tests
+	fs_utils::set_current_thread_name("test_name");
+	assert(fs_utils::get_current_thread_name() == "test_name");
+	// Truncation test (>15 characters)
+	fs_utils::set_current_thread_name("very_long_thread_name_exceeding_15_chars");
+	assert(fs_utils::get_current_thread_name() == "very_long_threa");
+	assert(fs_utils::get_current_thread_name().length() == 15);
+
 	// Cleanup
 	fs::remove_all(temp_dir);
 
