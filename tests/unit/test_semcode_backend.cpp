@@ -121,7 +121,7 @@ static void test_hybrid_cli_queries()
 		    << "case \"$QUERY\" in\n"
 		    << "  *\"type dummy_struct\"*)\n"
 		    << "    echo '=== Type Information ==='\n"
-		    << "    echo 'Name: struct dummy_struct'\n"
+		    << "    printf '\\033[32mName: struct dummy_struct\\033[0m\\n'\n"
 		    << "    echo 'File: main.c'\n"
 		    << "    echo 'Line: 1'\n"
 		    << "    echo 'Fields:'\n"
@@ -197,6 +197,8 @@ static void test_hybrid_cli_queries()
 	assert(ev_opt.has_value());
 	assert(ev_opt->type == event_type::lsp_hover_result);
 	assert(ev_opt->payload.find("dummy_struct") != std::string::npos);
+	assert(ev_opt->payload.find("\033[") == std::string::npos);
+	assert(ev_opt->payload.find("\033") == std::string::npos);
 
 	backend.stop();
 	unsetenv("SEMCODE_BIN");

@@ -9,25 +9,9 @@
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "project_manager.h"
+#include "utf8.h"
 
 namespace fs = std::filesystem;
-
-static std::string strip_ansi_codes(std::string_view text)
-{
-	std::string result;
-	result.reserve(text.size());
-	for (size_t i = 0; i < text.size(); ++i) {
-		if (text[i] == '\033' && i + 1 < text.size() && text[i + 1] == '[') {
-			i += 2;
-			while (i < text.size() && text[i] != 'm') {
-				++i;
-			}
-			continue;
-		}
-		result.push_back(text[i]);
-	}
-	return result;
-}
 
 static void parse_file_and_line_locations(std::string_view text, std::string_view root, std::vector<lsp_backend::location_info> &out)
 {
@@ -287,7 +271,7 @@ void semcode_backend::request_hover(const std::string &filepath, int line, int c
 		if (q) {
 			editor_event ev;
 			ev.type = event_type::lsp_hover_result;
-			ev.payload = strip_ansi_codes(type_output);
+			ev.payload = utf8::sanitize_terminal_output(type_output);
 			q->push(ev);
 		}
 		return;
@@ -301,7 +285,7 @@ void semcode_backend::request_hover(const std::string &filepath, int line, int c
 		if (q) {
 			editor_event ev;
 			ev.type = event_type::lsp_hover_result;
-			ev.payload = strip_ansi_codes(func_output);
+			ev.payload = utf8::sanitize_terminal_output(func_output);
 			q->push(ev);
 		}
 	}
@@ -535,7 +519,8 @@ std::string semcode_backend::run_semcode_query(const std::string &query) const
 				      fs_utils::escape_shell_arg(project_root_),
 				      fs_utils::escape_shell_arg(query));
 
-	return fs_utils::execute_command_sync(cmd, 10);
+	std::string raw_output = fs_utils::execute_command_sync(cmd, 10);
+	return utf8::sanitize_terminal_output(raw_output);
 }
 
 std::string semcode_backend::extract_identifier_at(const std::string &filepath, int line, int character)
