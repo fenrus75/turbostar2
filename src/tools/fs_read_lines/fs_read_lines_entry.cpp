@@ -273,11 +273,19 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 	std::vector<candidate_type_token> candidate_types;
 	if (read_res.success && !read_res.lines.empty()) {
 		candidate_types = type_token_extractor::extract_candidates(read_res.lines, start);
+		std::string cand_names;
 		for (const auto &cand : candidate_types) {
+			if (!cand_names.empty()) {
+				cand_names += ", ";
+			}
+			cand_names += cand.name;
 			if (!type_definition_cache::get_instance().contains(cand.name)) {
 				type_definition_cache::get_instance().request_async(cand.name, args_.safe_path, cand.line - 1, cand.col);
 			}
 		}
+		event_logger::get_instance().log(std::format(
+			"fs_read_lines: path='{}', range={}-{}, extracted {} candidate types: [{}]",
+			args_.safe_path, start, adjusted_end, candidate_types.size(), cand_names));
 	}
 
 	if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
@@ -373,15 +381,29 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		// Type Definitions: gather candidate types that have resolved in the cache
 		std::string companion_header = is_header ? "" : find_matching_header_file(args_.safe_path, ctx);
 		std::vector<type_definition_entry> resolved_types;
+		size_t pending_count = 0;
+		size_t excluded_file_count = 0;
+		size_t already_reported_count = 0;
+		size_t not_found_count = 0;
 		for (const auto &cand : candidate_types) {
 			auto entry = type_definition_cache::get_instance().lookup(cand.name);
-			if (entry && entry->state == type_cache_state::resolved) {
+			if (!entry) {
+				not_found_count++;
+				continue;
+			}
+			if (entry->state == type_cache_state::pending) {
+				pending_count++;
+				continue;
+			}
+			if (entry->state == type_cache_state::resolved) {
 				// Exclude if defined in current file or its companion header
 				if (entry->safe_file_path == args_.safe_path || entry->safe_file_path == companion_header) {
+					excluded_file_count++;
 					continue;
 				}
 				// Exclude if already reported in this agent session
 				if (ctx.reported_type_definitions.find(entry->type_name) != ctx.reported_type_definitions.end()) {
+					already_reported_count++;
 					continue;
 				}
 				resolved_types.push_back(*entry);
@@ -390,6 +412,11 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 				}
 			}
 		}
+
+		event_logger::get_instance().log(std::format(
+			"fs_read_lines: path='{}', candidate_types={}, resolved={}, pending={}, excluded_file={}, already_reported={}, not_found={}",
+			args_.safe_path, candidate_types.size(), resolved_types.size(), pending_count, excluded_file_count,
+			already_reported_count, not_found_count));
 
 		if (!resolved_types.empty()) {
 			ss << type_definition_cache::format_type_definition_table(resolved_types);

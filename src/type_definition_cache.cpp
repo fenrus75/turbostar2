@@ -64,7 +64,9 @@ void type_definition_cache::request_async(std::string_view type_name, const std:
 		std::lock_guard<std::mutex> lock(mutex_);
 		auto it = types_.find(t_name);
 		if (it != types_.end()) {
-			// Already tracked, pending, or resolved
+			event_logger::get_instance().log(std::format(
+				"type_definition_cache::request_async: type='{}' already tracked (state={})",
+				t_name, static_cast<int>(it->second.state)));
 			return;
 		}
 
@@ -73,6 +75,9 @@ void type_definition_cache::request_async(std::string_view type_name, const std:
 		pending_stub.state = type_cache_state::pending;
 		pending_stub.requested_at = std::chrono::steady_clock::now();
 		types_[t_name] = pending_stub;
+		event_logger::get_instance().log(std::format(
+			"type_definition_cache::request_async: dispatched background worker for type='{}' (ref='{}:{}:{}')",
+			t_name, referencing_file, line, character));
 	}
 
 	// Dispatch non-blocking background resolution worker
@@ -82,6 +87,9 @@ void type_definition_cache::request_async(std::string_view type_name, const std:
 			if (!project_manager::get_instance().lsp_is_supported_file(referencing_file)) {
 				std::lock_guard<std::mutex> lock(mutex_);
 				types_[t_name].state = type_cache_state::unresolved;
+				event_logger::get_instance().log(std::format(
+					"type_definition_cache: type='{}', file='{}' not supported by LSP -> unresolved",
+					t_name, referencing_file));
 				return;
 			}
 
@@ -89,6 +97,9 @@ void type_definition_cache::request_async(std::string_view type_name, const std:
 			if (locs.empty()) {
 				std::lock_guard<std::mutex> lock(mutex_);
 				types_[t_name].state = type_cache_state::unresolved;
+				event_logger::get_instance().log(std::format(
+					"type_definition_cache: type='{}', no definition locations found -> unresolved",
+					t_name));
 				return;
 			}
 
@@ -101,6 +112,9 @@ void type_definition_cache::request_async(std::string_view type_name, const std:
 			if (abs_path.find(norm_root) != 0) {
 				std::lock_guard<std::mutex> lock(mutex_);
 				types_[t_name].state = type_cache_state::unresolved;
+				event_logger::get_instance().log(std::format(
+					"type_definition_cache: type='{}', loc='{}' outside workspace root '{}' -> unresolved",
+					t_name, abs_path, norm_root));
 				return;
 			}
 
@@ -187,12 +201,18 @@ void type_definition_cache::request_async(std::string_view type_name, const std:
 			entry.kind = kind;
 			entry.start_line = def_start;
 			entry.end_line = def_end;
+			event_logger::get_instance().log(std::format(
+				"type_definition_cache: type='{}' resolved to kind='{}', '{}:{}-{}'",
+				t_name, kind, rel_path, def_start, def_end));
 		} catch (...) {
 			std::lock_guard<std::mutex> lock(mutex_);
 			auto it = types_.find(t_name);
 			if (it != types_.end()) {
 				it->second.state = type_cache_state::failed;
 			}
+			event_logger::get_instance().log(std::format(
+				"type_definition_cache: type='{}' background worker caught exception -> failed",
+				t_name));
 		}
 	}).detach();
 }

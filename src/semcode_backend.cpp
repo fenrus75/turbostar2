@@ -88,6 +88,8 @@ static bool parse_definition_locations_strict_unique(std::string_view text, std:
 
 	// Check for semcode multi-definition banner: e.g. "Found 5 function definitions with name ..."
 	if (text.find(" definitions with name ") != std::string_view::npos) {
+		event_logger::get_instance().log(
+			"parse_definition_locations_strict_unique: multi-definition banner detected -> ambiguous (false)");
 		return false;
 	}
 
@@ -108,6 +110,8 @@ static bool parse_definition_locations_strict_unique(std::string_view text, std:
 		if (trimmed.starts_with("File:")) {
 			// If we already resolved a definition location, seeing another File: indicates multiple locations: fail immediately!
 			if (!out.empty()) {
+				event_logger::get_instance().log(
+					"parse_definition_locations_strict_unique: multiple File: entries detected -> ambiguous (false)");
 				out.clear();
 				return false;
 			}
@@ -120,6 +124,8 @@ static bool parse_definition_locations_strict_unique(std::string_view text, std:
 			if (!current_file.empty()) {
 				// If we already resolved a definition location, another line definition means multiple locations: fail immediately!
 				if (!out.empty()) {
+					event_logger::get_instance().log(
+						"parse_definition_locations_strict_unique: multiple Line: entries detected -> ambiguous (false)");
 					out.clear();
 					return false;
 				}
@@ -162,10 +168,16 @@ static bool parse_definition_locations_strict_unique(std::string_view text, std:
 	}
 
 	if (out.size() > 1) {
+		event_logger::get_instance().log(std::format(
+			"parse_definition_locations_strict_unique: out.size() = {} > 1 -> ambiguous (false)",
+			out.size()));
 		out.clear();
 		return false;
 	}
 
+	event_logger::get_instance().log(std::format(
+		"parse_definition_locations_strict_unique: parsed {} unique location(s)",
+		out.size()));
 	return true;
 }
 
@@ -576,7 +588,9 @@ std::vector<lsp_backend::location_info> semcode_backend::query_definition(const 
 			std::string func_out = run_semcode_query(std::format("func {}", identifier));
 			bool func_ok = parse_definition_locations_strict_unique(func_out, project_root_, results);
 			if (!func_ok) {
-				// Ambiguity detected: multiple function definitions exist, fail immediately
+				event_logger::get_instance().log(std::format(
+					"semcode_backend::query_definition: identifier='{}', ambiguous func definitions, aborting",
+					identifier));
 				return {};
 			}
 
@@ -586,6 +600,10 @@ std::vector<lsp_backend::location_info> semcode_backend::query_definition(const 
 					identifier, results.size()));
 				return results;
 			}
+
+			event_logger::get_instance().log(std::format(
+				"semcode_backend::query_definition: identifier='{}', no func definition found, checking type",
+				identifier));
 
 			// If not a function, check if it is a type definition
 			std::string type_out = run_semcode_query(std::format("type {}", identifier));
@@ -604,6 +622,10 @@ std::vector<lsp_backend::location_info> semcode_backend::query_definition(const 
 					identifier, results.size()));
 				return results;
 			}
+
+			event_logger::get_instance().log(std::format(
+				"semcode_backend::query_definition: identifier='{}', no type definition found",
+				identifier));
 		}
 		return {};
 	}
