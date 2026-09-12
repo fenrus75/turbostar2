@@ -539,7 +539,7 @@ static bool is_project_file(std::string_view path, agentlib::tool_context * /*ct
 	    path.starts_with("/etc/") || path.starts_with("/var/")) {
 		return false;
 	}
-	if (path.find("/include/") != std::string_view::npos || path.find("/bits/") != std::string_view::npos ||
+	if (path.find("/bits/") != std::string_view::npos ||
 	    path.find("gcc/") != std::string_view::npos || path.find("clang/") != std::string_view::npos) {
 		return false;
 	}
@@ -745,6 +745,7 @@ static void refresh_outgoing_calls_async(std::string safe_path, std::vector<code
 
 static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
 	const std::string &safe_path, int start_line, int end_line,
+	const std::vector<codemap_symbol_info> &doc_symbols,
 	std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
 	agentlib::tool_context *ctx,
 	std::chrono::steady_clock::time_point deadline)
@@ -776,6 +777,13 @@ static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
 		return {};
 	}
 
+	// Filter out tokens that represent the definition header of a function/symbol in doc_symbols
+	// (e.g. `static void buffer_io_error(...)` on its definition line is not a call to buffer_io_error)
+	std::unordered_set<std::string> defined_on_line_names;
+	for (const auto &sym : doc_symbols) {
+		defined_on_line_names.insert(std::format("{}:{}", sym.start_line, sym.name));
+	}
+
 	std::string norm_safe_path = fs_utils::make_relative_to_project(safe_path);
 	std::vector<outgoing_call_reference> results;
 	std::unordered_set<std::string> seen_names;
@@ -787,9 +795,30 @@ static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
 		if (seen_names.contains(cand.name)) {
 			continue;
 		}
+		if (defined_on_line_names.contains(std::format("{}:{}", cand.line, cand.name))) {
+			continue;
+		}
 		seen_names.insert(cand.name);
 
 		auto defs = project_manager::get_instance().lsp_query_definition(safe_path, cand.line - 1, cand.col);
+		// If any definition points to the exact candidate position or line within the same file,
+		// this token is the definition site itself (or a recursion/declaration), not an outgoing call.
+		bool is_self_definition = false;
+		for (const auto &def : defs) {
+			if (def.path.empty()) {
+				continue;
+			}
+			std::string norm_def = fs_utils::make_relative_to_project(def.path);
+			if (norm_def == norm_safe_path && (def.range.start_y + 1 == cand.line ||
+			    (cand.line >= def.range.start_y + 1 && cand.line <= def.range.end_y + 1 && def.range.start_y + 1 == cand.line))) {
+				is_self_definition = true;
+				break;
+			}
+		}
+		if (is_self_definition) {
+			continue;
+		}
+
 		for (const auto &def : defs) {
 			if (def.path.empty() || !is_project_file(def.path, ctx)) {
 				continue;
@@ -962,7 +991,7 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 	// or servers lacking call hierarchy support), scan the slice directly for call candidates
 	// and resolve their definitions via LSP/semcode.
 	if (range_result.empty() && std::chrono::steady_clock::now() < deadline) {
-		range_result = extract_outgoing_calls_from_slice(safe_path, start_line, end_line, symbols_cache, ctx, deadline);
+		range_result = extract_outgoing_calls_from_slice(safe_path, start_line, end_line, effective_symbols, symbols_cache, ctx, deadline);
 		if (!range_result.empty()) {
 			all_calls.insert(all_calls.end(), range_result.begin(), range_result.end());
 			if (!ec) {

@@ -789,6 +789,11 @@ int main()
 		assert(read_slice_res.find("### Called Dependencies:") != std::string::npos);
 		assert(read_slice_res.find("`callee_slice_func`") != std::string::npos);
 		assert(read_slice_res.find("test_opt_a_dep.cpp") != std::string::npos);
+		// Verify caller_slice_func is in primary Codemap table, but NOT in Called Dependencies
+		size_t dep_hdr = read_slice_res.find("### Called Dependencies:");
+		assert(dep_hdr != std::string::npos);
+		std::string dep_section = read_slice_res.substr(dep_hdr);
+		assert(dep_section.find("`caller_slice_func`") == std::string::npos);
 
 		std::remove(main_file.c_str());
 		std::remove(dep_file.c_str());

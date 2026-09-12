@@ -113,6 +113,13 @@ static void test_hybrid_cli_queries()
 		    << "    (void)x;\n"
 		    << "}\n";
 	}
+	std::string ext_file = test_dir + "/ext.c";
+	{
+		std::ofstream out(ext_file);
+		out << "int target_func(void) {\n"
+		    << "    return 99;\n"
+		    << "}\n";
+	}
 
 	// Create mock semcode CLI script that simulates semcode responses
 	std::string mock_cli = test_dir + "/mock_semcode";
@@ -150,6 +157,12 @@ static void test_hybrid_cli_queries()
 		    << "  *\"func target_func\"*)\n"
 		    << "    echo 'File: main.c'\n"
 		    << "    echo 'Line: 5-8'\n"
+		    << "    echo 'Return type: int'\n"
+		    << "    echo 'Function Definition:'\n"
+		    << "    echo 'int target_func(void)'\n"
+		    << "    echo ''\n"
+		    << "    echo 'File: ext.c'\n"
+		    << "    echo 'Line: 1-3'\n"
 		    << "    echo 'Return type: int'\n"
 		    << "    echo 'Function Definition:'\n"
 		    << "    echo 'int target_func(void)'\n"
@@ -247,13 +260,17 @@ static void test_hybrid_cli_queries()
 	backend.stop();
 
 	// 9. Called dependencies test under semcode_backend:
-	// Verify that get_outgoing_calls_in_range resolves callee_sub(123) in main.c lines 5-8 to dep.c
+	// Verify that get_outgoing_calls_in_range resolves callee_sub(123) in main.c lines 5-8 to dep.c,
+	// and does NOT treat target_func definition header as an outgoing call to ext.c!
 	project_manager::get_instance().set_project_root(test_dir);
 	project_manager::get_instance().set_lsp_backend_for_testing(std::make_unique<semcode_backend>(test_dir));
 	auto outgoing_calls = tools::get_outgoing_calls_in_range(src_file, 5, 8, nullptr);
 	assert(!outgoing_calls.empty());
 	assert(outgoing_calls[0].target_name == "callee_sub");
 	assert(outgoing_calls[0].target_file.find("dep.c") != std::string::npos);
+	for (const auto &call : outgoing_calls) {
+		assert(call.target_name != "target_func");
+	}
 
 	// 10. Verify that select_prioritized_codemap_symbols and format_codemap_table format the Called Dependencies table under semcode_backend
 	agentlib::tool_context ctx;
@@ -265,6 +282,7 @@ static void test_hybrid_cli_queries()
 	assert(table_md.find("### Called Dependencies:") != std::string::npos);
 	assert(table_md.find("`callee_sub`") != std::string::npos);
 	assert(table_md.find("dep.c") != std::string::npos);
+	assert(table_md.find("ext.c") == std::string::npos);
 
 	unsetenv("SEMCODE_BIN");
 	fs::remove_all(test_dir);

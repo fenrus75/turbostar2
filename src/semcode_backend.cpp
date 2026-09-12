@@ -624,8 +624,9 @@ std::string semcode_backend::run_semcode_query(const std::string &query) const
 		}
 	}
 
-	std::string cmd = std::format("{} -d {} -q {}",
+	std::string cmd = std::format("{} -d {} --git-repo {} -q {}",
 				      fs_utils::escape_shell_arg(semcode_cli_path_),
+				      fs_utils::escape_shell_arg(project_root_),
 				      fs_utils::escape_shell_arg(project_root_),
 				      fs_utils::escape_shell_arg(query));
 
