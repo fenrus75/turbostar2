@@ -65,6 +65,7 @@
           <li><strong>Syntax-Aware Scope Snapping:</strong> Instead of blindly slicing code by line count and truncating signatures, file tools automatically snap slice bounds to complete function boundaries.</li>
           <li><strong>Inline Dependency Mapping:</strong> Reading a code block automatically generates a codemap of all external functions and classes invoked within that slice, giving the agent immediate navigation pointers.</li>
           <li><strong>LSP-Anchored Codebase Grepping:</strong> Code search via <code>fs_grep_files</code> pinpoints primary symbol definition locations and automatically annotates every matching line with its enclosing C++ function/method scope.</li>
+          <li><strong>Semcode &amp; Linux Kernel AI Rules:</strong> Massive codebases like the Linux kernel overwhelm traditional language servers. Turbostar natively pairs <code>semcode-lsp</code> with semantic CLI queries to deliver instant symbol navigation, struct layout discovery, and call graphs. This enables AI agents to strictly adhere to Linux kernel coding rules and navigate complex subsystem abstractions without stalling or memory bloat.</li>
           <li><strong>Line-Count Scale Awareness:</strong> Directory listings report line counts alongside byte sizes, preventing context window overruns before opening large files.</li>
         </ul>
       </div>
@@ -231,6 +232,11 @@
         <article class="card" id="card-undo">
           <h3 class="card-title">Integrated Undo &amp; Brace Safety</h3>
           <p class="card-desc">Code with complete safety. File replacement tools feature strict AST brace-balance verification that rejects syntax-corrupting edits, while all modifications integrate directly into the editor's undo buffer.</p>
+        </article>
+
+        <article class="card" id="card-semcode-kernel">
+          <h3 class="card-title">Semcode &amp; Linux Kernel Workflows</h3>
+          <p class="card-desc">Navigate multi-million line codebases with zero lag. Turbostar automatically activates its hybrid semcode engine when indexing Linux kernel trees, giving agents and developers instant cross-referencing, semantic type inspection, and caller graphs aligned with Linux kernel AI rules.</p>
         </article>
       </div>
     </section>
