@@ -7,6 +7,7 @@
 #include <regex>
 
 #include "call_token_extractor.h"
+#include "event_logger.h"
 #include "fs_utils.h"
 #include "project_manager.h"
 
@@ -147,9 +148,15 @@ std::optional<lsp_backend::location_info> call_resolver::disambiguate_locations(
 	}
 
 	if (valid.empty()) {
+		event_logger::get_instance().log(std::format(
+			"call_resolver::disambiguate_locations: caller='{}', input_locations={}, valid=0 (filtered all)",
+			caller_file, locations.size()));
 		return std::nullopt;
 	}
 	if (valid.size() == 1) {
+		event_logger::get_instance().log(std::format(
+			"call_resolver::disambiguate_locations: caller='{}', input_locations={}, valid=1, picked unique '{}'",
+			caller_file, locations.size(), fs_utils::make_relative_to_project(valid.front().path)));
 		return valid.front();
 	}
 
@@ -163,6 +170,9 @@ std::optional<lsp_backend::location_info> call_resolver::disambiguate_locations(
 		}
 	}
 	if (all_same_file) {
+		event_logger::get_instance().log(std::format(
+			"call_resolver::disambiguate_locations: caller='{}', input_locations={}, valid={}, all point to same file '{}'",
+			caller_file, locations.size(), valid.size(), first_file));
 		return valid.front();
 	}
 
@@ -237,8 +247,16 @@ std::optional<lsp_backend::location_info> call_resolver::disambiguate_locations(
 
 	// If the top candidate scored significantly higher than the runner-up, take it!
 	if (scored.size() == 1 || scored[0].score >= scored[1].score + 20) {
+		event_logger::get_instance().log(std::format(
+			"call_resolver::disambiguate_locations: caller='{}', input_locations={}, valid={}, picked top '{}' (score={}, runner_up_score={})",
+			caller_file, locations.size(), valid.size(), fs_utils::make_relative_to_project(scored[0].loc->path),
+			scored[0].score, scored.size() > 1 ? scored[1].score : -999));
 		return *scored[0].loc;
 	}
+
+	event_logger::get_instance().log(std::format(
+		"call_resolver::disambiguate_locations: caller='{}', input_locations={}, valid={}, ambiguous tie (top score={}, runner_up_score={})",
+		caller_file, locations.size(), valid.size(), scored[0].score, scored[1].score));
 
 	// Tie without sufficient context: fail safely
 	return std::nullopt;
@@ -320,6 +338,9 @@ bool call_resolver::resolve_target(
 	}
 
 	if (def_path.empty()) {
+		event_logger::get_instance().log(std::format(
+			"call_resolver::resolve_target: name='{}', caller='{}', definition file not found",
+			item.name, ref.caller_file));
 		return false;
 	}
 
@@ -363,6 +384,9 @@ bool call_resolver::resolve_target(
 	}
 
 	if (!found) {
+		event_logger::get_instance().log(std::format(
+			"call_resolver::resolve_target: name='{}', caller='{}', target_file='{}', symbol not found in bounds",
+			item.name, ref.caller_file, def_path));
 		return false;
 	}
 
@@ -370,6 +394,9 @@ bool call_resolver::resolve_target(
 	ref.target_file = def_path;
 	ref.target_start_line = std::min(found->start_line, lsp_start);
 	ref.target_end_line = std::max(found->end_line, ref.target_start_line);
+	event_logger::get_instance().log(std::format(
+		"call_resolver::resolve_target: name='{}', caller='{}', resolved to '{}:{}-{}'",
+		item.name, ref.caller_file, ref.target_file, ref.target_start_line, ref.target_end_line));
 	return true;
 }
 
@@ -473,6 +500,10 @@ std::vector<outgoing_call_reference> call_resolver::extract_calls_from_slice(
 			break;
 		}
 	}
+
+	event_logger::get_instance().log(std::format(
+		"call_resolver::extract_calls_from_slice: file='{}', range={}-{}, candidates_extracted={}, calls_resolved={}",
+		safe_path, start_line, end_line, candidates.size(), results.size()));
 
 	return results;
 }

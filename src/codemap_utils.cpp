@@ -911,6 +911,7 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 	// In-slice extraction (Approach A):
 	// Directly scan the slice for call candidates and resolve definitions via LSP/semcode.
 	// Merges any calls present in the slice that standard call hierarchy missed.
+	size_t slice_added_count = 0;
 	if (std::chrono::steady_clock::now() < deadline) {
 		auto slice_calls = extract_outgoing_calls_from_slice(safe_path, start_line, end_line, effective_symbols, symbols_cache, ctx, deadline);
 		bool added_any = false;
@@ -926,6 +927,7 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 				range_result.push_back(sc);
 				all_calls.push_back(sc);
 				added_any = true;
+				slice_added_count++;
 			}
 		}
 		if (!ec && added_any) {
@@ -934,9 +936,11 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 		}
 	}
 
-	event_logger::get_instance().log(std::format("get_outgoing_calls_in_range: path='{}', range={}-{} using {} (found {} calls)",
-						     safe_path, start_line, end_line, lsp_items.empty() ? "NO_CALLS" : "LSP_BATCH",
-						     range_result.size()));
+	event_logger::get_instance().log(std::format(
+		"get_outgoing_calls_in_range: path='{}', range={}-{}, query_positions={}, lsp_items={}, hierarchy_resolved={}, slice_added={}, total_calls={}",
+		safe_path, start_line, end_line, positions.size(), lsp_items.size(),
+		all_calls.size() >= slice_added_count ? (all_calls.size() - slice_added_count) : all_calls.size(),
+		slice_added_count, range_result.size()));
 
 	return range_result;
 }
@@ -1159,6 +1163,12 @@ codemap_selection_result select_prioritized_codemap_symbols(const std::vector<co
 	}
 
 	res.omitted_count = (res.total_symbols > take_count) ? (res.total_symbols - take_count) : 0;
+
+	event_logger::get_instance().log(std::format(
+		"select_prioritized_codemap_symbols: file='{}', range={}-{}, direct_calls={}, enclosing_calls={}, cross_file_deps_added={}, total_selected={}",
+		safe_path, read_start, read_end, direct_outgoing_calls.size(), enclosing_call_targets.size(),
+		cross_file_count, res.selected_symbols.size()));
+
 	return res;
 }
 

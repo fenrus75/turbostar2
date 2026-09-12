@@ -581,6 +581,9 @@ std::vector<lsp_backend::location_info> semcode_backend::query_definition(const 
 			}
 
 			if (!results.empty()) {
+				event_logger::get_instance().log(std::format(
+					"semcode_backend::query_definition: identifier='{}', found {} locations via func",
+					identifier, results.size()));
 				return results;
 			}
 
@@ -589,10 +592,16 @@ std::vector<lsp_backend::location_info> semcode_backend::query_definition(const 
 			bool type_ok = parse_definition_locations_strict_unique(type_out, project_root_, results);
 			if (!type_ok) {
 				// Ambiguity detected: multiple type definitions exist, fail immediately
+				event_logger::get_instance().log(std::format(
+					"semcode_backend::query_definition: identifier='{}', ambiguous type definitions",
+					identifier));
 				return {};
 			}
 
 			if (!results.empty()) {
+				event_logger::get_instance().log(std::format(
+					"semcode_backend::query_definition: identifier='{}', found {} locations via type",
+					identifier, results.size()));
 				return results;
 			}
 		}
@@ -616,22 +625,23 @@ std::vector<lsp_backend::location_info> semcode_backend::query_references(const 
 		return results;
 	}
 
-	// 2. Hybrid fallback: query callers via semcode CLI
+	// 2. Hybrid fallback: query semcode CLI for symbol callers
 	if (!semcode_cli_path_.empty()) {
 		std::string identifier = extract_identifier_at(filepath, line, character);
 		if (!identifier.empty()) {
 			std::string callers_out = run_semcode_query(std::format("callers -v {}", identifier));
 			parse_callers_locations(callers_out, project_root_, results);
+			return results;
 		}
 	}
 
-	return results;
+	return {};
 }
 
 std::vector<lsp_backend::symbol_info> semcode_backend::query_workspace_symbols(const std::string &query)
 {
-	if (semcode_cli_path_.empty() || query.empty()) {
-		return {};
+	if (semcode_cli_path_.empty()) {
+		return standard_lsp_backend::query_workspace_symbols(query);
 	}
 
 	std::vector<symbol_info> symbols;
@@ -659,6 +669,10 @@ std::vector<lsp_backend::symbol_info> semcode_backend::query_workspace_symbols(c
 		s.location = std::move(loc);
 		symbols.push_back(std::move(s));
 	}
+
+	event_logger::get_instance().log(std::format(
+		"semcode_backend::query_workspace_symbols: query='{}', found {} symbols (func={}, type={})",
+		query, symbols.size(), func_locs.size(), type_locs.size()));
 
 	return symbols;
 }
@@ -688,6 +702,11 @@ std::vector<lsp_backend::call_hierarchy_item> semcode_backend::query_call_hierar
 		std::string plain_calls = run_semcode_query(std::format("calls {}", identifier));
 		parse_calls_hierarchy(plain_calls, project_root_, items);
 	}
+
+	event_logger::get_instance().log(std::format(
+		"semcode_backend::query_call_hierarchy_outgoing: identifier='{}', found {} raw calls from semcode CLI",
+		identifier, items.size()));
+
 	return items;
 }
 
