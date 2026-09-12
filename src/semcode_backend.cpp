@@ -117,13 +117,6 @@ static bool parse_definition_locations_strict_unique(std::string_view text, std:
 		std::string_view trimmed = std::string_view(line_str).substr(first);
 
 		if (trimmed.starts_with("File:")) {
-			// If we already resolved a definition location, seeing another File: indicates multiple locations: fail immediately!
-			if (!out.empty()) {
-				event_logger::get_instance().log(
-					"parse_definition_locations_strict_unique: multiple File: entries detected -> ambiguous (false)");
-				out.clear();
-				return false;
-			}
 			std::string_view f = trimmed.substr(5);
 			size_t non_ws = f.find_first_not_of(" \t");
 			if (non_ws != std::string_view::npos) {
@@ -131,13 +124,6 @@ static bool parse_definition_locations_strict_unique(std::string_view text, std:
 			}
 		} else if (trimmed.starts_with("Line:") || trimmed.starts_with("Lines:")) {
 			if (!current_file.empty()) {
-				// If we already resolved a definition location, another line definition means multiple locations: fail immediately!
-				if (!out.empty()) {
-					event_logger::get_instance().log(
-						"parse_definition_locations_strict_unique: multiple Line: entries detected -> ambiguous (false)");
-					out.clear();
-					return false;
-				}
 				size_t colon = trimmed.find(':');
 				std::string_view l = trimmed.substr(colon + 1);
 				size_t non_ws = l.find_first_not_of(" \t");
@@ -167,7 +153,22 @@ static bool parse_definition_locations_strict_unique(std::string_view text, std:
 						int zero_start = std::max(0, line_num - 1);
 						int zero_end = (end_line_num >= line_num) ? std::max(0, end_line_num - 1) : zero_start;
 						loc.range = text_range{zero_start, 0, zero_end, 0};
-						out.push_back(std::move(loc));
+
+						// Check if identical location was already parsed (e.g. semcode emitting both
+						// 'Type Information' and 'Typedef Information' where the second is a refinement of the first).
+						bool already_present = false;
+						for (auto &existing : out) {
+							if (existing.path == loc.path && existing.range.start_y == loc.range.start_y) {
+								already_present = true;
+								if (loc.range.end_y > existing.range.end_y) {
+									existing.range.end_y = loc.range.end_y;
+								}
+								break;
+							}
+						}
+						if (!already_present) {
+							out.push_back(std::move(loc));
+						}
 					} catch (...) {
 					}
 				}

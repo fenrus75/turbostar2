@@ -112,7 +112,8 @@ static void test_hybrid_cli_queries()
 		    << "    cleanup();\n"
 		    << "    return 42;\n"
 		    << "}\n"
-		    << "typedef int custom_type_t;\n";
+		    << "typedef int custom_type_t;\n"
+		    << "typedef long type_and_typedef_t;\n";
 	}
 	std::string dep_file = test_dir + "/dep.c";
 	{
@@ -188,6 +189,18 @@ static void test_hybrid_cli_queries()
 		    << "  *\"type custom_type_t\"*)\n"
 		    << "    echo 'File: main.c'\n"
 		    << "    echo 'Line: 16-16'\n"
+		    << "    ;;\n"
+		    << "  *\"type type_and_typedef_t\"*)\n"
+		    << "    echo 'Note: Found both a type and a typedef with this name at git SHA 08df8841!'\n"
+		    << "    echo '=== Type Information ==='\n"
+		    << "    echo 'Name: typedef type_and_typedef_t'\n"
+		    << "    echo 'File: main.c'\n"
+		    << "    echo 'Line: 17-17'\n"
+		    << "    echo ''\n"
+		    << "    echo '=== Typedef Information ==='\n"
+		    << "    echo 'Name: type_and_typedef_t'\n"
+		    << "    echo 'File: main.c'\n"
+		    << "    echo 'Line: 17-17'\n"
 		    << "    ;;\n"
 		    << "  *\"func custom_type_t\"*)\n"
 		    << "    echo 'Info: No exact match found for '\\''custom_type_t'\\'' (no function found with this name), but found functions using it as a regex pattern:'\n"
@@ -321,6 +334,12 @@ static void test_hybrid_cli_queries()
 	assert(!defs_type_fallback.empty());
 	assert(defs_type_fallback[0].path.find("main.c") != std::string::npos);
 	assert(defs_type_fallback[0].range.start_y == 15);
+
+	// Type definition when semcode emits both Type and Typedef sections for the exact same location (e.g. ktime_t)
+	auto dual_defs = backend.query_type_definition(src_file, 16, 15);
+	assert(!dual_defs.empty());
+	assert(dual_defs[0].path.find("main.c") != std::string::npos);
+	assert(dual_defs[0].range.start_y == 16);
 
 	// 2. References query via hybrid fallback
 	auto refs = backend.query_references(src_file, 6, 6);
