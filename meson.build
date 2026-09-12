@@ -300,6 +300,12 @@ test_call_token_extractor = executable('test_call_token_extractor',
   include_directories: inc)
 test('unit_call_token_extractor', test_call_token_extractor, suite: 'editor')
 
+test_call_resolver = executable('test_call_resolver',
+  ['tests/unit/test_call_resolver.cpp'],
+  dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep],
+  include_directories: inc)
+test('unit_call_resolver', test_call_resolver, suite: 'editor')
+
 test_ansi_terminal_emulator = executable('test_ansi_terminal_emulator',
   ['tests/unit/test_ansi_terminal_emulator.cpp', 'src/ui/ansi_terminal_emulator.cpp', 'src/event_logger.cpp', 'src/utf8.cpp', 'src/mime.cpp'],
   include_directories: 'src')

@@ -1,4 +1,13 @@
+/*
+ * Note on modular architecture:
+ * Outgoing call resolution, caller include extraction, and cross-file definition
+ * disambiguation have been modularized into:
+ *   - src/call_resolver.h: interface for context-aware outgoing call resolution
+ *   - src/call_resolver.cpp: implementation of target resolution, slice extraction,
+ *     and caller include-aware scoring
+ */
 #include "codemap_utils.h"
+#include "call_resolver.h"
 #include "call_token_extractor.h"
 #include "event_logger.h"
 #include "type_definition_cache.h"
@@ -139,7 +148,7 @@ static bool is_cpp_function_specifier_word(std::string_view word)
 	return keywords.contains(word);
 }
 
-static void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vector<codemap_symbol_info> &out)
+void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vector<codemap_symbol_info> &out)
 {
 	std::ifstream in(safe_path);
 	if (!in.is_open())
@@ -644,254 +653,73 @@ struct outgoing_call_cache_entry {
 static std::mutex g_outgoing_calls_cache_mutex;
 static std::unordered_map<std::string, outgoing_call_cache_entry> g_outgoing_calls_cache;
 
-static int get_symbol_name_column(const std::string &file_path, int start_line)
+static std::pair<int, int> get_symbol_location(const std::string &file_path, int start_line, int end_line, std::string_view sym_name = "")
 {
 	std::ifstream file(file_path);
-	if (!file.is_open())
-		return 0;
+	if (!file.is_open()) {
+		return {start_line - 1, 0};
+	}
 
 	std::string line;
 	int current_line = 1;
-	while (std::getline(file, line)) {
-		if (current_line == start_line) {
-			size_t paren_pos = line.find('(');
-			if (paren_pos != std::string::npos && paren_pos > 0) {
-				size_t col = paren_pos - 1;
-				while (col > 0 && std::isspace(static_cast<unsigned char>(line[col]))) {
-					col--;
+	int max_scan_line = (end_line >= start_line) ? std::min(end_line, start_line + 5) : (start_line + 5);
+
+	// Strip class/namespace prefix if any (e.g. MyClass::my_func -> my_func)
+	size_t colon_pos = sym_name.rfind("::");
+	std::string_view short_name = (colon_pos != std::string_view::npos) ? sym_name.substr(colon_pos + 2) : sym_name;
+
+	int fallback_line = start_line - 1;
+	int fallback_col = 0;
+
+	while (std::getline(file, line) && current_line <= max_scan_line) {
+		if (current_line >= start_line) {
+			if (!short_name.empty()) {
+				size_t pos = line.find(short_name);
+				if (pos != std::string::npos) {
+					bool left_ok = (pos == 0 || (!std::isalnum(static_cast<unsigned char>(line[pos - 1])) && line[pos - 1] != '_'));
+					size_t after = pos + short_name.size();
+					bool right_ok = (after >= line.size() || (!std::isalnum(static_cast<unsigned char>(line[after])) && line[after] != '_'));
+					if (left_ok && right_ok) {
+						return {current_line - 1, static_cast<int>(pos)};
+					}
 				}
-				return static_cast<int>(col);
 			}
-			size_t first_non_space = line.find_first_not_of(" \t");
-			if (first_non_space != std::string::npos) {
-				return static_cast<int>(first_non_space);
+			if (current_line == start_line) {
+				size_t paren_pos = line.find('(');
+				if (paren_pos != std::string::npos && paren_pos > 0) {
+					size_t col = paren_pos - 1;
+					while (col > 0 && std::isspace(static_cast<unsigned char>(line[col]))) {
+						col--;
+					}
+					fallback_col = static_cast<int>(col);
+				} else {
+					size_t first_non_space = line.find_first_not_of(" \t");
+					if (first_non_space != std::string::npos) {
+						fallback_col = static_cast<int>(first_non_space);
+					}
+				}
 			}
-			return 0;
 		}
 		current_line++;
 	}
-	return 0;
+	return {fallback_line, fallback_col};
 }
 
-static bool is_project_file(std::string_view path, agentlib::tool_context * /*ctx*/ = nullptr)
+static bool is_project_file(std::string_view path, agentlib::tool_context *ctx = nullptr)
 {
-	if (path.empty())
-		return false;
-	if (path.starts_with("file://")) {
-		path.remove_prefix(7);
-	}
-	if (path.empty())
-		return false;
-
-	std::filesystem::path abs_p = fs_utils::safe_absolute(std::string(path));
-	std::string proj_root = project_manager::get_instance().get_project_root();
-	if (proj_root.empty()) {
-		proj_root = fs_utils::get_project_dir();
-	}
-	if (!proj_root.empty()) {
-		std::filesystem::path root_p = fs_utils::safe_absolute(proj_root);
-		std::error_code ec;
-		auto rel_p = std::filesystem::relative(abs_p, root_p, ec);
-		if (!ec && !rel_p.empty() && rel_p.string() != "." && !rel_p.string().starts_with("..") && !rel_p.is_absolute()) {
-			return true;
-		}
-	}
-
-	if (path.starts_with("/usr/") || path.starts_with("/opt/") || path.starts_with("/lib/") || path.starts_with("/tmp/") ||
-	    path.starts_with("/etc/") || path.starts_with("/var/")) {
-		return false;
-	}
-	if (path.find("/bits/") != std::string_view::npos ||
-	    path.find("gcc/") != std::string_view::npos || path.find("clang/") != std::string_view::npos) {
-		return false;
-	}
-
-	std::string rel = fs_utils::make_relative_to_project(abs_p.string());
-	if (rel.empty() || rel.starts_with("/") || rel.starts_with("inc://") || rel.starts_with("..")) {
-		return false;
-	}
-	return true;
-}
-
-static bool is_matching_function_symbol(const codemap_symbol_info *sym, std::string_view name)
-{
-	if (!sym)
-		return false;
-	if (sym->kind_str.find("Class") != std::string::npos || sym->kind_str.find("Struct") != std::string::npos ||
-	    sym->kind_str.find("Namespace") != std::string::npos) {
-		return false;
-	}
-	if (sym->name == name || sym->display_name == name) {
-		return true;
-	}
-	if (sym->name.ends_with("::" + std::string(name))) {
-		return true;
-	}
-	return false;
+	return call_resolver::is_project_file(path, ctx);
 }
 
 static bool is_test_file_path(std::string_view p)
 {
-	if (p.starts_with("test/") || p.starts_with("tests/") ||
-	    p.starts_with("selftest/") || p.starts_with("selftests/") ||
-	    p.starts_with("tools/testing/")) {
-		return true;
-	}
-	if (p.find("/test/") != std::string_view::npos || p.find("/tests/") != std::string_view::npos ||
-	    p.find("/selftest/") != std::string_view::npos || p.find("/selftests/") != std::string_view::npos ||
-	    p.find("tools/testing/") != std::string_view::npos) {
-		return true;
-	}
-	return false;
+	return call_resolver::is_test_path(p);
 }
 
 bool resolve_outgoing_call_target(outgoing_call_reference &ref, const lsp_manager::call_hierarchy_item &item,
 				  std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
 				  agentlib::tool_context *ctx)
 {
-	if (!is_project_file(item.uri, ctx)) {
-		return false;
-	}
-
-	std::string target_uri_path = fs_utils::make_relative_to_project(item.uri);
-	std::string norm_caller = fs_utils::make_relative_to_project(ref.caller_file);
-	bool caller_is_test = is_test_file_path(norm_caller);
-
-	// Never allow non-test production code to depend on test/selftest files
-	if (!caller_is_test && is_test_file_path(target_uri_path)) {
-		return false;
-	}
-
-	std::string def_path;
-	int def_pos_line = -1;
-
-	// 1. Primary resolution: ask LSP for the true definition location of the symbol.
-	// For C++, if a function is declared in a header but implemented in a .cpp file,
-	// lsp_query_definition on the declaration returns the .cpp definition line!
-	// If it is defined inline in the header (e.g. is_force_ascii), it returns the header location.
-	if (item.selection_range.start_y >= 0 && item.selection_range.start_x >= 0) {
-		auto defs = project_manager::get_instance().lsp_query_definition(target_uri_path, item.selection_range.start_y,
-										 item.selection_range.start_x);
-		std::vector<std::string> distinct_files;
-		for (const auto &def : defs) {
-			if (!def.path.empty() && is_project_file(def.path, ctx)) {
-				std::string norm = fs_utils::make_relative_to_project(def.path);
-				if (!caller_is_test && is_test_file_path(norm)) {
-					continue;
-				}
-				if (!norm.empty() && std::find(distinct_files.begin(), distinct_files.end(), norm) == distinct_files.end()) {
-					distinct_files.push_back(norm);
-				}
-			}
-		}
-		// Strict cross-file ambiguity check: if symbol is defined across multiple files, punt!
-		if (distinct_files.size() > 1) {
-			return false;
-		}
-		if (distinct_files.size() == 1) {
-			def_path = distinct_files.front();
-			for (const auto &def : defs) {
-				if (!def.path.empty() && fs_utils::make_relative_to_project(def.path) == def_path) {
-					def_pos_line = def.range.start_y + 1;
-					break;
-				}
-			}
-		}
-	}
-
-	// 2. Fallback resolution: if LSP definition query returned empty or is unavailable,
-	// check if implementation exists and actually contains the symbol.
-	if (def_path.empty()) {
-		if (target_uri_path.ends_with(".h") || target_uri_path.ends_with(".hpp")) {
-			std::string impl = find_matching_impl_file(target_uri_path, ctx);
-			if (!impl.empty()) {
-				if (!symbols_cache.contains(impl)) {
-					std::vector<codemap_symbol_info> syms;
-					fallback_find_symbols(impl, 1, syms);
-					symbols_cache[impl] = std::move(syms);
-				}
-				const auto &impl_syms = symbols_cache[impl];
-				if (find_symbol_by_hint(impl_syms, item.name)) {
-					def_path = impl;
-				}
-			}
-		}
-		if (def_path.empty()) {
-			if (!caller_is_test && is_test_file_path(target_uri_path)) {
-				return false;
-			}
-			if (target_uri_path.ends_with(".c") && norm_caller.ends_with(".c") &&
-			    target_uri_path != norm_caller) {
-				return false;
-			}
-			def_path = target_uri_path;
-		}
-	}
-
-	// 3. Factual symbol bounds from dedicated codemap of def_path
-	if (!symbols_cache.contains(def_path)) {
-		std::vector<codemap_symbol_info> syms;
-		fallback_find_symbols(def_path, 1, syms);
-		symbols_cache[def_path] = std::move(syms);
-	}
-	const auto &target_syms = symbols_cache[def_path];
-	const codemap_symbol_info *found = nullptr;
-	if (def_pos_line > 0) {
-		const codemap_symbol_info *encl = find_enclosing_symbol(target_syms, def_pos_line);
-		if (is_matching_function_symbol(encl, item.name)) {
-			found = encl;
-		}
-	}
-	if (!found) {
-		const codemap_symbol_info *hint_sym = find_symbol_by_hint(target_syms, item.name);
-		if (is_matching_function_symbol(hint_sym, item.name)) {
-			found = hint_sym;
-		}
-	}
-
-	// If symbol is not defined in def_path and def_path is a header, look for matching .cpp implementation
-	if (!found && (def_path.ends_with(".h") || def_path.ends_with(".hpp"))) {
-		std::string impl = find_matching_impl_file(def_path, ctx);
-		if (!impl.empty()) {
-			if (!symbols_cache.contains(impl)) {
-				std::vector<codemap_symbol_info> syms;
-				fallback_find_symbols(impl, 1, syms);
-				symbols_cache[impl] = std::move(syms);
-			}
-			const auto &impl_syms = symbols_cache[impl];
-			const codemap_symbol_info *impl_found = find_symbol_by_hint(impl_syms, item.name);
-			if (is_matching_function_symbol(impl_found, item.name)) {
-				found = impl_found;
-				def_path = impl;
-			}
-		}
-	}
-
-	// If not found in def_path and def_path != target_uri_path, check target_uri_path (e.g. inline method in header)
-	if (!found && def_path != target_uri_path) {
-		if (!symbols_cache.contains(target_uri_path)) {
-			std::vector<codemap_symbol_info> syms;
-			fallback_find_symbols(target_uri_path, 1, syms);
-			symbols_cache[target_uri_path] = std::move(syms);
-		}
-		const auto &hdr_syms = symbols_cache[target_uri_path];
-		const codemap_symbol_info *hdr_found = find_symbol_by_hint(hdr_syms, item.name);
-		if (is_matching_function_symbol(hdr_found, item.name)) {
-			found = hdr_found;
-			def_path = target_uri_path;
-		}
-	}
-
-	if (!found) {
-		// Factual data principle: do not report unverified, guessed, or whole-class lines.
-		return false;
-	}
-
-	int lsp_start = (def_pos_line > 0) ? def_pos_line : found->start_line;
-	ref.target_file = def_path;
-	ref.target_start_line = std::min(found->start_line, lsp_start);
-	ref.target_end_line = std::max(found->end_line, ref.target_start_line);
-	return true;
+	return call_resolver::resolve_target(ref, item, symbols_cache, ctx);
 }
 
 static void refresh_outgoing_calls_async(std::string safe_path, std::vector<codemap_symbol_info> doc_symbols, agentlib::tool_context *ctx)
@@ -911,8 +739,7 @@ static void refresh_outgoing_calls_async(std::string safe_path, std::vector<code
 
 			std::vector<std::pair<int, int>> positions;
 			for (const auto &sym : effective_symbols) {
-				int col = get_symbol_name_column(safe_path, sym.start_line);
-				positions.push_back({sym.start_line - 1, col});
+				positions.push_back(get_symbol_location(safe_path, sym.start_line, sym.end_line, sym.name));
 			}
 			if (positions.empty()) {
 				positions.push_back({0, 0});
@@ -960,146 +787,7 @@ static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
 	agentlib::tool_context *ctx,
 	std::chrono::steady_clock::time_point deadline)
 {
-	std::ifstream in(safe_path);
-	if (!in.is_open()) {
-		return {};
-	}
-
-	std::vector<std::string> slice_lines;
-	std::string current_line_text;
-	int current_line_num = 1;
-	while (std::getline(in, current_line_text)) {
-		if (current_line_num >= start_line && current_line_num <= end_line) {
-			slice_lines.push_back(current_line_text);
-		}
-		if (current_line_num > end_line) {
-			break;
-		}
-		++current_line_num;
-	}
-
-	if (slice_lines.empty()) {
-		return {};
-	}
-
-	auto candidates = call_token_extractor::extract_candidates(slice_lines, start_line);
-	if (candidates.empty()) {
-		return {};
-	}
-
-	// Filter out tokens that represent the definition header of a function/symbol in doc_symbols
-	// (e.g. `static void buffer_io_error(...)` on its definition line is not a call to buffer_io_error)
-	std::unordered_set<std::string> defined_on_line_names;
-	for (const auto &sym : doc_symbols) {
-		defined_on_line_names.insert(std::format("{}:{}", sym.start_line, sym.name));
-	}
-
-	std::string norm_safe_path = fs_utils::make_relative_to_project(safe_path);
-	bool caller_is_test = is_test_file_path(norm_safe_path);
-	std::vector<outgoing_call_reference> results;
-	std::unordered_set<std::string> seen_names;
-
-	for (const auto &cand : candidates) {
-		if (std::chrono::steady_clock::now() >= deadline) {
-			break;
-		}
-		if (seen_names.contains(cand.name)) {
-			continue;
-		}
-		if (defined_on_line_names.contains(std::format("{}:{}", cand.line, cand.name))) {
-			continue;
-		}
-		seen_names.insert(cand.name);
-
-		auto raw_defs = project_manager::get_instance().lsp_query_definition(safe_path, cand.line - 1, cand.col);
-		// If any definition points to the same file,
-		// this token is an intra-file call or the definition site itself, not an external outgoing call.
-		bool is_intra_file = false;
-		for (const auto &def : raw_defs) {
-			if (def.path.empty()) {
-				continue;
-			}
-			std::string norm_def = fs_utils::make_relative_to_project(def.path);
-			if (norm_def == norm_safe_path) {
-				is_intra_file = true;
-				break;
-			}
-		}
-		if (is_intra_file) {
-			continue;
-		}
-
-		// Filter to valid cross-file project definitions
-		std::vector<lsp_backend::location_info> valid_defs;
-		for (const auto &def : raw_defs) {
-			if (def.path.empty() || !is_project_file(def.path, ctx)) {
-				continue;
-			}
-			std::string norm_def = fs_utils::make_relative_to_project(def.path);
-			if (norm_def.empty() || norm_def == norm_safe_path) {
-				continue;
-			}
-			if (!caller_is_test && is_test_file_path(norm_def)) {
-				continue;
-			}
-			valid_defs.push_back(def);
-		}
-
-		if (valid_defs.empty()) {
-			continue;
-		}
-
-		// Disambiguate multiple candidate definitions across different files:
-		// Group valid definitions by normalized target file
-		std::vector<std::string> distinct_files;
-		for (const auto &def : valid_defs) {
-			std::string norm_def = fs_utils::make_relative_to_project(def.path);
-			if (std::find(distinct_files.begin(), distinct_files.end(), norm_def) == distinct_files.end()) {
-				distinct_files.push_back(norm_def);
-			}
-		}
-
-		// Strictly punt on any ambiguity across multiple files:
-		// If multiple distinct files define the symbol, returning the wrong target is worse than returning nothing.
-		if (distinct_files.size() != 1) {
-			continue;
-		}
-
-		const lsp_backend::location_info *chosen_def = &valid_defs.front();
-		std::string norm_def = fs_utils::make_relative_to_project(chosen_def->path);
-		outgoing_call_reference ref;
-		ref.caller_file = safe_path;
-		ref.call_line = cand.line;
-		ref.target_name = cand.name;
-		ref.target_file = norm_def;
-		int lsp_start = chosen_def->range.start_y + 1;
-		int lsp_end = (chosen_def->range.end_y >= chosen_def->range.start_y) ? (chosen_def->range.end_y + 1) : lsp_start;
-		ref.target_start_line = lsp_start;
-		ref.target_end_line = lsp_end;
-		ref.target_kind = "Function";
-		ref.is_direct_read_call = true;
-
-		// Attempt to look up or expand exact symbol bounds in symbols_cache
-		if (!symbols_cache.contains(norm_def)) {
-			std::vector<codemap_symbol_info> syms;
-			fallback_find_symbols(norm_def, 1, syms);
-			symbols_cache[norm_def] = std::move(syms);
-		}
-		const auto &syms = symbols_cache[norm_def];
-		const auto *found = find_symbol_by_hint(syms, cand.name);
-		if (found && is_matching_function_symbol(found, cand.name)) {
-			// Always include at least the LSP/semcode reported range
-			ref.target_start_line = std::min(found->start_line, lsp_start);
-			ref.target_end_line = std::max(found->end_line, lsp_end);
-		}
-
-		results.push_back(std::move(ref));
-		if (results.size() >= 10) {
-			break;
-		}
-	}
-
-	return results;
+	return call_resolver::extract_calls_from_slice(safe_path, start_line, end_line, doc_symbols, symbols_cache, ctx, deadline);
 }
 
 std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::string &safe_path, int start_line, int end_line,
@@ -1160,19 +848,16 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 			continue;
 		}
 		if (sym.start_line <= end_line && sym.end_line >= start_line) {
-			int col = get_symbol_name_column(safe_path, sym.start_line);
-			positions.push_back({sym.start_line - 1, col});
+			positions.push_back(get_symbol_location(safe_path, sym.start_line, sym.end_line, sym.name));
 		}
 	}
 
 	if (positions.empty()) {
 		const codemap_symbol_info *encl = find_enclosing_symbol(effective_symbols, start_line);
 		if (encl && encl->kind_str != "Class" && encl->kind_str != "Struct" && encl->kind_str != "Namespace") {
-			int col = get_symbol_name_column(safe_path, encl->start_line);
-			positions.push_back({encl->start_line - 1, col});
+			positions.push_back(get_symbol_location(safe_path, encl->start_line, encl->end_line, encl->name));
 		} else if (start_line > 0) {
-			int col = get_symbol_name_column(safe_path, start_line);
-			positions.push_back({start_line - 1, col});
+			positions.push_back(get_symbol_location(safe_path, start_line, end_line));
 		}
 	}
 

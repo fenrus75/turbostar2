@@ -6,6 +6,7 @@
 #include <format>
 #include <fstream>
 #include <sstream>
+#include <unordered_set>
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "project_manager.h"
@@ -213,6 +214,34 @@ static void parse_calls_hierarchy(std::string_view text, std::string_view root, 
 	std::istringstream stream{std::string(text)};
 	std::string line_str;
 	std::string current_callee;
+	std::string current_detail;
+	std::string current_file;
+	int current_line = -1;
+
+	auto flush_current = [&]() {
+		if (current_callee.empty()) {
+			return;
+		}
+		lsp_backend::call_hierarchy_item item;
+		item.name = current_callee;
+		item.detail = current_detail;
+		if (!current_file.empty()) {
+			fs::path full_path = fs::path(current_file);
+			if (!full_path.is_absolute() && !root.empty()) {
+				full_path = fs::path(root) / full_path;
+			}
+			item.uri = "file://" + full_path.string();
+		}
+		int zero_line = (current_line > 0) ? (current_line - 1) : -1;
+		item.range = text_range{zero_line, 0, zero_line, 0};
+		item.selection_range = text_range{zero_line, 0, zero_line, 0};
+		out.push_back(std::move(item));
+
+		current_callee.clear();
+		current_detail.clear();
+		current_file.clear();
+		current_line = -1;
+	};
 
 	while (std::getline(stream, line_str)) {
 		while (!line_str.empty() && (line_str.back() == '\r' || line_str.back() == ' ')) {
@@ -224,16 +253,39 @@ static void parse_calls_hierarchy(std::string_view text, std::string_view root, 
 		}
 		std::string_view trimmed = std::string_view(line_str).substr(first);
 
+		// Check for arrow format: "→ name" or "-> name"
+		std::string_view arrow_name;
+		if (trimmed.starts_with("\xe2\x86\x92")) { // UTF-8 '→'
+			arrow_name = trimmed.substr(3);
+		} else if (trimmed.starts_with("->")) {
+			arrow_name = trimmed.substr(2);
+		}
+
+		if (!arrow_name.empty()) {
+			flush_current();
+			size_t nw = arrow_name.find_first_not_of(" \t");
+			if (nw != std::string_view::npos) {
+				current_callee = std::string(arrow_name.substr(nw));
+			}
+			continue;
+		}
+
+		// Check for numbered format: "1. name"
 		if (std::isdigit(static_cast<unsigned char>(trimmed.front()))) {
 			size_t dot = trimmed.find('.');
 			if (dot != std::string_view::npos) {
+				flush_current();
 				std::string_view name_part = trimmed.substr(dot + 1);
 				size_t nw = name_part.find_first_not_of(" \t");
 				if (nw != std::string_view::npos) {
 					current_callee = std::string(name_part.substr(nw));
 				}
+				continue;
 			}
-		} else if (!current_callee.empty()) {
+		}
+
+		// Check for detail / location line: "void (file:line) ..."
+		if (!current_callee.empty()) {
 			size_t open_paren = trimmed.find('(');
 			size_t close_paren = (open_paren != std::string::npos) ? trimmed.find(')', open_paren) : std::string::npos;
 			if (open_paren != std::string::npos && close_paren != std::string::npos) {
@@ -247,26 +299,18 @@ static void parse_calls_hierarchy(std::string_view text, std::string_view root, 
 					std::string_view file_part = inner.substr(0, colon);
 					std::string_view line_part = inner.substr(colon + 1);
 					try {
-						int line_num = std::stoi(std::string(line_part));
-						fs::path full_path = fs::path(file_part);
-						if (!full_path.is_absolute() && !root.empty()) {
-							full_path = fs::path(root) / full_path;
-						}
-						lsp_backend::call_hierarchy_item item;
-						item.name = current_callee;
-						item.detail = std::string(detail);
-						item.uri = "file://" + full_path.string();
-						int zero_line = std::max(0, line_num - 1);
-						item.range = text_range{zero_line, 0, zero_line, 0};
-						item.selection_range = text_range{zero_line, 0, zero_line, 0};
-						out.push_back(std::move(item));
+						current_line = std::stoi(std::string(line_part));
+						current_file = std::string(file_part);
+						current_detail = std::string(detail);
+						flush_current();
 					} catch (...) {
 					}
 				}
 			}
-			current_callee.clear();
 		}
 	}
+
+	flush_current();
 }
 
 semcode_backend::semcode_backend(std::string project_root)
@@ -640,6 +684,10 @@ std::vector<lsp_backend::call_hierarchy_item> semcode_backend::query_call_hierar
 	std::string calls_out = run_semcode_query(std::format("calls -v {}", identifier));
 	std::vector<call_hierarchy_item> items;
 	parse_calls_hierarchy(calls_out, project_root_, items);
+	if (items.empty()) {
+		std::string plain_calls = run_semcode_query(std::format("calls {}", identifier));
+		parse_calls_hierarchy(plain_calls, project_root_, items);
+	}
 	return items;
 }
 
@@ -801,5 +849,36 @@ std::string semcode_backend::extract_identifier_at(const std::string &filepath, 
 	if (start >= end) {
 		return "";
 	}
-	return current_line.substr(start, end - start);
+	std::string token = current_line.substr(start, end - start);
+
+	static const std::unordered_set<std::string_view> specifiers = {
+		"static", "inline", "virtual", "explicit", "extern", "constexpr", "consteval",
+		"noexcept", "noinstr", "__always_inline", "__init", "__exit", "asmlinkage",
+		"__sched", "void", "int", "bool", "char", "long", "short", "unsigned",
+		"signed", "size_t", "ssize_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t",
+		"int8_t", "int16_t", "int32_t", "int64_t", "u8", "u16", "u32", "u64",
+		"s8", "s16", "s32", "s64", "ktime_t", "auto", "double", "float", "const",
+		"struct", "class", "enum"
+	};
+
+	if (character == 0 && specifiers.contains(token)) {
+		size_t scan = end;
+		while (scan < current_line.size()) {
+			while (scan < current_line.size() && !std::isalpha(static_cast<unsigned char>(current_line[scan])) && current_line[scan] != '_') {
+				scan++;
+			}
+			size_t w_start = scan;
+			while (scan < current_line.size() && (std::isalnum(static_cast<unsigned char>(current_line[scan])) || current_line[scan] == '_')) {
+				scan++;
+			}
+			if (scan > w_start) {
+				std::string candidate = current_line.substr(w_start, scan - w_start);
+				if (!specifiers.contains(candidate)) {
+					return candidate;
+				}
+			}
+		}
+	}
+
+	return token;
 }

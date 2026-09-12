@@ -53,6 +53,7 @@ std::vector<outgoing_call_reference> get_outgoing_calls_for_symbol(const std::st
 // Query LSP (or regex fallback) and collect flat symbol list for a given file
 std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, agentlib::tool_context &ctx, int min_lines = 1);
 std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, int min_lines = 1);
+void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vector<codemap_symbol_info> &out);
 
 // Select and prioritize top N codemap symbols for a file read range based on scope, search history, position, and deduplication
 codemap_selection_result select_prioritized_codemap_symbols(const std::vector<codemap_symbol_info> &all_symbols, int read_start,

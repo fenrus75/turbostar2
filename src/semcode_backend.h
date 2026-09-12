@@ -58,6 +58,7 @@ public:
 		const std::vector<std::pair<int, int>> &positions,
 		std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::time_point::max()) override;
 	[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &filepath, int line, int character) override;
+	[[nodiscard]] static std::string extract_identifier_at(const std::string &filepath, int line, int character);
 
 protected:
 	std::shared_ptr<server_instance> get_server_for_file(const std::string &filepath) override;
@@ -104,5 +105,4 @@ private:
 	mutable std::unordered_map<std::string, std::string> cli_cache_;
 
 	[[nodiscard]] std::string run_semcode_query(const std::string &query) const;
-	[[nodiscard]] static std::string extract_identifier_at(const std::string &filepath, int line, int character);
 };

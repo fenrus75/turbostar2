@@ -59,7 +59,8 @@ core_sources = files(
   'tools/troff2md.cpp',
   'type_definition_cache.cpp',
   'type_token_extractor.cpp',
-  'call_token_extractor.cpp'
+  'call_token_extractor.cpp',
+  'call_resolver.cpp'
 )
 
 
