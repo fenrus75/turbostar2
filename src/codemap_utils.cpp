@@ -743,6 +743,44 @@ static void refresh_outgoing_calls_async(std::string safe_path, std::vector<code
 	}).detach();
 }
 
+static std::vector<std::string> extract_included_header_suffixes(const std::string &safe_path)
+{
+	std::ifstream in(safe_path);
+	if (!in.is_open()) {
+		return {};
+	}
+	std::vector<std::string> includes;
+	std::string line;
+	int count = 0;
+	// Scan initial chunk of file for includes (up to first 500 lines)
+	while (std::getline(in, line) && count < 500) {
+		++count;
+		size_t pos = line.find_first_not_of(" \t");
+		if (pos == std::string::npos || line[pos] != '#') {
+			continue;
+		}
+		std::string_view rest = std::string_view(line).substr(pos + 1);
+		size_t inc_pos = rest.find_first_not_of(" \t");
+		if (inc_pos == std::string::npos || !rest.substr(inc_pos).starts_with("include")) {
+			continue;
+		}
+		size_t after_inc = inc_pos + 7;
+		size_t open_delim = rest.find_first_of("<\"", after_inc);
+		if (open_delim == std::string::npos) {
+			continue;
+		}
+		char close_char = (rest[open_delim] == '<') ? '>' : '"';
+		size_t close_delim = rest.find(close_char, open_delim + 1);
+		if (close_delim != std::string::npos && close_delim > open_delim + 1) {
+			std::string inc_target(rest.substr(open_delim + 1, close_delim - open_delim - 1));
+			if (!inc_target.empty()) {
+				includes.push_back(std::move(inc_target));
+			}
+		}
+	}
+	return includes;
+}
+
 static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
 	const std::string &safe_path, int start_line, int end_line,
 	const std::vector<codemap_symbol_info> &doc_symbols,
@@ -785,6 +823,7 @@ static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
 	}
 
 	std::string norm_safe_path = fs_utils::make_relative_to_project(safe_path);
+	std::vector<std::string> included_headers = extract_included_header_suffixes(safe_path);
 	std::vector<outgoing_call_reference> results;
 	std::unordered_set<std::string> seen_names;
 
@@ -800,11 +839,11 @@ static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
 		}
 		seen_names.insert(cand.name);
 
-		auto defs = project_manager::get_instance().lsp_query_definition(safe_path, cand.line - 1, cand.col);
+		auto raw_defs = project_manager::get_instance().lsp_query_definition(safe_path, cand.line - 1, cand.col);
 		// If any definition points to the exact candidate position or line within the same file,
 		// this token is the definition site itself (or a recursion/declaration), not an outgoing call.
 		bool is_self_definition = false;
-		for (const auto &def : defs) {
+		for (const auto &def : raw_defs) {
 			if (def.path.empty()) {
 				continue;
 			}
@@ -819,7 +858,9 @@ static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
 			continue;
 		}
 
-		for (const auto &def : defs) {
+		// Filter to valid cross-file project definitions
+		std::vector<lsp_backend::location_info> valid_defs;
+		for (const auto &def : raw_defs) {
 			if (def.path.empty() || !is_project_file(def.path, ctx)) {
 				continue;
 			}
@@ -827,36 +868,88 @@ static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
 			if (norm_def.empty() || norm_def == norm_safe_path) {
 				continue;
 			}
+			valid_defs.push_back(def);
+		}
 
-			outgoing_call_reference ref;
-			ref.caller_file = safe_path;
-			ref.call_line = cand.line;
-			ref.target_name = cand.name;
-			ref.target_file = norm_def;
-			ref.target_start_line = def.range.start_y + 1;
-			ref.target_end_line = (def.range.end_y > def.range.start_y) ? (def.range.end_y + 1) : ref.target_start_line;
-			ref.target_kind = "Function";
-			ref.is_direct_read_call = true;
+		if (valid_defs.empty()) {
+			continue;
+		}
 
-			// If end_line == start_line, attempt to look up exact symbol bounds in symbols_cache
-			if (ref.target_end_line == ref.target_start_line) {
-				if (!symbols_cache.contains(norm_def)) {
-					std::vector<codemap_symbol_info> syms;
-					fallback_find_symbols(norm_def, 1, syms);
-					symbols_cache[norm_def] = std::move(syms);
-				}
-				const auto &syms = symbols_cache[norm_def];
-				const auto *found = find_symbol_by_hint(syms, cand.name);
-				if (found && is_matching_function_symbol(found, cand.name)) {
-					ref.target_start_line = found->start_line;
-					ref.target_end_line = found->end_line;
+		// Disambiguate multiple candidate definitions across different files:
+		// 1. Group valid definitions by normalized target file
+		std::vector<std::string> distinct_files;
+		for (const auto &def : valid_defs) {
+			std::string norm_def = fs_utils::make_relative_to_project(def.path);
+			if (std::find(distinct_files.begin(), distinct_files.end(), norm_def) == distinct_files.end()) {
+				distinct_files.push_back(norm_def);
+			}
+		}
+
+		const lsp_backend::location_info *chosen_def = nullptr;
+		if (distinct_files.size() == 1) {
+			// All definitions live in the same file (e.g. declaration + definition in one header)
+			chosen_def = &valid_defs.front();
+		} else if (!included_headers.empty()) {
+			// Direct Include Tie-Breaker: Check if exactly one candidate file matches an #include directive in safe_path
+			std::vector<const lsp_backend::location_info *> include_matched_defs;
+			for (const auto &def : valid_defs) {
+				std::string norm_def = fs_utils::make_relative_to_project(def.path);
+				for (const auto &inc : included_headers) {
+					if (norm_def == inc || norm_def.ends_with("/" + inc)) {
+						include_matched_defs.push_back(&def);
+						break;
+					}
 				}
 			}
 
-			results.push_back(std::move(ref));
-			break;
+			// Check if include-matched definitions point to a unique file
+			if (!include_matched_defs.empty()) {
+				std::string matched_file = fs_utils::make_relative_to_project(include_matched_defs.front()->path);
+				bool all_same_file = true;
+				for (const auto *m : include_matched_defs) {
+					if (fs_utils::make_relative_to_project(m->path) != matched_file) {
+						all_same_file = false;
+						break;
+					}
+				}
+				if (all_same_file) {
+					chosen_def = include_matched_defs.front();
+				}
+			}
 		}
 
+		// If still ambiguous across multiple distinct files, punt rather than returning the wrong target!
+		if (!chosen_def) {
+			continue;
+		}
+
+		std::string norm_def = fs_utils::make_relative_to_project(chosen_def->path);
+		outgoing_call_reference ref;
+		ref.caller_file = safe_path;
+		ref.call_line = cand.line;
+		ref.target_name = cand.name;
+		ref.target_file = norm_def;
+		ref.target_start_line = chosen_def->range.start_y + 1;
+		ref.target_end_line = (chosen_def->range.end_y > chosen_def->range.start_y) ? (chosen_def->range.end_y + 1) : ref.target_start_line;
+		ref.target_kind = "Function";
+		ref.is_direct_read_call = true;
+
+		// If end_line == start_line, attempt to look up exact symbol bounds in symbols_cache
+		if (ref.target_end_line == ref.target_start_line) {
+			if (!symbols_cache.contains(norm_def)) {
+				std::vector<codemap_symbol_info> syms;
+				fallback_find_symbols(norm_def, 1, syms);
+				symbols_cache[norm_def] = std::move(syms);
+			}
+			const auto &syms = symbols_cache[norm_def];
+			const auto *found = find_symbol_by_hint(syms, cand.name);
+			if (found && is_matching_function_symbol(found, cand.name)) {
+				ref.target_start_line = found->start_line;
+				ref.target_end_line = found->end_line;
+			}
+		}
+
+		results.push_back(std::move(ref));
 		if (results.size() >= 10) {
 			break;
 		}

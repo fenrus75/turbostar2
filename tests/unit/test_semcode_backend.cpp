@@ -97,12 +97,16 @@ static void test_hybrid_cli_queries()
 	std::string src_file = test_dir + "/main.c";
 	{
 		std::ofstream out(src_file);
-		out << "struct dummy_struct {\n"
+		out << "#include <my_ops.h>\n"
+		    << "\n"
+		    << "struct dummy_struct {\n"
 		    << "    int field;\n"
 		    << "};\n"
 		    << "\n"
 		    << "int target_func(void) {\n"
 		    << "    callee_sub(123);\n"
+		    << "    disambig_func();\n"
+		    << "    ambig_call();\n"
 		    << "    return 42;\n"
 		    << "}\n";
 	}
@@ -119,6 +123,28 @@ static void test_hybrid_cli_queries()
 		out << "int target_func(void) {\n"
 		    << "    return 99;\n"
 		    << "}\n";
+	}
+	std::string include_dir = test_dir + "/include";
+	fs::create_directories(include_dir);
+	std::string hdr_file = include_dir + "/my_ops.h";
+	{
+		std::ofstream out(hdr_file);
+		out << "void disambig_func(void);\n";
+	}
+	std::string wrong_arch_file = test_dir + "/wrong_arch.c";
+	{
+		std::ofstream out(wrong_arch_file);
+		out << "void disambig_func(void) {}\n";
+	}
+	std::string ambiguous_a = test_dir + "/ambig_a.c";
+	{
+		std::ofstream out(ambiguous_a);
+		out << "void ambig_call(void) {}\n";
+	}
+	std::string ambiguous_b = test_dir + "/ambig_b.c";
+	{
+		std::ofstream out(ambiguous_b);
+		out << "void ambig_call(void) {}\n";
 	}
 
 	// Create mock semcode CLI script that simulates semcode responses
@@ -153,6 +179,32 @@ static void test_hybrid_cli_queries()
 		    << "    echo 'Return type: void'\n"
 		    << "    echo 'Function Definition:'\n"
 		    << "    echo 'void callee_sub(int x)'\n"
+		    << "    ;;\n"
+		    << "  *\"func disambig_func\"*)\n"
+		    << "    echo 'File: wrong_arch.c'\n"
+		    << "    echo 'Line: 1-1'\n"
+		    << "    echo 'Return type: void'\n"
+		    << "    echo 'Function Definition:'\n"
+		    << "    echo 'void disambig_func(void)'\n"
+		    << "    echo ''\n"
+		    << "    echo 'File: include/my_ops.h'\n"
+		    << "    echo 'Line: 1-1'\n"
+		    << "    echo 'Return type: void'\n"
+		    << "    echo 'Function Definition:'\n"
+		    << "    echo 'void disambig_func(void)'\n"
+		    << "    ;;\n"
+		    << "  *\"func ambig_call\"*)\n"
+		    << "    echo 'File: ambig_a.c'\n"
+		    << "    echo 'Line: 1-1'\n"
+		    << "    echo 'Return type: void'\n"
+		    << "    echo 'Function Definition:'\n"
+		    << "    echo 'void ambig_call(void)'\n"
+		    << "    echo ''\n"
+		    << "    echo 'File: ambig_b.c'\n"
+		    << "    echo 'Line: 1-1'\n"
+		    << "    echo 'Return type: void'\n"
+		    << "    echo 'Function Definition:'\n"
+		    << "    echo 'void ambig_call(void)'\n"
 		    << "    ;;\n"
 		    << "  *\"func target_func\"*)\n"
 		    << "    echo 'File: main.c'\n"
@@ -190,25 +242,25 @@ static void test_hybrid_cli_queries()
 	semcode_backend backend(test_dir);
 
 	// 1. Definition query via hybrid fallback
-	auto defs = backend.query_definition(src_file, 4, 6); // on target_func
+	auto defs = backend.query_definition(src_file, 6, 6); // on target_func (line 7)
 	assert(!defs.empty());
 	assert(defs[0].path.find("main.c") != std::string::npos);
 	assert(defs[0].range.start_y == 4); // 0-based index for line 5
 
 	// 2. References query via hybrid fallback
-	auto refs = backend.query_references(src_file, 4, 6);
+	auto refs = backend.query_references(src_file, 6, 6);
 	assert(!refs.empty());
 	assert(refs[0].path.find("main.c") != std::string::npos);
 	assert(refs[0].range.start_y == 19); // 0-based index for line 20
 
 	// 3. Outgoing call hierarchy query
-	auto calls = backend.query_call_hierarchy_outgoing(src_file, 4, 6);
+	auto calls = backend.query_call_hierarchy_outgoing(src_file, 6, 6);
 	assert(!calls.empty());
 	assert(calls[0].name == "callee_sub");
 	assert(calls[0].range.start_y == 9); // 0-based index for line 10
 
 	// 4. Batch call hierarchy
-	auto batch = backend.query_call_hierarchy_outgoing_batch(src_file, {{4, 6}});
+	auto batch = backend.query_call_hierarchy_outgoing_batch(src_file, {{6, 6}});
 	assert(!batch.empty());
 	assert(batch[0].item.name == "callee_sub");
 
@@ -218,7 +270,7 @@ static void test_hybrid_cli_queries()
 	assert(syms[0].name == "target_func");
 
 	// 6. Type hierarchy
-	auto types = backend.query_type_hierarchy_supertypes(src_file, 0, 8); // on dummy_struct
+	auto types = backend.query_type_hierarchy_supertypes(src_file, 2, 8); // on dummy_struct (line 3)
 	assert(!types.empty());
 	assert(types[0].name == "dummy_struct");
 
@@ -226,7 +278,7 @@ static void test_hybrid_cli_queries()
 	event_queue queue;
 	backend.start(queue);
 	auto t0 = std::chrono::steady_clock::now();
-	backend.request_hover(src_file, 0, 8); // on dummy_struct
+	backend.request_hover(src_file, 2, 8); // on dummy_struct
 	auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
 	std::cout << "  request_hover returned in " << elapsed_ms << "ms" << std::endl;
 	assert(elapsed_ms < 200);
@@ -248,7 +300,7 @@ static void test_hybrid_cli_queries()
 
 	// 8. Subsequent hover request on same location must be an instant cache hit
 	auto t1 = std::chrono::steady_clock::now();
-	backend.request_hover(src_file, 0, 8);
+	backend.request_hover(src_file, 2, 8);
 	auto cache_hit_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t1).count();
 	std::cout << "  cached request_hover returned in " << cache_hit_elapsed << "ms" << std::endl;
 	assert(cache_hit_elapsed < 50);
@@ -260,29 +312,49 @@ static void test_hybrid_cli_queries()
 	backend.stop();
 
 	// 9. Called dependencies test under semcode_backend:
-	// Verify that get_outgoing_calls_in_range resolves callee_sub(123) in main.c lines 5-8 to dep.c,
+	// Verify that get_outgoing_calls_in_range resolves callee_sub(123) in main.c lines 7-12 to dep.c,
+	// resolves disambig_func() via #include <my_ops.h> tie-breaker to include/my_ops.h,
+	// punts on ambig_call() (multiple candidates ambig_a.c / ambig_b.c without matching include),
 	// and does NOT treat target_func definition header as an outgoing call to ext.c!
 	project_manager::get_instance().set_project_root(test_dir);
 	project_manager::get_instance().set_lsp_backend_for_testing(std::make_unique<semcode_backend>(test_dir));
-	auto outgoing_calls = tools::get_outgoing_calls_in_range(src_file, 5, 8, nullptr);
+	auto outgoing_calls = tools::get_outgoing_calls_in_range(src_file, 7, 12, nullptr);
 	assert(!outgoing_calls.empty());
-	assert(outgoing_calls[0].target_name == "callee_sub");
-	assert(outgoing_calls[0].target_file.find("dep.c") != std::string::npos);
+	bool found_callee_sub = false;
+	bool found_disambig_func = false;
 	for (const auto &call : outgoing_calls) {
 		assert(call.target_name != "target_func");
+		assert(call.target_name != "ambig_call"); // Must be punted due to unresolved cross-file ambiguity!
+		if (call.target_name == "callee_sub") {
+			assert(call.target_file.find("dep.c") != std::string::npos);
+			found_callee_sub = true;
+		}
+		if (call.target_name == "disambig_func") {
+			assert(call.target_file.find("my_ops.h") != std::string::npos);
+			assert(call.target_file.find("wrong_arch.c") == std::string::npos);
+			found_disambig_func = true;
+		}
 	}
+	assert(found_callee_sub);
+	assert(found_disambig_func);
 
 	// 10. Verify that select_prioritized_codemap_symbols and format_codemap_table format the Called Dependencies table under semcode_backend
 	agentlib::tool_context ctx;
 	ctx.fs_security.set_working_directory(test_dir);
 	ctx.fs_security.add_allowed_root(test_dir, agentlib::access_type::read);
 	auto all_syms = tools::get_document_codemap_symbols(src_file, ctx, 1);
-	auto selected = tools::select_prioritized_codemap_symbols(all_syms, 5, 8, src_file, ctx, 10);
-	std::string table_md = tools::format_codemap_table(src_file, selected.selected_symbols, 8, selected.total_symbols, selected.omitted_count, &ctx);
+	auto selected = tools::select_prioritized_codemap_symbols(all_syms, 7, 12, src_file, ctx, 10);
+	std::string table_md = tools::format_codemap_table(src_file, selected.selected_symbols, 12, selected.total_symbols, selected.omitted_count, &ctx);
 	assert(table_md.find("### Called Dependencies:") != std::string::npos);
 	assert(table_md.find("`callee_sub`") != std::string::npos);
 	assert(table_md.find("dep.c") != std::string::npos);
+	assert(table_md.find("`disambig_func`") != std::string::npos);
+	assert(table_md.find("my_ops.h") != std::string::npos);
+	assert(table_md.find("wrong_arch.c") == std::string::npos);
 	assert(table_md.find("ext.c") == std::string::npos);
+	assert(table_md.find("ambig_call") == std::string::npos);
+	assert(table_md.find("ambig_a.c") == std::string::npos);
+	assert(table_md.find("ambig_b.c") == std::string::npos);
 
 	unsetenv("SEMCODE_BIN");
 	fs::remove_all(test_dir);
