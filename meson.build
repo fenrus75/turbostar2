@@ -248,6 +248,12 @@ agentcli_replay_exe = executable('agentcli_replay',
   export_dynamic: true,
   install : false)
 
+turbostar_semcode_indexer_exe = executable('turbostar-semcode-indexer',
+  'src/semcode_indexer_main.cpp',
+  dependencies : [core_dep, sqlite3_dep, thread_dep],
+  include_directories: inc,
+  install : true)
+
 
 # --- Automated binary deployment to testrun/ ---
 # This ensures that E2E tests always use the latest built binary.
@@ -293,6 +299,12 @@ test_semcode_backend = executable('test_semcode_backend',
   dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep],
   include_directories: inc)
 test('unit_semcode_backend', test_semcode_backend, suite: 'editor')
+
+test_semcode_indexer = executable('test_semcode_indexer',
+  ['tests/unit/test_semcode_indexer.cpp'],
+  dependencies : [core_dep, sqlite3_dep, thread_dep],
+  include_directories: inc)
+test('unit_semcode_indexer', test_semcode_indexer, suite: 'editor')
 
 test_call_token_extractor = executable('test_call_token_extractor',
   ['tests/unit/test_call_token_extractor.cpp'],
