@@ -23,6 +23,8 @@ int main(int argc, char **argv)
 
 	std::string query_fn;
 	std::string query_type;
+	size_t max_dbs = 2;
+	bool prune_only = false;
 
 	app.add_option("-f,--functions", functions_json, "Path to functions JSON dump file");
 	app.add_option("-t,--types", types_json, "Path to types JSON dump file");
@@ -32,8 +34,23 @@ int main(int argc, char **argv)
 	app.add_option("--semcode-bin", semcode_bin, "Path to semcode CLI binary (default: 'semcode')");
 	app.add_option("--query-fn", query_fn, "Query a function by name in the database");
 	app.add_option("--query-type", query_type, "Query a type by name in the database");
+	app.add_option("--max-dbs", max_dbs, "Maximum number of database files to retain in cache directory (default: 2, 0 to disable)");
+	app.add_flag("--prune", prune_only, "Prune old databases in the specified directory/database location and exit");
 
 	CLI11_PARSE(app, argc, argv);
+
+	if (prune_only) {
+		fs::path target_path(output_db);
+		std::error_code ec;
+		fs::path target_dir = fs::is_directory(target_path, ec) ? target_path : target_path.parent_path();
+		if (target_dir.empty()) {
+			target_dir = fs::current_path();
+		}
+		size_t pruned = semcode_indexer::prune_cache_directory(target_dir.string(), max_dbs);
+		std::cout << std::format("Pruned {} old semcode database(s) in {} (retaining <= {})\n", pruned, target_dir.string(),
+					 max_dbs);
+		return 0;
+	}
 
 	if (!query_fn.empty() || !query_type.empty()) {
 		semcode_indexer indexer(output_db);
@@ -181,6 +198,19 @@ int main(int argc, char **argv)
 	(void)indexer.set_metadata("created_at", std::to_string(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now())));
 
 	indexer.close();
+
+	if (max_dbs > 0) {
+		fs::path target_path(output_db);
+		fs::path target_dir = target_path.parent_path();
+		if (target_dir.empty()) {
+			target_dir = fs::current_path();
+		}
+		size_t pruned = semcode_indexer::prune_cache_directory(target_dir.string(), max_dbs);
+		if (pruned > 0) {
+			std::cout << std::format("Pruned {} old semcode database(s) in {} (retaining <= {})\n", pruned, target_dir.string(),
+						 max_dbs);
+		}
+	}
 
 	if (!temp_dir.empty()) {
 		fs::remove_all(temp_dir, ec);

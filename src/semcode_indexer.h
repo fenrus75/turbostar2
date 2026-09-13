@@ -66,6 +66,20 @@ class semcode_indexer
 										   int end_line) const;
 	[[nodiscard]] std::vector<semcode_type_entry> lookup_type(std::string_view name) const;
 
+	/**
+	 * @brief Prunes old semcode database files (*.db and companion files) in a directory, keeping at most max_dbs copies.
+	 * Sorts databases by last modification time (most recent first) and removes the oldest ones.
+	 * @param untrusted_dir Directory path containing the databases.
+	 * @param max_dbs Maximum number of database files to retain (default: 2).
+	 * @return Number of database files removed.
+	 */
+	static size_t prune_cache_directory(const std::string &untrusted_dir, size_t max_dbs = 2);
+
+	/**
+	 * @brief Updates the last write/modification time of the database to the current time for LRU tracking.
+	 */
+	static void touch_database(const std::string &untrusted_db_path);
+
       private:
 	std::string db_path_;
 	sqlite3 *db_{nullptr};

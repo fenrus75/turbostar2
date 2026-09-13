@@ -294,4 +294,5 @@ The LSP subsystem uses the **Strategy Pattern** to separate protocol abstraction
   - Achieves over 170,000 records/sec throughput: fully indexing 1.12 million Linux kernel functions (899MB) and 168k types (167MB) into a compact 256MB database in ~8.2 seconds.
   - Point lookups for function callees/types or type signatures execute in under 70 microseconds, eliminating subprocess latency during code navigation, codemaps, and LLM tool queries.
   - Databases are keyed by git commit SHA (`semcode_<commit_hash>.db`), allowing permanent cache reuse across editing sessions and code reviews for clean git trees.
+  - **LRU Cache Pruning & Retention**: Automatically enforces a strict retention limit (`--max-dbs`, default: 2) via `semcode_indexer::prune_cache_directory()`, sorting databases by access/modification time and purging oldest databases along with companion journal/wal/shm files to prevent disk bloating. Opening a database automatically updates its modification time for LRU tracking.
 - **Extensibility & Mocking**: Enables alternative backends and mock backends in unit tests to achieve high test coverage without requiring external server binaries.

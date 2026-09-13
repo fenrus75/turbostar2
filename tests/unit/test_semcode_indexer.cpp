@@ -1,6 +1,7 @@
 // Tested source file: src/semcode_indexer.cpp
 #include <cassert>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include "fs_utils.h"
@@ -146,10 +147,62 @@ static void test_indexer_ingest_and_query()
 	std::cout << "  Passed!" << std::endl;
 }
 
+static void test_cache_pruning()
+{
+	std::cout << "Testing semcode_indexer cache pruning..." << std::endl;
+
+	std::string test_dir = fs_utils::get_project_tmp_dir() + "/test_semcode_prune";
+	fs::create_directories(test_dir);
+
+	std::string db1 = test_dir + "/semcode_commit1.db";
+	std::string db2 = test_dir + "/semcode_commit2.db";
+	std::string db3 = test_dir + "/semcode_commit3.db";
+	std::string db4 = test_dir + "/semcode_commit4.db";
+	std::string db1_journal = db1 + "-journal";
+
+	// Create dummy files
+	{
+		std::ofstream(db1) << "dummy1";
+		std::ofstream(db1_journal) << "journal1";
+		std::ofstream(db2) << "dummy2";
+		std::ofstream(db3) << "dummy3";
+		std::ofstream(db4) << "dummy4";
+	}
+
+	// Set explicit timestamps: db1 < db2 < db3 < db4
+	auto now = fs::file_time_type::clock::now();
+	std::error_code ec;
+	fs::last_write_time(db1, now - std::chrono::hours(4), ec);
+	fs::last_write_time(db1_journal, now - std::chrono::hours(4), ec);
+	fs::last_write_time(db2, now - std::chrono::hours(3), ec);
+	fs::last_write_time(db3, now - std::chrono::hours(2), ec);
+	fs::last_write_time(db4, now - std::chrono::hours(1), ec);
+
+	// Prune to at most 2 databases (should keep db3 and db4; remove db1, db1-journal, db2)
+	size_t pruned = semcode_indexer::prune_cache_directory(test_dir, 2);
+	assert(pruned == 2);
+
+	assert(!fs::exists(db1));
+	assert(!fs::exists(db1_journal));
+	assert(!fs::exists(db2));
+	assert(fs::exists(db3));
+	assert(fs::exists(db4));
+
+	// Test touch_database on db3
+	auto before_touch = fs::last_write_time(db3, ec);
+	semcode_indexer::touch_database(db3);
+	auto after_touch = fs::last_write_time(db3, ec);
+	assert(after_touch >= before_touch);
+
+	fs::remove_all(test_dir);
+	std::cout << "  Passed!" << std::endl;
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog();
 	test_indexer_ingest_and_query();
+	test_cache_pruning();
 	std::cout << "All semcode_indexer tests passed successfully!" << std::endl;
 	return 0;
 }

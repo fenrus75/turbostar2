@@ -1,6 +1,7 @@
 #include "semcode_indexer.h"
 #include <algorithm>
 #include <charconv>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <sqlite3.h>
@@ -146,6 +147,12 @@ bool semcode_indexer::open()
 	if (db_) {
 		return true;
 	}
+
+	std::error_code ec;
+	if (fs_utils::is_regular_file(db_path_)) {
+		std::filesystem::last_write_time(db_path_, std::filesystem::file_time_type::clock::now(), ec);
+	}
+
 	int rc = sqlite3_open(db_path_.c_str(), &db_);
 	if (rc != SQLITE_OK || !db_) {
 		close();
@@ -629,4 +636,71 @@ std::vector<semcode_type_entry> semcode_indexer::lookup_type(std::string_view na
 	}
 	sqlite3_finalize(stmt);
 	return results;
+}
+
+size_t semcode_indexer::prune_cache_directory(const std::string &untrusted_dir, size_t max_dbs)
+{
+	std::string safe_dir = untrusted_dir;
+	std::error_code ec;
+	if (safe_dir.empty() || !std::filesystem::is_directory(safe_dir, ec)) {
+		return 0;
+	}
+
+	struct db_file_entry {
+		std::filesystem::path path;
+		std::filesystem::file_time_type mtime;
+	};
+
+	std::vector<db_file_entry> dbs;
+	for (const auto &entry : std::filesystem::directory_iterator(safe_dir, ec)) {
+		if (ec) {
+			break;
+		}
+		if (!entry.is_regular_file(ec)) {
+			continue;
+		}
+		std::string filename = entry.path().filename().string();
+		if (filename.ends_with(".db")) {
+			auto mtime = entry.last_write_time(ec);
+			if (!ec) {
+				dbs.push_back({entry.path(), mtime});
+			}
+		}
+	}
+
+	if (dbs.size() <= max_dbs) {
+		return 0;
+	}
+
+	// Sort descending by mtime (most recently modified/accessed first)
+	std::sort(dbs.begin(), dbs.end(), [](const db_file_entry &a, const db_file_entry &b) {
+		if (a.mtime != b.mtime) {
+			return a.mtime > b.mtime;
+		}
+		return a.path > b.path;
+	});
+
+	size_t removed_count = 0;
+	for (size_t i = max_dbs; i < dbs.size(); ++i) {
+		const auto &db_path = dbs[i].path;
+		// Remove main .db file
+		if (std::filesystem::remove(db_path, ec)) {
+			removed_count++;
+		}
+		// Remove potential SQLite companion files (-journal, -wal, -shm)
+		std::filesystem::remove(db_path.string() + "-journal", ec);
+		std::filesystem::remove(db_path.string() + "-wal", ec);
+		std::filesystem::remove(db_path.string() + "-shm", ec);
+	}
+
+	return removed_count;
+}
+
+void semcode_indexer::touch_database(const std::string &untrusted_db_path)
+{
+	std::string safe_path = untrusted_db_path;
+	std::error_code ec;
+	if (fs_utils::is_regular_file(safe_path)) {
+		std::filesystem::last_write_time(safe_path, std::filesystem::file_time_type::clock::now(), ec);
+	}
 }
