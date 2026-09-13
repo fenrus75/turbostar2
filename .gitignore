@@ -23,4 +23,5 @@ agent*json
 tests/unit/tmp_git_*/
 assets/
 subprojects/lsp-framework/
+.semcode.db/
 

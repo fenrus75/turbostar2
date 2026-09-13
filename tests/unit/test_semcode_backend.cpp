@@ -14,6 +14,7 @@
 #include "lsp_manager.h"
 #include "project_manager.h"
 #include "semcode_backend.h"
+#include "semcode_indexer.h"
 #include "standard_lsp_backend.h"
 #include "test_watchdog.h"
 
@@ -24,6 +25,7 @@ static void test_availability_and_discovery()
 	std::cout << "Testing semcode discovery and availability..." << std::endl;
 
 	std::string test_dir = fs_utils::get_project_tmp_dir() + "/test_semcode_avail";
+	fs::remove_all(test_dir);
 	fs::create_directories(test_dir);
 
 	// In empty directory with no .semcode.db
@@ -86,14 +88,152 @@ static void test_supported_files_and_sync()
 	std::cout << "  Passed!" << std::endl;
 }
 
-static void test_hybrid_cli_queries()
+static void setup_test_index(const std::string &db_path)
 {
-	std::cout << "Testing hybrid semcode CLI integration..." << std::endl;
+	std::error_code ec;
+	fs::remove(db_path, ec);
+	semcode_indexer indexer(db_path);
+	assert(indexer.open());
 
-	std::string test_dir = fs_utils::safe_absolute(fs_utils::get_project_tmp_dir() + "/test_semcode_cli").string();
+	std::string fn_json = R"raw([
+  {
+    "name": "target_func",
+    "file_path": "main.c",
+    "line_start": 7,
+    "line_end": 15,
+    "calls": ["callee_sub", "cleanup", "memset"]
+  },
+  {
+    "name": "target_func",
+    "file_path": "ext.c",
+    "line_start": 1,
+    "line_end": 3,
+    "calls": []
+  },
+  {
+    "name": "callee_sub",
+    "file_path": "dep.c",
+    "line_start": 1,
+    "line_end": 3,
+    "calls": []
+  },
+  {
+    "name": "disambig_func",
+    "file_path": "wrong_arch.c",
+    "line_start": 1,
+    "line_end": 1,
+    "calls": []
+  },
+  {
+    "name": "disambig_func",
+    "file_path": "include/my_ops.h",
+    "line_start": 1,
+    "line_end": 1,
+    "calls": []
+  },
+  {
+    "name": "ambig_call",
+    "file_path": "ambig_a.c",
+    "line_start": 1,
+    "line_end": 1,
+    "calls": []
+  },
+  {
+    "name": "ambig_call",
+    "file_path": "ambig_b.c",
+    "line_start": 1,
+    "line_end": 1,
+    "calls": []
+  },
+  {
+    "name": "unique_header_op",
+    "file_path": "include/my_ops.h",
+    "line_start": 2,
+    "line_end": 2,
+    "calls": []
+  },
+  {
+    "name": "selftest_func",
+    "file_path": "tools/testing/selftests/selftest.c",
+    "line_start": 1,
+    "line_end": 1,
+    "calls": []
+  },
+  {
+    "name": "cleanup",
+    "file_path": "tools/testing/selftests/bpf/xdp_synproxy.c",
+    "line_start": 10,
+    "line_end": 15,
+    "calls": []
+  },
+  {
+    "name": "cleanup",
+    "file_path": "drivers/net/cleanup.c",
+    "line_start": 20,
+    "line_end": 25,
+    "calls": []
+  },
+  {
+    "name": "caller_one",
+    "file_path": "main.c",
+    "line_start": 20,
+    "line_end": 25,
+    "calls": ["target_func"]
+  },
+  {
+    "name": "memset",
+    "file_path": "arch/nios2/lib/memset.c",
+    "line_start": 13,
+    "line_end": 79,
+    "calls": []
+  }
+])raw";
+
+	std::string ty_json = R"raw([
+  {
+    "name": "dummy_struct",
+    "file_path": "main.c",
+    "line_start": 3,
+    "line_end": 5,
+    "kind": "struct",
+    "underlying_type": ""
+  },
+  {
+    "name": "custom_type_t",
+    "file_path": "main.c",
+    "line_start": 16,
+    "line_end": 16,
+    "kind": "typedef",
+    "underlying_type": "int"
+  },
+  {
+    "name": "type_and_typedef_t",
+    "file_path": "main.c",
+    "line_start": 17,
+    "line_end": 17,
+    "kind": "typedef",
+    "underlying_type": "long"
+  }
+])raw";
+
+	std::istringstream f_stream(fn_json);
+	indexer.ingest_functions_stream(f_stream);
+	std::istringstream t_stream(ty_json);
+	indexer.ingest_types_stream(t_stream);
+	assert(indexer.build_indices());
+	indexer.close();
+}
+
+static void test_indexer_queries()
+{
+	std::cout << "Testing semcode indexer integration..." << std::endl;
+
+	std::string test_dir = fs_utils::safe_absolute(fs_utils::get_project_tmp_dir() + "/test_semcode_idx").string();
 	fs::create_directories(test_dir);
+	fs::path semcode_dir = fs::path(test_dir) / ".semcode.db";
+	fs::create_directories(semcode_dir);
 
-	// Create a dummy source file
+	// Create dummy project files
 	std::string src_file = test_dir + "/main.c";
 	{
 		std::ofstream out(src_file);
@@ -160,167 +300,14 @@ static void test_hybrid_cli_queries()
 		out << "void ambig_call(void) {}\n";
 	}
 
-	// Create mock semcode CLI script that simulates semcode responses
-	std::string mock_cli = test_dir + "/mock_semcode";
-	{
-		std::ofstream out(mock_cli);
-		out << "#!/bin/sh\n"
-		    << "while [ $# -gt 0 ]; do\n"
-		    << "  case \"$1\" in\n"
-		    << "    -q)\n"
-		    << "      QUERY=\"$2\"\n"
-		    << "      shift 2\n"
-		    << "      ;;\n"
-		    << "    *)\n"
-		    << "      shift\n"
-		    << "      ;;\n"
-		    << "  esac\n"
-		    << "done\n"
-		    << "case \"$QUERY\" in\n"
-		    << "  *\"type dummy_struct\"*)\n"
-		    << "    sleep 1\n"
-		    << "    echo '=== Type Information ==='\n"
-		    << "    printf '\\033[32mName: struct dummy_struct\\033[0m\\n'\n"
-		    << "    echo 'File: main.c'\n"
-		    << "    echo 'Line: 1'\n"
-		    << "    echo 'Fields:'\n"
-		    << "    echo '  - int field'\n"
-		    << "    ;;\n"
-		    << "  *\"type custom_type_t\"*)\n"
-		    << "    echo 'File: main.c'\n"
-		    << "    echo 'Line: 16-16'\n"
-		    << "    ;;\n"
-		    << "  *\"type type_and_typedef_t\"*)\n"
-		    << "    echo 'Note: Found both a type and a typedef with this name at git SHA 08df8841!'\n"
-		    << "    echo '=== Type Information ==='\n"
-		    << "    echo 'Name: typedef type_and_typedef_t'\n"
-		    << "    echo 'File: main.c'\n"
-		    << "    echo 'Line: 17-17'\n"
-		    << "    echo ''\n"
-		    << "    echo '=== Typedef Information ==='\n"
-		    << "    echo 'Name: type_and_typedef_t'\n"
-		    << "    echo 'File: main.c'\n"
-		    << "    echo 'Line: 17-17'\n"
-		    << "    echo 'Underlying Type: long'\n"
-		    << "    ;;\n"
-		    << "  *\"func custom_type_t\"*)\n"
-		    << "    echo 'Info: No exact match found for '\\''custom_type_t'\\'' (no function found with this name), but found "
-		       "functions using it as a regex pattern:'\n"
-		    << "    echo '=== Functions (regex matches) ==='\n"
-		    << "    echo 'File: dep.c'\n"
-		    << "    echo 'Line: 1-3'\n"
-		    << "    echo 'File: ext.c'\n"
-		    << "    echo 'Line: 1-3'\n"
-		    << "    ;;\n"
-		    << "  *\"func callee_sub\"*)\n"
-		    << "    echo 'File: dep.c'\n"
-		    << "    echo 'Line: 1-3'\n"
-		    << "    echo 'Return type: void'\n"
-		    << "    echo 'Function Definition:'\n"
-		    << "    echo 'void callee_sub(int x)'\n"
-		    << "    ;;\n"
-		    << "  *\"func disambig_func\"*)\n"
-		    << "    echo 'File: wrong_arch.c'\n"
-		    << "    echo 'Line: 1-1'\n"
-		    << "    echo 'Return type: void'\n"
-		    << "    echo 'Function Definition:'\n"
-		    << "    echo 'void disambig_func(void)'\n"
-		    << "    echo ''\n"
-		    << "    echo 'File: include/my_ops.h'\n"
-		    << "    echo 'Line: 1-1'\n"
-		    << "    echo 'Return type: void'\n"
-		    << "    echo 'Function Definition:'\n"
-		    << "    echo 'void disambig_func(void)'\n"
-		    << "    ;;\n"
-		    << "  *\"func ambig_call\"*)\n"
-		    << "    echo 'File: ambig_a.c'\n"
-		    << "    echo 'Line: 1-1'\n"
-		    << "    echo 'Return type: void'\n"
-		    << "    echo 'Function Definition:'\n"
-		    << "    echo 'void ambig_call(void)'\n"
-		    << "    echo ''\n"
-		    << "    echo 'File: ambig_b.c'\n"
-		    << "    echo 'Line: 1-1'\n"
-		    << "    echo 'Return type: void'\n"
-		    << "    echo 'Function Definition:'\n"
-		    << "    echo 'void ambig_call(void)'\n"
-		    << "    ;;\n"
-		    << "  *\"func unique_header_op\"*)\n"
-		    << "    echo 'File: include/my_ops.h'\n"
-		    << "    echo 'Line: 2-2'\n"
-		    << "    echo 'Return type: void'\n"
-		    << "    echo 'Function Definition:'\n"
-		    << "    echo 'void unique_header_op(void)'\n"
-		    << "    ;;\n"
-		    << "  *\"func selftest_func\"*)\n"
-		    << "    echo 'File: tools/testing/selftests/selftest.c'\n"
-		    << "    echo 'Line: 1-1'\n"
-		    << "    echo 'Return type: void'\n"
-		    << "    echo 'Function Definition:'\n"
-		    << "    echo 'void selftest_func(void)'\n"
-		    << "    ;;\n"
-		    << "  *\"func cleanup\"*)\n"
-		    << "    echo 'Note: Found 2 function definitions with name '\\''cleanup'\\'''\n"
-		    << "    echo 'File: tools/testing/selftests/bpf/xdp_synproxy.c'\n"
-		    << "    echo 'Line: 10-15'\n"
-		    << "    echo 'Return type: void'\n"
-		    << "    echo 'Function Definition:'\n"
-		    << "    echo 'void cleanup(void)'\n"
-		    << "    echo ''\n"
-		    << "    echo 'File: drivers/net/cleanup.c'\n"
-		    << "    echo 'Line: 20-25'\n"
-		    << "    echo 'Return type: void'\n"
-		    << "    echo 'Function Definition:'\n"
-		    << "    echo 'void cleanup(void)'\n"
-		    << "    ;;\n"
-		    << "  *\"func target_func\"*)\n"
-		    << "    echo 'File: main.c'\n"
-		    << "    echo 'Line: 5-8'\n"
-		    << "    echo 'Return type: int'\n"
-		    << "    echo 'Function Definition:'\n"
-		    << "    echo 'int target_func(void)'\n"
-		    << "    echo ''\n"
-		    << "    echo 'File: ext.c'\n"
-		    << "    echo 'Line: 1-3'\n"
-		    << "    echo 'Return type: int'\n"
-		    << "    echo 'Function Definition:'\n"
-		    << "    echo 'int target_func(void)'\n"
-		    << "    ;;\n"
-		    << "  *\"callers -v target_func\"*)\n"
-		    << "    echo '=== Direct Callers ==='\n"
-		    << "    echo '  1. caller_one'\n"
-		    << "    echo '     int (main.c:20) [file SHA: abc]'\n"
-		    << "    ;;\n"
-		    << "  *\"calls -v target_func\"*)\n"
-		    << "    echo '=== Direct Calls ==='\n"
-		    << "    echo '  1. callee_sub'\n"
-		    << "    echo '     void (main.c:10) [file SHA: def]'\n"
-		    << "    echo '  2. cleanup'\n"
-		    << "    echo '     void (tools/testing/selftests/bpf/xdp_synproxy.c:10)'\n"
-		    << "    echo '  3. memset'\n"
-		    << "    echo '     void (arch/nios2/lib/memset.c:13)'\n"
-		    << "    ;;\n"
-		    << "  *\"func memset\"*)\n"
-		    << "    echo 'Searching for function: memset'\n"
-		    << "    echo 'Note: Found 31 function definitions with name '\\''memset'\\'''\n"
-		    << "    echo '=== Function Information ==='\n"
-		    << "    echo 'Name: memset'\n"
-		    << "    echo 'File: arch/nios2/lib/memset.c'\n"
-		    << "    echo 'Line: 13-79'\n"
-		    << "    ;;\n"
-		    << "  *)\n"
-		    << "    echo 'No results found'\n"
-		    << "    ;;\n"
-		    << "esac\n";
-	}
-	chmod(mock_cli.c_str(), 0755);
-
-	setenv("SEMCODE_BIN", mock_cli.c_str(), 1);
-	assert(semcode_backend::find_semcode_cli() == mock_cli);
+	std::string db_file = (semcode_dir / "semcode_index.db").string();
+	setup_test_index(db_file);
 
 	semcode_backend backend(test_dir);
+	assert(backend.get_indexer() != nullptr);
+	assert(backend.get_indexer()->is_open());
 
-	// 1. Definition query via hybrid fallback:
+	// 1. Definition query:
 	// Single unique definition: callee_sub (line 8) -> dep.c
 	auto defs_unique = backend.query_definition(src_file, 7, 6);
 	assert(!defs_unique.empty());
@@ -328,11 +315,11 @@ static void test_hybrid_cli_queries()
 	assert(defs_unique[0].range.start_y == 0);
 	assert(defs_unique[0].range.end_y == 2);
 
-	// Multiple definitions across files (target_func): must fail immediately and return empty!
+	// Multiple definitions across files (target_func): must return empty!
 	auto defs_ambig_target = backend.query_definition(src_file, 6, 6);
 	assert(defs_ambig_target.empty());
 
-	// Multiple definitions across files (cleanup): must fail immediately and return empty!
+	// Multiple definitions across files (cleanup): must return empty!
 	auto defs_ambig_cleanup = backend.query_definition(src_file, 12, 6);
 	assert(defs_ambig_cleanup.empty());
 
@@ -342,14 +329,13 @@ static void test_hybrid_cli_queries()
 	assert(type_defs[0].path.find("main.c") != std::string::npos);
 	assert(type_defs[0].range.start_y == 15);
 
-	// Definition query on type with regex function matches:
-	// func query returns "No exact match found", so it falls through cleanly to type query!
+	// Definition query on type identifier: falls through cleanly to type lookup
 	auto defs_type_fallback = backend.query_definition(src_file, 15, 15);
 	assert(!defs_type_fallback.empty());
 	assert(defs_type_fallback[0].path.find("main.c") != std::string::npos);
 	assert(defs_type_fallback[0].range.start_y == 15);
 
-	// Type definition when semcode emits both Type and Typedef sections for the exact same location (e.g. ktime_t)
+	// Type definition with underlying type
 	auto dual_defs = backend.query_type_definition(src_file, 16, 15);
 	assert(!dual_defs.empty());
 	assert(dual_defs[0].path.find("main.c") != std::string::npos);
@@ -357,13 +343,13 @@ static void test_hybrid_cli_queries()
 	assert(dual_defs[0].kind == "typedef");
 	assert(dual_defs[0].underlying_type == "long");
 
-	// 2. References query via hybrid fallback
+	// 2. References query via indexer callers
 	auto refs = backend.query_references(src_file, 6, 6);
 	assert(!refs.empty());
 	assert(refs[0].path.find("main.c") != std::string::npos);
-	assert(refs[0].range.start_y == 19); // 0-based index for line 20
+	assert(refs[0].range.start_y == 19); // 0-based index for line 20 (caller_one)
 
-	// 3. Outgoing call hierarchy query (filters out ambiguous callees 'cleanup' and 'memset' and cross-arch)
+	// 3. Outgoing call hierarchy query (filters out ambiguous callees 'cleanup' and cross-arch 'memset')
 	auto calls = backend.query_call_hierarchy_outgoing(src_file, 6, 6);
 	assert(!calls.empty());
 	assert(calls.size() == 1);
@@ -385,7 +371,7 @@ static void test_hybrid_cli_queries()
 	assert(!types.empty());
 	assert(types[0].name == "dummy_struct");
 
-	// 7. Hover request (must be non-blocking and asynchronous)
+	// 7. Hover request
 	event_queue queue;
 	backend.start(queue);
 	auto t0 = std::chrono::steady_clock::now();
@@ -398,7 +384,7 @@ static void test_hybrid_cli_queries()
 	std::optional<editor_event> ev_opt;
 	for (int i = 0; i < 60; ++i) {
 		ev_opt = queue.pop();
-		if (ev_opt.has_value()) {
+		if (ev_opt.has_value() && ev_opt->type == event_type::lsp_hover_result) {
 			break;
 		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -406,8 +392,6 @@ static void test_hybrid_cli_queries()
 	assert(ev_opt.has_value());
 	assert(ev_opt->type == event_type::lsp_hover_result);
 	assert(ev_opt->payload.find("dummy_struct") != std::string::npos);
-	assert(ev_opt->payload.find("\033[") == std::string::npos);
-	assert(ev_opt->payload.find("\033") == std::string::npos);
 
 	// 8. Subsequent hover request on same location must be an instant cache hit
 	auto t1 = std::chrono::steady_clock::now();
@@ -423,13 +407,6 @@ static void test_hybrid_cli_queries()
 	backend.stop();
 
 	// 9. Called dependencies test under semcode_backend:
-	// Verify that get_outgoing_calls_in_range:
-	// - resolves callee_sub(123) in main.c to dep.c (unambiguous),
-	// - resolves unique_header_op() to include/my_ops.h (unambiguous header function),
-	// - punts on disambig_func() (multiple candidates wrong_arch.c / my_ops.h -> cross-file ambiguity),
-	// - punts on ambig_call() (multiple candidates ambig_a.c / ambig_b.c -> cross-file ambiguity),
-	// - punts on selftest_func() (defined in tools/testing/selftests/ -> test file excluded for non-test caller),
-	// - does NOT treat target_func definition header as an outgoing call to ext.c!
 	project_manager::get_instance().set_project_root(test_dir);
 	project_manager::get_instance().set_lsp_backend_for_testing(std::make_unique<semcode_backend>(test_dir));
 	auto outgoing_calls = tools::get_outgoing_calls_in_range(src_file, 7, 15, nullptr);
@@ -438,10 +415,10 @@ static void test_hybrid_cli_queries()
 	bool found_unique_header_op = false;
 	for (const auto &call : outgoing_calls) {
 		assert(call.target_name != "target_func");
-		assert(call.target_name != "disambig_func"); // Must be punted due to cross-file ambiguity!
-		assert(call.target_name != "ambig_call");    // Must be punted due to cross-file ambiguity!
-		assert(call.target_name != "selftest_func"); // Must be punted/excluded (test directory)!
-		assert(call.target_name != "cleanup");	     // Must be punted due to cross-file ambiguity!
+		assert(call.target_name != "disambig_func");
+		assert(call.target_name != "ambig_call");
+		assert(call.target_name != "selftest_func");
+		assert(call.target_name != "cleanup");
 		if (call.target_name == "callee_sub") {
 			assert(call.target_file.find("dep.c") != std::string::npos);
 			found_callee_sub = true;
@@ -454,8 +431,7 @@ static void test_hybrid_cli_queries()
 	assert(found_callee_sub);
 	assert(found_unique_header_op);
 
-	// 10. Verify that select_prioritized_codemap_symbols and format_codemap_table format the Called Dependencies table under
-	// semcode_backend
+	// 10. Verify codemap table formatting
 	agentlib::tool_context ctx;
 	ctx.fs_security.set_working_directory(test_dir);
 	ctx.fs_security.add_allowed_root(test_dir, agentlib::access_type::read);
@@ -479,18 +455,18 @@ static void test_hybrid_cli_queries()
 	assert(table_md.find("cleanup") == std::string::npos);
 	assert(table_md.find("xdp_synproxy.c") == std::string::npos);
 
-	unsetenv("SEMCODE_BIN");
 	fs::remove_all(test_dir);
 	std::cout << "  Passed!" << std::endl;
 }
 
-static void test_parallel_callee_prewarming_and_late_cache()
+static void test_call_hierarchy_instant()
 {
-	std::cout << "Testing parallel callee pre-warming and late cache population..." << std::endl;
+	std::cout << "Testing instant call hierarchy outgoing via SQLite indexer..." << std::endl;
 
-	std::string test_dir = fs_utils::get_project_tmp_dir() + "/test_semcode_parallel";
+	std::string test_dir = fs_utils::get_project_tmp_dir() + "/test_semcode_instant_calls";
 	fs::create_directories(test_dir);
-	fs::create_directories(fs::path(test_dir) / ".semcode.db");
+	fs::path semcode_dir = fs::path(test_dir) / ".semcode.db";
+	fs::create_directories(semcode_dir);
 
 	std::string src_file = test_dir + "/work.c";
 	{
@@ -504,95 +480,67 @@ static void test_parallel_callee_prewarming_and_late_cache()
 		    << "}\n";
 	}
 
-	// Mock CLI with an intentional delay for slow_callee
-	std::string mock_cli = test_dir + "/mock_semcode_delay";
+	std::string db_file = (semcode_dir / "semcode_index.db").string();
 	{
-		std::ofstream out(mock_cli);
-		out << "#!/bin/sh\n"
-		    << "case \"$*\" in\n"
-		    << "  *\"calls -v do_work\"*)\n"
-		    << "    echo '=== Direct Calls ==='\n"
-		    << "    echo '  1. fast_callee'\n"
-		    << "    echo '     void (fast.c:1)'\n"
-		    << "    echo '  2. slow_callee'\n"
-		    << "    echo '     void (slow.c:1)'\n"
-		    << "    ;;\n"
-		    << "  *\"func fast_callee\"*)\n"
-		    << "    echo 'File: fast.c'\n"
-		    << "    echo 'Line: 1-5'\n"
-		    << "    echo 'Return type: void'\n"
-		    << "    echo 'Function Definition:'\n"
-		    << "    echo 'void fast_callee(void)'\n"
-		    << "    ;;\n"
-		    << "  *\"func slow_callee\"*)\n"
-		    << "    sleep 5.5\n"
-		    << "    echo 'File: slow.c'\n"
-		    << "    echo 'Line: 1-5'\n"
-		    << "    echo 'Return type: void'\n"
-		    << "    echo 'Function Definition:'\n"
-		    << "    echo 'void slow_callee(void)'\n"
-		    << "    ;;\n"
-		    << "  *)\n"
-		    << "    echo 'No results found'\n"
-		    << "    ;;\n"
-		    << "esac\n";
+		semcode_indexer indexer(db_file);
+		assert(indexer.open());
+		std::string fn_json = R"raw([
+  {
+    "name": "do_work",
+    "file_path": "work.c",
+    "line_start": 4,
+    "line_end": 7,
+    "calls": ["fast_callee", "slow_callee"]
+  },
+  {
+    "name": "fast_callee",
+    "file_path": "fast.c",
+    "line_start": 1,
+    "line_end": 5,
+    "calls": []
+  },
+  {
+    "name": "slow_callee",
+    "file_path": "slow.c",
+    "line_start": 1,
+    "line_end": 5,
+    "calls": []
+  }
+])raw";
+		std::istringstream stream(fn_json);
+		indexer.ingest_functions_stream(stream);
+		assert(indexer.build_indices());
+		indexer.close();
 	}
-	chmod(mock_cli.c_str(), 0755);
-
-	setenv("SEMCODE_BIN", mock_cli.c_str(), 1);
 
 	semcode_backend backend(test_dir);
+	assert(backend.get_indexer() != nullptr);
 
-	// Test 1: Query with a deadline (3500ms).
-	// fast_callee finishes in ~400-800ms (accounting for systemd-run invocation latency).
-	// slow_callee sleeps 5.5s (~6000ms total), so it will comfortably exceed the 3500ms deadline.
-	// The query should return fast_callee and not wait forever for slow_callee.
-	auto tight_deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(3500);
 	auto t_start = std::chrono::steady_clock::now();
-	auto calls1 = backend.query_call_hierarchy_outgoing(src_file, 3, 6, tight_deadline);
+	auto calls = backend.query_call_hierarchy_outgoing(src_file, 3, 6);
 	auto t_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t_start).count();
 
-	std::cout << "  Tight-deadline query completed in " << t_elapsed << "ms, returned " << calls1.size() << " calls" << std::endl;
-	// Verify fast_callee was retained
-	assert(calls1.size() >= 1);
+	std::cout << "  Outgoing call hierarchy query completed in " << t_elapsed << "ms, returned " << calls.size() << " calls"
+		  << std::endl;
+	assert(t_elapsed < 20); // Instant SQLite B-tree query!
+	assert(calls.size() == 2);
 	bool found_fast = false;
-	for (const auto &c : calls1) {
+	bool found_slow = false;
+	for (const auto &c : calls) {
 		if (c.name == "fast_callee") {
 			found_fast = true;
 		}
+		if (c.name == "slow_callee") {
+			found_slow = true;
+		}
 	}
 	assert(found_fast);
+	assert(found_slow);
 
-	// Test 2: The detached background query for slow_callee continues running in background.
-	// Wait 5800ms to ensure the background query finishes and populates cli_cache_.
-	std::this_thread::sleep_for(std::chrono::milliseconds(5800));
-
-	// Test 3: Run the query again. Now both fast_callee AND slow_callee must be immediate cache hits!
-	auto t2_start = std::chrono::steady_clock::now();
-	auto calls2 = backend.query_call_hierarchy_outgoing(src_file, 3, 6);
-	auto t2_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t2_start).count();
-
-	std::cout << "  Second query with populated cache completed in " << t2_elapsed << "ms, returned " << calls2.size() << " calls" << std::endl;
-	assert(t2_elapsed < 100); // Instant cache hits!
-	assert(calls2.size() == 2);
-	bool found_fast2 = false;
-	bool found_slow2 = false;
-	for (const auto &c : calls2) {
-		if (c.name == "fast_callee") {
-			found_fast2 = true;
-		}
-		if (c.name == "slow_callee") {
-			found_slow2 = true;
-		}
-	}
-	assert(found_fast2);
-	assert(found_slow2);
-
-	// Test 4: Batch query across multiple positions
+	// Batch query across multiple positions
 	auto batch_results = backend.query_call_hierarchy_outgoing_batch(src_file, {{3, 6}});
 	assert(batch_results.size() == 2);
 
-	unsetenv("SEMCODE_BIN");
 	fs::remove_all(test_dir);
 	std::cout << "  Passed!" << std::endl;
 }
@@ -603,8 +551,8 @@ int main()
 
 	test_availability_and_discovery();
 	test_supported_files_and_sync();
-	test_hybrid_cli_queries();
-	test_parallel_callee_prewarming_and_late_cache();
+	test_indexer_queries();
+	test_call_hierarchy_instant();
 
 	std::cout << "All semcode_backend unit tests passed successfully!" << std::endl;
 	return 0;

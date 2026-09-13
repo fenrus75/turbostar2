@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <istream>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <unordered_set>
@@ -77,6 +78,9 @@ class semcode_indexer
 	[[nodiscard]] std::vector<semcode_function_entry> lookup_functions_in_file(std::string_view file_path, int start_line,
 										   int end_line) const;
 	[[nodiscard]] std::vector<semcode_type_entry> lookup_type(std::string_view name) const;
+	[[nodiscard]] std::vector<semcode_function_entry> lookup_callers(std::string_view callee_name) const;
+	[[nodiscard]] std::vector<semcode_function_entry> lookup_functions_by_prefix(std::string_view prefix, size_t limit = 100) const;
+	[[nodiscard]] std::vector<semcode_type_entry> lookup_types_by_prefix(std::string_view prefix, size_t limit = 100) const;
 
 	/**
 	 * @brief Sets the list of valid git file blob hashes to filter during ingestion.
@@ -110,6 +114,16 @@ class semcode_indexer
 	static void touch_database(const std::string &untrusted_db_path);
 
       private:
+	/**
+	 * @brief Mutex protecting concurrent queries and statement execution on the SQLite connection.
+	 *
+	 * (1) Protects `db_` handle and prepared statement execution against concurrent calls from
+	 * multiple threads (such as the hover worker loop and UI / LSP query threads).
+	 * (2) Locking rules: Short, non-reentrant critical sections held only during sqlite3 statement
+	 * preparation, parameter binding, stepping, and finalization. Never perform network I/O, file
+	 * format conversions, or acquire external subsystem locks while holding `db_mutex_`.
+	 */
+	mutable std::mutex db_mutex_;
 	std::string db_path_;
 	sqlite3 *db_{nullptr};
 	std::unordered_set<std::string> valid_blob_hashes_;

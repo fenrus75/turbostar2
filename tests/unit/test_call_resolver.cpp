@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <sys/stat.h>
 
 #include "agentlib/tool_context.h"
@@ -11,25 +12,48 @@
 #include "fs_utils.h"
 #include "project_manager.h"
 #include "semcode_backend.h"
+#include "semcode_indexer.h"
 #include "test_watchdog.h"
 
 namespace fs = std::filesystem;
 
-namespace {
+namespace
+{
 
-class mock_lsp_hierarchy_backend : public lsp_backend {
-public:
+class mock_lsp_hierarchy_backend : public lsp_backend
+{
+      public:
 	std::string expected_target_path;
 
-	void start(event_queue &) override {}
-	void stop() override {}
-	void open_document(const std::string &, const std::string &) override {}
-	void update_document(const std::string &, const std::string &) override {}
-	void request_hover(const std::string &, int, int) override {}
-	void request_document_highlight(const std::string &, int, int) override {}
-	void request_selection_range(const std::string &, int, int) override {}
-	[[nodiscard]] bool is_supported_file(const std::string &) const override { return true; }
-	[[nodiscard]] std::vector<text_range> query_selection_ranges(const std::string &, int, int) override { return {}; }
+	void start(event_queue &) override
+	{
+	}
+	void stop() override
+	{
+	}
+	void open_document(const std::string &, const std::string &) override
+	{
+	}
+	void update_document(const std::string &, const std::string &) override
+	{
+	}
+	void request_hover(const std::string &, int, int) override
+	{
+	}
+	void request_document_highlight(const std::string &, int, int) override
+	{
+	}
+	void request_selection_range(const std::string &, int, int) override
+	{
+	}
+	[[nodiscard]] bool is_supported_file(const std::string &) const override
+	{
+		return true;
+	}
+	[[nodiscard]] std::vector<text_range> query_selection_ranges(const std::string &, int, int) override
+	{
+		return {};
+	}
 	[[nodiscard]] std::vector<location_info> query_definition(const std::string &filepath, int line, int col) override
 	{
 		(void)filepath;
@@ -44,14 +68,28 @@ public:
 	{
 		return query_definition(filepath, line, col);
 	}
-	[[nodiscard]] std::vector<location_info> query_references(const std::string &, int, int) override { return {}; }
-	[[nodiscard]] std::vector<symbol_info> query_workspace_symbols(const std::string &) override { return {}; }
-	[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &) override { return {}; }
-	void invalidate_symbol_cache(const std::string &) override {}
-	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &, int, int) override { return {}; }
-	[[nodiscard]] std::vector<outgoing_call_item> query_call_hierarchy_outgoing_batch(
-		const std::string &, const std::vector<std::pair<int, int>> &,
-		std::chrono::steady_clock::time_point) override
+	[[nodiscard]] std::vector<location_info> query_references(const std::string &, int, int) override
+	{
+		return {};
+	}
+	[[nodiscard]] std::vector<symbol_info> query_workspace_symbols(const std::string &) override
+	{
+		return {};
+	}
+	[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &) override
+	{
+		return {};
+	}
+	void invalidate_symbol_cache(const std::string &) override
+	{
+	}
+	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &, int, int) override
+	{
+		return {};
+	}
+	[[nodiscard]] std::vector<outgoing_call_item> query_call_hierarchy_outgoing_batch(const std::string &,
+											  const std::vector<std::pair<int, int>> &,
+											  std::chrono::steady_clock::time_point) override
 	{
 		outgoing_call_item item;
 		item.call_line = 1; // 0-indexed line 1 (line 2: start of __ext4_read_dirblock)
@@ -61,9 +99,17 @@ public:
 		item.item.selection_range = {0, 0, 0, 0};
 		return {item};
 	}
-	[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &, int, int) override { return {}; }
-	[[nodiscard]] std::optional<std::vector<diagnostic_info>> query_file_diagnostics(const std::string &) override { return std::nullopt; }
-	void store_file_diagnostics(const std::string &, const std::vector<diagnostic_info> &) override {}
+	[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &, int, int) override
+	{
+		return {};
+	}
+	[[nodiscard]] std::optional<std::vector<diagnostic_info>> query_file_diagnostics(const std::string &) override
+	{
+		return std::nullopt;
+	}
+	void store_file_diagnostics(const std::string &, const std::vector<diagnostic_info> &) override
+	{
+	}
 };
 
 } // namespace
@@ -89,11 +135,9 @@ static void test_disambiguation_with_included_headers()
 		    << "}\n";
 	}
 
-	std::vector<lsp_backend::location_info> locs = {
-		{test_dir + "/arch/mips/include/asm/ktime.h", {10, 0, 15, 0}},
-		{test_dir + "/include/linux/ktime.h", {20, 0, 25, 0}},
-		{test_dir + "/tools/testing/selftests/ktime.h", {30, 0, 35, 0}}
-	};
+	std::vector<lsp_backend::location_info> locs = {{test_dir + "/arch/mips/include/asm/ktime.h", {10, 0, 15, 0}},
+							{test_dir + "/include/linux/ktime.h", {20, 0, 25, 0}},
+							{test_dir + "/tools/testing/selftests/ktime.h", {30, 0, 35, 0}}};
 
 	fs_utils::set_override_project_dir(test_dir);
 
@@ -121,9 +165,7 @@ static void test_disambiguation_rejects_test_files_for_production()
 		out << "void main_func() {}\n";
 	}
 
-	std::vector<lsp_backend::location_info> locs = {
-		{test_dir + "/tests/unit/test_mock.cpp", {5, 0, 10, 0}}
-	};
+	std::vector<lsp_backend::location_info> locs = {{test_dir + "/tests/unit/test_mock.cpp", {5, 0, 10, 0}}};
 
 	fs_utils::set_override_project_dir(test_dir);
 
@@ -162,24 +204,59 @@ static void test_extract_identifier_skips_specifiers()
 
 static void test_arrow_calls_parsing()
 {
-	std::cout << "Testing arrow calls format parsing in semcode_backend..." << std::endl;
+	std::cout << "Testing outgoing calls query in semcode_backend..." << std::endl;
 
 	std::string test_dir = fs_utils::get_project_tmp_dir() + "/test_arrow_calls";
-	fs::create_directories(test_dir);
+	fs::create_directories(test_dir + "/.semcode.db");
 
-	std::string mock_cli = test_dir + "/mock_semcode";
+	std::string db_path = test_dir + "/.semcode.db/semcode_index.db";
 	{
-		std::ofstream out(mock_cli);
-		out << "#!/bin/sh\n"
-		    << "echo 'Calls: 4'\n"
-		    << "echo '  → WARN_ON_ONCE'\n"
-		    << "echo '  → tick_freeze'\n"
-		    << "echo '  → ns_to_ktime'\n"
-		    << "echo '  → local_clock_noinstr'\n";
+		semcode_indexer indexer(db_path);
+		assert(indexer.open());
+		std::string json_funcs = R"raw([
+  {
+    "name": "enter_s2idle_proper",
+    "file_path": "kernel.c",
+    "line_start": 1,
+    "line_end": 2,
+    "calls": ["WARN_ON_ONCE", "tick_freeze", "ns_to_ktime", "local_clock_noinstr"]
+  },
+  {
+    "name": "WARN_ON_ONCE",
+    "file_path": "include/warn.h",
+    "line_start": 10,
+    "line_end": 15,
+    "calls": []
+  },
+  {
+    "name": "tick_freeze",
+    "file_path": "kernel/tick.c",
+    "line_start": 20,
+    "line_end": 25,
+    "calls": []
+  },
+  {
+    "name": "ns_to_ktime",
+    "file_path": "include/ktime.h",
+    "line_start": 30,
+    "line_end": 35,
+    "calls": []
+  },
+  {
+    "name": "local_clock_noinstr",
+    "file_path": "kernel/sched.c",
+    "line_start": 40,
+    "line_end": 45,
+    "calls": []
+  }
+])raw";
+		std::istringstream iss(json_funcs);
+		indexer.ingest_functions_stream(iss);
+		assert(indexer.build_indices());
+		indexer.close();
 	}
-	chmod(mock_cli.c_str(), 0755);
 
-	setenv("SEMCODE_BIN", mock_cli.c_str(), 1);
+	setenv("SEMCODE_INDEX_DB", db_path.c_str(), 1);
 
 	semcode_backend backend(test_dir);
 
@@ -196,7 +273,7 @@ static void test_arrow_calls_parsing()
 	assert(calls[2].name == "ns_to_ktime");
 	assert(calls[3].name == "local_clock_noinstr");
 
-	unsetenv("SEMCODE_BIN");
+	unsetenv("SEMCODE_INDEX_DB");
 	fs::remove_all(test_dir);
 	std::cout << "  Passed!" << std::endl;
 }
@@ -264,10 +341,10 @@ static void test_outgoing_calls_not_pruned_when_reading_inside_function()
 		std::ofstream out(caller_file);
 		out << "// line 1\n"
 		    << "struct buffer_head *__ext4_read_dirblock(struct inode *inode) {\n" // line 2
-		    << "    int x = 0;\n"                                                  // line 3
-		    << "    brelse(bh);\n"                                                 // line 4
-		    << "    return NULL;\n"                                                // line 5
-		    << "}\n";                                                              // line 6
+		    << "    int x = 0;\n"						   // line 3
+		    << "    brelse(bh);\n"						   // line 4
+		    << "    return NULL;\n"						   // line 5
+		    << "}\n";								   // line 6
 	}
 
 	std::string hdr_file = test_dir + "/include/linux/buffer_head.h";

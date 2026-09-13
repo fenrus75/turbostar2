@@ -7,367 +7,13 @@
 #include <fstream>
 #include <sstream>
 #include <unordered_set>
-#include "event_logger.h"
 #include "codemap_utils.h"
+#include "event_logger.h"
 #include "fs_utils.h"
 #include "project_manager.h"
 #include "utf8.h"
 
 namespace fs = std::filesystem;
-
-static void parse_file_and_line_locations(std::string_view text, std::string_view root, std::vector<lsp_backend::location_info> &out)
-{
-	std::istringstream stream{std::string(text)};
-	std::string line_str;
-	std::string current_file;
-
-	while (std::getline(stream, line_str)) {
-		while (!line_str.empty() && (line_str.back() == '\r' || line_str.back() == ' ')) {
-			line_str.pop_back();
-		}
-		size_t first = line_str.find_first_not_of(" \t");
-		if (first == std::string::npos) {
-			continue;
-		}
-		std::string_view trimmed = std::string_view(line_str).substr(first);
-
-		if (trimmed.starts_with("File:")) {
-			std::string_view f = trimmed.substr(5);
-			size_t non_ws = f.find_first_not_of(" \t");
-			if (non_ws != std::string_view::npos) {
-				current_file = std::string(f.substr(non_ws));
-			}
-		} else if (trimmed.starts_with("Line:") || trimmed.starts_with("Lines:")) {
-			if (!current_file.empty()) {
-				size_t colon = trimmed.find(':');
-				std::string_view l = trimmed.substr(colon + 1);
-				size_t non_ws = l.find_first_not_of(" \t");
-				if (non_ws != std::string_view::npos) {
-					l = l.substr(non_ws);
-					size_t dash = l.find('-');
-					int end_line_num = -1;
-					if (dash != std::string_view::npos) {
-						std::string_view end_part = l.substr(dash + 1);
-						size_t end_non_ws = end_part.find_first_not_of(" \t");
-						if (end_non_ws != std::string_view::npos) {
-							try {
-								end_line_num = std::stoi(std::string(end_part.substr(end_non_ws)));
-							} catch (...) {
-							}
-						}
-						l = l.substr(0, dash);
-					}
-					try {
-						int line_num = std::stoi(std::string(l));
-						fs::path full_path = fs::path(current_file);
-						if (!full_path.is_absolute() && !root.empty()) {
-							full_path = fs::path(root) / full_path;
-						}
-						lsp_backend::location_info loc;
-						loc.path = full_path.string();
-						int zero_start = std::max(0, line_num - 1);
-						int zero_end = (end_line_num >= line_num) ? std::max(0, end_line_num - 1) : zero_start;
-						loc.range = text_range{zero_start, 0, zero_end, 0};
-						out.push_back(std::move(loc));
-					} catch (...) {
-					}
-				}
-				current_file.clear();
-			}
-		}
-	}
-}
-
-// Parses definition locations from semcode CLI 'func' or 'type' query.
-// Strictly fails immediately if multiple definitions or locations are detected or if
-// semcode's multi-definition banner is present, ensuring zero false dependencies.
-// Returns false if ambiguous (multiple definitions found), true if unambiguous (0 or 1 location).
-static bool parse_definition_locations_strict_unique(std::string_view text, std::string_view root,
-						     std::vector<lsp_backend::location_info> &out)
-{
-	out.clear();
-
-	// If semcode reports no exact match found, or only regex fallback matches, treat as 0 exact locations (unambiguous empty).
-	if (text.find("No exact match found") != std::string_view::npos || text.find("(regex matches)") != std::string_view::npos ||
-	    text.find("No results found") != std::string_view::npos) {
-		event_logger::get_instance().log("parse_definition_locations_strict_unique: 'No exact match found' / '(regex matches)' "
-						 "detected -> 0 exact locations (true)");
-		return true;
-	}
-
-	// Check for semcode multi-definition banner: e.g. "Found 5 function definitions with name ..."
-	if (text.find(" definitions with name ") != std::string_view::npos) {
-		event_logger::get_instance().log(
-		    "parse_definition_locations_strict_unique: multi-definition banner detected -> ambiguous (false)");
-		return false;
-	}
-
-	std::istringstream stream{std::string(text)};
-	std::string line_str;
-	std::string current_file;
-	std::string current_kind;
-	std::string current_underlying;
-
-	while (std::getline(stream, line_str)) {
-		while (!line_str.empty() && (line_str.back() == '\r' || line_str.back() == ' ')) {
-			line_str.pop_back();
-		}
-		size_t first = line_str.find_first_not_of(" \t");
-		if (first == std::string::npos) {
-			continue;
-		}
-		std::string_view trimmed = std::string_view(line_str).substr(first);
-
-		if (trimmed.starts_with("=== Typedef Information ===")) {
-			current_kind = "typedef";
-		} else if (trimmed.starts_with("Name:")) {
-			if (trimmed.find("typedef") != std::string_view::npos) {
-				current_kind = "typedef";
-			} else if (trimmed.find("struct") != std::string_view::npos) {
-				current_kind = "struct";
-			} else if (trimmed.find("class") != std::string_view::npos) {
-				current_kind = "class";
-			} else if (trimmed.find("enum") != std::string_view::npos) {
-				current_kind = "enum";
-			}
-		} else if (trimmed.starts_with("Underlying Type:") || trimmed.starts_with("Underlying type:") ||
-			   trimmed.starts_with("// Underlying type:") || trimmed.starts_with("// Underlying Type:")) {
-			size_t colon = trimmed.find(':');
-			std::string_view ut = trimmed.substr(colon + 1);
-			size_t ut_first = ut.find_first_not_of(" \t");
-			size_t ut_last = ut.find_last_not_of(" \t\r\n");
-			if (ut_first != std::string_view::npos && ut_last != std::string_view::npos && ut_first <= ut_last) {
-				current_underlying = std::string(ut.substr(ut_first, ut_last - ut_first + 1));
-				current_kind = "typedef";
-				if (!out.empty()) {
-					out.back().underlying_type = current_underlying;
-					out.back().kind = "typedef";
-				}
-			}
-		} else if (trimmed.starts_with("File:")) {
-			std::string_view f = trimmed.substr(5);
-			size_t non_ws = f.find_first_not_of(" \t");
-			if (non_ws != std::string_view::npos) {
-				current_file = std::string(f.substr(non_ws));
-			}
-		} else if (trimmed.starts_with("Line:") || trimmed.starts_with("Lines:")) {
-			if (!current_file.empty()) {
-				size_t colon = trimmed.find(':');
-				std::string_view l = trimmed.substr(colon + 1);
-				size_t non_ws = l.find_first_not_of(" \t");
-				if (non_ws != std::string_view::npos) {
-					l = l.substr(non_ws);
-					size_t dash = l.find('-');
-					int end_line_num = -1;
-					if (dash != std::string_view::npos) {
-						std::string_view end_part = l.substr(dash + 1);
-						size_t end_non_ws = end_part.find_first_not_of(" \t");
-						if (end_non_ws != std::string_view::npos) {
-							try {
-								end_line_num = std::stoi(std::string(end_part.substr(end_non_ws)));
-							} catch (...) {
-							}
-						}
-						l = l.substr(0, dash);
-					}
-					try {
-						int line_num = std::stoi(std::string(l));
-						fs::path full_path = fs::path(current_file);
-						if (!full_path.is_absolute() && !root.empty()) {
-							full_path = fs::path(root) / full_path;
-						}
-						lsp_backend::location_info loc;
-						loc.path = full_path.string();
-						int zero_start = std::max(0, line_num - 1);
-						int zero_end = (end_line_num >= line_num) ? std::max(0, end_line_num - 1) : zero_start;
-						loc.range = text_range{zero_start, 0, zero_end, 0};
-						loc.kind = current_kind;
-						loc.underlying_type = current_underlying;
-
-						// Check if identical location was already parsed (e.g. semcode emitting both
-						// 'Type Information' and 'Typedef Information' where the second is a refinement of the
-						// first).
-						bool already_present = false;
-						for (auto &existing : out) {
-							if (existing.path == loc.path && existing.range.start_y == loc.range.start_y) {
-								already_present = true;
-								if (loc.range.end_y > existing.range.end_y) {
-									existing.range.end_y = loc.range.end_y;
-								}
-								if (!loc.kind.empty()) {
-									existing.kind = loc.kind;
-								}
-								if (!loc.underlying_type.empty()) {
-									existing.underlying_type = loc.underlying_type;
-								}
-								break;
-							}
-						}
-						if (!already_present) {
-							out.push_back(std::move(loc));
-						}
-					} catch (...) {
-					}
-				}
-				current_file.clear();
-			}
-		}
-	}
-
-	if (out.size() > 1) {
-		event_logger::get_instance().log(
-		    std::format("parse_definition_locations_strict_unique: out.size() = {} > 1 -> ambiguous (false)", out.size()));
-		out.clear();
-		return false;
-	}
-
-	event_logger::get_instance().log(std::format("parse_definition_locations_strict_unique: parsed {} unique location(s)", out.size()));
-	return true;
-}
-
-static void parse_callers_locations(std::string_view text, std::string_view root, std::vector<lsp_backend::location_info> &out)
-{
-	std::istringstream stream{std::string(text)};
-	std::string line_str;
-
-	while (std::getline(stream, line_str)) {
-		size_t open_paren = line_str.find('(');
-		if (open_paren == std::string::npos) {
-			continue;
-		}
-		size_t close_paren = line_str.find(')', open_paren);
-		if (close_paren == std::string::npos) {
-			continue;
-		}
-		std::string_view inner = std::string_view(line_str).substr(open_paren + 1, close_paren - open_paren - 1);
-		size_t colon = inner.find(':');
-		if (colon == std::string_view::npos) {
-			continue;
-		}
-		std::string_view file_part = inner.substr(0, colon);
-		std::string_view line_part = inner.substr(colon + 1);
-		if (file_part.empty() || line_part.empty()) {
-			continue;
-		}
-		try {
-			int line_num = std::stoi(std::string(line_part));
-			fs::path full_path = fs::path(file_part);
-			if (!full_path.is_absolute() && !root.empty()) {
-				full_path = fs::path(root) / full_path;
-			}
-			lsp_backend::location_info loc;
-			loc.path = full_path.string();
-			int zero_line = std::max(0, line_num - 1);
-			loc.range = text_range{zero_line, 0, zero_line, 0};
-			out.push_back(std::move(loc));
-		} catch (...) {
-		}
-	}
-}
-
-static void parse_calls_hierarchy(std::string_view text, std::string_view root, std::vector<lsp_backend::call_hierarchy_item> &out)
-{
-	std::istringstream stream{std::string(text)};
-	std::string line_str;
-	std::string current_callee;
-	std::string current_detail;
-	std::string current_file;
-	int current_line = -1;
-
-	auto flush_current = [&]() {
-		if (current_callee.empty()) {
-			return;
-		}
-		lsp_backend::call_hierarchy_item item;
-		item.name = current_callee;
-		item.detail = current_detail;
-		if (!current_file.empty()) {
-			fs::path full_path = fs::path(current_file);
-			if (!full_path.is_absolute() && !root.empty()) {
-				full_path = fs::path(root) / full_path;
-			}
-			item.uri = "file://" + full_path.string();
-		}
-		int zero_line = (current_line > 0) ? (current_line - 1) : -1;
-		item.range = text_range{zero_line, 0, zero_line, 0};
-		item.selection_range = text_range{zero_line, 0, zero_line, 0};
-		out.push_back(std::move(item));
-
-		current_callee.clear();
-		current_detail.clear();
-		current_file.clear();
-		current_line = -1;
-	};
-
-	while (std::getline(stream, line_str)) {
-		while (!line_str.empty() && (line_str.back() == '\r' || line_str.back() == ' ')) {
-			line_str.pop_back();
-		}
-		size_t first = line_str.find_first_not_of(" \t");
-		if (first == std::string::npos) {
-			continue;
-		}
-		std::string_view trimmed = std::string_view(line_str).substr(first);
-
-		// Check for arrow format: "→ name" or "-> name"
-		std::string_view arrow_name;
-		if (trimmed.starts_with("\xe2\x86\x92")) { // UTF-8 '→'
-			arrow_name = trimmed.substr(3);
-		} else if (trimmed.starts_with("->")) {
-			arrow_name = trimmed.substr(2);
-		}
-
-		if (!arrow_name.empty()) {
-			flush_current();
-			size_t nw = arrow_name.find_first_not_of(" \t");
-			if (nw != std::string_view::npos) {
-				current_callee = std::string(arrow_name.substr(nw));
-			}
-			continue;
-		}
-
-		// Check for numbered format: "1. name"
-		if (std::isdigit(static_cast<unsigned char>(trimmed.front()))) {
-			size_t dot = trimmed.find('.');
-			if (dot != std::string_view::npos) {
-				flush_current();
-				std::string_view name_part = trimmed.substr(dot + 1);
-				size_t nw = name_part.find_first_not_of(" \t");
-				if (nw != std::string_view::npos) {
-					current_callee = std::string(name_part.substr(nw));
-				}
-				continue;
-			}
-		}
-
-		// Check for detail / location line: "void (file:line) ..."
-		if (!current_callee.empty()) {
-			size_t open_paren = trimmed.find('(');
-			size_t close_paren = (open_paren != std::string::npos) ? trimmed.find(')', open_paren) : std::string::npos;
-			if (open_paren != std::string::npos && close_paren != std::string::npos) {
-				std::string_view detail = trimmed.substr(0, open_paren);
-				while (!detail.empty() && (detail.back() == ' ' || detail.back() == '\t')) {
-					detail.remove_suffix(1);
-				}
-				std::string_view inner = trimmed.substr(open_paren + 1, close_paren - open_paren - 1);
-				size_t colon = inner.find(':');
-				if (colon != std::string_view::npos) {
-					std::string_view file_part = inner.substr(0, colon);
-					std::string_view line_part = inner.substr(colon + 1);
-					try {
-						current_line = std::stoi(std::string(line_part));
-						current_file = std::string(file_part);
-						current_detail = std::string(detail);
-						flush_current();
-					} catch (...) {
-					}
-				}
-			}
-		}
-	}
-
-	flush_current();
-}
 
 semcode_backend::semcode_backend(std::string project_root) : project_root_(std::move(project_root))
 {
@@ -377,13 +23,114 @@ semcode_backend::semcode_backend(std::string project_root) : project_root_(std::
 	semcode_lsp_path_ = find_semcode_lsp();
 	semcode_cli_path_ = find_semcode_cli();
 
-	event_logger::get_instance().log("semcode_backend initialized for root '{}' (semcode-lsp: '{}', semcode-cli: '{}')", project_root_,
-					 semcode_lsp_path_, semcode_cli_path_);
+	init_indexer();
+
+	event_logger::get_instance().log("semcode_backend initialized for root '{}' (semcode-lsp: '{}', semcode-cli: '{}', indexer: {})",
+					 project_root_, semcode_lsp_path_, semcode_cli_path_,
+					 (indexer_ && indexer_->is_open()) ? "active" : "pending/disabled");
 }
 
 semcode_backend::~semcode_backend()
 {
 	stop();
+}
+
+void semcode_backend::init_indexer()
+{
+	if (project_root_.empty()) {
+		return;
+	}
+
+	std::error_code ec;
+
+	// 1. Check explicit environment override
+	const char *env_db = std::getenv("SEMCODE_INDEX_DB");
+	if (env_db && *env_db && fs_utils::is_regular_file(env_db)) {
+		std::lock_guard<std::mutex> lock(indexer_mutex_);
+		indexer_ = std::make_unique<semcode_indexer>(env_db);
+		if (indexer_->open()) {
+			event_logger::get_instance().log("semcode_backend: loaded index from SEMCODE_INDEX_DB override '{}'", env_db);
+			return;
+		}
+		indexer_.reset();
+	}
+
+	fs::path semcode_dir = fs::path(project_root_) / ".semcode.db";
+
+	// 2. Resolve git commit HEAD if in a git repository
+	std::string git_cmd = fs_utils::format_command("git -C {} rev-parse HEAD 2>/dev/null", project_root_);
+	std::string git_head = fs_utils::execute_command_sync(git_cmd, 5);
+	size_t nl = git_head.find_first_of("\r\n");
+	if (nl != std::string::npos) {
+		git_head = git_head.substr(0, nl);
+	}
+
+	// 3. Look for an existing database matching git HEAD or the newest database in .semcode.db/
+	fs::path chosen_db;
+	if (!git_head.empty()) {
+		fs::path head_db = semcode_dir / std::format("semcode_{}.db", git_head);
+		if (fs_utils::is_regular_file(head_db.string())) {
+			chosen_db = head_db;
+		}
+	}
+
+	if (chosen_db.empty() && fs::is_directory(semcode_dir, ec)) {
+		fs::file_time_type latest_time;
+		for (const auto &entry : fs::directory_iterator(semcode_dir, ec)) {
+			if (entry.is_regular_file(ec) && entry.path().extension() == ".db") {
+				auto mtime = entry.last_write_time(ec);
+				if (chosen_db.empty() || mtime > latest_time) {
+					latest_time = mtime;
+					chosen_db = entry.path();
+				}
+			}
+		}
+	}
+
+	if (!chosen_db.empty()) {
+		std::lock_guard<std::mutex> lock(indexer_mutex_);
+		indexer_ = std::make_unique<semcode_indexer>(chosen_db.string());
+		if (indexer_->open()) {
+			event_logger::get_instance().log("semcode_backend: opened existing index database '{}'", chosen_db.string());
+			return;
+		}
+		indexer_.reset();
+	}
+
+	// 4. If no database exists yet but semcode CLI is available, build the index asynchronously
+	if (!semcode_cli_path_.empty() && fs::exists(semcode_dir, ec)) {
+		fs::path target_db = semcode_dir / (!git_head.empty() ? std::format("semcode_{}.db", git_head) : "semcode_index.db");
+		std::string proj = project_root_;
+		std::string bin = semcode_cli_path_;
+
+		std::thread([this, proj, bin, target_db]() {
+			fs_utils::set_current_thread_name("semcode_bld");
+			event_logger::get_instance().log("semcode_backend: triggering background index build for '{}' -> '{}'", proj,
+							 target_db.string());
+			auto idx = std::make_unique<semcode_indexer>(target_db.string());
+			if (idx->build_from_project(proj, bin, 2)) {
+				if (idx->open()) {
+					std::lock_guard<std::mutex> lock(indexer_mutex_);
+					indexer_ = std::move(idx);
+					event_logger::get_instance().log("semcode_backend: background index build completed and loaded");
+				}
+			} else {
+				event_logger::get_instance().log("semcode_backend: background index build failed for '{}'", proj);
+			}
+		}).detach();
+	}
+}
+
+semcode_indexer *semcode_backend::get_indexer() const noexcept
+{
+	std::lock_guard<std::mutex> lock(indexer_mutex_);
+	return indexer_.get();
+}
+
+void semcode_backend::set_indexer(std::unique_ptr<semcode_indexer> indexer)
+{
+	std::lock_guard<std::mutex> lock(indexer_mutex_);
+	indexer_ = std::move(indexer);
 }
 
 void semcode_backend::start(event_queue &queue)
@@ -444,14 +191,11 @@ void semcode_backend::open_document(const std::string &filepath, const std::stri
 	for (auto &c : ext) {
 		c = std::tolower(c);
 	}
-	// pylsp still requires document open notifications for Python files
 	if (ext == ".py") {
 		standard_lsp_backend::open_document(filepath, text);
 		return;
 	}
 
-	// For semcode-indexed languages, semcode uses the working directory overlay
-	// and does not implement textDocument/didOpen. Track versions locally.
 	std::lock_guard<std::mutex> lock(doc_mutex_);
 	doc_versions_[filepath] = 1;
 }
@@ -475,10 +219,6 @@ void semcode_backend::update_document(const std::string &filepath, const std::st
 
 void semcode_backend::request_hover(const std::string &filepath, int line, int character)
 {
-	if (semcode_cli_path_.empty()) {
-		return;
-	}
-
 	// 1. Cache hit check: immediate non-blocking return with cached payload
 	std::string key = std::format("{}:{}:{}", filepath, line, character);
 	auto cached = get_cached_hover(key);
@@ -493,7 +233,7 @@ void semcode_backend::request_hover(const std::string &filepath, int line, int c
 		return;
 	}
 
-	// 2. Cache miss: dispatch asynchronous background request without stalling UI thread
+	// 2. Dispatch asynchronous background request
 	uint64_t req_id = ++hover_counter_;
 	{
 		std::lock_guard<std::mutex> lock(hover_mutex_);
@@ -525,7 +265,6 @@ void semcode_backend::hover_worker_loop()
 			break;
 		}
 
-		// Skip stale request if user already navigated to a subsequent token
 		if (req.request_id != hover_counter_.load(std::memory_order_relaxed)) {
 			continue;
 		}
@@ -548,41 +287,53 @@ void semcode_backend::hover_worker_loop()
 			continue;
 		}
 
-		// 1. Try type lookup via semcode CLI (utilizing query cache)
-		std::string type_output = run_semcode_query(std::format("type {}", identifier));
-		if (!type_output.empty() &&
-		    (type_output.find("=== Type Information ===") != std::string::npos ||
-		     type_output.find("Type Definition:") != std::string::npos || type_output.find("Fields:") != std::string::npos)) {
-			set_cached_hover(key, type_output);
-			if (!hover_stopping_.load(std::memory_order_relaxed) &&
-			    req.request_id == hover_counter_.load(std::memory_order_relaxed)) {
-				auto *q = global_queue_.load();
-				if (q) {
-					editor_event ev;
-					ev.type = event_type::lsp_hover_result;
-					ev.payload = type_output;
-					q->push(ev);
+		std::string hover_md;
+		{
+			std::lock_guard<std::mutex> lock(indexer_mutex_);
+			if (indexer_ && indexer_->is_open()) {
+				// 1. Check type definitions
+				auto types = indexer_->lookup_type(identifier);
+				if (!types.empty()) {
+					const auto &t = types[0];
+					hover_md =
+					    std::format("### {} `{}`\n\n**Defined in**: `{}:{}-{}`\n", t.kind.empty() ? "Type" : t.kind,
+							t.name, t.file_path, t.line_start, t.line_end);
+					if (!t.underlying_type.empty()) {
+						hover_md += std::format("\n**Underlying type**: `{}`\n", t.underlying_type);
+					}
+				} else {
+					// 2. Check function definitions
+					auto funcs = indexer_->lookup_function(identifier);
+					if (!funcs.empty()) {
+						const auto &fn = funcs[0];
+						hover_md = std::format("### Function `{}`\n\n**Defined in**: `{}:{}-{}`\n", fn.name,
+								       fn.file_path, fn.line_start, fn.line_end);
+						if (!fn.calls.empty()) {
+							hover_md += "\n**Outgoing calls**:\n";
+							for (const auto &c : fn.calls) {
+								hover_md += std::format("- `{}`\n", c);
+							}
+						}
+						if (!fn.types.empty()) {
+							hover_md += "\n**Types referenced**:\n";
+							for (const auto &ty : fn.types) {
+								hover_md += std::format("- `{}`\n", ty);
+							}
+						}
+					}
 				}
 			}
-			continue;
 		}
 
-		if (hover_stopping_.load(std::memory_order_relaxed) || req.request_id != hover_counter_.load(std::memory_order_relaxed)) {
-			continue;
-		}
-
-		// 2. Fall back to function lookup via semcode CLI (utilizing query cache)
-		std::string func_output = run_semcode_query(std::format("func {}", identifier));
-		if (!func_output.empty() && (func_output.find("Function Definition:") != std::string::npos ||
-					     func_output.find("Return type:") != std::string::npos)) {
-			set_cached_hover(key, func_output);
+		if (!hover_md.empty()) {
+			set_cached_hover(key, hover_md);
 			if (!hover_stopping_.load(std::memory_order_relaxed) &&
 			    req.request_id == hover_counter_.load(std::memory_order_relaxed)) {
 				auto *q = global_queue_.load();
 				if (q) {
 					editor_event ev;
 					ev.type = event_type::lsp_hover_result;
-					ev.payload = func_output;
+					ev.payload = hover_md;
 					q->push(ev);
 				}
 			}
@@ -592,12 +343,10 @@ void semcode_backend::hover_worker_loop()
 
 void semcode_backend::request_document_highlight(const std::string & /*filepath*/, int /*line*/, int /*character*/)
 {
-	// semcode does not track in-memory AST token highlights; gracefully no-op
 }
 
 void semcode_backend::request_selection_range(const std::string & /*filepath*/, int /*line*/, int /*character*/)
 {
-	// semcode does not compute semantic selection ranges; gracefully no-op
 }
 
 bool semcode_backend::is_supported_file(const std::string &filepath) const
@@ -617,108 +366,198 @@ std::vector<text_range> semcode_backend::query_selection_ranges(const std::strin
 
 std::vector<lsp_backend::location_info> semcode_backend::query_definition(const std::string &filepath, int line, int character)
 {
-	std::vector<location_info> results;
-
-	// 1. Primary resolution: query semcode CLI for symbol definition
-	// Semcode CLI searches across the entire indexed codebase. If multiple definitions
-	// exist, we strictly fail immediately to prevent returning incorrect definitions.
-	if (!semcode_cli_path_.empty()) {
-		std::string identifier = extract_identifier_at(filepath, line, character);
-		if (!identifier.empty()) {
-			std::string func_out = run_semcode_query(std::format("func {}", identifier));
-			bool func_ok = parse_definition_locations_strict_unique(func_out, project_root_, results);
-			if (!func_ok) {
-				event_logger::get_instance().log(
-				    std::format("semcode_backend::query_definition: identifier='{}', ambiguous func definitions, aborting",
-						identifier));
-				return {};
-			}
-
-			if (!results.empty()) {
-				std::string norm_caller = fs_utils::make_relative_to_project(filepath);
-				std::string norm_res = fs_utils::make_relative_to_project(results[0].path);
-				if (norm_res.starts_with("arch/") && !norm_caller.starts_with("arch/")) {
-					event_logger::get_instance().log(std::format(
-						"semcode_backend::query_definition: rejecting cross-arch result '{}' for caller '{}'",
-						norm_res, norm_caller));
-					return {};
-				}
-				event_logger::get_instance().log(
-				    std::format("semcode_backend::query_definition: identifier='{}', found {} locations via func",
-						identifier, results.size()));
-				return results;
-			}
-
-			event_logger::get_instance().log(std::format(
-			    "semcode_backend::query_definition: identifier='{}', no func definition found, checking type", identifier));
-
-			// If not a function, check if it is a type definition
-			std::string type_out = run_semcode_query(std::format("type {}", identifier));
-			bool type_ok = parse_definition_locations_strict_unique(type_out, project_root_, results);
-			if (!type_ok) {
-				// Ambiguity detected: multiple type definitions exist, fail immediately
-				event_logger::get_instance().log(std::format(
-				    "semcode_backend::query_definition: identifier='{}', ambiguous type definitions", identifier));
-				return {};
-			}
-
-			if (!results.empty()) {
-				event_logger::get_instance().log(
-				    std::format("semcode_backend::query_definition: identifier='{}', found {} locations via type",
-						identifier, results.size()));
-				return results;
-			}
-
-			event_logger::get_instance().log(
-			    std::format("semcode_backend::query_definition: identifier='{}', no type definition found", identifier));
-		}
+	std::string identifier = extract_identifier_at(filepath, line, character);
+	if (identifier.empty()) {
 		return {};
 	}
 
-	// 2. Fallback if semcode CLI binary is not available: JSON-RPC query via semcode-lsp
-	results = standard_lsp_backend::query_definition(filepath, line, character);
+	std::string norm_caller = fs_utils::make_relative_to_project(filepath, project_root_);
+
+	{
+		std::lock_guard<std::mutex> lock(indexer_mutex_);
+		if (indexer_ && indexer_->is_open()) {
+			// 1. Check function definitions
+			auto funcs = indexer_->lookup_function(identifier);
+			std::vector<semcode_function_entry> valid_funcs;
+			for (auto &f : funcs) {
+				std::string rel_path = fs_utils::make_relative_to_project(f.file_path, project_root_);
+				if (rel_path.starts_with("arch/") && !norm_caller.starts_with("arch/")) {
+					continue;
+				}
+				if (rel_path.starts_with("arch/") && norm_caller.starts_with("arch/")) {
+					size_t caller_slash = norm_caller.find('/', 5);
+					size_t callee_slash = rel_path.find('/', 5);
+					if (caller_slash != std::string::npos && callee_slash != std::string::npos) {
+						if (norm_caller.substr(0, caller_slash) != rel_path.substr(0, callee_slash)) {
+							continue;
+						}
+					}
+				}
+				valid_funcs.push_back(std::move(f));
+			}
+
+			// Deduplicate identical definitions pointing to the same file and line
+			std::vector<semcode_function_entry> unique_funcs;
+			for (auto &f : valid_funcs) {
+				bool exists = false;
+				for (const auto &u : unique_funcs) {
+					if (u.file_path == f.file_path && u.line_start == f.line_start) {
+						exists = true;
+						break;
+					}
+				}
+				if (!exists) {
+					unique_funcs.push_back(std::move(f));
+				}
+			}
+
+			if (unique_funcs.size() == 1) {
+				const auto &f = unique_funcs[0];
+				fs::path full_path = fs::path(f.file_path);
+				if (!full_path.is_absolute() && !project_root_.empty()) {
+					full_path = fs::path(project_root_) / full_path;
+				}
+				location_info loc;
+				loc.path = full_path.string();
+				int zero_start = std::max(0, f.line_start - 1);
+				int zero_end = std::max(0, f.line_end - 1);
+				loc.range = text_range{zero_start, 0, zero_end, 0};
+				loc.kind = "function";
+				return {loc};
+			} else if (unique_funcs.size() > 1) {
+				// Ambiguity detected across multiple functions
+				event_logger::get_instance().log(
+				    std::format("semcode_backend::query_definition: ambiguous functions for '{}'", identifier));
+				return {};
+			}
+
+			// 2. Check type definitions
+			auto types = indexer_->lookup_type(identifier);
+			std::vector<semcode_type_entry> valid_types;
+			for (auto &t : types) {
+				std::string rel_path = fs_utils::make_relative_to_project(t.file_path, project_root_);
+				if (rel_path.starts_with("arch/") && !norm_caller.starts_with("arch/")) {
+					continue;
+				}
+				valid_types.push_back(std::move(t));
+			}
+
+			std::vector<semcode_type_entry> unique_types;
+			for (auto &t : valid_types) {
+				bool exists = false;
+				for (auto &u : unique_types) {
+					if (u.file_path == t.file_path && u.line_start == t.line_start) {
+						exists = true;
+						if (u.kind.empty() && !t.kind.empty()) {
+							u.kind = t.kind;
+						}
+						if (u.underlying_type.empty() && !t.underlying_type.empty()) {
+							u.underlying_type = t.underlying_type;
+						}
+						break;
+					}
+				}
+				if (!exists) {
+					unique_types.push_back(std::move(t));
+				}
+			}
+
+			if (unique_types.size() == 1) {
+				const auto &t = unique_types[0];
+				fs::path full_path = fs::path(t.file_path);
+				if (!full_path.is_absolute() && !project_root_.empty()) {
+					full_path = fs::path(project_root_) / full_path;
+				}
+				location_info loc;
+				loc.path = full_path.string();
+				int zero_start = std::max(0, t.line_start - 1);
+				int zero_end = std::max(0, t.line_end - 1);
+				loc.range = text_range{zero_start, 0, zero_end, 0};
+				loc.kind = t.kind.empty() ? "type" : t.kind;
+				loc.underlying_type = t.underlying_type;
+				return {loc};
+			} else if (unique_types.size() > 1) {
+				event_logger::get_instance().log(
+				    std::format("semcode_backend::query_definition: ambiguous types for '{}'", identifier));
+				return {};
+			}
+		}
+	}
+
+	// 3. Fallback: JSON-RPC query via semcode-lsp
+	auto results = standard_lsp_backend::query_definition(filepath, line, character);
 	if (results.size() > 1) {
 		return {};
 	}
-
 	return results;
 }
 
 std::vector<lsp_backend::location_info> semcode_backend::query_type_definition(const std::string &filepath, int line, int character)
 {
-	std::vector<location_info> results;
-
-	// 1. Primary resolution: query semcode CLI directly for type definition
-	if (!semcode_cli_path_.empty()) {
-		std::string identifier = extract_identifier_at(filepath, line, character);
-		if (!identifier.empty()) {
-			std::string type_out = run_semcode_query(std::format("type {}", identifier));
-			bool type_ok = parse_definition_locations_strict_unique(type_out, project_root_, results);
-			if (!type_ok) {
-				event_logger::get_instance().log(std::format(
-				    "semcode_backend::query_type_definition: identifier='{}', ambiguous type definitions", identifier));
-				return {};
-			}
-
-			if (!results.empty()) {
-				event_logger::get_instance().log(
-				    std::format("semcode_backend::query_type_definition: identifier='{}', found {} locations via type",
-						identifier, results.size()));
-				return results;
-			}
-
-			event_logger::get_instance().log(
-			    std::format("semcode_backend::query_type_definition: identifier='{}', no type definition found", identifier));
-		}
+	std::string identifier = extract_identifier_at(filepath, line, character);
+	if (identifier.empty()) {
 		return {};
 	}
 
-	// 2. Fallback if semcode CLI binary is not available: JSON-RPC query via semcode-lsp
-	results = standard_lsp_backend::query_type_definition(filepath, line, character);
+	std::string norm_caller = fs_utils::make_relative_to_project(filepath, project_root_);
+
+	{
+		std::lock_guard<std::mutex> lock(indexer_mutex_);
+		if (indexer_ && indexer_->is_open()) {
+			auto types = indexer_->lookup_type(identifier);
+			std::vector<semcode_type_entry> valid_types;
+			for (auto &t : types) {
+				std::string rel_path = fs_utils::make_relative_to_project(t.file_path, project_root_);
+				if (rel_path.starts_with("arch/") && !norm_caller.starts_with("arch/")) {
+					continue;
+				}
+				valid_types.push_back(std::move(t));
+			}
+
+			std::vector<semcode_type_entry> unique_types;
+			for (auto &t : valid_types) {
+				bool exists = false;
+				for (auto &u : unique_types) {
+					if (u.file_path == t.file_path && u.line_start == t.line_start) {
+						exists = true;
+						if (u.kind.empty() && !t.kind.empty()) {
+							u.kind = t.kind;
+						}
+						if (u.underlying_type.empty() && !t.underlying_type.empty()) {
+							u.underlying_type = t.underlying_type;
+						}
+						break;
+					}
+				}
+				if (!exists) {
+					unique_types.push_back(std::move(t));
+				}
+			}
+
+			if (unique_types.size() == 1) {
+				const auto &t = unique_types[0];
+				fs::path full_path = fs::path(t.file_path);
+				if (!full_path.is_absolute() && !project_root_.empty()) {
+					full_path = fs::path(project_root_) / full_path;
+				}
+				location_info loc;
+				loc.path = full_path.string();
+				int zero_start = std::max(0, t.line_start - 1);
+				int zero_end = std::max(0, t.line_end - 1);
+				loc.range = text_range{zero_start, 0, zero_end, 0};
+				loc.kind = t.kind.empty() ? "type" : t.kind;
+				loc.underlying_type = t.underlying_type;
+				return {loc};
+			} else if (unique_types.size() > 1) {
+				return {};
+			}
+		}
+	}
+
+	auto results = standard_lsp_backend::query_type_definition(filepath, line, character);
 	if (results.size() > 1) {
 		return {};
 	}
-
 	return results;
 }
 
@@ -730,54 +569,71 @@ std::vector<lsp_backend::location_info> semcode_backend::query_references(const 
 		return results;
 	}
 
-	// 2. Hybrid fallback: query semcode CLI for symbol callers
-	if (!semcode_cli_path_.empty()) {
-		std::string identifier = extract_identifier_at(filepath, line, character);
-		if (!identifier.empty()) {
-			std::string callers_out = run_semcode_query(std::format("callers -v {}", identifier));
-			parse_callers_locations(callers_out, project_root_, results);
-			return results;
+	// 2. Query callers directly from SQLite indexer
+	std::string identifier = extract_identifier_at(filepath, line, character);
+	if (identifier.empty()) {
+		return {};
+	}
+
+	std::lock_guard<std::mutex> lock(indexer_mutex_);
+	if (indexer_ && indexer_->is_open()) {
+		auto callers = indexer_->lookup_callers(identifier);
+		for (const auto &c : callers) {
+			fs::path full_path = fs::path(c.file_path);
+			if (!full_path.is_absolute() && !project_root_.empty()) {
+				full_path = fs::path(project_root_) / full_path;
+			}
+			location_info loc;
+			loc.path = full_path.string();
+			int zero_line = std::max(0, c.line_start - 1);
+			loc.range = text_range{zero_line, 0, zero_line, 0};
+			results.push_back(std::move(loc));
 		}
 	}
 
-	return {};
+	return results;
 }
 
 std::vector<lsp_backend::symbol_info> semcode_backend::query_workspace_symbols(const std::string &query)
 {
-	if (semcode_cli_path_.empty()) {
+	std::lock_guard<std::mutex> lock(indexer_mutex_);
+	if (!indexer_ || !indexer_->is_open()) {
 		return standard_lsp_backend::query_workspace_symbols(query);
 	}
 
 	std::vector<symbol_info> symbols;
 
-	// Query functions matching pattern
-	std::string func_out = run_semcode_query(std::format("func {}", query));
-	std::vector<location_info> func_locs;
-	parse_file_and_line_locations(func_out, project_root_, func_locs);
-	for (auto &loc : func_locs) {
+	auto funcs = indexer_->lookup_functions_by_prefix(query, 50);
+	for (const auto &fn : funcs) {
+		fs::path full_path = fs::path(fn.file_path);
+		if (!full_path.is_absolute() && !project_root_.empty()) {
+			full_path = fs::path(project_root_) / full_path;
+		}
 		symbol_info s;
-		s.name = query;
+		s.name = fn.name;
 		s.kind = 12; // Function
-		s.location = std::move(loc);
+		int zero_start = std::max(0, fn.line_start - 1);
+		int zero_end = std::max(0, fn.line_end - 1);
+		s.location.path = full_path.string();
+		s.location.range = text_range{zero_start, 0, zero_end, 0};
 		symbols.push_back(std::move(s));
 	}
 
-	// Query types matching pattern
-	std::string type_out = run_semcode_query(std::format("type {}", query));
-	std::vector<location_info> type_locs;
-	parse_file_and_line_locations(type_out, project_root_, type_locs);
-	for (auto &loc : type_locs) {
+	auto types = indexer_->lookup_types_by_prefix(query, 50);
+	for (const auto &ty : types) {
+		fs::path full_path = fs::path(ty.file_path);
+		if (!full_path.is_absolute() && !project_root_.empty()) {
+			full_path = fs::path(project_root_) / full_path;
+		}
 		symbol_info s;
-		s.name = query;
+		s.name = ty.name;
 		s.kind = 5; // Class / Struct
-		s.location = std::move(loc);
+		int zero_start = std::max(0, ty.line_start - 1);
+		int zero_end = std::max(0, ty.line_end - 1);
+		s.location.path = full_path.string();
+		s.location.range = text_range{zero_start, 0, zero_end, 0};
 		symbols.push_back(std::move(s));
 	}
-
-	event_logger::get_instance().log(
-	    std::format("semcode_backend::query_workspace_symbols: query='{}', found {} symbols (func={}, type={})", query, symbols.size(),
-			func_locs.size(), type_locs.size()));
 
 	return symbols;
 }
@@ -802,250 +658,96 @@ std::vector<lsp_backend::symbol_node> semcode_backend::query_document_symbols(co
 	return nodes;
 }
 
-std::vector<lsp_backend::call_hierarchy_item> semcode_backend::query_call_hierarchy_outgoing(const std::string &filepath, int line,
-											     int character,
-											     std::chrono::steady_clock::time_point deadline)
+std::vector<lsp_backend::call_hierarchy_item>
+semcode_backend::query_call_hierarchy_outgoing(const std::string &filepath, int line, int character,
+					       std::chrono::steady_clock::time_point /*deadline*/)
 {
-	if (semcode_cli_path_.empty()) {
+	std::lock_guard<std::mutex> lock(indexer_mutex_);
+	if (!indexer_ || !indexer_->is_open()) {
 		return {};
 	}
 
-	std::string identifier = extract_identifier_at(filepath, line, character);
-	if (identifier.empty()) {
-		return {};
-	}
+	std::string norm_caller = fs_utils::make_relative_to_project(filepath, project_root_);
+	int one_based_line = line + 1;
 
-	std::string calls_out = run_semcode_query(std::format("calls -v {}", identifier));
-	std::vector<call_hierarchy_item> items;
-	parse_calls_hierarchy(calls_out, project_root_, items);
-	if (items.empty()) {
-		std::string plain_calls = run_semcode_query(std::format("calls {}", identifier));
-		parse_calls_hierarchy(plain_calls, project_root_, items);
-	}
-
-	event_logger::get_instance().log(
-	    std::format("semcode_backend::query_call_hierarchy_outgoing: identifier='{}', found {} raw calls from semcode CLI", identifier,
-			items.size()));
-
-	std::string norm_caller = fs_utils::make_relative_to_project(filepath);
-	std::vector<call_hierarchy_item> candidates;
-	candidates.reserve(items.size());
-
-	for (auto &item : items) {
-		if (item.name.empty()) {
-			continue;
+	// 1. Identify outgoing calls from the enclosing function
+	std::vector<std::string> raw_calls;
+	auto enclosing = indexer_->lookup_functions_in_file(norm_caller, one_based_line, one_based_line);
+	if (!enclosing.empty()) {
+		raw_calls = enclosing[0].calls;
+	} else {
+		std::string id = extract_identifier_at(filepath, line, character);
+		if (!id.empty()) {
+			auto fn_by_name = indexer_->lookup_function(id);
+			if (!fn_by_name.empty()) {
+				raw_calls = fn_by_name[0].calls;
+			}
 		}
+	}
 
-		std::string item_path = fs_utils::make_relative_to_project(item.uri);
+	if (raw_calls.empty()) {
+		return {};
+	}
 
-		// 1. Cross-architecture filtering: reject candidate if it points to arch/ and caller is not in that arch
-		if (item_path.starts_with("arch/")) {
-			if (!norm_caller.starts_with("arch/")) {
-				event_logger::get_instance().log(std::format(
-					"semcode_backend::query_call_hierarchy_outgoing: filtering cross-arch callee '{}' in '{}' (caller='{}')",
-					item.name, item_path, norm_caller));
+	std::vector<call_hierarchy_item> items;
+	items.reserve(raw_calls.size());
+
+	// 2. Resolve each callee to its unique definition
+	for (const auto &callee_name : raw_calls) {
+		auto defs = indexer_->lookup_function(callee_name);
+		std::vector<semcode_function_entry> matching_defs;
+		for (auto &d : defs) {
+			std::string d_path = fs_utils::make_relative_to_project(d.file_path, project_root_);
+			if (d_path.starts_with("arch/") && !norm_caller.starts_with("arch/")) {
 				continue;
 			}
-			size_t caller_arch_slash = norm_caller.find('/', 5);
-			size_t cand_arch_slash = item_path.find('/', 5);
-			if (caller_arch_slash != std::string::npos && cand_arch_slash != std::string::npos) {
-				if (norm_caller.substr(0, caller_arch_slash) != item_path.substr(0, cand_arch_slash)) {
-					event_logger::get_instance().log(std::format(
-						"semcode_backend::query_call_hierarchy_outgoing: filtering mismatched arch callee '{}' in '{}' (caller='{}')",
-						item.name, item_path, norm_caller));
-					continue;
-				}
-			}
-		}
-
-		candidates.push_back(std::move(item));
-	}
-
-	// 2. Collect candidate callee names that need verification queries and are not yet in cache
-	std::vector<std::string> names_to_query;
-	{
-		std::lock_guard<std::mutex> lock(cli_cache_mutex_);
-		std::unordered_set<std::string> seen;
-		for (const auto &cand : candidates) {
-			std::string q = std::format("func {}", cand.name);
-			if (!cli_cache_.contains(q) && seen.insert(cand.name).second) {
-				names_to_query.push_back(cand.name);
-			}
-		}
-	}
-
-	if (names_to_query.size() > 20) {
-		names_to_query.resize(20);
-	}
-
-	// 3. Fire off parallel background queries to populate cli_cache_ concurrently
-	if (!names_to_query.empty()) {
-		event_logger::get_instance().log(std::format(
-			"semcode_backend::query_call_hierarchy_outgoing: pre-warming {} callee definition queries in parallel",
-			names_to_query.size()));
-
-		struct parallel_query_state {
-			std::mutex cv_mutex;
-			std::condition_variable cv;
-			std::atomic<size_t> remaining{0};
-		};
-		auto state = std::make_shared<parallel_query_state>();
-		state->remaining = names_to_query.size();
-
-		for (const auto &name : names_to_query) {
-			std::thread([this, name, state]() {
-				fs_utils::set_current_thread_name("semcode_func");
-				try {
-					static_cast<void>(run_semcode_query(std::format("func {}", name)));
-				} catch (...) {
-				}
-				if (--state->remaining == 0) {
-					std::lock_guard<std::mutex> lock(state->cv_mutex);
-					state->cv.notify_all();
-				}
-			}).detach();
-		}
-
-		std::unique_lock<std::mutex> lock(state->cv_mutex);
-		state->cv.wait_until(lock, deadline, [state]() {
-			return state->remaining.load() == 0;
-		});
-	}
-
-	// 4. Strict unique definition filtering against populated cache
-	std::vector<call_hierarchy_item> filtered_items;
-	filtered_items.reserve(candidates.size());
-
-	for (auto &item : candidates) {
-		std::string q = std::format("func {}", item.name);
-		std::string func_out;
-		{
-			std::lock_guard<std::mutex> lock(cli_cache_mutex_);
-			auto it = cli_cache_.find(q);
-			if (it != cli_cache_.end()) {
-				func_out = it->second;
-			}
-		}
-
-		if (func_out.empty()) {
-			// Query did not complete before deadline; background thread will still populate cli_cache_ for next time
-			continue;
-		}
-
-		std::vector<location_info> locs;
-		bool func_ok = parse_definition_locations_strict_unique(func_out, project_root_, locs);
-		if (!func_ok) {
-			event_logger::get_instance().log(std::format(
-				"semcode_backend::query_call_hierarchy_outgoing: filtering ambiguous callee '{}'", item.name));
-			continue;
-		}
-
-		if (locs.size() == 1) {
-			std::string loc_path = fs_utils::make_relative_to_project(locs[0].path);
-			if (loc_path.starts_with("arch/")) {
-				if (!norm_caller.starts_with("arch/")) {
-					event_logger::get_instance().log(std::format(
-						"semcode_backend::query_call_hierarchy_outgoing: filtering cross-arch definition '{}' for '{}' (caller='{}')",
-						loc_path, item.name, norm_caller));
-					continue;
-				}
-				size_t caller_arch_slash = norm_caller.find('/', 5);
-				size_t cand_arch_slash = loc_path.find('/', 5);
-				if (caller_arch_slash != std::string::npos && cand_arch_slash != std::string::npos) {
-					if (norm_caller.substr(0, caller_arch_slash) != loc_path.substr(0, cand_arch_slash)) {
+			if (d_path.starts_with("arch/") && norm_caller.starts_with("arch/")) {
+				size_t caller_slash = norm_caller.find('/', 5);
+				size_t cand_slash = d_path.find('/', 5);
+				if (caller_slash != std::string::npos && cand_slash != std::string::npos) {
+					if (norm_caller.substr(0, caller_slash) != d_path.substr(0, cand_slash)) {
 						continue;
 					}
 				}
 			}
-			item.uri = "file://" + locs[0].path;
-			item.range = locs[0].range;
-			item.selection_range = locs[0].range;
+			matching_defs.push_back(std::move(d));
 		}
 
-		filtered_items.push_back(std::move(item));
+		if (matching_defs.size() == 1) {
+			const auto &def = matching_defs[0];
+			fs::path full_path = fs::path(def.file_path);
+			if (!full_path.is_absolute() && !project_root_.empty()) {
+				full_path = fs::path(project_root_) / full_path;
+			}
+			call_hierarchy_item item;
+			item.name = def.name;
+			item.uri = "file://" + full_path.string();
+			int zero_start = std::max(0, def.line_start - 1);
+			int zero_end = std::max(0, def.line_end - 1);
+			item.range = text_range{zero_start, 0, zero_end, 0};
+			item.selection_range = item.range;
+			items.push_back(std::move(item));
+		}
 	}
 
-	event_logger::get_instance().log(
-	    std::format("semcode_backend::query_call_hierarchy_outgoing: identifier='{}', retained {}/{} calls after filtering",
-			identifier, filtered_items.size(), items.size()));
-
-	return filtered_items;
+	return items;
 }
 
 std::vector<lsp_backend::outgoing_call_item>
 semcode_backend::query_call_hierarchy_outgoing_batch(const std::string &filepath, const std::vector<std::pair<int, int>> &positions,
 						     std::chrono::steady_clock::time_point deadline)
 {
-	if (positions.empty()) {
-		return {};
-	}
-
-	if (positions.size() == 1) {
-		const auto &[line, character] = positions[0];
+	std::vector<outgoing_call_item> batch_results;
+	for (const auto &[line, character] : positions) {
 		auto calls = query_call_hierarchy_outgoing(filepath, line, character, deadline);
-		std::vector<outgoing_call_item> batch_results;
-		batch_results.reserve(calls.size());
 		for (auto &call : calls) {
 			outgoing_call_item out_item;
 			out_item.call_line = line;
 			out_item.item = std::move(call);
 			batch_results.push_back(std::move(out_item));
 		}
-		return batch_results;
 	}
 
-	struct batch_state {
-		std::mutex cv_mutex;
-		std::condition_variable cv;
-		std::atomic<size_t> remaining{0};
-		std::mutex results_mutex;
-		std::vector<outgoing_call_item> results;
-	};
-	auto state = std::make_shared<batch_state>();
-	state->remaining = positions.size();
-
-	auto inner_deadline = (deadline == std::chrono::steady_clock::time_point::max())
-				  ? deadline
-				  : (deadline - std::chrono::milliseconds(100));
-
-	for (const auto &[line, character] : positions) {
-		std::thread([this, filepath, line, character, inner_deadline, state]() {
-			fs_utils::set_current_thread_name("semcode_batch");
-			std::vector<call_hierarchy_item> calls;
-			try {
-				calls = query_call_hierarchy_outgoing(filepath, line, character, inner_deadline);
-			} catch (...) {
-			}
-
-			if (!calls.empty()) {
-				std::lock_guard<std::mutex> lock(state->results_mutex);
-				for (auto &call : calls) {
-					outgoing_call_item out_item;
-					out_item.call_line = line;
-					out_item.item = std::move(call);
-					state->results.push_back(std::move(out_item));
-				}
-			}
-
-			if (--state->remaining == 0) {
-				std::lock_guard<std::mutex> lock(state->cv_mutex);
-				state->cv.notify_all();
-			}
-		}).detach();
-	}
-
-	std::unique_lock<std::mutex> lock(state->cv_mutex);
-	state->cv.wait_until(lock, deadline, [state]() {
-		return state->remaining.load() == 0;
-	});
-
-	std::vector<outgoing_call_item> batch_results;
-	{
-		std::lock_guard<std::mutex> lock(state->results_mutex);
-		batch_results = std::move(state->results);
-	}
-
-	// Sort batch results deterministically by call_line then item name
 	std::stable_sort(batch_results.begin(), batch_results.end(), [](const outgoing_call_item &a, const outgoing_call_item &b) {
 		if (a.call_line != b.call_line) {
 			return a.call_line < b.call_line;
@@ -1059,29 +761,33 @@ semcode_backend::query_call_hierarchy_outgoing_batch(const std::string &filepath
 std::vector<lsp_backend::type_hierarchy_item> semcode_backend::query_type_hierarchy_supertypes(const std::string &filepath, int line,
 											       int character)
 {
-	if (semcode_cli_path_.empty()) {
-		return {};
-	}
-
 	std::string identifier = extract_identifier_at(filepath, line, character);
 	if (identifier.empty()) {
 		return {};
 	}
 
-	std::string type_out = run_semcode_query(std::format("type {}", identifier));
-	std::vector<location_info> locs;
-	parse_file_and_line_locations(type_out, project_root_, locs);
-
 	std::vector<type_hierarchy_item> items;
-	for (const auto &loc : locs) {
-		type_hierarchy_item item;
-		item.name = identifier;
-		item.kind = 5; // Class / Struct
-		item.detail = "struct/type";
-		item.uri = "file://" + loc.path;
-		item.range = loc.range;
-		item.selection_range = loc.range;
-		items.push_back(std::move(item));
+	{
+		std::lock_guard<std::mutex> lock(indexer_mutex_);
+		if (indexer_ && indexer_->is_open()) {
+			auto types = indexer_->lookup_type(identifier);
+			for (const auto &t : types) {
+				fs::path full_path = fs::path(t.file_path);
+				if (!full_path.is_absolute() && !project_root_.empty()) {
+					full_path = fs::path(project_root_) / full_path;
+				}
+				type_hierarchy_item item;
+				item.name = identifier;
+				item.kind = 5; // Class / Struct
+				item.detail = t.kind.empty() ? "type" : t.kind;
+				item.uri = "file://" + full_path.string();
+				int zero_start = std::max(0, t.line_start - 1);
+				int zero_end = std::max(0, t.line_end - 1);
+				item.range = text_range{zero_start, 0, zero_end, 0};
+				item.selection_range = item.range;
+				items.push_back(std::move(item));
+			}
+		}
 	}
 	return items;
 }
@@ -1120,65 +826,6 @@ std::shared_ptr<standard_lsp_backend::server_instance> semcode_backend::get_serv
 	}
 
 	return nullptr;
-}
-
-std::string semcode_backend::run_semcode_query(const std::string &query) const
-{
-	if (semcode_cli_path_.empty() || project_root_.empty() || query.empty()) {
-		return "";
-	}
-
-	{
-		std::unique_lock<std::mutex> lock(cli_cache_mutex_);
-		auto it = cli_cache_.find(query);
-		if (it != cli_cache_.end()) {
-			return it->second;
-		}
-
-		// Wait if another thread is already querying this exact query
-		while (inflight_queries_.contains(query)) {
-			inflight_cv_.wait(lock);
-			auto cached = cli_cache_.find(query);
-			if (cached != cli_cache_.end()) {
-				return cached->second;
-			}
-		}
-
-		inflight_queries_.insert(query);
-	}
-
-	struct InflightGuard {
-		std::mutex &mutex;
-		std::condition_variable &cv;
-		std::unordered_set<std::string> &inflight;
-		const std::string &query_key;
-		bool dismissed{false};
-
-		~InflightGuard() {
-			if (!dismissed) {
-				std::lock_guard<std::mutex> lock(mutex);
-				inflight.erase(query_key);
-				cv.notify_all();
-			}
-		}
-	} guard{cli_cache_mutex_, inflight_cv_, inflight_queries_, query};
-
-	std::string cmd = std::format("{} -d {} --git-repo {} -q {}", fs_utils::escape_shell_arg(semcode_cli_path_),
-				      fs_utils::escape_shell_arg(project_root_), fs_utils::escape_shell_arg(project_root_),
-				      fs_utils::escape_shell_arg(query));
-
-	std::string raw_output = fs_utils::execute_command_sync(cmd, 10);
-	std::string sanitized = utf8::sanitize_terminal_output(raw_output);
-
-	{
-		std::lock_guard<std::mutex> lock(cli_cache_mutex_);
-		cli_cache_[query] = sanitized;
-		inflight_queries_.erase(query);
-		inflight_cv_.notify_all();
-	}
-	guard.dismissed = true;
-
-	return sanitized;
 }
 
 std::string semcode_backend::extract_identifier_at(const std::string &filepath, int line, int character)

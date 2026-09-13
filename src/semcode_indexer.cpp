@@ -381,6 +381,7 @@ size_t semcode_indexer::ingest_types_stream(std::istream &input)
 	int current_line_start = 0;
 	int current_line_end = 0;
 	std::string current_kind;
+	std::string current_underlying;
 	std::string current_types;
 	bool in_types = false;
 
@@ -400,6 +401,7 @@ size_t semcode_indexer::ingest_types_stream(std::istream &input)
 				current_line_start = 0;
 				current_line_end = 0;
 				current_kind.clear();
+				current_underlying.clear();
 				current_types.clear();
 				in_types = false;
 			}
@@ -418,6 +420,8 @@ size_t semcode_indexer::ingest_types_stream(std::istream &input)
 				current_line_end = extract_int_value(trimmed);
 			} else if (trimmed.starts_with("\"kind\":")) {
 				current_kind = extract_quoted_value(trimmed);
+			} else if (trimmed.starts_with("\"underlying_type\":")) {
+				current_underlying = extract_quoted_value(trimmed);
 			} else if (trimmed.starts_with("\"types\":")) {
 				if (trimmed.find('[') != std::string_view::npos) {
 					in_types = true;
@@ -447,9 +451,9 @@ size_t semcode_indexer::ingest_types_stream(std::istream &input)
 					current_line_end = current_line_start;
 				}
 
-				// If typedef: extract first line of types as underlying_type
-				std::string underlying_type;
-				if (!current_types.empty()) {
+				// If typedef: extract first line of types as underlying_type if not explicitly set
+				std::string underlying_type = current_underlying;
+				if (underlying_type.empty() && !current_types.empty()) {
 					size_t nl = current_types.find('\n');
 					underlying_type = (nl == std::string::npos) ? current_types : current_types.substr(0, nl);
 				}
@@ -559,6 +563,7 @@ std::string semcode_indexer::get_metadata(std::string_view key) const
 
 std::vector<semcode_function_entry> semcode_indexer::lookup_function(std::string_view name) const
 {
+	std::lock_guard<std::mutex> lock(db_mutex_);
 	if (!db_ || name.empty()) {
 		return {};
 	}
@@ -594,6 +599,7 @@ std::vector<semcode_function_entry> semcode_indexer::lookup_function(std::string
 std::vector<semcode_function_entry> semcode_indexer::lookup_functions_in_file(std::string_view file_path, int start_line,
 									      int end_line) const
 {
+	std::lock_guard<std::mutex> lock(db_mutex_);
 	if (!db_ || file_path.empty()) {
 		return {};
 	}
@@ -632,6 +638,7 @@ std::vector<semcode_function_entry> semcode_indexer::lookup_functions_in_file(st
 
 std::vector<semcode_type_entry> semcode_indexer::lookup_type(std::string_view name) const
 {
+	std::lock_guard<std::mutex> lock(db_mutex_);
 	if (!db_ || name.empty()) {
 		return {};
 	}
@@ -642,6 +649,114 @@ std::vector<semcode_type_entry> semcode_indexer::lookup_type(std::string_view na
 	}
 	std::string n(name);
 	sqlite3_bind_text(stmt, 1, n.c_str(), -1, SQLITE_STATIC);
+
+	std::vector<semcode_type_entry> results;
+	while (sqlite3_step(stmt) == SQLITE_ROW) {
+		semcode_type_entry entry;
+		entry.name = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0));
+		entry.file_path = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1));
+		entry.line_start = sqlite3_column_int(stmt, 2);
+		entry.line_end = sqlite3_column_int(stmt, 3);
+		const unsigned char *kind_txt = sqlite3_column_text(stmt, 4);
+		if (kind_txt) {
+			entry.kind = reinterpret_cast<const char *>(kind_txt);
+		}
+		const unsigned char *ut_txt = sqlite3_column_text(stmt, 5);
+		if (ut_txt) {
+			entry.underlying_type = reinterpret_cast<const char *>(ut_txt);
+		}
+		results.push_back(std::move(entry));
+	}
+	sqlite3_finalize(stmt);
+	return results;
+}
+
+std::vector<semcode_function_entry> semcode_indexer::lookup_callers(std::string_view callee_name) const
+{
+	std::lock_guard<std::mutex> lock(db_mutex_);
+	if (!db_ || callee_name.empty()) {
+		return {};
+	}
+	sqlite3_stmt *stmt = nullptr;
+	const char *sql = "SELECT DISTINCT name, file_path, line_start, line_end, calls, types FROM functions "
+			  "WHERE calls = ? "
+			  "   OR calls LIKE (? || char(10) || '%') "
+			  "   OR calls LIKE ('%' || char(10) || ? || char(10) || '%') "
+			  "   OR calls LIKE ('%' || char(10) || ?);";
+	if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+		return {};
+	}
+	std::string c(callee_name);
+	sqlite3_bind_text(stmt, 1, c.c_str(), -1, SQLITE_STATIC);
+	sqlite3_bind_text(stmt, 2, c.c_str(), -1, SQLITE_STATIC);
+	sqlite3_bind_text(stmt, 3, c.c_str(), -1, SQLITE_STATIC);
+	sqlite3_bind_text(stmt, 4, c.c_str(), -1, SQLITE_STATIC);
+
+	std::vector<semcode_function_entry> results;
+	while (sqlite3_step(stmt) == SQLITE_ROW) {
+		semcode_function_entry entry;
+		entry.name = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0));
+		entry.file_path = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1));
+		entry.line_start = sqlite3_column_int(stmt, 2);
+		entry.line_end = sqlite3_column_int(stmt, 3);
+		const unsigned char *calls_txt = sqlite3_column_text(stmt, 4);
+		if (calls_txt) {
+			split_newline_strings(reinterpret_cast<const char *>(calls_txt), entry.calls);
+		}
+		const unsigned char *types_txt = sqlite3_column_text(stmt, 5);
+		if (types_txt) {
+			split_newline_strings(reinterpret_cast<const char *>(types_txt), entry.types);
+		}
+		results.push_back(std::move(entry));
+	}
+	sqlite3_finalize(stmt);
+	return results;
+}
+
+std::vector<semcode_function_entry> semcode_indexer::lookup_functions_by_prefix(std::string_view prefix, size_t limit) const
+{
+	std::lock_guard<std::mutex> lock(db_mutex_);
+	if (!db_ || prefix.empty()) {
+		return {};
+	}
+	sqlite3_stmt *stmt = nullptr;
+	const char *sql = "SELECT DISTINCT name, file_path, line_start, line_end FROM functions "
+			  "WHERE name LIKE (? || '%') LIMIT ?;";
+	if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+		return {};
+	}
+	std::string p(prefix);
+	sqlite3_bind_text(stmt, 1, p.c_str(), -1, SQLITE_STATIC);
+	sqlite3_bind_int64(stmt, 2, static_cast<sqlite3_int64>(limit));
+
+	std::vector<semcode_function_entry> results;
+	while (sqlite3_step(stmt) == SQLITE_ROW) {
+		semcode_function_entry entry;
+		entry.name = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0));
+		entry.file_path = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1));
+		entry.line_start = sqlite3_column_int(stmt, 2);
+		entry.line_end = sqlite3_column_int(stmt, 3);
+		results.push_back(std::move(entry));
+	}
+	sqlite3_finalize(stmt);
+	return results;
+}
+
+std::vector<semcode_type_entry> semcode_indexer::lookup_types_by_prefix(std::string_view prefix, size_t limit) const
+{
+	std::lock_guard<std::mutex> lock(db_mutex_);
+	if (!db_ || prefix.empty()) {
+		return {};
+	}
+	sqlite3_stmt *stmt = nullptr;
+	const char *sql = "SELECT DISTINCT name, file_path, line_start, line_end, kind, underlying_type FROM types "
+			  "WHERE name LIKE (? || '%') LIMIT ?;";
+	if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+		return {};
+	}
+	std::string p(prefix);
+	sqlite3_bind_text(stmt, 1, p.c_str(), -1, SQLITE_STATIC);
+	sqlite3_bind_int64(stmt, 2, static_cast<sqlite3_int64>(limit));
 
 	std::vector<semcode_type_entry> results;
 	while (sqlite3_step(stmt) == SQLITE_ROW) {

@@ -8,9 +8,8 @@
 #include <optional>
 #include <string>
 #include <thread>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
+#include "semcode_indexer.h"
 #include "standard_lsp_backend.h"
 
 /**
@@ -18,14 +17,15 @@
  *
  * Implements a hybrid approach combining the semcode-lsp language server
  * (for fast JSON-RPC definition and reference navigation over stdio) with
- * the semcode CLI (for rich type exploration, struct definitions, call chains,
- * and workspace symbol queries).
+ * a high-performance local SQLite indexer (for instant type exploration, struct definitions,
+ * call chains, and workspace symbol queries).
  *
  * Automatically activated when a .semcode.db database exists in the project root
  * and the semcode-lsp binary is available.
  */
-class semcode_backend : public standard_lsp_backend {
-public:
+class semcode_backend : public standard_lsp_backend
+{
+      public:
 	explicit semcode_backend(std::string project_root = "");
 	~semcode_backend() override;
 
@@ -55,24 +55,29 @@ public:
 	[[nodiscard]] std::vector<location_info> query_references(const std::string &filepath, int line, int character) override;
 	[[nodiscard]] std::vector<symbol_info> query_workspace_symbols(const std::string &query) override;
 	[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &filepath) override;
-	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &filepath, int line, int character) override
+	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &filepath, int line,
+										     int character) override
 	{
 		return query_call_hierarchy_outgoing(filepath, line, character, std::chrono::steady_clock::time_point::max());
 	}
-	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(
-		const std::string &filepath, int line, int character,
-		std::chrono::steady_clock::time_point deadline);
+	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &filepath, int line, int character,
+										     std::chrono::steady_clock::time_point deadline);
 	[[nodiscard]] std::vector<outgoing_call_item> query_call_hierarchy_outgoing_batch(
-		const std::string &filepath,
-		const std::vector<std::pair<int, int>> &positions,
-		std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::time_point::max()) override;
-	[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &filepath, int line, int character) override;
+	    const std::string &filepath, const std::vector<std::pair<int, int>> &positions,
+	    std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::time_point::max()) override;
+	[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &filepath, int line,
+										       int character) override;
 	[[nodiscard]] static std::string extract_identifier_at(const std::string &filepath, int line, int character);
 
-protected:
+	[[nodiscard]] semcode_indexer *get_indexer() const noexcept;
+	void set_indexer(std::unique_ptr<semcode_indexer> indexer);
+
+	void init_indexer();
+
+      protected:
 	std::shared_ptr<server_instance> get_server_for_file(const std::string &filepath) override;
 
-private:
+      private:
 	std::string project_root_;
 	std::string semcode_lsp_path_;
 	std::string semcode_cli_path_;
@@ -93,7 +98,7 @@ private:
 	 *
 	 * (1) Protects `pending_hover_request_` against concurrent access between the editor/UI
 	 * thread dispatching `request_hover` and the background `hover_worker_loop` executing
-	 * CLI queries.
+	 * SQLite queries.
 	 * (2) Locking rules: Short, bounded critical section. Never call shell execution,
 	 * disk I/O, or acquire any other lock while holding `hover_mutex_`.
 	 */
@@ -104,16 +109,12 @@ private:
 	void hover_worker_loop();
 
 	/**
-	 * @brief Mutex protecting the semcode CLI query cache and in-flight query synchronization.
+	 * @brief Mutex protecting access to the semcode_indexer instance during initialization and querying.
 	 *
-	 * (1) Protects `cli_cache_` against concurrent reads/writes and `inflight_queries_`
-	 * tracking to deduplicate concurrent subprocess launches.
-	 * (2) Locking rules: Short critical section. Never held during subprocess execution.
+	 * (1) Protects `indexer_` against concurrent access between the startup/indexing threads
+	 * and concurrent query operations.
+	 * (2) Locking rules: Short, non-reentrant critical section. Never held during subprocess launches.
 	 */
-	mutable std::mutex cli_cache_mutex_;
-	mutable std::condition_variable inflight_cv_;
-	mutable std::unordered_set<std::string> inflight_queries_;
-	mutable std::unordered_map<std::string, std::string> cli_cache_;
-
-	[[nodiscard]] std::string run_semcode_query(const std::string &query) const;
+	mutable std::mutex indexer_mutex_;
+	std::unique_ptr<semcode_indexer> indexer_;
 };
