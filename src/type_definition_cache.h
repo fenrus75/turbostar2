@@ -21,8 +21,8 @@ enum class type_cache_state {
 struct type_definition_entry {
 	std::string type_name;
 	type_cache_state state = type_cache_state::pending;
-	std::string safe_file_path; // Relative project workspace path, e.g. "src/agentlib/tool_context.h"
-	std::string kind;	    // "struct", "class", "enum", "typedef"
+	std::string safe_file_path;  // Relative project workspace path, e.g. "src/agentlib/tool_context.h"
+	std::string kind;	     // "struct", "class", "enum", "typedef"
 	std::string underlying_type; // e.g. "s64" for typedefs / type aliases
 	int start_line{0};
 	int end_line{0};
@@ -65,6 +65,13 @@ class type_definition_cache
 	 * Runs the LSP definition lookup asynchronously in a detached background worker.
 	 */
 	void request_async(std::string_view type_name, const std::string &referencing_file, int line, int character);
+
+	/**
+	 * @brief Helper that scans forward from start_line in file_path tracking brace depth
+	 * ({ and }) until the matching closing brace is found.
+	 * Returns the 1-based line number of the closing brace, or start_line if not found.
+	 */
+	static int find_closing_brace_line(const std::string &file_path, int start_line, int max_scan_lines = 1000);
 
 	/**
 	 * @brief Format a list of resolved type definitions into a Markdown table.

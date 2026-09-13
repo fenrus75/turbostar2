@@ -277,6 +277,59 @@ void type_definition_cache::clear()
 	types_.clear();
 }
 
+int type_definition_cache::find_closing_brace_line(const std::string &file_path, int start_line, int max_scan_lines)
+{
+	if (!fs_utils::is_regular_file(file_path) || start_line <= 0) {
+		return start_line;
+	}
+
+	std::ifstream file(file_path);
+	if (!file.is_open()) {
+		return start_line;
+	}
+
+	std::string line_content;
+	int current_line = 1;
+	int depth = 0;
+	bool started = false;
+	int scanned_end = start_line;
+
+	while (std::getline(file, line_content)) {
+		if (current_line >= start_line) {
+			if (!started) {
+				// If a semicolon occurs before any opening brace '{', this is a typedef,
+				// type alias, or forward declaration that has no brace body.
+				size_t open_brace = line_content.find('{');
+				size_t semi = line_content.find(';');
+				if (semi != std::string::npos && (open_brace == std::string::npos || semi < open_brace)) {
+					return start_line;
+				}
+			}
+			for (char c : line_content) {
+				if (c == '{') {
+					depth++;
+					started = true;
+				} else if (c == '}') {
+					depth--;
+				}
+			}
+			if (started && depth <= 0) {
+				scanned_end = current_line;
+				break;
+			}
+		}
+		if (current_line > start_line + max_scan_lines) {
+			break;
+		}
+		++current_line;
+	}
+
+	if (started && scanned_end > start_line) {
+		return scanned_end;
+	}
+	return start_line;
+}
+
 std::string type_definition_cache::format_type_definition_table(const std::vector<type_definition_entry> &types)
 {
 	if (types.empty()) {

@@ -1948,50 +1948,11 @@ bool expand_range_to_symbol_bounds(const std::string &file_path, std::string_vie
 		return true;
 	}
 
-	// 2. Fallback: inspect source file and scan braces
-	if (fs_utils::is_regular_file(abs_path)) {
-		std::ifstream file(abs_path);
-		if (file.is_open()) {
-			std::string line_content;
-			int current_line = 1;
-			int depth = 0;
-			bool started = false;
-			int scanned_end = start_line;
-
-			while (std::getline(file, line_content)) {
-				if (current_line >= start_line) {
-					if (!started) {
-						if (line_content.find("enum ") != std::string::npos) {
-							kind = "enum";
-						} else if (line_content.find("class ") != std::string::npos) {
-							kind = "class";
-						} else if (line_content.find("struct ") != std::string::npos) {
-							kind = "struct";
-						}
-					}
-					for (char c : line_content) {
-						if (c == '{') {
-							depth++;
-							started = true;
-						} else if (c == '}') {
-							depth--;
-						}
-					}
-					if (started && depth <= 0) {
-						scanned_end = current_line;
-						break;
-					}
-				}
-				if (current_line > start_line + 1000) {
-					break;
-				}
-				++current_line;
-			}
-			if (started && scanned_end > start_line) {
-				end_line = scanned_end;
-				return true;
-			}
-		}
+	// 2. Fallback: inspect source file and find closing brace via helper
+	int closing_line = type_definition_cache::find_closing_brace_line(abs_path, start_line);
+	if (closing_line > start_line) {
+		end_line = closing_line;
+		return true;
 	}
 
 	return false;

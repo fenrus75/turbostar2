@@ -398,6 +398,10 @@ int main()
 		assert(typedef_table.find("| `ktime_t` | typedef (s64) |") != std::string::npos);
 		assert(typedef_table.find("| `custom_alias` | typedef (uint32_t) |") != std::string::npos);
 
+		// Verify helper find_closing_brace_line accurately finds closing brace
+		assert(type_definition_cache::find_closing_brace_line(macro_target, 2) == 6);
+		assert(type_definition_cache::find_closing_brace_line(typedef_target, 2) == 2); // No braces, remains 2
+
 		std::filesystem::remove_all(test_dir);
 	}
 
