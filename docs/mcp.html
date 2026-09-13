@@ -175,7 +175,7 @@ turbomcp --help</code></pre>
       <div style="margin-bottom: 3rem;">
         <h3 class="detail-subtitle" style="font-size: 1.4rem;">2. Configure Your Agent Environment</h3>
         <p class="detail-text">
-          Add Turbostar to your agent's MCP server registry. Always pass <code>--project-dir</code> to specify your target codebase root, and <code>--log</code> to route internal logs away from standard output so the JSON-RPC stdio stream remains completely clean.
+          Add Turbostar to your agent's MCP server registry. Pass <code>--project-dir</code> to specify your target codebase root (defaults to the current working directory if omitted). Standard output logging is automatically silenced in MCP mode, keeping the JSON-RPC stdio protocol stream clean.
         </p>
 
         <!-- Config Grid -->
@@ -190,9 +190,7 @@ turbomcp --help</code></pre>
       <span class="type">"command"</span>: <span class="literal">"/home/user/.local/bin/turbomcp"</span>,
       <span class="type">"args"</span>: [
         <span class="literal">"--project-dir"</span>,
-        <span class="literal">"/path/to/your/project"</span>,
-        <span class="literal">"--log"</span>,
-        <span class="literal">"/tmp/turbomcp.log"</span>
+        <span class="literal">"/path/to/your/project"</span>
       ]
     }
   }
@@ -209,9 +207,7 @@ turbomcp --help</code></pre>
       <span class="type">"command"</span>: <span class="literal">"turbomcp"</span>,
       <span class="type">"args"</span>: [
         <span class="literal">"--project-dir"</span>,
-        <span class="literal">"/path/to/your/project"</span>,
-        <span class="literal">"--log"</span>,
-        <span class="literal">"/tmp/turbomcp.log"</span>
+        <span class="literal">"/path/to/your/project"</span>
       ]
     }
   }
@@ -226,8 +222,7 @@ turbomcp --help</code></pre>
 turbomcp
 
 <span class="comment"># Arguments:</span>
---project-dir /path/to/project
---log /tmp/turbomcp.log</code></pre>
+--project-dir /path/to/project</code></pre>
           </article>
         </div>
       </div>
@@ -250,11 +245,6 @@ turbomcp
                 <td><code>--project-dir &lt;path&gt;</code></td>
                 <td>Specifies the workspace document root. Relative file paths, LSP lookups, and sandboxing rules resolve against this directory.</td>
                 <td><code>.</code> (Current Directory)</td>
-              </tr>
-              <tr>
-                <td><code>--log &lt;path&gt;</code></td>
-                <td>Redirects diagnostic logs to a file, ensuring standard output remains dedicated solely to the JSON-RPC stdio protocol.</td>
-                <td><code>~/.cache/turbostar/session.log</code></td>
               </tr>
               <tr>
                 <td><code>--mcp</code> / <code>--mcp-server</code></td>
