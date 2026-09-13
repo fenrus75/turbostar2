@@ -1004,12 +1004,16 @@ semcode_backend::query_call_hierarchy_outgoing_batch(const std::string &filepath
 	auto state = std::make_shared<batch_state>();
 	state->remaining = positions.size();
 
+	auto inner_deadline = (deadline == std::chrono::steady_clock::time_point::max())
+				  ? deadline
+				  : (deadline - std::chrono::milliseconds(100));
+
 	for (const auto &[line, character] : positions) {
-		std::thread([this, filepath, line, character, deadline, state]() {
+		std::thread([this, filepath, line, character, inner_deadline, state]() {
 			fs_utils::set_current_thread_name("semcode_batch");
 			std::vector<call_hierarchy_item> calls;
 			try {
-				calls = query_call_hierarchy_outgoing(filepath, line, character, deadline);
+				calls = query_call_hierarchy_outgoing(filepath, line, character, inner_deadline);
 			} catch (...) {
 			}
 
