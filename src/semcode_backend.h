@@ -8,6 +8,8 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include "standard_lsp_backend.h"
 
@@ -102,13 +104,15 @@ private:
 	void hover_worker_loop();
 
 	/**
-	 * @brief Mutex protecting the semcode CLI query cache.
+	 * @brief Mutex protecting the semcode CLI query cache and in-flight query synchronization.
 	 *
-	 * (1) Protects `cli_cache_` memoization table against concurrent reads and writes
-	 * between the background hover worker and synchronous symbol/hierarchy queries.
+	 * (1) Protects `cli_cache_` against concurrent reads/writes and `inflight_queries_`
+	 * tracking to deduplicate concurrent subprocess launches.
 	 * (2) Locking rules: Short critical section. Never held during subprocess execution.
 	 */
 	mutable std::mutex cli_cache_mutex_;
+	mutable std::condition_variable inflight_cv_;
+	mutable std::unordered_set<std::string> inflight_queries_;
 	mutable std::unordered_map<std::string, std::string> cli_cache_;
 
 	[[nodiscard]] std::string run_semcode_query(const std::string &query) const;

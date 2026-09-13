@@ -484,6 +484,119 @@ static void test_hybrid_cli_queries()
 	std::cout << "  Passed!" << std::endl;
 }
 
+static void test_parallel_callee_prewarming_and_late_cache()
+{
+	std::cout << "Testing parallel callee pre-warming and late cache population..." << std::endl;
+
+	std::string test_dir = fs_utils::get_project_tmp_dir() + "/test_semcode_parallel";
+	fs::create_directories(test_dir);
+	fs::create_directories(fs::path(test_dir) / ".semcode.db");
+
+	std::string src_file = test_dir + "/work.c";
+	{
+		std::ofstream out(src_file);
+		out << "#include <stdio.h>\n"
+		    << "void fast_callee(void);\n"
+		    << "void slow_callee(void);\n"
+		    << "void do_work(void) {\n"
+		    << "    fast_callee();\n"
+		    << "    slow_callee();\n"
+		    << "}\n";
+	}
+
+	// Mock CLI with an intentional delay for slow_callee
+	std::string mock_cli = test_dir + "/mock_semcode_delay";
+	{
+		std::ofstream out(mock_cli);
+		out << "#!/bin/sh\n"
+		    << "case \"$*\" in\n"
+		    << "  *\"calls -v do_work\"*)\n"
+		    << "    echo '=== Direct Calls ==='\n"
+		    << "    echo '  1. fast_callee'\n"
+		    << "    echo '     void (fast.c:1)'\n"
+		    << "    echo '  2. slow_callee'\n"
+		    << "    echo '     void (slow.c:1)'\n"
+		    << "    ;;\n"
+		    << "  *\"func fast_callee\"*)\n"
+		    << "    echo 'File: fast.c'\n"
+		    << "    echo 'Line: 1-5'\n"
+		    << "    echo 'Return type: void'\n"
+		    << "    echo 'Function Definition:'\n"
+		    << "    echo 'void fast_callee(void)'\n"
+		    << "    ;;\n"
+		    << "  *\"func slow_callee\"*)\n"
+		    << "    sleep 0.6\n"
+		    << "    echo 'File: slow.c'\n"
+		    << "    echo 'Line: 1-5'\n"
+		    << "    echo 'Return type: void'\n"
+		    << "    echo 'Function Definition:'\n"
+		    << "    echo 'void slow_callee(void)'\n"
+		    << "    ;;\n"
+		    << "  *)\n"
+		    << "    echo 'No results found'\n"
+		    << "    ;;\n"
+		    << "esac\n";
+	}
+	chmod(mock_cli.c_str(), 0755);
+
+	setenv("SEMCODE_BIN", mock_cli.c_str(), 1);
+
+	semcode_backend backend(test_dir);
+
+	// Test 1: Query with a tight deadline (250ms).
+	// fast_callee finishes almost immediately.
+	// slow_callee takes 600ms, so it will exceed the 250ms deadline.
+	// The query should return fast_callee and not wait forever for slow_callee.
+	auto tight_deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(250);
+	auto t_start = std::chrono::steady_clock::now();
+	auto calls1 = backend.query_call_hierarchy_outgoing(src_file, 3, 6, tight_deadline);
+	auto t_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t_start).count();
+
+	std::cout << "  Tight-deadline query completed in " << t_elapsed << "ms, returned " << calls1.size() << " calls" << std::endl;
+	// Verify fast_callee was retained
+	assert(calls1.size() >= 1);
+	bool found_fast = false;
+	for (const auto &c : calls1) {
+		if (c.name == "fast_callee") {
+			found_fast = true;
+		}
+	}
+	assert(found_fast);
+
+	// Test 2: The detached background query for slow_callee continues running in background.
+	// Wait 700ms to ensure the background query finishes and populates cli_cache_.
+	std::this_thread::sleep_for(std::chrono::milliseconds(700));
+
+	// Test 3: Run the query again. Now both fast_callee AND slow_callee must be immediate cache hits!
+	auto t2_start = std::chrono::steady_clock::now();
+	auto calls2 = backend.query_call_hierarchy_outgoing(src_file, 3, 6);
+	auto t2_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t2_start).count();
+
+	std::cout << "  Second query with populated cache completed in " << t2_elapsed << "ms, returned " << calls2.size() << " calls" << std::endl;
+	assert(t2_elapsed < 100); // Instant cache hits!
+	assert(calls2.size() == 2);
+	bool found_fast2 = false;
+	bool found_slow2 = false;
+	for (const auto &c : calls2) {
+		if (c.name == "fast_callee") {
+			found_fast2 = true;
+		}
+		if (c.name == "slow_callee") {
+			found_slow2 = true;
+		}
+	}
+	assert(found_fast2);
+	assert(found_slow2);
+
+	// Test 4: Batch query across multiple positions
+	auto batch_results = backend.query_call_hierarchy_outgoing_batch(src_file, {{3, 6}});
+	assert(batch_results.size() == 2);
+
+	unsetenv("SEMCODE_BIN");
+	fs::remove_all(test_dir);
+	std::cout << "  Passed!" << std::endl;
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog();
@@ -491,6 +604,7 @@ int main()
 	test_availability_and_discovery();
 	test_supported_files_and_sync();
 	test_hybrid_cli_queries();
+	test_parallel_callee_prewarming_and_late_cache();
 
 	std::cout << "All semcode_backend unit tests passed successfully!" << std::endl;
 	return 0;

@@ -827,14 +827,11 @@ std::vector<lsp_backend::call_hierarchy_item> semcode_backend::query_call_hierar
 	    std::format("semcode_backend::query_call_hierarchy_outgoing: identifier='{}', found {} raw calls from semcode CLI", identifier,
 			items.size()));
 
-	std::vector<call_hierarchy_item> filtered_items;
-	filtered_items.reserve(items.size());
 	std::string norm_caller = fs_utils::make_relative_to_project(filepath);
+	std::vector<call_hierarchy_item> candidates;
+	candidates.reserve(items.size());
 
 	for (auto &item : items) {
-		if (std::chrono::steady_clock::now() > deadline) {
-			break;
-		}
 		if (item.name.empty()) {
 			continue;
 		}
@@ -861,10 +858,80 @@ std::vector<lsp_backend::call_hierarchy_item> semcode_backend::query_call_hierar
 			}
 		}
 
-		// 2. Strict unique definition filtering: query semcode CLI 'func <name>'
-		// If multiple definitions exist (e.g. memset having multiple definitions across archs),
-		// parse_definition_locations_strict_unique returns false.
-		std::string func_out = run_semcode_query(std::format("func {}", item.name));
+		candidates.push_back(std::move(item));
+	}
+
+	// 2. Collect candidate callee names that need verification queries and are not yet in cache
+	std::vector<std::string> names_to_query;
+	{
+		std::lock_guard<std::mutex> lock(cli_cache_mutex_);
+		std::unordered_set<std::string> seen;
+		for (const auto &cand : candidates) {
+			std::string q = std::format("func {}", cand.name);
+			if (!cli_cache_.contains(q) && seen.insert(cand.name).second) {
+				names_to_query.push_back(cand.name);
+			}
+		}
+	}
+
+	if (names_to_query.size() > 20) {
+		names_to_query.resize(20);
+	}
+
+	// 3. Fire off parallel background queries to populate cli_cache_ concurrently
+	if (!names_to_query.empty()) {
+		event_logger::get_instance().log(std::format(
+			"semcode_backend::query_call_hierarchy_outgoing: pre-warming {} callee definition queries in parallel",
+			names_to_query.size()));
+
+		struct parallel_query_state {
+			std::mutex cv_mutex;
+			std::condition_variable cv;
+			std::atomic<size_t> remaining{0};
+		};
+		auto state = std::make_shared<parallel_query_state>();
+		state->remaining = names_to_query.size();
+
+		for (const auto &name : names_to_query) {
+			std::thread([this, name, state]() {
+				fs_utils::set_current_thread_name("semcode_func");
+				try {
+					static_cast<void>(run_semcode_query(std::format("func {}", name)));
+				} catch (...) {
+				}
+				if (--state->remaining == 0) {
+					std::lock_guard<std::mutex> lock(state->cv_mutex);
+					state->cv.notify_all();
+				}
+			}).detach();
+		}
+
+		std::unique_lock<std::mutex> lock(state->cv_mutex);
+		state->cv.wait_until(lock, deadline, [state]() {
+			return state->remaining.load() == 0;
+		});
+	}
+
+	// 4. Strict unique definition filtering against populated cache
+	std::vector<call_hierarchy_item> filtered_items;
+	filtered_items.reserve(candidates.size());
+
+	for (auto &item : candidates) {
+		std::string q = std::format("func {}", item.name);
+		std::string func_out;
+		{
+			std::lock_guard<std::mutex> lock(cli_cache_mutex_);
+			auto it = cli_cache_.find(q);
+			if (it != cli_cache_.end()) {
+				func_out = it->second;
+			}
+		}
+
+		if (func_out.empty()) {
+			// Query did not complete before deadline; background thread will still populate cli_cache_ for next time
+			continue;
+		}
+
 		std::vector<location_info> locs;
 		bool func_ok = parse_definition_locations_strict_unique(func_out, project_root_, locs);
 		if (!func_ok) {
@@ -909,19 +976,79 @@ std::vector<lsp_backend::outgoing_call_item>
 semcode_backend::query_call_hierarchy_outgoing_batch(const std::string &filepath, const std::vector<std::pair<int, int>> &positions,
 						     std::chrono::steady_clock::time_point deadline)
 {
-	std::vector<outgoing_call_item> batch_results;
-	for (const auto &[line, character] : positions) {
-		if (std::chrono::steady_clock::now() > deadline) {
-			break;
-		}
+	if (positions.empty()) {
+		return {};
+	}
+
+	if (positions.size() == 1) {
+		const auto &[line, character] = positions[0];
 		auto calls = query_call_hierarchy_outgoing(filepath, line, character, deadline);
+		std::vector<outgoing_call_item> batch_results;
+		batch_results.reserve(calls.size());
 		for (auto &call : calls) {
 			outgoing_call_item out_item;
 			out_item.call_line = line;
 			out_item.item = std::move(call);
 			batch_results.push_back(std::move(out_item));
 		}
+		return batch_results;
 	}
+
+	struct batch_state {
+		std::mutex cv_mutex;
+		std::condition_variable cv;
+		std::atomic<size_t> remaining{0};
+		std::mutex results_mutex;
+		std::vector<outgoing_call_item> results;
+	};
+	auto state = std::make_shared<batch_state>();
+	state->remaining = positions.size();
+
+	for (const auto &[line, character] : positions) {
+		std::thread([this, filepath, line, character, deadline, state]() {
+			fs_utils::set_current_thread_name("semcode_batch");
+			std::vector<call_hierarchy_item> calls;
+			try {
+				calls = query_call_hierarchy_outgoing(filepath, line, character, deadline);
+			} catch (...) {
+			}
+
+			if (!calls.empty()) {
+				std::lock_guard<std::mutex> lock(state->results_mutex);
+				for (auto &call : calls) {
+					outgoing_call_item out_item;
+					out_item.call_line = line;
+					out_item.item = std::move(call);
+					state->results.push_back(std::move(out_item));
+				}
+			}
+
+			if (--state->remaining == 0) {
+				std::lock_guard<std::mutex> lock(state->cv_mutex);
+				state->cv.notify_all();
+			}
+		}).detach();
+	}
+
+	std::unique_lock<std::mutex> lock(state->cv_mutex);
+	state->cv.wait_until(lock, deadline, [state]() {
+		return state->remaining.load() == 0;
+	});
+
+	std::vector<outgoing_call_item> batch_results;
+	{
+		std::lock_guard<std::mutex> lock(state->results_mutex);
+		batch_results = std::move(state->results);
+	}
+
+	// Sort batch results deterministically by call_line then item name
+	std::stable_sort(batch_results.begin(), batch_results.end(), [](const outgoing_call_item &a, const outgoing_call_item &b) {
+		if (a.call_line != b.call_line) {
+			return a.call_line < b.call_line;
+		}
+		return a.item.name < b.item.name;
+	});
+
 	return batch_results;
 }
 
@@ -997,14 +1124,40 @@ std::string semcode_backend::run_semcode_query(const std::string &query) const
 		return "";
 	}
 
-	// Check CLI memoization cache first to eliminate duplicate subprocess launches
 	{
-		std::lock_guard<std::mutex> lock(cli_cache_mutex_);
+		std::unique_lock<std::mutex> lock(cli_cache_mutex_);
 		auto it = cli_cache_.find(query);
 		if (it != cli_cache_.end()) {
 			return it->second;
 		}
+
+		// Wait if another thread is already querying this exact query
+		while (inflight_queries_.contains(query)) {
+			inflight_cv_.wait(lock);
+			auto cached = cli_cache_.find(query);
+			if (cached != cli_cache_.end()) {
+				return cached->second;
+			}
+		}
+
+		inflight_queries_.insert(query);
 	}
+
+	struct InflightGuard {
+		std::mutex &mutex;
+		std::condition_variable &cv;
+		std::unordered_set<std::string> &inflight;
+		const std::string &query_key;
+		bool dismissed{false};
+
+		~InflightGuard() {
+			if (!dismissed) {
+				std::lock_guard<std::mutex> lock(mutex);
+				inflight.erase(query_key);
+				cv.notify_all();
+			}
+		}
+	} guard{cli_cache_mutex_, inflight_cv_, inflight_queries_, query};
 
 	std::string cmd = std::format("{} -d {} --git-repo {} -q {}", fs_utils::escape_shell_arg(semcode_cli_path_),
 				      fs_utils::escape_shell_arg(project_root_), fs_utils::escape_shell_arg(project_root_),
@@ -1016,7 +1169,10 @@ std::string semcode_backend::run_semcode_query(const std::string &query) const
 	{
 		std::lock_guard<std::mutex> lock(cli_cache_mutex_);
 		cli_cache_[query] = sanitized;
+		inflight_queries_.erase(query);
+		inflight_cv_.notify_all();
 	}
+	guard.dismissed = true;
 
 	return sanitized;
 }
