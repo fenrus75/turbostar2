@@ -973,13 +973,13 @@ bool semcode_indexer::build_from_project(const std::string &untrusted_project_di
 	} guard{temp_dir};
 
 	// 3. Run semcode dump-functions
-	std::string dump_fn_cmd =
-	    fs_utils::format_command("{} -d {} --git-repo {} -q \"dump-functions {}\"", semcode_bin, safe_project, safe_project, fn_tmp);
-	fs_utils::execute_command_sync(dump_fn_cmd, 120);
+	std::string dump_fn_cmd = fs_utils::format_command("{} -d {} --git-repo {} --reindex-if-stale -q \"dump-functions {}\"",
+							   semcode_bin, safe_project, safe_project, fn_tmp);
+	fs_utils::execute_command_sync(dump_fn_cmd, 600);
 
 	// 4. Run semcode dump-types
-	std::string dump_ty_cmd =
-	    fs_utils::format_command("{} -d {} --git-repo {} -q \"dump-types {}\"", semcode_bin, safe_project, safe_project, ty_tmp);
+	std::string dump_ty_cmd = fs_utils::format_command("{} -d {} --git-repo {} --reindex-if-stale -q \"dump-types {}\"", semcode_bin,
+							   safe_project, safe_project, ty_tmp);
 	fs_utils::execute_command_sync(dump_ty_cmd, 120);
 
 	// Ensure destination database is clean

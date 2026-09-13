@@ -209,10 +209,12 @@ static void test_build_from_project()
 	fs::create_directories(test_dir + "/dbs");
 
 	// Create mock semcode CLI script
+	std::string log_file = test_dir + "/mock_cli.log";
 	std::string mock_cli = test_dir + "/mock_semcode";
 	{
 		std::ofstream out(mock_cli);
 		out << "#!/bin/sh\n"
+		    << "echo \"$@\" >> \"" << log_file << "\"\n"
 		    << "while [ $# -gt 0 ]; do\n"
 		    << "  case \"$1\" in\n"
 		    << "    -q)\n"
@@ -261,6 +263,14 @@ static void test_build_from_project()
 	semcode_indexer indexer(db_file);
 	bool ok = indexer.build_from_project(test_dir, mock_cli, 2);
 	assert(ok);
+
+	// Verify that --reindex-if-stale was passed to semcode
+	assert(fs_utils::is_regular_file(log_file));
+	{
+		std::ifstream log_in(log_file);
+		std::string log_content((std::istreambuf_iterator<char>(log_in)), std::istreambuf_iterator<char>());
+		assert(log_content.find("--reindex-if-stale") != std::string::npos);
+	}
 
 	// Open the generated database and verify entries
 	assert(indexer.open());

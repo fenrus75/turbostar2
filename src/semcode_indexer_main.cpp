@@ -128,12 +128,12 @@ int main(int argc, char **argv)
 
 		if (functions_json.empty()) {
 			std::string fn_tmp = temp_dir + "/functions.json";
-			std::string cmd = std::format("{} -d {} --git-repo {} -q \"dump-functions {}\"",
+			std::string cmd = std::format("{} -d {} --git-repo {} --reindex-if-stale -q \"dump-functions {}\"",
 						      fs_utils::escape_shell_arg(semcode_bin), fs_utils::escape_shell_arg(project_dir),
 						      fs_utils::escape_shell_arg(project_dir), fs_utils::escape_shell_arg(fn_tmp));
 			std::cout << "Executing: " << cmd << std::endl;
 			auto dump_start = std::chrono::steady_clock::now();
-			std::string out = fs_utils::execute_command_sync(cmd, 120);
+			std::string out = fs_utils::execute_command_sync(cmd, 600);
 			auto dump_ms =
 			    std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - dump_start).count();
 			std::cout << "Dump functions completed in " << dump_ms << "ms" << std::endl;
@@ -144,7 +144,7 @@ int main(int argc, char **argv)
 
 		if (types_json.empty()) {
 			std::string ty_tmp = temp_dir + "/types.json";
-			std::string cmd = std::format("{} -d {} --git-repo {} -q \"dump-types {}\"",
+			std::string cmd = std::format("{} -d {} --git-repo {} --reindex-if-stale -q \"dump-types {}\"",
 						      fs_utils::escape_shell_arg(semcode_bin), fs_utils::escape_shell_arg(project_dir),
 						      fs_utils::escape_shell_arg(project_dir), fs_utils::escape_shell_arg(ty_tmp));
 			std::cout << "Executing: " << cmd << std::endl;
