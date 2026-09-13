@@ -105,6 +105,21 @@ int main(int argc, char **argv)
 
 	auto t_start = std::chrono::steady_clock::now();
 
+	semcode_indexer indexer(output_db);
+
+	if (!project_dir.empty() && functions_json.empty() && types_json.empty()) {
+		std::cout << std::format("Building semcode index for project {} using {}...\n", project_dir, semcode_bin);
+		if (!indexer.build_from_project(project_dir, semcode_bin, max_dbs)) {
+			std::cerr << "Error: Failed to build index from project: " << project_dir << std::endl;
+			return 1;
+		}
+		auto total_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t_start).count();
+		std::error_code ec;
+		auto db_size = fs::file_size(output_db, ec);
+		std::cout << std::format("Done! Total elapsed: {}ms. Database: {} (size: {} bytes)\n", total_ms, output_db, db_size);
+		return 0;
+	}
+
 	std::string temp_dir;
 	if (!project_dir.empty()) {
 		temp_dir = fs_utils::get_project_tmp_dir() + "/semcode_indexer_" +
@@ -155,7 +170,6 @@ int main(int argc, char **argv)
 	std::error_code ec;
 	fs::remove(output_db, ec);
 
-	semcode_indexer indexer(output_db);
 	if (!indexer.open()) {
 		std::cerr << "Error: Could not open output database: " << output_db << std::endl;
 		if (!temp_dir.empty()) {

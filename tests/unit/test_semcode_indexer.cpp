@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <sys/stat.h>
 #include "fs_utils.h"
 #include "semcode_indexer.h"
 #include "test_watchdog.h"
@@ -198,11 +199,100 @@ static void test_cache_pruning()
 	std::cout << "  Passed!" << std::endl;
 }
 
+static void test_build_from_project()
+{
+	std::cout << "Testing semcode_indexer build_from_project..." << std::endl;
+
+	std::string test_dir = fs_utils::get_project_tmp_dir() + "/test_semcode_build_proj";
+	fs::create_directories(test_dir);
+	std::string db_file = test_dir + "/dbs/semcode_auto.db";
+	fs::create_directories(test_dir + "/dbs");
+
+	// Create mock semcode CLI script
+	std::string mock_cli = test_dir + "/mock_semcode";
+	{
+		std::ofstream out(mock_cli);
+		out << "#!/bin/sh\n"
+		    << "while [ $# -gt 0 ]; do\n"
+		    << "  case \"$1\" in\n"
+		    << "    -q)\n"
+		    << "      QUERY=\"$2\"\n"
+		    << "      shift 2\n"
+		    << "      ;;\n"
+		    << "    *)\n"
+		    << "      shift\n"
+		    << "      ;;\n"
+		    << "  esac\n"
+		    << "done\n"
+		    << "case \"$QUERY\" in\n"
+		    << "  *\"dump-functions\"*)\n"
+		    << "    TARGET=$(echo \"$QUERY\" | awk '{print $2}' | tr -d \"'\\\"\")\n"
+		    << "    cat << 'EOF' > \"$TARGET\"\n"
+		    << "[\n"
+		    << "  {\n"
+		    << "    \"name\": \"kernel_init\",\n"
+		    << "    \"file_path\": \"init/main.c\",\n"
+		    << "    \"line_start\": 10,\n"
+		    << "    \"line_end\": 25,\n"
+		    << "    \"calls\": [\"setup_arch\", \"trap_init\"],\n"
+		    << "    \"types\": [\"task_struct\"]\n"
+		    << "  }\n"
+		    << "]\n"
+		    << "EOF\n"
+		    << "    ;;\n"
+		    << "  *\"dump-types\"*)\n"
+		    << "    TARGET=$(echo \"$QUERY\" | awk '{print $2}' | tr -d \"'\\\"\")\n"
+		    << "    cat << 'EOF' > \"$TARGET\"\n"
+		    << "[\n"
+		    << "  {\n"
+		    << "    \"name\": \"task_struct\",\n"
+		    << "    \"file_path\": \"include/linux/sched.h\",\n"
+		    << "    \"line_start\": 500,\n"
+		    << "    \"kind\": \"struct\",\n"
+		    << "    \"types\": [\"thread_info\"]\n"
+		    << "  }\n"
+		    << "]\n"
+		    << "EOF\n"
+		    << "    ;;\n"
+		    << "esac\n";
+	}
+	chmod(mock_cli.c_str(), 0755);
+
+	semcode_indexer indexer(db_file);
+	bool ok = indexer.build_from_project(test_dir, mock_cli, 2);
+	assert(ok);
+
+	// Open the generated database and verify entries
+	assert(indexer.open());
+
+	auto fns = indexer.lookup_function("kernel_init");
+	assert(fns.size() == 1);
+	assert(fns[0].name == "kernel_init");
+	assert(fns[0].file_path == "init/main.c");
+	assert(fns[0].line_start == 10);
+	assert(fns[0].line_end == 25);
+	assert(fns[0].calls.size() == 2);
+	assert(fns[0].calls[0] == "setup_arch");
+	assert(fns[0].calls[1] == "trap_init");
+	assert(fns[0].types.size() == 1);
+	assert(fns[0].types[0] == "task_struct");
+
+	auto tys = indexer.lookup_type("task_struct");
+	assert(tys.size() == 1);
+	assert(tys[0].name == "task_struct");
+	assert(tys[0].kind == "struct");
+
+	indexer.close();
+	fs::remove_all(test_dir);
+	std::cout << "  Passed!" << std::endl;
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog();
 	test_indexer_ingest_and_query();
 	test_cache_pruning();
+	test_build_from_project();
 	std::cout << "All semcode_indexer tests passed successfully!" << std::endl;
 	return 0;
 }

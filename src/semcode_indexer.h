@@ -53,6 +53,17 @@ class semcode_indexer
 	size_t ingest_types_stream(std::istream &input);
 	size_t ingest_types_file(const std::string &untrusted_json_path);
 
+	/**
+	 * @brief Runs semcode CLI on a project to dump functions and types to temporary JSON files,
+	 * ingests them, builds B-tree indices, records metadata, and prunes stale databases in the destination directory.
+	 * @param untrusted_project_dir Path to the git project directory.
+	 * @param semcode_bin Path or binary name for the semcode CLI.
+	 * @param max_dbs Maximum number of database files to retain in destination directory (default: 2).
+	 * @return True on success, false if semcode invocation or ingestion failed.
+	 */
+	[[nodiscard]] bool build_from_project(const std::string &untrusted_project_dir, std::string_view semcode_bin = "semcode",
+					      size_t max_dbs = 2);
+
 	// Builds indexes on tables after bulk loading
 	[[nodiscard]] bool build_indices();
 

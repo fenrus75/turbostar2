@@ -704,3 +704,102 @@ void semcode_indexer::touch_database(const std::string &untrusted_db_path)
 		std::filesystem::last_write_time(safe_path, std::filesystem::file_time_type::clock::now(), ec);
 	}
 }
+
+bool semcode_indexer::build_from_project(const std::string &untrusted_project_dir, std::string_view semcode_bin, size_t max_dbs)
+{
+	std::string safe_project = untrusted_project_dir;
+	std::error_code ec;
+	if (safe_project.empty() || !std::filesystem::is_directory(safe_project, ec)) {
+		return false;
+	}
+
+	// 1. Resolve git commit HEAD if in a git repository
+	std::string git_cmd = fs_utils::format_command("git -C {} rev-parse HEAD 2>/dev/null", safe_project);
+	std::string git_head = fs_utils::execute_command_sync(git_cmd, 5);
+	size_t nl = git_head.find_first_of("\r\n");
+	if (nl != std::string::npos) {
+		git_head = git_head.substr(0, nl);
+	}
+
+	// 2. Create scratch directory for temporary JSON dumps
+	auto timestamp = std::chrono::system_clock::now().time_since_epoch().count();
+	std::string temp_dir = fs_utils::get_project_tmp_dir() + "/semcode_build_" + std::to_string(timestamp);
+	std::filesystem::create_directories(temp_dir, ec);
+
+	std::string fn_tmp = temp_dir + "/functions.json";
+	std::string ty_tmp = temp_dir + "/types.json";
+
+	// RAII cleanup guard to ensure temporary dumps are deleted upon return
+	struct cleanup_guard {
+		std::string dir;
+		~cleanup_guard()
+		{
+			if (!dir.empty()) {
+				std::error_code err;
+				std::filesystem::remove_all(dir, err);
+			}
+		}
+	} guard{temp_dir};
+
+	// 3. Run semcode dump-functions
+	std::string dump_fn_cmd =
+	    fs_utils::format_command("{} -d {} --git-repo {} -q \"dump-functions {}\"", semcode_bin, safe_project, safe_project, fn_tmp);
+	fs_utils::execute_command_sync(dump_fn_cmd, 120);
+
+	// 4. Run semcode dump-types
+	std::string dump_ty_cmd =
+	    fs_utils::format_command("{} -d {} --git-repo {} -q \"dump-types {}\"", semcode_bin, safe_project, safe_project, ty_tmp);
+	fs_utils::execute_command_sync(dump_ty_cmd, 120);
+
+	// Ensure destination database is clean
+	close();
+	std::filesystem::remove(db_path_, ec);
+
+	if (!open()) {
+		return false;
+	}
+
+	// 5. Ingest dumps
+	size_t func_count = 0;
+	if (fs_utils::is_regular_file(fn_tmp)) {
+		func_count = ingest_functions_file(fn_tmp);
+	}
+
+	size_t type_count = 0;
+	if (fs_utils::is_regular_file(ty_tmp)) {
+		type_count = ingest_types_file(ty_tmp);
+	}
+
+	if (func_count == 0 && type_count == 0) {
+		close();
+		std::filesystem::remove(db_path_, ec);
+		return false;
+	}
+
+	// 6. Build indexes & save metadata
+	if (!build_indices()) {
+		close();
+		return false;
+	}
+
+	if (!git_head.empty()) {
+		(void)set_metadata("git_head", git_head);
+	}
+	(void)set_metadata("functions_count", std::to_string(func_count));
+	(void)set_metadata("types_count", std::to_string(type_count));
+	(void)set_metadata("created_at", std::to_string(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now())));
+
+	close();
+
+	// 7. Prune cache directory
+	if (max_dbs > 0) {
+		std::filesystem::path db_file_path(db_path_);
+		std::filesystem::path parent = db_file_path.parent_path();
+		if (parent.empty()) {
+			parent = std::filesystem::current_path();
+		}
+		prune_cache_directory(parent.string(), max_dbs);
+	}
+
+	return true;
+}
