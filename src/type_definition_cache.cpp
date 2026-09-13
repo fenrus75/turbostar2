@@ -186,80 +186,48 @@ void type_definition_cache::request_async(std::string_view type_name, const std:
 
 			if (kind == "typedef") {
 				def_end = def_start;
-			} else {
-				// Obtain document symbols to find the enclosing struct/class scope
-				auto doc_symbols = get_document_codemap_symbols(rel_path, 1);
-				const codemap_symbol_info *target_sym = find_symbol_by_hint(doc_symbols, t_name);
-				if (!target_sym) {
-					target_sym = find_enclosing_symbol(doc_symbols, def_start);
-				}
-
-				if (target_sym && (target_sym->kind_str.find("Class") != std::string::npos ||
-						   target_sym->kind_str.find("Struct") != std::string::npos ||
-						   target_sym->kind_str == "Enum" || target_sym->kind_str == "Interface")) {
-					def_start = target_sym->start_line;
-					def_end = target_sym->end_line;
-					if (target_sym->kind_str == "Class") {
-						kind = "class";
-					} else if (target_sym->kind_str == "Enum") {
-						kind = "enum";
-					} else if (target_sym->kind_str == "Interface") {
-						kind = "interface";
-					} else {
-						kind = "struct";
-					}
-				}
-			}
-
-			// If end line is still equal to or smaller than start line (e.g. LSP returned a 1-line range
-			// or symbol AST didn't capture the full block), inspect the target file to determine the true
-			// closing brace of the struct/class/enum definition.
-			if (def_end <= def_start && kind != "typedef") {
-				std::ifstream file(abs_path);
-				if (file.is_open()) {
-					std::string line_content;
-					int current_line = 1;
-					int depth = 0;
-					bool started = false;
-					int scanned_end = def_start;
-
-					while (std::getline(file, line_content)) {
-						if (current_line >= def_start) {
-							if (!started) {
+				// If underlying_type is empty (e.g. indexer provided typedef kind but not the alias),
+				// read the source line at def_start to extract the alias (e.g. typedef s64 ktime_t -> s64).
+				if (underlying_type.empty()) {
+					std::ifstream file(abs_path);
+					if (file.is_open()) {
+						std::string line_content;
+						int current_line = 1;
+						while (std::getline(file, line_content)) {
+							if (current_line >= def_start && current_line <= def_start + 3) {
 								extract_typedef_or_alias(line_content, t_name, kind, underlying_type);
-								if (kind == "typedef" || !underlying_type.empty()) {
-									scanned_end = current_line;
-									def_end = current_line;
+								if (!underlying_type.empty()) {
 									break;
 								}
-								if (line_content.find("enum ") != std::string::npos) {
-									kind = "enum";
-								} else if (line_content.find("class ") != std::string::npos) {
-									kind = "class";
-								} else if (line_content.find("struct ") != std::string::npos) {
-									kind = "struct";
-								}
 							}
-							for (char c : line_content) {
-								if (c == '{') {
-									depth++;
-									started = true;
-								} else if (c == '}') {
-									depth--;
-								}
-							}
-							if (started && depth <= 0) {
-								scanned_end = current_line;
+							if (current_line > def_start + 3) {
 								break;
 							}
+							++current_line;
 						}
-						if (current_line > def_start + 1000) {
-							break;
-						}
-						++current_line;
 					}
-					if (started && scanned_end > def_start) {
-						def_end = scanned_end;
+				}
+			} else {
+				expand_range_to_symbol_bounds(abs_path, t_name, def_start, def_end, kind);
+				// Check if the symbol at def_start is actually a typedef or type alias
+				if (kind != "typedef" && underlying_type.empty() && fs_utils::is_regular_file(abs_path)) {
+					std::ifstream file(abs_path);
+					if (file.is_open()) {
+						std::string line_content;
+						int current_line = 1;
+						while (std::getline(file, line_content)) {
+							if (current_line == def_start) {
+								extract_typedef_or_alias(line_content, t_name, kind, underlying_type);
+								if (kind == "typedef") {
+									def_end = def_start;
+								}
+								break;
+							}
+							if (current_line > def_start) {
+								break;
+							}
+							++current_line;
+						}
 					}
 				}
 			}

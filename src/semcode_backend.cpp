@@ -452,10 +452,14 @@ std::vector<lsp_backend::location_info> semcode_backend::query_definition(const 
 				}
 				location_info loc;
 				loc.path = full_path.string();
-				int zero_start = std::max(0, f.line_start - 1);
-				int zero_end = std::max(0, f.line_end - 1);
+				int line_start = f.line_start;
+				int line_end = f.line_end;
+				std::string kind = "function";
+				tools::expand_range_to_symbol_bounds(loc.path, f.name, line_start, line_end, kind);
+				int zero_start = std::max(0, line_start - 1);
+				int zero_end = std::max(0, line_end - 1);
 				loc.range = text_range{zero_start, 0, zero_end, 0};
-				loc.kind = "function";
+				loc.kind = kind;
 				return {loc};
 			} else if (unique_funcs.size() > 1) {
 				// Ambiguity detected across multiple functions
@@ -503,10 +507,14 @@ std::vector<lsp_backend::location_info> semcode_backend::query_definition(const 
 				}
 				location_info loc;
 				loc.path = full_path.string();
-				int zero_start = std::max(0, t.line_start - 1);
-				int zero_end = std::max(0, t.line_end - 1);
+				int line_start = t.line_start;
+				int line_end = t.line_end;
+				std::string kind = t.kind.empty() ? "type" : t.kind;
+				tools::expand_range_to_symbol_bounds(loc.path, t.name, line_start, line_end, kind);
+				int zero_start = std::max(0, line_start - 1);
+				int zero_end = std::max(0, line_end - 1);
 				loc.range = text_range{zero_start, 0, zero_end, 0};
-				loc.kind = t.kind.empty() ? "type" : t.kind;
+				loc.kind = kind;
 				loc.underlying_type = t.underlying_type;
 				return {loc};
 			} else if (unique_types.size() > 1) {
@@ -575,10 +583,14 @@ std::vector<lsp_backend::location_info> semcode_backend::query_type_definition(c
 				}
 				location_info loc;
 				loc.path = full_path.string();
-				int zero_start = std::max(0, t.line_start - 1);
-				int zero_end = std::max(0, t.line_end - 1);
+				int line_start = t.line_start;
+				int line_end = t.line_end;
+				std::string kind = t.kind.empty() ? "type" : t.kind;
+				tools::expand_range_to_symbol_bounds(loc.path, t.name, line_start, line_end, kind);
+				int zero_start = std::max(0, line_start - 1);
+				int zero_end = std::max(0, line_end - 1);
 				loc.range = text_range{zero_start, 0, zero_end, 0};
-				loc.kind = t.kind.empty() ? "type" : t.kind;
+				loc.kind = kind;
 				loc.underlying_type = t.underlying_type;
 				return {loc};
 			} else if (unique_types.size() > 1) {
@@ -680,7 +692,17 @@ std::vector<lsp_backend::symbol_node> semcode_backend::query_document_symbols(co
 	for (const auto &s : syms) {
 		symbol_node node;
 		node.name = s.name;
-		node.kind = 12; // Function
+		if (s.kind_str.find("Class") != std::string::npos) {
+			node.kind = 5; // Class
+		} else if (s.kind_str.find("Struct") != std::string::npos) {
+			node.kind = 23; // Struct
+		} else if (s.kind_str == "Enum") {
+			node.kind = 9; // Enum
+		} else if (s.kind_str == "Interface") {
+			node.kind = 11; // Interface
+		} else {
+			node.kind = 12; // Function
+		}
 		node.range.start_y = s.start_line - 1;
 		node.range.start_x = 0;
 		node.range.end_y = s.end_line - 1;

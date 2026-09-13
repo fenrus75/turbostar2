@@ -455,7 +455,9 @@ static void test_indexer_queries()
 	assert(table_md.find("cleanup") == std::string::npos);
 	assert(table_md.find("xdp_synproxy.c") == std::string::npos);
 
-	fs::remove_all(test_dir);
+	backend.stop();
+	std::error_code ec;
+	fs::remove_all(test_dir, ec);
 	std::cout << "  Passed!" << std::endl;
 }
 
@@ -541,7 +543,9 @@ static void test_call_hierarchy_instant()
 	auto batch_results = backend.query_call_hierarchy_outgoing_batch(src_file, {{3, 6}});
 	assert(batch_results.size() == 2);
 
-	fs::remove_all(test_dir);
+	backend.stop();
+	std::error_code ec;
+	fs::remove_all(test_dir, ec);
 	std::cout << "  Passed!" << std::endl;
 }
 

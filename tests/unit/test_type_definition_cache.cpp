@@ -261,7 +261,8 @@ int main()
 					loc.range = {line, 0, line, 0};
 					if (line == 1) {
 						loc.kind = "typedef";
-						loc.underlying_type = "s64";
+						loc.underlying_type =
+						    ""; // Simulate semcode indexer returning typedef without pre-populated underlying_type
 					}
 				} else if (filepath.find("macro") != std::string::npos || line == 1) {
 					loc.path = macro_tgt_;

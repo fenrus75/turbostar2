@@ -16,6 +16,7 @@ static void test_indexer_ingest_and_query()
 	std::cout << "Testing semcode_indexer ingest and query..." << std::endl;
 
 	std::string test_dir = fs_utils::get_project_tmp_dir() + "/test_semcode_indexer";
+	fs::remove_all(test_dir);
 	fs::create_directories(test_dir);
 	std::string db_file = test_dir + "/test_index.db";
 
@@ -142,6 +143,7 @@ static void test_indexer_ingest_and_query()
 	assert(res_struct.size() == 1);
 	assert(res_struct[0].name == "cpuinfo_mips");
 	assert(res_struct[0].kind == "struct");
+	assert(res_struct[0].underlying_type.empty());
 
 	indexer.close();
 	fs::remove_all(test_dir);

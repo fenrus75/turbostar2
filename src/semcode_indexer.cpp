@@ -451,11 +451,17 @@ size_t semcode_indexer::ingest_types_stream(std::istream &input)
 					current_line_end = current_line_start;
 				}
 
-				// If typedef: extract first line of types as underlying_type if not explicitly set
+				// If typedef or alias: extract first line of types as underlying_type if not explicitly set.
+				// For struct, class, enum, union, etc., current_types contains member/referenced types
+				// and must NOT be populated as underlying_type.
 				std::string underlying_type = current_underlying;
-				if (underlying_type.empty() && !current_types.empty()) {
-					size_t nl = current_types.find('\n');
-					underlying_type = (nl == std::string::npos) ? current_types : current_types.substr(0, nl);
+				if (current_kind == "typedef" || current_kind == "alias") {
+					if (underlying_type.empty() && !current_types.empty()) {
+						size_t nl = current_types.find('\n');
+						underlying_type = (nl == std::string::npos) ? current_types : current_types.substr(0, nl);
+					}
+				} else {
+					underlying_type.clear();
 				}
 
 				sqlite3_bind_text(stmt, 1, current_name.c_str(), -1, SQLITE_TRANSIENT);

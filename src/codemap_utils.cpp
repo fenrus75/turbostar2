@@ -138,13 +138,11 @@ static std::vector<codemap_symbol_info> structure_symbol_hierarchy(const std::ve
 static bool is_cpp_function_specifier_word(std::string_view word)
 {
 	static const std::unordered_set<std::string_view> keywords = {
-		"static", "inline", "virtual", "explicit", "extern", "constexpr", "consteval",
-		"noexcept", "noinstr", "__always_inline", "__init", "__exit", "asmlinkage",
-		"__sched", "void", "int", "bool", "char", "long", "short", "unsigned",
-		"signed", "size_t", "ssize_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t",
-		"int8_t", "int16_t", "int32_t", "int64_t", "u8", "u16", "u32", "u64",
-		"s8", "s16", "s32", "s64", "ktime_t", "auto", "double", "float", "const"
-	};
+	    "static",	"inline",  "virtual",	 "explicit", "extern",	"constexpr", "consteval", "noexcept", "noinstr", "__always_inline",
+	    "__init",	"__exit",  "asmlinkage", "__sched",  "void",	"int",	     "bool",	  "char",     "long",	 "short",
+	    "unsigned", "signed",  "size_t",	 "ssize_t",  "uint8_t", "uint16_t",  "uint32_t",  "uint64_t", "int8_t",	 "int16_t",
+	    "int32_t",	"int64_t", "u8",	 "u16",	     "u32",	"u64",	     "s8",	  "s16",      "s32",	 "s64",
+	    "ktime_t",	"auto",	   "double",	 "float",    "const"};
 	return keywords.contains(word);
 }
 
@@ -167,8 +165,7 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 	bool is_py = (ext == ".py");
 	bool is_sv = (ext == ".sv" || ext == ".svh" || ext == ".v" || ext == ".vh");
 
-	static const std::regex cpp_func_head_regex(
-	    R"(^\s*(?:[\w:\<\>]+\s*[\*\&]*\s+)*[\*\&]*\s*([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*)\s*\()");
+	static const std::regex cpp_func_head_regex(R"(^\s*(?:[\w:\<\>]+\s*[\*\&]*\s+)*[\*\&]*\s*([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*)\s*\()");
 	static const std::regex cpp_class_regex(R"(^\s*(?:typedef\s+)?(?:class|struct)\s+([a-zA-Z_]\w*))");
 	static const std::regex cpp_enum_regex(R"(^\s*(?:typedef\s+)?enum(?:\s+class|\s+struct)?\s+([a-zA-Z_]\w*))");
 	static const std::regex py_func_regex(R"(^\s*def\s+([a-zA-Z_]\w*)\s*\()");
@@ -676,9 +673,11 @@ static std::pair<int, int> get_symbol_location(const std::string &file_path, int
 			if (!short_name.empty()) {
 				size_t pos = line.find(short_name);
 				if (pos != std::string::npos) {
-					bool left_ok = (pos == 0 || (!std::isalnum(static_cast<unsigned char>(line[pos - 1])) && line[pos - 1] != '_'));
+					bool left_ok = (pos == 0 ||
+							(!std::isalnum(static_cast<unsigned char>(line[pos - 1])) && line[pos - 1] != '_'));
 					size_t after = pos + short_name.size();
-					bool right_ok = (after >= line.size() || (!std::isalnum(static_cast<unsigned char>(line[after])) && line[after] != '_'));
+					bool right_ok = (after >= line.size() ||
+							 (!std::isalnum(static_cast<unsigned char>(line[after])) && line[after] != '_'));
 					if (left_ok && right_ok) {
 						return {current_line - 1, static_cast<int>(pos)};
 					}
@@ -780,12 +779,11 @@ static void refresh_outgoing_calls_async(std::string safe_path, std::vector<code
 	}).detach();
 }
 
-static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
-	const std::string &safe_path, int start_line, int end_line,
-	const std::vector<codemap_symbol_info> &doc_symbols,
-	std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
-	agentlib::tool_context *ctx,
-	std::chrono::steady_clock::time_point deadline)
+static std::vector<outgoing_call_reference>
+extract_outgoing_calls_from_slice(const std::string &safe_path, int start_line, int end_line,
+				  const std::vector<codemap_symbol_info> &doc_symbols,
+				  std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
+				  agentlib::tool_context *ctx, std::chrono::steady_clock::time_point deadline)
 {
 	return call_resolver::extract_calls_from_slice(safe_path, start_line, end_line, doc_symbols, symbols_cache, ctx, deadline);
 }
@@ -928,7 +926,8 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 	// Merges any calls present in the slice that standard call hierarchy missed.
 	size_t slice_added_count = 0;
 	if (std::chrono::steady_clock::now() < deadline) {
-		auto slice_calls = extract_outgoing_calls_from_slice(safe_path, start_line, end_line, effective_symbols, symbols_cache, ctx, deadline);
+		auto slice_calls =
+		    extract_outgoing_calls_from_slice(safe_path, start_line, end_line, effective_symbols, symbols_cache, ctx, deadline);
 		bool added_any = false;
 		for (auto &sc : slice_calls) {
 			bool already_present = false;
@@ -951,11 +950,12 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 		}
 	}
 
-	event_logger::get_instance().log(std::format(
-		"get_outgoing_calls_in_range: path='{}', range={}-{}, query_positions={}, lsp_items={}, hierarchy_resolved={}, slice_added={}, total_calls={}",
-		safe_path, start_line, end_line, positions.size(), lsp_items.size(),
-		all_calls.size() >= slice_added_count ? (all_calls.size() - slice_added_count) : all_calls.size(),
-		slice_added_count, range_result.size()));
+	event_logger::get_instance().log(
+	    std::format("get_outgoing_calls_in_range: path='{}', range={}-{}, query_positions={}, lsp_items={}, hierarchy_resolved={}, "
+			"slice_added={}, total_calls={}",
+			safe_path, start_line, end_line, positions.size(), lsp_items.size(),
+			all_calls.size() >= slice_added_count ? (all_calls.size() - slice_added_count) : all_calls.size(),
+			slice_added_count, range_result.size()));
 
 	return range_result;
 }
@@ -1179,10 +1179,10 @@ codemap_selection_result select_prioritized_codemap_symbols(const std::vector<co
 
 	res.omitted_count = (res.total_symbols > take_count) ? (res.total_symbols - take_count) : 0;
 
-	event_logger::get_instance().log(std::format(
-		"select_prioritized_codemap_symbols: file='{}', range={}-{}, direct_calls={}, enclosing_calls={}, cross_file_deps_added={}, total_selected={}",
-		safe_path, read_start, read_end, direct_outgoing_calls.size(), enclosing_call_targets.size(),
-		cross_file_count, res.selected_symbols.size()));
+	event_logger::get_instance().log(std::format("select_prioritized_codemap_symbols: file='{}', range={}-{}, direct_calls={}, "
+						     "enclosing_calls={}, cross_file_deps_added={}, total_selected={}",
+						     safe_path, read_start, read_end, direct_outgoing_calls.size(),
+						     enclosing_call_targets.size(), cross_file_count, res.selected_symbols.size()));
 
 	return res;
 }
@@ -1906,6 +1906,95 @@ std::string augment_compiler_output_with_codemap(const std::string &output, agen
 	}
 
 	return result;
+}
+
+bool expand_range_to_symbol_bounds(const std::string &file_path, std::string_view symbol_name, int &start_line, int &end_line,
+				   std::string &kind)
+{
+	if (kind == "typedef") {
+		end_line = start_line;
+		return true;
+	}
+
+	if (end_line > start_line) {
+		return true;
+	}
+
+	std::string abs_path =
+	    fs_utils::is_regular_file(file_path) ? std::filesystem::absolute(file_path).lexically_normal().string() : file_path;
+	std::string rel_path = fs_utils::make_relative_to_project(abs_path);
+
+	// 1. Try resolving using codemap symbols
+	auto doc_symbols = get_document_codemap_symbols(rel_path, 1);
+	const codemap_symbol_info *target_sym = find_symbol_by_hint(doc_symbols, symbol_name);
+	if (!target_sym && start_line > 0) {
+		target_sym = find_enclosing_symbol(doc_symbols, start_line);
+	}
+
+	if (target_sym && target_sym->end_line > target_sym->start_line) {
+		start_line = target_sym->start_line;
+		end_line = target_sym->end_line;
+		if (target_sym->kind_str.find("Class") != std::string::npos) {
+			kind = "class";
+		} else if (target_sym->kind_str.find("Struct") != std::string::npos) {
+			kind = "struct";
+		} else if (target_sym->kind_str == "Enum") {
+			kind = "enum";
+		} else if (target_sym->kind_str == "Interface") {
+			kind = "interface";
+		} else if (target_sym->kind_str == "Function" || target_sym->kind_str == "Method") {
+			kind = "function";
+		}
+		return true;
+	}
+
+	// 2. Fallback: inspect source file and scan braces
+	if (fs_utils::is_regular_file(abs_path)) {
+		std::ifstream file(abs_path);
+		if (file.is_open()) {
+			std::string line_content;
+			int current_line = 1;
+			int depth = 0;
+			bool started = false;
+			int scanned_end = start_line;
+
+			while (std::getline(file, line_content)) {
+				if (current_line >= start_line) {
+					if (!started) {
+						if (line_content.find("enum ") != std::string::npos) {
+							kind = "enum";
+						} else if (line_content.find("class ") != std::string::npos) {
+							kind = "class";
+						} else if (line_content.find("struct ") != std::string::npos) {
+							kind = "struct";
+						}
+					}
+					for (char c : line_content) {
+						if (c == '{') {
+							depth++;
+							started = true;
+						} else if (c == '}') {
+							depth--;
+						}
+					}
+					if (started && depth <= 0) {
+						scanned_end = current_line;
+						break;
+					}
+				}
+				if (current_line > start_line + 1000) {
+					break;
+				}
+				++current_line;
+			}
+			if (started && scanned_end > start_line) {
+				end_line = scanned_end;
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 } // namespace tools

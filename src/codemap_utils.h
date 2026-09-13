@@ -104,4 +104,9 @@ std::string get_line_symbol_annotation(const std::string &safe_path, int line_nu
 std::string augment_compiler_output_with_codemap(const std::string &output, agentlib::tool_context *ctx = nullptr,
 						 size_t max_annotations = 3);
 
+// Expands a 1-line or single-point LSP location range to the factual symbol definition bounds
+// using codemap symbols and closing brace scanning.
+bool expand_range_to_symbol_bounds(const std::string &file_path, std::string_view symbol_name, int &start_line, int &end_line,
+				   std::string &kind);
+
 } // namespace tools
