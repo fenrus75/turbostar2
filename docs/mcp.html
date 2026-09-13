@@ -150,25 +150,24 @@
         <p>Get the Turbostar MCP server running with your favorite agent CLI in under two minutes.</p>
       </div>
 
-      <!-- Step 1: Build & Binary Setup -->
+      <!-- Step 1: Build & Installation -->
       <div style="margin-bottom: 3rem;">
-        <h3 class="detail-subtitle" style="font-size: 1.4rem;">1. Compile and Install the <code>turbomcp</code> Binary</h3>
+        <h3 class="detail-subtitle" style="font-size: 1.4rem;">1. Compile and Install with Meson</h3>
         <p class="detail-text">
-          Build Turbostar from source using Meson. When the binary is invoked under the name <code>turbomcp</code> (via symlink or direct copy), it automatically starts in headless MCP server mode, silences standard stdout logging, and listens for standard JSON-RPC 2.0 requests over stdio.
+          Build and install Turbostar using Meson. Running <code>meson install -C build</code> automatically installs the <code>turbostar</code> executable and sets up the <code>turbomcp</code> symlink in your binary path. When invoked under the name <code>turbomcp</code>, Turbostar automatically launches in headless MCP server mode, silences standard stdout logging, and listens for standard JSON-RPC 2.0 requests over stdio.
         </p>
-        <pre><code><span class="comment"># Clone and build Turbostar</span>
+        <pre><code><span class="comment"># 1. Clone and configure build (installing to ~/.local or default prefix)</span>
 <span class="keyword">git</span> clone https://github.com/fenrus75/turbostar2.git
 <span class="keyword">cd</span> turbostar2
-<span class="keyword">meson</span> setup build
-<span class="keyword">ninja</span> -C build
+<span class="keyword">meson</span> setup build --prefix ~/.local
 
-<span class="comment"># Install turbomcp into your local PATH (e.g. ~/.local/bin)</span>
-<span class="keyword">ln</span> -sf $(pwd)/build/turbostar ~/.local/bin/turbomcp
+<span class="comment"># 2. Compile and install (installs turbostar and creates turbomcp symlink)</span>
+<span class="keyword">meson</span> install -C build
 
-<span class="comment"># Verify installation</span>
+<span class="comment"># 3. Verify installation</span>
 turbomcp --help</code></pre>
         <p class="detail-text" style="font-size: 0.9rem; margin-top: 0.75rem; color: var(--text-dimmed);">
-          <em>Tip:</em> If you prefer not to create a symlink, you can also launch the standard executable with <code>turbostar --mcp</code> or <code>turbostar --mcp-server</code>.
+          <em>Tip:</em> For system-wide installation (e.g. into <code>/usr/local</code>), omit the <code>--prefix</code> flag and run <code>sudo meson install -C build</code>. You can also explicitly launch the server using <code>turbostar --mcp</code>.
         </p>
       </div>
 
