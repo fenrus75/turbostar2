@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Turn your existing agent CLI into a native systems powerhouse. Expose Turbostar's 60+ tools, LSP X-ray codemaps, Semcode kernel indexing, and GDB crash analysis via the Model Context Protocol (MCP).">
+  <title>MCP Server - Turbostar Workspace</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="shortcut icon" href="assets/logo.jpg" type="image/x-icon">
+  <script src="./overlay.js" defer></script>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header>
+    <div class="header-container">
+      <a href="index.html" class="logo-link" id="nav-brand">
+        <img src="assets/logo.jpg" alt="Turbostar logo" class="logo-img">
+        <span class="logo-text">Turbostar</span>
+      </a>
+      <nav id="main-nav">
+        <a href="index.html" id="nav-home">Home</a>
+        <a href="editor.html" id="nav-editor">Editor Features</a>
+        <a href="ai.html" id="nav-ai">AI Features</a>
+        <a href="mcp.html" class="active" id="nav-mcp">MCP Server</a>
+        <a href="details.html" id="nav-details">Technical Details</a>
+        <a href="https://github.com/fenrus75/turbostar2/blob/main/docs/tools.md" id="nav-tools" target="_blank" rel="noopener noreferrer">Tools Reference</a>
+        <a href="https://github.com/fenrus75/turbostar2" id="nav-github" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="content-page">
+    <section class="page-header" id="mcp-header">
+      <span class="hero-tag">Model Context Protocol (MCP)</span>
+      <h1 class="page-title">All the Power of Turbostar. <span>In Your Existing AI CLI.</span></h1>
+      <p class="page-desc">
+        Love working in Gemini CLI, Claude Code, Antigravity, or Cursor? You don't have to change your workflow to get first-class systems programming tools. Turbostar runs as a high-performance MCP server, bringing 60+ specialized low-level coding, debugging, and navigation tools directly into your favorite agent environment.
+      </p>
+      <div class="cta-group" style="justify-content: flex-start; margin-top: 2rem; margin-bottom: 0;">
+        <a href="#install" class="btn btn-primary" id="cta-install">Installation Guide</a>
+        <a href="#tools" class="btn btn-secondary" id="cta-tools">Browse Available Tools</a>
+      </div>
+    </section>
+
+    <!-- Philosophy Callout -->
+    <section class="detail-split" id="mcp-philosophy" style="background: rgba(0, 0, 0, 0.2); padding: 3rem; border-radius: 8px; margin-bottom: 4rem;">
+      <div class="detail-info" style="max-width: 100%;">
+        <h2 class="detail-subtitle">Why an MCP Server for Systems Programming?</h2>
+        <p class="detail-text" style="font-size: 1.1rem; color: #fff;">
+          <strong>An agent CLI is only as capable as the primitives it can call.</strong>
+        </p>
+        <p class="detail-text">
+          When tasked with complex C, C++, or Linux kernel codebases, raw shell access causes agents to flail: grepping outputs thousands of unorganized lines, language servers time out on monolithic trees, and compiler logs blow past context windows.
+        </p>
+        <p class="detail-text">
+          The Turbostar MCP server bridges this gap. Without leaving your terminal or switching agent clients, your AI gains deterministic symbol definitions, automated scope bounds, kernel-scale Semcode B-tree indexing, and GDB crash dump inspection.
+        </p>
+      </div>
+    </section>
+
+    <!-- Feature 1: Semantic X-Ray Navigation -->
+    <section class="detail-split" id="semantic-navigation">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">LSP X-Ray &amp; Instant Codemaps</h2>
+        <p class="detail-text">
+          Give your agent structural vision across multi-million line codebases without wasting context tokens on raw grep searches.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Instant Definition Resolution:</strong> <code>code_get_definition</code> immediately retrieves exact type, struct, and function declarations across companion headers and source files.</li>
+          <li><strong>Syntax-Aware Symbol Reading:</strong> <code>fs_read_symbol</code> snaps code reads to syntactic function and class boundaries, preventing truncated definitions and incomplete signatures.</li>
+          <li><strong>Autonomous Outline Discovery:</strong> <code>fs_file_codemap</code> generates concise symbol outlines and line spans so your agent plans targeted edits before reading full files.</li>
+          <li><strong>Semcode Linux Kernel Indexing:</strong> For monolithic trees that overwhelm standard language servers, Turbostar queries pre-indexed SQLite B-trees in under 10 milliseconds.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-mcp-codemap">
+          <div class="terminal-header">
+            <div class="terminal-title">turbomcp -- tools/call: code_get_definition</div>
+          </div>
+          <div class="terminal-content">
+            <a href="./screenshot-agent-edits-the-program.png" target="_blank">
+              <img src="./screenshot-agent-edits-the-program.png" alt="Turbostar agent navigating symbols with deep LSP X-ray codemaps">
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Feature 2: High-Signal Systems Diagnostics -->
+    <section class="detail-split reverse" id="diagnostics-coredump">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Coredumps, GDB &amp; Binary Inspection</h2>
+        <p class="detail-text">
+          Native bugs require native inspection tools. Turbostar gives your agent the autonomy to diagnose segmentation faults, examine crash dumps, and inspect binary layouts.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Automated Crash Analysis:</strong> <code>crashdump_get_info</code> parses core dumps, extracts symbolicated GDB backtraces, and highlights faulting memory instructions automatically.</li>
+          <li><strong>Cycle-Accurate Profiling:</strong> Identify CPU cycle hotspots and execution bottlenecks through dedicated profiling summaries and instruction-level samples.</li>
+          <li><strong>ELF Symbol &amp; Section Tables:</strong> Inspect binary headers, exported symbols, and sections with <code>elf_list_symbols</code> and <code>elf_list_sections</code>.</li>
+          <li><strong>Targeted Binary Inspection:</strong> Analyze structured file layouts or inspect arbitrary memory byte offsets with <code>hexdump</code> and <code>hexinspect</code>.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-mcp-gdb">
+          <div class="terminal-header">
+            <div class="terminal-title">turbomcp -- tools/call: crashdump_get_info</div>
+          </div>
+          <div class="terminal-content">
+            <a href="./screenshot-debugger.png" target="_blank">
+              <img src="./screenshot-debugger.png" alt="Automated GDB backtrace symbolication and crashdump analysis">
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Feature 3: Context-Optimized Compilation & Safe Edits -->
+    <section class="detail-split" id="compilation-edits">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Token-Efficient Builds &amp; Safe Edits</h2>
+        <p class="detail-text">
+          Prevent build noise from exhausting your agent's context and ensure workspace modifications apply cleanly.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Build Diagnostic Minimizer:</strong> <code>fs_compile_project</code> and <code>fs_compile_file</code> execute builds, strip thousands of lines of successful compilation noise, and extract only the relevant compiler errors and warnings.</li>
+          <li><strong>Deterministic Multi-Chunk Replacements:</strong> <code>fs_replace_content</code> and <code>fs_multi_replace_content</code> validate exact target chunks before applying atomic changes, eliminating hallucinated line drift.</li>
+          <li><strong>Sandbox Boundary Enforcement:</strong> All file reads and modifications resolve relative to the configured project root, keeping operations contained and predictable.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-mcp-compile">
+          <div class="terminal-header">
+            <div class="terminal-title">turbomcp -- tools/call: fs_compile_project</div>
+          </div>
+          <div class="terminal-content">
+            <a href="./screenshot-compile.png" target="_blank">
+              <img src="./screenshot-compile.png" alt="Context-optimized compilation output stripping noise and preserving compiler diagnostics">
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Installation & Setup Walkthrough -->
+    <section class="features-section" id="install">
+      <div class="section-header">
+        <h2 class="section-title">Installation &amp; Setup How-To</h2>
+        <p>Get the Turbostar MCP server running with your favorite agent CLI in under two minutes.</p>
+      </div>
+
+      <!-- Step 1: Build & Binary Setup -->
+      <div style="margin-bottom: 3rem;">
+        <h3 class="detail-subtitle" style="font-size: 1.4rem;">1. Compile and Install the <code>turbomcp</code> Binary</h3>
+        <p class="detail-text">
+          Build Turbostar from source using Meson. When the binary is invoked under the name <code>turbomcp</code> (via symlink or direct copy), it automatically starts in headless MCP server mode, silences standard stdout logging, and listens for standard JSON-RPC 2.0 requests over stdio.
+        </p>
+        <pre><code><span class="comment"># Clone and build Turbostar</span>
+<span class="keyword">git</span> clone https://github.com/fenrus75/turbostar2.git
+<span class="keyword">cd</span> turbostar2
+<span class="keyword">meson</span> setup build
+<span class="keyword">ninja</span> -C build
+
+<span class="comment"># Install turbomcp into your local PATH (e.g. ~/.local/bin)</span>
+<span class="keyword">ln</span> -sf $(pwd)/build/turbostar ~/.local/bin/turbomcp
+
+<span class="comment"># Verify installation</span>
+turbomcp --help</code></pre>
+        <p class="detail-text" style="font-size: 0.9rem; margin-top: 0.75rem; color: var(--text-dimmed);">
+          <em>Tip:</em> If you prefer not to create a symlink, you can also launch the standard executable with <code>turbostar --mcp</code> or <code>turbostar --mcp-server</code>.
+        </p>
+      </div>
+
+      <!-- Step 2: Client Configurations -->
+      <div style="margin-bottom: 3rem;">
+        <h3 class="detail-subtitle" style="font-size: 1.4rem;">2. Configure Your Agent Environment</h3>
+        <p class="detail-text">
+          Add Turbostar to your agent's MCP server registry. Always pass <code>--project-dir</code> to specify your target codebase root, and <code>--log</code> to route internal logs away from standard output so the JSON-RPC stdio stream remains completely clean.
+        </p>
+
+        <!-- Config Grid -->
+        <div class="grid" style="margin-top: 1.5rem;">
+          <!-- Gemini CLI / Antigravity -->
+          <article class="card" id="cfg-gemini">
+            <h4 class="card-title">Gemini CLI &amp; Antigravity</h4>
+            <p class="card-desc">Add to <code>~/.gemini/config/mcp_config.json</code>:</p>
+            <pre><code>{
+  <span class="keyword">"mcpServers"</span>: {
+    <span class="keyword">"turbostar"</span>: {
+      <span class="type">"command"</span>: <span class="literal">"/home/user/.local/bin/turbomcp"</span>,
+      <span class="type">"args"</span>: [
+        <span class="literal">"--project-dir"</span>,
+        <span class="literal">"/path/to/your/project"</span>,
+        <span class="literal">"--log"</span>,
+        <span class="literal">"/tmp/turbomcp.log"</span>
+      ]
+    }
+  }
+}</code></pre>
+          </article>
+
+          <!-- Claude Code & Claude Desktop -->
+          <article class="card" id="cfg-claude">
+            <h4 class="card-title">Claude Code &amp; Claude Desktop</h4>
+            <p class="card-desc">Add to <code>claude_desktop_config.json</code> or <code>~/.claude/mcp.json</code>:</p>
+            <pre><code>{
+  <span class="keyword">"mcpServers"</span>: {
+    <span class="keyword">"turbostar"</span>: {
+      <span class="type">"command"</span>: <span class="literal">"turbomcp"</span>,
+      <span class="type">"args"</span>: [
+        <span class="literal">"--project-dir"</span>,
+        <span class="literal">"/path/to/your/project"</span>,
+        <span class="literal">"--log"</span>,
+        <span class="literal">"/tmp/turbomcp.log"</span>
+      ]
+    }
+  }
+}</code></pre>
+          </article>
+
+          <!-- Cursor / Windsurf / Generic MCP -->
+          <article class="card" id="cfg-cursor">
+            <h4 class="card-title">Cursor &amp; Generic MCP Clients</h4>
+            <p class="card-desc">Configure a standard stdio transport server:</p>
+            <pre><code><span class="comment"># Command / Binary:</span>
+turbomcp
+
+<span class="comment"># Arguments:</span>
+--project-dir /path/to/project
+--log /tmp/turbomcp.log</code></pre>
+          </article>
+        </div>
+      </div>
+
+      <!-- Step 3: Command Line Flags Table -->
+      <div>
+        <h3 class="detail-subtitle" style="font-size: 1.4rem; margin-bottom: 1rem;">3. Command-Line Options Reference</h3>
+        <p class="detail-text">Customize the server behavior using the following command-line flags:</p>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Flag</th>
+                <th>Description</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>--project-dir &lt;path&gt;</code></td>
+                <td>Specifies the workspace document root. Relative file paths, LSP lookups, and sandboxing rules resolve against this directory.</td>
+                <td><code>.</code> (Current Directory)</td>
+              </tr>
+              <tr>
+                <td><code>--log &lt;path&gt;</code></td>
+                <td>Redirects diagnostic logs to a file, ensuring standard output remains dedicated solely to the JSON-RPC stdio protocol.</td>
+                <td><code>~/.cache/turbostar/session.log</code></td>
+              </tr>
+              <tr>
+                <td><code>--mcp</code> / <code>--mcp-server</code></td>
+                <td>Explicitly starts the MCP JSON-RPC 2.0 stdio server loop (enabled automatically when the binary is named <code>turbomcp</code>).</td>
+                <td>Auto-detected</td>
+              </tr>
+              <tr>
+                <td><code>--model &lt;id&gt;</code></td>
+                <td>Overrides the default AI model identifier for prompt-based and subagent tasks.</td>
+                <td>Config default</td>
+              </tr>
+              <tr>
+                <td><code>--yolo</code></td>
+                <td>Enables non-interactive auto-approval of tool execution prompts.</td>
+                <td>Enabled by default in MCP mode</td>
+              </tr>
+              <tr>
+                <td><code>--all-tool-families</code></td>
+                <td>Exposes all tool families (navigation, editing, git, debugging, profiling, and subagents).</td>
+                <td>Enabled by default in MCP mode</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Available Tools Overview -->
+    <section class="features-section" id="tools">
+      <div class="section-header">
+        <h2 class="section-title">60+ Purpose-Built Tools at Your Command</h2>
+        <p>Turbostar's tool suite gives external agents superpowers across the full software engineering lifecycle.</p>
+      </div>
+
+      <div class="grid">
+        <!-- Card 1: Navigation & LSP -->
+        <article class="card" id="tool-family-nav">
+          <span class="card-icon">🧭</span>
+          <h3 class="card-title">Navigation &amp; LSP X-Ray</h3>
+          <p class="card-desc">Find symbols, examine definitions, and query monolithic codebases without token bloat.</p>
+          <ul class="detail-list" style="margin-bottom: 1rem;">
+            <li><code>code_get_definition</code>: Jump directly to struct, class, and function definitions.</li>
+            <li><code>code_get_references</code>: Track symbol usages project-wide.</li>
+            <li><code>code_get_scope</code>: Retrieve enclosing function and class hierarchy.</li>
+            <li><code>fs_read_symbol</code>: Read complete syntactic definitions with snapped bounds.</li>
+            <li><code>fs_file_codemap</code>: Compact file outlines with symbol types and line spans.</li>
+            <li><code>fs_grep_files</code>: High-speed pattern search with scope annotations.</li>
+          </ul>
+        </article>
+
+        <!-- Card 2: Safe Editing -->
+        <article class="card" id="tool-family-editing">
+          <span class="card-icon">✍️</span>
+          <h3 class="card-title">Precise File Editing</h3>
+          <p class="card-desc">Reliable, deterministic code mutations with exact content validation and line protection.</p>
+          <ul class="detail-list" style="margin-bottom: 1rem;">
+            <li><code>fs_read_lines</code>: Read line slices with automatic symbol dependency codemaps.</li>
+            <li><code>fs_replace_content</code>: Strict substring replacements with collision safeguards.</li>
+            <li><code>fs_multi_replace_content</code>: Atomically replace multiple disjoint blocks in one pass.</li>
+            <li><code>fs_write_file</code>: Safe file creation with auto-parent directory initialization.</li>
+            <li><code>fs_find_files</code> &amp; <code>fs_glob</code>: Fast, glob-filtered filesystem discovery.</li>
+          </ul>
+        </article>
+
+        <!-- Card 3: Build & QA -->
+        <article class="card" id="tool-family-build">
+          <span class="card-icon">⚙️</span>
+          <h3 class="card-title">Build &amp; QA Verification</h3>
+          <p class="card-desc">Fast compile-test feedback loops with automated diagnostic extraction.</p>
+          <ul class="detail-list" style="margin-bottom: 1rem;">
+            <li><code>fs_compile_project</code>: Run Meson, Make, or CMake with automatic noise filtering.</li>
+            <li><code>fs_compile_file</code>: Compile individual translation units with clangd diagnostics.</li>
+            <li><code>fs_compile_info</code>: Query compilation databases and build configurations.</li>
+            <li><code>fs_run_tests</code>: Execute test runners and parse structured failure backtraces.</li>
+          </ul>
+        </article>
+
+        <!-- Card 4: Systems Diagnostics & Debugging -->
+        <article class="card" id="tool-family-debug">
+          <span class="card-icon">🔬</span>
+          <h3 class="card-title">Systems Debugging &amp; ELF</h3>
+          <p class="card-desc">Low-level inspection tools tailored for native systems and kernel engineering.</p>
+          <ul class="detail-list" style="margin-bottom: 1rem;">
+            <li><code>crashdump_get_info</code>: Autonomous GDB coredump backtrace symbolication.</li>
+            <li><code>elf_list_symbols</code>: Inspect symbol tables, sizes, and bindings.</li>
+            <li><code>elf_list_sections</code>: Query binary ELF section headers and memory layouts.</li>
+            <li><code>hexdump</code> &amp; <code>hexinspect</code>: Byte-level inspection and structured parsing.</li>
+            <li><code>run_shell_command</code>: Sandboxed shell execution with output management.</li>
+          </ul>
+        </article>
+
+        <!-- Card 5: Git Version Control -->
+        <article class="card" id="tool-family-git">
+          <span class="card-icon">🌿</span>
+          <h3 class="card-title">Git Version Control</h3>
+          <p class="card-desc">Comprehensive repository inspection and branch management without shell parsing quirks.</p>
+          <ul class="detail-list" style="margin-bottom: 1rem;">
+            <li><code>git_status</code>: Structured repository status and file modification flags.</li>
+            <li><code>git_diff_unstaged</code> &amp; <code>git_diff_staged</code>: Clean, unified diff generation.</li>
+            <li><code>git_log</code> &amp; <code>git_blame</code>: Commit history and line-by-line attribution.</li>
+            <li><code>git_add</code>, <code>git_commit</code> &amp; <code>git_checkout_branch</code>: Workspace state management.</li>
+          </ul>
+        </article>
+
+        <!-- Card 6: Subagent Coordination -->
+        <article class="card" id="tool-family-subagents">
+          <span class="card-icon">👥</span>
+          <h3 class="card-title">Subagents &amp; Orchestration</h3>
+          <p class="card-desc">Spawn autonomous helper agents for focused research or parallel verification.</p>
+          <ul class="detail-list" style="margin-bottom: 1rem;">
+            <li><code>invoke_subagent</code>: Delegate background tasks to specialized subagents.</li>
+            <li><code>send_message</code>: Communicate asynchronously with running subagents.</li>
+            <li><code>get_subagent_output</code>: Retrieve structured outcomes and transcripts.</li>
+            <li><code>list_subagents</code> &amp; <code>kill_subagent</code>: Monitor and supervise active agent tasks.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div style="text-align: center; margin-top: 3rem;">
+        <a href="https://github.com/fenrus75/turbostar2/blob/main/docs/tools.md" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
+          View Full Tools Schema Reference &rarr;
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-container">
+      <span class="footer-text">&copy; 2026 Turbostar Project. Open source and available under the terms of the GPLv3 license.</span>
+      <div class="footer-links">
+        <a href="index.html" id="foot-home">Home</a>
+        <a href="editor.html" id="foot-editor">Editor</a>
+        <a href="ai.html" id="foot-ai">AI Agents</a>
+        <a href="mcp.html" id="foot-mcp">MCP Server</a>
+        <a href="details.html" id="foot-details">Technical Details</a>
+        <a href="ai.html#see-also" id="foot-presentations">Presentations</a>
+        <a href="https://github.com/fenrus75/turbostar2/blob/main/docs/tools.md" id="foot-tools" target="_blank" rel="noopener noreferrer">Tools Reference</a>
+        <a href="https://github.com/fenrus75/turbostar2" id="foot-github" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

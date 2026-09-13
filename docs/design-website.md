@@ -11,6 +11,8 @@ The website is implemented as a static site hosted from the `docs/` directory:
   - [index.html](file:///home/arjan/git/turbostar2/docs/index.html): Website homepage, highlighting core capabilities (TUI, LSP/Git, Agent, Command Center) and installation quickstart.
   - [editor.html](file:///home/arjan/git/turbostar2/docs/editor.html): Deep dive into developer-native features (Multi-Window layout, GDB Debugging, Crash Catcher, and Integrated Hex Editor), plus keyboard shortcut reference.
   - [ai.html](file:///home/arjan/git/turbostar2/docs/ai.html): Details regarding agentic workspace integrations, virtual context paging, undo history, and subagent controls.
+  - [mcp.html](file:///home/arjan/git/turbostar2/docs/mcp.html): Model Context Protocol (MCP) server guide, showcasing how to expose Turbostar's 60+ native systems programming tools to external agent CLIs (Gemini, Claude, Antigravity, Cursor) with installation and configuration walkthroughs.
+  - [details.html](file:///home/arjan/git/turbostar2/docs/details.html): Technical details for select features of Turbostar.
 - **Assets & Styling**:
   - [style.css](file:///home/arjan/git/turbostar2/docs/style.css): Main stylesheet containing the responsive Borland-inspired design system.
   - [overlay.js](file:///home/arjan/git/turbostar2/docs/overlay.js): Interceptor script for modal lightbox image preview.
@@ -73,7 +75,7 @@ All screenshots must be wrapped in a terminal mockup to simulate an active termi
 
 ## 5. Maintenance & Update Rules for Agents
 
-1. **Keep Navigation Menus Synced**: When adding pages or updating navigation links, changes must be replicated across `<header>` and `<footer>` elements in `index.html`, `editor.html`, and `ai.html`.
+1. **Keep Navigation Menus Synced**: When adding pages or updating navigation links, changes must be replicated across `<header>` and `<footer>` elements in `index.html`, `editor.html`, `ai.html`, `mcp.html`, and `details.html`.
 2. **Layout Consistency**: Always use existing CSS grid (`.grid`), card (`.card`), and split-layout (`.detail-split`) styles. Avoid inline styling or custom CSS overrides where possible.
 3. **Responsive Design**: Ensure all media queries in `style.css` are respected. Validate that any new markup scales down cleanly to mobile widths (e.g., flex directions collapse to columns on screens `< 900px`).
 4. **Log Updates**: Update the Done section in `docs/todo.md` under the correct completion date upon deploying website changes.
