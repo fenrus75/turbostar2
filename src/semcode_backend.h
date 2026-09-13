@@ -73,6 +73,11 @@ class semcode_backend : public standard_lsp_backend
 	void set_indexer(std::unique_ptr<semcode_indexer> indexer);
 
 	void init_indexer();
+	void refresh_indexer();
+	[[nodiscard]] bool is_indexing() const noexcept
+	{
+		return is_building_index_.load(std::memory_order_relaxed);
+	}
 
       protected:
 	std::shared_ptr<server_instance> get_server_for_file(const std::string &filepath) override;
@@ -117,4 +122,21 @@ class semcode_backend : public standard_lsp_backend
 	 */
 	mutable std::mutex indexer_mutex_;
 	std::unique_ptr<semcode_indexer> indexer_;
+
+	std::atomic<bool> is_building_index_{false};
+
+	/**
+	 * @brief Shared lifetime state to safely decouple detached background indexing threads from semcode_backend.
+	 */
+	struct build_lifetime_state {
+		/**
+		 * @brief Mutex protecting the backend pointer in the background build state.
+		 *
+		 * (1) Protects `backend` pointer against data races during semcode_backend destruction.
+		 * (2) Locking rules: Short, non-reentrant critical section held only to null out `backend` or swap `indexer_`.
+		 */
+		std::mutex mtx;
+		semcode_backend *backend{nullptr};
+	};
+	std::shared_ptr<build_lifetime_state> build_state_{std::make_shared<build_lifetime_state>()};
 };

@@ -17,6 +17,7 @@ namespace fs = std::filesystem;
 
 semcode_backend::semcode_backend(std::string project_root) : project_root_(std::move(project_root))
 {
+	build_state_->backend = this;
 	if (project_root_.empty()) {
 		project_root_ = project_manager::get_instance().get_project_root();
 	}
@@ -32,6 +33,10 @@ semcode_backend::semcode_backend(std::string project_root) : project_root_(std::
 
 semcode_backend::~semcode_backend()
 {
+	if (build_state_) {
+		std::lock_guard<std::mutex> lock(build_state_->mtx);
+		build_state_->backend = nullptr;
+	}
 	stop();
 }
 
@@ -67,10 +72,12 @@ void semcode_backend::init_indexer()
 
 	// 3. Look for an existing database matching git HEAD or the newest database in .semcode.db/
 	fs::path chosen_db;
+	bool is_exact_head = false;
 	if (!git_head.empty()) {
 		fs::path head_db = semcode_dir / std::format("semcode_{}.db", git_head);
 		if (fs_utils::is_regular_file(head_db.string())) {
 			chosen_db = head_db;
+			is_exact_head = true;
 		}
 	}
 
@@ -91,34 +98,60 @@ void semcode_backend::init_indexer()
 		std::lock_guard<std::mutex> lock(indexer_mutex_);
 		indexer_ = std::make_unique<semcode_indexer>(chosen_db.string());
 		if (indexer_->open()) {
-			event_logger::get_instance().log("semcode_backend: opened existing index database '{}'", chosen_db.string());
-			return;
+			event_logger::get_instance().log("semcode_backend: opened existing index database '{}' (exact_head: {})",
+							 chosen_db.string(), is_exact_head);
+			if (is_exact_head) {
+				return;
+			}
+		} else {
+			indexer_.reset();
 		}
-		indexer_.reset();
 	}
 
-	// 4. If no database exists yet but semcode CLI is available, build the index asynchronously
-	if (!semcode_cli_path_.empty() && fs::exists(semcode_dir, ec)) {
+	// 4. If current git HEAD is not yet indexed (or no database exists at all),
+	// and semcode CLI is available, build the index for the new git HEAD in the background
+	if (!is_exact_head && !semcode_cli_path_.empty() && fs::exists(semcode_dir, ec)) {
+		bool expected = false;
+		if (!is_building_index_.compare_exchange_strong(expected, true)) {
+			return;
+		}
+
 		fs::path target_db = semcode_dir / (!git_head.empty() ? std::format("semcode_{}.db", git_head) : "semcode_index.db");
 		std::string proj = project_root_;
 		std::string bin = semcode_cli_path_;
+		auto state = build_state_;
 
-		std::thread([this, proj, bin, target_db]() {
+		std::thread([state, proj, bin, target_db]() {
 			fs_utils::set_current_thread_name("semcode_bld");
 			event_logger::get_instance().log("semcode_backend: triggering background index build for '{}' -> '{}'", proj,
 							 target_db.string());
 			auto idx = std::make_unique<semcode_indexer>(target_db.string());
 			if (idx->build_from_project(proj, bin, 2)) {
 				if (idx->open()) {
-					std::lock_guard<std::mutex> lock(indexer_mutex_);
-					indexer_ = std::move(idx);
-					event_logger::get_instance().log("semcode_backend: background index build completed and loaded");
+					std::lock_guard<std::mutex> lock(state->mtx);
+					if (state->backend) {
+						std::lock_guard<std::mutex> idx_lock(state->backend->indexer_mutex_);
+						state->backend->indexer_ = std::move(idx);
+						state->backend->is_building_index_.store(false, std::memory_order_relaxed);
+						event_logger::get_instance().log(
+						    "semcode_backend: background index build completed and loaded");
+						return;
+					}
 				}
 			} else {
 				event_logger::get_instance().log("semcode_backend: background index build failed for '{}'", proj);
 			}
+			std::lock_guard<std::mutex> lock(state->mtx);
+			if (state->backend) {
+				state->backend->is_building_index_.store(false, std::memory_order_relaxed);
+			}
 		}).detach();
 	}
+}
+
+void semcode_backend::refresh_indexer()
+{
+	init_indexer();
 }
 
 semcode_indexer *semcode_backend::get_indexer() const noexcept

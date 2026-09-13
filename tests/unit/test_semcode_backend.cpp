@@ -545,6 +545,132 @@ static void test_call_hierarchy_instant()
 	std::cout << "  Passed!" << std::endl;
 }
 
+static void test_fallback_db_and_background_reindex()
+{
+	std::cout << "Testing fallback database and automatic background reindexing on new git HEAD..." << std::endl;
+
+	std::string test_dir = fs_utils::get_project_tmp_dir() + "/test_semcode_reindex";
+	fs::remove_all(test_dir);
+	fs::create_directories(test_dir + "/.semcode.db");
+
+	// 1. Initialize git repository
+	std::string init_cmd =
+	    fs_utils::format_command("git init -b main {} && git -C {} config user.email test@test.com && git -C {} config user.name Test",
+				     test_dir, test_dir, test_dir);
+	fs_utils::execute_command_sync(init_cmd, 10);
+
+	// Commit 1
+	std::string file1 = test_dir + "/test.c";
+	{
+		std::ofstream out(file1);
+		out << "void func1(void) {}\n";
+	}
+	std::string c1_cmd = fs_utils::format_command("git -C {} add test.c && git -C {} commit -m 'commit 1'", test_dir, test_dir);
+	fs_utils::execute_command_sync(c1_cmd, 10);
+
+	std::string sha1 = fs_utils::execute_command_sync(fs_utils::format_command("git -C {} rev-parse HEAD", test_dir), 5);
+	if (auto pos = sha1.find_first_of("\r\n"); pos != std::string::npos) {
+		sha1 = sha1.substr(0, pos);
+	}
+
+	// Create older database for commit 1
+	std::string db1 = test_dir + "/.semcode.db/semcode_" + sha1 + ".db";
+	{
+		semcode_indexer idx1(db1);
+		assert(idx1.open());
+		std::string fn_json = R"raw([
+  {
+    "name": "func1",
+    "file_path": "test.c",
+    "line_start": 1,
+    "line_end": 1,
+    "calls": []
+  }
+])raw";
+		std::istringstream stream(fn_json);
+		idx1.ingest_functions_stream(stream);
+		assert(idx1.build_indices());
+		idx1.close();
+	}
+
+	// Commit 2 (new HEAD with no existing DB yet)
+	{
+		std::ofstream out(file1, std::ios::app);
+		out << "void func2(void) {}\n";
+	}
+	std::string c2_cmd = fs_utils::format_command("git -C {} commit -am 'commit 2'", test_dir);
+	fs_utils::execute_command_sync(c2_cmd, 10);
+
+	std::string sha2 = fs_utils::execute_command_sync(fs_utils::format_command("git -C {} rev-parse HEAD", test_dir), 5);
+	if (auto pos = sha2.find_first_of("\r\n"); pos != std::string::npos) {
+		sha2 = sha2.substr(0, pos);
+	}
+
+	// Create mock semcode script that dumps func2
+	std::string mock_cli = test_dir + "/mock_semcode";
+	{
+		std::ofstream out(mock_cli);
+		out << "#!/bin/sh\n"
+		    << "while [ $# -gt 0 ]; do\n"
+		    << "  case \"$1\" in\n"
+		    << "    -q)\n"
+		    << "      QUERY=\"$2\"\n"
+		    << "      shift 2\n"
+		    << "      ;;\n"
+		    << "    *)\n"
+		    << "      shift\n"
+		    << "      ;;\n"
+		    << "  esac\n"
+		    << "done\n"
+		    << "case \"$QUERY\" in\n"
+		    << "  *\"dump-functions\"*)\n"
+		    << "    TARGET=$(echo \"$QUERY\" | awk '{print $2}' | tr -d \"'\\\"\")\n"
+		    << "    cat << 'EOF' > \"$TARGET\"\n"
+		    << "[\n"
+		    << "  {\n"
+		    << "    \"name\": \"func2\",\n"
+		    << "    \"file_path\": \"test.c\",\n"
+		    << "    \"line_start\": 2,\n"
+		    << "    \"line_end\": 2,\n"
+		    << "    \"calls\": []\n"
+		    << "  }\n"
+		    << "]\n"
+		    << "EOF\n"
+		    << "    ;;\n"
+		    << "  *\"dump-types\"*)\n"
+		    << "    TARGET=$(echo \"$QUERY\" | awk '{print $2}' | tr -d \"'\\\"\")\n"
+		    << "    echo '[]' > \"$TARGET\"\n"
+		    << "    ;;\n"
+		    << "esac\n";
+	}
+	chmod(mock_cli.c_str(), 0755);
+
+	setenv("SEMCODE_BIN", mock_cli.c_str(), 1);
+
+	semcode_backend backend(test_dir);
+
+	// 1. Should immediately have fallback indexer open (from sha1)
+	assert(backend.get_indexer() != nullptr);
+	assert(!backend.query_definition(file1, 0, 5).empty());
+
+	// 2. Wait for background indexing to complete (up to 3 seconds)
+	auto start_wait = std::chrono::steady_clock::now();
+	while (backend.is_indexing() &&
+	       std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start_wait).count() < 3) {
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	}
+
+	assert(!backend.is_indexing());
+
+	// 3. Verify that the new database was built and installed
+	std::string db2 = test_dir + "/.semcode.db/semcode_" + sha2 + ".db";
+	assert(fs_utils::is_regular_file(db2));
+
+	unsetenv("SEMCODE_BIN");
+	fs::remove_all(test_dir);
+	std::cout << "  Passed!" << std::endl;
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog();
@@ -553,6 +679,7 @@ int main()
 	test_supported_files_and_sync();
 	test_indexer_queries();
 	test_call_hierarchy_instant();
+	test_fallback_db_and_background_reindex();
 
 	std::cout << "All semcode_backend unit tests passed successfully!" << std::endl;
 	return 0;
