@@ -525,7 +525,7 @@ static void test_parallel_callee_prewarming_and_late_cache()
 		    << "    echo 'void fast_callee(void)'\n"
 		    << "    ;;\n"
 		    << "  *\"func slow_callee\"*)\n"
-		    << "    sleep 3.5\n"
+		    << "    sleep 5.5\n"
 		    << "    echo 'File: slow.c'\n"
 		    << "    echo 'Line: 1-5'\n"
 		    << "    echo 'Return type: void'\n"
@@ -543,11 +543,11 @@ static void test_parallel_callee_prewarming_and_late_cache()
 
 	semcode_backend backend(test_dir);
 
-	// Test 1: Query with a deadline (2000ms).
+	// Test 1: Query with a deadline (3500ms).
 	// fast_callee finishes in ~400-800ms (accounting for systemd-run invocation latency).
-	// slow_callee sleeps 3.5s (~4000ms total), so it will comfortably exceed the 2000ms deadline.
+	// slow_callee sleeps 5.5s (~6000ms total), so it will comfortably exceed the 3500ms deadline.
 	// The query should return fast_callee and not wait forever for slow_callee.
-	auto tight_deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(2000);
+	auto tight_deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(3500);
 	auto t_start = std::chrono::steady_clock::now();
 	auto calls1 = backend.query_call_hierarchy_outgoing(src_file, 3, 6, tight_deadline);
 	auto t_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t_start).count();
@@ -564,8 +564,8 @@ static void test_parallel_callee_prewarming_and_late_cache()
 	assert(found_fast);
 
 	// Test 2: The detached background query for slow_callee continues running in background.
-	// Wait 3500ms to ensure the background query finishes and populates cli_cache_.
-	std::this_thread::sleep_for(std::chrono::milliseconds(3500));
+	// Wait 5800ms to ensure the background query finishes and populates cli_cache_.
+	std::this_thread::sleep_for(std::chrono::milliseconds(5800));
 
 	// Test 3: Run the query again. Now both fast_callee AND slow_callee must be immediate cache hits!
 	auto t2_start = std::chrono::steady_clock::now();

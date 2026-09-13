@@ -242,6 +242,7 @@ size_t semcode_indexer::ingest_functions_stream(std::istream &input)
 	int depth = 0;
 	std::string current_name;
 	std::string current_file;
+	std::string current_git_file_hash;
 	int current_line_start = 0;
 	int current_line_end = 0;
 	std::string current_calls;
@@ -261,6 +262,7 @@ size_t semcode_indexer::ingest_functions_stream(std::istream &input)
 			if (depth == 1) {
 				current_name.clear();
 				current_file.clear();
+				current_git_file_hash.clear();
 				current_line_start = 0;
 				current_line_end = 0;
 				current_calls.clear();
@@ -275,6 +277,8 @@ size_t semcode_indexer::ingest_functions_stream(std::istream &input)
 				current_name = extract_quoted_value(trimmed);
 			} else if (trimmed.starts_with("\"file_path\":")) {
 				current_file = extract_quoted_value(trimmed);
+			} else if (trimmed.starts_with("\"git_file_hash\":")) {
+				current_git_file_hash = extract_quoted_value(trimmed);
 			} else if (trimmed.starts_with("\"line_start\":")) {
 				current_line_start = extract_int_value(trimmed);
 			} else if (trimmed.starts_with("\"line_end\":")) {
@@ -306,6 +310,15 @@ size_t semcode_indexer::ingest_functions_stream(std::istream &input)
 
 		if (trimmed.starts_with('}') || trimmed.starts_with("},")) {
 			if (depth == 1 && !current_name.empty()) {
+				if (blob_filter_enabled_ && !current_git_file_hash.empty() &&
+				    !valid_blob_hashes_.contains(current_git_file_hash)) {
+					// Stale function from an older historical commit
+					if (depth > 0) {
+						depth--;
+					}
+					continue;
+				}
+
 				if (current_line_end < current_line_start) {
 					current_line_end = current_line_start;
 				}
@@ -364,6 +377,7 @@ size_t semcode_indexer::ingest_types_stream(std::istream &input)
 	int depth = 0;
 	std::string current_name;
 	std::string current_file;
+	std::string current_git_file_hash;
 	int current_line_start = 0;
 	int current_line_end = 0;
 	std::string current_kind;
@@ -382,6 +396,7 @@ size_t semcode_indexer::ingest_types_stream(std::istream &input)
 			if (depth == 1) {
 				current_name.clear();
 				current_file.clear();
+				current_git_file_hash.clear();
 				current_line_start = 0;
 				current_line_end = 0;
 				current_kind.clear();
@@ -395,6 +410,8 @@ size_t semcode_indexer::ingest_types_stream(std::istream &input)
 				current_name = extract_quoted_value(trimmed);
 			} else if (trimmed.starts_with("\"file_path\":")) {
 				current_file = extract_quoted_value(trimmed);
+			} else if (trimmed.starts_with("\"git_file_hash\":")) {
+				current_git_file_hash = extract_quoted_value(trimmed);
 			} else if (trimmed.starts_with("\"line_start\":")) {
 				current_line_start = extract_int_value(trimmed);
 			} else if (trimmed.starts_with("\"line_end\":")) {
@@ -417,6 +434,15 @@ size_t semcode_indexer::ingest_types_stream(std::istream &input)
 
 		if (trimmed.starts_with('}') || trimmed.starts_with("},")) {
 			if (depth == 1 && !current_name.empty()) {
+				if (blob_filter_enabled_ && !current_git_file_hash.empty() &&
+				    !valid_blob_hashes_.contains(current_git_file_hash)) {
+					// Stale type from an older historical commit
+					if (depth > 0) {
+						depth--;
+					}
+					continue;
+				}
+
 				if (current_line_end < current_line_start) {
 					current_line_end = current_line_start;
 				}
@@ -696,6 +722,93 @@ size_t semcode_indexer::prune_cache_directory(const std::string &untrusted_dir, 
 	return removed_count;
 }
 
+void semcode_indexer::set_valid_blob_hashes(std::unordered_set<std::string> hashes)
+{
+	valid_blob_hashes_ = std::move(hashes);
+	blob_filter_enabled_ = !valid_blob_hashes_.empty();
+}
+
+void semcode_indexer::clear_valid_blob_hashes() noexcept
+{
+	valid_blob_hashes_.clear();
+	blob_filter_enabled_ = false;
+}
+
+bool semcode_indexer::has_blob_filter() const noexcept
+{
+	return blob_filter_enabled_ && !valid_blob_hashes_.empty();
+}
+
+bool semcode_indexer::load_valid_blobs_from_git(const std::string &untrusted_project_dir, std::string_view git_ref)
+{
+	std::string safe_project = untrusted_project_dir;
+	std::error_code ec;
+	if (safe_project.empty() || !std::filesystem::is_directory(safe_project, ec)) {
+		return false;
+	}
+
+	valid_blob_hashes_.clear();
+
+	// 1. Load blobs from git tree at git_ref
+	std::string ls_cmd = fs_utils::format_command("git -C {} ls-tree -r {} 2>/dev/null", safe_project, git_ref);
+	std::string ls_out = fs_utils::execute_command_sync(ls_cmd, 30);
+
+	std::string_view out_view(ls_out);
+	size_t pos = 0;
+	while (pos < out_view.size()) {
+		size_t next_nl = out_view.find('\n', pos);
+		std::string_view line = (next_nl == std::string_view::npos) ? out_view.substr(pos) : out_view.substr(pos, next_nl - pos);
+		size_t blob_pos = line.find(" blob ");
+		if (blob_pos != std::string_view::npos) {
+			size_t hash_start = blob_pos + 6;
+			if (hash_start + 40 <= line.size()) {
+				valid_blob_hashes_.emplace(line.substr(hash_start, 40));
+			}
+		}
+		if (next_nl == std::string_view::npos) {
+			break;
+		}
+		pos = next_nl + 1;
+	}
+
+	// 2. Also hash any uncommitted / modified files in the working directory
+	std::string status_cmd = fs_utils::format_command("git -C {} status --porcelain 2>/dev/null", safe_project);
+	std::string status_out = fs_utils::execute_command_sync(status_cmd, 10);
+	if (!status_out.empty()) {
+		std::string_view st_view(status_out);
+		size_t st_pos = 0;
+		while (st_pos < st_view.size()) {
+			size_t next_nl = st_view.find('\n', st_pos);
+			std::string_view line =
+			    (next_nl == std::string_view::npos) ? st_view.substr(st_pos) : st_view.substr(st_pos, next_nl - st_pos);
+			if (line.size() > 3) {
+				std::string_view file_rel = line.substr(3);
+				size_t arrow = file_rel.find(" -> ");
+				if (arrow != std::string_view::npos) {
+					file_rel = file_rel.substr(arrow + 4);
+				}
+				std::string hash_cmd =
+				    fs_utils::format_command("git -C {} hash-object {} 2>/dev/null", safe_project, file_rel);
+				std::string h = fs_utils::execute_command_sync(hash_cmd, 5);
+				size_t h_nl = h.find_first_of("\r\n");
+				if (h_nl != std::string::npos) {
+					h = h.substr(0, h_nl);
+				}
+				if (h.size() == 40) {
+					valid_blob_hashes_.insert(h);
+				}
+			}
+			if (next_nl == std::string_view::npos) {
+				break;
+			}
+			st_pos = next_nl + 1;
+		}
+	}
+
+	blob_filter_enabled_ = !valid_blob_hashes_.empty();
+	return blob_filter_enabled_;
+}
+
 void semcode_indexer::touch_database(const std::string &untrusted_db_path)
 {
 	std::string safe_path = untrusted_db_path;
@@ -720,6 +833,9 @@ bool semcode_indexer::build_from_project(const std::string &untrusted_project_di
 	if (nl != std::string::npos) {
 		git_head = git_head.substr(0, nl);
 	}
+
+	// Load valid blob hashes for this git commit to filter out historical duplicates
+	(void)load_valid_blobs_from_git(safe_project, git_head.empty() ? "HEAD" : git_head);
 
 	// 2. Create scratch directory for temporary JSON dumps
 	auto timestamp = std::chrono::system_clock::now().time_since_epoch().count();

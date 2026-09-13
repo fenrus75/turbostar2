@@ -164,6 +164,8 @@ int main(int argc, char **argv)
 			size_t nl = head_out.find_first_of("\r\n");
 			git_head = (nl == std::string::npos) ? head_out : head_out.substr(0, nl);
 		}
+
+		(void)indexer.load_valid_blobs_from_git(project_dir, git_head.empty() ? "HEAD" : git_head);
 	}
 
 	// Remove target output database if it already exists to start clean

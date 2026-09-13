@@ -287,12 +287,68 @@ static void test_build_from_project()
 	std::cout << "  Passed!" << std::endl;
 }
 
+static void test_blob_filtering()
+{
+	std::cout << "Testing semcode_indexer blob hash filtering..." << std::endl;
+
+	std::string test_dir = fs_utils::get_project_tmp_dir() + "/test_semcode_blob_filter";
+	fs::create_directories(test_dir);
+	std::string db_file = test_dir + "/test_filter.db";
+
+	std::string json_with_duplicates = R"raw([
+  {
+    "name": "ext4_bread",
+    "file_path": "fs/ext4/inode.c",
+    "git_file_hash": "stale_hash_1111111111111111111111111111111111111111",
+    "line_start": 500,
+    "line_end": 520,
+    "calls": ["old_call"],
+    "types": ["old_type"]
+  },
+  {
+    "name": "ext4_bread",
+    "file_path": "fs/ext4/inode.c",
+    "git_file_hash": "current_hash_2222222222222222222222222222222222222",
+    "line_start": 1048,
+    "line_end": 1066,
+    "calls": ["ext4_getblk"],
+    "types": ["buffer_head"]
+  }
+])raw";
+
+	semcode_indexer indexer(db_file);
+	assert(indexer.open());
+
+	// Only allow the current hash
+	std::unordered_set<std::string> valid{"current_hash_2222222222222222222222222222222222222"};
+	indexer.set_valid_blob_hashes(valid);
+	assert(indexer.has_blob_filter());
+
+	std::istringstream stream(json_with_duplicates);
+	size_t count = indexer.ingest_functions_stream(stream);
+	assert(count == 1);
+
+	assert(indexer.build_indices());
+
+	auto fns = indexer.lookup_function("ext4_bread");
+	assert(fns.size() == 1);
+	assert(fns[0].line_start == 1048);
+	assert(fns[0].line_end == 1066);
+	assert(fns[0].calls.size() == 1);
+	assert(fns[0].calls[0] == "ext4_getblk");
+
+	indexer.close();
+	fs::remove_all(test_dir);
+	std::cout << "  Passed!" << std::endl;
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog();
 	test_indexer_ingest_and_query();
 	test_cache_pruning();
 	test_build_from_project();
+	test_blob_filtering();
 	std::cout << "All semcode_indexer tests passed successfully!" << std::endl;
 	return 0;
 }

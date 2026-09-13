@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 struct sqlite3;
@@ -78,6 +79,23 @@ class semcode_indexer
 	[[nodiscard]] std::vector<semcode_type_entry> lookup_type(std::string_view name) const;
 
 	/**
+	 * @brief Sets the list of valid git file blob hashes to filter during ingestion.
+	 * Any functions or types whose git_file_hash does not match are discarded as stale historical versions.
+	 */
+	void set_valid_blob_hashes(std::unordered_set<std::string> hashes);
+	void clear_valid_blob_hashes() noexcept;
+	[[nodiscard]] bool has_blob_filter() const noexcept;
+
+	/**
+	 * @brief Inspects a git repository at the given git ref (default "HEAD") and populates the valid blob hashes set.
+	 * Reads all tree blobs via git ls-tree -r, and also includes hashes of any uncommitted/dirty files in the working directory.
+	 * @param untrusted_project_dir Path to the git project directory.
+	 * @param git_ref Git reference or commit hash to resolve blobs for (default: "HEAD").
+	 * @return True if at least one blob was discovered.
+	 */
+	bool load_valid_blobs_from_git(const std::string &untrusted_project_dir, std::string_view git_ref = "HEAD");
+
+	/**
 	 * @brief Prunes old semcode database files (*.db and companion files) in a directory, keeping at most max_dbs copies.
 	 * Sorts databases by last modification time (most recent first) and removes the oldest ones.
 	 * @param untrusted_dir Directory path containing the databases.
@@ -94,6 +112,8 @@ class semcode_indexer
       private:
 	std::string db_path_;
 	sqlite3 *db_{nullptr};
+	std::unordered_set<std::string> valid_blob_hashes_;
+	bool blob_filter_enabled_{false};
 
 	[[nodiscard]] bool init_schema();
 };
