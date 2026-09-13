@@ -282,10 +282,10 @@ bool call_resolver::resolve_target(
 	std::string def_path;
 	int def_pos_line = -1;
 
-	// 1. If target_uri_path points to caller_file, it represents a call site inside the caller,
-	// so query LSP definition at that position to locate where the symbol is implemented
-	if (!target_uri_path.empty() && target_uri_path == norm_caller &&
-	    item.selection_range.start_y >= 0 && item.selection_range.start_x >= 0) {
+	// 1. Primary resolution: ask LSP for definition location of the symbol.
+	// If target_uri_path is provided with a valid position (either call site in caller or
+	// candidate definition from call hierarchy), query LSP definition to locate/verify the symbol.
+	if (!target_uri_path.empty() && item.selection_range.start_y >= 0 && item.selection_range.start_x >= 0) {
 		auto defs = project_manager::get_instance().lsp_query_definition(
 			target_uri_path, item.selection_range.start_y, item.selection_range.start_x);
 
@@ -293,12 +293,33 @@ bool call_resolver::resolve_target(
 		if (chosen) {
 			def_path = fs_utils::make_relative_to_project(chosen->path);
 			def_pos_line = chosen->range.start_y + 1;
+		} else if (!defs.empty()) {
+			// Ambiguous definitions across files: fail safely to prevent incorrect attribution
+			return false;
 		}
 	}
 
-	// 2. If target_uri_path is already an external target file (e.g. from calls -v or LSP call hierarchy item)
-	if (def_path.empty() && !target_uri_path.empty() && target_uri_path != norm_caller) {
-		// If it's a header, check if matching implementation file exists and contains the symbol
+	// 2. If URI was empty or definition not found, attempt workspace symbol query
+	if (def_path.empty() && !item.name.empty()) {
+		auto ws_syms = project_manager::get_instance().lsp_query_workspace_symbols(item.name);
+		std::vector<lsp_backend::location_info> locs;
+		for (const auto &ws : ws_syms) {
+			if (ws.name == item.name) {
+				locs.push_back(ws.location);
+			}
+		}
+		auto chosen = disambiguate_locations(locs, ref.caller_file, ctx);
+		if (chosen) {
+			def_path = fs_utils::make_relative_to_project(chosen->path);
+			def_pos_line = chosen->range.start_y + 1;
+		} else if (!locs.empty()) {
+			// Multiple workspace definitions found, but could not disambiguate uniquely: fail safely
+			return false;
+		}
+	}
+
+	// 3. Fallback resolution: if target_uri_path is a header, check if matching implementation file exists
+	if (def_path.empty() && !target_uri_path.empty()) {
 		if (target_uri_path.ends_with(".h") || target_uri_path.ends_with(".hpp")) {
 			std::string impl = find_matching_impl_file(target_uri_path, ctx);
 			if (!impl.empty()) {
@@ -314,31 +335,32 @@ bool call_resolver::resolve_target(
 			}
 		}
 
-		// If not found in matching implementation file, target_uri_path is directly the target file
 		if (def_path.empty()) {
 			if (!caller_is_test && is_test_path(target_uri_path)) {
 				return false;
+			}
+			// When an LSP backend is active and target is in a different file,
+			// do NOT guess or adopt unverified external targets that the backend failed to resolve.
+			if (target_uri_path != norm_caller && project_manager::get_instance().has_lsp_backend()) {
+				return false;
+			}
+			// Reject cross-architecture candidates if caller is not in that architecture
+			if (target_uri_path.starts_with("arch/")) {
+				if (!norm_caller.starts_with("arch/")) {
+					return false;
+				}
+				size_t caller_arch_slash = norm_caller.find('/', 5);
+				size_t cand_arch_slash = target_uri_path.find('/', 5);
+				if (caller_arch_slash != std::string::npos && cand_arch_slash != std::string::npos) {
+					if (norm_caller.substr(0, caller_arch_slash) != target_uri_path.substr(0, cand_arch_slash)) {
+						return false;
+					}
+				}
 			}
 			def_path = target_uri_path;
 			if (item.selection_range.start_y >= 0) {
 				def_pos_line = item.selection_range.start_y + 1;
 			}
-		}
-	}
-
-	// 3. If URI was empty (e.g. semcode returned callee name only), attempt workspace symbol query
-	if (def_path.empty() && !item.name.empty()) {
-		auto ws_syms = project_manager::get_instance().lsp_query_workspace_symbols(item.name);
-		std::vector<lsp_backend::location_info> locs;
-		for (const auto &ws : ws_syms) {
-			if (ws.name == item.name) {
-				locs.push_back(ws.location);
-			}
-		}
-		auto chosen = disambiguate_locations(locs, ref.caller_file, ctx);
-		if (chosen) {
-			def_path = fs_utils::make_relative_to_project(chosen->path);
-			def_pos_line = chosen->range.start_y + 1;
 		}
 	}
 

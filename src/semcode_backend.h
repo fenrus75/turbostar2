@@ -53,7 +53,13 @@ public:
 	[[nodiscard]] std::vector<location_info> query_references(const std::string &filepath, int line, int character) override;
 	[[nodiscard]] std::vector<symbol_info> query_workspace_symbols(const std::string &query) override;
 	[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &filepath) override;
-	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &filepath, int line, int character) override;
+	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &filepath, int line, int character) override
+	{
+		return query_call_hierarchy_outgoing(filepath, line, character, std::chrono::steady_clock::time_point::max());
+	}
+	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(
+		const std::string &filepath, int line, int character,
+		std::chrono::steady_clock::time_point deadline);
 	[[nodiscard]] std::vector<outgoing_call_item> query_call_hierarchy_outgoing_batch(
 		const std::string &filepath,
 		const std::vector<std::pair<int, int>> &positions,

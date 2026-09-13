@@ -8,6 +8,7 @@
 #include <sstream>
 #include <unordered_set>
 #include "event_logger.h"
+#include "codemap_utils.h"
 #include "fs_utils.h"
 #include "project_manager.h"
 #include "utf8.h"
@@ -634,6 +635,14 @@ std::vector<lsp_backend::location_info> semcode_backend::query_definition(const 
 			}
 
 			if (!results.empty()) {
+				std::string norm_caller = fs_utils::make_relative_to_project(filepath);
+				std::string norm_res = fs_utils::make_relative_to_project(results[0].path);
+				if (norm_res.starts_with("arch/") && !norm_caller.starts_with("arch/")) {
+					event_logger::get_instance().log(std::format(
+						"semcode_backend::query_definition: rejecting cross-arch result '{}' for caller '{}'",
+						norm_res, norm_caller));
+					return {};
+				}
 				event_logger::get_instance().log(
 				    std::format("semcode_backend::query_definition: identifier='{}', found {} locations via func",
 						identifier, results.size()));
@@ -773,14 +782,29 @@ std::vector<lsp_backend::symbol_info> semcode_backend::query_workspace_symbols(c
 	return symbols;
 }
 
-std::vector<lsp_backend::symbol_node> semcode_backend::query_document_symbols(const std::string & /*filepath*/)
+std::vector<lsp_backend::symbol_node> semcode_backend::query_document_symbols(const std::string &filepath)
 {
-	// semcode does not implement per-file hierarchical symbol trees; return empty
-	return {};
+	std::vector<tools::codemap_symbol_info> syms;
+	tools::fallback_find_symbols(filepath, 1, syms);
+	std::vector<symbol_node> nodes;
+	nodes.reserve(syms.size());
+	for (const auto &s : syms) {
+		symbol_node node;
+		node.name = s.name;
+		node.kind = 12; // Function
+		node.range.start_y = s.start_line - 1;
+		node.range.start_x = 0;
+		node.range.end_y = s.end_line - 1;
+		node.range.end_x = 0;
+		node.selection_range = node.range;
+		nodes.push_back(std::move(node));
+	}
+	return nodes;
 }
 
 std::vector<lsp_backend::call_hierarchy_item> semcode_backend::query_call_hierarchy_outgoing(const std::string &filepath, int line,
-											     int character)
+											     int character,
+											     std::chrono::steady_clock::time_point deadline)
 {
 	if (semcode_cli_path_.empty()) {
 		return {};
@@ -803,7 +827,82 @@ std::vector<lsp_backend::call_hierarchy_item> semcode_backend::query_call_hierar
 	    std::format("semcode_backend::query_call_hierarchy_outgoing: identifier='{}', found {} raw calls from semcode CLI", identifier,
 			items.size()));
 
-	return items;
+	std::vector<call_hierarchy_item> filtered_items;
+	filtered_items.reserve(items.size());
+	std::string norm_caller = fs_utils::make_relative_to_project(filepath);
+
+	for (auto &item : items) {
+		if (std::chrono::steady_clock::now() > deadline) {
+			break;
+		}
+		if (item.name.empty()) {
+			continue;
+		}
+
+		std::string item_path = fs_utils::make_relative_to_project(item.uri);
+
+		// 1. Cross-architecture filtering: reject candidate if it points to arch/ and caller is not in that arch
+		if (item_path.starts_with("arch/")) {
+			if (!norm_caller.starts_with("arch/")) {
+				event_logger::get_instance().log(std::format(
+					"semcode_backend::query_call_hierarchy_outgoing: filtering cross-arch callee '{}' in '{}' (caller='{}')",
+					item.name, item_path, norm_caller));
+				continue;
+			}
+			size_t caller_arch_slash = norm_caller.find('/', 5);
+			size_t cand_arch_slash = item_path.find('/', 5);
+			if (caller_arch_slash != std::string::npos && cand_arch_slash != std::string::npos) {
+				if (norm_caller.substr(0, caller_arch_slash) != item_path.substr(0, cand_arch_slash)) {
+					event_logger::get_instance().log(std::format(
+						"semcode_backend::query_call_hierarchy_outgoing: filtering mismatched arch callee '{}' in '{}' (caller='{}')",
+						item.name, item_path, norm_caller));
+					continue;
+				}
+			}
+		}
+
+		// 2. Strict unique definition filtering: query semcode CLI 'func <name>'
+		// If multiple definitions exist (e.g. memset having multiple definitions across archs),
+		// parse_definition_locations_strict_unique returns false.
+		std::string func_out = run_semcode_query(std::format("func {}", item.name));
+		std::vector<location_info> locs;
+		bool func_ok = parse_definition_locations_strict_unique(func_out, project_root_, locs);
+		if (!func_ok) {
+			event_logger::get_instance().log(std::format(
+				"semcode_backend::query_call_hierarchy_outgoing: filtering ambiguous callee '{}'", item.name));
+			continue;
+		}
+
+		if (locs.size() == 1) {
+			std::string loc_path = fs_utils::make_relative_to_project(locs[0].path);
+			if (loc_path.starts_with("arch/")) {
+				if (!norm_caller.starts_with("arch/")) {
+					event_logger::get_instance().log(std::format(
+						"semcode_backend::query_call_hierarchy_outgoing: filtering cross-arch definition '{}' for '{}' (caller='{}')",
+						loc_path, item.name, norm_caller));
+					continue;
+				}
+				size_t caller_arch_slash = norm_caller.find('/', 5);
+				size_t cand_arch_slash = loc_path.find('/', 5);
+				if (caller_arch_slash != std::string::npos && cand_arch_slash != std::string::npos) {
+					if (norm_caller.substr(0, caller_arch_slash) != loc_path.substr(0, cand_arch_slash)) {
+						continue;
+					}
+				}
+			}
+			item.uri = "file://" + locs[0].path;
+			item.range = locs[0].range;
+			item.selection_range = locs[0].range;
+		}
+
+		filtered_items.push_back(std::move(item));
+	}
+
+	event_logger::get_instance().log(
+	    std::format("semcode_backend::query_call_hierarchy_outgoing: identifier='{}', retained {}/{} calls after filtering",
+			identifier, filtered_items.size(), items.size()));
+
+	return filtered_items;
 }
 
 std::vector<lsp_backend::outgoing_call_item>
@@ -815,7 +914,7 @@ semcode_backend::query_call_hierarchy_outgoing_batch(const std::string &filepath
 		if (std::chrono::steady_clock::now() > deadline) {
 			break;
 		}
-		auto calls = query_call_hierarchy_outgoing(filepath, line, character);
+		auto calls = query_call_hierarchy_outgoing(filepath, line, character, deadline);
 		for (auto &call : calls) {
 			outgoing_call_item out_item;
 			out_item.call_line = line;

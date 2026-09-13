@@ -545,6 +545,11 @@ bool project_manager::lsp_is_supported_file(const std::string &filepath) const
 	return false;
 }
 
+bool project_manager::has_lsp_backend() const noexcept
+{
+	return lsp_manager_ && lsp_manager_->get_backend() != nullptr;
+}
+
 std::vector<text_range> project_manager::lsp_query_selection_ranges(const std::string &filepath, int line, int character)
 {
 	if (lsp_manager_)

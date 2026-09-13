@@ -7,11 +7,66 @@
 
 #include "agentlib/tool_context.h"
 #include "call_resolver.h"
+#include "codemap_utils.h"
 #include "fs_utils.h"
+#include "project_manager.h"
 #include "semcode_backend.h"
 #include "test_watchdog.h"
 
 namespace fs = std::filesystem;
+
+namespace {
+
+class mock_lsp_hierarchy_backend : public lsp_backend {
+public:
+	std::string expected_target_path;
+
+	void start(event_queue &) override {}
+	void stop() override {}
+	void open_document(const std::string &, const std::string &) override {}
+	void update_document(const std::string &, const std::string &) override {}
+	void request_hover(const std::string &, int, int) override {}
+	void request_document_highlight(const std::string &, int, int) override {}
+	void request_selection_range(const std::string &, int, int) override {}
+	[[nodiscard]] bool is_supported_file(const std::string &) const override { return true; }
+	[[nodiscard]] std::vector<text_range> query_selection_ranges(const std::string &, int, int) override { return {}; }
+	[[nodiscard]] std::vector<location_info> query_definition(const std::string &filepath, int line, int col) override
+	{
+		(void)filepath;
+		(void)line;
+		(void)col;
+		location_info loc;
+		loc.path = expected_target_path;
+		loc.range = {0, 0, 1, 0};
+		return {loc};
+	}
+	[[nodiscard]] std::vector<location_info> query_type_definition(const std::string &filepath, int line, int col) override
+	{
+		return query_definition(filepath, line, col);
+	}
+	[[nodiscard]] std::vector<location_info> query_references(const std::string &, int, int) override { return {}; }
+	[[nodiscard]] std::vector<symbol_info> query_workspace_symbols(const std::string &) override { return {}; }
+	[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &) override { return {}; }
+	void invalidate_symbol_cache(const std::string &) override {}
+	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &, int, int) override { return {}; }
+	[[nodiscard]] std::vector<outgoing_call_item> query_call_hierarchy_outgoing_batch(
+		const std::string &, const std::vector<std::pair<int, int>> &,
+		std::chrono::steady_clock::time_point) override
+	{
+		outgoing_call_item item;
+		item.call_line = 1; // 0-indexed line 1 (line 2: start of __ext4_read_dirblock)
+		item.item.name = "brelse";
+		item.item.kind = 12; // Function
+		item.item.uri = "file://" + expected_target_path;
+		item.item.selection_range = {0, 0, 0, 0};
+		return {item};
+	}
+	[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &, int, int) override { return {}; }
+	[[nodiscard]] std::optional<std::vector<diagnostic_info>> query_file_diagnostics(const std::string &) override { return std::nullopt; }
+	void store_file_diagnostics(const std::string &, const std::vector<diagnostic_info> &) override {}
+};
+
+} // namespace
 
 static void test_disambiguation_with_included_headers()
 {
@@ -196,6 +251,68 @@ static void test_resolve_target_direct_and_cross_c()
 	std::cout << "  Passed!" << std::endl;
 }
 
+static void test_outgoing_calls_not_pruned_when_reading_inside_function()
+{
+	std::cout << "Testing outgoing calls are not pruned when range starts after function header..." << std::endl;
+
+	std::string test_dir = fs_utils::get_project_tmp_dir() + "/test_prune_bug";
+	fs::create_directories(test_dir + "/fs/ext4");
+	fs::create_directories(test_dir + "/include/linux");
+
+	std::string caller_file = test_dir + "/fs/ext4/namei.c";
+	{
+		std::ofstream out(caller_file);
+		out << "// line 1\n"
+		    << "struct buffer_head *__ext4_read_dirblock(struct inode *inode) {\n" // line 2
+		    << "    int x = 0;\n"                                                  // line 3
+		    << "    brelse(bh);\n"                                                 // line 4
+		    << "    return NULL;\n"                                                // line 5
+		    << "}\n";                                                              // line 6
+	}
+
+	std::string hdr_file = test_dir + "/include/linux/buffer_head.h";
+	{
+		std::ofstream out(hdr_file);
+		out << "static inline void brelse(struct buffer_head *bh) {}\n";
+	}
+
+	fs_utils::set_override_project_dir(test_dir);
+
+	auto mock = std::make_unique<mock_lsp_hierarchy_backend>();
+	mock->expected_target_path = hdr_file;
+	project_manager::get_instance().set_lsp_backend_for_testing(std::move(mock));
+
+	// Setup doc symbols where function starts at line 2 and ends at line 6
+	std::vector<tools::codemap_symbol_info> doc_symbols;
+	tools::codemap_symbol_info sym;
+	sym.name = "__ext4_read_dirblock";
+	sym.display_name = "__ext4_read_dirblock";
+	sym.kind_str = "Function";
+	sym.start_line = 2;
+	sym.end_line = 6;
+	sym.line_count = 5;
+	doc_symbols.push_back(sym);
+
+	// Read range [3, 5] (start_line 3 > function start line 2).
+	// Calls of __ext4_read_dirblock must NOT be pruned!
+	agentlib::tool_context ctx;
+	auto calls = tools::get_outgoing_calls_in_range(caller_file, 3, 5, doc_symbols, &ctx);
+
+	bool found_brelse = false;
+	for (const auto &c : calls) {
+		if (c.target_name == "brelse") {
+			found_brelse = true;
+			break;
+		}
+	}
+	assert(found_brelse);
+
+	project_manager::get_instance().set_lsp_backend_for_testing(nullptr);
+	fs_utils::set_override_project_dir("");
+	fs::remove_all(test_dir);
+	std::cout << "  Passed!" << std::endl;
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -205,6 +322,7 @@ int main()
 	test_extract_identifier_skips_specifiers();
 	test_arrow_calls_parsing();
 	test_resolve_target_direct_and_cross_c();
+	test_outgoing_calls_not_pruned_when_reading_inside_function();
 
 	std::cout << "All call_resolver tests passed successfully!" << std::endl;
 	return 0;

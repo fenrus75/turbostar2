@@ -135,6 +135,7 @@ class project_manager
 	void lsp_request_document_highlight(const std::string &filepath, int line, int character);
 	void lsp_request_selection_range(const std::string &filepath, int line, int character);
 	bool lsp_is_supported_file(const std::string &filepath) const;
+	[[nodiscard]] bool has_lsp_backend() const noexcept;
 
 	// Synchronous LSP queries
 	std::vector<text_range> lsp_query_selection_ranges(const std::string &filepath, int line, int character);

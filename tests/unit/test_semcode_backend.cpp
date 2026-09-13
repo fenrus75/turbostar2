@@ -295,6 +295,18 @@ static void test_hybrid_cli_queries()
 		    << "    echo '=== Direct Calls ==='\n"
 		    << "    echo '  1. callee_sub'\n"
 		    << "    echo '     void (main.c:10) [file SHA: def]'\n"
+		    << "    echo '  2. cleanup'\n"
+		    << "    echo '     void (tools/testing/selftests/bpf/xdp_synproxy.c:10)'\n"
+		    << "    echo '  3. memset'\n"
+		    << "    echo '     void (arch/nios2/lib/memset.c:13)'\n"
+		    << "    ;;\n"
+		    << "  *\"func memset\"*)\n"
+		    << "    echo 'Searching for function: memset'\n"
+		    << "    echo 'Note: Found 31 function definitions with name '\\''memset'\\'''\n"
+		    << "    echo '=== Function Information ==='\n"
+		    << "    echo 'Name: memset'\n"
+		    << "    echo 'File: arch/nios2/lib/memset.c'\n"
+		    << "    echo 'Line: 13-79'\n"
 		    << "    ;;\n"
 		    << "  *)\n"
 		    << "    echo 'No results found'\n"
@@ -351,15 +363,16 @@ static void test_hybrid_cli_queries()
 	assert(refs[0].path.find("main.c") != std::string::npos);
 	assert(refs[0].range.start_y == 19); // 0-based index for line 20
 
-	// 3. Outgoing call hierarchy query
+	// 3. Outgoing call hierarchy query (filters out ambiguous callees 'cleanup' and 'memset' and cross-arch)
 	auto calls = backend.query_call_hierarchy_outgoing(src_file, 6, 6);
 	assert(!calls.empty());
+	assert(calls.size() == 1);
 	assert(calls[0].name == "callee_sub");
-	assert(calls[0].range.start_y == 9); // 0-based index for line 10
 
 	// 4. Batch call hierarchy
 	auto batch = backend.query_call_hierarchy_outgoing_batch(src_file, {{6, 6}});
 	assert(!batch.empty());
+	assert(batch.size() == 1);
 	assert(batch[0].item.name == "callee_sub");
 
 	// 5. Workspace symbols

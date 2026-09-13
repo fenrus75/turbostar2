@@ -871,9 +871,13 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 	auto lsp_items = project_manager::get_instance().lsp_query_call_hierarchy_outgoing_batch(safe_path, positions, deadline);
 
 	if (!lsp_items.empty()) {
-		std::stable_partition(lsp_items.begin(), lsp_items.end(), [start_line, end_line](const auto &item) {
+		std::stable_partition(lsp_items.begin(), lsp_items.end(), [start_line, end_line, &effective_symbols](const auto &item) {
 			int line = item.call_line + 1;
-			return line >= start_line && line <= end_line;
+			if (line >= start_line && line <= end_line) {
+				return true;
+			}
+			const codemap_symbol_info *sym = find_enclosing_symbol(effective_symbols, line);
+			return sym && sym->start_line <= end_line && sym->end_line >= start_line;
 		});
 
 		for (const auto &item : lsp_items) {
@@ -882,7 +886,14 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 			ref.call_line = item.call_line + 1;
 			ref.target_name = item.item.name;
 			ref.target_kind = lsp_kind_to_string(item.item.kind);
-			ref.is_direct_read_call = (ref.call_line >= start_line && ref.call_line <= end_line);
+			bool is_direct = (ref.call_line >= start_line && ref.call_line <= end_line);
+			if (!is_direct) {
+				const codemap_symbol_info *sym = find_enclosing_symbol(effective_symbols, ref.call_line);
+				if (sym && sym->start_line <= end_line && sym->end_line >= start_line) {
+					is_direct = true;
+				}
+			}
+			ref.is_direct_read_call = is_direct;
 
 			if (resolve_outgoing_call_target(ref, item.item, symbols_cache, ctx)) {
 				all_calls.push_back(ref);
@@ -902,6 +913,12 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 	std::vector<outgoing_call_reference> range_result;
 	for (const auto &call : all_calls) {
 		if (call.call_line >= start_line && call.call_line <= end_line) {
+			range_result.push_back(call);
+			continue;
+		}
+		// Also include calls from enclosing symbols whose bodies overlap [start_line, end_line]
+		const codemap_symbol_info *sym = find_enclosing_symbol(effective_symbols, call.call_line);
+		if (sym && sym->start_line <= end_line && sym->end_line >= start_line) {
 			range_result.push_back(call);
 		}
 	}
