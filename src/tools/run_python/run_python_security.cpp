@@ -4,6 +4,7 @@
 #include "../../agentlib/tool_validator.h"
 #include "config_manager.h"
 #include "run_python.h"
+#include <unistd.h>
 
 namespace tools
 {
