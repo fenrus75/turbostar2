@@ -143,6 +143,29 @@ int main()
 		assert(parsed2c["pattern"] == "baz");
 		assert(parsed2c["search_path"] == "src/ui/");
 
+		// Test Group 2d: grep_search alias with 'Query', 'SearchPath', 'CaseInsensitive', 'IsRegex' -> fs_grep_files
+		tool_call tc2d;
+		tc2d.function.name = "grep_search";
+		tc2d.function.arguments = "{\"Query\": \"my_pattern\", \"SearchPath\": \"src/\", \"CaseInsensitive\": true, \"IsRegex\": true}";
+		normalize_tool_call(tc2d);
+		assert(tc2d.function.name == "fs_grep_files");
+		auto parsed2d = nlohmann::json::parse(tc2d.function.arguments);
+		assert(parsed2d["pattern"] == "my_pattern");
+		assert(parsed2d["search_path"] == "src/");
+		assert(parsed2d["case_insensitive"] == true);
+		assert(parsed2d["is_regex"] == true);
+
+		// Test Group 2e: grep_search alias with snake_case and Includes array
+		tool_call tc2e;
+		tc2e.function.name = "grep_search";
+		tc2e.function.arguments = "{\"query\": \"another_pattern\", \"search_path\": \"tests/\", \"Includes\": [\"*.cpp\"]}";
+		normalize_tool_call(tc2e);
+		assert(tc2e.function.name == "fs_grep_files");
+		auto parsed2e = nlohmann::json::parse(tc2e.function.arguments);
+		assert(parsed2e["pattern"] == "another_pattern");
+		assert(parsed2e["search_path"] == "tests/");
+		assert(parsed2e["include_ext"] == ".cpp");
+
 		// Test Group 3: list_dir -> fs_list_dir
 		tool_call tc3;
 		tc3.function.name = "list_dir";

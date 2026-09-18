@@ -165,6 +165,7 @@ inline void normalize_tool_call(tool_call &call)
 		{"grep", "fs_grep_files"},
 		{"search_grep", "fs_grep_files"},
 		{"find_in_files", "fs_grep_files"},
+		{"grep_search", "fs_grep_files"},
 		{"list_dir", "fs_list_dir"},
 		{"glob", "fs_glob"},
 		{"find_files", "fs_glob"},
@@ -230,7 +231,7 @@ inline void normalize_tool_call(tool_call &call)
 			args = new_args;
 		} else if (official_name == "fs_grep_files") {
 			std::string pattern_val;
-			for (const auto &key : {"pattern", "query", "search_query", "regex", "text"}) {
+			for (const auto &key : {"pattern", "query", "search_query", "regex", "text", "Query", "Pattern"}) {
 				if (args.contains(key) && args[key].is_string()) {
 					pattern_val = args[key].get<std::string>();
 					break;
@@ -240,7 +241,7 @@ inline void normalize_tool_call(tool_call &call)
 			// 'search_path' is the canonical argument name that fs_grep_files_validator reads.
 			// It is listed first here so that if the LLM already uses the canonical name it is
 			// preserved, with the remaining entries accepted as legacy/alias input names.
-			for (const auto &key : {"search_path", "path", "dir_path", "dir", "directory"}) {
+			for (const auto &key : {"search_path", "path", "dir_path", "dir", "directory", "SearchPath", "Path"}) {
 				if (args.contains(key) && args[key].is_string()) {
 					dir_path_val = args[key].get<std::string>();
 					break;
@@ -253,9 +254,23 @@ inline void normalize_tool_call(tool_call &call)
 			if (!dir_path_val.empty()) {
 				new_args["search_path"] = dir_path_val;
 			}
-			for (const auto &k : {"include_ext", "limit", "context_lines"}) {
+			for (const auto &k : {"include_ext", "limit", "context_lines", "exclude_path", "exclude_ext", "exclude_pattern", "is_regex", "case_insensitive"}) {
 				if (args.contains(k)) {
 					new_args[k] = args[k];
+				}
+			}
+			if (!new_args.contains("case_insensitive") && args.contains("CaseInsensitive")) {
+				new_args["case_insensitive"] = args["CaseInsensitive"];
+			}
+			if (!new_args.contains("is_regex") && args.contains("IsRegex")) {
+				new_args["is_regex"] = args["IsRegex"];
+			}
+			if (!new_args.contains("include_ext")) {
+				if (args.contains("Includes") && args["Includes"].is_array() && !args["Includes"].empty() && args["Includes"][0].is_string()) {
+					std::string inc = args["Includes"][0].get<std::string>();
+					if (size_t dot_pos = inc.rfind('.'); dot_pos != std::string::npos) {
+						new_args["include_ext"] = inc.substr(dot_pos);
+					}
 				}
 			}
 			args = new_args;

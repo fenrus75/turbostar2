@@ -19,8 +19,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- add "grep_search" to the tool alias table for fs_grep_files
-
 - `fs_run_tests` suite filter (`suite: "unit"` / `"e2e"`): allow running only fast local unit tests without invoking slower external/e2e test suites to prevent 3-minute MCP timeouts when building and running tests.
 
 - feature: we have "yolo" mode already -- add a /yolo slash command to the agent window
@@ -248,6 +246,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # Done
+
+## 17-09-2026
+- `grep_search` alias for `fs_grep_files`: added `"grep_search"` to the global `tool_name_aliases` table in `src/agentlib/llm_types.h` and expanded argument normalization for `fs_grep_files` to automatically map both snake_case and PascalCase parameters (`Query`/`query` -> `pattern`, `SearchPath`/`path` -> `search_path`, `CaseInsensitive` -> `case_insensitive`, `IsRegex` -> `is_regex`, and `Includes` array -> `include_ext`). Added regression tests in `tests/unit/test_tool_infrastructure.cpp`. (Completed)
 
 ## 13-09-2026
 - Website MCP Server subpage & navigation sync: created `docs/mcp.html` showcasing Turbostar's high-performance Model Context Protocol (MCP) server (`turbomcp` / `turbostar --mcp`). Featured value proposition for external AI agent CLIs (Gemini CLI, Claude Code, Antigravity, Cursor) with LSP X-ray codemaps, Semcode kernel indexing, compiler diagnostic minimization, and GDB crashdump analysis; added step-by-step installation with Meson (`meson install -C build` auto-creating the `turbomcp` symlink); provided practical configuration examples for Gemini CLI (`~/.gemini/config/mcp_config.json`), Claude Desktop/Code, and generic stdio MCP clients; documented command-line flags (`--project-dir`, `--mcp`, `--yolo`, `--all-tool-families`); and added a 60+ tools catalog. Synchronized navigation headers and footers across `docs/index.html`, `docs/editor.html`, `docs/ai.html`, `docs/details.html`, and `docs/mcp.html`, added an MCP feature card to the homepage, and updated `docs/design-website.md`. (Completed)
