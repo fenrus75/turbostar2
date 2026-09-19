@@ -69,6 +69,7 @@ Turbostar supports tracing all LLM tool calls and outputs to sequential log file
 *   **Arguments:**
     *   `pattern` *(string, required)*: The RE2 regular expression to search for.
     *   `case_insensitive` *(boolean, optional)*: Set to true to ignore case during regex/literal matching. Defaults to false (case-sensitive search).
+    *   `include_binary` *(boolean, optional)*: Set to true to search binary files as well. Defaults to false (files containing control characters or null bytes are skipped).
     *   `include_ext` *(string, optional)*: Filter by file extension (e.g., '.cpp', '.py').
     *   `path` *(string, optional)*: Restrict search to a specific file or directory path relative to project root. Defaults to the document root if omitted. (Alias for `search_path`.)
     *   `search_path` *(string, optional)*: Restrict search to a specific file or directory path relative to project root. Defaults to the document root if omitted.

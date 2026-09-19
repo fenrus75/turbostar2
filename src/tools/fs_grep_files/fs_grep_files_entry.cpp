@@ -124,6 +124,7 @@ struct last_search_info {
 	std::string exclude_pattern;
 	bool is_regex{false};
 	bool case_insensitive{false};
+	bool include_binary{false};
 };
 
 /*
@@ -314,7 +315,8 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 		if (g_last_search.pattern == args_.pattern && g_last_search.safe_search_path == args_.safe_search_path &&
 		    g_last_search.include_ext == curr_ext && g_last_search.exclude_path == curr_ex_path &&
 		    g_last_search.exclude_ext == curr_ex_ext && g_last_search.exclude_pattern == curr_ex_pat &&
-		    g_last_search.is_regex == args_.is_regex && g_last_search.case_insensitive == args_.case_insensitive) {
+		    g_last_search.is_regex == args_.is_regex && g_last_search.case_insensitive == args_.case_insensitive &&
+		    g_last_search.include_binary == args_.include_binary) {
 			is_duplicate = true;
 		}
 
@@ -326,6 +328,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 		g_last_search.exclude_pattern = curr_ex_pat;
 		g_last_search.is_regex = args_.is_regex;
 		g_last_search.case_insensitive = args_.case_insensitive;
+		g_last_search.include_binary = args_.include_binary;
 	}
 
 	if (is_duplicate) {
@@ -333,10 +336,11 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 		if (args_.search_path) {
 			display_path = *args_.search_path;
 		}
-		return "WARNING: You have already performed this exact search query (fs_grep_files with pattern: \"" + args_.pattern +
-		       "\" in " + display_path +
-		       "). Repeating the same query yields the same results. To find what you are looking for, please refine your search "
-		       "pattern, search in a different directory, or read the files containing matches directly.";
+		return std::format(
+			"WARNING: You have already performed this exact search query (fs_grep_files with pattern: \"{}\" in {}). "
+			"Repeating the same query yields the same results. To find what you are looking for, please refine your search "
+			"pattern, search in a different directory, or read the files containing matches directly.",
+			args_.pattern, display_path);
 	}
 
 	std::string build_dir = config_manager::get_instance().get_build_directory();
@@ -545,7 +549,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				}
 			}
 			// 2. Fallback to direct disk read
-			else if (!fs_utils::is_binary_file(abs_path_str)) {
+			else if (args_.include_binary || !fs_utils::is_binary_file(abs_path_str, /*treat_null_as_binary=*/true)) {
 				struct stat sb;
 				if (stat(abs_path_str.c_str(), &sb) == 0 && sb.st_size > 0 && sb.st_size < 50 * 1024 * 1024) {
 					std::ifstream file(abs_path_str, std::ios::binary);
@@ -618,6 +622,10 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				}
 
 				std::string content = std::string((*handle)->view());
+				if (!args_.include_binary && fs_utils::is_binary_buffer(content, /*treat_null_as_binary=*/true)) {
+					continue;
+				}
+
 				std::vector<std::string> file_lines;
 				std::string line;
 				std::istringstream iss(content);

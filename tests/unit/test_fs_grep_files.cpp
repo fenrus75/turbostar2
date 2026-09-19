@@ -499,6 +499,96 @@ int main()
 		fs::remove_all(test_root);
 	}
 
+	// Test: include_binary flag (default false skips binary files; true searches them)
+	{
+		fs::path bin_dir = temp_dir / "bin_test_dir";
+		fs::create_directories(bin_dir);
+
+		fs::path bin_file_null = bin_dir / "test_null.dat";
+		{
+			std::ofstream out(bin_file_null, std::ios::binary);
+			out << "prefix data";
+			out.put('\0');
+			out.put('\0');
+			out << "magictargettoken12345\n";
+		}
+
+		fs::path bin_file_ctrl = bin_dir / "test_ctrl.dat";
+		{
+			std::ofstream out(bin_file_ctrl, std::ios::binary);
+			out.put('\x01');
+			out.put('\x02');
+			out << "magictargettoken12345\n";
+		}
+
+		// By default (include_binary=false): neither file should be matched
+		{
+			tools::fs_grep_files_args args_def;
+			args_def.pattern = "magictargettoken12345";
+			args_def.safe_search_path = bin_dir.string();
+			args_def.search_path = bin_dir.string();
+			tools::fs_grep_files_tool tool_def(args_def);
+			std::string res_def = tool_def.execute(ctx);
+			assert(res_def.find("magictargettoken12345") == std::string::npos);
+			assert(res_def.find("No matches found") != std::string::npos);
+		}
+
+		// With include_binary=true: matches should be found in binary files
+		{
+			tools::fs_grep_files_args args_inc;
+			args_inc.pattern = "magictargettoken12345";
+			args_inc.safe_search_path = bin_dir.string();
+			args_inc.search_path = bin_dir.string();
+			args_inc.include_binary = true;
+			tools::fs_grep_files_tool tool_inc(args_inc);
+			std::string res_inc = tool_inc.execute(ctx);
+			assert(res_inc.find("magictargettoken12345") != std::string::npos);
+		}
+
+		// Test validator schema and parsing
+		tools::fs_grep_files_validator val;
+		std::string err;
+		nlohmann::json json_args = {
+			{"pattern", "magictargettoken12345"},
+			{"search_path", bin_dir.string()},
+			{"include_binary", true}
+		};
+		assert(val.validate_args(json_args, ctx, err));
+		auto tool_ptr = val.create_tool(json_args);
+		assert(tool_ptr != nullptr);
+		std::string res_val = tool_ptr->execute(ctx);
+		assert(res_val.find("magictargettoken12345") != std::string::npos);
+
+		fs::remove_all(bin_dir);
+
+		// Test real TAR fixture file (tests/testtar.tar)
+		fs::path tar_fixture = fs_utils::safe_absolute("tests/testtar.tar");
+		if (fs::exists(tar_fixture)) {
+			agentlib::tool_context tar_ctx;
+			tar_ctx.fs_security.set_working_directory(tar_fixture.parent_path());
+			tar_ctx.fs_security.add_allowed_root(tar_fixture.parent_path(), agentlib::access_type::read);
+
+			// By default: testtar.tar is skipped as binary
+			tools::fs_grep_files_args tar_args_skip;
+			tar_args_skip.pattern = "ustar";
+			tar_args_skip.search_path = tar_fixture.string();
+			tar_args_skip.safe_search_path = tar_fixture.string();
+			tools::fs_grep_files_tool tar_tool_skip(tar_args_skip);
+			std::string tar_res_skip = tar_tool_skip.execute(tar_ctx);
+			assert(tar_res_skip.find("ustar") == std::string::npos);
+
+			// With include_binary=true: testtar.tar header matches "ustar"
+			tools::fs_grep_files_args tar_args_inc;
+			tar_args_inc.pattern = "ustar";
+			tar_args_inc.search_path = tar_fixture.string();
+			tar_args_inc.safe_search_path = tar_fixture.string();
+			tar_args_inc.include_binary = true;
+			tools::fs_grep_files_tool tar_tool_inc(tar_args_inc);
+			std::string tar_res_inc = tar_tool_inc.execute(tar_ctx);
+			assert(tar_res_inc.find("ustar") != std::string::npos);
+		}
+	}
+
 	std::cout << "fs_grep_files unit test passed!\n";
 	return 0;
 }

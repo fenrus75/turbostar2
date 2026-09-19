@@ -22,6 +22,7 @@ struct fs_grep_files_args {
     std::optional<std::string> exclude_pattern;
     bool is_regex{false};
     bool case_insensitive{false};
+    bool include_binary{false};
     int limit{50};
     int context_lines{0};
     
