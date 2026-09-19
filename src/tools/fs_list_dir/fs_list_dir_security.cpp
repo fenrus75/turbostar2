@@ -10,7 +10,10 @@ nlohmann::json fs_list_dir_validator::get_parameters_schema() const
 	return {{"type", "object"},
 		{"additionalProperties", false},
 		{"properties",
-		 {{"path", {{"type", "string"}, {"description", "The path to the directory, relative to the project root."}}},
+		 {{"path",
+		   {{"type", "string"},
+		    {"description", "Optional. The path to the directory, relative to the project root. Defaults to '.' (project root)."},
+		    {"default", "."}}},
 		  {"rich_metadata",
 		   {{"type", "boolean"},
 		    {"description", "If true, runs file header inspection to detect MIME types and format metadata (e.g. image dimensions, "
@@ -23,16 +26,22 @@ nlohmann::json fs_list_dir_validator::get_parameters_schema() const
 		   {{"type", "integer"},
 		    {"description", "Optional. Starting offset for pagination. Defaults to 0."},
 		    {"default", 0}}}}},
-		{"required", nlohmann::json::array({"path"})}};
+		{"required", nlohmann::json::array()}};
 }
 
 bool fs_list_dir_validator::validate_args_impl(const nlohmann::json &args, const agentlib::tool_context &ctx, std::string &out_error) const
 {
-	if (!args.contains("path") || !args["path"].is_string()) {
-		out_error = "Missing or invalid 'path' string parameter.";
-		return false;
+	std::string path_arg = ".";
+	if (args.contains("path") && !args["path"].is_null()) {
+		if (!args["path"].is_string()) {
+			out_error = "Invalid 'path' parameter: must be a string.";
+			return false;
+		}
+		path_arg = args["path"].get<std::string>();
+		if (path_arg.empty()) {
+			path_arg = ".";
+		}
 	}
-	std::string path_arg = args["path"].get<std::string>();
 	if (!ctx.fs_security.validate_access(path_arg, agentlib::access_type::read, args_.path, out_error)) {
 		return false;
 	}

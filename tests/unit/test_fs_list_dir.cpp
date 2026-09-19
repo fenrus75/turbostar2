@@ -47,6 +47,15 @@ int main()
 			assert(res.find("out of") != std::string::npos);
 		}
 
+		// 1c. Success case: default path to "." when omitted
+		{
+			std::string args = "{}";
+			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
+			std::cout << "Directory list with omitted path (defaults to .): " << res << std::endl;
+			assert(res.find("| -------- |") != std::string::npos);
+			assert(res.find("src") != std::string::npos);
+		}
+
 		// 2. Stage 2 validation failure: path is not a directory (e.g. a regular file)
 		{
 			std::string args = "{\"path\": \"" + project_root + "/src/main.cpp\"}";

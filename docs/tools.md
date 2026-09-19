@@ -36,7 +36,7 @@ Turbostar supports tracing all LLM tool calls and outputs to sequential log file
 ### `fs_list_dir`
 *   **Description:** Lists the contents of a directory as a Markdown table (Type, Size, Lines, Permissions, and optional rich metadata). ALWAYS use this tool to list directory contents instead of running `ls` in a shell command.
 *   **Arguments:**
-    *   `path` *(string, required)*: Relative directory path under the project workspace or VFS URI (e.g., 'tmp://dir').
+    *   `path` *(string, optional)*: Relative directory path under the project workspace or VFS URI (e.g., 'tmp://dir'). Defaults to '.' (project root). (Aliases: `directory`, `dir`, `target_dir`.)
     *   `rich_metadata` *(boolean, optional)*: If true, runs file header inspection to detect MIME types and format metadata (e.g. image dimensions, ELF architectures).
     *   `limit` *(integer, optional)*: Maximum number of files to return in the list. Defaults to 100.
     *   `offset` *(integer, optional)*: Starting offset for pagination. Defaults to 0.

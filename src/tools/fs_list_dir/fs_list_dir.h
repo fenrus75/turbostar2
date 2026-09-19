@@ -75,6 +75,11 @@ class fs_list_dir_validator : public agentlib::tool_validator
 		return true;
 	}
 
+	std::unordered_map<std::string, std::string> get_custom_parameter_aliases() const override
+	{
+		return {{"directory", "path"}, {"dir", "path"}, {"target_dir", "path"}};
+	}
+
       protected:
 	bool validate_args_impl(const nlohmann::json &args, const agentlib::tool_context &ctx, std::string &out_error) const override;
 	std::unique_ptr<agentlib::llm_tool> create_tool_impl(const nlohmann::json &args) const override;
