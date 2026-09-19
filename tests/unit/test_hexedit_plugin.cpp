@@ -1,3 +1,4 @@
+// Tested source file: src/plugins/hexedit/hexdump_tool.cpp, src/plugins/hexedit/hexdump_validator.cpp, src/plugins/hexedit/hexwrite_tool.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <filesystem>
@@ -6,6 +7,7 @@
 #include <memory>
 #include <vector>
 #include "plugins/hexedit/hexdump_tool.h"
+#include "plugins/hexedit/hexdump_validator.h"
 #include "plugins/hexedit/hexwrite_tool.h"
 #include "agentlib/file_security_manager.h"
 #include "agentlib/tool_registry.h"
@@ -214,12 +216,52 @@ void test_named_offsets()
 	std::cout << "test_named_offsets passed!" << std::endl;
 }
 
+void test_hexdump_validator()
+{
+	tools::hexdump_validator val;
+	agentlib::tool_context ctx = create_mock_context();
+	std::string err;
+
+	// 1. Only path provided (size omitted) -> should validate and default size to 256
+	nlohmann::json args1 = {{"path", "tests/testtar.tar"}};
+	assert(val.validate_args(args1, ctx, err));
+	auto tool1 = val.create_tool(args1);
+	assert(tool1 != nullptr);
+
+	// 2. Global alias: 'length' -> 'size'
+	nlohmann::json args2 = {{"path", "tests/testtar.tar"}, {"length", 64}};
+	assert(val.validate_args(args2, ctx, err));
+	auto tool2 = val.create_tool(args2);
+	assert(tool2 != nullptr);
+
+	// 3. Global alias: 'bytes' -> 'size'
+	nlohmann::json args3 = {{"path", "tests/testtar.tar"}, {"bytes", 32}};
+	assert(val.validate_args(args3, ctx, err));
+
+	// 4. Global alias: 'num_bytes' -> 'size'
+	nlohmann::json args4 = {{"path", "tests/testtar.tar"}, {"num_bytes", 16}};
+	assert(val.validate_args(args4, ctx, err));
+
+	// 5. Size exceeding 4096 is clamped
+	nlohmann::json args5 = {{"path", "tests/testtar.tar"}, {"size", 99999}};
+	assert(val.validate_args(args5, ctx, err));
+
+	// 6. Global alias: 'start_offset' -> 'offset' and 'filename' -> 'path'
+	nlohmann::json args6 = {{"filename", "tests/testtar.tar"}, {"start_offset", 16}, {"length", 32}};
+	assert(val.validate_args(args6, ctx, err));
+	auto tool6 = val.create_tool(args6);
+	assert(tool6 != nullptr);
+
+	std::cout << "test_hexdump_validator passed!" << std::endl;
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
 	test_hexdump_tool();
 	test_hexwrite_tool();
 	test_named_offsets();
+	test_hexdump_validator();
 	std::cout << "All hexedit plugin unit tests passed!" << std::endl;
 	return 0;
 }

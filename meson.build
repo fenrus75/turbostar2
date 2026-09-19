@@ -339,6 +339,7 @@ test('unit_pluginloader', test_pluginloader, suite: 'plugins', env: ['TURBOSTAR_
 test_hexedit_plugin = executable('test_hexedit_plugin',
   ['tests/unit/test_hexedit_plugin.cpp',
    'src/plugins/hexedit/hexdump_tool.cpp',
+   'src/plugins/hexedit/hexdump_validator.cpp',
    'src/plugins/hexedit/hexwrite_tool.cpp'],
   dependencies : [core_dep, agent_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],
   include_directories: inc)

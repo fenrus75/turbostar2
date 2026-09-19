@@ -9,7 +9,7 @@ namespace tools
 struct hexdump_raw_args {
 	std::string path;
 	size_t offset{0};
-	size_t size{0};
+	size_t size{256};
 	std::string offset_by_name;
 };
 
@@ -29,9 +29,9 @@ nlohmann::json hexdump_validator::get_parameters_schema() const
 	    {"properties",
 	     {{"path", {{"type", "string"}, {"description", "The path to the file relative to the project root."}}},
 	      {"offset", {{"type", nlohmann::json::array({"integer", "string"})}, {"description", "Byte offset from which to start reading (e.g. 0 or \"0x1080\"). Defaults to 0."}}},
-	      {"size", {{"type", nlohmann::json::array({"integer", "string"})}, {"description", "Number of bytes to read."}}},
+	      {"size", {{"type", nlohmann::json::array({"integer", "string"})}, {"description", "Number of bytes to read. Defaults to 256. Maximum 4096."}}},
 	      {"offset_by_name", {{"type", "string"}, {"description", "Optional section/chunk/symbol name (e.g. '.text' or 'PLTE') to resolve offset automatically."}}}}},
-	    {"required", nlohmann::json::array({"path", "size"})}};
+	    {"required", nlohmann::json::array({"path"})}};
 }
 
 bool hexdump_validator::validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &ctx,
@@ -40,15 +40,11 @@ bool hexdump_validator::validate_args_impl(const nlohmann::json &raw_json, const
 	try {
 		args_.requested_path = raw_json.value("path", "");
 		args_.offset = json_utils::parse_numeric_from_json(raw_json, "offset", 0);
-		args_.size = json_utils::parse_numeric_from_json(raw_json, "size", 0);
+		size_t parsed_size = json_utils::parse_numeric_from_json(raw_json, "size", 0);
 		args_.offset_by_name = raw_json.value("offset_by_name", "");
 
 		if (args_.requested_path.empty()) {
 			out_error = "Path cannot be empty.";
-			return false;
-		}
-		if (args_.size == 0) {
-			out_error = "Size must be at least 1 byte.";
 			return false;
 		}
 
@@ -58,6 +54,7 @@ bool hexdump_validator::validate_args_impl(const nlohmann::json &raw_json, const
 		}
 
 		args_.safe_path = canonical_path;
+		args_.size = (parsed_size == 0) ? 256 : (parsed_size > 4096 ? 4096 : parsed_size);
 
 		return true;
 	} catch (const std::exception &e) {

@@ -131,6 +131,22 @@ public:
                     }
                 }
             }
+            // If the tool schema declares 'size', accept common byte count variations according to docs/tools.md:
+            if (props.contains("size")) {
+                for (const auto &alias : {"length", "bytes", "num_bytes", "byte_count"}) {
+                    if (!props.contains(alias)) {
+                        alias_map[alias] = "size";
+                    }
+                }
+            }
+            // If the tool schema declares 'offset', accept common byte offset variations according to docs/tools.md:
+            if (props.contains("offset")) {
+                for (const auto &alias : {"start_offset", "start_byte", "byte_offset"}) {
+                    if (!props.contains(alias)) {
+                        alias_map[alias] = "offset";
+                    }
+                }
+            }
             // If the tool schema declares 'limit', accept common count/limit variations:
             if (props.contains("limit")) {
                 for (const auto &alias : {"count", "max_results"}) {
