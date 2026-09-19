@@ -27,6 +27,8 @@ Top design documentation: `docs/design.md`
 - strongly prefer C++ Standard Library containers and algorithms over custom implementations
 - label methods and parameters `constexpr`, `const`, `std::string_view`, `std::span`, and `noexcept` whenever appropriate
 - each class in a separate .cpp file with a dedicated .h file that is in the same directory as the .cpp file
+- create a Markdown `.md` file next to the .cpp file for a class describing the overal goals/constraints for the class and with a "Lessons Learned" section that we update as bugs get fixed or major refactors get done.
+	- if one does not exist for an existing class that you do work on, create the file
 - add extensive comments describing goals, constraints, ownership, and design intent (the "why"), rather than restating code implementation logic.
 - **Security & Untrusted Data Lifecycle**:
   - Adopt a security-first mindset when generating code.
