@@ -219,9 +219,52 @@ std::string make_relative_to_project(std::string_view path_str, std::string_view
 }
 
 
-bool is_binary_file(std::string_view filepath)
+file_type_t get_buffer_file_type(std::string_view buffer)
 {
-	return get_file_type(filepath) == file_type_t::BINARY;
+	size_t check_len = std::min<size_t>(buffer.size(), 4096);
+	bool has_zero = false;
+	bool has_other_control = false;
+
+	for (size_t i = 0; i < check_len; ++i) {
+		unsigned char b = static_cast<unsigned char>(buffer[i]);
+		if (b == 0) {
+			has_zero = true;
+		} else if ((b < 32 && b != 9 && b != 10 && b != 11 && b != 12 && b != 13 && b != 27) || b == 127) {
+			has_other_control = true;
+		}
+	}
+
+	if (has_other_control) {
+		return file_type_t::BINARY;
+	}
+	if (has_zero) {
+		return file_type_t::MAYBE;
+	}
+	return file_type_t::ASCII;
+}
+
+bool is_binary_buffer(std::string_view buffer, bool treat_null_as_binary)
+{
+	file_type_t type = get_buffer_file_type(buffer);
+	if (type == file_type_t::BINARY) {
+		return true;
+	}
+	if (treat_null_as_binary && type == file_type_t::MAYBE) {
+		return true;
+	}
+	return false;
+}
+
+bool is_binary_file(std::string_view filepath, bool treat_null_as_binary)
+{
+	file_type_t type = get_file_type(filepath);
+	if (type == file_type_t::BINARY) {
+		return true;
+	}
+	if (treat_null_as_binary && type == file_type_t::MAYBE) {
+		return true;
+	}
+	return false;
 }
 
 bool is_regular_file(std::string_view filepath) noexcept
@@ -256,25 +299,7 @@ file_type_t get_file_type(std::string_view filepath)
 	file.read(buffer, std::min<size_t>(size, sizeof(buffer)));
 	size_t bytes_read = file.gcount();
 
-	bool has_zero = false;
-	bool has_other_control = false;
-
-	for (size_t i = 0; i < bytes_read; ++i) {
-		unsigned char b = static_cast<unsigned char>(buffer[i]);
-		if (b == 0) {
-			has_zero = true;
-		} else if ((b < 32 && b != 9 && b != 10 && b != 11 && b != 12 && b != 13 && b != 27) || b == 127) {
-			has_other_control = true;
-		}
-	}
-
-	if (has_other_control) {
-		return file_type_t::BINARY;
-	}
-	if (has_zero) {
-		return file_type_t::MAYBE;
-	}
-	return file_type_t::ASCII;
+	return get_buffer_file_type(std::string_view(buffer, bytes_read));
 }
 
 std::string count_lines_in_file(std::string_view filepath)

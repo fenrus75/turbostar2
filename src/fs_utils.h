@@ -48,7 +48,32 @@ enum class file_type_t {
     BINARY
 };
 
-bool is_binary_file(std::string_view filepath);
+/**
+ * @brief Heuristically checks if a memory buffer is binary by scanning up to 4KB.
+ *
+ * @param buffer Buffer to inspect.
+ * @param treat_null_as_binary If true, null bytes ('\0') cause the buffer to be treated as binary (MAYBE -> BINARY).
+ *                             If false (default), null bytes alone yield MAYBE which returns false, preserving
+ *                             compatibility for callers that tolerate null bytes.
+ * @return true if the buffer is classified as binary, false otherwise.
+ */
+bool is_binary_buffer(std::string_view buffer, bool treat_null_as_binary = false);
+
+/**
+ * @brief Inspects a memory buffer and classifies it as ASCII, MAYBE (null byte found), or BINARY (control chars found).
+ */
+file_type_t get_buffer_file_type(std::string_view buffer);
+
+/**
+ * @brief Heuristically checks if a file is a binary file by scanning the first 4KB.
+ *
+ * @param filepath Path to the file.
+ * @param treat_null_as_binary If true, null bytes ('\0') cause the file to be treated as binary (MAYBE -> BINARY).
+ *                             If false (default), null bytes alone yield MAYBE which returns false, preserving
+ *                             compatibility for callers that tolerate null bytes.
+ * @return true if the file is classified as binary, false otherwise.
+ */
+bool is_binary_file(std::string_view filepath, bool treat_null_as_binary = false);
 
 /**
  * @brief Returns true if the path exists, can be stat'd, and is a regular file (S_ISREG).

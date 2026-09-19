@@ -59,6 +59,27 @@ int main()
 	}
 	assert(fs_utils::is_binary_file(bin_ctrl_file.string()));
 
+	// 2c. File with null byte only (no other control characters)
+	fs::path bin_null_only_file = temp_dir / "test_null_only.bin";
+	{
+		std::ofstream out(bin_null_only_file, std::ios::binary);
+		out << "Hello";
+		out.put('\0');
+		out << "World";
+	}
+	assert(fs_utils::get_file_type(bin_null_only_file.string()) == fs_utils::file_type_t::MAYBE);
+	assert(!fs_utils::is_binary_file(bin_null_only_file.string())); // default: treat_null_as_binary=false
+	assert(!fs_utils::is_binary_file(bin_null_only_file.string(), false));
+	assert(fs_utils::is_binary_file(bin_null_only_file.string(), true)); // treat_null_as_binary=true
+
+	// 2d. Buffer binary detection
+	using namespace std::string_view_literals;
+	assert(!fs_utils::is_binary_buffer("Hello\0World"sv)); // default false
+	assert(!fs_utils::is_binary_buffer("Hello\0World"sv, false));
+	assert(fs_utils::is_binary_buffer("Hello\0World"sv, true));
+	assert(fs_utils::is_binary_buffer("Hello\x01World"sv));
+	assert(!fs_utils::is_binary_buffer("Hello World\n"sv, true));
+
 	// 3. Empty file (should return false)
 	fs::path empty_file = temp_dir / "empty.bin";
 	{
