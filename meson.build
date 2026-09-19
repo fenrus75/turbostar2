@@ -434,6 +434,12 @@ test_clear_command = executable('test_clear_command',
   include_directories: inc)
 test('unit_clear_command', test_clear_command, suite: 'agent')
 
+test_yolo_command = executable('test_yolo_command',
+  ['tests/unit/test_yolo_command.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep],
+  include_directories: inc)
+test('unit_yolo_command', test_yolo_command, suite: 'agent')
+
 test_type_definition_cache = executable('test_type_definition_cache',
   ['tests/unit/test_type_definition_cache.cpp'],
   dependencies : [core_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep],

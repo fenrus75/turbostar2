@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <map>
 #include <string>
 
@@ -95,11 +96,11 @@ class config_manager
 
 	bool is_yolo_mode() const
 	{
-		return yolo_mode_;
+		return yolo_mode_.load();
 	}
 	void set_yolo_mode(bool yolo)
 	{
-		yolo_mode_ = yolo;
+		yolo_mode_.store(yolo);
 	}
 
 	bool is_all_tool_families_enabled() const
@@ -290,7 +291,7 @@ class config_manager
 	bool auto_open_error_files_{true};
 	bool compile_on_save_{false};
 	bool paranoid_mode_{false};
-	bool yolo_mode_{false};
+	std::atomic<bool> yolo_mode_{false};
 	bool all_tool_families_enabled_{false};
 	bool run_outside_sandbox_{false};
 	bool log_all_tool_calls_{false};

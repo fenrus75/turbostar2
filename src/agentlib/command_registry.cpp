@@ -3,11 +3,13 @@
 #include "agentlib/ai_model.h"
 #include "agentlib/skill_manager.h"
 #include "agentlib/subagent_manager.h"
+#include "config_manager.h"
 #include "event_queue.h"
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "project_manager.h"
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <format>
 
@@ -368,6 +370,41 @@ class sysprompt_command : public agent_command
 	}
 };
 
+class yolo_command : public agent_command
+{
+      public:
+	std::string get_name() const override { return "yolo"; }
+	std::string get_description() const override { return "Toggle or set YOLO mode (auto-approve prompts and actions)"; }
+	void execute(const context &ctx) override
+	{
+		auto &cfg = config_manager::get_instance();
+		std::string arg = ctx.arguments;
+		size_t first = arg.find_first_not_of(" \t\r\n");
+		if (first != std::string::npos) {
+			arg.erase(0, first);
+			arg.erase(arg.find_last_not_of(" \t\r\n") + 1);
+		} else {
+			arg.clear();
+		}
+		std::transform(arg.begin(), arg.end(), arg.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+		bool target;
+		if (arg == "on" || arg == "1" || arg == "true" || arg == "enable") {
+			target = true;
+		} else if (arg == "off" || arg == "0" || arg == "false" || arg == "disable") {
+			target = false;
+		} else {
+			target = !cfg.is_yolo_mode();
+		}
+		cfg.set_yolo_mode(target);
+
+		std::string msg = std::format("YOLO mode is now {}", target ? "ENABLED (auto-approving all prompts)" : "DISABLED");
+		if (ctx.agent) {
+			ctx.agent->add_interaction(std::make_shared<agentlib::interaction_system_message>(msg));
+		}
+	}
+};
+
 } // namespace
 
 command_registry &command_registry::get_instance()
@@ -394,6 +431,7 @@ command_registry::command_registry()
 	register_command(std::make_unique<clear_command>());
 	register_command(std::make_unique<rescan_command>());
 	register_command(std::make_unique<sysprompt_command>());
+	register_command(std::make_unique<yolo_command>());
 }
 
 void command_registry::register_command(std::unique_ptr<agent_command> cmd)

@@ -21,8 +21,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 - `fs_run_tests` suite filter (`suite: "unit"` / `"e2e"`): allow running only fast local unit tests without invoking slower external/e2e test suites to prevent 3-minute MCP timeouts when building and running tests.
 
-- feature: we have "yolo" mode already -- add a /yolo slash command to the agent window
-
 - `hexdump` symbol size auto-resolution: when `hexdump` is called with `offset_by_name` (e.g. symbol name `"main"` or section `".text"`), automatically resolve `size` from the symbol's size reported in the binary `.symtab` when `size` is omitted or unspecified.
 
 - `hexinspect` format auto-chaining: when `hexinspect` is invoked on a compressed archive (e.g. `.tar.gz`, `.gz`, `.bz2`, `.zst`), transparently decompress the stream in memory before running structural format parsers (TAR, ELF, PNG, JPEG).
@@ -246,6 +244,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # Done
+
+## 19-09-2026
+- `/yolo` slash command for agent window: implemented `yolo_command` in `src/agentlib/command_registry.cpp` to dynamically toggle or explicitly configure YOLO mode (`/yolo on`, `/yolo off`, `/yolo true`, `/yolo false`, `/yolo 1`, `/yolo 0`) from the agent chat interface without submitting prompts to the model. Converted `yolo_mode_` in `config_manager.h` to `std::atomic<bool>` for thread-safe cross-thread mutation, updated agent window transient status hints, added parent subclass documentation in `agent_command.h`, created `command_registry.md`, and added unit tests in `tests/unit/test_yolo_command.cpp`. (Completed)
 
 ## 17-09-2026
 - `grep_search` alias for `fs_grep_files`: added `"grep_search"` to the global `tool_name_aliases` table in `src/agentlib/llm_types.h` and expanded argument normalization for `fs_grep_files` to automatically map both snake_case and PascalCase parameters (`Query`/`query` -> `pattern`, `SearchPath`/`path` -> `search_path`, `CaseInsensitive` -> `case_insensitive`, `IsRegex` -> `is_regex`, and `Includes` array -> `include_ext`). Added regression tests in `tests/unit/test_tool_infrastructure.cpp`. (Completed)
