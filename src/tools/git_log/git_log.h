@@ -1,12 +1,13 @@
 #pragma once
 #include <string>
-#include "../../agentlib/llm_tool_action.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/llm_tool_action.h"
+#include "agentlib/tool_validator.h"
 
 namespace tools {
 
 struct git_log_args {
     int limit = 10;
+    std::string safe_path;
 };
 
 class git_log_tool : public agentlib::llm_tool_action {
@@ -23,7 +24,7 @@ private:
 class git_log_validator : public agentlib::tool_validator {
 public:
     std::string get_name() const override { return "git_log"; }
-    std::string get_description() const override { return "View recent commit messages in the repository (git log -n <limit> --oneline). Use this instead of running 'git log' or 'git show' via run_shell_command.";; }
+    std::string get_description() const override { return "View recent commit messages in the repository (git log -n <limit> --oneline). Use this instead of running 'git log' or 'git show' via run_shell_command."; }
 
     nlohmann::json get_parameters_schema() const override {
         return {
@@ -33,6 +34,10 @@ public:
                     {"type", "integer"},
                     {"description", "Optional maximum number of commits to retrieve. Defaults to 10."},
                     {"default", 10}
+                }},
+                {"path", {
+                    {"type", "string"},
+                    {"description", "Optional relative path under the project workspace or VFS URI (e.g. 'src/main.cpp'). If omitted or '.', shows commit history for the entire repository."}
                 }}
             }}
         };

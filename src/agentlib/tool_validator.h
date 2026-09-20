@@ -48,6 +48,7 @@ namespace agentlib {
 | list_code_review_items_validator | src/tools/list_code_review_items/list_code_review_items.h |
 | fs_glob_validator            | src/tools/fs_glob/fs_glob.h                                 |
 | fs_find_files_validator      | src/tools/fs_glob/fs_glob.h                                 |
+| git_log_validator            | src/tools/git_log/git_log.h                                 |
 
 */
 

@@ -541,6 +541,7 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Description:** View recent commit messages in the repository (git log -n <limit> --oneline). Use this instead of running `git log` or `git show` via run_shell_command.
 *   **Arguments:**
     *   `limit` *(integer, optional)*: The maximum number of commits to retrieve. Defaults to 10.
+    *   `path` *(string, optional)*: Optional path to a file or directory relative to the project root. Defaults to '.' (entire workspace). Parameter aliases like `file_path`, `filepath`, `filename`, and `file` are supported.
 
 ### `git_blame`
 *   **Description:** View the commit-level git blame history of a file, consolidated into contiguous ranges of lines with commit summary and date. Grounding code is provided for the start line of each range to assist the agent.
