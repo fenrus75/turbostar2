@@ -90,8 +90,33 @@ void editor::dispatch_event_file(const editor_event &ev)
 		return;
 	}
 
-	if (ev.type == event_type::save_as || ev.type == event_type::write_block) {
-		logger.log("Dispatching save_as/write_block event.");
+	if (ev.type == event_type::write_block) {
+		logger.log("Dispatching write_block event.");
+		std::shared_ptr<document> active_doc = get_active_doc();
+
+		if (!active_doc || active_doc->is_read_only()) {
+			logger.log("Cannot write-block read-only or empty buffer.");
+			return;
+		}
+
+		if (!active_doc->has_selection()) {
+			logger.log("Write block requested but no block is selected.");
+			set_status_message("No block selected.", status_priorities::CRITICAL, std::chrono::seconds(3));
+			editor_event redraw_ev;
+			redraw_ev.type = event_type::redraw;
+			global_queue_.push(redraw_ev);
+			return;
+		}
+
+		std::string filename_arg = active_doc->get_filename();
+		active_dialog_ = create_file_dialog("Write Block to File", filename_arg.empty() ? "." : filename_arg);
+		active_dialog_mode_ = dialog_mode::write_block;
+		set_focus(focus_target::dialog, "menu_save");
+		return;
+	}
+
+	if (ev.type == event_type::save_as) {
+		logger.log("Dispatching save_as event.");
 		std::shared_ptr<document> active_doc = get_active_doc();
 
 		if (!active_doc || active_doc->is_read_only()) {
@@ -99,21 +124,10 @@ void editor::dispatch_event_file(const editor_event &ev)
 			return;
 		}
 
-		std::string filename_arg;
-		if (active_doc) {
-			filename_arg = active_doc->get_filename();
-		} else {
-			filename_arg = ".";
-		}
-		if (ev.type == event_type::write_block && active_doc->has_selection()) {
-			active_dialog_ = create_file_dialog("Write Block to File", filename_arg);
-			active_dialog_mode_ = dialog_mode::write_block;
-			set_focus(focus_target::dialog, "menu_save");
-		} else {
-			active_dialog_ = create_file_dialog("Save File As", filename_arg);
-			active_dialog_mode_ = dialog_mode::save;
-			set_focus(focus_target::dialog, "menu_save");
-		}
+		std::string filename_arg = active_doc->get_filename();
+		active_dialog_ = create_file_dialog("Save File As", filename_arg.empty() ? "." : filename_arg);
+		active_dialog_mode_ = dialog_mode::save;
+		set_focus(focus_target::dialog, "menu_save");
 		return;
 	}
 

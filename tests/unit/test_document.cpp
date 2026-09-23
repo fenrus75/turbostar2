@@ -1,4 +1,4 @@
-// Tested source file: src/document.cpp, src/document_format.cpp
+// Tested source file: src/document.cpp, src/document_format.cpp, src/document_selection.cpp
 #include "test_watchdog.h"
 
 #include <cassert>
@@ -408,6 +408,35 @@ int main()
 		assert(success);
 
 		// Read content of temp_file and verify it contains Line 2 and Line 3 only
+		std::ifstream ifs(temp_file);
+		std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+		assert(content == "Line 2\nLine 3");
+
+		std::filesystem::remove(temp_file);
+	}
+
+	// Test 10b: write_selection_to_file with begin marker only and cursor moved
+	{
+		document doc(queue);
+		doc.append_line("Line 1");
+		doc.append_line("Line 2");
+		doc.append_line("Line 3");
+		doc.append_line("Line 4");
+
+		// Move cursor to start of Line 2 (x=0, y=1)
+		doc.set_cursor_position(0, 1);
+		doc.set_selection_start();
+		// Move cursor to end of Line 3 (x=6, y=2) without calling set_selection_end()
+		doc.set_cursor_position(6, 2);
+
+		assert(doc.has_selection());
+
+		std::string temp_file = "temp_selection_write_kb.txt";
+		std::filesystem::remove(temp_file);
+
+		bool success = doc.write_selection_to_file(temp_file);
+		assert(success);
+
 		std::ifstream ifs(temp_file);
 		std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
 		assert(content == "Line 2\nLine 3");

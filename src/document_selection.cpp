@@ -58,21 +58,13 @@ void document::clear_selection()
 
 std::vector<line> document::get_selection_block() const
 {
-	if (selection_start_y_ == -1 || selection_end_y_ == -1)
+	if (!has_selection_unlocked())
 		return {};
 
-	int sx, sy, ex, ey;
-	if (selection_start_y_ < selection_end_y_ || (selection_start_y_ == selection_end_y_ && selection_start_x_ <= selection_end_x_)) {
-		sx = selection_start_x_;
-		sy = selection_start_y_;
-		ex = selection_end_x_;
-		ey = selection_end_y_;
-	} else {
-		sx = selection_end_x_;
-		sy = selection_end_y_;
-		ex = selection_start_x_;
-		ey = selection_start_y_;
-	}
+	int sx = -1, sy = -1, ex = -1, ey = -1;
+	get_selection_range_unlocked(sx, sy, ex, ey);
+	if (sy < 0 || ey < 0 || sy >= static_cast<int>(lines_.size()) || ey >= static_cast<int>(lines_.size()))
+		return {};
 
 	std::vector<line> block;
 	if (sy == ey) {
@@ -100,21 +92,14 @@ void document::delete_selection()
 
 void document::delete_selection_unlocked()
 {
-	if (selection_start_y_ == -1 || selection_end_y_ == -1) {
+	if (!has_selection_unlocked()) {
 		return;
 	}
 
-	int sx, sy, ex, ey;
-	if (selection_start_y_ < selection_end_y_ || (selection_start_y_ == selection_end_y_ && selection_start_x_ <= selection_end_x_)) {
-		sx = selection_start_x_;
-		sy = selection_start_y_;
-		ex = selection_end_x_;
-		ey = selection_end_y_;
-	} else {
-		sx = selection_end_x_;
-		sy = selection_end_y_;
-		ex = selection_start_x_;
-		ey = selection_start_y_;
+	int sx = -1, sy = -1, ex = -1, ey = -1;
+	get_selection_range_unlocked(sx, sy, ex, ey);
+	if (sy < 0 || ey < 0 || sy >= static_cast<int>(lines_.size()) || ey >= static_cast<int>(lines_.size())) {
+		return;
 	}
 
 	begin_edit_group("Delete selection");
@@ -164,7 +149,7 @@ void document::delete_selection_unlocked()
 void document::copy_selection()
 {
 	std::unique_lock lock(mutex_);
-	if (selection_start_y_ == -1 || selection_end_y_ == -1) {
+	if (!has_selection_unlocked()) {
 		lock.unlock();
 		notify_cursor_changed();
 		return;
@@ -174,8 +159,13 @@ void document::copy_selection()
 	int tx = cursor_x_;
 	int ty = cursor_y_;
 
-	int sx, sy, ex, ey;
+	int sx = -1, sy = -1, ex = -1, ey = -1;
 	get_selection_range_unlocked(sx, sy, ex, ey);
+	if (sy < 0 || ey < 0 || sy >= static_cast<int>(lines_.size()) || ey >= static_cast<int>(lines_.size())) {
+		lock.unlock();
+		notify_cursor_changed();
+		return;
+	}
 	bool whole_lines = (sx == 0 && ex == lines_[ey]->length_in_chars() && ex > 0 && (ey - sy + 1 < (int)lines_.size()));
 	bool use_structural = whole_lines && (tx == 0);
 
@@ -212,7 +202,7 @@ void document::move_selection()
 	if (is_read_only())
 		return;
 	std::unique_lock lock(mutex_);
-	if (selection_start_y_ == -1 || selection_end_y_ == -1) {
+	if (!has_selection_unlocked()) {
 		lock.unlock();
 		notify_cursor_changed();
 		return;
@@ -222,8 +212,13 @@ void document::move_selection()
 	int tx = cursor_x_;
 	int ty = cursor_y_;
 
-	int sx, sy, ex, ey;
+	int sx = -1, sy = -1, ex = -1, ey = -1;
 	get_selection_range_unlocked(sx, sy, ex, ey);
+	if (sy < 0 || ey < 0 || sy >= static_cast<int>(lines_.size()) || ey >= static_cast<int>(lines_.size())) {
+		lock.unlock();
+		notify_cursor_changed();
+		return;
+	}
 
 	bool whole_lines = (sx == 0 && ex == lines_[ey]->length_in_chars() && ex > 0 && (ey - sy + 1 < (int)lines_.size()));
 	int num_deleted_lines = whole_lines ? (ey - sy + 1) : (ey - sy);
@@ -333,24 +328,59 @@ void document::insert_block(std::span<const line> block, bool whole_lines)
 	end_edit_group();
 }
 
+bool document::has_selection_unlocked() const noexcept
+{
+	if (selection_start_y_ != -1 && selection_end_y_ != -1) {
+		return selection_start_y_ != selection_end_y_ || selection_start_x_ != selection_end_x_;
+	}
+	if (selection_start_y_ != -1 && selection_end_y_ == -1) {
+		return selection_start_y_ != cursor_y_ || selection_start_x_ != cursor_x_;
+	}
+	if (selection_start_y_ == -1 && selection_end_y_ != -1) {
+		return selection_end_y_ != cursor_y_ || selection_end_x_ != cursor_x_;
+	}
+	return false;
+}
+
 bool document::has_selection() const noexcept
 {
 	std::shared_lock lock(mutex_);
-	return selection_start_y_ != -1 && selection_end_y_ != -1;
+	return has_selection_unlocked();
 }
 
 void document::get_selection_range_unlocked(int &start_x, int &start_y, int &end_x, int &end_y) const
 {
-	if (selection_start_y_ < selection_end_y_ || (selection_start_y_ == selection_end_y_ && selection_start_x_ <= selection_end_x_)) {
-		start_x = selection_start_x_;
-		start_y = selection_start_y_;
-		end_x = selection_end_x_;
-		end_y = selection_end_y_;
+	int p1_x, p1_y, p2_x, p2_y;
+	if (selection_start_y_ != -1 && selection_end_y_ != -1) {
+		p1_x = selection_start_x_;
+		p1_y = selection_start_y_;
+		p2_x = selection_end_x_;
+		p2_y = selection_end_y_;
+	} else if (selection_start_y_ != -1) {
+		p1_x = selection_start_x_;
+		p1_y = selection_start_y_;
+		p2_x = cursor_x_;
+		p2_y = cursor_y_;
+	} else if (selection_end_y_ != -1) {
+		p1_x = cursor_x_;
+		p1_y = cursor_y_;
+		p2_x = selection_end_x_;
+		p2_y = selection_end_y_;
 	} else {
-		start_x = selection_end_x_;
-		start_y = selection_end_y_;
-		end_x = selection_start_x_;
-		end_y = selection_start_y_;
+		start_x = start_y = end_x = end_y = -1;
+		return;
+	}
+
+	if (p1_y < p2_y || (p1_y == p2_y && p1_x <= p2_x)) {
+		start_x = p1_x;
+		start_y = p1_y;
+		end_x = p2_x;
+		end_y = p2_y;
+	} else {
+		start_x = p2_x;
+		start_y = p2_y;
+		end_x = p1_x;
+		end_y = p1_y;
 	}
 }
 

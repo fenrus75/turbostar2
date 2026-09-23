@@ -321,6 +321,7 @@ bool window::process_events()
 					click_char = l->display_col_to_char_pos(click_col_display);
 				}
 
+				doc_->clear_selection();
 				doc_->move_cursor(click_char - doc_->get_cursor_x(), click_row - doc_->get_cursor_y());
 
 				is_mouse_selecting_ = true;
@@ -409,6 +410,7 @@ bool window::process_events()
 					mouse_sel_start_line_ = click_row;
 					mouse_sel_end_char_ = end_pos + 1;
 					mouse_sel_end_line_ = click_row;
+					doc_->set_selection(click_row, start_pos, click_row, end_pos + 1);
 
 					std::string selected_text = get_mouse_selected_text();
 					if (!selected_text.empty()) {
@@ -452,6 +454,7 @@ bool window::process_events()
 				mouse_sel_start_line_ = start_row;
 				mouse_sel_end_char_ = end_line_obj->length_in_chars();
 				mouse_sel_end_line_ = end_row;
+				doc_->set_selection(start_row, 0, end_row, end_line_obj->length_in_chars());
 
 				std::string selected_text = get_mouse_selected_text();
 				if (!selected_text.empty()) {
@@ -475,6 +478,7 @@ bool window::process_events()
 				mouse_sel_end_char_ = click_char;
 				mouse_sel_end_line_ = click_row;
 				doc_->move_cursor(click_char - doc_->get_cursor_x(), click_row - doc_->get_cursor_y());
+				doc_->set_selection(mouse_sel_start_line_, mouse_sel_start_char_, mouse_sel_end_line_, mouse_sel_end_char_);
 				invalidate();
 			}
 		} else if (ev->type == event_type::mouse_release && doc_) {
@@ -482,6 +486,10 @@ bool window::process_events()
 				std::string selected_text = get_mouse_selected_text();
 				if (!selected_text.empty()) {
 					ansi::copy_to_clipboard(selected_text);
+				}
+				if (mouse_sel_start_line_ != -1 && mouse_sel_end_line_ != -1 &&
+				    (mouse_sel_start_line_ != mouse_sel_end_line_ || mouse_sel_start_char_ != mouse_sel_end_char_)) {
+					doc_->set_selection(mouse_sel_start_line_, mouse_sel_start_char_, mouse_sel_end_line_, mouse_sel_end_char_);
 				}
 				is_mouse_selecting_ = false;
 				invalidate();

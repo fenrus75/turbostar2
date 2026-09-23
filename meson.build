@@ -1911,6 +1911,14 @@ if uv.found() or python.found()
     timeout: 60,
     suite: 'editor'
   )
+  test('e2e_ctrl_k_w', e2e_exe,
+    args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_ctrl_k_w.py')],
+    env: e2e_env,
+    depends: e2e_depends,
+    workdir: meson.project_build_root(),
+    timeout: 60,
+    suite: 'editor'
+  )
   test('e2e_hex_editor', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_hex_editor.py')],
     env: e2e_env,

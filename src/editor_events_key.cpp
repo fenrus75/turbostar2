@@ -69,7 +69,11 @@ void editor::resolve_dialog(dialog_result res)
 		} else if (active_dialog_mode_ == dialog_mode::write_block) {
 			std::string result_path = active_dialog_->get_result();
 			if (doc) {
-				doc->write_selection_to_file(result_path);
+				if (doc->write_selection_to_file(result_path)) {
+					set_status_message(std::format("Block written to {}.", result_path));
+				} else {
+					set_status_message(std::format("Failed to write block to {}.", result_path), status_priorities::WARNING);
+				}
 				history_manager::get_instance().add_file(result_path);
 			}
 		} else if (active_dialog_mode_ == dialog_mode::search) {

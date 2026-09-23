@@ -443,8 +443,9 @@ void editor::update_recent_files_menu()
 		{"Open...", event_type::load, 'o', "^KE", false},
 		menu_item("Open Recent...", recent_items, 'r'),
 		{"Save", event_type::save, 's', "^KS", false},
-		{"Save as...", event_type::save_as, 'a', "^KW", false},
+		{"Save as...", event_type::save_as, 'a', "", false},
 		{"Save All", event_type::save_all, 'v', "^KA", false},
+		{"Write Block...", event_type::write_block, 'w', "^KW", false},
 		{"Close", event_type::close_window, 'c', "Alt+F3", false},
 		{"", event_type::key_press, 0, "", true},
 		menu_item("Exit", event_type::quit, 'x', "^KQ", false)
@@ -1176,9 +1177,9 @@ bool editor::handle_k_block_key(int key)
 		global_queue_.push(ev);
 		return true;
 	} else if (c == 'w') {
-		logger.log("K-block: Write (Save As)");
+		logger.log("K-block: Write Block");
 		if (!active_doc || active_doc->is_read_only()) {
-			logger.log("Cannot save-as read-only or empty buffer via hotkey.");
+			logger.log("Cannot write-block read-only or empty buffer via hotkey.");
 			return true;
 		}
 		editor_event ev;
@@ -1598,7 +1599,7 @@ std::string editor::get_k_block_status_help() const
 		     }
 		     return false;
 	     }},
-	    {"^W:Write", 10, 12, [](const editor &, const std::shared_ptr<document> &doc) { return doc != nullptr; }},
+	    {"^W:Write", 30, 12, [](const editor &, const std::shared_ptr<document> &doc) { return doc && doc->has_selection(); }},
 	    {"^R:Insert", 10, 13, [](const editor &, const std::shared_ptr<document> &doc) { return doc != nullptr; }},
 	    {"^J:Format", 10, 14, [](const editor &, const std::shared_ptr<document> &doc) { return doc != nullptr; }},
 	    {"^Z:Zap", 10, 15, [](const editor &, const std::shared_ptr<document> &doc) { return doc != nullptr; }},
