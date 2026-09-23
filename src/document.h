@@ -180,6 +180,7 @@ class document
 	bool find_next(const search_params &params, bool is_repeat = false);
 	bool replace_current(const search_params &params);
 	int replace_all(const search_params &params);
+	int get_last_match_len() const noexcept { return last_match_len_chars_; }
 
 	void format_range(int start_y, int end_y);
 	void format_paragraph();

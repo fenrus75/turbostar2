@@ -251,6 +251,11 @@ void editor::dispatch(const editor_event &ev)
 				editor_event redraw_ev;
 				redraw_ev.type = event_type::redraw;
 				global_queue_.push(redraw_ev);
+			} else if (active_mode_ == input_mode::replace_query) {
+				replace_input_buffer_ += ev.payload;
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
 			} else if (active_mode_ == input_mode::going_to_line) {
 				for (char c : ev.payload) {
 					if (c >= '0' && c <= '9') {

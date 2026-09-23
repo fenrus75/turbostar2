@@ -618,9 +618,13 @@ std::unique_ptr<dialog> create_search_dialog(const std::string &title, const sea
 	// Query
 	auto query_tb = std::make_unique<ui_textbox>(
 	    "query", 54, initial_params.query,
-	    [d = dlg.get()](const std::string &) {
-		    d->set_action(dialog_result::confirmed);
-		    d->set_result("ok");
+	    [d = dlg.get(), is_replace](const std::string &) {
+		    if (is_replace) {
+			    d->set_focus_by_name("replacement");
+		    } else {
+			    d->set_action(dialog_result::confirmed);
+			    d->set_result("ok");
+		    }
 	    },
 	    "Text to find");
 	query_tb->set_history_enabled(true, "search_query");

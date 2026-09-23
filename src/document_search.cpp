@@ -45,11 +45,11 @@ bool document::find_next(const search_params &params, bool is_repeat)
 	int start_x = cursor_x_;
 
 	int scope_sy = 0, scope_sx = 0, scope_ey = line_count_unlocked() - 1, scope_ex = lines_.back()->length_in_chars();
-	if (params.selected_text_only && selection_start_y_ != -1) {
-		get_selection_range(scope_sx, scope_sy, scope_ex, scope_ey);
+	if (params.selected_text_only && has_selection_unlocked()) {
+		get_selection_range_unlocked(scope_sx, scope_sy, scope_ex, scope_ey);
 	}
 
-	if (!params.from_cursor) {
+	if (!params.from_cursor && !is_repeat) {
 		if (params.backward) {
 			start_y = scope_ey;
 			start_x = scope_ex;
@@ -58,23 +58,26 @@ bool document::find_next(const search_params &params, bool is_repeat)
 			start_x = scope_sx;
 		}
 	} else if (is_repeat) {
-		// Step over current char
-		if (params.backward) {
-			if (start_x > 0)
-				start_x--;
-			else if (start_y > scope_sy) {
-				start_y--;
-				start_x = lines_[start_y]->length_in_chars();
-			} else
-				return false;
-		} else {
-			if (start_x < lines_[start_y]->length_in_chars())
-				start_x++;
-			else if (start_y < scope_ey) {
-				start_y++;
-				start_x = 0;
-			} else
-				return false;
+		// Step over current char ONLY if we did not just replace the match!
+		// If last_match_len_chars_ == 0, replace_current already positioned cursor_x_ at the next char.
+		if (last_match_len_chars_ > 0) {
+			if (params.backward) {
+				if (start_x > 0)
+					start_x--;
+				else if (start_y > scope_sy) {
+					start_y--;
+					start_x = lines_[start_y]->length_in_chars();
+				} else
+					return false;
+			} else {
+				if (start_x < lines_[start_y]->length_in_chars())
+					start_x++;
+				else if (start_y < scope_ey) {
+					start_y++;
+					start_x = 0;
+				} else
+					return false;
+			}
 		}
 	}
 
@@ -337,9 +340,9 @@ int document::replace_all(const search_params &params)
 	// Move cursor to start of scope to begin search
 	std::unique_lock lock(mutex_);
 	int scope_sy = 0, scope_sx = 0;
-	if (params.selected_text_only && selection_start_y_ != -1) {
+	if (params.selected_text_only && has_selection_unlocked()) {
 		int scope_ex = 0, scope_ey = 0;
-		get_selection_range(scope_sx, scope_sy, scope_ex, scope_ey);
+		get_selection_range_unlocked(scope_sx, scope_sy, scope_ex, scope_ey);
 	}
 	cursor_y_ = scope_sy;
 	cursor_x_ = scope_sx;

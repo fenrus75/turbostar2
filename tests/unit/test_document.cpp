@@ -532,6 +532,42 @@ int main()
 		assert(doc.get_line(0)->get_text() == "lemon grape lemon orange");
 	}
 
+	// Test 13b: search and replace adjacent/consecutive occurrences
+	{
+		document doc(queue);
+		doc.insert_text("foofoo");
+
+		search_params params;
+		params.query = "foo";
+		params.replacement = "bar";
+		params.ignore_case = true;
+		params.whole_words = false;
+
+		doc.move_cursor(-doc.get_cursor_x(), 0);
+
+		// First replace_current then find_next(is_repeat=true)
+		bool found1 = doc.find_next(params);
+		assert(found1);
+		assert(doc.get_cursor_x() == 0);
+		bool rep1 = doc.replace_current(params);
+		assert(rep1);
+		assert(doc.get_line(0)->get_text() == "barfoo");
+
+		bool found2 = doc.find_next(params, true);
+		assert(found2);
+		assert(doc.get_cursor_x() == 3);
+		bool rep2 = doc.replace_current(params);
+		assert(rep2);
+		assert(doc.get_line(0)->get_text() == "barbar");
+
+		// And replace_all on adjacent occurrences
+		document doc2(queue);
+		doc2.insert_text("foofoo");
+		int count = doc2.replace_all(params);
+		assert(count == 2);
+		assert(doc2.get_line(0)->get_text() == "barbar");
+	}
+
 	// Test 14: Dynamic tab width configuration
 	{
 		line l("\tA");

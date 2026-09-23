@@ -22,6 +22,8 @@ void editor::dispatch_event_search(const editor_event &ev)
 
 	if (ev.type == event_type::find) {
 		logger.log("Dispatching find event (advanced dialog).");
+		std::shared_ptr<document> active_doc = get_active_doc();
+		current_search_.selected_text_only = (active_doc && active_doc->has_selection());
 		active_dialog_ = create_search_dialog("Find", current_search_, false);
 		active_dialog_mode_ = dialog_mode::search;
 		set_focus(focus_target::dialog, "menu_find");
@@ -30,6 +32,8 @@ void editor::dispatch_event_search(const editor_event &ev)
 
 	if (ev.type == event_type::replace) {
 		logger.log("Dispatching replace event (advanced dialog).");
+		std::shared_ptr<document> active_doc = get_active_doc();
+		current_search_.selected_text_only = (active_doc && active_doc->has_selection());
 		active_dialog_ = create_search_dialog("Replace", current_search_, true);
 		active_dialog_mode_ = dialog_mode::replace;
 		set_focus(focus_target::dialog, "menu_replace");

@@ -97,7 +97,7 @@ void editor::resolve_dialog(dialog_result res)
 			if (dlg_res == "change_all") {
 				if (doc) {
 					int count = doc->replace_all(current_search_);
-					set_status_message(std::format("Replaced {} occurrence(s).", count));
+					set_status_message(std::format("Replaced {} occurrence(s).", count), status_priorities::CRITICAL, std::chrono::seconds(5));
 					editor_event redraw_ev;
 					redraw_ev.type = event_type::redraw;
 					global_queue_.push(redraw_ev);
@@ -106,17 +106,19 @@ void editor::resolve_dialog(dialog_result res)
 				if (current_search_.prompt_on_replace) {
 					if (doc && doc->find_next(current_search_)) {
 						active_mode_ = input_mode::replace_prompt;
-						set_status_message("Replace? (Y)es / (N)o / (A)ll / (Q)uit", status_priorities::WARNING);
+						doc->set_selection(doc->get_cursor_y(), doc->get_cursor_x(),
+								   doc->get_cursor_y(), doc->get_cursor_x() + doc->get_last_match_len());
+						set_status_message("Replace? (Y)es / (N)o / (A)ll / (Q)uit", status_priorities::CRITICAL, std::chrono::seconds(10));
 						editor_event redraw_ev;
 						redraw_ev.type = event_type::redraw;
 						global_queue_.push(redraw_ev);
 					} else {
-						set_status_message("Search string not found.");
+						set_status_message("Search string not found.", status_priorities::CRITICAL, std::chrono::seconds(3));
 					}
 				} else {
 					if (doc) {
 						int count = doc->replace_all(current_search_);
-						set_status_message(std::format("Replaced {} occurrence(s).", count));
+						set_status_message(std::format("Replaced {} occurrence(s).", count), status_priorities::CRITICAL, std::chrono::seconds(5));
 						editor_event redraw_ev;
 						redraw_ev.type = event_type::redraw;
 						global_queue_.push(redraw_ev);
@@ -1270,30 +1272,82 @@ void editor::dispatch_event_key(const editor_event &ev)
 			return; // Consume all keys in prompt mode
 		}
 
-		// Status Bar Replace Prompt
-		if (active_mode_ == input_mode::replace_prompt) {
-			char c = 0;
-			if (!ev.utf8_char.empty()) {
-				c = std::tolower(ev.utf8_char[0]);
-			}
-			if (ev.key_code == 27 || c == 'q') { // ESC or 'q'
+		// 2.6 Status Bar Replace Query Prompt
+		if (active_mode_ == input_mode::replace_query) {
+			if (ev.key_code == 27 || ev.key_code == 3) { // ESC or Ctrl-C
 				active_mode_ = input_mode::normal;
-				clear_status_message(status_priorities::WARNING);
-				set_status_message("Search/replace cancelled.");
 				editor_event redraw_ev;
 				redraw_ev.type = event_type::redraw;
 				global_queue_.push(redraw_ev);
 				return;
 			}
-			if (c == 'y') {
+
+			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {
+				current_search_.replacement = replace_input_buffer_;
+				input_history_manager::get_instance().add_entry("replace_query", current_search_.replacement);
+				save_search_persistence();
+
+				std::shared_ptr<document> active_doc = get_active_doc();
+				if (active_doc && active_doc->find_next(current_search_)) {
+					active_mode_ = input_mode::replace_prompt;
+					active_doc->set_selection(active_doc->get_cursor_y(), active_doc->get_cursor_x(),
+								  active_doc->get_cursor_y(), active_doc->get_cursor_x() + active_doc->get_last_match_len());
+					set_status_message("Replace? (Y)es / (N)o / (A)ll / (Q)uit", status_priorities::CRITICAL, std::chrono::seconds(10));
+				} else {
+					active_mode_ = input_mode::normal;
+					set_status_message("Search string not found.", status_priorities::CRITICAL, std::chrono::seconds(3));
+				}
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+				return;
+			}
+			if (ev.key_code == KEY_BACKSPACE || ev.key_code == 127 || ev.key_code == 8) {
+				if (!replace_input_buffer_.empty())
+					replace_input_buffer_.pop_back();
+				return;
+			}
+			if (!ev.utf8_char.empty() && ev.key_code >= 32) {
+				replace_input_buffer_ += ev.utf8_char;
+				return;
+			}
+			return; // Consume all keys in prompt mode
+		}
+
+		// Status Bar Replace Prompt
+		if (active_mode_ == input_mode::replace_prompt) {
+			char c = 0;
+			if (!ev.utf8_char.empty()) {
+				c = std::tolower(ev.utf8_char[0]);
+			} else if (ev.key_code > 0 && ev.key_code < 128) {
+				c = std::tolower(ev.key_code);
+			}
+
+			if (ev.key_code == 27 || c == 'q') { // ESC or 'q'
+				active_mode_ = input_mode::normal;
+				if (doc)
+					doc->clear_selection();
+				clear_status_message(status_priorities::WARNING);
+				set_status_message("Search/replace cancelled.", status_priorities::CRITICAL, std::chrono::seconds(3));
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
+				return;
+			}
+			if (c == 'y' || ev.key_code == 10 || ev.key_code == 13 || ev.key_code == KEY_ENTER || c == ' ') {
 				if (doc) {
 					doc->replace_current(current_search_);
-					if (doc->find_next(current_search_, true)) {
-						set_status_message("Replace? (Y)es / (N)o / (A)ll / (Q)uit", status_priorities::WARNING);
+					search_params cont_search = current_search_;
+					cont_search.from_cursor = true;
+					if (doc->find_next(cont_search, true)) {
+						doc->set_selection(doc->get_cursor_y(), doc->get_cursor_x(),
+								   doc->get_cursor_y(), doc->get_cursor_x() + doc->get_last_match_len());
+						set_status_message("Replace? (Y)es / (N)o / (A)ll / (Q)uit", status_priorities::CRITICAL, std::chrono::seconds(10));
 					} else {
 						active_mode_ = input_mode::normal;
+						doc->clear_selection();
 						clear_status_message(status_priorities::WARNING);
-						set_status_message("Search/replace complete.");
+						set_status_message("Search/replace complete.", status_priorities::CRITICAL, std::chrono::seconds(3));
 					}
 				}
 				editor_event redraw_ev;
@@ -1303,12 +1357,17 @@ void editor::dispatch_event_key(const editor_event &ev)
 			}
 			if (c == 'n') {
 				if (doc) {
-					if (doc->find_next(current_search_, true)) {
-						set_status_message("Replace? (Y)es / (N)o / (A)ll / (Q)uit", status_priorities::WARNING);
+					search_params cont_search = current_search_;
+					cont_search.from_cursor = true;
+					if (doc->find_next(cont_search, true)) {
+						doc->set_selection(doc->get_cursor_y(), doc->get_cursor_x(),
+								   doc->get_cursor_y(), doc->get_cursor_x() + doc->get_last_match_len());
+						set_status_message("Replace? (Y)es / (N)o / (A)ll / (Q)uit", status_priorities::CRITICAL, std::chrono::seconds(10));
 					} else {
 						active_mode_ = input_mode::normal;
+						doc->clear_selection();
 						clear_status_message(status_priorities::WARNING);
-						set_status_message("Search/replace complete.");
+						set_status_message("Search/replace complete.", status_priorities::CRITICAL, std::chrono::seconds(3));
 					}
 				}
 				editor_event redraw_ev;
@@ -1321,8 +1380,9 @@ void editor::dispatch_event_key(const editor_event &ev)
 					doc->replace_current(current_search_);
 					int count = doc->replace_all(current_search_) + 1;
 					active_mode_ = input_mode::normal;
+					doc->clear_selection();
 					clear_status_message(status_priorities::WARNING);
-					set_status_message(std::format("Replaced {} occurrence(s).", count));
+					set_status_message(std::format("Replaced {} occurrence(s).", count), status_priorities::CRITICAL, std::chrono::seconds(5));
 				}
 				editor_event redraw_ev;
 				redraw_ev.type = event_type::redraw;
@@ -1331,6 +1391,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 			}
 			return; // Consume all other keys while in prompt
 		}
+
 
 		// 3. Status Bar Go to Line Prompt
 		if (active_mode_ == input_mode::going_to_line) {

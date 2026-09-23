@@ -1349,6 +1349,9 @@ void editor::render(bool cursor_only)
 		case input_mode::search_options:
 			status_help = "Options (I R B K): " + search_options_buffer_ + "_";
 			break;
+		case input_mode::replace_query:
+			status_help = "Replace with: " + replace_input_buffer_ + "_";
+			break;
 		case input_mode::going_to_line:
 			status_help = "Go to line: " + line_input_buffer_ + "_";
 			break;
