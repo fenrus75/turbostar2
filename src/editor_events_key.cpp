@@ -1234,13 +1234,15 @@ void editor::dispatch_event_key(const editor_event &ev)
 				}
 
 				history_manager::get_instance().add_search(current_search_.query);
+				input_history_manager::get_instance().add_entry("search_query", current_search_.query);
 				save_search_persistence();
 
 				if (is_replace) {
-					active_mode_ = input_mode::normal;
-					active_dialog_ = create_search_dialog("Replace", current_search_, true);
-					active_dialog_mode_ = dialog_mode::replace;
-					set_focus(focus_target::dialog, "menu_replace");
+					active_mode_ = input_mode::replace_query;
+					replace_input_buffer_ = "";
+					editor_event redraw_ev;
+					redraw_ev.type = event_type::redraw;
+					global_queue_.push(redraw_ev);
 					return;
 				}
 
@@ -1377,8 +1379,17 @@ void editor::dispatch_event_key(const editor_event &ev)
 			}
 			if (c == 'a') {
 				if (doc) {
-					doc->replace_current(current_search_);
-					int count = doc->replace_all(current_search_) + 1;
+					int count = 0;
+					if (doc->replace_current(current_search_)) {
+						count++;
+					}
+					search_params cont_search = current_search_;
+					cont_search.from_cursor = true;
+					while (doc->find_next(cont_search, true)) {
+						if (doc->replace_current(cont_search)) {
+							count++;
+						}
+					}
 					active_mode_ = input_mode::normal;
 					doc->clear_selection();
 					clear_status_message(status_priorities::WARNING);

@@ -1496,7 +1496,8 @@ void editor::render(bool cursor_only)
 	refresh();
 
 	// Only show cursor if we are in window focus and NOT in a modal state
-	if (current_focus_ == focus_target::window && !active_dialog_ && !active_popup_ && active_mode_ == input_mode::normal) {
+	if (current_focus_ == focus_target::window && !active_dialog_ && !active_popup_ &&
+	    (active_mode_ == input_mode::normal || active_mode_ == input_mode::replace_prompt)) {
 		if (active_win) {
 			active_win->set_cursor_position();
 			if (active_win->is_cursor_visible()) {
