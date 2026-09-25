@@ -1,14 +1,14 @@
-// test_shell_command_resteer.cpp
+// Tested source file: src/tools/run_shell_command/shell_command_resteer.cpp, src/tools/run_shell_command/run_shell_command_security.cpp
 //
 // Unit tests for shell command regex re-steering engine.
 
-#include "test_watchdog.h"
-#include "agentlib/tool_context.h"
-#include "agentlib/tool_registry.h"
-#include "tools/run_shell_command/shell_command_resteer.h"
 #include <cassert>
 #include <iostream>
 #include <string>
+#include "agentlib/tool_context.h"
+#include "agentlib/tool_registry.h"
+#include "test_watchdog.h"
+#include "tools/run_shell_command/shell_command_resteer.h"
 
 int main()
 {
@@ -41,10 +41,26 @@ int main()
 		assert(rec4.matched);
 		assert(rec4.suggested_tool.find("fs_grep_files(pattern=\"research_agent\", path=\"src/\")") != std::string::npos);
 
-		// Git status / diff / log
+		// Git status / diff / log / show
 		auto rec5 = tools::evaluate_shell_command_resteer("git status");
 		assert(rec5.matched);
 		assert(rec5.suggested_tool.find("git_status()") != std::string::npos);
+
+		auto rec5_show = tools::evaluate_shell_command_resteer("git show 458615e1");
+		assert(rec5_show.matched);
+		assert(rec5_show.suggested_tool.find("git_log(commit_id=\"458615e1\", show_patch=true)") != std::string::npos);
+
+		auto rec5_show_stat = tools::evaluate_shell_command_resteer("git show --stat 458615e1");
+		assert(rec5_show_stat.matched);
+		assert(rec5_show_stat.suggested_tool.find("git_log(commit_id=\"458615e1\", stat=true)") != std::string::npos);
+
+		auto rec5_log_patch = tools::evaluate_shell_command_resteer("git log -p -1 458615e1");
+		assert(rec5_log_patch.matched);
+		assert(rec5_log_patch.suggested_tool.find("git_log(commit_id=\"458615e1\", show_patch=true)") != std::string::npos);
+
+		auto rec5_log_stat = tools::evaluate_shell_command_resteer("git log --stat");
+		assert(rec5_log_stat.matched);
+		assert(rec5_log_stat.suggested_tool.find("git_log(stat=true)") != std::string::npos);
 	}
 
 	// 2. Integration test via tool_registry & run_shell_command
