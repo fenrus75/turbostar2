@@ -1,4 +1,4 @@
-#include "test_watchdog.h"
+// Tested source file: src/tools/fs_replace_lines/fs_replace_lines_entry.cpp, src/tools/fs_replace_lines/fs_replace_lines_security.cpp
 #include <cassert>
 #include <fstream>
 #include <iostream>
@@ -6,11 +6,12 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include "../../src/agentlib/tool_context.h"
-#include "../../src/agentlib/tool_registry.h"
-#include "../../src/agentlib/virtual_file_system.h"
-#include "../../src/tools/fs_replace_lines/fs_replace_lines.h"
-#include "../../src/fs_utils.h"
+#include "agentlib/tool_context.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/virtual_file_system.h"
+#include "fs_utils.h"
+#include "test_watchdog.h"
+#include "tools/fs_replace_lines/fs_replace_lines.h"
 
 void create_dummy_file(const std::string &path)
 {
@@ -59,10 +60,11 @@ int main()
 	in.close();
 
 	// Test Offset Hint Logic (within threshold <= 3, auto-shift)
-	nlohmann::json bad_args = {
-	    {"path", test_file},
-	    {"edits", nlohmann::json::array(
-			  {{{"line_number", 1}, {"type", "replace"}, {"original_text", "Replaced Line 2"}, {"replace_with", "Replaced Line 2 Shifted"}}})}};
+	nlohmann::json bad_args = {{"path", test_file},
+				   {"edits", nlohmann::json::array({{{"line_number", 1},
+								     {"type", "replace"},
+								     {"original_text", "Replaced Line 2"},
+								     {"replace_with", "Replaced Line 2 Shifted"}}})}};
 
 	std::string bad_result = registry.execute_tool("fs_replace_lines", bad_args.dump(), ctx);
 	std::cout << "Auto-shift result: " << bad_result << "\n";
@@ -82,12 +84,13 @@ int main()
 
 	nlohmann::json too_far_args = {
 	    {"path", test_file},
-	    {"edits", nlohmann::json::array(
-			  {{{"line_number", 1}, {"type", "replace"}, {"original_text", "Line 6"}, {"replace_with", "Fail"}}})}};
+	    {"edits",
+	     nlohmann::json::array({{{"line_number", 1}, {"type", "replace"}, {"original_text", "Line 6"}, {"replace_with", "Fail"}}})}};
 
 	std::string too_far_result = registry.execute_tool("fs_replace_lines", too_far_args.dump(), ctx);
 	std::cout << "Too far offset result: " << too_far_result << "\n";
-	assert(too_far_result.find("Verification Error: The block you provided is not at line 1, but it matches starting at line 6. Please update your line_number.") != std::string::npos);
+	assert(too_far_result.find("Verification Error: The block you provided is not at line 1, but it matches starting at line 6. Please "
+				   "update your line_number.") != std::string::npos);
 
 	// Test Ambiguous Multiple Matches Logic (should fail)
 	{
@@ -102,7 +105,8 @@ int main()
 
 	std::string ambiguous_result = registry.execute_tool("fs_replace_lines", ambiguous_args.dump(), ctx);
 	std::cout << "Ambiguous matches result: " << ambiguous_result << "\n";
-	assert(ambiguous_result.find("Verification Error: Multiple matches found for your block within +/- 25 lines (at lines [1, 3])") != std::string::npos);
+	assert(ambiguous_result.find("Verification Error: Multiple matches found for your block within +/- 25 lines (at lines [1, 3])") !=
+	       std::string::npos);
 
 	std::remove(test_file.c_str());
 
@@ -118,8 +122,9 @@ int main()
 
 	nlohmann::json args_15 = {
 	    {"path", test_file_15},
-	    {"edits", nlohmann::json::array(
-			  {{{"line_number", 15}, {"type", "replace"}, {"original_text", "Line 15"}, {"replace_with", "Replaced Line 15"}}})}};
+	    {"edits",
+	     nlohmann::json::array(
+		 {{{"line_number", 15}, {"type", "replace"}, {"original_text", "Line 15"}, {"replace_with", "Replaced Line 15"}}})}};
 
 	std::string result_15 = registry.execute_tool("fs_replace_lines", args_15.dump(), ctx);
 	std::cout << "15-line replacement result: " << result_15 << "\n";
@@ -127,16 +132,14 @@ int main()
 
 	nlohmann::json args_16_add = {
 	    {"path", test_file_15},
-	    {"edits", nlohmann::json::array(
-			  {{{"line_number", 16}, {"type", "add"}, {"replace_with", "Line 16"}}})}};
+	    {"edits", nlohmann::json::array({{{"line_number", 16}, {"type", "add"}, {"replace_with", "Line 16"}}})}};
 	std::string result_16 = registry.execute_tool("fs_replace_lines", args_16_add.dump(), ctx);
 	std::cout << "16-line add result: " << result_16 << "\n";
 	assert(result_16.find("Successfully applied") != std::string::npos);
 
 	nlohmann::json args_100_add = {
 	    {"path", test_file_15},
-	    {"edits", nlohmann::json::array(
-			  {{{"line_number", 100}, {"type", "add"}, {"replace_with", "Line 100"}}})}};
+	    {"edits", nlohmann::json::array({{{"line_number", 100}, {"type", "add"}, {"replace_with", "Line 100"}}})}};
 	std::string result_100 = registry.execute_tool("fs_replace_lines", args_100_add.dump(), ctx);
 	std::cout << "100-line add result (should fail): " << result_100 << "\n";
 	assert(result_100.find("Verification Error") != std::string::npos);
@@ -146,43 +149,38 @@ int main()
 	// Test Out of Order (Non-descending) line numbers auto-sorting
 	nlohmann::json args_out_of_order = {
 	    {"path", test_file_15},
-	    {"edits", nlohmann::json::array({
-		{{"line_number", 5}, {"type", "add"}, {"replace_with", "Line 5"}},
-		{{"line_number", 10}, {"type", "add"}, {"replace_with", "Line 10"}},
-		{{"line_number", 2}, {"type", "add"}, {"replace_with", "Line 2"}}
-	    })}
-	};
+	    {"edits", nlohmann::json::array({{{"line_number", 5}, {"type", "add"}, {"replace_with", "Line 5"}},
+					     {{"line_number", 10}, {"type", "add"}, {"replace_with", "Line 10"}},
+					     {{"line_number", 2}, {"type", "add"}, {"replace_with", "Line 2"}}})}};
 	std::string result_out_of_order = registry.execute_tool("fs_replace_lines", args_out_of_order.dump(), ctx);
 	std::cout << "Out of order result: " << result_out_of_order << "\n";
 	assert(result_out_of_order.find("Successfully applied 3 edits") != std::string::npos);
 	assert(result_out_of_order.find("System Corrections Applied:") != std::string::npos);
-	assert(result_out_of_order.find("Edits were automatically sorted in descending order to prevent line shifting issues.") != std::string::npos);
+	assert(result_out_of_order.find("Edits were automatically sorted in descending order to prevent line shifting issues.") !=
+	       std::string::npos);
 
 	// Test Out of Order with verification errors (should fail and report both mismatches and correct sorting order)
 	nlohmann::json args_out_of_order_fail = {
 	    {"path", test_file_15},
-	    {"edits", nlohmann::json::array({
-		{{"line_number", 5}, {"type", "replace"}, {"original_text", "Line 99"}, {"replace_with", "Line 5 edit"}},
-		{{"line_number", 10}, {"type", "replace"}, {"original_text", "Line 88"}, {"replace_with", "Line 10 edit"}},
-		{{"line_number", 2}, {"type", "add"}, {"replace_with", "Line 2 edit"}}
-	    })}
-	};
+	    {"edits", nlohmann::json::array(
+			  {{{"line_number", 5}, {"type", "replace"}, {"original_text", "Line 99"}, {"replace_with", "Line 5 edit"}},
+			   {{"line_number", 10}, {"type", "replace"}, {"original_text", "Line 88"}, {"replace_with", "Line 10 edit"}},
+			   {{"line_number", 2}, {"type", "add"}, {"replace_with", "Line 2 edit"}}})}};
 	std::string result_out_of_order_fail = registry.execute_tool("fs_replace_lines", args_out_of_order_fail.dump(), ctx);
 	std::cout << "Out of order fail result:\n" << result_out_of_order_fail << "\n";
 	assert(result_out_of_order_fail.find("Verification Error at line 5.") != std::string::npos);
 	assert(result_out_of_order_fail.find("Verification Error at line 10.") != std::string::npos);
 	assert(result_out_of_order_fail.find("Error: Edits MUST be sorted in strictly DESCENDING order") != std::string::npos);
 	assert(result_out_of_order_fail.find("You provided edits in this order: [5, 10, 2]") != std::string::npos);
-	assert(result_out_of_order_fail.find("Please sort your edits to target line_numbers in this order: [10, 5, 2]") != std::string::npos);
+	assert(result_out_of_order_fail.find("Please sort your edits to target line_numbers in this order: [10, 5, 2]") !=
+	       std::string::npos);
 
 	// Test Multiple Verification Errors (All mismatches in one go)
 	nlohmann::json args_multiple_errors = {
 	    {"path", test_file_15},
-	    {"edits", nlohmann::json::array({
-		{{"line_number", 12}, {"type", "replace"}, {"original_text", "Line 99"}, {"replace_with", "Line 12 edited"}},
-		{{"line_number", 4}, {"type", "replace"}, {"original_text", "Line 88"}, {"replace_with", "Line 4 edited"}}
-	    })}
-	};
+	    {"edits", nlohmann::json::array(
+			  {{{"line_number", 12}, {"type", "replace"}, {"original_text", "Line 99"}, {"replace_with", "Line 12 edited"}},
+			   {{"line_number", 4}, {"type", "replace"}, {"original_text", "Line 88"}, {"replace_with", "Line 4 edited"}}})}};
 	std::string result_multiple_errors = registry.execute_tool("fs_replace_lines", args_multiple_errors.dump(), ctx);
 	std::cout << "Multiple errors result:\n" << result_multiple_errors << "\n";
 	assert(result_multiple_errors.find("Verification Error at line 12.") != std::string::npos);
@@ -198,10 +196,12 @@ int main()
 	// Now apply an edit that shifts by 15 lines (e.g. inserting 15 lines)
 	nlohmann::json args_drift_15 = {
 	    {"path", test_file_15},
-	    {"edits", nlohmann::json::array({
-		{{"line_number", 5}, {"type", "add"}, {"replace_with", "Add 1\nAdd 2\nAdd 3\nAdd 4\nAdd 5\nAdd 6\nAdd 7\nAdd 8\nAdd 9\nAdd 10\nAdd 11\nAdd 12\nAdd 13\nAdd 14\nAdd 15"}}
-	    })}
-	};
+	    {"edits",
+	     nlohmann::json::array(
+		 {{{"line_number", 5},
+		   {"type", "add"},
+		   {"replace_with",
+		    "Add 1\nAdd 2\nAdd 3\nAdd 4\nAdd 5\nAdd 6\nAdd 7\nAdd 8\nAdd 9\nAdd 10\nAdd 11\nAdd 12\nAdd 13\nAdd 14\nAdd 15"}}})}};
 	std::string result_drift_15 = registry.execute_tool("fs_replace_lines", args_drift_15.dump(), ctx);
 	std::cout << "Drift >= 15 result:\n" << result_drift_15 << "\n";
 	assert(result_drift_15.find("Mandatory: File has drifted by ") != std::string::npos);
@@ -219,10 +219,8 @@ int main()
 
 	nlohmann::json indent_args = {
 	    {"path", test_file},
-	    {"edits", nlohmann::json::array({
-		{{"line_number", 1}, {"type", "replace"}, {"original_text", "if (x) {"}, {"replace_with", "    if (y) {"}}
-	    })}
-	};
+	    {"edits", nlohmann::json::array(
+			  {{{"line_number", 1}, {"type", "replace"}, {"original_text", "if (x) {"}, {"replace_with", "    if (y) {"}}})}};
 
 	std::string indent_result = registry.execute_tool("fs_replace_lines", indent_args.dump(), ctx);
 	std::cout << "Indentation mismatch result: " << indent_result << "\n";
@@ -239,10 +237,7 @@ int main()
 
 	nlohmann::json optional_type_args = {
 	    {"path", test_file},
-	    {"edits", nlohmann::json::array({
-		{{"line_number", 2}, {"original_text", "Line B"}, {"replace_with", "Replaced Line B"}}
-	    })}
-	};
+	    {"edits", nlohmann::json::array({{{"line_number", 2}, {"original_text", "Line B"}, {"replace_with", "Replaced Line B"}}})}};
 
 	std::string optional_type_result = registry.execute_tool("fs_replace_lines", optional_type_args.dump(), ctx);
 	std::cout << "Optional type result: " << optional_type_result << "\n";
@@ -278,10 +273,9 @@ int main()
 
 		nlohmann::json vfs_args = {
 		    {"path", "tmp://test_replace_lines_vfs.txt"},
-		    {"edits", nlohmann::json::array({
-			{{"line_number", 2}, {"type", "replace"}, {"original_text", "Line Y"}, {"replace_with", "Replaced Line Y"}}
-		    })}
-		};
+		    {"edits",
+		     nlohmann::json::array(
+			 {{{"line_number", 2}, {"type", "replace"}, {"original_text", "Line Y"}, {"replace_with", "Replaced Line Y"}}})}};
 
 		std::string vfs_res = registry.execute_tool("fs_replace_lines", vfs_args.dump(), ctx);
 		std::cout << "VFS replace_lines result: " << vfs_res << "\n";
@@ -314,15 +308,16 @@ int main()
 		std::string new_content;
 		for (int i = 1; i <= 40; ++i) {
 			new_content += "Inserted Line " + std::to_string(i);
-			if (i < 40) new_content += "\n";
+			if (i < 40)
+				new_content += "\n";
 		}
 
-		nlohmann::json trunc_args = {
-		    {"path", large_file},
-		    {"edits", nlohmann::json::array({
-			{{"line_number", 2}, {"lines_to_remove", 1}, {"type", "replace"}, {"original_text", "Original Line 2"}, {"replace_with", new_content}}
-		    })}
-		};
+		nlohmann::json trunc_args = {{"path", large_file},
+					     {"edits", nlohmann::json::array({{{"line_number", 2},
+									       {"lines_to_remove", 1},
+									       {"type", "replace"},
+									       {"original_text", "Original Line 2"},
+									       {"replace_with", new_content}}})}};
 
 		std::string trunc_res = registry.execute_tool("fs_replace_lines", trunc_args.dump(), ctx);
 		std::cout << "Truncated output result:\n" << trunc_res << "\n";
@@ -349,10 +344,8 @@ int main()
 
 		nlohmann::json brace_args = {
 		    {"path", brace_file},
-		    {"edits", nlohmann::json::array({
-			{{"line_number", 4}, {"type", "remove"}, {"original_text", "}"}, {"replace_with", ""}}
-		    })}
-		};
+		    {"edits",
+		     nlohmann::json::array({{{"line_number", 4}, {"type", "remove"}, {"original_text", "}"}, {"replace_with", ""}}})}};
 
 		std::string brace_res = registry.execute_tool("fs_replace_lines", brace_args.dump(), ctx);
 		std::cout << "Brace check warning result:\n" << brace_res << "\n";
@@ -373,10 +366,8 @@ int main()
 		nlohmann::json strict_args = {
 		    {"path", strict_file},
 		    {"strict", true},
-		    {"edits", nlohmann::json::array({
-			{{"line_number", 4}, {"type", "remove"}, {"original_text", "}"}, {"replace_with", ""}}
-		    })}
-		};
+		    {"edits",
+		     nlohmann::json::array({{{"line_number", 4}, {"type", "remove"}, {"original_text", "}"}, {"replace_with", ""}}})}};
 
 		std::string strict_res = registry.execute_tool("fs_replace_lines", strict_args.dump(), ctx);
 		std::cout << "Strict brace result:\n" << strict_res << "\n";
@@ -391,6 +382,30 @@ int main()
 		assert(body.str() == "void foo() {\n    int a = 1;\n    int b = 2;\n}\n");
 
 		std::remove(strict_file.c_str());
+	}
+
+	// Test Single-Edit Shortcuts (top-level start_line, end_line, new_content)
+	{
+		std::string single_file = "test_single_edit.txt";
+		{
+			std::ofstream out(single_file);
+			out << "Line 1\nLine 2\nLine 3\nLine 4\n";
+			out.close();
+		}
+
+		nlohmann::json single_args = {
+		    {"path", single_file}, {"start_line", 2}, {"end_line", 3}, {"new_content", "Replaced Block 2-3"}};
+
+		std::string res = registry.execute_tool("fs_replace_lines", single_args.dump(), ctx);
+		std::cout << "Single edit result:\n" << res << "\n";
+		assert(res.find("Successfully applied") != std::string::npos);
+
+		std::ifstream in(single_file);
+		std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+		in.close();
+		assert(content == "Line 1\nReplaced Block 2-3\nLine 4\n");
+
+		std::remove(single_file.c_str());
 	}
 
 	std::remove(test_file.c_str());
