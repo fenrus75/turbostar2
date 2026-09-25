@@ -4,20 +4,20 @@
 #include <cstdlib>
 #include <format>
 #include <fstream>
-#include <nlohmann/json.hpp>
 #include <ncurses.h>
 #include <netinet/in.h>
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <sys/socket.h>
-#include <tuple>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <termios.h>
+#include <tuple>
 #include <unistd.h>
 #include "agentlib/ai_agent.h"
-#include "agentlib/subagent_manager.h"
 #include "agentlib/copilot_manager.h"
+#include "agentlib/subagent_manager.h"
 #include "build_error_manager.h"
 #include "codereview_manager.h"
 #include "command_runner.h"
@@ -25,11 +25,11 @@
 #include "crashdump_manager.h"
 #include "editor.h"
 #include "event_logger.h"
-#include "perf_manager.h"
 #include "fs_utils.h"
 #include "help_text.h"
 #include "history_manager.h"
 #include "lsp_manager.h"
+#include "perf_manager.h"
 #include "pluginloader.h"
 #include "project_manager.h"
 #include "session_manager.h"
@@ -400,7 +400,12 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		if (!std::filesystem::exists(build_exe)) {
 			build_exe = std::filesystem::path(project_root) / exe;
 			if (!std::filesystem::exists(build_exe)) {
-				build_exe = exe;
+				std::string sys_exe = fs_utils::find_executable(exe);
+				if (!sys_exe.empty()) {
+					build_exe = sys_exe;
+				} else {
+					build_exe = exe;
+				}
 			}
 		}
 
@@ -654,8 +659,8 @@ void editor::dispatch_event_ui(const editor_event &ev)
 				} else {
 					static std::atomic<int> next_verifier_id{9900};
 					auto default_model = agentlib::ai_model_registry::get_instance().get_default_model();
-					verifier_agent =
-					    agentlib::ai_agent::create(next_verifier_id++, "Review Verifier", default_model, &global_queue_, this);
+					verifier_agent = agentlib::ai_agent::create(next_verifier_id++, "Review Verifier", default_model,
+										    &global_queue_, this);
 					headless_agents_.push_back(verifier_agent);
 				}
 
@@ -696,7 +701,8 @@ void editor::dispatch_event_ui(const editor_event &ev)
 					set_status_message(std::format("Verification agent started in background for item #{}...", item.id),
 							   status_priorities::INFO);
 				} else {
-					set_status_message("Error: Failed to create verification agent (no valid model configured).", status_priorities::WARNING);
+					set_status_message("Error: Failed to create verification agent (no valid model configured).",
+							   status_priorities::WARNING);
 				}
 			}
 		}
@@ -861,7 +867,6 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		return;
 	}
 
-
 	if (ev.type == event_type::set_transient_status) {
 		set_status_message(ev.payload, ev.priority, std::chrono::seconds(5));
 		return;
@@ -873,7 +878,8 @@ void editor::dispatch_event_ui(const editor_event &ev)
 	}
 }
 
-agentlib::start_app_result editor::start_app(std::string_view args, bool use_debugger, bool auto_continue, bool collect_performance, std::string_view binary)
+agentlib::start_app_result editor::start_app(std::string_view args, bool use_debugger, bool auto_continue, bool collect_performance,
+					     std::string_view binary)
 {
 	if (!is_main_thread()) {
 		auto prom = std::make_shared<std::promise<agentlib::start_app_result>>();
@@ -891,7 +897,8 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 	}
 
 	auto &logger = event_logger::get_instance();
-	logger.log(std::format("start_app called with binary: '{}', args: '{}', debugger: {}", binary, args, use_debugger ? "true" : "false"));
+	logger.log(
+	    std::format("start_app called with binary: '{}', args: '{}', debugger: {}", binary, args, use_debugger ? "true" : "false"));
 
 	std::string exe;
 	if (!binary.empty()) {
@@ -924,6 +931,11 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 	std::filesystem::path c3 = proj_root_path / norm_exe;
 	std::filesystem::path c4 = std::filesystem::path(exe);
 
+	std::string sys_exe;
+	if (binary.empty()) {
+		sys_exe = fs_utils::find_executable(exe);
+	}
+
 	if (std::filesystem::exists(c1)) {
 		build_exe = c1;
 	} else if (std::filesystem::exists(c2)) {
@@ -932,6 +944,8 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 		build_exe = c3;
 	} else if (c4.is_absolute() && std::filesystem::exists(c4)) {
 		build_exe = c4;
+	} else if (!sys_exe.empty()) {
+		build_exe = sys_exe;
 	} else {
 		build_exe = c1;
 	}
@@ -939,17 +953,19 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 	// Security validation: verify canonical executable path resides within project_root.
 	// For agent-specified binaries (!binary.empty()), the binary must strictly reside within the project directory.
 	// For configured main_executable (binary.empty()), an explicitly configured absolute executable path (c4)
-	// is permitted (e.g., system tools or interpreters configured by the user).
+	// or system executable resolved from PATH (sys_exe) is permitted (e.g., system tools or interpreters configured by the user).
 	std::filesystem::path canonical_exe = std::filesystem::weakly_canonical(build_exe);
 	std::string proj_root_str = proj_root_path.string();
 	if (!proj_root_str.ends_with('/')) {
 		proj_root_str += '/';
 	}
 	bool is_within_project = canonical_exe.string().starts_with(proj_root_str) || canonical_exe == proj_root_path;
-	bool is_user_configured_absolute = binary.empty() && c4.is_absolute() && std::filesystem::exists(c4);
+	bool is_user_configured_allowed = binary.empty() && ((c4.is_absolute() && std::filesystem::exists(c4)) ||
+							     (!sys_exe.empty() && build_exe == std::filesystem::path(sys_exe)));
 
-	if (!is_within_project && !is_user_configured_absolute) {
-		logger.log(std::format("start_app rejected: executable '{}' is outside project root '{}'", canonical_exe.string(), proj_root_str));
+	if (!is_within_project && !is_user_configured_allowed) {
+		logger.log(
+		    std::format("start_app rejected: executable '{}' is outside project root '{}'", canonical_exe.string(), proj_root_str));
 		return {-1, -1};
 	}
 
@@ -995,8 +1011,8 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 			logger.log(std::format("Failed to create input FIFO: {}", strerror(errno)));
 		}
 
-		std::string gdbserver_cmd =
-		    "trap '' SIGTTOU SIGTTIN; exec gdbserver localhost:" + std::to_string(port) + " " + fs_utils::escape_shell_arg(build_exe.string());
+		std::string gdbserver_cmd = "trap '' SIGTTOU SIGTTIN; exec gdbserver localhost:" + std::to_string(port) + " " +
+					    fs_utils::escape_shell_arg(build_exe.string());
 		if (!args.empty()) {
 			gdbserver_cmd += std::format(" {}", args);
 		}
@@ -1015,7 +1031,9 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 
 		usleep(50000);
 
-		std::string gdb_cmd = "exec gdb -q -ex \"set pagination off\" -ex \"set style enabled off\" -ex \"set breakpoint pending on\" -ex \"target remote localhost:" + std::to_string(port) + "\"";
+		std::string gdb_cmd = "exec gdb -q -ex \"set pagination off\" -ex \"set style enabled off\" -ex \"set breakpoint pending "
+				      "on\" -ex \"target remote localhost:" +
+				      std::to_string(port) + "\"";
 		if (auto_continue && config_manager::get_instance().get_gdb_auto_continue()) {
 			gdb_cmd += " -ex \"continue\"";
 		}
@@ -1060,7 +1078,8 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 		}
 
 		logger.log(std::format("Starting app: {}", raw_cmd));
-		if (!tw->start_process(raw_cmd, nullptr, false, true, config_manager::get_instance().is_shell_display_access(), collect_performance)) {
+		if (!tw->start_process(raw_cmd, nullptr, false, true, config_manager::get_instance().is_shell_display_access(),
+				       collect_performance)) {
 			logger.log("Failed to start app process.");
 			return {-1, -1};
 		}
@@ -1326,8 +1345,11 @@ static std::string get_executable_for_crash(const std::string &crash_id)
 		while (std::getline(in, line)) {
 			if (line.starts_with(exe_prefix)) {
 				std::string orig = line.substr(exe_prefix.length());
-				while (!orig.empty() && (orig.back() == '\r' || orig.back() == '\n' || std::isspace(static_cast<unsigned char>(orig.back())))) orig.pop_back();
-				while (!orig.empty() && std::isspace(static_cast<unsigned char>(orig.front()))) orig.erase(orig.begin());
+				while (!orig.empty() && (orig.back() == '\r' || orig.back() == '\n' ||
+							 std::isspace(static_cast<unsigned char>(orig.back()))))
+					orig.pop_back();
+				while (!orig.empty() && std::isspace(static_cast<unsigned char>(orig.front())))
+					orig.erase(orig.begin());
 				if (fs::exists(orig)) {
 					return orig;
 				}
@@ -1337,7 +1359,6 @@ static std::string get_executable_for_crash(const std::string &crash_id)
 	}
 	return "";
 }
-
 
 static std::string get_coredump_path_for_crash(const std::string &crash_id)
 {
@@ -1361,7 +1382,8 @@ static bool extract_system_coredump(const std::string &crash_id)
 
 	fs::path out_path = dump_dir / ("core." + crash_id);
 
-	std::string cmd = std::format("coredumpctl --user dump {} -o {}", fs_utils::escape_shell_arg(crash_id), fs_utils::escape_shell_arg(out_path.string()));
+	std::string cmd = std::format("coredumpctl --user dump {} -o {}", fs_utils::escape_shell_arg(crash_id),
+				      fs_utils::escape_shell_arg(out_path.string()));
 	int exit_code = std::system(cmd.c_str());
 	if (exit_code == 0 && fs::exists(out_path) && fs::file_size(out_path) > 0) {
 		return true;
@@ -1423,9 +1445,8 @@ agentlib::start_app_result editor::start_coredump_gdb(std::string_view crash_id)
 	gdb_tw->set_display_priority(10);
 	gdb_tw->set_sanitize_recorded_data(true);
 
-	std::string gdb_cmd = std::format("exec gdb -q -ex \"set pagination off\" -ex \"set style enabled off\" {} {}", 
-		fs_utils::escape_shell_arg(exe), 
-		fs_utils::escape_shell_arg(core_path));
+	std::string gdb_cmd = std::format("exec gdb -q -ex \"set pagination off\" -ex \"set style enabled off\" {} {}",
+					  fs_utils::escape_shell_arg(exe), fs_utils::escape_shell_arg(core_path));
 
 	logger.log("Starting coredump gdb: " + gdb_cmd);
 	if (!gdb_tw->start_process(gdb_cmd, nullptr, true, false)) {
@@ -1451,4 +1472,3 @@ agentlib::start_app_result editor::start_coredump_gdb(std::string_view crash_id)
 
 	return result;
 }
-

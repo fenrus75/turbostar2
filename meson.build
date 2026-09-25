@@ -936,6 +936,12 @@ test_latency_spike = executable('test_latency_spike',
   include_directories: inc)
 test('unit_test_latency_spike', test_latency_spike, suite: 'agent')
 
+test_editor_start_app = executable('test_editor_start_app',
+  'tests/unit/test_editor_start_app.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_editor_start_app', test_editor_start_app, suite: 'ui')
+
 
 
 
