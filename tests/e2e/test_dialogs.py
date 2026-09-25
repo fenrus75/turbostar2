@@ -16,8 +16,8 @@ def test_dialog_save_load():
         runner.send_keys(unique_text)
         runner.assert_text_on_screen(unique_text)
         
-        # 2. Open Save As dialog (^KW)
-        runner.send_ctrlk('w')
+        # 2. Open Save As dialog (^QS)
+        runner.send_ctrlq('s')
         runner.assert_text_on_screen('Save File As', timeout=2.0)
         
         # 3. Type filename and press Enter
