@@ -1596,13 +1596,13 @@ test_live_llm = executable('test_live_llm',
 
 
 
-test('live_llm_ping', test_live_llm, suite: 'live_llm', is_parallel: false, timeout: 180)
+test('live_llm_ping', test_live_llm, suite: 'live_llm', is_parallel: false, workdir: meson.project_source_root(), timeout: 180)
 
 live_tool_tests = [
   { 'tool': 'run_python',          'prompt': 'Please use run_python to calculate 2468 * 1357',                      'expect': '3349076' },
   { 'tool': 'fs_list_dir',         'prompt': 'Please use fs_list_dir to list files in current directory',           'expect': 'meson.build' },
   { 'tool': 'fs_read_lines',       'prompt': 'Please use fs_read_lines to view lines 1 to 5 of meson.build',        'expect': 'project(' },
-  { 'tool': 'fs_grep_files',       'prompt': 'Please use fs_grep_files to search for "test_watchdog" in src',       'expect': 'test_watchdog' },
+  { 'tool': 'fs_grep_files',       'prompt': 'Please use fs_grep_files to search for "tool_registry" in src',       'expect': 'tool_registry' },
   { 'tool': 'fs_glob',             'prompt': 'Please use fs_glob to find files matching "*.md" in current directory', 'expect': '.md' },
   { 'tool': 'fs_man',              'prompt': 'Please use fs_man to read the manual page for ls',                   'expect': 'ls' },
   { 'tool': 'git_status',          'prompt': 'Please use git_status to check repository status',                    'expect': '' },
@@ -1619,6 +1619,7 @@ foreach t : live_tool_tests
        args: ['--tool', t['tool'], '--prompt', t['prompt'], '--expect', t['expect']],
        suite: 'live_llm',
        is_parallel: false,
+       workdir: meson.project_source_root(),
        timeout: 180)
 endforeach
 

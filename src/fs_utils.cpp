@@ -555,10 +555,15 @@ std::string get_project_tmp_dir()
 {
 	const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
 	if (in_testsuite && std::string(in_testsuite) == "1") {
-		std::filesystem::path tmp_dir = std::filesystem::path(get_project_dir()) / ".turbostar_tmp";
+		std::string proj = get_project_dir();
+		if (proj.empty()) {
+			std::error_code ec;
+			proj = std::filesystem::current_path(ec).string();
+		}
+		std::filesystem::path tmp_dir = std::filesystem::path(proj) / ".turbostar_tmp";
 		std::error_code ec;
 		std::filesystem::create_directories(tmp_dir, ec);
-		return tmp_dir.string();
+		return std::filesystem::absolute(tmp_dir, ec).lexically_normal().string();
 	}
 
 	std::filesystem::path tmp_dir = std::filesystem::path(get_project_cache_root()) / "tmp";
@@ -566,7 +571,7 @@ std::string get_project_tmp_dir()
 	std::error_code ec;
 	std::filesystem::create_directories(tmp_dir, ec);
 
-	return tmp_dir.string();
+	return std::filesystem::absolute(tmp_dir, ec).lexically_normal().string();
 }
 
 std::string get_project_history_dir(std::string_view agent_name)

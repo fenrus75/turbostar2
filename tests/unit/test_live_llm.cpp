@@ -5,10 +5,11 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include "../../src/agentlib/httplib_transport.h"
-#include "../../src/agentlib/ai_model.h"
-#include "../../src/agentlib/llm_client.h"
-#include "../../src/agentlib/llm_types.h"
+#include "agentlib/httplib_transport.h"
+#include "agentlib/ai_model.h"
+#include "agentlib/llm_client.h"
+#include "agentlib/llm_types.h"
+#include "fs_utils.h"
 
 
 #include <CLI11.hpp>
@@ -116,24 +117,23 @@ int main(int argc, char **argv)
 	agentlib::llm_client client(transport, target_model, type);
 
 
-	std::vector<agentlib::message> convo;
-	agentlib::message user_msg;
-	user_msg.role = "user";
-	user_msg.content = "Hello! Please reply with the single word: PONG";
-	convo.push_back(user_msg);
-
-	auto response = client.send_chat(convo);
-
-	std::string reply = response.msg.content;
-	if (reply.empty() && response.msg.reasoning_content) {
-		reply = *response.msg.reasoning_content;
-	}
-	std::cout << "Received response from model:\n" << reply << std::endl;
-	assert(!reply.empty());
-
-	std::cout << "Live LLM completion test passed successfully!\n";
-
 	if (tool_name.empty()) {
+		std::vector<agentlib::message> convo;
+		agentlib::message user_msg;
+		user_msg.role = "user";
+		user_msg.content = "Hello! Please reply with the single word: PONG";
+		convo.push_back(user_msg);
+
+		auto response = client.send_chat(convo);
+
+		std::string reply = response.msg.content;
+		if (reply.empty() && response.msg.reasoning_content) {
+			reply = *response.msg.reasoning_content;
+		}
+		std::cout << "Received response from model:\n" << reply << std::endl;
+		assert(!reply.empty());
+
+		std::cout << "Live LLM completion test passed successfully!\n";
 		std::cout << "live_llm_ping passed!\n";
 		return 0;
 	}
@@ -146,7 +146,7 @@ int main(int argc, char **argv)
 
 	std::cout << "\n--- Testing Live Tool Calling Loop (" << test_target_tool << ") ---\n";
 
-
+	fs_utils::set_override_project_dir(std::filesystem::current_path().string());
 	auto &registry = agentlib::tool_registry::get_instance();
 	agentlib::tool_context ctx;
 	ctx.fs_security.set_working_directory(std::filesystem::current_path());
@@ -159,7 +159,7 @@ int main(int argc, char **argv)
 	std::vector<agentlib::message> tool_convo;
 	agentlib::message sys_msg;
 	sys_msg.role = "system";
-	sys_msg.content = "You are a software testing agent. When requested to run a tool, you MUST issue a native function call / tool call or format json tool call block. Do NOT return raw explanations without tool calls.";
+	sys_msg.content = "You are a software testing agent. When requested to run a tool, you MUST call that requested tool (do not substitute other tools) and issue a native function call / tool call or format json tool call block. Do NOT return raw explanations without tool calls.";
 	tool_convo.push_back(sys_msg);
 
 	agentlib::message tool_user_msg;
@@ -173,15 +173,19 @@ int main(int argc, char **argv)
 	if (tool_response.msg.tool_calls && !tool_response.msg.tool_calls->empty()) {
 		calls_to_exec = *tool_response.msg.tool_calls;
 	} else {
-		// Parse pseudo tool call block from content (either raw JSON, ```json, or ```tool_call block)
+		// Parse pseudo tool call block from content or reasoning (either raw JSON, ```json, or ```tool_call block)
+		std::string scan_text = tool_response.msg.content;
+		if (scan_text.empty() && tool_response.msg.reasoning_content) {
+			scan_text = *tool_response.msg.reasoning_content;
+		}
 		std::string json_str;
-		size_t tc_start = tool_response.msg.content.find("```tool_call");
-		size_t json_start = tool_response.msg.content.find("```json");
+		size_t tc_start = scan_text.find("```tool_call");
+		size_t json_start = scan_text.find("```json");
 		if (tc_start != std::string::npos) {
 			size_t body_start = tc_start + 12;
-			size_t body_end = tool_response.msg.content.find("```", body_start);
+			size_t body_end = scan_text.find("```", body_start);
 			if (body_end != std::string::npos) {
-				std::string name = tool_response.msg.content.substr(body_start, body_end - body_start);
+				std::string name = scan_text.substr(body_start, body_end - body_start);
 				name.erase(0, name.find_first_not_of(" \t\n\r"));
 				name.erase(name.find_last_not_of(" \t\n\r") + 1);
 				agentlib::tool_call tc;
@@ -191,16 +195,16 @@ int main(int argc, char **argv)
 				calls_to_exec.push_back(tc);
 			}
 		} else if (json_start != std::string::npos) {
-			size_t body_start = tool_response.msg.content.find('{', json_start);
-			size_t body_end = tool_response.msg.content.find("```", body_start);
+			size_t body_start = scan_text.find('{', json_start);
+			size_t body_end = scan_text.find("```", body_start);
 			if (body_start != std::string::npos && body_end != std::string::npos) {
-				json_str = tool_response.msg.content.substr(body_start, body_end - body_start);
+				json_str = scan_text.substr(body_start, body_end - body_start);
 			}
 		} else {
-			size_t body_start = tool_response.msg.content.find('{');
-			size_t body_end = tool_response.msg.content.rfind('}');
+			size_t body_start = scan_text.find('{');
+			size_t body_end = scan_text.rfind('}');
 			if (body_start != std::string::npos && body_end != std::string::npos && body_end > body_start) {
-				json_str = tool_response.msg.content.substr(body_start, body_end - body_start + 1);
+				json_str = scan_text.substr(body_start, body_end - body_start + 1);
 			}
 		}
 
@@ -279,6 +283,11 @@ int main(int argc, char **argv)
 		std::cout << "Live tool calling test (" << test_target_tool << ") passed successfully!\n";
 	} else {
 		std::cout << "Model response without tool_calls:\n" << tool_response.msg.content << std::endl;
+		if (tool_response.msg.reasoning_content) {
+			std::cout << "Model reasoning_content:\n" << *tool_response.msg.reasoning_content << std::endl;
+		}
+		std::cerr << "Expected tool call for " << test_target_tool << " but model did not issue any tool calls.\n";
+		return 1;
 	}
 
 	return 0;

@@ -697,7 +697,7 @@ std::vector<lsp_backend::symbol_node> semcode_backend::query_document_symbols(co
 		} else if (s.kind_str.find("Struct") != std::string::npos) {
 			node.kind = 23; // Struct
 		} else if (s.kind_str == "Enum") {
-			node.kind = 9; // Enum
+			node.kind = 10; // Enum
 		} else if (s.kind_str == "Interface") {
 			node.kind = 11; // Interface
 		} else {

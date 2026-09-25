@@ -33,20 +33,56 @@ namespace tools
 static std::string lsp_kind_to_string(int kind)
 {
 	switch (kind) {
+		case 1:
+			return "File";
+		case 2:
+			return "Module";
+		case 3:
+			return "Namespace";
+		case 4:
+			return "Package";
 		case 5:
 			return "Class";
 		case 6:
 			return "Method";
+		case 7:
+			return "Property";
+		case 8:
+			return "Field";
 		case 9:
-			return "Enum";
+			return "Constructor";
 		case 10:
-			return "Interface";
+			return "Enum";
 		case 11:
-			return "Function";
+			return "Interface";
 		case 12:
+			return "Function";
+		case 13:
 			return "Variable";
+		case 14:
+			return "Constant";
+		case 15:
+			return "String";
+		case 16:
+			return "Number";
+		case 17:
+			return "Boolean";
+		case 18:
+			return "Array";
+		case 19:
+			return "Object";
+		case 20:
+			return "Key";
+		case 21:
+			return "Null";
+		case 22:
+			return "EnumMember";
 		case 23:
 			return "Struct";
+		case 24:
+			return "Event";
+		case 25:
+			return "Operator";
 		case 26:
 			return "TypeParameter";
 		default:
@@ -63,14 +99,14 @@ static void collect_symbols_recursive(const lsp_manager::symbol_node &node, cons
 	int len = std::max(1, end - start + 1);
 
 	// Pre-warm type_definition_cache with class, struct, and enum definitions
-	if (!safe_path.empty() && (node.kind == 5 || node.kind == 9 || node.kind == 23)) {
-		std::string kind = (node.kind == 5) ? "class" : ((node.kind == 9) ? "enum" : "struct");
+	if (!safe_path.empty() && (node.kind == 5 || node.kind == 10 || node.kind == 23)) {
+		std::string kind = (node.kind == 5) ? "class" : ((node.kind == 10) ? "enum" : "struct");
 		type_definition_cache::get_instance().register_resolved_type(node.name, kind, safe_path, start, end);
 	}
 
-	// Only include functions, methods, classes, structs, enums, interfaces
-	if (node.kind == 5 || node.kind == 6 || node.kind == 9 || node.kind == 10 || node.kind == 11 || node.kind == 23 ||
-	    node.kind == 26 || prefix.empty()) {
+	// Only include functions, methods, classes, structs, enums, interfaces, constructors
+	if (node.kind == 5 || node.kind == 6 || node.kind == 9 || node.kind == 10 || node.kind == 11 || node.kind == 12 ||
+	    node.kind == 23 || node.kind == 26 || prefix.empty()) {
 		if (len >= min_lines) {
 			out.push_back({full_name, node.name, lsp_kind_to_string(node.kind), start, end, len, depth, ""});
 		}
