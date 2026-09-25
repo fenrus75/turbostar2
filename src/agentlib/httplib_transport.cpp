@@ -113,7 +113,8 @@ httplib_transport::httplib_transport(const std::string &base_url, const std::str
 			cli_->set_address_family(AF_INET);
 		}
 		const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
-		if (in_testsuite && std::string(in_testsuite) == "1") {
+		const char *is_live_test = std::getenv("TURBOSTAR_LIVE_LLM_TEST");
+		if (in_testsuite && std::string(in_testsuite) == "1" && (!is_live_test || std::string(is_live_test) != "1")) {
 			cli_->set_connection_timeout(std::chrono::milliseconds(5000));
 			cli_->set_read_timeout(std::chrono::milliseconds(15000));
 		} else {
@@ -421,12 +422,13 @@ std::vector<std::shared_ptr<ai_model>> fetch_models_from_server(const std::strin
 
 		// Timeouts
 		const char *in_testsuite = std::getenv("TURBOSTAR_IN_TESTSUITE");
-		if (in_testsuite && std::string(in_testsuite) == "1") {
+		const char *is_live_test = std::getenv("TURBOSTAR_LIVE_LLM_TEST");
+		if (in_testsuite && std::string(in_testsuite) == "1" && (!is_live_test || std::string(is_live_test) != "1")) {
 			curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 5000L);
 			curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 15000L);
 		} else {
-			curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);
-			curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+			curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 15L);
+			curl_easy_setopt(curl, CURLOPT_TIMEOUT, 60L);
 		}
 
 		// SSL verification: Keep it enabled

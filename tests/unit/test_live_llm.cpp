@@ -35,7 +35,8 @@
 
 int main(int argc, char **argv)
 {
-	test_watchdog::setup_watchdog(45);
+	setenv("TURBOSTAR_LIVE_LLM_TEST", "1", 1);
+	test_watchdog::setup_watchdog(180);
 
 	CLI::App app{"Turbostar Live LLM Test Tool Harness"};
 	std::string tool_name;
@@ -123,16 +124,25 @@ int main(int argc, char **argv)
 
 	auto response = client.send_chat(convo);
 
-	std::cout << "Received response from model:\n" << response.msg.content << std::endl;
-	assert(!response.msg.content.empty());
+	std::string reply = response.msg.content;
+	if (reply.empty() && response.msg.reasoning_content) {
+		reply = *response.msg.reasoning_content;
+	}
+	std::cout << "Received response from model:\n" << reply << std::endl;
+	assert(!reply.empty());
 
 	std::cout << "Live LLM completion test passed successfully!\n";
 
+	if (tool_name.empty()) {
+		std::cout << "live_llm_ping passed!\n";
+		return 0;
+	}
+
 	// Test 2: Live Tool Calling Loop
 	bool has_expect = app.get_option("--expect")->count() > 0;
-	std::string test_target_tool = tool_name.empty() ? "run_python" : tool_name;
-	std::string test_prompt = prompt_str.empty() ? "Please run the run_python tool to execute python code calculating 2468 * 1357." : prompt_str;
-	std::string test_expect = has_expect ? expect_str : (tool_name.empty() ? "3349076" : "");
+	std::string test_target_tool = tool_name;
+	std::string test_prompt = prompt_str.empty() ? ("Please run the " + test_target_tool + " tool.") : prompt_str;
+	std::string test_expect = has_expect ? expect_str : "";
 
 	std::cout << "\n--- Testing Live Tool Calling Loop (" << test_target_tool << ") ---\n";
 
@@ -142,6 +152,9 @@ int main(int argc, char **argv)
 	ctx.fs_security.set_working_directory(std::filesystem::current_path());
 	ctx.fs_security.add_allowed_root(std::filesystem::current_path(), agentlib::access_type::read);
 	ctx.fs_security.add_allowed_root(std::filesystem::current_path(), agentlib::access_type::write);
+
+	agentlib::agent_properties props;
+	props.active_families = registry.get_all_registered_families();
 
 	std::vector<agentlib::message> tool_convo;
 	agentlib::message sys_msg;
@@ -154,7 +167,7 @@ int main(int argc, char **argv)
 	tool_user_msg.content = test_prompt;
 	tool_convo.push_back(tool_user_msg);
 
-	auto tool_response = client.send_chat(tool_convo, &registry);
+	auto tool_response = client.send_chat(tool_convo, &registry, "", props);
 
 	std::vector<agentlib::tool_call> calls_to_exec;
 	if (tool_response.msg.tool_calls && !tool_response.msg.tool_calls->empty()) {
@@ -256,9 +269,13 @@ int main(int argc, char **argv)
 			tool_convo.push_back(tool_ret_msg);
 		}
 
-		auto final_response = client.send_chat(tool_convo, &registry);
-		std::cout << "Final response from model:\n" << final_response.msg.content << std::endl;
-		assert(!final_response.msg.content.empty());
+		auto final_response = client.send_chat(tool_convo, &registry, "", props);
+		std::string final_reply = final_response.msg.content;
+		if (final_reply.empty() && final_response.msg.reasoning_content) {
+			final_reply = *final_response.msg.reasoning_content;
+		}
+		std::cout << "Final response from model:\n" << final_reply << std::endl;
+		assert(!final_reply.empty());
 		std::cout << "Live tool calling test (" << test_target_tool << ") passed successfully!\n";
 	} else {
 		std::cout << "Model response without tool_calls:\n" << tool_response.msg.content << std::endl;

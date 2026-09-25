@@ -1596,7 +1596,7 @@ test_live_llm = executable('test_live_llm',
 
 
 
-test('live_llm_ping', test_live_llm, suite: 'live_llm', is_parallel: false)
+test('live_llm_ping', test_live_llm, suite: 'live_llm', is_parallel: false, timeout: 180)
 
 live_tool_tests = [
   { 'tool': 'run_python',          'prompt': 'Please use run_python to calculate 2468 * 1357',                      'expect': '3349076' },
@@ -1618,7 +1618,8 @@ foreach t : live_tool_tests
   test('live_tool_' + t['tool'], test_live_llm,
        args: ['--tool', t['tool'], '--prompt', t['prompt'], '--expect', t['expect']],
        suite: 'live_llm',
-       is_parallel: false)
+       is_parallel: false,
+       timeout: 180)
 endforeach
 
 
