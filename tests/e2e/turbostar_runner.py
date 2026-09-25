@@ -355,8 +355,8 @@ class TurbostarRunner:
             save_path = tmp.name
 
         try:
-            # 2. Trigger Save As via keys (^KW)
-            self.send_ctrlk('w')
+            # 2. Trigger Save As via keys (^QS)
+            self.send_ctrlq('s')
             self.assert_text_on_screen("Save File As", timeout=2.0)
             # 3. Clear pre-filled and type path
             self.send_keys(KEY_CTRL_Y)

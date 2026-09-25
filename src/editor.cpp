@@ -443,7 +443,7 @@ void editor::update_recent_files_menu()
 		{"Open...", event_type::load, 'o', "^KE", false},
 		menu_item("Open Recent...", recent_items, 'r'),
 		{"Save", event_type::save, 's', "^KS", false},
-		{"Save as...", event_type::save_as, 'a', "", false},
+		{"Save as...", event_type::save_as, 'a', "^QS", false},
 		{"Save All", event_type::save_all, 'v', "^KA", false},
 		{"Write Block...", event_type::write_block, 'w', "^KW", false},
 		{"Close", event_type::close_window, 'c', "Alt+F3", false},

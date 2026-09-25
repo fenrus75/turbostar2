@@ -61,6 +61,12 @@ bool editor::handle_q_block_key(int key)
 			logger.log("No undo history available.");
 		}
 		return true;
+	} else if (c == 's' || c == 'w') {
+		logger.log("Q-block: Save As");
+		editor_event ev;
+		ev.type = event_type::save_as;
+		global_queue_.push(ev);
+		return true;
 	}
 	return false;
 }

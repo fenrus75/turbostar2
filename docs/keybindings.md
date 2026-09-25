@@ -49,6 +49,7 @@ Specific shortcuts defined within the File menu.
 | :--- | :--- | :--- |
 | `F3` | Open... | |
 | `F2` | Save | |
+| `^Q S` | Save As | |
 | `Alt+X` | Exit | Triggers application quit. |
 
 ## Editor Navigation
@@ -124,6 +125,7 @@ These commands require pressing `Ctrl+K` first, followed by the command letter.
 | `^Q F` | Find Text | Opens the advanced Find dialog. |
 | `^Q A` | Replace Text | Opens the advanced Replace dialog. |
 | `^Q H` | Undo History | Opens the interactive Diff View for the document's undo stack. |
+| `^Q S` / `^Q W` | Save As | Opens the Save File As dialog. |
 
 ## Search Commands
 
