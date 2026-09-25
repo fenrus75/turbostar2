@@ -574,21 +574,31 @@ int main()
 		tools::outgoing_call_reference ref;
 
 		// (a) Test inline method in header: is_force_ascii declared in src/config_manager.h
+		std::vector<tools::codemap_symbol_info> config_syms;
+		tools::fallback_find_symbols("src/config_manager.h", 1, config_syms);
+		const tools::codemap_symbol_info *ascii_sym = tools::find_symbol_by_hint(config_syms, "is_force_ascii");
+		assert(ascii_sym != nullptr);
+
 		lsp_manager::call_hierarchy_item item_ascii;
 		item_ascii.name = "is_force_ascii";
 		item_ascii.kind = 6;
 		item_ascii.uri = "src/config_manager.h";
-		item_ascii.range = {133, 1, 136, 2};
-		item_ascii.selection_range = {133, 6, 133, 20};
+		item_ascii.range = {ascii_sym->start_line - 1, 1, ascii_sym->end_line - 1, 2};
+		item_ascii.selection_range = {ascii_sym->start_line - 1, 6, ascii_sym->start_line - 1, 20};
 
 		bool ok = tools::resolve_outgoing_call_target(ref, item_ascii, syms_cache, &ctx);
 		assert(ok);
 		// Must be attributed to config_manager.h (where it is defined), NOT config_manager.cpp!
 		assert(ref.target_file == "src/config_manager.h");
-		assert(ref.target_start_line == 134);
-		assert(ref.target_end_line == 137);
+		assert(ref.target_start_line == ascii_sym->start_line);
+		assert(ref.target_end_line == ascii_sym->end_line);
 
 		// (b) Test function implemented in cpp: get_file_type declared in fs_utils.h, defined in fs_utils.cpp
+		std::vector<tools::codemap_symbol_info> fs_syms;
+		tools::fallback_find_symbols("src/fs_utils.cpp", 1, fs_syms);
+		const tools::codemap_symbol_info *ft_sym = tools::find_symbol_by_hint(fs_syms, "get_file_type");
+		assert(ft_sym != nullptr);
+
 		lsp_manager::call_hierarchy_item item_file_type;
 		item_file_type.name = "get_file_type";
 		item_file_type.kind = 12;
@@ -599,10 +609,15 @@ int main()
 		ok = tools::resolve_outgoing_call_target(ref, item_file_type, syms_cache, &ctx);
 		assert(ok);
 		assert(ref.target_file == "src/fs_utils.cpp");
-		assert(ref.target_start_line >= 220 && ref.target_start_line <= 260);
-		assert(ref.target_end_line >= 250);
+		assert(ref.target_start_line == ft_sym->start_line);
+		assert(ref.target_end_line == ft_sym->end_line);
 
 		// (c) Test function implemented in cpp: get_instance declared in config_manager.h, defined in config_manager.cpp
+		std::vector<tools::codemap_symbol_info> cfg_cpp_syms;
+		tools::fallback_find_symbols("src/config_manager.cpp", 1, cfg_cpp_syms);
+		const tools::codemap_symbol_info *inst_sym = tools::find_symbol_by_hint(cfg_cpp_syms, "get_instance");
+		assert(inst_sym != nullptr);
+
 		lsp_manager::call_hierarchy_item item_get_inst;
 		item_get_inst.name = "get_instance";
 		item_get_inst.kind = 6;
@@ -613,8 +628,8 @@ int main()
 		ok = tools::resolve_outgoing_call_target(ref, item_get_inst, syms_cache, &ctx);
 		assert(ok);
 		assert(ref.target_file == "src/config_manager.cpp");
-		assert(ref.target_start_line == 24);
-		assert(ref.target_end_line == 28);
+		assert(ref.target_start_line == inst_sym->start_line);
+		assert(ref.target_end_line == inst_sym->end_line);
 	}
 
 	// 17. Test kind-aware adaptive pruning for large symbol sets (> 50 symbols)
