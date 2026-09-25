@@ -140,6 +140,14 @@ public:
                     }
                 }
             }
+            // If the tool schema declares 'length', accept common line/item length variations:
+            if (props.contains("length")) {
+                for (const auto &alias : {"lines", "line_count", "num_lines", "lines_count", "num_items"}) {
+                    if (!props.contains(alias)) {
+                        alias_map[alias] = "length";
+                    }
+                }
+            }
             // If the tool schema declares 'offset', accept common byte offset variations according to docs/tools.md:
             if (props.contains("offset")) {
                 for (const auto &alias : {"start_offset", "start_byte", "byte_offset"}) {
@@ -150,11 +158,23 @@ public:
             }
             // If the tool schema declares 'limit', accept common count/limit variations:
             if (props.contains("limit")) {
-                for (const auto &alias : {"count", "max_results"}) {
+                for (const auto &alias : {"count", "max_results", "max_count", "n", "max_commits", "max_items"}) {
                     if (!props.contains(alias)) {
                         alias_map[alias] = "limit";
                     }
                 }
+            }
+            // If the tool schema declares 'test_names', accept common singular/plural test variations:
+            if (props.contains("test_names")) {
+                for (const auto &alias : {"test_name", "test", "tests"}) {
+                    if (!props.contains(alias)) {
+                        alias_map[alias] = "test_names";
+                    }
+                }
+            }
+            // If the tool schema declares 'test_name', accept plural variations:
+            if (props.contains("test_name") && !props.contains("test_names")) {
+                alias_map["test_names"] = "test_name";
             }
             // If the tool schema declares 'paths', accept common file/path list variations:
             if (props.contains("paths")) {
@@ -275,6 +295,8 @@ public:
         }
         return create_tool_impl(args);
     }
+
+    const nlohmann::json &get_validated_args() const { return validated_args_; }
 
 protected:
     // Derived classes MUST implement these protected methods instead of the public ones.

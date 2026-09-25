@@ -300,6 +300,74 @@ int main()
 		std::cout << "Tool family tests passed!\n";
 	}
 
+	// 6. Test tool_validator parameter aliases (length, limit, test_names, path)
+	{
+		std::cout << "Testing tool_validator parameter alias normalization..." << std::endl;
+		class test_alias_validator : public tool_validator
+		{
+		      public:
+			std::string get_name() const override { return "test_alias"; }
+			std::string get_description() const override { return "test alias"; }
+			nlohmann::json get_parameters_schema() const override
+			{
+				return {
+					{"type", "object"},
+					{"properties", {
+						{"path", {{"type", "string"}}},
+						{"length", {{"type", "integer"}}},
+						{"limit", {{"type", "integer"}}},
+						{"test_names", {{"type", "array"}}}
+					}}
+				};
+			}
+		      protected:
+			bool validate_args_impl(const nlohmann::json & /*args*/, const tool_context & /*ctx*/, std::string & /*out_error*/) const override
+			{
+				return true;
+			}
+			std::unique_ptr<llm_tool> create_tool_impl(const nlohmann::json & /*args*/) const override
+			{
+				return nullptr;
+			}
+		};
+
+		test_alias_validator v;
+		tool_context vctx;
+		std::string verr;
+
+		// length aliases
+		for (const auto &alias : {"lines", "line_count", "num_lines", "lines_count", "num_items"}) {
+			nlohmann::json a = {{alias, 42}};
+			assert(v.validate_args(a, vctx, verr));
+			assert(v.get_validated_args()["length"] == 42);
+			assert(!v.get_validated_args().contains(alias));
+		}
+
+		// limit aliases
+		for (const auto &alias : {"count", "max_results", "max_count", "n", "max_commits", "max_items"}) {
+			nlohmann::json a = {{alias, 10}};
+			assert(v.validate_args(a, vctx, verr));
+			assert(v.get_validated_args()["limit"] == 10);
+			assert(!v.get_validated_args().contains(alias));
+		}
+
+		// test_names aliases
+		for (const auto &alias : {"test_name", "test", "tests"}) {
+			nlohmann::json a = {{alias, "unit_test_foo"}};
+			assert(v.validate_args(a, vctx, verr));
+			assert(v.get_validated_args()["test_names"] == nlohmann::json::array({"unit_test_foo"}));
+			assert(!v.get_validated_args().contains(alias));
+		}
+
+		// path aliases
+		for (const auto &alias : {"file_path", "filepath", "filename", "file", "target_file"}) {
+			nlohmann::json a = {{alias, "src/main.cpp"}};
+			assert(v.validate_args(a, vctx, verr));
+			assert(v.get_validated_args()["path"] == "src/main.cpp");
+			assert(!v.get_validated_args().contains(alias));
+		}
+	}
+
 	std::cout << "Tool infrastructure NVI invariant tests passed!\n";
 	return 0;
 }

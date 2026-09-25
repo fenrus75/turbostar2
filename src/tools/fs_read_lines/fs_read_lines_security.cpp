@@ -52,6 +52,7 @@ class fs_read_lines_validator : public agentlib::tool_validator
 	std::unordered_map<std::string, std::string> get_custom_parameter_aliases() const override
 	{
 		return {
+			{"lines", "length"},
 			{"num_lines", "length"},
 			{"line_count", "length"},
 			{"lines_count", "length"}

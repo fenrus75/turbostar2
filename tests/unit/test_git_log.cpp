@@ -49,6 +49,20 @@ int main()
 		assert(result.find("Process exited with code 0") != std::string::npos);
 	}
 
+	// 1b2. Success case: retrieve git log with alias 'max_count'
+	{
+		std::string result = registry.execute_tool("git_log", "{\"max_count\": 2}", ctx);
+		assert(!result.empty());
+		assert(result.find("Process exited with code 0") != std::string::npos);
+	}
+
+	// 1b3. Success case: retrieve git log with alias 'n'
+	{
+		std::string result = registry.execute_tool("git_log", "{\"n\": 2}", ctx);
+		assert(!result.empty());
+		assert(result.find("Process exited with code 0") != std::string::npos);
+	}
+
 	// 1c. Success case: filter git log by path (only file_b.txt)
 	{
 		std::string result = registry.execute_tool("git_log", "{\"path\": \"file_b.txt\"}", ctx);

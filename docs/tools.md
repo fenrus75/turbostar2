@@ -47,7 +47,7 @@ Turbostar supports tracing all LLM tool calls and outputs to sequential log file
     *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt').
     *   `start_line` *(integer, optional)*: The 1-based line number to start reading from. Defaults to 1 if omitted. Mutually exclusive with `tail`.
     *   `end_line` *(integer, optional)*: The 1-based line number to end reading at (inclusive). Defaults to reading the rest of the file if omitted. Mutually exclusive with `tail` and `length`.
-    *   `length` *(integer, optional)*: The number of lines to read starting from `start_line`. Mutually exclusive with `end_line` and `tail`. (Aliases: `num_lines`, `line_count`, `lines_count`.)
+    *   `length` *(integer, optional)*: The number of lines to read starting from `start_line`. Mutually exclusive with `end_line` and `tail`. (Aliases: `lines`, `num_lines`, `line_count`, `lines_count`, `count`.)
     *   `tail` *(integer, optional)*: Reads the specified number of lines from the end of the file. Mutually exclusive with `start_line`, `end_line`, and `length`.
 
 ### `fs_read_symbol`
@@ -198,7 +198,7 @@ Turbostar supports tracing all LLM tool calls and outputs to sequential log file
 ### `fs_run_tests`
 *   **Description:** Runs the project's test suite and returns console output. Catches crashes and dumps backtraces. To discover test names, read system://project/testlist.md (or system://project/testlist.md?search=<query>) with fs_read_lines instead of running `meson test --list` in a shell command.
 *   **Arguments:**
-    *   `test_names` *(string or array of strings, optional)*: Specific test name(s) or substrings to execute. If omitted, runs the full test suite.
+    *   `test_names` *(string or array of strings, optional)*: Specific test name(s) or substrings to execute. If omitted, runs the full test suite. (Aliases: `test_name`, `tests`, `test`.)
     *   `timeout` *(integer, optional)*: Optional execution timeout in seconds. Defaults to 300.
     *   `verbose` *(string or boolean, optional)*: Controls output verbosity. Accepts `"auto"` (default), `"true"` / `true`, or `"false"` / `false`. In `"auto"` mode on a single targeted test, passing tests output a compact summary, while failing tests surface the full verbose logs (stdout/stderr). Explicitly setting `true` always surfaces verbose output, and `false` suppresses verbose logs.
 
@@ -540,7 +540,7 @@ These tools allow the agent to interact with the project's Git repository.
 ### `git_log`
 *   **Description:** View recent commit messages in the repository (git log -n <limit> --oneline). Use this instead of running `git log` or `git show` via run_shell_command.
 *   **Arguments:**
-    *   `limit` *(integer, optional)*: The maximum number of commits to retrieve. Defaults to 10.
+    *   `limit` *(integer, optional)*: The maximum number of commits to retrieve. Defaults to 10. Parameter aliases like `max_count`, `n`, `max_commits`, `count`, and `max_results` are supported.
     *   `path` *(string, optional)*: Optional path to a file or directory relative to the project root. Defaults to '.' (entire workspace). Parameter aliases like `file_path`, `filepath`, `filename`, and `file` are supported.
 
 ### `git_blame`
