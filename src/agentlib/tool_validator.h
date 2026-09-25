@@ -1,21 +1,22 @@
 #pragma once
-#include <string>
 #include <memory>
 #include <nlohmann/json.hpp>
-#include "tool_context.h"
-#include "llm_tool.h"
+#include <string>
 #include "agent_properties.h"
+#include "llm_tool.h"
+#include "tool_context.h"
 
 #include "json_utils.h"
 
-namespace agentlib {
+namespace agentlib
+{
 
 /*
 
 # subclasses of tool_validator
 
 | subclass                     | filename                                                    |
-| ---------------------------- | ----------------------------------------------------------- | 
+| ---------------------------- | ----------------------------------------------------------- |
 | fs_man_validator             | src/tools/fs_man/fs_man.h                                   |
 | fs_replace_content_validator | src/tools/fs_replace_content/fs_replace_content.h           |
 | fs_list_dir_validator        | src/tools/fs_list_dir/fs_list_dir.h                          |
@@ -58,254 +59,303 @@ struct tool_example {
 	std::string explanation;
 };
 
+class tool_validator
+{
+      public:
+	virtual ~tool_validator() = default;
 
-class tool_validator {
-public:
-    virtual ~tool_validator() = default;
+	// Schema definition for the LLM payload
+	virtual std::string get_name() const = 0;
+	virtual std::string get_description() const = 0;
+	virtual nlohmann::json get_parameters_schema() const = 0;
+	virtual std::vector<tool_example> get_examples() const
+	{
+		return {};
+	}
 
-    // Schema definition for the LLM payload
-    virtual std::string get_name() const = 0;
-    virtual std::string get_description() const = 0;
-    virtual nlohmann::json get_parameters_schema() const = 0;
-    virtual std::vector<tool_example> get_examples() const { return {}; }
+	// Indicates if the tool is "pure" (has no persistent side effects on the project codebase).
+	// Pure tools (e.g., read, list, status, code review database, scratch VFS) can be safely executed by read-only agents.
+	virtual bool is_pure() const
+	{
+		return false;
+	}
+	virtual bool is_pure(const nlohmann::json & /*args*/) const
+	{
+		return is_pure();
+	}
 
+	// Returns the tool family name (default is "base")
+	virtual std::string get_family() const
+	{
+		return "base";
+	}
 
-    // Indicates if the tool is "pure" (has no persistent side effects on the project codebase).
-    // Pure tools (e.g., read, list, status, code review database, scratch VFS) can be safely executed by read-only agents.
-    virtual bool is_pure() const { return false; }
-    virtual bool is_pure(const nlohmann::json & /*args*/) const { return is_pure(); }
+	// Indicates if the tool's execution should be hidden from the UI by default.
+	virtual bool is_silent_by_default() const
+	{
+		return is_pure();
+	}
 
-    // Returns the tool family name (default is "base")
-    virtual std::string get_family() const { return "base"; }
+	// Indicates if the tool should be exposed over the MCP stdio interface.
+	// Defaults to true. Override to return false for TUI/editor-bound tools.
+	virtual bool expose_in_mcp() const
+	{
+		return true;
+	}
 
-    // Indicates if the tool's execution should be hidden from the UI by default.
-    virtual bool is_silent_by_default() const { return is_pure(); }
+	// Indicates if the tool can be executed by the given agent properties.
+	// By default, summarizers are allowed no tools, while other roles can run any tool.
+	virtual bool is_allowed_for_agent(const agent_properties &properties) const;
 
-    // Indicates if the tool should be exposed over the MCP stdio interface.
-    // Defaults to true. Override to return false for TUI/editor-bound tools.
-    virtual bool expose_in_mcp() const { return true; }
+	// Parameter alias mapping: maps incoming alias parameter names to canonical schema property names.
+	// Derived classes may override to declare custom tool-specific aliases.
+	virtual std::unordered_map<std::string, std::string> get_custom_parameter_aliases() const
+	{
+		return {};
+	}
 
-    // Indicates if the tool can be executed by the given agent properties.
-    // By default, summarizers are allowed no tools, while other roles can run any tool.
-    virtual bool is_allowed_for_agent(const agent_properties &properties) const;
+	// Non-Virtual Interface (NVI): Enforces state and execution order.
+	// Parses and validates args before the tool is allowed to be instantiated.
+	bool validate_args(const nlohmann::json &raw_args, const tool_context &ctx, std::string &out_error)
+	{
+		is_validated_ = false;
 
-    // Parameter alias mapping: maps incoming alias parameter names to canonical schema property names.
-    // Derived classes may override to declare custom tool-specific aliases.
-    virtual std::unordered_map<std::string, std::string> get_custom_parameter_aliases() const { return {}; }
+		// Centralized Automated Schema Validation
+		nlohmann::json schema = get_parameters_schema();
+		if (!ctx.mutation_possible) {
+			if (schema.contains("properties") && schema["properties"].is_object()) {
+				schema["properties"].erase("async");
+				schema["properties"].erase("is_async");
+			}
+			if (schema.contains("required") && schema["required"].is_array()) {
+				nlohmann::json new_req = nlohmann::json::array();
+				for (const auto &item : schema["required"]) {
+					if (item.is_string() &&
+					    (item.get<std::string>() == "async" || item.get<std::string>() == "is_async")) {
+						continue;
+					}
+					new_req.push_back(item);
+				}
+				schema["required"] = new_req;
+			}
+		}
 
-    // Non-Virtual Interface (NVI): Enforces state and execution order.
-    // Parses and validates args before the tool is allowed to be instantiated.
-    bool validate_args(const nlohmann::json& raw_args, const tool_context& ctx, std::string& out_error) {
-        is_validated_ = false;
-        
-        // Centralized Automated Schema Validation
-        nlohmann::json schema = get_parameters_schema();
-        if (!ctx.mutation_possible) {
-            if (schema.contains("properties") && schema["properties"].is_object()) {
-                schema["properties"].erase("async");
-                schema["properties"].erase("is_async");
-            }
-            if (schema.contains("required") && schema["required"].is_array()) {
-                nlohmann::json new_req = nlohmann::json::array();
-                for (const auto &item : schema["required"]) {
-                    if (item.is_string() && (item.get<std::string>() == "async" || item.get<std::string>() == "is_async")) {
-                        continue;
-                    }
-                    new_req.push_back(item);
-                }
-                schema["required"] = new_req;
-            }
-        }
+		// Apply parameter alias rewriting to resolve common variations to canonical parameter names.
+		nlohmann::json args = raw_args.is_object() ? raw_args : nlohmann::json::object();
+		if (schema.contains("properties") && schema["properties"].is_object() && args.is_object()) {
+			const auto &props = schema["properties"];
+			std::unordered_map<std::string, std::string> alias_map;
 
-        // Apply parameter alias rewriting to resolve common variations to canonical parameter names.
-        nlohmann::json args = raw_args.is_object() ? raw_args : nlohmann::json::object();
-        if (schema.contains("properties") && schema["properties"].is_object() && args.is_object()) {
-            const auto &props = schema["properties"];
-            std::unordered_map<std::string, std::string> alias_map;
+			// 1. Standard global parameter aliases according to docs/tools.md guidelines:
+			// If the tool schema declares 'path', accept common file path variations:
+			if (props.contains("path")) {
+				for (const auto &alias :
+				     {"file_path", "filepath", "filename", "file", "target_file", "root_dir", "dir", "directory"}) {
+					if (!props.contains(alias)) {
+						alias_map[alias] = "path";
+					}
+				}
+			}
+			// If the tool schema declares 'search_path', accept path and directory variations:
+			if (props.contains("search_path")) {
+				for (const auto &alias :
+				     {"path", "file_path", "filepath", "filename", "file", "target_file", "root_dir", "dir", "directory"}) {
+					if (!props.contains(alias)) {
+						alias_map[alias] = "search_path";
+					}
+				}
+			}
+			// If the tool schema declares 'size', accept common byte count variations according to docs/tools.md:
+			if (props.contains("size")) {
+				for (const auto &alias : {"length", "bytes", "num_bytes", "byte_count"}) {
+					if (!props.contains(alias)) {
+						alias_map[alias] = "size";
+					}
+				}
+			}
+			// If the tool schema declares 'length', accept common line/item length variations:
+			if (props.contains("length")) {
+				for (const auto &alias :
+				     {"lines", "line_count", "num_lines", "lines_count", "num_items", "max_lines", "count"}) {
+					if (!props.contains(alias)) {
+						alias_map[alias] = "length";
+					}
+				}
+			}
+			// If the tool schema declares 'count', accept common count/line variations:
+			if (props.contains("count")) {
+				for (const auto &alias :
+				     {"lines", "line_count", "num_lines", "lines_count", "num_items", "max_lines", "length", "limit"}) {
+					if (!props.contains(alias)) {
+						alias_map[alias] = "count";
+					}
+				}
+			}
+			// If the tool schema declares 'offset', accept common byte offset variations according to docs/tools.md:
+			if (props.contains("offset")) {
+				for (const auto &alias : {"start_offset", "start_byte", "byte_offset"}) {
+					if (!props.contains(alias)) {
+						alias_map[alias] = "offset";
+					}
+				}
+			}
+			// If the tool schema declares 'limit', accept common count/limit variations:
+			if (props.contains("limit")) {
+				for (const auto &alias : {"count", "max_results", "max_count", "n", "max_commits", "max_items"}) {
+					if (!props.contains(alias)) {
+						alias_map[alias] = "limit";
+					}
+				}
+			}
+			// If the tool schema declares 'test_names', accept common singular/plural test variations:
+			if (props.contains("test_names")) {
+				for (const auto &alias : {"test_name", "test", "tests"}) {
+					if (!props.contains(alias)) {
+						alias_map[alias] = "test_names";
+					}
+				}
+			}
+			// If the tool schema declares 'test_name', accept plural variations:
+			if (props.contains("test_name") && !props.contains("test_names")) {
+				alias_map["test_names"] = "test_name";
+			}
+			// If the tool schema declares 'paths', accept common file/path list variations:
+			if (props.contains("paths")) {
+				for (const auto &alias : {"files", "file_paths", "filepaths", "file", "path"}) {
+					if (!props.contains(alias)) {
+						alias_map[alias] = "paths";
+					}
+				}
+			}
+			// If the tool schema declares 'args', accept 'arguments':
+			if (props.contains("args") && !props.contains("arguments")) {
+				alias_map["arguments"] = "args";
+			}
+			// If the tool schema declares 'arguments', accept 'args':
+			if (props.contains("arguments") && !props.contains("args")) {
+				alias_map["args"] = "arguments";
+			}
 
-            // 1. Standard global parameter aliases according to docs/tools.md guidelines:
-            // If the tool schema declares 'path', accept common file path variations:
-            if (props.contains("path")) {
-                for (const auto &alias : {"file_path", "filepath", "filename", "file", "target_file"}) {
-                    if (!props.contains(alias)) {
-                        alias_map[alias] = "path";
-                    }
-                }
-            }
-            // If the tool schema declares 'size', accept common byte count variations according to docs/tools.md:
-            if (props.contains("size")) {
-                for (const auto &alias : {"length", "bytes", "num_bytes", "byte_count"}) {
-                    if (!props.contains(alias)) {
-                        alias_map[alias] = "size";
-                    }
-                }
-            }
-            // If the tool schema declares 'length', accept common line/item length variations:
-            if (props.contains("length")) {
-                for (const auto &alias : {"lines", "line_count", "num_lines", "lines_count", "num_items"}) {
-                    if (!props.contains(alias)) {
-                        alias_map[alias] = "length";
-                    }
-                }
-            }
-            // If the tool schema declares 'offset', accept common byte offset variations according to docs/tools.md:
-            if (props.contains("offset")) {
-                for (const auto &alias : {"start_offset", "start_byte", "byte_offset"}) {
-                    if (!props.contains(alias)) {
-                        alias_map[alias] = "offset";
-                    }
-                }
-            }
-            // If the tool schema declares 'limit', accept common count/limit variations:
-            if (props.contains("limit")) {
-                for (const auto &alias : {"count", "max_results", "max_count", "n", "max_commits", "max_items"}) {
-                    if (!props.contains(alias)) {
-                        alias_map[alias] = "limit";
-                    }
-                }
-            }
-            // If the tool schema declares 'test_names', accept common singular/plural test variations:
-            if (props.contains("test_names")) {
-                for (const auto &alias : {"test_name", "test", "tests"}) {
-                    if (!props.contains(alias)) {
-                        alias_map[alias] = "test_names";
-                    }
-                }
-            }
-            // If the tool schema declares 'test_name', accept plural variations:
-            if (props.contains("test_name") && !props.contains("test_names")) {
-                alias_map["test_names"] = "test_name";
-            }
-            // If the tool schema declares 'paths', accept common file/path list variations:
-            if (props.contains("paths")) {
-                for (const auto &alias : {"files", "file_paths", "filepaths", "file", "path"}) {
-                    if (!props.contains(alias)) {
-                        alias_map[alias] = "paths";
-                    }
-                }
-            }
-            // If the tool schema declares 'args', accept 'arguments':
-            if (props.contains("args") && !props.contains("arguments")) {
-                alias_map["arguments"] = "args";
-            }
-            // If the tool schema declares 'arguments', accept 'args':
-            if (props.contains("arguments") && !props.contains("args")) {
-                alias_map["args"] = "arguments";
-            }
+			// 2. Merge tool-specific custom aliases (overrides default if any collision):
+			for (const auto &[alias, canonical] : get_custom_parameter_aliases()) {
+				alias_map[alias] = canonical;
+			}
 
-            // 2. Merge tool-specific custom aliases (overrides default if any collision):
-            for (const auto &[alias, canonical] : get_custom_parameter_aliases()) {
-                alias_map[alias] = canonical;
-            }
+			// 3. Rewrite arguments: if an alias is provided and canonical is missing, map it.
+			for (const auto &[alias, canonical] : alias_map) {
+				if (args.contains(alias) && !args.contains(canonical)) {
+					args[canonical] = args[alias];
+					args.erase(alias);
+				} else if (args.contains(alias) && args.contains(canonical)) {
+					// Both provided; remove the redundant alias
+					args.erase(alias);
+				}
+			}
+		}
+		validated_args_ = args;
 
-            // 3. Rewrite arguments: if an alias is provided and canonical is missing, map it.
-            for (const auto &[alias, canonical] : alias_map) {
-                if (args.contains(alias) && !args.contains(canonical)) {
-                    args[canonical] = args[alias];
-                    args.erase(alias);
-                } else if (args.contains(alias) && args.contains(canonical)) {
-                    // Both provided; remove the redundant alias
-                    args.erase(alias);
-                }
-            }
-        }
-        validated_args_ = args;
+		if (schema.contains("required") && schema["required"].is_array()) {
+			for (const auto &req : schema["required"]) {
+				if (!req.is_string())
+					continue;
+				std::string key = req.get<std::string>();
+				if (!args.contains(key)) {
+					out_error = "Schema Validation Failed: Missing required argument '" + key + "'";
+					return false;
+				}
+			}
+		}
 
-        if (schema.contains("required") && schema["required"].is_array()) {
-            for (const auto& req : schema["required"]) {
-                if (!req.is_string()) continue;
-                std::string key = req.get<std::string>();
-                if (!args.contains(key)) {
-                    out_error = "Schema Validation Failed: Missing required argument '" + key + "'";
-                    return false;
-                }
-            }
-        }
+		if (schema.contains("properties") && schema["properties"].is_object()) {
+			for (auto it = args.begin(); it != args.end(); ++it) {
+				if (!schema["properties"].contains(it.key())) {
+					out_error = "Schema Validation Failed: Unexpected argument '" + it.key() + "'";
+					return false;
+				}
+				auto prop_schema = schema["properties"][it.key()];
+				if (prop_schema.contains("type") && prop_schema["type"].is_string()) {
+					std::string expected_type = prop_schema["type"].get<std::string>();
+					bool type_ok = false;
+					if (expected_type == "string" && it.value().is_string())
+						type_ok = true;
+					else if (expected_type == "integer") {
+						if (it.value().is_number_integer()) {
+							type_ok = true;
+						} else if (it.value().is_string()) {
+							std::string dummy_err;
+							int64_t dummy_val = 0;
+							if (json_utils::get_number(args, it.key(), dummy_val, int64_t(0), dummy_err)) {
+								type_ok = true;
+							}
+						}
+					} else if (expected_type == "boolean" && it.value().is_boolean())
+						type_ok = true;
+					else if (expected_type == "array") {
+						if (it.value().is_array()) {
+							type_ok = true;
+						} else if (it.value().is_string()) {
+							it.value() = nlohmann::json::array({it.value().get<std::string>()});
+							type_ok = true;
+						}
+					} else if (expected_type == "object" && it.value().is_object())
+						type_ok = true;
+					else if (expected_type == "number") {
+						if (it.value().is_number()) {
+							type_ok = true;
+						} else if (it.value().is_string()) {
+							std::string dummy_err;
+							double dummy_val = 0.0;
+							if (json_utils::get_number(args, it.key(), dummy_val, 0.0, dummy_err)) {
+								type_ok = true;
+							}
+						}
+					}
 
-        if (schema.contains("properties") && schema["properties"].is_object()) {
-            for (auto it = args.begin(); it != args.end(); ++it) {
-                if (!schema["properties"].contains(it.key())) {
-                    out_error = "Schema Validation Failed: Unexpected argument '" + it.key() + "'";
-                    return false;
-                }
-                auto prop_schema = schema["properties"][it.key()];
-                if (prop_schema.contains("type") && prop_schema["type"].is_string()) {
-                    std::string expected_type = prop_schema["type"].get<std::string>();
-                    bool type_ok = false;
-                    if (expected_type == "string" && it.value().is_string()) type_ok = true;
-                    else if (expected_type == "integer") {
-                        if (it.value().is_number_integer()) {
-                            type_ok = true;
-                        } else if (it.value().is_string()) {
-                            std::string dummy_err;
-                            int64_t dummy_val = 0;
-                            if (json_utils::get_number(args, it.key(), dummy_val, int64_t(0), dummy_err)) {
-                                type_ok = true;
-                            }
-                        }
-                    }
-                    else if (expected_type == "boolean" && it.value().is_boolean()) type_ok = true;
-                    else if (expected_type == "array") {
-                        if (it.value().is_array()) {
-                            type_ok = true;
-                        } else if (it.value().is_string()) {
-                            it.value() = nlohmann::json::array({it.value().get<std::string>()});
-                            type_ok = true;
-                        }
-                    }
-                    else if (expected_type == "object" && it.value().is_object()) type_ok = true;
-                    else if (expected_type == "number") {
-                        if (it.value().is_number()) {
-                            type_ok = true;
-                        } else if (it.value().is_string()) {
-                            std::string dummy_err;
-                            double dummy_val = 0.0;
-                            if (json_utils::get_number(args, it.key(), dummy_val, 0.0, dummy_err)) {
-                                type_ok = true;
-                            }
-                        }
-                    }
+					if (!type_ok) {
+						out_error = "Schema Validation Failed: Type mismatch for argument '" + it.key() +
+							    "'. Expected " + expected_type;
+						return false;
+					}
+				}
+			}
+		}
 
-                    if (!type_ok) {
-                        out_error = "Schema Validation Failed: Type mismatch for argument '" + it.key() + "'. Expected " + expected_type;
-                        return false;
-                    }
-                }
-            }
-        }
+		validated_args_ = args;
 
-        validated_args_ = args;
+		// Delegate to tool-specific validation
+		if (validate_args_impl(args, ctx, out_error)) {
+			is_validated_ = true;
+			return true;
+		}
+		return false;
+	}
 
-        // Delegate to tool-specific validation
-        if (validate_args_impl(args, ctx, out_error)) {
-            is_validated_ = true;
-            return true;
-        }
-        return false;
-    }
+	// Instantiates the actual tool. STRICTLY FAILS if validate_args was not successful.
+	std::unique_ptr<llm_tool> create_tool(const nlohmann::json &args) const
+	{
+		if (!is_validated_) {
+			return nullptr;
+		}
+		// If args is empty or matches original, prioritize the alias-rewritten validated_args_
+		if (!validated_args_.is_null()) {
+			return create_tool_impl(validated_args_);
+		}
+		return create_tool_impl(args);
+	}
 
-    // Instantiates the actual tool. STRICTLY FAILS if validate_args was not successful.
-    std::unique_ptr<llm_tool> create_tool(const nlohmann::json& args) const {
-        if (!is_validated_) {
-            return nullptr;
-        }
-        // If args is empty or matches original, prioritize the alias-rewritten validated_args_
-        if (!validated_args_.is_null()) {
-            return create_tool_impl(validated_args_);
-        }
-        return create_tool_impl(args);
-    }
+	const nlohmann::json &get_validated_args() const
+	{
+		return validated_args_;
+	}
 
-    const nlohmann::json &get_validated_args() const { return validated_args_; }
+      protected:
+	// Derived classes MUST implement these protected methods instead of the public ones.
+	virtual bool validate_args_impl(const nlohmann::json &args, const tool_context &ctx, std::string &out_error) const = 0;
+	virtual std::unique_ptr<llm_tool> create_tool_impl(const nlohmann::json &args) const = 0;
 
-protected:
-    // Derived classes MUST implement these protected methods instead of the public ones.
-    virtual bool validate_args_impl(const nlohmann::json& args, const tool_context& ctx, std::string& out_error) const = 0;
-    virtual std::unique_ptr<llm_tool> create_tool_impl(const nlohmann::json& args) const = 0;
-
-private:
-    bool is_validated_ = false;
-    nlohmann::json validated_args_;
+      private:
+	bool is_validated_ = false;
+	nlohmann::json validated_args_;
 };
 
 } // namespace agentlib

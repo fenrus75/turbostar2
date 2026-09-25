@@ -1,9 +1,9 @@
-#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include "../../src/agentlib/llm_types.h"
 #include "../../src/agentlib/single_string_tool_validator.h"
 #include "../../src/agentlib/tool_registry.h"
+#include "test_watchdog.h"
 
 using namespace agentlib;
 
@@ -146,7 +146,8 @@ int main()
 		// Test Group 2d: grep_search alias with 'Query', 'SearchPath', 'CaseInsensitive', 'IsRegex' -> fs_grep_files
 		tool_call tc2d;
 		tc2d.function.name = "grep_search";
-		tc2d.function.arguments = "{\"Query\": \"my_pattern\", \"SearchPath\": \"src/\", \"CaseInsensitive\": true, \"IsRegex\": true}";
+		tc2d.function.arguments =
+		    "{\"Query\": \"my_pattern\", \"SearchPath\": \"src/\", \"CaseInsensitive\": true, \"IsRegex\": true}";
 		normalize_tool_call(tc2d);
 		assert(tc2d.function.name == "fs_grep_files");
 		auto parsed2d = nlohmann::json::parse(tc2d.function.arguments);
@@ -306,22 +307,27 @@ int main()
 		class test_alias_validator : public tool_validator
 		{
 		      public:
-			std::string get_name() const override { return "test_alias"; }
-			std::string get_description() const override { return "test alias"; }
+			std::string get_name() const override
+			{
+				return "test_alias";
+			}
+			std::string get_description() const override
+			{
+				return "test alias";
+			}
 			nlohmann::json get_parameters_schema() const override
 			{
-				return {
-					{"type", "object"},
-					{"properties", {
-						{"path", {{"type", "string"}}},
-						{"length", {{"type", "integer"}}},
-						{"limit", {{"type", "integer"}}},
-						{"test_names", {{"type", "array"}}}
-					}}
-				};
+				return {{"type", "object"},
+					{"properties",
+					 {{"path", {{"type", "string"}}},
+					  {"length", {{"type", "integer"}}},
+					  {"limit", {{"type", "integer"}}},
+					  {"test_names", {{"type", "array"}}}}}};
 			}
+
 		      protected:
-			bool validate_args_impl(const nlohmann::json & /*args*/, const tool_context & /*ctx*/, std::string & /*out_error*/) const override
+			bool validate_args_impl(const nlohmann::json & /*args*/, const tool_context & /*ctx*/,
+						std::string & /*out_error*/) const override
 			{
 				return true;
 			}
@@ -336,7 +342,7 @@ int main()
 		std::string verr;
 
 		// length aliases
-		for (const auto &alias : {"lines", "line_count", "num_lines", "lines_count", "num_items"}) {
+		for (const auto &alias : {"lines", "line_count", "num_lines", "lines_count", "num_items", "max_lines"}) {
 			nlohmann::json a = {{alias, 42}};
 			assert(v.validate_args(a, vctx, verr));
 			assert(v.get_validated_args()["length"] == 42);
@@ -360,7 +366,7 @@ int main()
 		}
 
 		// path aliases
-		for (const auto &alias : {"file_path", "filepath", "filename", "file", "target_file"}) {
+		for (const auto &alias : {"file_path", "filepath", "filename", "file", "target_file", "root_dir", "dir", "directory"}) {
 			nlohmann::json a = {{alias, "src/main.cpp"}};
 			assert(v.validate_args(a, vctx, verr));
 			assert(v.get_validated_args()["path"] == "src/main.cpp");
