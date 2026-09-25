@@ -66,8 +66,12 @@ def test_block_write():
         # 5. Clear selection (^KH)
         runner.send_ctrlk('h')
 
-        # 6. Trigger Save As (^KW) with NO active selection
+        # 5.5. Verify ^KW with NO active selection correctly rejects with "No block selected."
         runner.send_ctrlk('w')
+        runner.assert_text_on_screen("No block selected.", timeout=2.0)
+
+        # 6. Trigger Save As (^QS) with NO active selection
+        runner.send_ctrlq('s')
         runner.assert_text_on_screen("Save File As", timeout=2.0)
 
         # 7. Type filename for saving the whole file
