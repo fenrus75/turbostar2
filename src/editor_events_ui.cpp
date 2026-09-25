@@ -936,13 +936,19 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 		build_exe = c1;
 	}
 
-	// Security validation: verify canonical executable path resides within project_root
+	// Security validation: verify canonical executable path resides within project_root.
+	// For agent-specified binaries (!binary.empty()), the binary must strictly reside within the project directory.
+	// For configured main_executable (binary.empty()), an explicitly configured absolute executable path (c4)
+	// is permitted (e.g., system tools or interpreters configured by the user).
 	std::filesystem::path canonical_exe = std::filesystem::weakly_canonical(build_exe);
 	std::string proj_root_str = proj_root_path.string();
 	if (!proj_root_str.ends_with('/')) {
 		proj_root_str += '/';
 	}
-	if (!canonical_exe.string().starts_with(proj_root_str) && canonical_exe != proj_root_path) {
+	bool is_within_project = canonical_exe.string().starts_with(proj_root_str) || canonical_exe == proj_root_path;
+	bool is_user_configured_absolute = binary.empty() && c4.is_absolute() && std::filesystem::exists(c4);
+
+	if (!is_within_project && !is_user_configured_absolute) {
 		logger.log(std::format("start_app rejected: executable '{}' is outside project root '{}'", canonical_exe.string(), proj_root_str));
 		return {-1, -1};
 	}
