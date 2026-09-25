@@ -1,8 +1,10 @@
+// Tested source file: src/tools/fs_replace_content/fs_replace_content_entry.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
+#include <unistd.h>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/agentlib/virtual_file_system.h"
@@ -28,8 +30,8 @@ int main()
 	auto agent = ai_agent::create(1, "TestAgent", model, nullptr, nullptr);
 	ctx.active_agent = agent.get();
 
-	// Setup a temporary file for editing
-	std::string temp_file = project_root + "/tmp/test_replace_content.txt";
+	// Setup a temporary file for editing (PID-isolated to prevent race conditions during parallel tests)
+	std::string temp_file = project_root + "/tmp/test_replace_content_" + std::to_string(getpid()) + ".txt";
 	std::filesystem::create_directories(project_root + "/tmp");
 
 	std::cout << "Testing fs_replace_content..." << std::endl;
@@ -116,12 +118,13 @@ int main()
 			ctx.fs_security.set_vfs(global_vfs.get());
 
 			// Write standard file via local system under tmp dir
-			std::string physical_tmp_file = fs_utils::get_project_tmp_dir() + "/test_replace_vfs.txt";
+			std::string vfs_name = "test_replace_vfs_" + std::to_string(getpid()) + ".txt";
+			std::string physical_tmp_file = fs_utils::get_project_tmp_dir() + "/" + vfs_name;
 			std::ofstream out(physical_tmp_file);
 			out << "line 1\ntarget block\nline 3\n";
 			out.close();
 
-			std::string args = "{\"path\": \"tmp://test_replace_vfs.txt\", \"target_content\": \"target block\", \"replacement_content\": \"substituted block\"}";
+			std::string args = "{\"path\": \"tmp://" + vfs_name + "\", \"target_content\": \"target block\", \"replacement_content\": \"substituted block\"}";
 			std::string res = registry.execute_tool("fs_replace_content", args, ctx);
 			std::cout << "VFS replacement result: " << res << std::endl;
 			assert(res.find("Successfully replaced") != std::string::npos);

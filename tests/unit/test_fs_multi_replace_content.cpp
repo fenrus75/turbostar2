@@ -1,3 +1,4 @@
+// Tested source file: src/tools/fs_replace_content/fs_multi_replace_content_entry.cpp
 #include "test_watchdog.h"
 #include "../../src/agentlib/tool_context.h"
 #include "../../src/tools/fs_replace_content/fs_multi_replace_content.h"
@@ -6,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <unistd.h>
 
 namespace fs = std::filesystem;
 
@@ -13,7 +15,7 @@ int main()
 {
 	test_watchdog::setup_watchdog(30);
 
-	fs::path temp_dir = fs::temp_directory_path() / "turbostar_test_fs_multi_replace";
+	fs::path temp_dir = fs::temp_directory_path() / ("turbostar_test_fs_multi_replace_" + std::to_string(getpid()));
 	fs::create_directories(temp_dir);
 
 	fs::path test_file = temp_dir / "sample.cpp";
