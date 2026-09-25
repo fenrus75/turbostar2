@@ -607,15 +607,24 @@ int command_runner::execute(const std::string &command)
 	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time_).count();
 	event_logger::get_instance().log("[command_runner] Finished command (exit_code={}, elapsed={}ms): '{}'", final_exit_code, elapsed, command);
 
-	on_child_exit();
+	on_child_exit(final_exit_code);
 
 	return final_exit_code;
 }
 
-void command_runner::on_child_exit()
+void command_runner::on_child_exit(int exit_code)
 {
 	if (!bypass_crashdump_check_ && !project_hash_.empty()) {
-		last_crashdumps_report_ = crashdump_manager::get_instance().refresh(project_hash_);
+		if (exit_code != 0 && enable_crash_catcher_) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			last_crashdumps_report_ = crashdump_manager::get_instance().refresh(project_hash_);
+			if (last_crashdumps_report_.empty()) {
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+				last_crashdumps_report_ = crashdump_manager::get_instance().refresh(project_hash_);
+			}
+		} else {
+			last_crashdumps_report_ = crashdump_manager::get_instance().refresh(project_hash_);
+		}
 	}
 	if (!perf_dir_.empty()) {
 		turbostar::perf_manager::get_instance().parse_and_resolve(perf_dir_, 0, run_id_, true);

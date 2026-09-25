@@ -272,7 +272,7 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 			sig_name = "SIGFPE (Floating Point Exception)";
 		} else if (exec_exit == 135 || crash_dumps.find("| 7 |") != std::string::npos || crash_dumps.find("Signal | 7") != std::string::npos) {
 			sig_name = "SIGBUS (Bus Error)";
-		} else if (exec_exit > 128) {
+		} else if (exec_exit > 128 && exec_exit < 255) {
 			sig_name = std::format("Signal {}", exec_exit - 128);
 		}
 
