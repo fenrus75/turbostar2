@@ -964,6 +964,27 @@ void crashdump_manager::clear_all()
 	}
 }
 
+bool crashdump_manager::clear_crash(std::string_view crash_id)
+{
+	if (crash_id.empty()) {
+		clear_all();
+		return true;
+	}
+
+	std::lock_guard<std::mutex> lock(mutex_);
+	seen_crash_ids_.erase(std::string(crash_id));
+	std::erase_if(crashdumps_, [&](const auto &c) { return c.crash_id == crash_id; });
+
+	std::string dump_dir = fs_utils::get_project_dump_dir();
+	fs::path crash_path = fs::path(dump_dir) / std::format("crash_{}", crash_id);
+	std::error_code ec;
+	if (fs::exists(crash_path, ec)) {
+		fs::remove_all(crash_path, ec);
+		return true;
+	}
+	return false;
+}
+
 bool crashdump_manager::preserve_binary(std::string_view crash_id, const std::string &bin_path)
 {
 	if (crash_id.empty() || bin_path.empty() || !fs::exists(bin_path)) {

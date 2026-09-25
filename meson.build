@@ -1682,7 +1682,7 @@ test('unit_sqlite_validation', test_sqlite_validation, suite: 'agent',
   env: ['TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins'])
 
 test_crashdump_clear = executable('test_crashdump_clear',
-  ['tests/unit/test_crashdump_clear.cpp', 'src/tools/crashdump_clear/crashdump_clear_entry.cpp'],
+  ['tests/unit/test_crashdump_clear.cpp', 'src/tools/crashdump_clear/crashdump_clear_entry.cpp', 'src/tools/crashdump_clear/crashdump_clear_security.cpp'],
   dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, httplib_dep, thread_dep, curl_dep, dl_dep],
   include_directories: 'src')
 test('unit_crashdump_clear', test_crashdump_clear, suite: 'agent')

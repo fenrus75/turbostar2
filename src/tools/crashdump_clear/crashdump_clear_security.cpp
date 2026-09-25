@@ -27,7 +27,17 @@ class crashdump_clear_validator : public agentlib::tool_validator
 
 	nlohmann::json get_parameters_schema() const override
 	{
-		return {{"type", "object"}, {"properties", nlohmann::json::object()}};
+		return {
+		    {"type", "object"},
+		    {"properties",
+		     {{"crash_id",
+		       {{"type", "string"},
+			{"description", "Optional unique crash identifier (e.g. '12345'). If omitted, all crash dumps are cleared."}}}}}};
+	}
+
+	std::unordered_map<std::string, std::string> get_custom_parameter_aliases() const override
+	{
+		return {{"id", "crash_id"}};
 	}
 
       protected:
@@ -37,9 +47,13 @@ class crashdump_clear_validator : public agentlib::tool_validator
 		return true;
 	}
 
-	std::unique_ptr<agentlib::llm_tool> create_tool_impl(const nlohmann::json & /*raw_json*/) const override
+	std::unique_ptr<agentlib::llm_tool> create_tool_impl(const nlohmann::json &raw_json) const override
 	{
-		return std::make_unique<crashdump_clear_tool>();
+		std::string crash_id;
+		if (raw_json.contains("crash_id") && raw_json["crash_id"].is_string()) {
+			crash_id = raw_json["crash_id"].get<std::string>();
+		}
+		return std::make_unique<crashdump_clear_tool>(std::move(crash_id));
 	}
 };
 
