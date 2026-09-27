@@ -50,6 +50,18 @@ Turbostar supports tracing all LLM tool calls and outputs to sequential log file
     *   `length` *(integer, optional)*: The number of lines to read starting from `start_line`. Mutually exclusive with `end_line` and `tail`. (Aliases: `lines`, `num_lines`, `line_count`, `lines_count`, `count`.)
     *   `tail` *(integer, optional)*: Reads the specified number of lines from the end of the file. Mutually exclusive with `start_line`, `end_line`, and `length`.
 
+### `fs_batch_read`
+*   **Description:** Reads multiple files or code chunks in a single batched operation. Supports reading line ranges (`lines`), symbol definitions (`symbol`), or class context previews (`class_context`). Individual item failures (e.g. unknown symbol or file not found) output inline error notes rather than aborting the entire batch. Suppresses codemap overviews and candidate type tables when `batch_size > 1` to preserve context window tokens; when `batch_size == 1` and `type == "lines"`, retains the full codemap overview like `fs_read_lines`.
+*   **Arguments:**
+    *   `items` *(array of objects, required)*: List of read requests. (Aliases: `files`, `chunks`, `requests`.) Each item specifies:
+        *   `path` *(string, required)*: Relative path under the project workspace or VFS URI (e.g., 'src/mime.h'). (Aliases: `file`, `filename`.)
+        *   `type` *(string, optional)*: Type of read operation: `'lines'` (default), `'symbol'`, or `'class_context'`.
+        *   `start` *(integer, optional)*: 1-based start line (for type `'lines'`). (Aliases: `start_line`.)
+        *   `end` *(integer, optional)*: 1-based end line (for type `'lines'`). (Aliases: `end_line`.)
+        *   `length` *(integer, optional)*: Number of lines to read starting from `start`. Mutually exclusive with `end` and `tail`. (Aliases: `lines`, `num_lines`, `line_count`.)
+        *   `tail` *(integer, optional)*: Number of lines to read from the end of the file. Mutually exclusive with `start`, `end`, and `length`.
+        *   `name` *(string, optional)*: Symbol name (required for type `'symbol'`) or optional class name (for type `'class_context'`). (Aliases: `symbol`, `symbol_name`, `class_name`.)
+
 ### `fs_read_symbol`
 *   **Description:** Read the full definition of a function, method, class, struct, or variable by name from a file. Use this to inspect a specific symbol`s implementation without guessing line numbers or reading full files.
 *   **Arguments:**

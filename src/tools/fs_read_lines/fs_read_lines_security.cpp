@@ -1,9 +1,9 @@
 #include <nlohmann/json.hpp>
 #include <optional>
-#include "../../agentlib/json_utils.h"
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
-#include "fs_read_lines.h"
+#include "agentlib/json_utils.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
+#include "tools/fs_read_lines/fs_read_lines.h"
 
 namespace tools
 {
@@ -26,7 +26,10 @@ class fs_read_lines_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Reads a specific range of text lines from a file. Output lines are prefixed with their 1-based line number in '<line_number>: <line_text>' format. Automatically appends a compact symbol codemap overview table when reading a partial range of a source or header file.";;
+		return "Reads a specific range of text lines from a file. Output lines are prefixed with their 1-based line number in "
+		       "'<line_number>: <line_text>' format. Automatically appends a compact symbol codemap overview table when reading a "
+		       "partial range of a source or header file.";
+		;
 	}
 
 	nlohmann::json get_parameters_schema() const override
@@ -34,49 +37,42 @@ class fs_read_lines_validator : public agentlib::tool_validator
 		return {
 		    {"type", "object"},
 		    {"properties",
-		     {{"path", {{"type", "string"}, {"description", "Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt')."}}},
+		     {{"path",
+		       {{"type", "string"},
+			{"description", "Relative path under the project workspace or VFS URI (e.g., 'tmp://file.txt')."}}},
 		      {"start_line",
-		       {{"type", "integer"}, {"description", "The 1-based line number to start reading from. Defaults to 1 if omitted. Mutually exclusive with 'tail'."}}},
+		       {{"type", "integer"},
+			{"description",
+			 "The 1-based line number to start reading from. Defaults to 1 if omitted. Mutually exclusive with 'tail'."}}},
 		      {"end_line",
 		       {{"type", "integer"},
-			{"description", "The 1-based line number to end reading at (inclusive). Optional. Mutually exclusive with 'tail' and 'length'."}}},
+			{"description",
+			 "The 1-based line number to end reading at (inclusive). Optional. Mutually exclusive with 'tail' and 'length'."}}},
 		      {"length",
 		       {{"type", "integer"},
-			{"description", "Optional. The number of lines to read starting from 'start_line'. Mutually exclusive with 'end_line' and 'tail'."}}},
+			{"description", "Optional. The number of lines to read starting from 'start_line'. Mutually exclusive with "
+					"'end_line' and 'tail'."}}},
 		      {"tail",
 		       {{"type", "integer"},
-			{"description", "Optional. The number of lines to read from the end of the file. Mutually exclusive with 'start_line', 'end_line', and 'length'."}}}}},
+			{"description", "Optional. The number of lines to read from the end of the file. Mutually exclusive with "
+					"'start_line', 'end_line', and 'length'."}}}}},
 		    {"required", nlohmann::json::array({"path"})}};
 	}
 
 	std::unordered_map<std::string, std::string> get_custom_parameter_aliases() const override
 	{
-		return {
-			{"lines", "length"},
-			{"num_lines", "length"},
-			{"line_count", "length"},
-			{"lines_count", "length"}
-		};
+		return {{"lines", "length"}, {"num_lines", "length"}, {"line_count", "length"}, {"lines_count", "length"}};
 	}
 
 	std::vector<agentlib::tool_example> get_examples() const override
 	{
-		return {
-			{
-				"Search Test Suite List for Keyword",
-				nlohmann::json{{"path", "system://project/testlist.md?search=fs_grep"}},
-				"Full Flow: 1) Call fs_read_lines(path='system://project/testlist.md?search=fs_grep') to discover exact test target names (e.g. 'unit_fs_grep_files') -> 2) Call fs_run_tests(test_names=['unit_fs_grep_files']) to execute."
-			},
-			{
-				"Read Specific Line Range of Source File",
-				nlohmann::json{{"path", "src/editor.cpp"}, {"start_line", 40}, {"end_line", 80}},
-				"Reads lines 40 to 80 from src/editor.cpp with 1-based line numbers."
-			}
-		};
+		return {{"Search Test Suite List for Keyword", nlohmann::json{{"path", "system://project/testlist.md?search=fs_grep"}},
+			 "Full Flow: 1) Call fs_read_lines(path='system://project/testlist.md?search=fs_grep') to discover exact test "
+			 "target names (e.g. 'unit_fs_grep_files') -> 2) Call fs_run_tests(test_names=['unit_fs_grep_files']) to execute."},
+			{"Read Specific Line Range of Source File",
+			 nlohmann::json{{"path", "src/editor.cpp"}, {"start_line", 40}, {"end_line", 80}},
+			 "Reads lines 40 to 80 from src/editor.cpp with 1-based line numbers."}};
 	}
-
-
-
 
       protected:
 	// Stage 1: Pre-invocation validation
@@ -89,10 +85,14 @@ class fs_read_lines_validator : public agentlib::tool_validator
 			int tail = -1;
 			int length = -1;
 
-			if (!json_utils::get_number(raw_json, "start_line", start_line, -1, out_error)) return false;
-			if (!json_utils::get_number(raw_json, "end_line", end_line, -1, out_error)) return false;
-			if (!json_utils::get_number(raw_json, "tail", tail, -1, out_error)) return false;
-			if (!json_utils::get_number(raw_json, "length", length, -1, out_error)) return false;
+			if (!json_utils::get_number(raw_json, "start_line", start_line, -1, out_error))
+				return false;
+			if (!json_utils::get_number(raw_json, "end_line", end_line, -1, out_error))
+				return false;
+			if (!json_utils::get_number(raw_json, "tail", tail, -1, out_error))
+				return false;
+			if (!json_utils::get_number(raw_json, "length", length, -1, out_error))
+				return false;
 
 			if (raw_path.empty()) {
 				out_error = "Path parameter cannot be empty.";
@@ -129,7 +129,8 @@ class fs_read_lines_validator : public agentlib::tool_validator
 				args_.end_line = 1000000;
 			} else if (length != -1) {
 				if (end_line != -1) {
-					out_error = "'length' parameter cannot be used together with 'end_line'. Specify either 'end_line' or 'length'.";
+					out_error = "'length' parameter cannot be used together with 'end_line'. Specify either 'end_line' "
+						    "or 'length'.";
 					return false;
 				}
 				if (length <= 0) {

@@ -136,6 +136,217 @@ int determine_adjusted_end_line(int start, int requested_end, const std::vector<
 	return requested_end;
 }
 
+file_read_result read_from_vfs(agentlib::virtual_file_system *vfs, const std::string &path, int start, int end, std::optional<int> tail)
+{
+	file_read_result result;
+	auto view_opt = vfs->read_file(path);
+	if (!view_opt) {
+		result.success = false;
+		result.error_message = "Error: Virtual file not found or not mounted.";
+		return result;
+	}
+
+	std::string_view view = view_opt.value()->view();
+
+	// Calculate overall line count including any trailing content without a trailing newline.
+	result.total_file_lines = std::count(view.begin(), view.end(), '\n');
+	if (!view.empty() && view.back() != '\n') {
+		result.total_file_lines++;
+	}
+
+	if (tail.has_value()) {
+		start = std::max(1, static_cast<int>(result.total_file_lines) - *tail + 1);
+		end = static_cast<int>(result.total_file_lines);
+	}
+	result.start_line = start;
+	result.end_line = end;
+
+	if (end >= start) {
+		result.lines.reserve(end - start + 1);
+	}
+
+	int current_line = 1;
+	size_t start_pos = 0;
+
+	// Traverse the memory buffer segment by segment to extract lines within target bounds.
+	while (start_pos < view.length()) {
+		size_t end_pos = view.find('\n', start_pos);
+		std::string_view line =
+		    (end_pos == std::string_view::npos) ? view.substr(start_pos) : view.substr(start_pos, end_pos - start_pos);
+
+		if (current_line >= start && current_line <= end) {
+			result.lines.emplace_back(line);
+		} else if (current_line > end) {
+			break;
+		}
+
+		start_pos = (end_pos == std::string_view::npos) ? view.length() : end_pos + 1;
+		current_line++;
+	}
+
+	result.success = true;
+	return result;
+}
+
+file_read_result read_from_document(agentlib::document_snapshot *doc, int start, int end, std::optional<int> tail)
+{
+	file_read_result result;
+	result.total_file_lines = doc->get_line_count();
+
+	if (tail.has_value()) {
+		start = std::max(1, static_cast<int>(result.total_file_lines) - *tail + 1);
+		end = static_cast<int>(result.total_file_lines);
+	}
+	result.start_line = start;
+	result.end_line = end;
+
+	int start_idx = start - 1;
+	int end_idx = std::min<int>(end - 1, static_cast<int>(result.total_file_lines) - 1);
+
+	// Validate start line bounds against document size.
+	if (start_idx >= static_cast<int>(result.total_file_lines)) {
+		result.success = false;
+		result.error_message =
+		    std::format("Requested start line is past the end of the file. The file is {} lines long.", result.total_file_lines);
+		return result;
+	}
+
+	if (end_idx >= start_idx) {
+		result.lines.reserve(end_idx - start_idx + 1);
+	}
+
+	for (int i = start_idx; i <= end_idx; ++i) {
+		result.lines.emplace_back(doc->get_line_text(i));
+	}
+
+	result.success = true;
+	return result;
+}
+
+file_read_result read_from_disk(const std::string &path, const std::string &requested_path, int start, int end, std::optional<int> tail)
+{
+	file_read_result result;
+	struct stat sb;
+	if (stat(path.c_str(), &sb) == -1) {
+		result.success = false;
+		if (errno == ENOENT) {
+			std::string alt = fs_utils::filename_suggest_alternative(requested_path);
+			if (!alt.empty()) {
+				result.error_message = std::format("Error: File does not exist: {}. Did you mean '{}'?", path, alt);
+			} else {
+				result.error_message = "Error: File does not exist: " + path;
+			}
+		} else {
+			result.error_message = "Error: File cannot be accessed (" + std::string(strerror(errno)) + "): " + path;
+		}
+		return result;
+	}
+
+	if (S_ISDIR(sb.st_mode)) {
+		result.success = false;
+		result.error_message = "Error: Path is a directory, not a regular file: " + path;
+		return result;
+	}
+
+	if (!S_ISREG(sb.st_mode)) {
+		result.success = false;
+		result.error_message = "Error: File is not a regular file (e.g. FIFO/device): " + path;
+		return result;
+	}
+
+	// Safety check to avoid loading extremely large files (e.g. logs/databases) that could deplete RAM.
+	if (sb.st_size > 50 * 1024 * 1024) {
+		result.success = false;
+		result.error_message = "Error: File is too large (>50MB) to read directly.";
+		return result;
+	}
+
+	// Verify that the file does not contain binary patterns that are unsafe/unreadable as lines.
+	if (fs_utils::is_binary_file(path)) {
+		result.success = false;
+		result.error_message = "Error: File appears to be binary. Cannot read text lines.";
+		return result;
+	}
+
+	std::ifstream file(path, std::ios::binary);
+	if (!file.is_open()) {
+		result.success = false;
+		result.error_message = "Error: Could not open file for reading.";
+		return result;
+	}
+
+	// Fast line counting using standard buffer scan.
+	result.total_file_lines = std::count(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), '\n');
+	if (sb.st_size > 0) {
+		file.clear();
+		file.seekg(-1, std::ios_base::end);
+		char last_char;
+		file.get(last_char);
+		if (last_char != '\n') {
+			result.total_file_lines++;
+		}
+	}
+
+	if (tail.has_value()) {
+		start = std::max(1, static_cast<int>(result.total_file_lines) - *tail + 1);
+		end = static_cast<int>(result.total_file_lines);
+	}
+	result.start_line = start;
+	result.end_line = end;
+
+	file.clear();
+	file.seekg(0);
+
+	std::string line;
+	int current_line = 1;
+
+	while (current_line < start && std::getline(file, line)) {
+		current_line++;
+	}
+
+	if (end >= start) {
+		result.lines.reserve(end - start + 1);
+	}
+
+	while (current_line <= end && std::getline(file, line)) {
+		if (!line.empty() && line.back() == '\r') {
+			line.pop_back();
+		}
+		if (line.size() > 4096) {
+			line = line.substr(0, 4096) + "... (line truncated)";
+		}
+
+		// Sanitize ANSI escapes and control characters
+		std::string clean_line;
+		clean_line.reserve(line.size());
+		for (size_t idx = 0; idx < line.size(); ++idx) {
+			unsigned char c = static_cast<unsigned char>(line[idx]);
+			if (c == 0x1b) {
+				if (idx + 1 < line.size() && line[idx + 1] == '[') {
+					idx += 2;
+					while (idx < line.size() && (line[idx] < 0x40 || line[idx] > 0x7e)) {
+						idx++;
+					}
+				}
+				continue;
+			}
+			if (c < 32 && c != '\t') {
+				// skip control chars
+			} else if (c == 127) {
+				// skip DEL
+			} else {
+				clean_line += c;
+			}
+		}
+
+		result.lines.emplace_back(clean_line);
+		current_line++;
+	}
+
+	result.success = true;
+	return result;
+}
+
 } // namespace
 
 class interaction_fs_read_lines : public agentlib::interaction_action
@@ -208,52 +419,53 @@ bool fs_read_lines_tool::validate_runtime(const agentlib::tool_context & /*ctx*/
 	return true;
 }
 
-std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
+file_read_result read_file_lines(const std::string &safe_path, const std::string &requested_path, int start_line, int end_line,
+				 std::optional<int> tail, agentlib::tool_context &ctx, bool adjust_boundaries)
 {
 	// Reset the drift tracker for this file since the LLM has read it.
-	ctx.file_drift_tracker.erase(args_.safe_path);
+	ctx.file_drift_tracker.erase(safe_path);
 
 	// Fallback bounds checks: clamp indices to valid positive ranges and prevent excessive reads
 	// that could overwhelm the context window of the LLM.
-	int start = std::max(1, args_.start_line);
-	int requested_end = std::max(start, args_.end_line);
+	int start = std::max(1, start_line);
+	int requested_end = std::max(start, end_line);
 
 	if (requested_end - start > 50000) {
 		requested_end = start + 50000;
 	}
 
 	// Always attempt to fetch up to 25 more lines to apply the semantic boundary heuristics (unless tail is requested).
-	int fetch_end = args_.tail.has_value() ? requested_end : (requested_end + 25);
+	int fetch_end = tail.has_value() ? requested_end : (requested_end + 25);
 
 	file_read_result read_res;
 
 	// Check if the path belongs to a Virtual File System (e.g. system:// or github:// schemes).
-	if (args_.safe_path.find("://") != std::string::npos) {
+	if (safe_path.find("://") != std::string::npos) {
 		auto vfs = ctx.fs_security.get_vfs();
 		if (vfs) {
-			read_res = read_from_vfs(vfs, args_.safe_path, start, fetch_end);
+			read_res = read_from_vfs(vfs, safe_path, start, fetch_end, tail);
 		} else {
 			read_res.success = false;
 			read_res.error_message = "Error: Virtual file not found or not mounted.";
 		}
 	}
 	// Check if the file is currently open in the active editor buffer.
-	else if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path)) {
-		auto doc_snapshot = ctx.doc_provider->get_open_document(args_.safe_path);
-		read_res = read_from_document(doc_snapshot.get(), start, fetch_end);
+	else if (ctx.doc_provider && ctx.doc_provider->get_open_document(safe_path)) {
+		auto doc_snapshot = ctx.doc_provider->get_open_document(safe_path);
+		read_res = read_from_document(doc_snapshot.get(), start, fetch_end, tail);
 	}
 	// Read directly from local disk.
 	else {
-		read_res = read_from_disk(args_.safe_path, start, fetch_end);
+		read_res = read_from_disk(safe_path, requested_path, start, fetch_end, tail);
 	}
 
-	if (args_.tail.has_value()) {
+	if (tail.has_value()) {
 		start = read_res.start_line;
 		requested_end = read_res.end_line;
 	}
 	int adjusted_end = requested_end;
-	if (!args_.tail.has_value() && read_res.success && !read_res.lines.empty()) {
-		adjusted_end = determine_adjusted_end_line(start, requested_end, read_res.lines, args_.safe_path, ctx);
+	if (adjust_boundaries && !tail.has_value() && read_res.success && !read_res.lines.empty()) {
+		adjusted_end = determine_adjusted_end_line(start, requested_end, read_res.lines, safe_path, ctx);
 		int keep_count = adjusted_end - start + 1;
 		if (keep_count < 0) {
 			keep_count = 0;
@@ -263,9 +475,46 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-	// Store bounded range back to args so that all retrieval mechanisms share the same range values.
-	args_.start_line = start;
-	args_.end_line = adjusted_end;
+	read_res.start_line = start;
+	read_res.end_line = adjusted_end;
+	return read_res;
+}
+
+std::string format_file_lines_markdown(const std::string &requested_path, const file_read_result &read_res)
+{
+	if (!read_res.success) {
+		return read_res.error_message;
+	}
+	if (read_res.lines.empty()) {
+		return std::format("Requested line range is empty or past the end of the file. The file is {} lines long.",
+				   read_res.total_file_lines);
+	}
+
+	size_t max_backticks = count_max_consecutive_backticks(read_res.lines);
+	size_t fence_len = std::max<size_t>(3, max_backticks + 1);
+	std::string fence(fence_len, '`');
+	std::string lang = mime::get_language_from_extension(requested_path);
+
+	std::stringstream ss;
+	ss << std::format("Code for lines {} - {} of {} (total {} lines):\n{}{}\n", read_res.start_line, read_res.end_line, requested_path,
+			  read_res.total_file_lines, fence, lang);
+	int current_line = read_res.start_line;
+	for (const auto &line : read_res.lines) {
+		ss << std::format("{}: {}\n", current_line, line);
+		current_line++;
+	}
+	ss << std::format("{}\n", fence);
+	return ss.str();
+}
+
+std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
+{
+	file_read_result read_res = read_file_lines(args_.safe_path, args_.requested_path, args_.start_line, args_.end_line, args_.tail,
+						    ctx, /*adjust_boundaries=*/true);
+	args_.start_line = read_res.start_line;
+	args_.end_line = read_res.end_line;
+	int start = args_.start_line;
+	int adjusted_end = args_.end_line;
 
 	// Early harvest: extract candidate type tokens from read range and dispatch async LSP queries
 	std::vector<candidate_type_token> candidate_types;
@@ -305,20 +554,8 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 			custom_interaction->set_status(interaction_fs_read_lines::status::failure);
 		}
 	} else {
-		size_t max_backticks = count_max_consecutive_backticks(read_res.lines);
-		size_t fence_len = std::max<size_t>(3, max_backticks + 1);
-		std::string fence(fence_len, '`');
-		std::string lang = mime::get_language_from_extension(args_.requested_path);
-
 		std::stringstream ss;
-		ss << std::format("Code for lines {} - {} of {} (total {} lines):\n{}{}\n", start, adjusted_end, args_.requested_path,
-				  read_res.total_file_lines, fence, lang);
-		int current_line = start;
-		for (const auto &line : read_res.lines) {
-			ss << std::format("{}: {}\n", current_line, line);
-			current_line++;
-		}
-		ss << std::format("{}\n", fence);
+		ss << format_file_lines_markdown(args_.requested_path, read_res);
 
 		// Codemap integration rules:
 		// Rule 1: If read_res reads whole implementation file (start == 1 && adjusted_end >= read_res.total_file_lines), skip
@@ -435,220 +672,6 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	return result_text;
-}
-
-// Retrieves lines from a mounted Virtual File System provider snapshot.
-file_read_result fs_read_lines_tool::read_from_vfs(agentlib::virtual_file_system *vfs, const std::string &path, int start, int end) const
-{
-	file_read_result result;
-	auto view_opt = vfs->read_file(path);
-	if (!view_opt) {
-		result.success = false;
-		result.error_message = "Error: Virtual file not found or not mounted.";
-		return result;
-	}
-
-	std::string_view view = view_opt.value()->view();
-
-	// Calculate overall line count including any trailing content without a trailing newline.
-	result.total_file_lines = std::count(view.begin(), view.end(), '\n');
-	if (!view.empty() && view.back() != '\n') {
-		result.total_file_lines++;
-	}
-
-	if (args_.tail.has_value()) {
-		start = std::max(1, static_cast<int>(result.total_file_lines) - *args_.tail + 1);
-		end = static_cast<int>(result.total_file_lines);
-	}
-	result.start_line = start;
-	result.end_line = end;
-
-	if (end >= start) {
-		result.lines.reserve(end - start + 1);
-	}
-
-	int current_line = 1;
-	size_t start_pos = 0;
-
-	// Traverse the memory buffer segment by segment to extract lines within target bounds.
-	while (start_pos < view.length()) {
-		size_t end_pos = view.find('\n', start_pos);
-		std::string_view line =
-		    (end_pos == std::string_view::npos) ? view.substr(start_pos) : view.substr(start_pos, end_pos - start_pos);
-
-		if (current_line >= start && current_line <= end) {
-			result.lines.emplace_back(line);
-		} else if (current_line > end) {
-			break;
-		}
-
-		start_pos = (end_pos == std::string_view::npos) ? view.length() : end_pos + 1;
-		current_line++;
-	}
-
-	result.success = true;
-	return result;
-}
-
-// Retrieves lines from an active editor document's line buffer.
-file_read_result fs_read_lines_tool::read_from_document(agentlib::document_snapshot *doc, int start, int end) const
-{
-	file_read_result result;
-	result.total_file_lines = doc->get_line_count();
-
-	if (args_.tail.has_value()) {
-		start = std::max(1, static_cast<int>(result.total_file_lines) - *args_.tail + 1);
-		end = static_cast<int>(result.total_file_lines);
-	}
-	result.start_line = start;
-	result.end_line = end;
-
-	int start_idx = start - 1;
-	int end_idx = std::min<int>(end - 1, static_cast<int>(result.total_file_lines) - 1);
-
-	// Validate start line bounds against document size.
-	if (start_idx >= static_cast<int>(result.total_file_lines)) {
-		result.success = false;
-		result.error_message =
-		    std::format("Requested start line is past the end of the file. The file is {} lines long.", result.total_file_lines);
-		return result;
-	}
-
-	if (end_idx >= start_idx) {
-		result.lines.reserve(end_idx - start_idx + 1);
-	}
-
-	for (int i = start_idx; i <= end_idx; ++i) {
-		result.lines.emplace_back(doc->get_line_text(i));
-	}
-
-	result.success = true;
-	return result;
-}
-
-// Retrieves lines directly from a file stored on the local disk.
-file_read_result fs_read_lines_tool::read_from_disk(const std::string &path, int start, int end) const
-{
-	file_read_result result;
-	struct stat sb;
-	if (stat(path.c_str(), &sb) == -1) {
-		result.success = false;
-		if (errno == ENOENT) {
-			std::string alt = fs_utils::filename_suggest_alternative(args_.requested_path);
-			if (!alt.empty()) {
-				result.error_message = std::format("Error: File does not exist: {}. Did you mean '{}'?", path, alt);
-			} else {
-				result.error_message = "Error: File does not exist: " + path;
-			}
-		} else {
-			result.error_message = "Error: File cannot be accessed (" + std::string(strerror(errno)) + "): " + path;
-		}
-		return result;
-	}
-
-	if (S_ISDIR(sb.st_mode)) {
-		result.success = false;
-		result.error_message = "Error: Path is a directory, not a regular file: " + path;
-		return result;
-	}
-
-	if (!S_ISREG(sb.st_mode)) {
-		result.success = false;
-		result.error_message = "Error: File is not a regular file (e.g. FIFO/device): " + path;
-		return result;
-	}
-
-	// Safety check to avoid loading extremely large files (e.g. logs/databases) that could deplete RAM.
-	if (sb.st_size > 50 * 1024 * 1024) {
-		result.success = false;
-		result.error_message = "Error: File is too large (>50MB) to read directly.";
-		return result;
-	}
-
-	// Verify that the file does not contain binary patterns that are unsafe/unreadable as lines.
-	if (fs_utils::is_binary_file(path)) {
-		result.success = false;
-		result.error_message = "Error: File appears to be binary. Cannot read text lines.";
-		return result;
-	}
-
-	std::ifstream file(path, std::ios::binary);
-	if (!file.is_open()) {
-		result.success = false;
-		result.error_message = "Error: Could not open file for reading.";
-		return result;
-	}
-
-	// Fast line counting using standard buffer scan.
-	result.total_file_lines = std::count(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), '\n');
-	if (sb.st_size > 0) {
-		file.clear();
-		file.seekg(-1, std::ios_base::end);
-		char last_char;
-		file.get(last_char);
-		if (last_char != '\n') {
-			result.total_file_lines++;
-		}
-	}
-
-	if (args_.tail.has_value()) {
-		start = std::max(1, static_cast<int>(result.total_file_lines) - *args_.tail + 1);
-		end = static_cast<int>(result.total_file_lines);
-	}
-	result.start_line = start;
-	result.end_line = end;
-
-	file.clear();
-	file.seekg(0);
-
-	std::string line;
-	int current_line = 1;
-
-	while (current_line < start && std::getline(file, line)) {
-		current_line++;
-	}
-
-	if (end >= start) {
-		result.lines.reserve(end - start + 1);
-	}
-
-	while (current_line <= end && std::getline(file, line)) {
-		if (!line.empty() && line.back() == '\r') {
-			line.pop_back();
-		}
-		if (line.size() > 4096) {
-			line = line.substr(0, 4096) + "... (line truncated)";
-		}
-
-		// Sanitize ANSI escapes and control characters
-		std::string clean_line;
-		clean_line.reserve(line.size());
-		for (size_t idx = 0; idx < line.size(); ++idx) {
-			unsigned char c = static_cast<unsigned char>(line[idx]);
-			if (c == 0x1b) {
-				if (idx + 1 < line.size() && line[idx + 1] == '[') {
-					idx += 2;
-					while (idx < line.size() && (line[idx] < 0x40 || line[idx] > 0x7e)) {
-						idx++;
-					}
-				}
-				continue;
-			}
-			if (c < 32 && c != '\t') {
-				// skip control chars
-			} else if (c == 127) {
-				// skip DEL
-			} else {
-				clean_line += c;
-			}
-		}
-
-		result.lines.emplace_back(clean_line);
-		current_line++;
-	}
-
-	result.success = true;
-	return result;
 }
 
 } // namespace tools

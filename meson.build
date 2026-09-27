@@ -510,6 +510,8 @@ test_tools = executable('test_tools',
    'src/codemap_utils.cpp',
    'src/tools/fs_read_lines/fs_read_lines_entry.cpp',
    'src/tools/fs_read_lines/fs_read_lines_security.cpp',
+   'src/tools/fs_read_lines/fs_batch_read_entry.cpp',
+   'src/tools/fs_read_lines/fs_batch_read_security.cpp',
    'src/tools/fs_read_symbol/fs_read_symbol_entry.cpp',
    'src/tools/fs_read_symbol/fs_read_symbol_security.cpp',
    'src/tools/fs_write_file/fs_write_file_entry.cpp',
@@ -1293,6 +1295,19 @@ test_fs_read_binary = executable('test_fs_read_binary',
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, magic_dep],
   include_directories: inc)
 test('unit_test_fs_read_binary', test_fs_read_binary, suite: 'agent')
+
+test_fs_batch_read = executable('test_fs_batch_read',
+  ['tests/unit/test_fs_batch_read.cpp',
+   'src/tools/fs_read_lines/fs_read_lines_entry.cpp',
+   'src/tools/fs_read_lines/fs_read_lines_security.cpp',
+   'src/tools/fs_read_lines/fs_batch_read_entry.cpp',
+   'src/tools/fs_read_lines/fs_batch_read_security.cpp',
+   'src/tools/fs_read_symbol/fs_read_symbol_entry.cpp',
+   'src/tools/fs_read_symbol/fs_read_symbol_security.cpp',
+   'src/codemap_utils.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, magic_dep],
+  include_directories: inc)
+test('unit_test_fs_batch_read', test_fs_batch_read, suite: 'agent')
 
 test_fs_regexp_lines = executable('test_fs_regexp_lines',
   ['tests/unit/test_fs_regexp_lines.cpp',

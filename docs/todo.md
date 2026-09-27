@@ -245,6 +245,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # Done
 
+## 27-09-2026
+- `fs_batch_read` multi-chunk and multi-file reading tool: implemented `fs_batch_read` in `src/tools/fs_read_lines/` supporting batched operations across multiple files or line slices (`lines`), symbol definitions (`symbol`), and class context previews (`class_context`). Extracted shared `read_file_lines` and `format_file_lines_markdown` helpers in `src/tools/fs_read_lines/fs_read_lines.{h,cpp}` to eliminate code duplication across disk, document snapshot, and VFS reads; suppressed repetitive codemaps and candidate type tables when `batch_size > 1` while preserving full codemaps when `batch_size == 1`; implemented resilient inline error notes on individual item failures (e.g. unknown symbol or file not found) without aborting the batch; added `fs_batch_read.md`; updated `docs/tools.md`; and added comprehensive unit test suite in `tests/unit/test_fs_batch_read.cpp`. (Completed)
+
 ## 19-09-2026
 - `/yolo` slash command for agent window: implemented `yolo_command` in `src/agentlib/command_registry.cpp` to dynamically toggle or explicitly configure YOLO mode (`/yolo on`, `/yolo off`, `/yolo true`, `/yolo false`, `/yolo 1`, `/yolo 0`) from the agent chat interface without submitting prompts to the model. Converted `yolo_mode_` in `config_manager.h` to `std::atomic<bool>` for thread-safe cross-thread mutation, updated agent window transient status hints, added parent subclass documentation in `agent_command.h`, created `command_registry.md`, and added unit tests in `tests/unit/test_yolo_command.cpp`. (Completed)
 
