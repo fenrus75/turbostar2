@@ -25,7 +25,7 @@ class run_executable_validator : public agentlib::tool_validator
 
 	std::string get_description() const override
 	{
-		return "Runs a binary/executable located within the project directory (or the configured main application if omitted), optionally under GDB debugging with split screen or CPU performance sampling. Unlike run_shell_command, this tool runs directly without requiring user permission or confirmation prompts. Always prefer this tool over run_shell_command for running project executables, binaries, and benchmarks. Returns JSON with app_run_id and gdb_run_id. In GDB mode, send 'continue' to gdb to start application execution.";
+		return "Runs a binary/executable located within the project directory (or the configured main application if omitted), optionally under GDB debugging with split screen or CPU performance sampling. Unlike run_shell_command, this tool runs directly without requiring user permission or confirmation prompts. Always prefer this tool over run_shell_command for running project executables, binaries, and benchmarks. Returns JSON with app_run_id and gdb_run_id. In GDB mode (debugger=true), send commands to GDB via agent_write_to_run(run_id=gdb_run_id, data=\"break <loc>\\ncontinue\\n\", output=true), inspect state with agent_write_to_run(run_id=gdb_run_id, data=\"bt\\n\" or \"p <var>\\n\", output=true), and clean up with agent_terminate_run(run_id=app_run_id).";
 	}
 
 	nlohmann::json get_parameters_schema() const override
