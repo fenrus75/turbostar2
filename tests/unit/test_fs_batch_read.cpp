@@ -109,6 +109,7 @@ int main()
 		std::string res = fs_utils::unwrap_prompt_untrusted_data_tag(raw_res);
 
 		assert(res.find("from_extension") != std::string::npos);
+		assert(res.find("<fs_read_symbol_result>") == std::string::npos);
 	}
 
 	// Test 6: Alias 'files' for 'items'

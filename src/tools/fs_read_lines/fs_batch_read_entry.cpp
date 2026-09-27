@@ -48,7 +48,7 @@ std::string fs_batch_read_tool::execute_symbol(const batch_read_item &item, agen
 		return std::format("Error: {}", out_error);
 	}
 
-	return sym_tool.execute(ctx);
+	return fs_utils::unwrap_prompt_untrusted_data_tag(sym_tool.execute(ctx));
 }
 
 std::string fs_batch_read_tool::execute_class_context(const batch_read_item &item, agentlib::tool_context &ctx)
