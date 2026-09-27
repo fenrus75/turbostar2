@@ -390,6 +390,173 @@ static void test_outgoing_calls_not_pruned_when_reading_inside_function()
 	std::cout << "  Passed!" << std::endl;
 }
 
+static void test_resolve_target_prefers_cpp_implementation_over_header()
+{
+	std::cout << "Testing resolve_target prefers .cpp implementation over .h declaration..." << std::endl;
+
+	std::string test_dir = fs_utils::get_project_tmp_dir() + "/test_cpp_over_h";
+	fs::create_directories(test_dir + "/src");
+
+	std::string caller_file = test_dir + "/src/main.cpp";
+	{
+		std::ofstream out(caller_file);
+		out << "#include \"runner.h\"\n"
+		    << "void foo() {\n"
+		    << "    apply_profile();\n"
+		    << "}\n";
+	}
+
+	std::string header_file = test_dir + "/src/runner.h";
+	{
+		std::ofstream out(header_file);
+		out << "#pragma once\n"
+		    << "void apply_profile();\n";
+	}
+
+	std::string impl_file = test_dir + "/src/runner.cpp";
+	{
+		std::ofstream out(impl_file);
+		out << "#include \"runner.h\"\n"
+		    << "void apply_profile() {\n"
+		    << "    int x = 42;\n"
+		    << "}\n";
+	}
+
+	fs_utils::set_override_project_dir(test_dir);
+
+	lsp_manager::call_hierarchy_item item;
+	item.name = "apply_profile";
+	item.kind = 12; // Function
+	item.uri = "file://" + header_file;
+	item.selection_range = text_range{1, 0, 1, 10}; // line 2
+
+	tools::outgoing_call_reference ref;
+	ref.caller_file = caller_file;
+	ref.call_line = 3;
+	ref.target_name = "apply_profile";
+
+	std::unordered_map<std::string, std::vector<tools::codemap_symbol_info>> symbols_cache;
+	bool resolved = tools::call_resolver::resolve_target(ref, item, symbols_cache, nullptr);
+
+	assert(resolved);
+	assert(ref.target_file == "src/runner.cpp");
+	assert(ref.target_start_line == 2);
+	assert(ref.target_end_line == 4);
+
+	fs_utils::set_override_project_dir("");
+	fs::remove_all(test_dir);
+	std::cout << "  Passed!" << std::endl;
+}
+
+static void test_extract_calls_from_slice_prefers_cpp_and_skips_self_definition()
+{
+	std::cout << "Testing extract_calls_from_slice prefers .cpp and skips self-definition..." << std::endl;
+
+	std::string test_dir = fs_utils::get_project_tmp_dir() + "/test_slice_self_def";
+	fs::create_directories(test_dir + "/src");
+
+	std::string caller_file = test_dir + "/src/manager.cpp";
+	{
+		std::ofstream out(caller_file);
+		out << "#include \"runner.h\"\n"
+		    << "#include \"manager.h\"\n"
+		    << "void manager::run_status() {\n"
+		    << "    apply_profile();\n"
+		    << "}\n";
+	}
+
+	std::string mgr_header = test_dir + "/src/manager.h";
+	{
+		std::ofstream out(mgr_header);
+		out << "#pragma once\n"
+		    << "class manager {\n"
+		    << "    void run_status();\n"
+		    << "};\n";
+	}
+
+	std::string runner_header = test_dir + "/src/runner.h";
+	{
+		std::ofstream out(runner_header);
+		out << "#pragma once\n"
+		    << "void apply_profile();\n";
+	}
+
+	std::string runner_impl = test_dir + "/src/runner.cpp";
+	{
+		std::ofstream out(runner_impl);
+		out << "#include \"runner.h\"\n"
+		    << "void apply_profile() {\n"
+		    << "    int a = 1;\n"
+		    << "}\n";
+	}
+
+	fs_utils::set_override_project_dir(test_dir);
+
+	// Setup doc symbols for manager.cpp
+	std::vector<tools::codemap_symbol_info> doc_symbols;
+	tools::codemap_symbol_info sym;
+	sym.name = "manager::run_status";
+	sym.display_name = "    ::run_status";
+	sym.kind_str = "Function";
+	sym.start_line = 3;
+	sym.end_line = 5;
+	sym.line_count = 3;
+	doc_symbols.push_back(sym);
+
+	class mock_def_backend : public mock_lsp_hierarchy_backend {
+	public:
+		std::string header_path;
+		std::string mgr_header_path;
+		[[nodiscard]] std::vector<location_info> query_definition(const std::string &, int line, int) override {
+			if (line == 2) {
+				location_info loc;
+				loc.path = mgr_header_path;
+				loc.range = {2, 0, 2, 0};
+				return {loc};
+			}
+			if (line == 3) {
+				location_info loc;
+				loc.path = header_path;
+				loc.range = {1, 0, 1, 0};
+				return {loc};
+			}
+			return {};
+		}
+	};
+
+	auto mock = std::make_unique<mock_def_backend>();
+	mock->header_path = runner_header;
+	mock->mgr_header_path = mgr_header;
+	project_manager::get_instance().set_lsp_backend_for_testing(std::move(mock));
+
+	std::unordered_map<std::string, std::vector<tools::codemap_symbol_info>> symbols_cache;
+	auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+	auto calls = tools::call_resolver::extract_calls_from_slice(
+		caller_file, 3, 5, doc_symbols, symbols_cache, nullptr, deadline);
+
+	// 1. run_status must NOT be in calls (it's the self-definition header)
+	for (const auto &c : calls) {
+		assert(c.target_name != "run_status");
+	}
+
+	// 2. apply_profile must be resolved to src/runner.cpp, NOT src/runner.h
+	bool found_apply = false;
+	for (const auto &c : calls) {
+		if (c.target_name == "apply_profile") {
+			found_apply = true;
+			assert(c.target_file == "src/runner.cpp");
+			assert(c.target_start_line == 2);
+			assert(c.target_end_line == 4);
+		}
+	}
+	assert(found_apply);
+
+	project_manager::get_instance().set_lsp_backend_for_testing(nullptr);
+	fs_utils::set_override_project_dir("");
+	fs::remove_all(test_dir);
+	std::cout << "  Passed!" << std::endl;
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -400,6 +567,8 @@ int main()
 	test_arrow_calls_parsing();
 	test_resolve_target_direct_and_cross_c();
 	test_outgoing_calls_not_pruned_when_reading_inside_function();
+	test_resolve_target_prefers_cpp_implementation_over_header();
+	test_extract_calls_from_slice_prefers_cpp_and_skips_self_definition();
 
 	std::cout << "All call_resolver tests passed successfully!" << std::endl;
 	return 0;

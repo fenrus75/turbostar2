@@ -184,9 +184,13 @@ static bool is_cpp_function_specifier_word(std::string_view word)
 
 void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vector<codemap_symbol_info> &out)
 {
-	std::ifstream in(safe_path);
-	if (!in.is_open())
-		return;
+	std::string abs_path = fs_utils::safe_absolute(safe_path).string();
+	std::ifstream in(abs_path);
+	if (!in.is_open()) {
+		in.open(safe_path);
+		if (!in.is_open())
+			return;
+	}
 
 	std::vector<std::string> lines;
 	std::string l;
@@ -202,7 +206,7 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 	bool is_sv = (ext == ".sv" || ext == ".svh" || ext == ".v" || ext == ".vh");
 
 	static const std::regex cpp_func_head_regex(R"(^\s*(?:[\w:\<\>]+\s*[\*\&]*\s+)*[\*\&]*\s*([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*)\s*\()");
-	static const std::regex cpp_class_regex(R"(^\s*(?:typedef\s+)?(?:class|struct)\s+([a-zA-Z_]\w*))");
+	static const std::regex cpp_class_regex(R"(^\s*(?:typedef\s+)?(?:class|struct)\s+(?:\[\[.*?\]\]\s+)?(?:__attribute__\s*\(\(.*?\)\)\s+)?([a-zA-Z_]\w*))");
 	static const std::regex cpp_enum_regex(R"(^\s*(?:typedef\s+)?enum(?:\s+class|\s+struct)?\s+([a-zA-Z_]\w*))");
 	static const std::regex py_func_regex(R"(^\s*def\s+([a-zA-Z_]\w*)\s*\()");
 	static const std::regex py_class_regex(R"(^\s*class\s+([a-zA-Z_]\w*))");
@@ -287,9 +291,9 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 					is_class_candidate = false;
 				}
 			}
-			size_t close_paren = lines[i].find(')');
-			size_t open_brace = lines[i].find('{');
-			if (close_paren != std::string::npos && (open_brace == std::string::npos || close_paren < open_brace)) {
+			size_t close_paren = suffix.find(')');
+			size_t open_brace = suffix.find('{');
+			if (close_paren != std::string_view::npos && (open_brace == std::string_view::npos || close_paren < open_brace)) {
 				is_class_candidate = false;
 			}
 		}
@@ -321,7 +325,8 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 			if (started) {
 				int len = end_line - line_num + 1;
 				if (len >= min_lines) {
-					out.push_back({match[1].str(), match[1].str(), "Class/Struct", line_num, end_line, len, 0, ""});
+					std::string kind_val = (lines[i].find("struct") != std::string::npos) ? "Struct" : "Class";
+					out.push_back({match[1].str(), match[1].str(), kind_val, line_num, end_line, len, 0, ""});
 				}
 			}
 		} else if (std::regex_search(lines[i], match, cpp_enum_regex)) {
@@ -356,7 +361,8 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 			}
 		} else if (std::regex_search(lines[i], match, cpp_func_head_regex)) {
 			std::string name = match[1].str();
-			if (name != "if" && name != "for" && name != "while" && name != "switch" && name != "catch") {
+			if (name != "if" && name != "for" && name != "while" && name != "switch" && name != "catch" &&
+			    name != "__attribute__" && !name.starts_with("__builtin_")) {
 				// Forward scan to find body '{' and verify it's not a prototype ';'
 				int paren_depth = 0;
 				bool found_brace = false;
@@ -1179,7 +1185,9 @@ codemap_selection_result select_prioritized_codemap_symbols(const std::vector<co
 	// Append up to 10 cross-file outgoing dependency call symbols under Option D
 	size_t cross_file_count = 0;
 	std::unordered_set<std::string> added_cross_file_keys;
+	std::unordered_set<std::string> added_cross_file_symbols;
 	std::string norm_safe_path = fs_utils::make_relative_to_project(safe_path);
+	std::string companion_header = find_matching_header_file(safe_path, ctx);
 	bool caller_is_test = is_test_file_path(norm_safe_path);
 
 	for (const auto &call : direct_outgoing_calls) {
@@ -1188,15 +1196,16 @@ codemap_selection_result select_prioritized_codemap_symbols(const std::vector<co
 
 		if (!call.target_file.empty() && call.target_start_line > 0 && is_project_file(call.target_file, &ctx)) {
 			std::string norm_target = fs_utils::make_relative_to_project(call.target_file);
-			if (norm_target == norm_safe_path)
+			if (norm_target == norm_safe_path || (!companion_header.empty() && norm_target == companion_header))
 				continue;
 			if (!caller_is_test && is_test_file_path(norm_target))
 				continue;
 
 			std::string key = norm_target + ":" + call.target_name;
-			if (added_cross_file_keys.contains(key))
+			if (added_cross_file_keys.contains(key) || added_cross_file_symbols.contains(call.target_name))
 				continue;
 			added_cross_file_keys.insert(key);
+			added_cross_file_symbols.insert(call.target_name);
 
 			codemap_symbol_info dep_sym;
 			dep_sym.name = call.target_name;
@@ -1334,9 +1343,16 @@ std::string find_matching_impl_file(const std::string &header_path, agentlib::to
 	}
 
 	std::error_code ec;
+	std::string proj = fs_utils::get_project_dir();
 	for (const auto &cand : candidates) {
-		if (std::filesystem::exists(cand, ec)) {
+		std::filesystem::path cp(cand);
+		if (std::filesystem::exists(cp, ec)) {
 			return cand;
+		}
+		if (cp.is_relative() && !proj.empty()) {
+			if (std::filesystem::exists(std::filesystem::path(proj) / cp, ec)) {
+				return cand;
+			}
 		}
 	}
 
@@ -1363,8 +1379,14 @@ std::string find_matching_header_file(const std::string &impl_path, agentlib::to
 	}
 
 	std::error_code ec;
+	std::string proj = fs_utils::get_project_dir();
 	for (const auto &cand : candidates) {
-		if (std::filesystem::exists(cand, ec) && is_project_file(cand) && fs_utils::is_regular_file(cand)) {
+		std::filesystem::path cp(cand);
+		bool exists_ok = std::filesystem::exists(cp, ec);
+		if (!exists_ok && cp.is_relative() && !proj.empty()) {
+			exists_ok = std::filesystem::exists(std::filesystem::path(proj) / cp, ec);
+		}
+		if (exists_ok && is_project_file(cand) && fs_utils::is_regular_file(cand)) {
 			return cand;
 		}
 	}
@@ -1970,10 +1992,10 @@ bool expand_range_to_symbol_bounds(const std::string &file_path, std::string_vie
 	if (target_sym && target_sym->end_line > target_sym->start_line) {
 		start_line = target_sym->start_line;
 		end_line = target_sym->end_line;
-		if (target_sym->kind_str.find("Class") != std::string::npos) {
-			kind = "class";
-		} else if (target_sym->kind_str.find("Struct") != std::string::npos) {
+		if (target_sym->kind_str == "Struct" || (target_sym->kind_str == "Class/Struct" && kind == "struct")) {
 			kind = "struct";
+		} else if (target_sym->kind_str == "Class" || target_sym->kind_str == "Class/Struct") {
+			kind = "class";
 		} else if (target_sym->kind_str == "Enum") {
 			kind = "enum";
 		} else if (target_sym->kind_str == "Interface") {

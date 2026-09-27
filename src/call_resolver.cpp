@@ -206,6 +206,18 @@ std::optional<lsp_backend::location_info> call_resolver::disambiguate_locations(
 				score += 50;
 				break;
 			}
+			// Check if candidate is companion implementation file of included header (e.g. runner.cpp for runner.h)
+			if (cand_p.stem() == inc_p.stem()) {
+				score += 100;
+				break;
+			}
+		}
+
+		// Prefer actual implementation files (.cpp/.c) over header declarations
+		bool is_impl = norm_cand.ends_with(".cpp") || norm_cand.ends_with(".c") ||
+			       norm_cand.ends_with(".cc") || norm_cand.ends_with(".cxx");
+		if (is_impl) {
+			score += 30;
 		}
 
 		// 2. Subsystem / directory match
@@ -392,8 +404,8 @@ bool call_resolver::resolve_target(
 		}
 	}
 
-	// Check matching implementation if header
-	if (!found && (def_path.ends_with(".h") || def_path.ends_with(".hpp"))) {
+	// Check matching implementation if header: always prefer the .cpp implementation over a header declaration
+	if (def_path.ends_with(".h") || def_path.ends_with(".hpp")) {
 		std::string impl = find_matching_impl_file(def_path, ctx);
 		if (!impl.empty()) {
 			if (!symbols_cache.contains(impl)) {
@@ -403,9 +415,10 @@ bool call_resolver::resolve_target(
 			}
 			const auto &impl_syms = symbols_cache[impl];
 			const codemap_symbol_info *impl_found = find_symbol_by_hint(impl_syms, item.name);
-			if (is_matching_function_symbol(impl_found, item.name)) {
+			if (impl_found && is_matching_function_symbol(impl_found, item.name)) {
 				found = impl_found;
 				def_path = impl;
+				def_pos_line = -1;
 			}
 		}
 	}
@@ -475,12 +488,22 @@ std::vector<outgoing_call_reference> call_resolver::extract_calls_from_slice(
 		return {};
 	}
 
+	std::unordered_set<std::string> doc_symbol_names;
 	std::unordered_set<std::string> defined_on_line_names;
 	for (const auto &sym : doc_symbols) {
+		std::string short_name = sym.name;
+		size_t pos = short_name.rfind("::");
+		if (pos != std::string::npos) {
+			short_name = short_name.substr(pos + 2);
+		}
+		doc_symbol_names.insert(sym.name);
+		doc_symbol_names.insert(short_name);
 		defined_on_line_names.insert(std::format("{}:{}", sym.start_line, sym.name));
+		defined_on_line_names.insert(std::format("{}:{}", sym.start_line, short_name));
 	}
 
 	std::string norm_safe_path = fs_utils::make_relative_to_project(safe_path);
+	std::string companion_header = find_matching_header_file(safe_path, ctx);
 	std::vector<outgoing_call_reference> results;
 	std::unordered_set<std::string> seen_names;
 
@@ -494,6 +517,11 @@ std::vector<outgoing_call_reference> call_resolver::extract_calls_from_slice(
 		if (defined_on_line_names.contains(std::format("{}:{}", cand.line, cand.name))) {
 			continue;
 		}
+		if (doc_symbol_names.contains(cand.name)) {
+			// This function is implemented in the current file itself!
+			// Intra-file calls belong to the file's primary codemap, not external called dependencies.
+			continue;
+		}
 		seen_names.insert(cand.name);
 
 		auto raw_defs = project_manager::get_instance().lsp_query_definition(safe_path, cand.line - 1, cand.col);
@@ -505,8 +533,30 @@ std::vector<outgoing_call_reference> call_resolver::extract_calls_from_slice(
 		}
 
 		std::string norm_def = fs_utils::make_relative_to_project(chosen->path);
-		if (norm_def.empty() || norm_def == norm_safe_path) {
+		if (norm_def.empty() || norm_def == norm_safe_path || (!companion_header.empty() && norm_def == companion_header)) {
 			continue;
+		}
+
+		int lsp_start = chosen->range.start_y + 1;
+		int lsp_end = (chosen->range.end_y >= chosen->range.start_y) ? (chosen->range.end_y + 1) : lsp_start;
+
+		// If resolved to a header, always prefer the matching .cpp implementation file if it contains the symbol
+		if (norm_def.ends_with(".h") || norm_def.ends_with(".hpp")) {
+			std::string impl = find_matching_impl_file(norm_def, ctx);
+			if (!impl.empty()) {
+				if (!symbols_cache.contains(impl)) {
+					std::vector<codemap_symbol_info> syms;
+					fallback_find_symbols(impl, 1, syms);
+					symbols_cache[impl] = std::move(syms);
+				}
+				const auto &impl_syms = symbols_cache[impl];
+				const auto *impl_found = find_symbol_by_hint(impl_syms, cand.name);
+				if (impl_found && is_matching_function_symbol(impl_found, cand.name)) {
+					norm_def = impl;
+					lsp_start = impl_found->start_line;
+					lsp_end = impl_found->end_line;
+				}
+			}
 		}
 
 		outgoing_call_reference ref;
@@ -514,8 +564,6 @@ std::vector<outgoing_call_reference> call_resolver::extract_calls_from_slice(
 		ref.call_line = cand.line;
 		ref.target_name = cand.name;
 		ref.target_file = norm_def;
-		int lsp_start = chosen->range.start_y + 1;
-		int lsp_end = (chosen->range.end_y >= chosen->range.start_y) ? (chosen->range.end_y + 1) : lsp_start;
 		ref.target_start_line = lsp_start;
 		ref.target_end_line = lsp_end;
 		ref.target_kind = "Function";
