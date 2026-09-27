@@ -61,6 +61,17 @@ int main()
 		auto rec5_log_stat = tools::evaluate_shell_command_resteer("git log --stat");
 		assert(rec5_log_stat.matched);
 		assert(rec5_log_stat.suggested_tool.find("git_log(stat=true)") != std::string::npos);
+
+		// GDB / Debugger
+		auto rec6_gdb = tools::evaluate_shell_command_resteer("gdb -batch -ex \"run\" ./build/test_available_tests");
+		assert(rec6_gdb.matched);
+		assert(rec6_gdb.confidence >= 0.90);
+		assert(rec6_gdb.suggested_tool.find("run_executable(binary=\"build/test_available_tests\", debugger=true)") != std::string::npos);
+		assert(rec6_gdb.explanation.find("agent_write_to_run") != std::string::npos);
+
+		auto rec6_gdb_plain = tools::evaluate_shell_command_resteer("gdb");
+		assert(rec6_gdb_plain.matched);
+		assert(rec6_gdb_plain.suggested_tool == "run_executable(debugger=true)");
 	}
 
 	// 2. Integration test via tool_registry & run_shell_command

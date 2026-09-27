@@ -112,3 +112,11 @@ The `docs/` directory contains crucial context. Keep these files updated as we m
 
 # Tooling
 - `agentcli` (along with `agentcli_record` and `agentcli_replay` executables) is available to record and replay conversations with the LLM. It is used by the test suite to verify tool execution and agent logic in headless environments without requiring a live network connection to the LLM.
+
+# Interactive Debugging (Live GDB)
+Always use `run_executable` with `debugger: true` instead of shell-based `gdb` or adding temporary print statements:
+- Launch session: `run_executable(binary="build/<target>", debugger=true)` -> returns `app_run_id` and `gdb_run_id`
+- Set breakpoints & run: `agent_write_to_run(run_id=gdb_run_id, data="break <file>:<line>\ncontinue\n", output=true)`
+- Inspect state: `agent_write_to_run(run_id=gdb_run_id, data="bt\n", output=true)` or `data="p <expr>\n"`
+- Step execution: `agent_write_to_run(run_id=gdb_run_id, data="next\n", output=true)`
+- Terminate when done: `agent_terminate_run(run_id=app_run_id)`

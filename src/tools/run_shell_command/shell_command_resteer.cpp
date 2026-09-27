@@ -300,6 +300,79 @@ shell_command_recommendation evaluate_shell_command_resteer(const std::string &c
 		return rec;
 	}
 
+	// 9. Interactive/Batch GDB: gdb [options] [binary]
+	static const std::regex gdb_cmd_regex(R"(^gdb(?:\s+.*)?$)");
+	if (std::regex_match(cmd, gdb_cmd_regex)) {
+		rec.matched = true;
+		rec.confidence = 0.95;
+
+		bool in_quote = false;
+		char quote_char = 0;
+		std::vector<std::string> tokens;
+		std::string cur;
+		for (char c : cmd) {
+			if (in_quote) {
+				if (c == quote_char) {
+					in_quote = false;
+				} else {
+					cur += c;
+				}
+			} else if (c == '"' || c == '\'') {
+				in_quote = true;
+				quote_char = c;
+			} else if (std::isspace(static_cast<unsigned char>(c))) {
+				if (!cur.empty()) {
+					tokens.push_back(cur);
+					cur.clear();
+				}
+			} else {
+				cur += c;
+			}
+		}
+		if (!cur.empty()) {
+			tokens.push_back(cur);
+		}
+
+		std::string bin_target;
+		for (size_t i = 1; i < tokens.size(); ++i) {
+			const auto &t = tokens[i];
+			if (t == "-ex" || t == "-x" || t == "-cd" || t == "-d" || t == "-b") {
+				i++; // skip argument to option
+				continue;
+			}
+			if (t == "--args") {
+				if (i + 1 < tokens.size()) {
+					bin_target = tokens[i + 1];
+				}
+				break;
+			}
+			if (!t.starts_with("-")) {
+				bin_target = t;
+				break;
+			}
+		}
+
+		if (!bin_target.empty()) {
+			if (bin_target.starts_with("./")) {
+				bin_target = bin_target.substr(2);
+			}
+			bin_target = sanitize_for_prompt_quote(bin_target);
+			rec.suggested_tool = std::format("run_executable(binary=\"{}\", debugger=true)", bin_target);
+			rec.explanation = std::format(
+			    "To debug '{}' with GDB, use 'run_executable(binary=\"{}\", debugger=true)' for a live interactive debugging session "
+			    "(interact with GDB via 'agent_write_to_run(run_id=gdb_run_id, data=\"...\", output=true)' and cleanup with "
+			    "'agent_terminate_run(run_id=app_run_id)') instead of running batch GDB via shell.",
+			    bin_target, bin_target);
+		} else {
+			rec.suggested_tool = "run_executable(debugger=true)";
+			rec.explanation =
+			    "To debug an application with GDB, use 'run_executable(debugger=true)' for a live interactive debugging session "
+			    "(interact with GDB via 'agent_write_to_run(run_id=gdb_run_id, data=\"...\", output=true)' and cleanup with "
+			    "'agent_terminate_run(run_id=app_run_id)') instead of running batch GDB via shell.";
+		}
+		return rec;
+	}
+
 	return rec;
 }
 
