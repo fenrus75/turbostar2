@@ -6,9 +6,9 @@
 #include <set>
 #include <string>
 #include <unordered_map>
-#include "../event_queue.h"
 #include "agent_properties.h"
 #include "document_provider.h"
+#include "event_queue.h"
 #include "file_security_manager.h"
 
 namespace agentlib
@@ -72,6 +72,9 @@ class tool_context
 
 	// Set of type definitions already reported to the agent in this session (for deduplication)
 	std::set<std::string> reported_type_definitions;
+
+	// Timestamp when the fs_batch_read tip was last shown (rate limited to once per 5 minutes)
+	std::chrono::steady_clock::time_point last_batch_read_tip_time{};
 };
 
 } // namespace agentlib

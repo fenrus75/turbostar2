@@ -141,6 +141,37 @@ int main()
 		}
 	}
 
+	// Test 8: Rate-limited fs_batch_read recommendation tip in fs_read_lines
+	{
+		std::cout << "8. Rate-limited fs_batch_read tip in fs_read_lines..." << std::endl;
+		tool_context tip_ctx;
+		tip_ctx.fs_security.set_working_directory(project_root);
+		tip_ctx.fs_security.add_allowed_root(project_root, access_type::read);
+		tip_ctx.active_agent = agent.get();
+
+		// Reading a partial range of a file with >= 2 symbols (e.g. src/mime.h)
+		nlohmann::json args = {{"path", "src/mime.h"}, {"start_line", 1}, {"end_line", 20}};
+
+		// Call 1: First time should show tip
+		std::string res1 = registry.execute_tool("fs_read_lines", args.dump(), tip_ctx);
+		assert(
+		    res1.find("*Tip: Fetch multiple symbols, line ranges, or class contexts from above in one turn using fs_batch_read") !=
+		    std::string::npos);
+
+		// Call 2: Immediate second call within 5 minutes should NOT show tip
+		std::string res2 = registry.execute_tool("fs_read_lines", args.dump(), tip_ctx);
+		assert(
+		    res2.find("*Tip: Fetch multiple symbols, line ranges, or class contexts from above in one turn using fs_batch_read") ==
+		    std::string::npos);
+
+		// Call 3: Setting last_batch_read_tip_time 6 minutes in the past should show tip again
+		tip_ctx.last_batch_read_tip_time = std::chrono::steady_clock::now() - std::chrono::minutes(6);
+		std::string res3 = registry.execute_tool("fs_read_lines", args.dump(), tip_ctx);
+		assert(
+		    res3.find("*Tip: Fetch multiple symbols, line ranges, or class contexts from above in one turn using fs_batch_read") !=
+		    std::string::npos);
+	}
+
 	std::cout << "All fs_batch_read unit tests passed successfully!" << std::endl;
 	return 0;
 }

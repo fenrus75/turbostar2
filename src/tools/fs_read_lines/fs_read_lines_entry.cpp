@@ -578,12 +578,15 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 			}
 		}
 
+		size_t targets_surfaced = 0;
+
 		if (!read_whole_file) {
 			auto symbols = get_document_codemap_symbols(args_.safe_path, ctx, /*min_lines=*/1);
 			if (!symbols.empty()) {
 				auto selection = select_prioritized_codemap_symbols(symbols, start, adjusted_end, args_.safe_path, ctx,
 										    /*max_items=*/10);
 				if (!selection.selected_symbols.empty()) {
+					targets_surfaced += selection.selected_symbols.size();
 					event_logger::get_instance().log(std::format(
 					    "fs_read_lines: path='{}', range={}-{}, codemap generated {} symbols across sections",
 					    args_.safe_path, start, adjusted_end, selection.selected_symbols.size()));
@@ -603,6 +606,7 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 					auto selection = select_prioritized_codemap_symbols(impl_symbols, 1, 1000000, matching_impl, ctx,
 											    /*max_items=*/10);
 					if (!selection.selected_symbols.empty()) {
+						targets_surfaced += selection.selected_symbols.size();
 						ss << "\n"
 						   << format_codemap_table(ip.filename().string(), selection.selected_symbols,
 									   /*total_file_lines=*/0, selection.total_symbols,
@@ -653,9 +657,20 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 							     excluded_file_count, already_reported_count, not_found_count));
 
 		if (!resolved_types.empty()) {
+			targets_surfaced += resolved_types.size();
 			ss << type_definition_cache::format_type_definition_table(resolved_types);
 			for (const auto &t : resolved_types) {
 				ctx.reported_type_definitions.insert(t.type_name);
+			}
+		}
+
+		if (targets_surfaced >= 2) {
+			auto now = std::chrono::steady_clock::now();
+			if (ctx.last_batch_read_tip_time.time_since_epoch().count() == 0 ||
+			    now - ctx.last_batch_read_tip_time >= std::chrono::minutes(5)) {
+				ss << "\n*Tip: Fetch multiple symbols, line ranges, or class contexts from above in one turn using "
+				      "fs_batch_read(items=[...]).*\n";
+				ctx.last_batch_read_tip_time = now;
 			}
 		}
 
