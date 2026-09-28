@@ -70,13 +70,21 @@ class fs_batch_read_validator : public agentlib::tool_validator
 			    {"name",
 			     {{"type", "string"},
 			      {"description", "Symbol name (for type 'symbol') or optional class name (for type 'class_context')."}}}}}},
-			 {"required", nlohmann::json::array({"path"})}}}}}},
-		    {"required", nlohmann::json::array({"items"})}};
+			 {"required", nlohmann::json::array({"path"})}}}},
+		      {"path", {{"type", "string"}}},
+		      {"type", {{"type", "string"}, {"enum", {"lines", "symbol", "class_context"}}}},
+		      {"start", {{"type", "integer"}}},
+		      {"end", {{"type", "integer"}}},
+		      {"length", {{"type", "integer"}}},
+		      {"tail", {{"type", "integer"}}},
+		      {"name", {{"type", "string"}}}}},
+		    {"required", nlohmann::json::array()}};
 	}
 
 	std::unordered_map<std::string, std::string> get_custom_parameter_aliases() const override
 	{
-		return {{"files", "items"}, {"chunks", "items"}, {"requests", "items"}};
+		return {{"files", "items"},  {"chunks", "items"}, {"requests", "items"},  {"start_line", "start"},
+			{"end_line", "end"}, {"symbol", "name"},  {"symbol_name", "name"}};
 	}
 
 	std::vector<agentlib::tool_example> get_examples() const override
@@ -105,13 +113,17 @@ class fs_batch_read_validator : public agentlib::tool_validator
 			nlohmann::json untrusted_items;
 			if (untrusted_json.contains("items") && untrusted_json["items"].is_array()) {
 				untrusted_items = untrusted_json["items"];
+			} else if (untrusted_json.contains("items") && untrusted_json["items"].is_object()) {
+				untrusted_items = nlohmann::json::array({untrusted_json["items"]});
 			} else if (untrusted_json.contains("files") && untrusted_json["files"].is_array()) {
 				untrusted_items = untrusted_json["files"];
+			} else if (untrusted_json.contains("files") && untrusted_json["files"].is_object()) {
+				untrusted_items = nlohmann::json::array({untrusted_json["files"]});
 			} else if (untrusted_json.contains("path") && untrusted_json["path"].is_string()) {
 				// Convenience fallback: single item passed at top level
 				untrusted_items = nlohmann::json::array({untrusted_json});
 			} else {
-				out_error = "Missing required parameter 'items' (must be an array).";
+				out_error = "Missing required parameter 'items' (must be an array) or 'path'.";
 				return false;
 			}
 

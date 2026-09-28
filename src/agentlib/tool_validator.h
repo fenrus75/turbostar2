@@ -297,6 +297,9 @@ class tool_validator
 						} else if (it.value().is_string()) {
 							it.value() = nlohmann::json::array({it.value().get<std::string>()});
 							type_ok = true;
+						} else if (it.value().is_object()) {
+							it.value() = nlohmann::json::array({it.value()});
+							type_ok = true;
 						}
 					} else if (expected_type == "object" && it.value().is_object())
 						type_ok = true;

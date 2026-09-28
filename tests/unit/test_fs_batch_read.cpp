@@ -125,9 +125,54 @@ int main()
 		assert(res.find("### [2/2]") != std::string::npos);
 	}
 
-	// Test 7: Error handling for invalid parameters
+	// Test 7: Tolerant single item at top level or single object in items
 	{
-		std::cout << "7. Error handling for invalid parameters..." << std::endl;
+		std::cout << "7. Tolerant single item at top level and items object..." << std::endl;
+
+		// 7a: Top level path, start, end without 'items' wrapper
+		{
+			nlohmann::json args = {{"path", poem_path}, {"start", 1}, {"end", 2}};
+			std::string raw_res = registry.execute_tool("fs_batch_read", args.dump(), ctx);
+			std::string res = fs_utils::unwrap_prompt_untrusted_data_tag(raw_res);
+
+			assert(res.find("### [1/1]") == std::string::npos);
+			assert(res.find("Code for lines 1 - ") != std::string::npos);
+			assert(res.find("1:") != std::string::npos);
+		}
+
+		// 7b: Top level symbol without 'items' wrapper
+		{
+			nlohmann::json args = {{"path", "src/mime.cpp"}, {"type", "symbol"}, {"name", "from_extension"}};
+			std::string raw_res = registry.execute_tool("fs_batch_read", args.dump(), ctx);
+			std::string res = fs_utils::unwrap_prompt_untrusted_data_tag(raw_res);
+
+			assert(res.find("from_extension") != std::string::npos);
+			assert(res.find("<fs_read_symbol_result>") == std::string::npos);
+		}
+
+		// 7c: Top level aliases: file, start_line, end_line
+		{
+			nlohmann::json args = {{"file", poem_path}, {"start_line", 2}, {"end_line", 3}};
+			std::string raw_res = registry.execute_tool("fs_batch_read", args.dump(), ctx);
+			std::string res = fs_utils::unwrap_prompt_untrusted_data_tag(raw_res);
+
+			assert(res.find("2:") != std::string::npos);
+			assert(res.find("3:") != std::string::npos);
+		}
+
+		// 7d: Single object passed directly to 'items' instead of an array
+		{
+			nlohmann::json args = {{"items", {{"path", poem_path}, {"start", 1}, {"end", 2}}}};
+			std::string raw_res = registry.execute_tool("fs_batch_read", args.dump(), ctx);
+			std::string res = fs_utils::unwrap_prompt_untrusted_data_tag(raw_res);
+
+			assert(res.find("1:") != std::string::npos);
+		}
+	}
+
+	// Test 8: Error handling for invalid parameters
+	{
+		std::cout << "8. Error handling for invalid parameters..." << std::endl;
 		// Empty items
 		{
 			nlohmann::json args = {{"items", nlohmann::json::array()}};
@@ -142,9 +187,9 @@ int main()
 		}
 	}
 
-	// Test 8: Rate-limited fs_batch_read recommendation tip in fs_read_lines
+	// Test 9: Rate-limited fs_batch_read recommendation tip in fs_read_lines
 	{
-		std::cout << "8. Rate-limited fs_batch_read tip in fs_read_lines..." << std::endl;
+		std::cout << "9. Rate-limited fs_batch_read tip in fs_read_lines..." << std::endl;
 		tool_context tip_ctx;
 		tip_ctx.fs_security.set_working_directory(project_root);
 		tip_ctx.fs_security.add_allowed_root(project_root, access_type::read);
