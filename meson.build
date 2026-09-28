@@ -1870,7 +1870,7 @@ python = pymod.find_installation('python3', required: false)
 
 if uv.found()
   e2e_exe = uv
-  e2e_base_args = ['run', '--with', 'pyte', '--with', 'pytest', 'python3']
+  e2e_base_args = ['run', '--with', 'pyte', '--with', 'pytest', '--with', 'jsonschema', 'python3']
 elif python.found()
   e2e_exe = python
   e2e_base_args = []
@@ -1884,13 +1884,21 @@ if uv.found() or python.found()
     'MESON_BUILD_ROOT=' + meson.project_build_root(),
     'PYTHONPATH=' + join_paths(meson.project_source_root(), 'tests/e2e'),
     'PROJECT_ROOT=' + meson.project_source_root(),
-    'UV_OFFLINE=1',
     'UV_CACHE_DIR=' + meson.project_source_root() / '.turbostar' / 'uv_cache',
     'TURBOSTAR_IN_TESTSUITE=1',
     'TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins',
     'TURBOSTAR_TURBOCATCH_DIR=' + meson.project_build_root()
   ]
   e2e_depends = [turbostar_exe, agentcli_record_exe, agentcli_replay_exe, copy_to_testrun_tgt, libturbocatch]
+
+  test('e2e_mcp_tool_schemas', e2e_exe,
+    args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_mcp_tool_schemas.py')],
+    env: e2e_env,
+    depends: e2e_depends,
+    workdir: meson.project_build_root(),
+    timeout: 60,
+    suite: 'agent'
+  )
 
   test('e2e_context_paging', e2e_exe,
     args: e2e_base_args + [join_paths(meson.project_source_root(), 'tests/e2e/test_context_paging.py')],

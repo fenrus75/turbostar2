@@ -1,11 +1,11 @@
 // Tested source file: src/mcp/turbomcp_server.cpp
-#include "mcp/turbomcp_server.h"
-#include "agentlib/tool_registry.h"
-#include "test_watchdog.h"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include "agentlib/tool_registry.h"
+#include "mcp/turbomcp_server.h"
+#include "test_watchdog.h"
 
 int main()
 {
@@ -18,7 +18,8 @@ int main()
 	bool found_perform_code_review = false;
 
 	for (const auto &val : validators) {
-		if (!val) continue;
+		if (!val)
+			continue;
 		if (val->get_name() == "open_in_editor") {
 			found_open_in_editor = true;
 			assert(val->expose_in_mcp() == false);
@@ -44,60 +45,80 @@ int main()
 
 		// Verify tools/list does not include perform_code_review or open_in_editor
 		nlohmann::json list_req = {
-			{"jsonrpc", "2.0"},
-			{"id", "list-1"},
-			{"method", "tools/list"},
-			{"params", nlohmann::json::object()}
-		};
+		    {"jsonrpc", "2.0"}, {"id", "list-1"}, {"method", "tools/list"}, {"params", nlohmann::json::object()}};
 		nlohmann::json list_resp = server.handle_request(list_req);
 		bool list_has_perform_code_review = false;
 		bool list_has_open_in_editor = false;
 		for (const auto &tool : list_resp["result"]["tools"]) {
-			if (tool["name"] == "perform_code_review") list_has_perform_code_review = true;
-			if (tool["name"] == "open_in_editor") list_has_open_in_editor = true;
+			if (tool["name"] == "perform_code_review")
+				list_has_perform_code_review = true;
+			if (tool["name"] == "open_in_editor")
+				list_has_open_in_editor = true;
 		}
 		assert(!list_has_perform_code_review);
 		assert(!list_has_open_in_editor);
 
+		// Strict standards compliance review on tools/list inputSchema:
+		// Ensure every tool returns a valid JSON Schema object complying with MCP spec.
+		for (const auto &tool : list_resp["result"]["tools"]) {
+			assert(tool.contains("name") && tool["name"].is_string() && !tool["name"].get<std::string>().empty());
+			assert(tool.contains("inputSchema") && tool["inputSchema"].is_object());
+			const auto &schema = tool["inputSchema"];
+			assert(schema.contains("type") && schema["type"] == "object");
+
+			if (schema.contains("properties")) {
+				assert(schema["properties"].is_object());
+				for (auto it = schema["properties"].begin(); it != schema["properties"].end(); ++it) {
+					// Property must be an object (not an array of pairs from mismatched braces!)
+					assert(it.value().is_object());
+					if (it.value().contains("type")) {
+						assert(it.value()["type"].is_string() || it.value()["type"].is_array());
+						if (it.value()["type"] == "array" && it.value().contains("items")) {
+							assert(it.value()["items"].is_object() || it.value()["items"].is_array());
+							if (it.value()["items"].is_object() && it.value()["items"].contains("properties")) {
+								assert(it.value()["items"]["properties"].is_object());
+							}
+						}
+					}
+					if (it.value().contains("enum")) {
+						assert(it.value()["enum"].is_array());
+					}
+				}
+			}
+			if (schema.contains("required")) {
+				assert(schema["required"].is_array());
+				for (const auto &req_item : schema["required"]) {
+					assert(req_item.is_string());
+				}
+			}
+		}
+
 		// Calling an unexposed tool via tools/call returns an error
 		nlohmann::json unexposed_call = {
-			{"jsonrpc", "2.0"},
-			{"id", "call-unexposed"},
-			{"method", "tools/call"},
-			{"params", {
-				{"name", "perform_code_review"},
-				{"arguments", {{"files", nlohmann::json::array({"src/main.cpp"})}}}
-			}}
-		};
+		    {"jsonrpc", "2.0"},
+		    {"id", "call-unexposed"},
+		    {"method", "tools/call"},
+		    {"params", {{"name", "perform_code_review"}, {"arguments", {{"files", nlohmann::json::array({"src/main.cpp"})}}}}}};
 		nlohmann::json unexposed_resp = server.handle_request(unexposed_call);
 		assert(unexposed_resp["result"]["isError"] == true);
 
 		// Call an edit tool that updates file health state, or simulate sequence advancement
-		nlohmann::json edit_req1 = {
-			{"jsonrpc", "2.0"},
-			{"id", 1},
-			{"method", "tools/call"},
-			{"params", {
-				{"name", "fs_file_size"},
-				{"arguments", {{"path", "src/main.cpp"}}}
-			}}
-		};
+		nlohmann::json edit_req1 = {{"jsonrpc", "2.0"},
+					    {"id", 1},
+					    {"method", "tools/call"},
+					    {"params", {{"name", "fs_file_size"}, {"arguments", {{"path", "src/main.cpp"}}}}}};
 		server.handle_request(edit_req1);
 
 		// Now test that if an edit occurs, edit_sequence_counter increments and is retained
-		nlohmann::json edit_req2 = {
-			{"jsonrpc", "2.0"},
-			{"id", 2},
-			{"method", "tools/call"},
-			{"params", {
-				{"name", "fs_replace_content"},
-				{"arguments", {
-					{"target_file", "src/main.cpp"},
-					{"target_content", "nonexistent_target_to_fail_cleanly"},
-					{"replacement_content", "foo"}
-				}}
-			}}
-		};
+		nlohmann::json edit_req2 = {{"jsonrpc", "2.0"},
+					    {"id", 2},
+					    {"method", "tools/call"},
+					    {"params",
+					     {{"name", "fs_replace_content"},
+					      {"arguments",
+					       {{"target_file", "src/main.cpp"},
+						{"target_content", "nonexistent_target_to_fail_cleanly"},
+						{"replacement_content", "foo"}}}}}};
 		server.handle_request(edit_req2);
 
 		// Sequence counter should increment on successful edit tool invocation
@@ -109,36 +130,24 @@ int main()
 		}
 
 		nlohmann::json edit1 = {
-			{"jsonrpc", "2.0"},
-			{"id", 3},
-			{"method", "tools/call"},
-			{"params", {
-				{"name", "fs_replace_content"},
-				{"arguments", {
-					{"path", tmp_file},
-					{"target_content", "line 1"},
-					{"replacement_content", "line 1 modified"}
-				}}
-			}}
-		};
+		    {"jsonrpc", "2.0"},
+		    {"id", 3},
+		    {"method", "tools/call"},
+		    {"params",
+		     {{"name", "fs_replace_content"},
+		      {"arguments", {{"path", tmp_file}, {"target_content", "line 1"}, {"replacement_content", "line 1 modified"}}}}}};
 		nlohmann::json resp1 = server.handle_request(edit1);
 		std::cout << "MCP edit 1 response: " << resp1.dump() << std::endl;
 		assert(server.get_context().edit_sequence_counter == 1);
 		assert(resp1["result"]["content"][0]["text"].get<std::string>().find("[Edit ID: #1]") != std::string::npos);
 
 		nlohmann::json edit2 = {
-			{"jsonrpc", "2.0"},
-			{"id", 4},
-			{"method", "tools/call"},
-			{"params", {
-				{"name", "fs_replace_content"},
-				{"arguments", {
-					{"path", tmp_file},
-					{"target_content", "line 2"},
-					{"replacement_content", "line 2 modified"}
-				}}
-			}}
-		};
+		    {"jsonrpc", "2.0"},
+		    {"id", 4},
+		    {"method", "tools/call"},
+		    {"params",
+		     {{"name", "fs_replace_content"},
+		      {"arguments", {{"path", tmp_file}, {"target_content", "line 2"}, {"replacement_content", "line 2 modified"}}}}}};
 		nlohmann::json resp2 = server.handle_request(edit2);
 		std::cout << "MCP edit 2 response: " << resp2.dump() << std::endl;
 		assert(server.get_context().edit_sequence_counter == 2);
