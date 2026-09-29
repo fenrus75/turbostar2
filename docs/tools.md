@@ -213,6 +213,7 @@ Turbostar supports tracing all LLM tool calls and outputs to sequential log file
     *   `test_names` *(string or array of strings, optional)*: Specific test name(s) or substrings to execute. If omitted, runs the full test suite. (Aliases: `test_name`, `tests`, `test`.)
     *   `timeout` *(integer, optional)*: Optional execution timeout in seconds. Defaults to 300.
     *   `verbose` *(string or boolean, optional)*: Controls output verbosity. Accepts `"auto"` (default), `"true"` / `true`, or `"false"` / `false`. In `"auto"` mode on a single targeted test, passing tests output a compact summary, while failing tests surface the full verbose logs (stdout/stderr). Explicitly setting `true` always surfaces verbose output, and `false` suppresses verbose logs.
+    *   `build_dir` *(string, optional)*: Optional build directory path relative to project root (e.g. `"build"` or `"build-asan"`). Defaults to the configured project build directory. (Aliases: `build_directory`, `builddir`.)
 
 ### `fs_compile_project`
 *   **Description:** Compiles the entire project and returns raw console output. Populates the workspace error list. Supports clean rebuilds and background execution via the async flag.
@@ -220,6 +221,7 @@ Turbostar supports tracing all LLM tool calls and outputs to sequential log file
     *   `clean` *(boolean, optional)*: If true, forces a completely clean rebuild before compiling to clear out stale artifacts. Defaults to false.
     *   `async` *(boolean, optional)*: If true, runs the compilation asynchronously in the background. Defaults to false.
     *   `timeout` *(integer, optional)*: Optional compilation timeout in seconds. Defaults to 600.
+    *   `build_dir` *(string, optional)*: Optional build directory path relative to project root (e.g. `"build"` or `"build-asan"`). Defaults to the configured project build directory. (Aliases: `build_directory`, `builddir`.)
 
 ### `fs_compile_file`
 *   **Description:** Compiles a single file and returns the console output. Use this for fast compile and syntax feedback on a single file without running a full project build or link. NOTE: This does NOT link the project, so the binary is NOT updated; to rebuild/link the executable, use `fs_compile_project`.

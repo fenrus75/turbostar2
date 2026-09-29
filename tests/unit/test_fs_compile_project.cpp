@@ -1,5 +1,4 @@
 // Tested source file: src/tools/fs_compile_project/fs_compile_project_entry.cpp
-#include "test_watchdog.h"
 #include <cassert>
 #include <chrono>
 #include <iostream>
@@ -8,6 +7,7 @@
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/config_manager.h"
 #include "../../src/project_manager.h"
+#include "test_watchdog.h"
 
 using namespace agentlib;
 
@@ -96,7 +96,8 @@ int main()
 			std::string args = "{\"clean\": false, \"async\": false}";
 			std::string res = registry.execute_tool("fs_compile_project", args, ctx);
 			std::cout << "Compile project failure result: " << res << std::endl;
-			assert(res.find("Diagnostic Note: File 'src/main.cpp' was clean and first developed errors after Edit #2.") != std::string::npos);
+			assert(res.find("Diagnostic Note: File 'src/main.cpp' was clean and first developed errors after Edit #2.") !=
+			       std::string::npos);
 		}
 
 		// 5. Successful compilation clears dirty file health states
@@ -106,6 +107,38 @@ int main()
 			std::string res = registry.execute_tool("fs_compile_project", args, ctx);
 			assert(ctx.file_health_tracker["src/main.cpp"].state == lsp_health_state::clean);
 			assert(ctx.file_health_tracker["src/main.cpp"].originating_edit_id.empty());
+		}
+
+		// 6. Optional build_dir parameter tests
+		{
+			// 6a: Valid build_dir ("build")
+			std::string args_valid = "{\"clean\": false, \"async\": false, \"build_dir\": \"build\"}";
+			auto prep_valid = registry.prepare_tool("fs_compile_project", args_valid, ctx);
+			assert(prep_valid.tool != nullptr);
+			assert(prep_valid.error_message.empty());
+
+			// 6b: Non-existent build_dir
+			std::string args_missing = "{\"clean\": false, \"async\": false, \"build_dir\": \"nonexistent_build_dir_xyz\"}";
+			auto prep_missing = registry.prepare_tool("fs_compile_project", args_missing, ctx);
+			assert(prep_missing.tool == nullptr);
+			assert(prep_missing.error_message.find("does not exist") != std::string::npos);
+
+			// 6c: Invalid build_dir (exists but not a build directory)
+			std::string args_invalid = "{\"clean\": false, \"async\": false, \"build_dir\": \"src\"}";
+			auto prep_invalid = registry.prepare_tool("fs_compile_project", args_invalid, ctx);
+			assert(prep_invalid.tool == nullptr);
+			assert(prep_invalid.error_message.find("missing build definition files") != std::string::npos);
+
+			// 6d: Directory traversal outside workspace
+			std::string args_traversal = "{\"clean\": false, \"async\": false, \"build_dir\": \"../../../../etc\"}";
+			auto prep_traversal = registry.prepare_tool("fs_compile_project", args_traversal, ctx);
+			assert(prep_traversal.tool == nullptr);
+			assert(prep_traversal.error_message.find("Access denied") != std::string::npos);
+
+			// 6e: Alias 'build_directory'
+			std::string args_alias = "{\"clean\": false, \"async\": false, \"build_directory\": \"build\"}";
+			auto prep_alias = registry.prepare_tool("fs_compile_project", args_alias, ctx);
+			assert(prep_alias.tool != nullptr);
 		}
 
 		std::cout << "fs_compile_project tool verified successfully!" << std::endl;

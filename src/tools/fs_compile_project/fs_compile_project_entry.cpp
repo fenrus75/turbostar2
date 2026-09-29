@@ -1,17 +1,17 @@
 #include <format>
-#include <thread>
 #include <sstream>
+#include <thread>
 #include "agentlib/ai_agent.h"
-#include "config_manager.h"
+#include "agentlib/file_health_utils.h"
 #include "build_error_manager.h"
+#include "codemap_utils.h"
+#include "config_manager.h"
 #include "crashdump_manager.h"
+#include "event_logger.h"
 #include "fs_utils.h"
+#include "tools/fs_compile_project/fs_compile_project.h"
 #include "tools/output_filter.h"
 #include "tools/terminal_command_runner.h"
-#include "tools/fs_compile_project/fs_compile_project.h"
-#include "agentlib/file_health_utils.h"
-#include "codemap_utils.h"
-#include "event_logger.h"
 
 namespace tools
 {
@@ -38,7 +38,18 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	std::string build_system = config_manager::get_instance().get_build_system();
-	std::string build_dir = config_manager::get_instance().get_build_directory();
+	std::string build_dir;
+	if (!args_.build_dir.empty()) {
+		build_dir = project_manager::get_instance().resolve_build_dir(args_.build_dir);
+		if (build_dir.empty()) {
+			build_dir = args_.build_dir;
+		}
+	} else {
+		build_dir = config_manager::get_instance().get_build_directory();
+		if (build_dir.empty()) {
+			build_dir = project_manager::get_instance().resolve_build_dir();
+		}
+	}
 	std::string cmd;
 
 	if (build_system == "meson") {
@@ -78,7 +89,8 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 						 ctx.file_health_tracker.size(), attribution_notes);
 
 		std::thread([runner = std::make_shared<terminal_command_runner>(interaction_, ctx.trigger_ui_update), cmd, weak_agent,
-			     captured_tool_call_id, attribution_notes, workspace_dir = ctx.fs_security.get_working_directory().string(), timeout = args_.timeout]() {
+			     captured_tool_call_id, attribution_notes, workspace_dir = ctx.fs_security.get_working_directory().string(),
+			     timeout = args_.timeout]() {
 			fs_utils::set_current_thread_name("compile_proj");
 			runner->set_enable_crash_catcher(true);
 			runner->set_project_dir(workspace_dir);
@@ -110,7 +122,9 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 			}
 			double raw_kb = raw_bytes / 1024.0;
 			double kept_kb = kept_bytes / 1024.0;
-			event_logger::get_instance().log("fs_compile_project context minimizer: removed {} lines ({:.1f} KB), kept {} lines ({:.1f} KB)", lines_removed, raw_kb - kept_kb, lines_kept, kept_kb);
+			event_logger::get_instance().log(
+			    "fs_compile_project context minimizer: removed {} lines ({:.1f} KB), kept {} lines ({:.1f} KB)", lines_removed,
+			    raw_kb - kept_kb, lines_kept, kept_kb);
 
 			if (auto agent = weak_agent.lock()) {
 				if (lines_removed > 0) {
@@ -134,7 +148,11 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 
 				std::string summary_header;
 				if (lines_removed > 0) {
-					summary_header = std::format("NOTE: Build output summarized to save context tokens (filtered {} low-information log lines). Full error messages and warnings are preserved. (Full raw build log available at 'system://project/build_output.log').\n\n", lines_removed);
+					summary_header =
+					    std::format("NOTE: Build output summarized to save context tokens (filtered {} low-information "
+							"log lines). Full error messages and warnings are preserved. (Full raw build log "
+							"available at 'system://project/build_output.log').\n\n",
+							lines_removed);
 				}
 
 				std::string formatted_injection = std::format("{}```bash\n$ {}\n{}\n```", summary_header, cmd, output);
@@ -170,8 +188,8 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 		}
 	} else {
 		std::string attribution_notes = agentlib::get_all_file_health_attribution_notes(ctx);
-		event_logger::get_instance().log("[fs_compile_project] exit_code={}, tracker_size={}, attribution_notes='{}'",
-						 exit_code, ctx.file_health_tracker.size(), attribution_notes);
+		event_logger::get_instance().log("[fs_compile_project] exit_code={}, tracker_size={}, attribution_notes='{}'", exit_code,
+						 ctx.file_health_tracker.size(), attribution_notes);
 		if (!attribution_notes.empty()) {
 			output += attribution_notes;
 		}
@@ -195,7 +213,8 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 	}
 	double raw_kb = raw_bytes / 1024.0;
 	double kept_kb = kept_bytes / 1024.0;
-	event_logger::get_instance().log("fs_compile_project context minimizer: removed {} lines ({:.1f} KB), kept {} lines ({:.1f} KB)", lines_removed, raw_kb - kept_kb, lines_kept, kept_kb);
+	event_logger::get_instance().log("fs_compile_project context minimizer: removed {} lines ({:.1f} KB), kept {} lines ({:.1f} KB)",
+					 lines_removed, raw_kb - kept_kb, lines_kept, kept_kb);
 
 	if (lines_removed > 0 && ctx.active_agent) {
 		ctx.active_agent->increment_stat("build_lines_pruned", lines_removed);
@@ -214,7 +233,10 @@ std::string fs_compile_project_tool::execute(agentlib::tool_context &ctx)
 
 	std::string summary_header;
 	if (lines_removed > 0) {
-		summary_header = std::format("NOTE: Build output summarized to save context tokens (filtered {} low-information log lines). Full error messages and warnings are preserved. (Full raw build log available at 'system://project/build_output.log').\n\n", lines_removed);
+		summary_header = std::format(
+		    "NOTE: Build output summarized to save context tokens (filtered {} low-information log lines). Full error messages and "
+		    "warnings are preserved. (Full raw build log available at 'system://project/build_output.log').\n\n",
+		    lines_removed);
 	}
 
 	return std::format("{}```bash\n$ {}\n{}\n```", summary_header, cmd, output);

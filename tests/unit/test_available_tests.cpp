@@ -2,14 +2,15 @@
 //
 // Unit tests for project_manager's available-test list caching/invalidation
 // and fs_run_tests tokenized fuzzy test resolution.
-#include "test_watchdog.h"
 #include <algorithm>
 #include <cassert>
 #include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
+#include "test_watchdog.h"
 
+#include "agentlib/tool_registry.h"
 #include "config_manager.h"
 #include "project_manager.h"
 #include "tools/fs_run_tests/fs_run_tests.h"
@@ -61,13 +62,9 @@ int main()
 	std::cout << "Available-tests cache/invalidation tests passed!" << std::endl;
 
 	std::cout << "\nTesting tokenized fuzzy test resolution (fs_run_tests)..." << std::endl;
-	const std::vector<std::string> mock_available = {
-		"turbostar:unit_utf8",
-		"turbostar:unit_test_run_shell_command",
-		"turbostar:unit_foo_alpha",
-		"turbostar:unit_foo_beta",
-		"turbostar:integration_git_status"
-	};
+	const std::vector<std::string> mock_available = {"turbostar:unit_utf8", "turbostar:unit_test_run_shell_command",
+							 "turbostar:unit_foo_alpha", "turbostar:unit_foo_beta",
+							 "turbostar:integration_git_status"};
 
 	// 1. Exact match
 	{
@@ -90,7 +87,8 @@ int main()
 		assert(res.suggestions.empty());
 	}
 
-	// 3. Tokenized matching with noise word ("test") removal (the classic mismatch: query "unit_test_utf8" vs target "turbostar:unit_utf8")
+	// 3. Tokenized matching with noise word ("test") removal (the classic mismatch: query "unit_test_utf8" vs target
+	// "turbostar:unit_utf8")
 	{
 		std::vector<std::string> query = {"unit_test_utf8"};
 		auto res = tools::fs_run_tests_tool::resolve_test_names_detailed(query, mock_available);
@@ -135,27 +133,26 @@ int main()
 
 	std::cout << "\nTesting CMake / CTest test list parser..." << std::endl;
 	{
-		std::string sample_ctest_output =
-			"Test project /home/arjan/git/fmt/build\n"
-			"  Test  #1: assert-test\n"
-			"  Test  #2: chrono-test\n"
-			"  Test  #3: color-test\n"
-			"  Test  #4: core-test\n"
-			"  Test  #5: grisu-test\n"
-			"  Test  #6: gtest-extra-test\n"
-			"  Test  #7: format-test\n"
-			"  Test  #8: format-impl-test\n"
-			"  Test  #9: locale-test\n"
-			"  Test #10: ostream-test\n"
-			"  Test #11: compile-test\n"
-			"  Test #12: printf-test\n"
-			"  Test #13: custom-formatter-test\n"
-			"  Test #14: ranges-test\n"
-			"  Test #15: scan-test\n"
-			"  Test #16: posix-mock-test\n"
-			"  Test #17: os-test\n"
-			"\n"
-			"Total Tests: 17\n";
+		std::string sample_ctest_output = "Test project /home/arjan/git/fmt/build\n"
+						  "  Test  #1: assert-test\n"
+						  "  Test  #2: chrono-test\n"
+						  "  Test  #3: color-test\n"
+						  "  Test  #4: core-test\n"
+						  "  Test  #5: grisu-test\n"
+						  "  Test  #6: gtest-extra-test\n"
+						  "  Test  #7: format-test\n"
+						  "  Test  #8: format-impl-test\n"
+						  "  Test  #9: locale-test\n"
+						  "  Test #10: ostream-test\n"
+						  "  Test #11: compile-test\n"
+						  "  Test #12: printf-test\n"
+						  "  Test #13: custom-formatter-test\n"
+						  "  Test #14: ranges-test\n"
+						  "  Test #15: scan-test\n"
+						  "  Test #16: posix-mock-test\n"
+						  "  Test #17: os-test\n"
+						  "\n"
+						  "Total Tests: 17\n";
 
 		std::vector<std::string> parsed = project_manager::parse_ctest_test_list(sample_ctest_output);
 		assert(parsed.size() == 17);
@@ -221,6 +218,67 @@ int main()
 		std::cout << "Live CMake test discovery verified successfully!" << std::endl;
 	}
 
-	std::cout << "All tokenized fuzzy test resolution and CMake test parsing tests passed!" << std::endl;
+	// Test resolve_build_dir and get_available_tests with explicit override_build_dir
+	{
+		std::cout << "\nTesting resolve_build_dir and get_available_tests with override_build_dir..." << std::endl;
+		std::string resolved_build = pm.resolve_build_dir("build");
+		assert(!resolved_build.empty() && resolved_build.ends_with("build"));
+
+		std::string resolved_nonexistent = pm.resolve_build_dir("nonexistent_build_dir_xyz");
+		assert(resolved_nonexistent.empty());
+
+		std::string resolved_invalid = pm.resolve_build_dir("src");
+		assert(resolved_invalid.empty());
+
+		// Test fs_run_tests tool validation with build_dir
+		agentlib::tool_registry &registry = agentlib::tool_registry::get_instance();
+		agentlib::tool_context ctx;
+		std::string project_root = pm.get_project_root();
+		ctx.fs_security.set_working_directory(project_root);
+		ctx.fs_security.add_allowed_root(project_root, agentlib::access_type::read);
+
+		// Valid build_dir
+		{
+			std::string args = "{\"build_dir\": \"build\", \"test_names\": [\"unit_test_fs_utils\"]}";
+			auto prep = registry.prepare_tool("fs_run_tests", args, ctx);
+			assert(prep.tool != nullptr);
+			assert(prep.error_message.empty());
+		}
+
+		// Alias build_directory
+		{
+			std::string args = "{\"build_directory\": \"build\", \"test_names\": [\"unit_test_fs_utils\"]}";
+			auto prep = registry.prepare_tool("fs_run_tests", args, ctx);
+			assert(prep.tool != nullptr);
+			assert(prep.error_message.empty());
+		}
+
+		// Non-existent build_dir
+		{
+			std::string args = "{\"build_dir\": \"nonexistent_build_dir_xyz\"}";
+			auto prep = registry.prepare_tool("fs_run_tests", args, ctx);
+			assert(prep.tool == nullptr);
+			assert(prep.error_message.find("does not exist") != std::string::npos);
+		}
+
+		// Invalid build_dir (exists but not a build directory)
+		{
+			std::string args = "{\"build_dir\": \"src\"}";
+			auto prep = registry.prepare_tool("fs_run_tests", args, ctx);
+			assert(prep.tool == nullptr);
+			assert(prep.error_message.find("missing build definition files") != std::string::npos);
+		}
+
+		// Traversal outside workspace
+		{
+			std::string args = "{\"build_dir\": \"../../../../etc\"}";
+			auto prep = registry.prepare_tool("fs_run_tests", args, ctx);
+			assert(prep.tool == nullptr);
+			assert(prep.error_message.find("Access denied") != std::string::npos);
+		}
+		std::cout << "fs_run_tests build_dir parameter verified successfully!" << std::endl;
+	}
+
+	std::cout << "All tokenized fuzzy test resolution, build_dir override, and CMake test parsing tests passed!" << std::endl;
 	return 0;
 }

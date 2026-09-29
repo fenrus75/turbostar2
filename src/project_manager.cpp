@@ -13,13 +13,13 @@
 #include <regex>
 #include <set>
 #include <sstream>
+#include "codereview_manager.h"
 #include "command_runner.h"
 #include "config_manager.h"
 #include "crashdump_manager.h"
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "git_manager.h"
-#include "codereview_manager.h"
 #include "utf8.h"
 
 namespace fs = std::filesystem;
@@ -27,7 +27,8 @@ namespace fs = std::filesystem;
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(text_range, start_y, start_x, end_y, end_x);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(lsp_manager::location_info, path, range);
 
-namespace {
+namespace
+{
 
 /**
  * @brief Waits for the specified duration unless interrupted by a stop_token.
@@ -441,7 +442,8 @@ std::string project_manager::get_project_knowledge_prompt() const
 		if (!repo_branch.empty()) {
 			prompt += std::format("- Active Git Branch: {}\n", repo_branch);
 		}
-		prompt += "When delegating tasks to remote A2A agents or referencing the project repository, you can provide this repository URL and branch.\n";
+		prompt += "When delegating tasks to remote A2A agents or referencing the project repository, you can provide this "
+			  "repository URL and branch.\n";
 	}
 
 	return prompt;
@@ -606,10 +608,9 @@ std::vector<lsp_manager::call_hierarchy_item> project_manager::lsp_query_call_hi
 	return {};
 }
 
-std::vector<lsp_manager::outgoing_call_item> project_manager::lsp_query_call_hierarchy_outgoing_batch(
-	const std::string &filepath,
-	const std::vector<std::pair<int, int>> &positions,
-	std::chrono::steady_clock::time_point deadline)
+std::vector<lsp_manager::outgoing_call_item>
+project_manager::lsp_query_call_hierarchy_outgoing_batch(const std::string &filepath, const std::vector<std::pair<int, int>> &positions,
+							 std::chrono::steady_clock::time_point deadline)
 {
 	if (lsp_manager_)
 		return lsp_manager_->query_call_hierarchy_outgoing_batch(filepath, positions, deadline);
@@ -631,9 +632,13 @@ std::optional<std::vector<diagnostic_info>> project_manager::lsp_query_file_diag
 	return std::nullopt;
 }
 
-std::vector<std::string> project_manager::get_available_tests()
+std::vector<std::string> project_manager::get_available_tests(std::string_view override_build_dir)
 {
 	std::lock_guard<std::mutex> lock(available_tests_mutex_);
+	if (!override_build_dir.empty()) {
+		refresh_available_tests(override_build_dir);
+		return available_tests_;
+	}
 	if (!tests_ready_) {
 		refresh_available_tests();
 	} else if (build_definition_changed()) {
@@ -642,8 +647,8 @@ std::vector<std::string> project_manager::get_available_tests()
 		// binaries. Refresh once so additions are discoverable without a restart.
 		event_logger::get_instance().log("project_manager: build definition changed, refreshing available tests.");
 		refresh_available_tests();
-	} else if (tests_list_refreshed_at_ != std::chrono::steady_clock::time_point{}
-		   && std::chrono::steady_clock::now() - tests_list_refreshed_at_ > std::chrono::minutes(5)) {
+	} else if (tests_list_refreshed_at_ != std::chrono::steady_clock::time_point{} &&
+		   std::chrono::steady_clock::now() - tests_list_refreshed_at_ > std::chrono::minutes(5)) {
 		// Upper bound on staleness: regardless of meson.build mtime, refresh a
 		// list that hasn't been rebuilt in >5 minutes so tests added through
 		// other means eventually appear, while keeping caching effective for
@@ -660,7 +665,7 @@ void project_manager::invalidate_available_tests_cache() noexcept
 	tests_ready_ = false;
 }
 
-static bool is_build_directory_valid(const fs::path &dir, std::string_view build_system)
+bool project_manager::is_build_directory_valid(const fs::path &dir, std::string_view build_system)
 {
 	std::error_code ec;
 	if (!fs::is_directory(dir, ec)) {
@@ -670,16 +675,12 @@ static bool is_build_directory_valid(const fs::path &dir, std::string_view build
 		return fs::exists(dir / "build.ninja", ec);
 	}
 	if (build_system == "cmake") {
-		return fs::exists(dir / "CMakeCache.txt", ec) ||
-		       fs::exists(dir / "CTestTestfile.cmake", ec) ||
-		       fs::exists(dir / "build.ninja", ec) ||
-		       fs::exists(dir / "Makefile", ec);
+		return fs::exists(dir / "CMakeCache.txt", ec) || fs::exists(dir / "CTestTestfile.cmake", ec) ||
+		       fs::exists(dir / "build.ninja", ec) || fs::exists(dir / "Makefile", ec);
 	}
 	// General/fallback check
-	return fs::exists(dir / "build.ninja", ec) ||
-	       fs::exists(dir / "CMakeCache.txt", ec) ||
-	       fs::exists(dir / "CTestTestfile.cmake", ec) ||
-	       fs::exists(dir / "Makefile", ec);
+	return fs::exists(dir / "build.ninja", ec) || fs::exists(dir / "CMakeCache.txt", ec) ||
+	       fs::exists(dir / "CTestTestfile.cmake", ec) || fs::exists(dir / "Makefile", ec);
 }
 
 std::vector<std::string> project_manager::parse_ctest_test_list(std::string_view output)
@@ -773,10 +774,11 @@ bool project_manager::build_definition_changed() const
 	return mtime != tests_build_def_mtime_;
 }
 
-std::string project_manager::resolve_build_dir() const
+std::string project_manager::resolve_build_dir(std::string_view override_build_dir) const
 {
 	std::string build_system = config_manager::get_instance().get_build_system();
-	std::string build_dir = config_manager::get_instance().get_build_directory();
+	std::string build_dir =
+	    !override_build_dir.empty() ? std::string(override_build_dir) : config_manager::get_instance().get_build_directory();
 	fs::path build_path(build_dir);
 	if (build_path.is_relative() && !project_root_.empty()) {
 		build_path = fs::path(project_root_) / build_path;
@@ -785,6 +787,10 @@ std::string project_manager::resolve_build_dir() const
 	std::error_code ec;
 	if (!build_path.empty() && is_build_directory_valid(build_path, build_system)) {
 		return build_path.string();
+	}
+
+	if (!override_build_dir.empty()) {
+		return "";
 	}
 
 	// Fallback: scan the project root for a directory containing build artifacts
@@ -805,10 +811,10 @@ std::string project_manager::resolve_build_dir() const
 	return (fs::is_directory(build_path, ec) && is_build_directory_valid(build_path, build_system)) ? build_path.string() : "";
 }
 
-void project_manager::refresh_available_tests()
+void project_manager::refresh_available_tests(std::string_view override_build_dir)
 {
 	std::string build_system = config_manager::get_instance().get_build_system();
-	fs::path build_path(resolve_build_dir());
+	fs::path build_path(resolve_build_dir(override_build_dir));
 
 	std::string cmd;
 
@@ -891,7 +897,6 @@ void project_manager::refresh_available_tests()
 	tests_ready_ = true;
 	event_logger::get_instance().log("Refreshed available tests: {} tests found.", available_tests_.size());
 }
-
 
 void project_manager::shutdown()
 {
@@ -1018,20 +1023,14 @@ void project_manager::scan_dependencies()
 
 	// Lookup known dependencies to get github:// URLs
 	static const std::unordered_map<std::string, std::string> known_deps = {
-		{"ncursesw",      "github://mirror/ncurses"},
-		{"ncurses",       "github://mirror/ncurses"},
-		{"cpp-httplib",   "github://yhirose/cpp-httplib"},
-		{"re2",           "github://google/re2"},
-		{"sqlite3",       "github://sqlite/sqlite"},
-		{"nlohmann_json", "github://nlohmann/json"},
-		{"zydis",         "github://zyantific/zydis"},
-		{"sdl2",          "github://libsdl-org/SDL@SDL2/"}
-	};
+	    {"ncursesw", "github://mirror/ncurses"},	     {"ncurses", "github://mirror/ncurses"},
+	    {"cpp-httplib", "github://yhirose/cpp-httplib"}, {"re2", "github://google/re2"},
+	    {"sqlite3", "github://sqlite/sqlite"},	     {"nlohmann_json", "github://nlohmann/json"},
+	    {"zydis", "github://zyantific/zydis"},	     {"sdl2", "github://libsdl-org/SDL@SDL2/"}};
 
 	for (const auto &dep_name : deps) {
 		std::string dep_lower = dep_name;
-		std::transform(dep_lower.begin(), dep_lower.end(), dep_lower.begin(),
-			       [](unsigned char c) { return std::tolower(c); });
+		std::transform(dep_lower.begin(), dep_lower.end(), dep_lower.begin(), [](unsigned char c) { return std::tolower(c); });
 
 		auto it = known_deps.find(dep_lower);
 		if (it != known_deps.end()) {

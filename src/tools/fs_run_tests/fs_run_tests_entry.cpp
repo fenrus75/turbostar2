@@ -4,16 +4,16 @@
 #include <span>
 #include <string>
 #include <string_view>
-#include <vector>
 #include <unordered_set>
+#include <vector>
+#include "agentlib/ai_agent.h"
 #include "config_manager.h"
 #include "crashdump_manager.h"
+#include "fs_run_tests.h"
 #include "fs_utils.h"
 #include "project_manager.h"
-#include "agentlib/ai_agent.h"
-#include "tools/terminal_command_runner.h"
 #include "tools/output_filter.h"
-#include "fs_run_tests.h"
+#include "tools/terminal_command_runner.h"
 
 namespace tools
 {
@@ -56,8 +56,7 @@ static std::vector<std::string> extract_test_tokens(std::string_view s)
 }
 
 // Checks if all significant query tokens are present in the candidate test's token set.
-static bool tokens_match(std::span<const std::string> query_tokens,
-			 const std::unordered_set<std::string> &cand_tokens)
+static bool tokens_match(std::span<const std::string> query_tokens, const std::unordered_set<std::string> &cand_tokens)
 {
 	if (query_tokens.empty()) {
 		return false;
@@ -75,8 +74,8 @@ static bool tokens_match(std::span<const std::string> query_tokens,
 // 2. Tokenized matching (ignoring noise words 'test', 'tests', 'turbostar').
 //    - If exactly 1 candidate matches: auto-runs with a note.
 //    - If 2-5 candidates match: surfaces suggestions.
-fs_run_tests_tool::resolve_result fs_run_tests_tool::resolve_test_names_detailed(
-    std::span<const std::string> test_names, const std::vector<std::string> &available)
+fs_run_tests_tool::resolve_result fs_run_tests_tool::resolve_test_names_detailed(std::span<const std::string> test_names,
+										 const std::vector<std::string> &available)
 {
 	resolve_result result;
 
@@ -89,7 +88,8 @@ fs_run_tests_tool::resolve_result fs_run_tests_tool::resolve_test_names_detailed
 		bool exact_matched = false;
 		for (const auto &candidate : available) {
 			if (candidate == t) {
-				if (std::find(result.resolved_names.begin(), result.resolved_names.end(), t) == result.resolved_names.end()) {
+				if (std::find(result.resolved_names.begin(), result.resolved_names.end(), t) ==
+				    result.resolved_names.end()) {
 					result.resolved_names.push_back(t);
 				}
 				exact_matched = true;
@@ -109,7 +109,8 @@ fs_run_tests_tool::resolve_result fs_run_tests_tool::resolve_test_names_detailed
 		}
 		if (!substr_matches.empty()) {
 			for (const auto &cand : substr_matches) {
-				if (std::find(result.resolved_names.begin(), result.resolved_names.end(), cand) == result.resolved_names.end()) {
+				if (std::find(result.resolved_names.begin(), result.resolved_names.end(), cand) ==
+				    result.resolved_names.end()) {
 					result.resolved_names.push_back(cand);
 				}
 			}
@@ -133,7 +134,8 @@ fs_run_tests_tool::resolve_result fs_run_tests_tool::resolve_test_names_detailed
 		if (token_matches.size() == 1) {
 			// Exactly 1 high-confidence match: auto-run it with an informative note
 			const std::string &matched_name = token_matches.front();
-			if (std::find(result.resolved_names.begin(), result.resolved_names.end(), matched_name) == result.resolved_names.end()) {
+			if (std::find(result.resolved_names.begin(), result.resolved_names.end(), matched_name) ==
+			    result.resolved_names.end()) {
 				result.resolved_names.push_back(matched_name);
 			}
 			result.auto_matched_notes.push_back("Note: '" + t + "' matched '" + matched_name + "'.");
@@ -158,14 +160,15 @@ static std::string escape_ctest_regex(const std::string &name)
 	static const std::set<char> meta = {'^', '$', '.', '|', '?', '*', '+', '(', ')', '[', ']', '{', '}', '\\'};
 	std::string out;
 	for (char c : name) {
-		if (meta.contains(c)) out += '\\';
+		if (meta.contains(c))
+			out += '\\';
 		out += c;
 	}
 	return out;
 }
 
-fs_run_tests_tool::fs_run_tests_tool(std::vector<std::string> test_names, int timeout, std::string verbose)
-    : test_names_(std::move(test_names)), timeout_(timeout), verbose_(std::move(verbose))
+fs_run_tests_tool::fs_run_tests_tool(std::vector<std::string> test_names, int timeout, std::string verbose, std::string build_dir)
+    : test_names_(std::move(test_names)), timeout_(timeout), verbose_(std::move(verbose)), build_dir_(std::move(build_dir))
 {
 	interaction_ = std::make_shared<agentlib::interaction_terminal>("Test Suite", "Running tests...");
 }
@@ -195,13 +198,19 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	std::string build_system = config_manager::get_instance().get_build_system();
-	std::filesystem::path build_path = project_manager::get_instance().resolve_build_dir();
+	std::filesystem::path build_path = project_manager::get_instance().resolve_build_dir(build_dir_);
+	if (build_path.empty()) {
+		if (!build_dir_.empty()) {
+			return std::format("Error: Could not resolve build directory '{}'.", build_dir_);
+		}
+		return "Error: Could not resolve any valid build directory for the project.";
+	}
 
 	// Resolve each requested test name against the project's available-test list using
 	// exact match, substring match, and tokenized fuzzy matching.
 	resolve_result res;
 	if (!test_names_.empty()) {
-		auto available = project_manager::get_instance().get_available_tests();
+		auto available = project_manager::get_instance().get_available_tests(build_dir_);
 		res = resolve_test_names_detailed(test_names_, available);
 		// If nothing resolved, the in-memory test list may be stale (e.g. tests were added to
 		// meson.build after the editor populated the cache). Invalidate the cache so the next
@@ -209,7 +218,7 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 		// giving up. This makes newly-registered tests discoverable without an editor restart.
 		if (res.resolved_names.empty() && res.suggestions.empty()) {
 			project_manager::get_instance().invalidate_available_tests_cache();
-			available = project_manager::get_instance().get_available_tests();
+			available = project_manager::get_instance().get_available_tests(build_dir_);
 			res = resolve_test_names_detailed(test_names_, available);
 		}
 	}
@@ -259,7 +268,8 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 		if (!res.suggestions.empty()) {
 			std::string msg;
 			if (res.unresolved_queries.size() == 1) {
-				msg = std::format("No exact test matched '{}'. Did you mean one of these?\n", res.unresolved_queries.front());
+				msg =
+				    std::format("No exact test matched '{}'. Did you mean one of these?\n", res.unresolved_queries.front());
 			} else {
 				msg = "No exact test matched the requested name(s). Did you mean one of these?\n";
 			}
@@ -319,8 +329,8 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 		notes_prefix += "\n";
 	}
 
-	return fs_utils::wrap_prompt_untrusted_data_tag(
-	    "fs_run_tests_result", notes_prefix + "```bash\n$ " + cmd + "\n" + output + "\n```");
+	return fs_utils::wrap_prompt_untrusted_data_tag("fs_run_tests_result",
+							notes_prefix + "```bash\n$ " + cmd + "\n" + output + "\n```");
 }
 
 } // namespace tools

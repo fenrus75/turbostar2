@@ -87,7 +87,8 @@ class project_manager
 	 */
 	std::string get_project_instructions() const
 	{
-		assert((!enforce_initialization_ || initialized_) && "project_manager must be initialized before calling get_project_instructions");
+		assert((!enforce_initialization_ || initialized_) &&
+		       "project_manager must be initialized before calling get_project_instructions");
 		return instructions_;
 	}
 
@@ -148,16 +149,15 @@ class project_manager
 	std::vector<lsp_manager::call_hierarchy_item> lsp_query_call_hierarchy_outgoing(const std::string &filepath, int line,
 											int character);
 	std::vector<lsp_manager::outgoing_call_item> lsp_query_call_hierarchy_outgoing_batch(
-		const std::string &filepath,
-		const std::vector<std::pair<int, int>> &positions,
-		std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::time_point::max());
+	    const std::string &filepath, const std::vector<std::pair<int, int>> &positions,
+	    std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::time_point::max());
 	std::vector<lsp_manager::type_hierarchy_item> lsp_query_type_hierarchy_supertypes(const std::string &filepath, int line,
 											  int character);
 	std::optional<std::vector<diagnostic_info>> lsp_query_file_diagnostics(const std::string &filepath);
 
 	// Test management
-	std::vector<std::string> get_available_tests();
-	void refresh_available_tests();
+	std::vector<std::string> get_available_tests(std::string_view override_build_dir = "");
+	void refresh_available_tests(std::string_view override_build_dir = "");
 	// Forces the cached available-test list to be rebuilt on the next call to
 	// get_available_tests(). Used when the build definition may have changed
 	// (e.g. meson.build edited) or when a lookup for a requested test name missed
@@ -165,16 +165,16 @@ class project_manager
 	void invalidate_available_tests_cache() noexcept;
 	// Parses the raw output of `ctest -N` (or `ctest --show-only`) and extracts test names.
 	static std::vector<std::string> parse_ctest_test_list(std::string_view output);
+	// Validates whether the given directory exists and contains valid build files for the build system.
+	static bool is_build_directory_valid(const std::filesystem::path &dir, std::string_view build_system);
 	// Resolves the build directory used for test listing and project builds. Prefers the
 	// configured build directory; if empty or lacking build artifacts (build.ninja, CMakeCache.txt,
 	// CTestTestfile.cmake, Makefile), falls back to a build directory found under the project root
 	// (e.g. build/). Returns empty if none is usable.
-	std::string resolve_build_dir() const;
+	std::string resolve_build_dir(std::string_view override_build_dir = "") const;
 
 	// Executable candidate scanning
 	std::vector<std::string> detect_executable_candidates();
-
-
 
       private:
 	project_manager();
@@ -240,8 +240,6 @@ class project_manager
 	mutable std::mutex layout_mutex_;
 	project_layout layout_;
 	std::jthread inventory_thread_;
-
-
 
 	/*
 	 * dependencies_mutex_ protects detected_dependencies_, github_vfs_urls_, and mapped_dependencies_.
