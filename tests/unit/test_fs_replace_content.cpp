@@ -1,15 +1,15 @@
 // Tested source file: src/tools/fs_replace_content/fs_replace_content_entry.cpp
-#include "test_watchdog.h"
 #include <cassert>
-#include <iostream>
-#include <fstream>
 #include <filesystem>
+#include <fstream>
+#include <iostream>
 #include <unistd.h>
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/agentlib/virtual_file_system.h"
-#include "../../src/project_manager.h"
 #include "../../src/fs_utils.h"
+#include "../../src/project_manager.h"
+#include "test_watchdog.h"
 
 using namespace agentlib;
 
@@ -37,7 +37,7 @@ int main()
 	std::cout << "Testing fs_replace_content..." << std::endl;
 	{
 		// Helper to write content
-		auto write_file = [&](const std::string& content) {
+		auto write_file = [&](const std::string &content) {
 			std::ofstream out(temp_file, std::ios::binary | std::ios::trunc);
 			out.write(content.data(), content.length());
 			out.close();
@@ -54,7 +54,8 @@ int main()
 		// 1. Success case: unique replacement
 		{
 			write_file("line 1\nline 2\ntarget block here\nline 4\n");
-			std::string args = "{\"path\": \"" + temp_file + "\", \"target_content\": \"target block here\", \"replacement_content\": \"substituted block\"}";
+			std::string args = "{\"path\": \"" + temp_file +
+					   "\", \"target_content\": \"target block here\", \"replacement_content\": \"substituted block\"}";
 			std::string res = registry.execute_tool("fs_replace_content", args, ctx);
 			std::cout << "Unique replacement result: " << res << std::endl;
 			assert(res.find("Successfully replaced") != std::string::npos);
@@ -64,7 +65,8 @@ int main()
 		// 2. Failure case: target_content not found
 		{
 			write_file("line 1\nline 2\n");
-			std::string args = "{\"path\": \"" + temp_file + "\", \"target_content\": \"missing block\", \"replacement_content\": \"substituted\"}";
+			std::string args = "{\"path\": \"" + temp_file +
+					   "\", \"target_content\": \"missing block\", \"replacement_content\": \"substituted\"}";
 			std::string res = registry.execute_tool("fs_replace_content", args, ctx);
 			std::cout << "Missing block result: " << res << std::endl;
 			assert(res.find("Error: target_content not found") != std::string::npos);
@@ -73,7 +75,8 @@ int main()
 		// 3. Ambiguous failure case: multiple matches, no line hint
 		{
 			write_file("target block\nline 2\ntarget block\nline 4\n");
-			std::string args = "{\"path\": \"" + temp_file + "\", \"target_content\": \"target block\", \"replacement_content\": \"substituted\"}";
+			std::string args = "{\"path\": \"" + temp_file +
+					   "\", \"target_content\": \"target block\", \"replacement_content\": \"substituted\"}";
 			std::string res = registry.execute_tool("fs_replace_content", args, ctx);
 			std::cout << "Multiple matches no hint result: " << res << std::endl;
 			assert(res.find("Error: Multiple matches (2)") != std::string::npos);
@@ -85,7 +88,9 @@ int main()
 		// 4. Ambiguous success case: multiple matches, closest to line hint wins (closest to 1)
 		{
 			write_file("target block\nline 2\ntarget block\nline 4\n");
-			std::string args = "{\"path\": \"" + temp_file + "\", \"target_content\": \"target block\", \"replacement_content\": \"substituted\", \"line_hint\": 1}";
+			std::string args =
+			    "{\"path\": \"" + temp_file +
+			    "\", \"target_content\": \"target block\", \"replacement_content\": \"substituted\", \"line_hint\": 1}";
 			std::string res = registry.execute_tool("fs_replace_content", args, ctx);
 			std::cout << "Multiple matches hint=1 result: " << res << std::endl;
 			assert(res.find("starting at line 1") != std::string::npos);
@@ -95,7 +100,9 @@ int main()
 		// 5. Ambiguous success case: multiple matches, closest to line hint wins (closest to 3)
 		{
 			write_file("target block\nline 2\ntarget block\nline 4\n");
-			std::string args = "{\"path\": \"" + temp_file + "\", \"target_content\": \"target block\", \"replacement_content\": \"substituted\", \"line_hint\": 3}";
+			std::string args =
+			    "{\"path\": \"" + temp_file +
+			    "\", \"target_content\": \"target block\", \"replacement_content\": \"substituted\", \"line_hint\": 3}";
 			std::string res = registry.execute_tool("fs_replace_content", args, ctx);
 			std::cout << "Multiple matches hint=3 result: " << res << std::endl;
 			assert(res.find("starting at line 3") != std::string::npos);
@@ -104,7 +111,8 @@ int main()
 
 		// 6. Security check: reject directory traversal
 		{
-			std::string args = "{\"path\": \"../tmp/escaped.txt\", \"target_content\": \"foo\", \"replacement_content\": \"bar\"}";
+			std::string args =
+			    "{\"path\": \"../tmp/escaped.txt\", \"target_content\": \"foo\", \"replacement_content\": \"bar\"}";
 			auto prep = registry.prepare_tool("fs_replace_content", args, ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
@@ -124,7 +132,8 @@ int main()
 			out << "line 1\ntarget block\nline 3\n";
 			out.close();
 
-			std::string args = "{\"path\": \"tmp://" + vfs_name + "\", \"target_content\": \"target block\", \"replacement_content\": \"substituted block\"}";
+			std::string args = "{\"path\": \"tmp://" + vfs_name +
+					   "\", \"target_content\": \"target block\", \"replacement_content\": \"substituted block\"}";
 			std::string res = registry.execute_tool("fs_replace_content", args, ctx);
 			std::cout << "VFS replacement result: " << res << std::endl;
 			assert(res.find("Successfully replaced") != std::string::npos);
@@ -143,12 +152,10 @@ int main()
 		// 8. function_hint disambiguation case
 		{
 			write_file("void func_one() {\n    return;\n}\n\nvoid func_two() {\n    return;\n}\n");
-			nlohmann::json json_args = {
-				{"path", temp_file},
-				{"target_content", "return;"},
-				{"replacement_content", "return_two();"},
-				{"function_hint", "func_two"}
-			};
+			nlohmann::json json_args = {{"path", temp_file},
+						    {"target_content", "return;"},
+						    {"replacement_content", "return_two();"},
+						    {"function_hint", "func_two"}};
 			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
 			std::cout << "function_hint result: " << res << std::endl;
 			assert(res.find("Successfully replaced") != std::string::npos);
@@ -158,11 +165,9 @@ int main()
 		// 9. Tab/space relaxed matching case (hard tabs in file, spaces in target)
 		{
 			write_file("void test_tabs() {\n\t\tdo_work();\n}\n");
-			nlohmann::json json_args = {
-				{"path", temp_file},
-				{"target_content", "        do_work();"},
-				{"replacement_content", "        do_work_new();"}
-			};
+			nlohmann::json json_args = {{"path", temp_file},
+						    {"target_content", "        do_work();"},
+						    {"replacement_content", "        do_work_new();"}};
 			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
 			std::cout << "Tab/space relaxed result: " << res << std::endl;
 			std::cout << "Actual read_file(): [" << read_file() << "]" << std::endl;
@@ -173,11 +178,9 @@ int main()
 		// 10. Multi-line leading whitespace relaxed matching case
 		{
 			write_file("void multi_line() {\n    if (cond) {\n        execute();\n    }\n}\n");
-			nlohmann::json json_args = {
-				{"path", temp_file},
-				{"target_content", "if (cond) {\n  execute();\n}"},
-				{"replacement_content", "if (cond) {\n        execute_new();\n    }"}
-			};
+			nlohmann::json json_args = {{"path", temp_file},
+						    {"target_content", "if (cond) {\n  execute();\n}"},
+						    {"replacement_content", "if (cond) {\n        execute_new();\n    }"}};
 			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
 			std::cout << "Multi-line relaxed result: " << res << std::endl;
 			assert(res.find("Successfully replaced") != std::string::npos);
@@ -187,12 +190,10 @@ int main()
 		// 11. Ambiguous failure case with function_hint provided (Combo 2)
 		{
 			write_file("void double_return() {\n    return;\n    return;\n}\n");
-			nlohmann::json json_args = {
-				{"path", temp_file},
-				{"target_content", "return;"},
-				{"replacement_content", "return_two();"},
-				{"function_hint", "double_return"}
-			};
+			nlohmann::json json_args = {{"path", temp_file},
+						    {"target_content", "return;"},
+						    {"replacement_content", "return_two();"},
+						    {"function_hint", "double_return"}};
 			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
 			std::cout << "function_hint combo 2 result: " << res << std::endl;
 			assert(res.find("Multiple occurrences exist even within function/scope 'double_return'") != std::string::npos);
@@ -202,11 +203,9 @@ int main()
 		// 12. Level D relaxed matching case (1-line target with leading space mismatch)
 		{
 			write_file("void level_d_test() {\n    do_single_work();\n}\n");
-			nlohmann::json json_args = {
-				{"path", temp_file},
-				{"target_content", "  do_single_work();"}, // 2 spaces target vs 4 spaces file
-				{"replacement_content", "    do_single_work_updated();"}
-			};
+			nlohmann::json json_args = {{"path", temp_file},
+						    {"target_content", "  do_single_work();"}, // 2 spaces target vs 4 spaces file
+						    {"replacement_content", "    do_single_work_updated();"}};
 			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
 			std::cout << "Level D relaxed result: " << res << std::endl;
 			assert(res.find("Successfully replaced") != std::string::npos);
@@ -219,10 +218,7 @@ int main()
 			write_file("void foo() {\n    x();\n}\n");
 			// Replace the closing brace line with empty text leaving an unbalanced brace.
 			nlohmann::json json_args = {
-				{"path", temp_file},
-				{"target_content", "}"},
-				{"replacement_content", "    // removed closing brace"}
-			};
+			    {"path", temp_file}, {"target_content", "}"}, {"replacement_content", "    // removed closing brace"}};
 			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
 			std::cout << "Brace-balance warning result: " << res << std::endl;
 			assert(res.find("Successfully replaced") != std::string::npos);
@@ -235,10 +231,7 @@ int main()
 		{
 			write_file("void bar() {\n    y();\n}\n");
 			nlohmann::json json_args = {
-				{"path", temp_file},
-				{"target_content", "    y();"},
-				{"replacement_content", "    y_updated();"}
-			};
+			    {"path", temp_file}, {"target_content", "    y();"}, {"replacement_content", "    y_updated();"}};
 			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
 			std::cout << "Brace-balance clean result: " << res << std::endl;
 			assert(res.find("Successfully replaced") != std::string::npos);
@@ -249,12 +242,10 @@ int main()
 		// 15. Strict mode: unbalanced-brace replacement must be rejected and file left unchanged.
 		{
 			write_file("void strict_foo() {\n    x();\n}\n");
-			nlohmann::json json_args = {
-				{"path", temp_file},
-				{"target_content", "}"},
-				{"replacement_content", "    // removed closing brace"},
-				{"strict", true}
-			};
+			nlohmann::json json_args = {{"path", temp_file},
+						    {"target_content", "}"},
+						    {"replacement_content", "    // removed closing brace"},
+						    {"strict", true}};
 			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
 			std::cout << "Strict brace result: " << res << std::endl;
 			assert(res.find("rejected (strict mode)") != std::string::npos);
@@ -267,10 +258,7 @@ int main()
 		{
 			write_file("{\nvoid foo() {\n    x();\n}\n"); // global is +1 before edit
 			nlohmann::json json_args = {
-				{"path", temp_file},
-				{"target_content", "}"},
-				{"replacement_content", "// removed brace inside foo"}
-			};
+			    {"path", temp_file}, {"target_content", "}"}, {"replacement_content", "// removed brace inside foo"}};
 			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
 			std::cout << "Pre-existing unbalanced global result: " << res << std::endl;
 			assert(res.find("Successfully replaced") != std::string::npos);
@@ -279,21 +267,60 @@ int main()
 			assert(res.find("Edit introduced unbalanced braces in Function 'foo'") != std::string::npos);
 		}
 
-
 		// 16. Windowed replacement with start_line and end_line
 		{
 			write_file("line 1\nTarget block\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nTarget block\nline 11\n");
-			nlohmann::json json_args = {
-				{"path", temp_file},
-				{"target_content", "Target block"},
-				{"replacement_content", "Windowed block replacement"},
-				{"start_line", 8},
-				{"end_line", 11}
-			};
+			nlohmann::json json_args = {{"path", temp_file},
+						    {"target_content", "Target block"},
+						    {"replacement_content", "Windowed block replacement"},
+						    {"start_line", 8},
+						    {"end_line", 11}};
 			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
 			std::cout << "Windowed search result: " << res << std::endl;
 			assert(res.find("Successfully replaced") != std::string::npos);
-			assert(read_file() == "line 1\nTarget block\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nWindowed block replacement\nline 11\n");
+			assert(read_file() == "line 1\nTarget block\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nWindowed "
+					      "block replacement\nline 11\n");
+		}
+
+		// 17. No-op self replacement detection: target_content == replacement_content
+		{
+			// 17a. Basic file without symbols
+			write_file("line 1\nline 2\nself identical block\nline 4\n");
+			size_t initial_seq = ctx.edit_sequence_counter;
+			nlohmann::json json_args = {{"path", temp_file},
+						    {"target_content", "self identical block"},
+						    {"replacement_content", "self identical block"}};
+			std::string res = registry.execute_tool("fs_replace_content", json_args.dump(), ctx);
+			std::cout << "Self replacement result: " << res << std::endl;
+			assert(res.find("No changes made: target_content was matched at line 3 in") != std::string::npos);
+			assert(res.find(", but replacement_content is identical to target_content. The file was not modified.") !=
+			       std::string::npos);
+			assert(res.find("[Edit ID:") == std::string::npos);
+			assert(ctx.edit_sequence_counter == initial_seq);
+			assert(read_file() == "line 1\nline 2\nself identical block\nline 4\n");
+
+			// 17b. C++ file with function symbol annotation
+			std::string cpp_temp = project_root + "/tmp/test_replace_sym_" + std::to_string(getpid()) + ".cpp";
+			{
+				std::ofstream out(cpp_temp, std::ios::binary | std::ios::trunc);
+				out << "void compute_result() {\n    int a = 10;\n    int b = 20;\n}\n";
+				out.close();
+			}
+			nlohmann::json cpp_args = {
+			    {"path", cpp_temp}, {"target_content", "    int a = 10;"}, {"replacement_content", "    int a = 10;"}};
+			std::string cpp_res = registry.execute_tool("fs_replace_content", cpp_args.dump(), ctx);
+			std::cout << "CPP self replacement result: " << cpp_res << std::endl;
+			assert(cpp_res.find("No changes made: target_content was matched at line 2 in") != std::string::npos);
+			assert(cpp_res.find("compute_result") != std::string::npos);
+			assert(cpp_res.find(", but replacement_content is identical to target_content. The file was not modified.") !=
+			       std::string::npos);
+			std::filesystem::remove(cpp_temp);
+
+			// 17c. Target not found even though target == replacement
+			nlohmann::json missing_args = {
+			    {"path", temp_file}, {"target_content", "nonexistent content"}, {"replacement_content", "nonexistent content"}};
+			std::string missing_res = registry.execute_tool("fs_replace_content", missing_args.dump(), ctx);
+			assert(missing_res.find("Error: target_content not found in") != std::string::npos);
 		}
 
 		// Clean up

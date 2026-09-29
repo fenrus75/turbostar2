@@ -457,6 +457,19 @@ replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, co
 			return res;
 		}
 
+		if (args.chunks.size() == 1 && chunk.target_content == chunk.replacement_content) {
+			std::string annotation = get_line_symbol_annotation(args.safe_path, matched_start_line_1based, &ctx);
+			std::string sym_str = annotation.empty() ? "" : (" " + annotation);
+			res.result_text = std::format(
+			    "No changes made: target_content was matched at line {} in {}{}, but replacement_content is identical to "
+			    "target_content. The file was not modified.",
+			    matched_start_line_1based, args.path, sym_str);
+			res.success = true;
+			res.chunks_applied = 0;
+			res.after_lines = res.before_lines;
+			return res;
+		}
+
 		if (match_pos != std::string::npos && !chunk.replacement_content.empty()) {
 			// Find start of line for match_pos
 			size_t line_start_pos = match_pos;
@@ -505,6 +518,16 @@ replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, co
 	if (args.strict && !brace_warnings.empty()) {
 		res.error_message =
 		    "Error: Edit rejected (strict mode): it would leave unbalanced braces and was not applied.\n" + brace_warnings;
+		return res;
+	}
+
+	if (work_content == file_content) {
+		res.result_text = std::format("No changes made: target content matched in {}, but replacement_content resulted in no "
+					      "changes. The file was not modified.",
+					      args.path);
+		res.success = true;
+		res.chunks_applied = 0;
+		res.after_lines = res.before_lines;
 		return res;
 	}
 
