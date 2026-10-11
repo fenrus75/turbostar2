@@ -104,3 +104,28 @@ template <typename T> struct tool_registrar {
 #define REGISTER_TOOL(ValidatorClass) static agentlib::tool_registrar<ValidatorClass> global_##ValidatorClass##_registrar;
 
 } // namespace agentlib
+
+
+#include <optional>
+#include <nlohmann/json.hpp>
+
+namespace nlohmann {
+    template <typename T>
+    struct adl_serializer<std::optional<T>> {
+        static void to_json(json& j, const std::optional<T>& opt) {
+            if (!opt) {
+                j = nullptr;
+            } else {
+                j = *opt; // Recursively triggers underlying type serialization
+            }
+        }
+
+        static void from_json(const json& j, std::optional<T>& opt) {
+            if (j.is_null()) {
+                opt = std::nullopt;
+            } else {
+                opt = j.get<T>(); // Recursively triggers underlying type deserialization
+            }
+        }
+    };
+}

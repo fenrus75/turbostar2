@@ -2,6 +2,7 @@
 #include <nlohmann/json.hpp>
 #include "agentlib/tool_registry.h"
 #include "images/image_manager.h"
+#include "fs_utils.h"
 
 namespace tools
 {
