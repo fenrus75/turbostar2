@@ -312,8 +312,7 @@ class virtual_file_system
 {
       public:
 	virtual_file_system();
-	~virtual_file_system() = default;
-
+	virtual ~virtual_file_system() = default;
 	virtual_file_system(const virtual_file_system &) = delete;
 	virtual_file_system &operator=(const virtual_file_system &) = delete;
 

@@ -36,10 +36,13 @@ if not cc.compiles('''#if defined(__has_feature) && __has_feature(address_saniti
   error('__has_feature must be usable inside #if. Upgrade compiler.')
 endif
 
+if cc.has_argument('-Wnon-virtual-dtor')
+  add_project_arguments('-Wnon-virtual-dtor', language : 'cpp')
+endif
+
 if cc.get_id() == 'clang'
   add_project_arguments('-Wthread-safety', language : 'cpp')
 endif
-
 if get_option('enable-analyzer')
   if cc.get_id() == 'gcc' and cc.has_argument('-fanalyzer')
     add_project_arguments('-fanalyzer', language : 'cpp')
