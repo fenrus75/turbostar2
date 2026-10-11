@@ -37,7 +37,7 @@ int main()
 		std::string url = std::format("http://127.0.0.1:{}", bound_port);
 
 		// 1. Success case: connect to local server
-		std::string args = std::format("{{\"name\": \"test_node\", \"url\": \"{}\"}}", url);
+		std::string args = std::format(R"({{"name": "test_node", "url": "{}"}})", url);
 		std::string res = registry.execute_tool("a2a_connect_server", args, ctx);
 		std::cout << "Connect result: " << res << std::endl;
 		assert(res.find("Successfully connected") != std::string::npos);
@@ -48,14 +48,14 @@ int main()
 
 		// 2. Reject empty name
 		{
-			auto prep = registry.prepare_tool("a2a_connect_server", "{\"name\": \"\", \"url\": \"http://localhost\"}", ctx);
+			auto prep = registry.prepare_tool("a2a_connect_server", R"({"name": "", "url": "http://localhost"})", ctx);
 			assert(prep.tool == nullptr);
 			assert(prep.error_message.find("cannot be empty") != std::string::npos);
 		}
 
 		// 3. Reject invalid server name with colons or slashes
 		{
-			auto prep = registry.prepare_tool("a2a_connect_server", "{\"name\": \"invalid:name\", \"url\": \"http://localhost\"}", ctx);
+			auto prep = registry.prepare_tool("a2a_connect_server", R"({"name": "invalid:name", "url": "http://localhost"})", ctx);
 			assert(prep.tool == nullptr);
 			assert(prep.error_message.find("contain colons or slashes") != std::string::npos);
 		}

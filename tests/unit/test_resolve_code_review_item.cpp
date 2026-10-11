@@ -56,7 +56,7 @@ void test_resolve_tool_execution()
 	// Test 1: Role rejection (reviewer role should not be allowed)
 	subagent->set_role(agent_role::reviewer);
 	ctx.properties = subagent->get_properties();
-	std::string args_json = "{\"id\": 1, \"commit_hash\": \"abcdef123456\"}";
+	std::string args_json = R"({"id": 1, "commit_hash": "abcdef123456"})";
 	auto prep = registry.prepare_tool("resolve_code_review_item", args_json, ctx);
 	assert(prep.tool == nullptr);
 	assert(!prep.error_message.empty());
@@ -94,7 +94,7 @@ void test_resolve_tool_execution()
 	    "Resource Leak", "src/file.cpp", 12, "FILE* f = fopen(...);", "medium", "Desc", "fclose(f);"
 	);
 	assert(id2 == 2);
-	std::string args_item_id = "{\"item_id\": 2, \"commit_hash\": \"112233445566\"}";
+	std::string args_item_id = R"({"item_id": 2, "commit_hash": "112233445566"})";
 	std::string res_item_id = registry.execute_tool("resolve_code_review_item", args_item_id, ctx);
 	nlohmann::json j_item_id = nlohmann::json::parse(fs_utils::unwrap_prompt_untrusted_data_tag(res_item_id));
 	assert(j_item_id["status"].get<std::string>() == "resolved");
@@ -109,7 +109,7 @@ void test_resolve_tool_execution()
 	);
 	assert(id3 == 3);
 	assert(id4 == 4);
-	std::string args_batch = "{\"item_ids\": [3, 4], \"commit_hash\": \"aabbccddeeff\"}";
+	std::string args_batch = R"({"item_ids": [3, 4], "commit_hash": "aabbccddeeff"})";
 	std::string res_batch = registry.execute_tool("resolve_code_review_item", args_batch, ctx);
 	nlohmann::json j_batch = nlohmann::json::parse(fs_utils::unwrap_prompt_untrusted_data_tag(res_batch));
 	assert(j_batch["status"].get<std::string>() == "resolved");

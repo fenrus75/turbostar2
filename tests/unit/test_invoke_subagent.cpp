@@ -36,7 +36,7 @@ int main()
 	{
 		// 1. Success case (async)
 		std::string result = registry.execute_tool("invoke_subagent",
-			"{\"name\": \"sub1\", \"task\": \"Perform help\"}", ctx);
+			R"({"name": "sub1", "task": "Perform help"})", ctx);
 		std::cout << "Result: " << result << std::endl;
 		assert(result.find("sub1") != std::string::npos);
 		assert(result.find("successfully") != std::string::npos);
@@ -44,7 +44,7 @@ int main()
 		// 2. Reject empty name
 		{
 			auto prep = registry.prepare_tool("invoke_subagent",
-				"{\"name\": \"\", \"task\": \"task\"}", ctx);
+				R"({"name": "", "task": "task"})", ctx);
 			assert(prep.tool == nullptr);
 			assert(prep.error_message.find("name cannot be empty") != std::string::npos);
 		}
@@ -52,7 +52,7 @@ int main()
 		// 3. Reject empty task and profile
 		{
 			auto prep = registry.prepare_tool("invoke_subagent",
-				"{\"name\": \"sub2\"}", ctx);
+				R"({"name": "sub2"})", ctx);
 			assert(prep.tool == nullptr);
 			assert(prep.error_message.find("either a 'subagent_name', 'profile', or 'task'") != std::string::npos);
 		}
@@ -61,7 +61,7 @@ int main()
 		{
 			std::string long_name(65, 'x');
 			auto prep = registry.prepare_tool("invoke_subagent",
-				"{\"name\": \"" + long_name + "\", \"task\": \"task\"}", ctx);
+				R"({"name": ")" + long_name + R"(", "task": "task"})", ctx);
 			assert(prep.tool == nullptr);
 			assert(prep.error_message.find("name exceeds") != std::string::npos);
 		}
@@ -70,7 +70,7 @@ int main()
 		{
 			std::string long_profile(10001, 'y');
 			auto prep = registry.prepare_tool("invoke_subagent",
-				"{\"name\": \"sub3\", \"profile\": \"" + long_profile + "\"}", ctx);
+				R"({"name": "sub3", "profile": ")" + long_profile + "\"}", ctx);
 			assert(prep.tool == nullptr);
 			assert(prep.error_message.find("Profile exceeds") != std::string::npos);
 		}
@@ -78,7 +78,7 @@ int main()
 		// 6. Reject control characters in name
 		{
 			auto prep = registry.prepare_tool("invoke_subagent",
-				"{\"name\": \"sub\\u001bname\", \"task\": \"task\"}", ctx);
+				R"({"name": "sub\u001bname", "task": "task"})", ctx);
 			assert(prep.tool == nullptr);
 			assert(prep.error_message.find("unsafe control characters") != std::string::npos);
 		}
@@ -92,13 +92,13 @@ int main()
 
 			// Try to prepare tool with a non-existent subagent name (should fail)
 			auto prep_fail = registry.prepare_tool("invoke_subagent",
-				"{\"name\": \"sub_bad\", \"subagent_name\": \"non_existent_profile\"}", ctx);
+				R"({"name": "sub_bad", "subagent_name": "non_existent_profile"})", ctx);
 			assert(prep_fail.tool == nullptr);
 			assert(prep_fail.error_message.find("not found") != std::string::npos);
 
 			// Try to prepare and execute tool with a valid subagent name (should succeed)
 			auto prep_ok = registry.prepare_tool("invoke_subagent",
-				"{\"name\": \"sub_research\", \"subagent_name\": \"research\", \"task\": \"Perform scan\"}", ctx);
+				R"({"name": "sub_research", "subagent_name": "research", "task": "Perform scan"})", ctx);
 			assert(prep_ok.tool != nullptr);
 			assert(prep_ok.error_message.empty());
 
@@ -112,19 +112,19 @@ int main()
 
 				// Reject remote subagent when local_only is true
 				auto prep_remote_localonly = registry.prepare_tool("invoke_subagent",
-					"{\"name\": \"rem1\", \"subagent_name\": \"devpc:research\", \"task\": \"Remote scan\", \"local_only\": true}", ctx);
+					R"({"name": "rem1", "subagent_name": "devpc:research", "task": "Remote scan", "local_only": true})", ctx);
 				assert(prep_remote_localonly.tool == nullptr);
 				assert(prep_remote_localonly.error_message.find("local_only is true") != std::string::npos);
 
 				// Reject unregistered A2A server name
 				auto prep_unregistered = registry.prepare_tool("invoke_subagent",
-					"{\"name\": \"rem2\", \"subagent_name\": \"unknown_server:research\", \"task\": \"Remote scan\", \"local_only\": false}", ctx);
+					R"({"name": "rem2", "subagent_name": "unknown_server:research", "task": "Remote scan", "local_only": false})", ctx);
 				assert(prep_unregistered.tool == nullptr);
 				assert(prep_unregistered.error_message.find("not found in server registry") != std::string::npos);
 
 				// Succeed for registered server with local_only false
 				auto prep_remote_ok = registry.prepare_tool("invoke_subagent",
-					"{\"name\": \"rem3\", \"subagent_name\": \"devpc:research\", \"task\": \"Remote scan\", \"local_only\": false}", ctx);
+					R"({"name": "rem3", "subagent_name": "devpc:research", "task": "Remote scan", "local_only": false})", ctx);
 				assert(prep_remote_ok.tool != nullptr);
 				assert(prep_remote_ok.error_message.empty());
 			}
@@ -134,7 +134,7 @@ int main()
 		auto original_ro = agent->is_read_only();
 		agent->set_read_only(true);
 		auto prep = registry.prepare_tool("invoke_subagent",
-			"{\"name\": \"sub_ro\", \"task\": \"task\"}", ctx);
+			R"({"name": "sub_ro", "task": "task"})", ctx);
 		assert(prep.tool != nullptr);
 		assert(prep.error_message.empty());
 

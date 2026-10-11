@@ -45,7 +45,7 @@ int main()
 	// Confirm we can observe the exact names of the newest registered agent tests. These
 	// were added to meson.build and built; they must be discoverable after a refresh.
 	auto has_test = [&refreshed](const std::string &name) {
-		return std::find(refreshed.begin(), refreshed.end(), name) != refreshed.end();
+		return std::ranges::find(refreshed, name) != refreshed.end();
 	};
 	// The names here mirror the meson.build registrations; if meson sees them, the
 	// refreshed cache must surface them too (this is the regression the fix addresses).
@@ -115,8 +115,8 @@ int main()
 		auto res = tools::fs_run_tests_tool::resolve_test_names_detailed(query, mock_available);
 		assert(res.resolved_names.empty());
 		assert(res.suggestions.size() == 2);
-		assert(std::find(res.suggestions.begin(), res.suggestions.end(), "turbostar:unit_foo_alpha") != res.suggestions.end());
-		assert(std::find(res.suggestions.begin(), res.suggestions.end(), "turbostar:unit_foo_beta") != res.suggestions.end());
+		assert(std::ranges::find(res.suggestions, "turbostar:unit_foo_alpha") != res.suggestions.end());
+		assert(std::ranges::find(res.suggestions, "turbostar:unit_foo_beta") != res.suggestions.end());
 		assert(res.unresolved_queries.size() == 1);
 		assert(res.unresolved_queries[0] == "unit_test_foo");
 	}
@@ -201,9 +201,9 @@ int main()
 		std::vector<std::string> fmt_tests = pm.get_available_tests();
 		std::cout << "Discovered " << fmt_tests.size() << " tests in fmt project." << std::endl;
 		assert(fmt_tests.size() == 17);
-		assert(std::find(fmt_tests.begin(), fmt_tests.end(), "assert-test") != fmt_tests.end());
-		assert(std::find(fmt_tests.begin(), fmt_tests.end(), "format-test") != fmt_tests.end());
-		assert(std::find(fmt_tests.begin(), fmt_tests.end(), "ranges-test") != fmt_tests.end());
+		assert(std::ranges::find(fmt_tests, "assert-test") != fmt_tests.end());
+		assert(std::ranges::find(fmt_tests, "format-test") != fmt_tests.end());
+		assert(std::ranges::find(fmt_tests, "ranges-test") != fmt_tests.end());
 
 		// Test exact resolution on fmt tests
 		const std::vector<std::string> fmt_query = {"assert-test"};
@@ -239,7 +239,7 @@ int main()
 
 		// Valid build_dir
 		{
-			std::string args = "{\"build_dir\": \"build\", \"test_names\": [\"unit_test_fs_utils\"]}";
+			std::string args = R"({"build_dir": "build", "test_names": ["unit_test_fs_utils"]})";
 			auto prep = registry.prepare_tool("fs_run_tests", args, ctx);
 			assert(prep.tool != nullptr);
 			assert(prep.error_message.empty());
@@ -247,7 +247,7 @@ int main()
 
 		// Alias build_directory
 		{
-			std::string args = "{\"build_directory\": \"build\", \"test_names\": [\"unit_test_fs_utils\"]}";
+			std::string args = R"({"build_directory": "build", "test_names": ["unit_test_fs_utils"]})";
 			auto prep = registry.prepare_tool("fs_run_tests", args, ctx);
 			assert(prep.tool != nullptr);
 			assert(prep.error_message.empty());
@@ -255,7 +255,7 @@ int main()
 
 		// Non-existent build_dir
 		{
-			std::string args = "{\"build_dir\": \"nonexistent_build_dir_xyz\"}";
+			std::string args = R"({"build_dir": "nonexistent_build_dir_xyz"})";
 			auto prep = registry.prepare_tool("fs_run_tests", args, ctx);
 			assert(prep.tool == nullptr);
 			assert(prep.error_message.find("does not exist") != std::string::npos);
@@ -263,7 +263,7 @@ int main()
 
 		// Invalid build_dir (exists but not a build directory)
 		{
-			std::string args = "{\"build_dir\": \"src\"}";
+			std::string args = R"({"build_dir": "src"})";
 			auto prep = registry.prepare_tool("fs_run_tests", args, ctx);
 			assert(prep.tool == nullptr);
 			assert(prep.error_message.find("missing build definition files") != std::string::npos);
@@ -271,7 +271,7 @@ int main()
 
 		// Traversal outside workspace
 		{
-			std::string args = "{\"build_dir\": \"../../../../etc\"}";
+			std::string args = R"({"build_dir": "../../../../etc"})";
 			auto prep = registry.prepare_tool("fs_run_tests", args, ctx);
 			assert(prep.tool == nullptr);
 			assert(prep.error_message.find("Access denied") != std::string::npos);

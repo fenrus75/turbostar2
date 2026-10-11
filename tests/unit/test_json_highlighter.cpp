@@ -21,7 +21,7 @@ int main()
 	assert(hl.supports_language("json5") == false);
 
 	// Test Line 1: Standard key-value pair and punctuation
-	auto line1 = std::make_shared<line>("  \"my_key\" : \"my_value\",");
+	auto line1 = std::make_shared<line>(R"(  "my_key" : "my_value",)");
 	hl.highlight(line1);
 
 	std::vector<syntax_attribute> attrs1;
@@ -45,7 +45,7 @@ int main()
 	assert(attrs1[23] == syntax_attribute::heading);
 
 	// Test Line 2: Numbers, booleans, null
-	auto line2 = std::make_shared<line>("  \"num\": -45.67, \"bool\": true, \"nil\": null");
+	auto line2 = std::make_shared<line>(R"(  "num": -45.67, "bool": true, "nil": null)");
 	hl.highlight(line2);
 
 	std::vector<syntax_attribute> attrs2;

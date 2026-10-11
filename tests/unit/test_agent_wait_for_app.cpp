@@ -20,12 +20,12 @@ public:
 	wait_for_app_result wait_for_app(int run_id, std::string_view type, int /*timeout_sec*/) override {
 		if (run_id == 42) {
 			if (type == "settled") {
-				return {"settled", 1500, true, ""};
+				return {.status="settled", .age_ms=1500, .is_alive=true, .crash_notification=""};
 			} else if (type == "ended") {
-				return {"ended", 50, false, "CRASHED WITH SIGSEGV"};
+				return {.status="ended", .age_ms=50, .is_alive=false, .crash_notification="CRASHED WITH SIGSEGV"};
 			}
 		}
-		return {"not_found", 0, false, ""};
+		return {.status="not_found", .age_ms=0, .is_alive=false, .crash_notification=""};
 	}
 };
 

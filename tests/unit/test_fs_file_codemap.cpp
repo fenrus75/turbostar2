@@ -29,7 +29,7 @@ public:
 		(void)filepath; (void)line; (void)col;
 		location_info loc;
 		loc.path = "test_opt_a_dep.cpp";
-		loc.range = {0, 0, 3, 0};
+		loc.range = {.start_y=0, .start_x=0, .end_y=3, .end_x=0};
 		return {loc};
 	}
 	[[nodiscard]] std::vector<location_info> query_type_definition(const std::string &filepath, int line, int col) override
@@ -175,7 +175,7 @@ int main()
 		}
 
 		ctx.recent_grep_patterns.clear();
-		ctx.recent_grep_patterns.push_back("target_grep");
+		ctx.recent_grep_patterns.emplace_back("target_grep");
 
 		// Read range lines 45..55 (crosses func_5 start_line=50)
 		auto sel = tools::select_prioritized_codemap_symbols(test_syms, 45, 55, "dummy.cpp", ctx, /*max_items=*/5);
@@ -583,8 +583,8 @@ int main()
 		item_ascii.name = "is_force_ascii";
 		item_ascii.kind = 6;
 		item_ascii.uri = "src/config_manager.h";
-		item_ascii.range = {ascii_sym->start_line - 1, 1, ascii_sym->end_line - 1, 2};
-		item_ascii.selection_range = {ascii_sym->start_line - 1, 6, ascii_sym->start_line - 1, 20};
+		item_ascii.range = {.start_y=ascii_sym->start_line - 1, .start_x=1, .end_y=ascii_sym->end_line - 1, .end_x=2};
+		item_ascii.selection_range = {.start_y=ascii_sym->start_line - 1, .start_x=6, .end_y=ascii_sym->start_line - 1, .end_x=20};
 
 		bool ok = tools::resolve_outgoing_call_target(ref, item_ascii, syms_cache, &ctx);
 		assert(ok);
@@ -603,8 +603,8 @@ int main()
 		item_file_type.name = "get_file_type";
 		item_file_type.kind = 12;
 		item_file_type.uri = "src/fs_utils.h";
-		item_file_type.range = {58, 0, 58, 56};
-		item_file_type.selection_range = {58, 12, 58, 25};
+		item_file_type.range = {.start_y=58, .start_x=0, .end_y=58, .end_x=56};
+		item_file_type.selection_range = {.start_y=58, .start_x=12, .end_y=58, .end_x=25};
 
 		ok = tools::resolve_outgoing_call_target(ref, item_file_type, syms_cache, &ctx);
 		assert(ok);
@@ -622,8 +622,8 @@ int main()
 		item_get_inst.name = "get_instance";
 		item_get_inst.kind = 6;
 		item_get_inst.uri = "src/config_manager.h";
-		item_get_inst.range = {11, 1, 11, 40};
-		item_get_inst.selection_range = {11, 25, 11, 37};
+		item_get_inst.range = {.start_y=11, .start_x=1, .end_y=11, .end_x=40};
+		item_get_inst.selection_range = {.start_y=11, .start_x=25, .end_y=11, .end_x=37};
 
 		ok = tools::resolve_outgoing_call_target(ref, item_get_inst, syms_cache, &ctx);
 		assert(ok);

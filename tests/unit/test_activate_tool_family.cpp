@@ -129,13 +129,13 @@ int main()
 	assert(!prep.error_message.empty());
 
 	// C. Empty string
-	prep = registry.prepare_tool("activate_tool_family", "{\"name\": \"\"}", ctx);
+	prep = registry.prepare_tool("activate_tool_family", R"({"name": ""})", ctx);
 	assert(prep.tool == nullptr);
 	assert(!prep.error_message.empty());
 	assert(prep.error_message.find("empty") != std::string::npos);
 
 	// D. Non-existent family name
-	prep = registry.prepare_tool("activate_tool_family", "{\"name\": \"non_existent_family_name\"}", ctx);
+	prep = registry.prepare_tool("activate_tool_family", R"({"name": "non_existent_family_name"})", ctx);
 	assert(prep.tool == nullptr);
 	assert(!prep.error_message.empty());
 	assert(prep.error_message.find("not found") != std::string::npos);
@@ -146,8 +146,8 @@ int main()
 	// Assert get_all_registered_families returns both familyA and familyB
 	{
 		auto all_fams = registry.get_all_registered_families();
-		assert(std::find(all_fams.begin(), all_fams.end(), "familyA") != all_fams.end());
-		assert(std::find(all_fams.begin(), all_fams.end(), "familyB") != all_fams.end());
+		assert(std::ranges::find(all_fams, "familyA") != all_fams.end());
+		assert(std::ranges::find(all_fams, "familyB") != all_fams.end());
 	}
 
 	// Test case: neither family active -> prep fails
@@ -156,8 +156,8 @@ int main()
 		ctx.is_family_active = [&](const std::string &fam) {
 			return active_fams_test.contains(fam);
 		};
-		ctx.properties.active_families.push_back("familyA");
-		ctx.properties.active_families.push_back("familyB");
+		ctx.properties.active_families.emplace_back("familyA");
+		ctx.properties.active_families.emplace_back("familyB");
 
 		prep = registry.prepare_tool("test_tool_multi", "{}", ctx);
 		assert(prep.tool == nullptr && "Should fail if neither family is active");
@@ -205,8 +205,8 @@ int main()
 		auto active_fams = agent2->get_active_tool_families();
 		auto active_skills = agent2->get_active_skills();
 
-		assert(std::find(active_fams.begin(), active_fams.end(), "my_test_family") != active_fams.end() && "Restored agent should have my_test_family active!");
-		assert(std::find(active_skills.begin(), active_skills.end(), "my_test_skill") != active_skills.end() && "Restored agent should have my_test_skill active!");
+		assert(std::ranges::find(active_fams, "my_test_family") != active_fams.end() && "Restored agent should have my_test_family active!");
+		assert(std::ranges::find(active_skills, "my_test_skill") != active_skills.end() && "Restored agent should have my_test_skill active!");
 
 		std::filesystem::remove_all(temp_home);
 	}

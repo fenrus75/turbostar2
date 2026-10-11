@@ -90,7 +90,7 @@ int main()
 		// Test Group 1: read_file -> fs_read_lines
 		tool_call tc1;
 		tc1.function.name = "read_file";
-		tc1.function.arguments = "{\"file_path\": \"src/main.cpp\", \"start_line\": 10, \"end_line\": 20}";
+		tc1.function.arguments = R"({"file_path": "src/main.cpp", "start_line": 10, "end_line": 20})";
 		normalize_tool_call(tc1);
 		assert(tc1.function.name == "fs_read_lines");
 		auto parsed1 = nlohmann::json::parse(tc1.function.arguments);
@@ -101,7 +101,7 @@ int main()
 		// Test Group 1b: fs_read_file -> fs_read_lines
 		tool_call tc1b;
 		tc1b.function.name = "fs_read_file";
-		tc1b.function.arguments = "{\"path\": \"src/main.cpp\", \"start_line\": 10, \"end_line\": 20}";
+		tc1b.function.arguments = R"({"path": "src/main.cpp", "start_line": 10, "end_line": 20})";
 		normalize_tool_call(tc1b);
 		assert(tc1b.function.name == "fs_read_lines");
 		auto parsed1b = nlohmann::json::parse(tc1b.function.arguments);
@@ -112,7 +112,7 @@ int main()
 		// Test Group 2: search_grep -> fs_grep_files
 		tool_call tc2;
 		tc2.function.name = "search_grep";
-		tc2.function.arguments = "{\"query\": \"foo\", \"dir\": \"src/\"}";
+		tc2.function.arguments = R"({"query": "foo", "dir": "src/"})";
 		normalize_tool_call(tc2);
 		assert(tc2.function.name == "fs_grep_files");
 		auto parsed2 = nlohmann::json::parse(tc2.function.arguments);
@@ -126,7 +126,7 @@ int main()
 		// Test Group 2b: grep alias with a 'path' directory arg -> fs_grep_files
 		tool_call tc2b;
 		tc2b.function.name = "grep";
-		tc2b.function.arguments = "{\"pattern\": \"bar\", \"path\": \"src/lib/\"}";
+		tc2b.function.arguments = R"({"pattern": "bar", "path": "src/lib/"})";
 		normalize_tool_call(tc2b);
 		assert(tc2b.function.name == "fs_grep_files");
 		auto parsed2b = nlohmann::json::parse(tc2b.function.arguments);
@@ -136,7 +136,7 @@ int main()
 		// Test Group 2c: find_in_files alias with a 'dir_path' directory arg -> fs_grep_files
 		tool_call tc2c;
 		tc2c.function.name = "find_in_files";
-		tc2c.function.arguments = "{\"text\": \"baz\", \"dir_path\": \"src/ui/\"}";
+		tc2c.function.arguments = R"({"text": "baz", "dir_path": "src/ui/"})";
 		normalize_tool_call(tc2c);
 		assert(tc2c.function.name == "fs_grep_files");
 		auto parsed2c = nlohmann::json::parse(tc2c.function.arguments);
@@ -147,7 +147,7 @@ int main()
 		tool_call tc2d;
 		tc2d.function.name = "grep_search";
 		tc2d.function.arguments =
-		    "{\"Query\": \"my_pattern\", \"SearchPath\": \"src/\", \"CaseInsensitive\": true, \"IsRegex\": true}";
+		    R"({"Query": "my_pattern", "SearchPath": "src/", "CaseInsensitive": true, "IsRegex": true})";
 		normalize_tool_call(tc2d);
 		assert(tc2d.function.name == "fs_grep_files");
 		auto parsed2d = nlohmann::json::parse(tc2d.function.arguments);
@@ -159,7 +159,7 @@ int main()
 		// Test Group 2e: grep_search alias with snake_case and Includes array
 		tool_call tc2e;
 		tc2e.function.name = "grep_search";
-		tc2e.function.arguments = "{\"query\": \"another_pattern\", \"search_path\": \"tests/\", \"Includes\": [\"*.cpp\"]}";
+		tc2e.function.arguments = R"({"query": "another_pattern", "search_path": "tests/", "Includes": ["*.cpp"]})";
 		normalize_tool_call(tc2e);
 		assert(tc2e.function.name == "fs_grep_files");
 		auto parsed2e = nlohmann::json::parse(tc2e.function.arguments);
@@ -170,7 +170,7 @@ int main()
 		// Test Group 3: list_dir -> fs_list_dir
 		tool_call tc3;
 		tc3.function.name = "list_dir";
-		tc3.function.arguments = "{\"directory\": \"src/ui/\"}";
+		tc3.function.arguments = R"({"directory": "src/ui/"})";
 		normalize_tool_call(tc3);
 		assert(tc3.function.name == "fs_list_dir");
 		auto parsed3 = nlohmann::json::parse(tc3.function.arguments);
@@ -179,7 +179,7 @@ int main()
 		// Test Group 4: create_directory -> fs_mkdir
 		tool_call tc4;
 		tc4.function.name = "create_directory";
-		tc4.function.arguments = "{\"dir_path\": \"tmp/dir\"}";
+		tc4.function.arguments = R"({"dir_path": "tmp/dir"})";
 		normalize_tool_call(tc4);
 		assert(tc4.function.name == "fs_mkdir");
 		auto parsed4 = nlohmann::json::parse(tc4.function.arguments);
@@ -195,7 +195,7 @@ int main()
 		// Test Group 6: git_diff -> git_diff_unstaged
 		tool_call tc6;
 		tc6.function.name = "git_diff";
-		tc6.function.arguments = "{\"file_path\": \"src/utf8.cpp\"}";
+		tc6.function.arguments = R"({"file_path": "src/utf8.cpp"})";
 		normalize_tool_call(tc6);
 		assert(tc6.function.name == "git_diff_unstaged");
 		auto parsed6 = nlohmann::json::parse(tc6.function.arguments);
@@ -258,7 +258,7 @@ int main()
 		}
 		assert(!found_family_mock && "family_mock should NOT be in base family context!");
 
-		active_families.push_back("test_family");
+		active_families.emplace_back("test_family");
 		props.active_families = active_families;
 		tools = registry.get_tools_json(true, props);
 		found_family_mock = false;
@@ -278,7 +278,7 @@ int main()
 			return fam == "base"; // only base is active
 		};
 
-		auto prep_res = registry.prepare_tool("family_mock", "{\"param\": \"val\"}", family_ctx);
+		auto prep_res = registry.prepare_tool("family_mock", R"({"param": "val"})", family_ctx);
 		assert(is_active_called);
 		assert(prep_res.tool == nullptr && "prepare_tool should fail for inactive family!");
 		assert(prep_res.error_message.find("not active") != std::string::npos);
@@ -291,7 +291,7 @@ int main()
 			return fam == "base" || fam == "test_family";
 		};
 
-		prep_res = registry.prepare_tool("family_mock", "{\"param\": \"val\"}", family_ctx);
+		prep_res = registry.prepare_tool("family_mock", R"({"param": "val"})", family_ctx);
 		assert(is_active_called);
 		assert(prep_res.tool != nullptr && "prepare_tool should succeed for active family!");
 		assert(prep_res.error_message.empty());

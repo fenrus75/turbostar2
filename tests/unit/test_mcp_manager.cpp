@@ -282,7 +282,7 @@ if __name__ == "__main__":
 	ctx.properties.active_families = {"base", "mock-python-server"};
 	ctx.is_family_active = [](const std::string &) { return true; };
 	std::string result =
-	    tool_registry::get_instance().execute_tool("mcp:mock-python-server:mock_tool", "{\"msg\": \"antigravity\"}", ctx);
+	    tool_registry::get_instance().execute_tool("mcp:mock-python-server:mock_tool", R"({"msg": "antigravity"})", ctx);
 	std::cout << "Tool execution output: " << result << std::endl;
 	assert(result == "Called mock_tool with msg: antigravity");
 

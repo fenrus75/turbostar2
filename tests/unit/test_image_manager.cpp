@@ -58,7 +58,7 @@ int main()
 	assert(meta_png.mime_type == "image/png");
 	assert(meta_png.width == 10);
 	assert(meta_png.height == 5);
-	assert(std::find(meta_png.names.begin(), meta_png.names.end(), "screenshot.png") != meta_png.names.end());
+	assert(std::ranges::find(meta_png.names, "screenshot.png") != meta_png.names.end());
 
 	std::cout << "Creating mock JPEG file..." << std::endl;
 	std::string temp_jpg = manager.get_temp_image_path();
@@ -125,7 +125,7 @@ int main()
 	assert(reloaded_meta.mime_type == "image/png");
 	assert(reloaded_meta.width == 10);
 	assert(reloaded_meta.height == 5);
-	assert(std::find(reloaded_meta.file_ids.begin(), reloaded_meta.file_ids.end(), "file-openai-xyz123") != reloaded_meta.file_ids.end());
+	assert(std::ranges::find(reloaded_meta.file_ids, "file-openai-xyz123") != reloaded_meta.file_ids.end());
 
 	std::cout << "Testing delete_image..." << std::endl;
 	{
@@ -175,7 +175,7 @@ int main()
 
 		image_metadata meta2;
 		assert(manager.get_metadata(uri2, meta2));
-		assert(std::find(meta2.names.begin(), meta2.names.end(), "my-alias.png") != meta2.names.end());
+		assert(std::ranges::find(meta2.names, "my-alias.png") != meta2.names.end());
 	}
 
 	std::cout << "Testing cache clearing..." << std::endl;

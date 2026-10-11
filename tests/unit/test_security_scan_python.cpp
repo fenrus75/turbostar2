@@ -46,7 +46,7 @@ int main()
 
 	// 1. Verify family security restrictions (non-active family)
 	sec_active = false;
-	std::string valid_args = "{\"paths\": [\"tests/e2e/test_sqlite_tools.py\"]}";
+	std::string valid_args = R"({"paths": ["tests/e2e/test_sqlite_tools.py"]})";
 	{
 		auto prep = registry.prepare_tool("security_scan_python", valid_args, ctx);
 		assert(prep.tool == nullptr && "Should fail prepare when family is inactive");
@@ -65,14 +65,14 @@ int main()
 
 	// 3. Verify path validation (nonexistent file)
 	{
-		std::string args = "{\"paths\": [\"nonexistent_python_script.py\"]}";
+		std::string args = R"({"paths": ["nonexistent_python_script.py"]})";
 		auto prep = registry.prepare_tool("security_scan_python", args, ctx);
 		assert(prep.tool == nullptr && "Should fail prepare when file does not exist");
 	}
 
 	// 4. Verify path validation (directory traversal escape attempt)
 	{
-		std::string args = "{\"paths\": [\"../../etc/passwd\"]}";
+		std::string args = R"({"paths": ["../../etc/passwd"]})";
 		auto prep = registry.prepare_tool("security_scan_python", args, ctx);
 		assert(prep.tool == nullptr && "Should fail prepare on directory traversal attempt");
 	}
@@ -85,7 +85,7 @@ int main()
 		out << "import os\nprint('hello')\n";
 		out.close();
 
-		std::string args = "{\"paths\": [\"" + dummy_file + "\"]}";
+		std::string args = R"({"paths": [")" + dummy_file + "\"]}";
 		std::string res = registry.execute_tool("security_scan_python", args, ctx);
 
 		std::cout << "Bandit output for dummy file:\n" << res << std::endl;

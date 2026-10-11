@@ -31,7 +31,7 @@ int main()
 	{
 		// 1. Success case: list contents of allowed directory (e.g. "src")
 		{
-			std::string args = "{\"path\": \"" + project_root + "/src\"}";
+			std::string args = R"({"path": ")" + project_root + "/src\"}";
 			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
 			std::cout << "Directory list result: " << res << std::endl;
 			assert(res.find("| -------- |") != std::string::npos);
@@ -40,7 +40,7 @@ int main()
 
 		// 1b. Success case: list contents with limit and offset
 		{
-			std::string args = "{\"path\": \"" + project_root + "/src\", \"limit\": 2, \"offset\": 1}";
+			std::string args = R"({"path": ")" + project_root + R"(/src", "limit": 2, "offset": 1})";
 			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
 			std::cout << "Directory list pagination result: " << res << std::endl;
 			assert(res.find("Showing files 2 - ") != std::string::npos);
@@ -58,7 +58,7 @@ int main()
 
 		// 2. Stage 2 validation failure: path is not a directory (e.g. a regular file)
 		{
-			std::string args = "{\"path\": \"" + project_root + "/src/main.cpp\"}";
+			std::string args = R"({"path": ")" + project_root + "/src/main.cpp\"}";
 			auto prep = registry.prepare_tool("fs_list_dir", args, ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
@@ -67,7 +67,7 @@ int main()
 
 		// 3. Stage 1 validation failure: reject unexpected properties (based on review recommendations)
 		{
-			std::string args = "{\"path\": \"" + project_root + "/src\", \"unexpected_arg\": 123}";
+			std::string args = R"({"path": ")" + project_root + R"(/src", "unexpected_arg": 123})";
 			auto prep = registry.prepare_tool("fs_list_dir", args, ctx);
 			assert(prep.tool == nullptr); // Rejects unexpected arguments per schema
 			assert(!prep.error_message.empty());
@@ -75,7 +75,7 @@ int main()
 
 		// 4. Stage 2 validation failure: reject path outside workspace
 		{
-			auto prep = registry.prepare_tool("fs_list_dir", "{\"path\": \"/etc\"}", ctx);
+			auto prep = registry.prepare_tool("fs_list_dir", R"({"path": "/etc"})", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
 		}
@@ -83,7 +83,7 @@ int main()
 #ifdef HAS_LIBMAGIC
 		// 5. Success case with rich_metadata enabled
 		{
-			std::string args = "{\"path\": \"" + project_root + "/src\", \"rich_metadata\": true}";
+			std::string args = R"({"path": ")" + project_root + R"(/src", "rich_metadata": true})";
 			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
 			std::cout << "Directory list with rich_metadata: " << res << std::endl;
 			assert(res.find("| Details |") != std::string::npos);
@@ -98,7 +98,7 @@ int main()
 			vfs.register_provider("system", sys_provider);
 			ctx.fs_security.set_vfs(&vfs);
 
-			std::string root_args = "{\"path\": \"system://\", \"rich_metadata\": true}";
+			std::string root_args = R"({"path": "system://", "rich_metadata": true})";
 			std::string root_res = registry.execute_tool("fs_list_dir", root_args, ctx);
 			std::cout << "VFS Root Directory list with rich_metadata:\n" << root_res << std::endl;
 			assert(root_res.find("languages | D |") != std::string::npos);
@@ -107,21 +107,21 @@ int main()
 			// Verify non-zero size for tools.md in listing
 			assert(root_res.find("tools.md | F | 0 | 0 |") == std::string::npos);
 
-			std::string args = "{\"path\": \"system://languages/\", \"rich_metadata\": true}";
+			std::string args = R"({"path": "system://languages/", "rich_metadata": true})";
 			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
 			std::cout << "VFS Subdirectory list with rich_metadata:\n" << res << std::endl;
 			assert(res.find("cpp23.md") != std::string::npos);
 			assert(res.find("Read when writing or refactoring C++23 code.") != std::string::npos);
 
 			// Test fs_file_size on VFS path
-			std::string size_args = "{\"path\": \"system://agents.md\"}";
+			std::string size_args = R"({"path": "system://agents.md"})";
 			std::string size_res = registry.execute_tool("fs_file_size", size_args, ctx);
 			std::cout << "fs_file_size on system://agents.md: " << size_res << std::endl;
 			assert(size_res.find("bytes") != std::string::npos);
 			assert(size_res.find("0 bytes") == std::string::npos);
 
 			// Test fs_grep_files on VFS path
-			std::string grep_args = "{\"search_path\": \"system://\", \"pattern\": \"tools\"}";
+			std::string grep_args = R"({"search_path": "system://", "pattern": "tools"})";
 			std::string grep_res = registry.execute_tool("fs_grep_files", grep_args, ctx);
 			std::cout << "fs_grep_files on system:// for 'tools':\n" << grep_res << std::endl;
 			assert(grep_res.find("system://tools.md") != std::string::npos);
@@ -129,7 +129,7 @@ int main()
 
 		// 6. Test passing wildcard path into fs_list_dir suggests fs_find_files with project-relative pattern
 		{
-			std::string args = "{\"path\": \"src/*.cpp\"}";
+			std::string args = R"({"path": "src/*.cpp"})";
 			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
 			assert(res.find("fs_find_files(pattern='src/*.cpp')") != std::string::npos);
 		}
@@ -154,7 +154,7 @@ int main()
 			}
 			std::filesystem::permissions(unreadable_file, std::filesystem::perms::none, std::filesystem::perm_options::replace, ec);
 
-			std::string args = "{\"path\": \"" + test_dir.string() + "\"}";
+			std::string args = R"({"path": ")" + test_dir.string() + "\"}";
 			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
 
 			// Clean up permissions so cleanup succeeds
@@ -174,7 +174,7 @@ int main()
 			std::filesystem::path empty_dir = std::filesystem::path(project_root) / "test_empty_dir";
 			std::error_code ec;
 			std::filesystem::create_directories(empty_dir, ec);
-			std::string args = "{\"path\": \"" + empty_dir.string() + "\"}";
+			std::string args = R"({"path": ")" + empty_dir.string() + "\"}";
 			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
 			std::filesystem::remove(empty_dir, ec);
 			assert(res.find("Directory is empty") != std::string::npos);

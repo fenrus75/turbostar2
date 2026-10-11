@@ -323,7 +323,7 @@ int main()
 
 	// 7. Test repair_json_string on unterminated/truncated tool_call arguments
 	{
-		std::string truncated_args = "{\"path\": \"src/main.cpp\", \"target_content\": \"int main() {\\n    return 0;";
+		std::string truncated_args = R"({"path": "src/main.cpp", "target_content": "int main() {\n    return 0;)";
 		std::string repaired = fs_utils::repair_json_string(truncated_args);
 		json parsed = json::parse(repaired);
 		assert(parsed["path"] == "src/main.cpp");
@@ -347,7 +347,7 @@ int main()
 	{
 		auto transport = std::make_shared<mock_transport>();
 		transport->stream_success = false;
-		transport->stream_chunks.push_back("data: {\"id\":\"resp_sse_1\",\"choices\":[{\"delta\":{\"content\":\"Hello world\"}}]}\n\n");
+		transport->stream_chunks.emplace_back("data: {\"id\":\"resp_sse_1\",\"choices\":[{\"delta\":{\"content\":\"Hello world\"}}]}\n\n");
 
 		openai_completion_connection conn(transport, "gpt-4", api_type::openai);
 		bool received_content = false;

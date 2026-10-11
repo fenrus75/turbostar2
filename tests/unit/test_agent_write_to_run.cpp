@@ -66,7 +66,7 @@ int main()
 
 		// 1. Success case: write data to valid run_id with output=false
 		{
-			std::string res = registry.execute_tool("agent_write_to_run", "{\"run_id\": 123, \"data\": \"echo hello\\n\", \"output\": false}", ctx);
+			std::string res = registry.execute_tool("agent_write_to_run", R"({"run_id": 123, "data": "echo hello\n", "output": false})", ctx);
 			std::cout << "Success path result: " << res << std::endl;
 			assert(res.find("Successfully wrote") != std::string::npos);
 			assert(mock.last_written_data == "echo hello\n");
@@ -74,14 +74,14 @@ int main()
 
 		// 2. Execution failure case: unknown run_id
 		{
-			std::string res = registry.execute_tool("agent_write_to_run", "{\"run_id\": 999, \"data\": \"test\"}", ctx);
+			std::string res = registry.execute_tool("agent_write_to_run", R"({"run_id": 999, "data": "test"})", ctx);
 			std::cout << "Unknown run_id result: " << res << std::endl;
 			assert(res.find("Error:") != std::string::npos);
 		}
 
 		// 3. Stage 1 validation failure: reject negative run_id
 		{
-			auto prep = registry.prepare_tool("agent_write_to_run", "{\"run_id\": -3, \"data\": \"test\"}", ctx);
+			auto prep = registry.prepare_tool("agent_write_to_run", R"({"run_id": -3, "data": "test"})", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
 		}
@@ -97,7 +97,7 @@ int main()
 
 		// 5. Stage 1 validation failure: reject unexpected arguments
 		{
-			auto prep = registry.prepare_tool("agent_write_to_run", "{\"run_id\": 123, \"data\": \"test\", \"unexpected_field\": 123}", ctx);
+			auto prep = registry.prepare_tool("agent_write_to_run", R"({"run_id": 123, "data": "test", "unexpected_field": 123})", ctx);
 			assert(prep.tool == nullptr); // This will fail initially as expected
 			assert(!prep.error_message.empty());
 		}
@@ -105,7 +105,7 @@ int main()
 		// 6. Stage 2 validation failure: reject if doc_provider is null
 		{
 			ctx.doc_provider = nullptr;
-			auto prep = registry.prepare_tool("agent_write_to_run", "{\"run_id\": 123, \"data\": \"test\"}", ctx);
+			auto prep = registry.prepare_tool("agent_write_to_run", R"({"run_id": 123, "data": "test"})", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
 			ctx.doc_provider = &mock;
@@ -114,7 +114,7 @@ int main()
 		// 7. Success case with output=true
 		{
 			ctx.doc_provider = &mock;
-			std::string res = registry.execute_tool("agent_write_to_run", "{\"run_id\": 123, \"data\": \"test\", \"output\": true}", ctx);
+			std::string res = registry.execute_tool("agent_write_to_run", R"({"run_id": 123, "data": "test", "output": true})", ctx);
 			std::cout << "Success with output path result: " << res << std::endl;
 			assert(fs_utils::unwrap_prompt_untrusted_data_tag(res) == "simulated recorded output");
 			assert(mock.is_recording == false);
@@ -131,7 +131,7 @@ int main()
 		};
 		mock_split_ansi_provider split_mock;
 		ctx.doc_provider = &split_mock;
-		std::string res = registry.execute_tool("agent_write_to_run", "{\"run_id\": 123, \"data\": \"test\", \"output\": true}", ctx);
+		std::string res = registry.execute_tool("agent_write_to_run", R"({"run_id": 123, "data": "test", "output": true})", ctx);
 		std::cout << "Split ANSI chunks result: " << res << std::endl;
 		assert(fs_utils::unwrap_prompt_untrusted_data_tag(res) == "(gdb) Error line");
 	}

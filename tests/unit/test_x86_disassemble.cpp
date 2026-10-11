@@ -32,7 +32,7 @@ int main()
 
 	// 1. Check family registration (get_family should return "x86")
 	auto families = registry.get_all_registered_families();
-	assert(std::find(families.begin(), families.end(), "x86") != families.end() && "x86 family should be registered!");
+	assert(std::ranges::find(families, "x86") != families.end() && "x86 family should be registered!");
 
 	// 2. Test family security check: should fail if family is inactive
 	bool x86_active = false;
@@ -43,7 +43,7 @@ int main()
 		return true;
 	};
 
-	std::string valid_hex_args = "{\"data\": \"89 c0\"}";
+	std::string valid_hex_args = R"({"data": "89 c0"})";
 	{
 		auto prep = registry.prepare_tool("x86_disassemble", valid_hex_args, ctx);
 		assert(prep.tool == nullptr && "Should fail prepare when x86 family is inactive");
@@ -60,7 +60,7 @@ int main()
 
 	// 3. Test Intel 64-bit Hex Disassembly
 	{
-		std::string args = "{\"data\": \"89 c0\", \"format\": \"hex\", \"mode\": \"64\", \"syntax\": \"intel\"}";
+		std::string args = R"({"data": "89 c0", "format": "hex", "mode": "64", "syntax": "intel"})";
 		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
 		std::cout << "Intel 64-bit Hex Disassembly Result:\n" << res << std::endl;
 #ifdef HAVE_ZYDIS
@@ -74,7 +74,7 @@ int main()
 
 	// 4. Test AT&T 64-bit Hex Disassembly
 	{
-		std::string args = "{\"data\": \"89 c0\", \"format\": \"hex\", \"mode\": \"64\", \"syntax\": \"att\"}";
+		std::string args = R"({"data": "89 c0", "format": "hex", "mode": "64", "syntax": "att"})";
 		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
 		std::cout << "AT&T 64-bit Hex Disassembly Result:\n" << res << std::endl;
 #ifdef HAVE_ZYDIS
@@ -89,7 +89,7 @@ int main()
 	// 5. Test Base64 input parsing (using auto format detection)
 	{
 		// "icA=" is base64 for "\x89\xc0"
-		std::string args = "{\"data\": \"icA=\", \"format\": \"auto\", \"mode\": \"64\", \"syntax\": \"intel\"}";
+		std::string args = R"({"data": "icA=", "format": "auto", "mode": "64", "syntax": "intel"})";
 		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
 		std::cout << "Base64 Disassembly Result:\n" << res << std::endl;
 #ifdef HAVE_ZYDIS
@@ -102,7 +102,7 @@ int main()
 
 	// 6. Test contiguous hex input parsing (using auto format detection)
 	{
-		std::string args = "{\"data\": \"89c090\", \"format\": \"auto\", \"mode\": \"64\", \"syntax\": \"intel\"}";
+		std::string args = R"({"data": "89c090", "format": "auto", "mode": "64", "syntax": "intel"})";
 		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
 		std::cout << "Contiguous Hex Result:\n" << res << std::endl;
 #ifdef HAVE_ZYDIS
@@ -116,12 +116,12 @@ int main()
 	// 7. Test invalid inputs (should report error during preparation or execution)
 	{
 		// Invalid hex characters in hex format
-		std::string args = "{\"data\": \"89 zz\", \"format\": \"hex\"}";
+		std::string args = R"({"data": "89 zz", "format": "hex"})";
 		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
 		assert(res.find("Error") != std::string::npos);
 
 		// Invalid base64 character
-		std::string b64_args = "{\"data\": \"icA?\", \"format\": \"base64\"}";
+		std::string b64_args = R"({"data": "icA?", "format": "base64"})";
 		std::string b64_res = registry.execute_tool("x86_disassemble", b64_args, ctx);
 		assert(b64_res.find("Error") != std::string::npos);
 	}

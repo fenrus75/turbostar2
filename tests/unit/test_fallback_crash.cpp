@@ -3,7 +3,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
-#include <signal.h>
+#include <csignal>
 #include <string>
 #include <sys/wait.h>
 #include <unistd.h>

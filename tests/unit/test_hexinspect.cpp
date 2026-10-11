@@ -54,7 +54,7 @@ int main()
 	ctx.is_family_active = [](const std::string &family) { return family != "hexedit"; };
 
 	{
-		std::string args = "{\"path\": \"" + elf_path + "\", \"offset\": 0, \"size\": 64}";
+		std::string args = R"({"path": ")" + elf_path + R"(", "offset": 0, "size": 64})";
 		auto prep = registry.prepare_tool("hexinspect", args, ctx);
 		assert(prep.tool == nullptr && "hexinspect must block if hexedit family is inactive");
 		assert(prep.error_message.find("Security Violation") != std::string::npos);
@@ -65,7 +65,7 @@ int main()
 
 	// 3. Test successful execution on ELF Magic and file header
 	{
-		std::string args = "{\"path\": \"" + elf_path + "\", \"offset\": 0, \"size\": 16}";
+		std::string args = R"({"path": ")" + elf_path + R"(", "offset": 0, "size": 16})";
 		std::string res = registry.execute_tool("hexinspect", args, ctx);
 		std::cout << "hexinspect result:\n" << res << "\n";
 		assert(!res.empty());
@@ -97,7 +97,7 @@ int main()
 
 	// 4. Test validation of empty path
 	{
-		std::string args = "{\"path\": \"\"}";
+		std::string args = R"({"path": ""})";
 		auto prep = registry.prepare_tool("hexinspect", args, ctx);
 		assert(prep.tool == nullptr);
 		assert(!prep.error_message.empty());
@@ -105,7 +105,7 @@ int main()
 
 	// 5. Test out of bounds offset
 	{
-		std::string args = "{\"path\": \"" + elf_path + "\", \"offset\": 500000, \"size\": 64}";
+		std::string args = R"({"path": ")" + elf_path + R"(", "offset": 500000, "size": 64})";
 		std::string res = registry.execute_tool("hexinspect", args, ctx);
 		assert(res.find("Error:") != std::string::npos);
 		assert(res.find("out of bounds") != std::string::npos);
@@ -121,7 +121,7 @@ int main()
 		ofs_vfs.write(reinterpret_cast<const char *>(elf_bytes.data()), elf_bytes.size());
 		ofs_vfs.close();
 
-		std::string args = "{\"path\": \"" + vfs_path + "\", \"offset\": 0, \"size\": 16}";
+		std::string args = R"({"path": ")" + vfs_path + R"(", "offset": 0, "size": 16})";
 		std::string res = registry.execute_tool("hexinspect", args, ctx);
 		assert(!res.empty());
 		assert(res.find("Error:") == std::string::npos);
@@ -149,14 +149,14 @@ int main()
 
 		// Inspect TAR Header
 		{
-			std::string args = "{\"path\": \"" + tar_path + "\", \"offset\": 0, \"size\": 16}";
+			std::string args = R"({"path": ")" + tar_path + R"(", "offset": 0, "size": 16})";
 			std::string res = registry.execute_tool("hexinspect", args, ctx);
 			assert(res.find("TAR Header: test_file.txt") != std::string::npos);
 		}
 
 		// Inspect TAR data offset resolved by name
 		{
-			std::string args = "{\"path\": \"" + tar_path + "\", \"offset_by_name\": \"test_file.txt\", \"size\": 16}";
+			std::string args = R"({"path": ")" + tar_path + R"(", "offset_by_name": "test_file.txt", "size": 16})";
 			std::string res = registry.execute_tool("hexinspect", args, ctx);
 			assert(res.find("TAR File Data: test_file.txt") != std::string::npos);
 		}
@@ -169,7 +169,7 @@ int main()
 		std::string tar_path = fs_utils::safe_absolute("tests/testtar.tar").string();
 		// Inspect real TAR header and verify the overview summary table is present
 		{
-			std::string args = "{\"path\": \"" + tar_path + "\", \"offset\": 0, \"size\": 16}";
+			std::string args = R"({"path": ")" + tar_path + R"(", "offset": 0, "size": 16})";
 			std::string res = registry.execute_tool("hexinspect", args, ctx);
 			assert(res.find("TAR Header: src/main.cpp") != std::string::npos);
 			assert(res.find("### Archive Contents (TAR)") != std::string::npos);
@@ -178,7 +178,7 @@ int main()
 
 		// Inspect real TAR data offset resolved by name and verify the summary table is NOT present
 		{
-			std::string args = "{\"path\": \"" + tar_path + "\", \"offset_by_name\": \"src/main.cpp\", \"size\": 16}";
+			std::string args = R"({"path": ")" + tar_path + R"(", "offset_by_name": "src/main.cpp", "size": 16})";
 			std::string res = registry.execute_tool("hexinspect", args, ctx);
 			assert(res.find("TAR File Data: src/main.cpp") != std::string::npos);
 			assert(res.find("### Archive Contents (TAR)") == std::string::npos);
@@ -186,7 +186,7 @@ int main()
 
 		// Inspect real TAR at non-zero offset and verify the summary table is NOT present
 		{
-			std::string args = "{\"path\": \"" + tar_path + "\", \"offset\": 512, \"size\": 16}";
+			std::string args = R"({"path": ")" + tar_path + R"(", "offset": 512, "size": 16})";
 			std::string res = registry.execute_tool("hexinspect", args, ctx);
 			assert(res.find("### Archive Contents (TAR)") == std::string::npos);
 		}
@@ -209,7 +209,7 @@ int main()
 		}
 		ofs_large.close();
 
-		std::string args = "{\"path\": \"" + large_tar_path + "\", \"offset\": 0, \"size\": 16}";
+		std::string args = R"({"path": ")" + large_tar_path + R"(", "offset": 0, "size": 16})";
 		std::string res = registry.execute_tool("hexinspect", args, ctx);
 
 		// Verify it contains the preview table and a note about the tmp file
@@ -237,7 +237,7 @@ int main()
 	// 10. Test PDF structure summary and VFS write (prefer_summary_in_tmp_only == true)
 	{
 		std::string pdf_path = "tests/shared-mime-info-spec.pdf";
-		std::string args = "{\"path\": \"" + pdf_path + "\", \"offset\": 0, \"size\": 16}";
+		std::string args = R"({"path": ")" + pdf_path + R"(", "offset": 0, "size": 16})";
 		std::string res = registry.execute_tool("hexinspect", args, ctx);
 
 		// Verify structure summary was generated and written to VFS tmp file, bypassing direct inclusion

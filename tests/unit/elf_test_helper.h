@@ -72,10 +72,10 @@ inline std::vector<uint8_t> create_mock_elf()
 	std::string shstrtab_name = ".shstrtab";
 	std::string symtab_name = ".symtab";
 	std::string strtab_name = ".strtab";
-	std::copy(text_name.begin(), text_name.end(), &data[strtab_start + 1]);
-	std::copy(shstrtab_name.begin(), shstrtab_name.end(), &data[strtab_start + 93]);
-	std::copy(symtab_name.begin(), symtab_name.end(), &data[strtab_start + 103]);
-	std::copy(strtab_name.begin(), strtab_name.end(), &data[strtab_start + 111]);
+	std::ranges::copy(text_name, &data[strtab_start + 1]);
+	std::ranges::copy(shstrtab_name, &data[strtab_start + 93]);
+	std::ranges::copy(symtab_name, &data[strtab_start + 103]);
+	std::ranges::copy(strtab_name, &data[strtab_start + 111]);
 
 	// Shdr [0] - Null Section (128..191) is all zeroes
 
@@ -121,7 +121,7 @@ inline std::vector<uint8_t> create_mock_elf()
 
 	// Write .strtab data
 	std::string func_sym_name = "my_func";
-	std::copy(func_sym_name.begin(), func_sym_name.end(), &data[700 + 1]); // offset 701 is "my_func"
+	std::ranges::copy(func_sym_name, &data[700 + 1]); // offset 701 is "my_func"
 
 	// Write .symtab entry 1 (offset 674)
 	size_t sym1_start = 650 + 24;

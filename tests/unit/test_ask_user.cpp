@@ -50,7 +50,7 @@ int main()
 			});
 
 			std::string res = registry.execute_tool("ask_user",
-				"{\"questions\": [{\"question\": \"Ready to proceed?\", \"options\": [\"Yes\", \"No\"]}]}", ctx);
+				R"({"questions": [{"question": "Ready to proceed?", "options": ["Yes", "No"]}]})", ctx);
 			worker.join();
 
 			std::cout << "Response received: " << res << std::endl;
@@ -66,7 +66,7 @@ int main()
 
 		// 3. Stage 1 validation case: reject question missing 'question' string
 		{
-			auto prep = registry.prepare_tool("ask_user", "{\"questions\": [{\"options\": [\"Yes\"]}]}", ctx);
+			auto prep = registry.prepare_tool("ask_user", R"({"questions": [{"options": ["Yes"]}]})", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
 		}
@@ -74,7 +74,7 @@ int main()
 		// 4. Stage 1 validation case: reject unexpected properties (based on review recommendations)
 		{
 			auto prep = registry.prepare_tool("ask_user",
-				"{\"questions\": [{\"question\": \"Ready?\"}], \"unexpected_property\": true}", ctx);
+				R"({"questions": [{"question": "Ready?"}], "unexpected_property": true})", ctx);
 			assert(prep.tool == nullptr); // This will fail initially as expected
 			assert(!prep.error_message.empty());
 		}
@@ -82,7 +82,7 @@ int main()
 		// 5. Stage 2 validation case: reject if event queue is null (based on review recommendations)
 		{
 			ctx.queue = nullptr;
-			auto prep = registry.prepare_tool("ask_user", "{\"questions\": [{\"question\": \"Ready?\"}]}", ctx);
+			auto prep = registry.prepare_tool("ask_user", R"({"questions": [{"question": "Ready?"}]})", ctx);
 			assert(prep.tool == nullptr); // This will fail initially as expected
 			assert(!prep.error_message.empty());
 		}

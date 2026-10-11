@@ -21,13 +21,13 @@ public:
 
 	run_screenshot_data get_run_screenshot(int run_id) override {
 		if (run_id == 42) {
-			return {{"line1", "line2"}, 10, 5, true, true, ""};
+			return {.grid={"line1", "line2"}, .cursor_x=10, .cursor_y=5, .cursor_visible=true, .is_alive=true, .crash_notification=""};
 		}
 		if (run_id == 43) {
-			return {{"line1", "line2"}, 0, 0, false, false, "CRASH DETECTED"};
+			return {.grid={"line1", "line2"}, .cursor_x=0, .cursor_y=0, .cursor_visible=false, .is_alive=false, .crash_notification="CRASH DETECTED"};
 		}
 		if (run_id == 44) {
-			return {{"hello world    ", "  indented    ", "              ", "              "}, 11, 0, true, true, ""};
+			return {.grid={"hello world    ", "  indented    ", "              ", "              "}, .cursor_x=11, .cursor_y=0, .cursor_visible=true, .is_alive=true, .crash_notification=""};
 		}
 		return {};
 	}
@@ -122,7 +122,7 @@ int main()
 			assert(prep.error_message.find("provider") != std::string::npos);
 
 			// Directly test validate_runtime
-			tools::agent_get_run_screenshot_tool direct_tool({42});
+			tools::agent_get_run_screenshot_tool direct_tool({.run_id=42});
 			std::string direct_err;
 			assert(direct_tool.validate_runtime(ctx, direct_err) == false);
 			assert(direct_err.find("provider") != std::string::npos);
@@ -132,7 +132,7 @@ int main()
 
 		// 7. Success case with settle
 		{
-			std::string result_settle = registry.execute_tool("agent_get_run_terminaldump", "{\"run_id\": 42, \"settle\": true}", ctx);
+			std::string result_settle = registry.execute_tool("agent_get_run_terminaldump", R"({"run_id": 42, "settle": true})", ctx);
 			assert(result_settle.find("line1") != std::string::npos);
 		}
 

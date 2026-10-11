@@ -34,7 +34,7 @@ void test_tool_object_creation()
 {
 	agentlib::skill_manager::get_instance().initialize();
 	agentlib::tool_context ctx;
-	ctx.properties.active_families.push_back("sqlite");
+	ctx.properties.active_families.emplace_back("sqlite");
 	auto &registry = agentlib::tool_registry::get_instance();
 
 	std::vector<std::string> bad_names = {
@@ -42,7 +42,7 @@ void test_tool_object_creation()
 
 	for (const auto &bad_name : bad_names) {
 		// Try sqlite_create_db
-		std::string json_arg = "{\"database\": \"" + bad_name + "\"}";
+		std::string json_arg = R"({"database": ")" + bad_name + "\"}";
 		std::string res = registry.execute_tool("sqlite_create_db", json_arg, ctx);
 		assert(res.find("Error parsing") != std::string::npos || res.find("Validation Error") != std::string::npos || res.find("Security Violation") != std::string::npos);
 
@@ -51,7 +51,7 @@ void test_tool_object_creation()
 		assert(res.find("Error parsing") != std::string::npos || res.find("Validation Error") != std::string::npos || res.find("Security Violation") != std::string::npos);
 
 		// Try sqlite_perform
-		std::string json_arg_perf = "{\"database\": \"" + bad_name + "\", \"query\": \"SELECT 1;\"}";
+		std::string json_arg_perf = R"({"database": ")" + bad_name + R"(", "query": "SELECT 1;"})";
 		res = registry.execute_tool("sqlite_perform", json_arg_perf, ctx);
 		assert(res.find("Error parsing") != std::string::npos || res.find("Validation Error") != std::string::npos || res.find("Security Violation") != std::string::npos);
 

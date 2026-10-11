@@ -667,7 +667,7 @@ int main()
 
 					std::vector<text_range> highlights;
 					for (int k = 0; k < (counter % 50); ++k) {
-						text_range tr{k, 0, k, 10};
+						text_range tr{.start_y=k, .start_x=0, .end_y=k, .end_x=10};
 						highlights.push_back(tr);
 					}
 					lsp_doc.set_lsp_highlights(highlights);

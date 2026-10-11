@@ -58,13 +58,13 @@ int main()
 		// 1. Successful execution
 		std::string compress_res = registry.execute_tool(
 		    "agent_compress_history",
-		    "{\"title\": \"Milestone 1\", \"summary\": \"Completed first step.\", \"include_all_prior\": true}", ctx);
+		    R"({"title": "Milestone 1", "summary": "Completed first step.", "include_all_prior": true})", ctx);
 		std::cout << "Result: " << compress_res << std::endl;
 		assert(compress_res.find("successfully") != std::string::npos);
 
 		// 2. Rejection of empty title (validation fails at runtime)
 		{
-			tools::agent_compress_history_tool tool1({"", "summary", {}, "", false});
+			tools::agent_compress_history_tool tool1({.title="", .summary="summary", .tags={}, .target_episode_id="", .include_all_prior=false});
 			std::string err;
 			assert(tool1.validate_runtime(ctx, err) == false);
 			assert(err.find("title") != std::string::npos);
@@ -72,7 +72,7 @@ int main()
 
 		// 3. Rejection of empty summary
 		{
-			tools::agent_compress_history_tool tool2({"title", "", {}, "", false});
+			tools::agent_compress_history_tool tool2({.title="title", .summary="", .tags={}, .target_episode_id="", .include_all_prior=false});
 			std::string err;
 			assert(tool2.validate_runtime(ctx, err) == false);
 			assert(err.find("summary") != std::string::npos);
@@ -82,7 +82,7 @@ int main()
 		{
 			std::string long_title(201, 'a');
 			auto prep = registry.prepare_tool("agent_compress_history",
-							  "{\"title\": \"" + long_title + "\", \"summary\": \"summary\"}", ctx);
+							  R"({"title": ")" + long_title + R"(", "summary": "summary"})", ctx);
 			assert(prep.tool == nullptr);
 			assert(prep.error_message.find("Title exceeds") != std::string::npos);
 		}
@@ -91,7 +91,7 @@ int main()
 		{
 			std::string long_summary(2001, 'b');
 			auto prep = registry.prepare_tool("agent_compress_history",
-							  "{\"title\": \"title\", \"summary\": \"" + long_summary + "\"}", ctx);
+							  R"({"title": "title", "summary": ")" + long_summary + "\"}", ctx);
 			assert(prep.tool == nullptr);
 			assert(prep.error_message.find("Summary exceeds") != std::string::npos);
 		}
@@ -99,7 +99,7 @@ int main()
 		// 6. Rejection of unsafe control characters in title
 		{
 			auto prep = registry.prepare_tool("agent_compress_history",
-							  "{\"title\": \"unsafe\\u001btitle\", \"summary\": \"summary\"}", ctx);
+							  R"({"title": "unsafe\u001btitle", "summary": "summary"})", ctx);
 			assert(prep.tool == nullptr);
 			assert(prep.error_message.find("unsafe control characters") != std::string::npos);
 		}
@@ -108,13 +108,13 @@ int main()
 		auto original_ro = agent->is_read_only();
 		agent->set_read_only(true);
 		auto prep =
-		    registry.prepare_tool("agent_compress_history", "{\"title\": \"Valid title\", \"summary\": \"Valid summary\"}", ctx);
+		    registry.prepare_tool("agent_compress_history", R"({"title": "Valid title", "summary": "Valid summary"})", ctx);
 		assert(prep.tool == nullptr);
 		assert(prep.error_message.find("read-only") != std::string::npos);
 
 		// Directly test validate_runtime on the tool under read-only state
 		{
-			tools::agent_compress_history_tool direct_tool({"Valid title", "Valid summary", {}, "", false});
+			tools::agent_compress_history_tool direct_tool({.title="Valid title", .summary="Valid summary", .tags={}, .target_episode_id="", .include_all_prior=false});
 			std::string direct_err;
 			assert(direct_tool.validate_runtime(ctx, direct_err) == false);
 			assert(direct_err.find("read-only") != std::string::npos);
@@ -192,7 +192,7 @@ int main()
 			// Execute history compression
 			std::string compress_res = registry.execute_tool(
 			    "agent_compress_history",
-			    "{\"title\": \"Huge Milestone\", \"summary\": \"Heavy compilation errors.\", \"include_all_prior\": true}",
+			    R"({"title": "Huge Milestone", "summary": "Heavy compilation errors.", "include_all_prior": true})",
 			    ctx);
 			assert(compress_res.find("successfully") != std::string::npos);
 

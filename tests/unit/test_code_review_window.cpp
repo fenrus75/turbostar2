@@ -25,7 +25,7 @@ void test_code_review_window_behavior()
 	int res = std::system(std::format("git -C \"{}\" init >/dev/null 2>&1", temp_proj.string()).c_str());
 	(void)res;
 	res = std::system(
-	    std::format("git -C \"{}\" commit --allow-empty -m \"Initial commit\" >/dev/null 2>&1", temp_proj.string()).c_str());
+	    std::format(R"(git -C "{}" commit --allow-empty -m "Initial commit" >/dev/null 2>&1)", temp_proj.string()).c_str());
 	(void)res;
 
 	// Set override project dir so project cache goes to this temp dir

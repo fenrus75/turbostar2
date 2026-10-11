@@ -100,7 +100,7 @@ int main()
 
 		// 4. Stage 1 validation failure: reject unexpected properties
 		{
-			auto prep = registry.prepare_tool("crashdump_list", "{\"limit\": 20, \"unexpected_arg\": 1}", ctx);
+			auto prep = registry.prepare_tool("crashdump_list", R"({"limit": 20, "unexpected_arg": 1})", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
 		}

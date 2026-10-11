@@ -37,8 +37,8 @@ int main()
 		std::cout << "Line: [" << line.text << "], color_pair=" << line.color_pair << std::endl;
 		if (!line.char_color_pairs.empty()) {
 			std::cout << "  Char colors: ";
-			for (size_t i = 0; i < line.char_color_pairs.size(); ++i) {
-				std::cout << line.char_color_pairs[i] << " ";
+			for (int char_color_pair : line.char_color_pairs) {
+				std::cout << char_color_pair << " ";
 			}
 			std::cout << std::endl;
 
@@ -93,8 +93,8 @@ int main()
 			std::cout << "Py Line: [" << line.text << "], color_pair=" << line.color_pair << std::endl;
 			if (!line.char_color_pairs.empty()) {
 				std::cout << "  Char colors: ";
-				for (size_t i = 0; i < line.char_color_pairs.size(); ++i) {
-					std::cout << line.char_color_pairs[i] << " ";
+				for (int char_color_pair : line.char_color_pairs) {
+					std::cout << char_color_pair << " ";
 				}
 				std::cout << std::endl;
 

@@ -28,7 +28,7 @@ int main()
 	{
 		// 1. Success path (LSP supported file type, returns "No definition found." or locations)
 		{
-			std::string args = "{\"path\": \"" + project_root + "/src/main.cpp\", \"line\": 10, \"character\": 5}";
+			std::string args = R"({"path": ")" + project_root + R"(/src/main.cpp", "line": 10, "character": 5})";
 			std::string res = registry.execute_tool("code_get_definition", args, ctx);
 			std::cout << "LSP query result: " << res << std::endl;
 			assert(res.find("Error:") == std::string::npos);
@@ -36,7 +36,7 @@ int main()
 
 		// 2. Failure execution path: unsupported file type
 		{
-			std::string args = "{\"path\": \"" + project_root + "/test.txt\", \"line\": 10, \"character\": 5}";
+			std::string args = R"({"path": ")" + project_root + R"(/test.txt", "line": 10, "character": 5})";
 			std::string res = registry.execute_tool("code_get_definition", args, ctx);
 			std::cout << "Unsupported file type result: " << res << std::endl;
 			assert(res.find("LSP is not supported") != std::string::npos);
@@ -44,28 +44,28 @@ int main()
 
 		// 3. Stage 1 validation failure: line < 1 (based on review recommendations)
 		{
-			auto prep = registry.prepare_tool("code_get_definition", "{\"path\": \"src/main.cpp\", \"line\": 0, \"character\": 5}", ctx);
+			auto prep = registry.prepare_tool("code_get_definition", R"({"path": "src/main.cpp", "line": 0, "character": 5})", ctx);
 			assert(prep.tool == nullptr); // This will fail initially as expected
 			assert(!prep.error_message.empty());
 		}
 
 		// 4. Stage 1 validation failure: character < 0 (based on review recommendations)
 		{
-			auto prep = registry.prepare_tool("code_get_definition", "{\"path\": \"src/main.cpp\", \"line\": 10, \"character\": -1}", ctx);
+			auto prep = registry.prepare_tool("code_get_definition", R"({"path": "src/main.cpp", "line": 10, "character": -1})", ctx);
 			assert(prep.tool == nullptr); // This will fail initially as expected
 			assert(!prep.error_message.empty());
 		}
 
 		// 5. Stage 1 validation failure: reject unexpected properties (based on review recommendations)
 		{
-			auto prep = registry.prepare_tool("code_get_definition", "{\"path\": \"src/main.cpp\", \"line\": 10, \"character\": 5, \"extra\": true}", ctx);
+			auto prep = registry.prepare_tool("code_get_definition", R"({"path": "src/main.cpp", "line": 10, "character": 5, "extra": true})", ctx);
 			assert(prep.tool == nullptr); // This will fail initially as expected
 			assert(!prep.error_message.empty());
 		}
 
 		// 6. Stage 2 validation failure: reject path outside workspace
 		{
-			auto prep = registry.prepare_tool("code_get_definition", "{\"path\": \"/etc/passwd\", \"line\": 10, \"character\": 5}", ctx);
+			auto prep = registry.prepare_tool("code_get_definition", R"({"path": "/etc/passwd", "line": 10, "character": 5})", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
 		}

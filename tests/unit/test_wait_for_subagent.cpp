@@ -27,7 +27,7 @@ int main()
 	ctx.active_agent = agent.get();
 
 	// Create subagent
-	std::string create_res = registry.execute_tool("invoke_subagent", "{\"name\": \"sub_wait\", \"task\": \"Perform task\"}", ctx);
+	std::string create_res = registry.execute_tool("invoke_subagent", R"({"name": "sub_wait", "task": "Perform task"})", ctx);
 	assert(create_res.find("successfully") != std::string::npos);
 
 	auto subagents = agent->get_subagents();

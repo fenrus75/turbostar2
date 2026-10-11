@@ -22,13 +22,13 @@ public:
 		last_args = std::string(args);
 		last_binary = std::string(binary);
 		last_debugger = use_debugger;
-		return {1001, use_debugger ? 2001 : -1};
+		return {.app_run_id=1001, .gdb_run_id=use_debugger ? 2001 : -1};
 	}
 
 	wait_for_app_result wait_for_app(int run_id, std::string_view /*type*/, int timeout_sec) override {
 		last_wait_run_id = run_id;
 		last_wait_timeout = timeout_sec;
-		return {"ended", 150, false, ""};
+		return {.status="ended", .age_ms=150, .is_alive=false, .crash_notification=""};
 	}
 
 	void set_run_recording(int, bool recording) override {
@@ -71,68 +71,68 @@ int main()
 	std::cout << "Testing run_executable..." << std::endl;
 	{
 		// 1. Success case with default (empty) binary and normal arguments
-		auto prep_default = registry.prepare_tool("run_executable", "{\"args\": \"--version\", \"debugger\": false}", ctx);
+		auto prep_default = registry.prepare_tool("run_executable", R"({"args": "--version", "debugger": false})", ctx);
 		assert(prep_default.tool != nullptr);
 		assert(prep_default.error_message.empty());
 
 		// 2. Success case with explicit binary
-		auto prep_binary = registry.prepare_tool("run_executable", "{\"binary\": \"crash\", \"args\": \"--help\"}", ctx);
+		auto prep_binary = registry.prepare_tool("run_executable", R"({"binary": "crash", "args": "--help"})", ctx);
 		assert(prep_binary.tool != nullptr);
 		assert(prep_binary.error_message.empty());
 
 		// 3. Success case with build/ prefix
-		auto prep_build = registry.prepare_tool("run_executable", "{\"binary\": \"build/crash\"}", ctx);
+		auto prep_build = registry.prepare_tool("run_executable", R"({"binary": "build/crash"})", ctx);
 		assert(prep_build.tool != nullptr);
 		assert(prep_build.error_message.empty());
 
 		// 4. Success case with ./build/ prefix
-		auto prep_dot_build = registry.prepare_tool("run_executable", "{\"binary\": \"./build/crash\"}", ctx);
+		auto prep_dot_build = registry.prepare_tool("run_executable", R"({"binary": "./build/crash"})", ctx);
 		assert(prep_dot_build.tool != nullptr);
 		assert(prep_dot_build.error_message.empty());
 
 		// 5. Success case with aliases
-		auto prep_alias_exec = registry.prepare_tool("run_executable", "{\"executable\": \"crash\"}", ctx);
+		auto prep_alias_exec = registry.prepare_tool("run_executable", R"({"executable": "crash"})", ctx);
 		assert(prep_alias_exec.tool != nullptr);
 		assert(prep_alias_exec.error_message.empty());
 
-		auto prep_alias_path = registry.prepare_tool("run_executable", "{\"path\": \"crash\"}", ctx);
+		auto prep_alias_path = registry.prepare_tool("run_executable", R"({"path": "crash"})", ctx);
 		assert(prep_alias_path.tool != nullptr);
 		assert(prep_alias_path.error_message.empty());
 
-		auto prep_alias_args = registry.prepare_tool("run_executable", "{\"binary\": \"crash\", \"arguments\": \"--foo\"}", ctx);
+		auto prep_alias_args = registry.prepare_tool("run_executable", R"({"binary": "crash", "arguments": "--foo"})", ctx);
 		assert(prep_alias_args.tool != nullptr);
 		assert(prep_alias_args.error_message.empty());
 
 		// 6. Success case with debugger, collect_performance, and wait_for_time
-		auto prep_options = registry.prepare_tool("run_executable", "{\"binary\": \"testcase\", \"debugger\": true, \"collect_performance\": true, \"wait_for_time\": 5}", ctx);
+		auto prep_options = registry.prepare_tool("run_executable", R"({"binary": "testcase", "debugger": true, "collect_performance": true, "wait_for_time": 5})", ctx);
 		assert(prep_options.tool != nullptr);
 		assert(prep_options.error_message.empty());
 
 		// 7. Security: reject binaries outside project directory
-		auto prep_outside = registry.prepare_tool("run_executable", "{\"binary\": \"/bin/ls\"}", ctx);
+		auto prep_outside = registry.prepare_tool("run_executable", R"({"binary": "/bin/ls"})", ctx);
 		assert(prep_outside.tool == nullptr);
 		assert(!prep_outside.error_message.empty());
 
-		auto prep_outside2 = registry.prepare_tool("run_executable", "{\"binary\": \"/usr/bin/python3\"}", ctx);
+		auto prep_outside2 = registry.prepare_tool("run_executable", R"({"binary": "/usr/bin/python3"})", ctx);
 		assert(prep_outside2.tool == nullptr);
 		assert(!prep_outside2.error_message.empty());
 
 		// 8. Security: reject path traversal in binary
-		auto prep_traversal = registry.prepare_tool("run_executable", "{\"binary\": \"../../bin/ls\"}", ctx);
+		auto prep_traversal = registry.prepare_tool("run_executable", R"({"binary": "../../bin/ls"})", ctx);
 		assert(prep_traversal.tool == nullptr);
 		assert(!prep_traversal.error_message.empty());
 
 		// 9. Security: reject command injection in binary
-		auto prep_inject_bin = registry.prepare_tool("run_executable", "{\"binary\": \"crash; rm -rf /\"}", ctx);
+		auto prep_inject_bin = registry.prepare_tool("run_executable", R"({"binary": "crash; rm -rf /"})", ctx);
 		assert(prep_inject_bin.tool == nullptr);
 		assert(!prep_inject_bin.error_message.empty());
 
 		// 10. Security: reject command injection / metacharacters in arguments
-		auto prep_injection = registry.prepare_tool("run_executable", "{\"args\": \"; rm -rf /\"}", ctx);
+		auto prep_injection = registry.prepare_tool("run_executable", R"({"args": "; rm -rf /"})", ctx);
 		assert(prep_injection.tool == nullptr);
 		assert(!prep_injection.error_message.empty());
 
-		auto prep_injection2 = registry.prepare_tool("run_executable", "{\"args\": \"args && bad_command\"}", ctx);
+		auto prep_injection2 = registry.prepare_tool("run_executable", R"({"args": "args && bad_command"})", ctx);
 		assert(prep_injection2.tool == nullptr);
 		assert(!prep_injection2.error_message.empty());
 
@@ -146,13 +146,13 @@ int main()
 		assert(!prep_invalid_wait2.error_message.empty());
 
 		// 12. Success case with output: true
-		auto prep_output = registry.prepare_tool("run_executable", "{\"binary\": \"crash\", \"output\": true}", ctx);
+		auto prep_output = registry.prepare_tool("run_executable", R"({"binary": "crash", "output": true})", ctx);
 		assert(prep_output.tool != nullptr);
 		assert(prep_output.error_message.empty());
 
 		// 13. Execution with output: true and wait_for_time: 0 (should default wait_time to 5)
 		dummy.recording_history.clear();
-		std::string exec_res = registry.execute_tool("run_executable", "{\"binary\": \"crash\", \"output\": true}", ctx);
+		std::string exec_res = registry.execute_tool("run_executable", R"({"binary": "crash", "output": true})", ctx);
 		std::cout << "execute with output: true:\n" << exec_res << std::endl;
 		assert(dummy.last_wait_timeout == 5);
 		assert(!dummy.recording_history.empty());
@@ -162,12 +162,12 @@ int main()
 		assert(exec_res.find("\"status\": \"ended\"") != std::string::npos);
 
 		// 14. Execution with output: true and explicit wait_for_time: 15
-		std::string exec_res2 = registry.execute_tool("run_executable", "{\"binary\": \"crash\", \"output\": true, \"wait_for_time\": 15}", ctx);
+		std::string exec_res2 = registry.execute_tool("run_executable", R"({"binary": "crash", "output": true, "wait_for_time": 15})", ctx);
 		assert(dummy.last_wait_timeout == 15);
 		assert(exec_res2.find("\"output\":") != std::string::npos);
 
 		// 15. Execution with output: false (should not include output field)
-		std::string exec_res3 = registry.execute_tool("run_executable", "{\"binary\": \"crash\", \"output\": false}", ctx);
+		std::string exec_res3 = registry.execute_tool("run_executable", R"({"binary": "crash", "output": false})", ctx);
 		assert(exec_res3.find("\"output\":") == std::string::npos);
 
 		std::cout << "run_executable tool verified successfully!" << std::endl;

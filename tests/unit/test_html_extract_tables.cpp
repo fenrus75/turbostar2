@@ -92,7 +92,7 @@ int main()
 	ctx.is_family_active = [](const std::string &family) { return family != "html"; };
 
 	{
-		std::string args = "{\"path\": \"" + html_path + "\"}";
+		std::string args = R"({"path": ")" + html_path + "\"}";
 		auto prep = registry.prepare_tool("html_extract_tables", args, ctx);
 		assert(prep.tool == nullptr && "html_extract_tables must block if html family is inactive");
 		assert(prep.error_message.find("Security Violation") != std::string::npos);
@@ -103,7 +103,7 @@ int main()
 
 	// 4. Test extraction to console (returning markdown)
 	{
-		std::string args = "{\"path\": \"" + html_path + "\"}";
+		std::string args = R"({"path": ")" + html_path + "\"}";
 		std::string res = registry.execute_tool("html_extract_tables", args, ctx);
 		std::cout << "console extract result:\n" << res << "\n";
 		assert(!res.empty());
@@ -119,7 +119,7 @@ int main()
 
 	// 5. Test extraction to file
 	{
-		std::string args = "{\"path\": \"" + html_path + "\", \"output_path\": \"" + out_path + "\"}";
+		std::string args = R"({"path": ")" + html_path + R"(", "output_path": ")" + out_path + "\"}";
 		std::string res = registry.execute_tool("html_extract_tables", args, ctx);
 		std::cout << "file extract result: " << res << "\n";
 		assert(res.find("Successfully extracted") != std::string::npos);
@@ -144,7 +144,7 @@ int main()
 			ofs_large.write("", 1);
 			ofs_large.close();
 
-			std::string args = "{\"path\": \"" + large_html_path + "\"}";
+			std::string args = R"({"path": ")" + large_html_path + "\"}";
 			auto prep = registry.prepare_tool("html_extract_tables", args, ctx);
 			assert(prep.tool == nullptr && "validator must reject files over 5MB");
 			assert(prep.error_message.find("exceeds the 5MB size limit") != std::string::npos);
@@ -153,7 +153,7 @@ int main()
 
 	// 7. Test html_list_links
 	{
-		std::string args = "{\"path\": \"" + html_path + "\"}";
+		std::string args = R"({"path": ")" + html_path + "\"}";
 		std::string res = registry.execute_tool("html_list_links", args, ctx);
 		std::cout << "list links result:\n" << res << "\n";
 		assert(!res.empty());
@@ -164,7 +164,7 @@ int main()
 
 	// 8. Test html_list_images
 	{
-		std::string args = "{\"path\": \"" + html_path + "\"}";
+		std::string args = R"({"path": ")" + html_path + "\"}";
 		std::string res = registry.execute_tool("html_list_images", args, ctx);
 		std::cout << "list images result:\n" << res << "\n";
 		assert(!res.empty());
@@ -175,7 +175,7 @@ int main()
 
 	// 9. Test html_extract_text (rich = true, default)
 	{
-		std::string args = "{\"path\": \"" + html_path + "\"}";
+		std::string args = R"({"path": ")" + html_path + "\"}";
 		std::string res = registry.execute_tool("html_extract_text", args, ctx);
 		std::cout << "extract text rich result:\n" << res << "\n";
 		assert(!res.empty());
@@ -191,7 +191,7 @@ int main()
 
 	// 10. Test html_extract_text (rich = false)
 	{
-		std::string args = "{\"path\": \"" + html_path + "\", \"rich\": false}";
+		std::string args = R"({"path": ")" + html_path + R"(", "rich": false})";
 		std::string res = registry.execute_tool("html_extract_text", args, ctx);
 		std::cout << "extract text non-rich result:\n" << res << "\n";
 		assert(!res.empty());

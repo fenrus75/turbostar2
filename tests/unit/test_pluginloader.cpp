@@ -1,4 +1,5 @@
 #include "test_watchdog.h"
+#include <algorithm>
 #include <cassert>
 #include <iostream>
 #include "pluginloader.h"
@@ -48,24 +49,24 @@ int main()
 	if (found_image_basic) {
 		auto &registry = agentlib::tool_registry::get_instance();
 		agentlib::agent_properties props;
-		props.active_families.push_back("image");
+		props.active_families.emplace_back("image");
 		auto validators = registry.get_active_tools(true, props);
-		bool has_image_resize = std::any_of(validators.begin(), validators.end(), [](const auto &v) {
+		bool has_image_resize = std::ranges::any_of(validators, [](const auto &v) {
 			return v->get_name() == "image_resize";
 		});
-		bool has_image_crop = std::any_of(validators.begin(), validators.end(), [](const auto &v) {
+		bool has_image_crop = std::ranges::any_of(validators, [](const auto &v) {
 			return v->get_name() == "image_crop";
 		});
-		bool has_image_rotate = std::any_of(validators.begin(), validators.end(), [](const auto &v) {
+		bool has_image_rotate = std::ranges::any_of(validators, [](const auto &v) {
 			return v->get_name() == "image_rotate";
 		});
-		bool has_image_mirror = std::any_of(validators.begin(), validators.end(), [](const auto &v) {
+		bool has_image_mirror = std::ranges::any_of(validators, [](const auto &v) {
 			return v->get_name() == "image_mirror";
 		});
-		bool has_image_grayscale = std::any_of(validators.begin(), validators.end(), [](const auto &v) {
+		bool has_image_grayscale = std::ranges::any_of(validators, [](const auto &v) {
 			return v->get_name() == "image_grayscale";
 		});
-		bool has_image_threshold = std::any_of(validators.begin(), validators.end(), [](const auto &v) {
+		bool has_image_threshold = std::ranges::any_of(validators, [](const auto &v) {
 			return v->get_name() == "image_threshold";
 		});
 		assert(has_image_resize);

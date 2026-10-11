@@ -17,7 +17,7 @@ static void create_gzipped_file(const fs::path& path, const std::string& content
 	gzFile file = gzopen(path.c_str(), "wb");
 	assert(file != nullptr);
 	int written = gzwrite(file, content.data(), content.size());
-	assert(written == static_cast<int>(content.size()));
+	assert(std::cmp_equal(written ,content.size()));
 	gzclose(file);
 }
 

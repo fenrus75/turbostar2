@@ -216,7 +216,7 @@ static void test_build_from_project()
 	{
 		std::ofstream out(mock_cli);
 		out << "#!/bin/sh\n"
-		    << "echo \"$@\" >> \"" << log_file << "\"\n"
+		    << R"(echo "$@" >> ")" << log_file << "\"\n"
 		    << "while [ $# -gt 0 ]; do\n"
 		    << "  case \"$1\" in\n"
 		    << "    -q)\n"

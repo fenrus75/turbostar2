@@ -26,33 +26,33 @@ int main()
 	auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
 	auto agent = ai_agent::create(1, "TestAgent", model, &q, nullptr);
 	ctx.active_agent = agent.get();
-	ctx.properties.active_families.push_back("editor");
+	ctx.properties.active_families.emplace_back("editor");
 
 	std::cout << "Testing agent_set_status..." << std::endl;
 	{
 		// 1. Success case with normal message
-		std::string result = registry.execute_tool("agent_set_status", "{\"message\": \"Building project...\"}", ctx);
+		std::string result = registry.execute_tool("agent_set_status", R"({"message": "Building project..."})", ctx);
 		std::cout << "Result: " << result << std::endl;
 		assert(result.find("updated") != std::string::npos || result.find("message") != std::string::npos);
 
 		// 2. Validation case: reject overly long message (> 256 characters)
 		{
 			std::string long_msg(257, 'a');
-			auto prep = registry.prepare_tool("agent_set_status", "{\"message\": \"" + long_msg + "\"}", ctx);
+			auto prep = registry.prepare_tool("agent_set_status", R"({"message": ")" + long_msg + "\"}", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
 		}
 
 		// 3. Validation case: reject empty/whitespace status message
 		{
-			auto prep = registry.prepare_tool("agent_set_status", "{\"message\": \"   \"}", ctx);
+			auto prep = registry.prepare_tool("agent_set_status", R"({"message": "   "})", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
 		}
 
 		// 4. Validation case: reject unsafe control characters/escape sequences
 		{
-			auto prep = registry.prepare_tool("agent_set_status", "{\"message\": \"unsafe\\u001bstatus\"}", ctx);
+			auto prep = registry.prepare_tool("agent_set_status", R"({"message": "unsafe\u001bstatus"})", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
 		}
@@ -61,7 +61,7 @@ int main()
 		{
 			auto original_ro = agent->is_read_only();
 			agent->set_read_only(true);
-			auto prep = registry.prepare_tool("agent_set_status", "{\"message\": \"Valid but RO\"}", ctx);
+			auto prep = registry.prepare_tool("agent_set_status", R"({"message": "Valid but RO"})", ctx);
 			assert(prep.tool == nullptr); // This will fail because tool is created
 			assert(!prep.error_message.empty());
 			agent->set_read_only(original_ro);

@@ -17,7 +17,7 @@ public:
 	bool apply_live_edits(std::string_view, std::string_view) override { return false; }
 	void save_all_documents() override {}
 	start_app_result start_coredump_gdb(std::string_view /*crash_id*/) override {
-		return {42, 42};
+		return {.app_run_id=42, .gdb_run_id=42};
 	}
 };
 
@@ -44,11 +44,11 @@ int main()
 	{
 		// 1. Success case with normal crash_id and check for GDB instructions
 		{
-			auto prep = registry.prepare_tool("agent_debug_coredump", "{\"crash_id\": \"12345\"}", ctx);
+			auto prep = registry.prepare_tool("agent_debug_coredump", R"({"crash_id": "12345"})", ctx);
 			assert(prep.tool != nullptr);
 			assert(prep.error_message.empty());
 
-			std::string res = registry.execute_tool("agent_debug_coredump", "{\"crash_id\": \"12345\"}", ctx);
+			std::string res = registry.execute_tool("agent_debug_coredump", R"({"crash_id": "12345"})", ctx);
 			std::cout << "Debug coredump execution result: " << res << std::endl;
 			nlohmann::json res_json = nlohmann::json::parse(res);
 			assert(res_json.contains("gdb_run_id"));
@@ -58,14 +58,14 @@ int main()
 
 		// 2. Reject empty crash_id
 		{
-			auto prep_empty = registry.prepare_tool("agent_debug_coredump", "{\"crash_id\": \"\"}", ctx);
+			auto prep_empty = registry.prepare_tool("agent_debug_coredump", R"({"crash_id": ""})", ctx);
 			assert(prep_empty.tool == nullptr);
 			assert(!prep_empty.error_message.empty());
 		}
 
 		// 3. Security case: reject command injection/special characters
 		{
-			auto prep_injection = registry.prepare_tool("agent_debug_coredump", "{\"crash_id\": \"12345; rm -rf /\"}", ctx);
+			auto prep_injection = registry.prepare_tool("agent_debug_coredump", R"({"crash_id": "12345; rm -rf /"})", ctx);
 			assert(prep_injection.tool == nullptr);
 			assert(!prep_injection.error_message.empty());
 		}

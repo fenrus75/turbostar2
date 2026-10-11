@@ -44,7 +44,7 @@ int main()
 	ctx.fs_security.set_working_directory(project_manager::get_instance().get_project_root());
 	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::read);
 	ctx.fs_security.add_allowed_root(project_manager::get_instance().get_project_root(), access_type::write);
-	ctx.properties.active_families.push_back("image");
+	ctx.properties.active_families.emplace_back("image");
 
 	std::filesystem::path proj_root = project_manager::get_instance().get_project_root();
 

@@ -56,7 +56,7 @@ int main()
 				std::ofstream ofs(path);
 				ofs << content;
 			}
-		} restorer{main_path, original_content};
+		} restorer{.path=main_path, .content=original_content};
 
 		// 6a. Clean state on clean file
 		ctx.file_health_tracker[main_path].state = agentlib::lsp_health_state::unknown;

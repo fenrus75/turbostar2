@@ -26,7 +26,7 @@ int main()
 	std::cout << "Parsed " << maps.size() << " executable memory mappings for self." << std::endl;
 
 	// 2. Test single address resolution on function pointer
-	uintptr_t func_addr = reinterpret_cast<uintptr_t>(&sample_test_function);
+	auto func_addr = reinterpret_cast<uintptr_t>(&sample_test_function);
 	auto res_single = address_lookup::resolve_address(func_addr, "/proc/self/maps");
 	std::cout << "Single resolution for " << std::hex << func_addr << " -> Func: "
 		  << res_single.function_name << " Loc: " << res_single.location << std::endl;

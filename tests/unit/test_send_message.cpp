@@ -27,7 +27,7 @@ int main()
 	ctx.active_agent = agent.get();
 
 	// 1. Create a subagent so we have a target to message
-	std::string create_res = registry.execute_tool("invoke_subagent", "{\"name\": \"sub1\", \"task\": \"Test subagent\"}", ctx);
+	std::string create_res = registry.execute_tool("invoke_subagent", R"({"name": "sub1", "task": "Test subagent"})", ctx);
 	assert(create_res.find("successfully") != std::string::npos);
 
 	auto subagents = agent->get_subagents();

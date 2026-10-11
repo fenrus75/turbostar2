@@ -65,7 +65,7 @@ int main()
 
 	// 1c. Success case: filter git log by path (only file_b.txt)
 	{
-		std::string result = registry.execute_tool("git_log", "{\"path\": \"file_b.txt\"}", ctx);
+		std::string result = registry.execute_tool("git_log", R"({"path": "file_b.txt"})", ctx);
 		std::cout << "Result (path=file_b.txt):\n" << result << std::endl;
 		assert(result.find("commit for file_b") != std::string::npos);
 		assert(result.find("initial commit") == std::string::npos);
@@ -73,7 +73,7 @@ int main()
 
 	// 1d. Success case: filter git log using global alias 'file_path' (only dummy_initial.txt)
 	{
-		std::string result = registry.execute_tool("git_log", "{\"file_path\": \"dummy_initial.txt\"}", ctx);
+		std::string result = registry.execute_tool("git_log", R"({"file_path": "dummy_initial.txt"})", ctx);
 		std::cout << "Result (file_path=dummy_initial.txt):\n" << result << std::endl;
 		assert(result.find("initial commit") != std::string::npos);
 		assert(result.find("commit for file_b") == std::string::npos);
@@ -81,14 +81,14 @@ int main()
 
 	// 1e. Success case: path="." shows all commits
 	{
-		std::string result = registry.execute_tool("git_log", "{\"path\": \".\"}", ctx);
+		std::string result = registry.execute_tool("git_log", R"({"path": "."})", ctx);
 		assert(result.find("commit for file_b") != std::string::npos);
 		assert(result.find("initial commit") != std::string::npos);
 	}
 
 	// 1f. Success case: retrieve specific commit with commit_id
 	{
-		std::string result = registry.execute_tool("git_log", "{\"commit_id\": \"HEAD\"}", ctx);
+		std::string result = registry.execute_tool("git_log", R"({"commit_id": "HEAD"})", ctx);
 		std::cout << "Result (commit_id=HEAD):\n" << result << std::endl;
 		assert(!result.empty());
 		assert(result.find("commit for file_b") != std::string::npos);
@@ -97,7 +97,7 @@ int main()
 
 	// 1g. Success case: retrieve commit with alias 'commit' and show_patch: true
 	{
-		std::string result = registry.execute_tool("git_log", "{\"commit\": \"HEAD\", \"show_patch\": true}", ctx);
+		std::string result = registry.execute_tool("git_log", R"({"commit": "HEAD", "show_patch": true})", ctx);
 		std::cout << "Result (commit=HEAD, show_patch=true):\n" << result << std::endl;
 		assert(result.find("commit for file_b") != std::string::npos);
 		assert(result.find("diff --git") != std::string::npos);
@@ -105,7 +105,7 @@ int main()
 
 	// 1h. Success case: git log with show_patch: true
 	{
-		std::string result = registry.execute_tool("git_log", "{\"limit\": 1, \"show_patch\": true}", ctx);
+		std::string result = registry.execute_tool("git_log", R"({"limit": 1, "show_patch": true})", ctx);
 		std::cout << "Result (limit=1, show_patch=true):\n" << result << std::endl;
 		assert(result.find("commit for file_b") != std::string::npos);
 		assert(result.find("diff --git") != std::string::npos);
@@ -113,7 +113,7 @@ int main()
 
 	// 1i. Success case: git log with stat: true
 	{
-		std::string result = registry.execute_tool("git_log", "{\"limit\": 1, \"stat\": true}", ctx);
+		std::string result = registry.execute_tool("git_log", R"({"limit": 1, "stat": true})", ctx);
 		std::cout << "Result (limit=1, stat=true):\n" << result << std::endl;
 		assert(result.find("commit for file_b") != std::string::npos);
 		assert(result.find("file_b.txt") != std::string::npos);

@@ -78,7 +78,7 @@ void test_list_tool_execution()
 	assert(res_str.find("Leaked Memory") != std::string::npos);
 
 	// Test 4: Prefix match on filename (e.g. "src/")
-	args_json = "{\"path\": \"src/\", \"include_resolved\": true}";
+	args_json = R"({"path": "src/", "include_resolved": true})";
 	res_str = registry.execute_tool("list_code_review_items", args_json, ctx);
 	std::cout << "Result prefix src/:\n" << res_str << std::endl;
 	assert(res_str.find("src/ui/window.cpp") != std::string::npos);
@@ -86,14 +86,14 @@ void test_list_tool_execution()
 	assert(res_str.find("tests/test.cpp") == std::string::npos);
 
 	// Test 5: Exact filename match (e.g. "tests/test.cpp")
-	args_json = "{\"path\": \"tests/test.cpp\"}";
+	args_json = R"({"path": "tests/test.cpp"})";
 	res_str = registry.execute_tool("list_code_review_items", args_json, ctx);
 	std::cout << "Result exact tests/test.cpp:\n" << res_str << std::endl;
 	assert(res_str.find("tests/test.cpp") != std::string::npos);
 	assert(res_str.find("src/") == std::string::npos);
 
 	// Test 6: Severity filter "high" (developer, returns high and critical)
-	args_json = "{\"severity\": \"high\"}";
+	args_json = R"({"severity": "high"})";
 	res_str = registry.execute_tool("list_code_review_items", args_json, ctx);
 	std::cout << "Result severity high:\n" << res_str << std::endl;
 	assert(res_str.find("Null Deref") != std::string::npos);      // high
@@ -103,21 +103,21 @@ void test_list_tool_execution()
 	// Test 7: State filtering
 	// 7a. State filter "resolved" as verifier
 	agent->set_role(agent_role::verifier);
-	args_json = "{\"state\": \"resolved\"}";
+	args_json = R"({"state": "resolved"})";
 	res_str = registry.execute_tool("list_code_review_items", args_json, ctx);
 	assert(res_str.find("Leaked Memory") != std::string::npos);
 	assert(res_str.find("Null Deref") == std::string::npos);
 	assert(res_str.find("Buffer Overflow") == std::string::npos);
 
 	// 7b. State filter "new" as verifier
-	args_json = "{\"state\": \"new\"}";
+	args_json = R"({"state": "new"})";
 	res_str = registry.execute_tool("list_code_review_items", args_json, ctx);
 	assert(res_str.find("Null Deref") != std::string::npos);
 	assert(res_str.find("Buffer Overflow") != std::string::npos);
 	assert(res_str.find("Leaked Memory") == std::string::npos);
 
 	// 7c. State filter "all" as verifier
-	args_json = "{\"state\": \"all\"}";
+	args_json = R"({"state": "all"})";
 	res_str = registry.execute_tool("list_code_review_items", args_json, ctx);
 	assert(res_str.find("Null Deref") != std::string::npos);
 	assert(res_str.find("Buffer Overflow") != std::string::npos);
@@ -125,7 +125,7 @@ void test_list_tool_execution()
 
 	// 7d. State filter "active" as developer
 	agent->set_role(agent_role::developer);
-	args_json = "{\"state\": \"active\"}";
+	args_json = R"({"state": "active"})";
 	res_str = registry.execute_tool("list_code_review_items", args_json, ctx);
 	assert(res_str.find("Null Deref") != std::string::npos);
 	assert(res_str.find("Buffer Overflow") != std::string::npos);

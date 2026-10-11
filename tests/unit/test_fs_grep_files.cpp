@@ -176,19 +176,19 @@ int main()
 		sym1.name = "hello";
 		sym1.kind = 12; // Function
 		sym1.location.path = (temp_dir / "src/hello.cpp").string();
-		sym1.location.range = {41, 0, 41, 10}; // 0-indexed line 41 -> line 42
+		sym1.location.range = {.start_y=41, .start_x=0, .end_y=41, .end_x=10}; // 0-indexed line 41 -> line 42
 
 		lsp_manager::symbol_info sym2;
 		sym2.name = "hello_world";
 		sym2.kind = 5; // Class
 		sym2.location.path = (temp_dir / "src/hello.h").string();
-		sym2.location.range = {9, 0, 9, 5}; // 0-indexed line 9 -> line 10
+		sym2.location.range = {.start_y=9, .start_x=0, .end_y=9, .end_x=5}; // 0-indexed line 9 -> line 10
 
 		lsp_manager::symbol_info sym3;
 		sym3.name = "hello_layout";
 		sym3.kind = 6; // Method
 		sym3.location.path = (temp_dir / "src/editor.cpp").string();
-		sym3.location.range = {268, 0, 311, 10}; // 0-indexed 268->269, 311->312
+		sym3.location.range = {.start_y=268, .start_x=0, .end_y=311, .end_x=10}; // 0-indexed 268->269, 311->312
 
 		tool6.mock_symbols = {sym1, sym2, sym3};
 

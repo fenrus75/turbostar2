@@ -37,7 +37,7 @@ int main()
 		return true;
 	};
 
-	std::string valid_args = "{\"instruction\": \"mov eax, eax\"}";
+	std::string valid_args = R"({"instruction": "mov eax, eax"})";
 	{
 		auto prep = registry.prepare_tool("x86_assemble", valid_args, ctx);
 		assert(prep.tool == nullptr && "Should fail prepare when x86 family is inactive");
@@ -53,7 +53,7 @@ int main()
 
 	// 2. Test 64-bit Intel assembly
 	{
-		std::string args = "{\"instruction\": \"mov eax, eax\", \"mode\": \"64\", \"syntax\": \"intel\"}";
+		std::string args = R"({"instruction": "mov eax, eax", "mode": "64", "syntax": "intel"})";
 		std::string res = registry.execute_tool("x86_assemble", args, ctx);
 		std::cout << "64-bit Intel Assembly Result: " << res << std::endl;
 		assert(res.find("89 c0") != std::string::npos);
@@ -61,7 +61,7 @@ int main()
 
 	// 3. Test 64-bit AT&T assembly
 	{
-		std::string args = "{\"instruction\": \"mov %eax, %eax\", \"mode\": \"64\", \"syntax\": \"att\"}";
+		std::string args = R"({"instruction": "mov %eax, %eax", "mode": "64", "syntax": "att"})";
 		std::string res = registry.execute_tool("x86_assemble", args, ctx);
 		std::cout << "64-bit AT&T Assembly Result: " << res << std::endl;
 		assert(res.find("89 c0") != std::string::npos);
@@ -69,7 +69,7 @@ int main()
 
 	// 4. Test 32-bit assembly
 	{
-		std::string args = "{\"instruction\": \"mov eax, eax\", \"mode\": \"32\", \"syntax\": \"intel\"}";
+		std::string args = R"({"instruction": "mov eax, eax", "mode": "32", "syntax": "intel"})";
 		std::string res = registry.execute_tool("x86_assemble", args, ctx);
 		std::cout << "32-bit Intel Assembly Result: " << res << std::endl;
 		assert(res.find("89 c0") != std::string::npos);
@@ -77,7 +77,7 @@ int main()
 
 	// 5. Test 16-bit assembly
 	{
-		std::string args = "{\"instruction\": \"mov ax, ax\", \"mode\": \"16\", \"syntax\": \"intel\"}";
+		std::string args = R"({"instruction": "mov ax, ax", "mode": "16", "syntax": "intel"})";
 		std::string res = registry.execute_tool("x86_assemble", args, ctx);
 		std::cout << "16-bit Intel Assembly Result: " << res << std::endl;
 		assert(res.find("89 c0") != std::string::npos);
@@ -85,7 +85,7 @@ int main()
 
 	// 6. Test invalid instruction assembly
 	{
-		std::string args = "{\"instruction\": \"invalid_instruction_here\", \"mode\": \"64\", \"syntax\": \"intel\"}";
+		std::string args = R"({"instruction": "invalid_instruction_here", "mode": "64", "syntax": "intel"})";
 		std::string res = registry.execute_tool("x86_assemble", args, ctx);
 		std::cout << "Invalid instruction Result: " << res << std::endl;
 		assert(res.find("Error") != std::string::npos);

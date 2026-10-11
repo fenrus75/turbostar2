@@ -69,7 +69,7 @@ void test_subagent_manager_basic()
 		"This is the custom subagent system prompt.\n";
 
 	write_file(agents_dir / "custom_agent.md", custom_agent_md);
-	write_file(agents_dir / "custom_agent.json", "{\"DurMovie\": {\"version\": 1, \"frames\": []}}");
+	write_file(agents_dir / "custom_agent.json", R"({"DurMovie": {"version": 1, "frames": []}})");
 
 	// Override research builtin in local/global path
 	std::string override_research_md = 
@@ -158,7 +158,7 @@ void test_subagent_manager_dynamic()
 	assert(!sa_gone.has_value());
 
 	// Test dynamic subagent with animation JSON
-	std::string anim_json = "{\"DurMovie\": {\"version\": 1, \"frames\": []}}";
+	std::string anim_json = R"({"DurMovie": {"version": 1, "frames": []}})";
 	manager.register_subagent("anim-agent", plugin_agent_md, anim_json);
 
 	auto sa_anim = manager.find_subagent_by_name("anim-agent");

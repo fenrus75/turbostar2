@@ -30,7 +30,7 @@ int main()
 	{
 		// 1. Success case with normal parameters
 		std::string result = registry.execute_tool("agent_mark_episode",
-			"{\"title\": \"Episode 1\", \"summary\": \"Completed task A\", \"tags\": [\"milestone\"]}", ctx);
+			R"({"title": "Episode 1", "summary": "Completed task A", "tags": ["milestone"]})", ctx);
 		std::cout << "Result: " << result << std::endl;
 		assert(result.find("Episode marked") != std::string::npos || result.find("archived") != std::string::npos || result.find("Episode manually recorded") != std::string::npos);
 
@@ -38,7 +38,7 @@ int main()
 		// 2. Security case: reject unexpected arguments (based on review recommendations)
 		{
 			auto prep = registry.prepare_tool("agent_mark_episode",
-				"{\"title\": \"Episode 1\", \"summary\": \"Completed task A\", \"tags\": [\"milestone\"], \"extra\": 123}", ctx);
+				R"({"title": "Episode 1", "summary": "Completed task A", "tags": ["milestone"], "extra": 123})", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
 		}
@@ -47,7 +47,7 @@ int main()
 		{
 			std::string long_title(550, 't');
 			std::string result = registry.execute_tool("agent_mark_episode",
-				"{\"title\": \"" + long_title + "\", \"summary\": \"Short summary\", \"tags\": []}", ctx);
+				R"({"title": ")" + long_title + R"(", "summary": "Short summary", "tags": []})", ctx);
 			std::cout << "Truncated title result: " << result << std::endl;
 			assert(result.find("Episode marked") != std::string::npos);
 			assert(result.find("truncated") != std::string::npos);
@@ -57,7 +57,7 @@ int main()
 		{
 			std::string long_summary(600, 's');
 			std::string result = registry.execute_tool("agent_mark_episode",
-				"{\"title\": \"Short title\", \"summary\": \"" + long_summary + "\", \"tags\": []}", ctx);
+				R"({"title": "Short title", "summary": ")" + long_summary + R"(", "tags": []})", ctx);
 			std::cout << "Truncated summary result: " << result << std::endl;
 			assert(result.find("Episode marked") != std::string::npos);
 			assert(result.find("truncated") != std::string::npos);

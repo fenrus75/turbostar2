@@ -24,7 +24,7 @@ int main()
 	auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
 	auto agent = ai_agent::create(1, "TestAgent", model, nullptr, nullptr);
 	ctx.active_agent = agent.get();
-	ctx.properties.active_families.push_back("editor");
+	ctx.properties.active_families.emplace_back("editor");
 
 	std::cout << "Testing flag_as_error..." << std::endl;
 	{
@@ -33,7 +33,7 @@ int main()
 
 		// 1. Success case: flag a valid error
 		{
-			std::string args = "{\"path\": \"src/main.cpp\", \"line\": 10, \"column\": 5, \"length\": 4, \"error_string\": \"Syntax error\", \"is_warning\": false}";
+			std::string args = R"({"path": "src/main.cpp", "line": 10, "column": 5, "length": 4, "error_string": "Syntax error", "is_warning": false})";
 			std::string res = registry.execute_tool("flag_as_error", args, ctx);
 			std::cout << "Flag error result: " << res << std::endl;
 			assert(res.find("Error flagged at") != std::string::npos);
@@ -45,7 +45,7 @@ int main()
 
 		// 2. Stage 1 validation failure: reject line < 1
 		{
-			std::string args = "{\"path\": \"src/main.cpp\", \"line\": 0, \"column\": 5, \"length\": 4, \"error_string\": \"Syntax error\", \"is_warning\": false}";
+			std::string args = R"({"path": "src/main.cpp", "line": 0, "column": 5, "length": 4, "error_string": "Syntax error", "is_warning": false})";
 			auto prep = registry.prepare_tool("flag_as_error", args, ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
@@ -53,7 +53,7 @@ int main()
 
 		// 3. Stage 1 validation failure: reject column < 1
 		{
-			std::string args = "{\"path\": \"src/main.cpp\", \"line\": 10, \"column\": 0, \"length\": 4, \"error_string\": \"Syntax error\", \"is_warning\": false}";
+			std::string args = R"({"path": "src/main.cpp", "line": 10, "column": 0, "length": 4, "error_string": "Syntax error", "is_warning": false})";
 			auto prep = registry.prepare_tool("flag_as_error", args, ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
@@ -61,7 +61,7 @@ int main()
 
 		// 4. Stage 1 validation failure: reject length < 0
 		{
-			std::string args = "{\"path\": \"src/main.cpp\", \"line\": 10, \"column\": 5, \"length\": -1, \"error_string\": \"Syntax error\", \"is_warning\": false}";
+			std::string args = R"({"path": "src/main.cpp", "line": 10, "column": 5, "length": -1, "error_string": "Syntax error", "is_warning": false})";
 			auto prep = registry.prepare_tool("flag_as_error", args, ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
@@ -69,7 +69,7 @@ int main()
 
 		// 5. Stage 1 validation failure: reject unexpected properties (based on review recommendations)
 		{
-			std::string args = "{\"path\": \"src/main.cpp\", \"line\": 10, \"column\": 5, \"length\": 4, \"error_string\": \"Syntax error\", \"is_warning\": false, \"unexpected_prop\": true}";
+			std::string args = R"({"path": "src/main.cpp", "line": 10, "column": 5, "length": 4, "error_string": "Syntax error", "is_warning": false, "unexpected_prop": true})";
 			auto prep = registry.prepare_tool("flag_as_error", args, ctx);
 			assert(prep.tool == nullptr); // This will fail initially as expected
 			assert(!prep.error_message.empty());
@@ -77,7 +77,7 @@ int main()
 
 		// 6. Stage 2 validation failure: reject path outside workspace
 		{
-			std::string args = "{\"path\": \"/etc/passwd\", \"line\": 10, \"column\": 5, \"length\": 4, \"error_string\": \"Syntax error\", \"is_warning\": false}";
+			std::string args = R"({"path": "/etc/passwd", "line": 10, "column": 5, "length": 4, "error_string": "Syntax error", "is_warning": false})";
 			auto prep = registry.prepare_tool("flag_as_error", args, ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());

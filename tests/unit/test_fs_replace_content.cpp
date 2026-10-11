@@ -54,8 +54,8 @@ int main()
 		// 1. Success case: unique replacement
 		{
 			write_file("line 1\nline 2\ntarget block here\nline 4\n");
-			std::string args = "{\"path\": \"" + temp_file +
-					   "\", \"target_content\": \"target block here\", \"replacement_content\": \"substituted block\"}";
+			std::string args = R"({"path": ")" + temp_file +
+					   R"(", "target_content": "target block here", "replacement_content": "substituted block"})";
 			std::string res = registry.execute_tool("fs_replace_content", args, ctx);
 			std::cout << "Unique replacement result: " << res << std::endl;
 			assert(res.find("Successfully replaced") != std::string::npos);
@@ -65,8 +65,8 @@ int main()
 		// 2. Failure case: target_content not found
 		{
 			write_file("line 1\nline 2\n");
-			std::string args = "{\"path\": \"" + temp_file +
-					   "\", \"target_content\": \"missing block\", \"replacement_content\": \"substituted\"}";
+			std::string args = R"({"path": ")" + temp_file +
+					   R"(", "target_content": "missing block", "replacement_content": "substituted"})";
 			std::string res = registry.execute_tool("fs_replace_content", args, ctx);
 			std::cout << "Missing block result: " << res << std::endl;
 			assert(res.find("Error: target_content not found") != std::string::npos);
@@ -75,8 +75,8 @@ int main()
 		// 3. Ambiguous failure case: multiple matches, no line hint
 		{
 			write_file("target block\nline 2\ntarget block\nline 4\n");
-			std::string args = "{\"path\": \"" + temp_file +
-					   "\", \"target_content\": \"target block\", \"replacement_content\": \"substituted\"}";
+			std::string args = R"({"path": ")" + temp_file +
+					   R"(", "target_content": "target block", "replacement_content": "substituted"})";
 			std::string res = registry.execute_tool("fs_replace_content", args, ctx);
 			std::cout << "Multiple matches no hint result: " << res << std::endl;
 			assert(res.find("Error: Multiple matches (2)") != std::string::npos);
@@ -89,8 +89,8 @@ int main()
 		{
 			write_file("target block\nline 2\ntarget block\nline 4\n");
 			std::string args =
-			    "{\"path\": \"" + temp_file +
-			    "\", \"target_content\": \"target block\", \"replacement_content\": \"substituted\", \"line_hint\": 1}";
+			    R"({"path": ")" + temp_file +
+			    R"(", "target_content": "target block", "replacement_content": "substituted", "line_hint": 1})";
 			std::string res = registry.execute_tool("fs_replace_content", args, ctx);
 			std::cout << "Multiple matches hint=1 result: " << res << std::endl;
 			assert(res.find("starting at line 1") != std::string::npos);
@@ -101,8 +101,8 @@ int main()
 		{
 			write_file("target block\nline 2\ntarget block\nline 4\n");
 			std::string args =
-			    "{\"path\": \"" + temp_file +
-			    "\", \"target_content\": \"target block\", \"replacement_content\": \"substituted\", \"line_hint\": 3}";
+			    R"({"path": ")" + temp_file +
+			    R"(", "target_content": "target block", "replacement_content": "substituted", "line_hint": 3})";
 			std::string res = registry.execute_tool("fs_replace_content", args, ctx);
 			std::cout << "Multiple matches hint=3 result: " << res << std::endl;
 			assert(res.find("starting at line 3") != std::string::npos);
@@ -112,7 +112,7 @@ int main()
 		// 6. Security check: reject directory traversal
 		{
 			std::string args =
-			    "{\"path\": \"../tmp/escaped.txt\", \"target_content\": \"foo\", \"replacement_content\": \"bar\"}";
+			    R"({"path": "../tmp/escaped.txt", "target_content": "foo", "replacement_content": "bar"})";
 			auto prep = registry.prepare_tool("fs_replace_content", args, ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
@@ -132,8 +132,8 @@ int main()
 			out << "line 1\ntarget block\nline 3\n";
 			out.close();
 
-			std::string args = "{\"path\": \"tmp://" + vfs_name +
-					   "\", \"target_content\": \"target block\", \"replacement_content\": \"substituted block\"}";
+			std::string args = R"({"path": "tmp://)" + vfs_name +
+					   R"(", "target_content": "target block", "replacement_content": "substituted block"})";
 			std::string res = registry.execute_tool("fs_replace_content", args, ctx);
 			std::cout << "VFS replacement result: " << res << std::endl;
 			assert(res.find("Successfully replaced") != std::string::npos);

@@ -43,9 +43,9 @@ int main()
 		unsigned long count;
 	};
 
-	uintptr_t fn_ip = reinterpret_cast<uintptr_t>(&dummy_target_function);
-	raw_slot slot1{fn_ip, 100};
-	raw_slot slot2{fn_ip + 0x10, 50};
+	auto fn_ip = reinterpret_cast<uintptr_t>(&dummy_target_function);
+	raw_slot slot1{.ip=fn_ip, .count=100};
+	raw_slot slot2{.ip=fn_ip + 0x10, .count=50};
 
 	std::ofstream samples_out(synth_samples, std::ios::binary);
 	samples_out.write(reinterpret_cast<const char *>(&slot1), sizeof(slot1));
@@ -62,13 +62,13 @@ int main()
 	// 2. Multi-Run Profile Storage & Comparison via run_id Tests
 	perf_profile_report run1_rep;
 	run1_rep.total_samples = 500;
-	perf_line_sample r1_ls{"main.cpp", 15, 0, "slow_func()", 400, 80.0};
+	perf_line_sample r1_ls{.file_path="main.cpp", .line_number=15, .column_number=0, .function_name="slow_func()", .count=400, .percentage=80.0};
 	run1_rep.top_lines = {r1_ls};
 	run1_rep.line_samples_by_file["main.cpp"] = {r1_ls};
 
 	perf_profile_report run2_rep;
 	run2_rep.total_samples = 100;
-	perf_line_sample r2_ls{"main.cpp", 15, 0, "slow_func()", 20, 20.0};
+	perf_line_sample r2_ls{.file_path="main.cpp", .line_number=15, .column_number=0, .function_name="slow_func()", .count=20, .percentage=20.0};
 	run2_rep.top_lines = {r2_ls};
 	run2_rep.line_samples_by_file["main.cpp"] = {r2_ls};
 
@@ -95,8 +95,8 @@ int main()
 	perf_profile_report test_rep;
 	test_rep.total_samples = 1000;
 
-	perf_line_sample ls1{"test_file.cpp", 10, 5, "foo_func()", 600, 60.0};
-	perf_line_sample ls2{"test_file.cpp", 20, 12, "bar_func()", 100, 10.0};
+	perf_line_sample ls1{.file_path="test_file.cpp", .line_number=10, .column_number=5, .function_name="foo_func()", .count=600, .percentage=60.0};
+	perf_line_sample ls2{.file_path="test_file.cpp", .line_number=20, .column_number=12, .function_name="bar_func()", .count=100, .percentage=10.0};
 	test_rep.line_samples_by_file["test_file.cpp"] = {ls1, ls2};
 	test_rep.top_lines = {ls1, ls2};
 

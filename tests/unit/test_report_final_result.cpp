@@ -32,7 +32,7 @@ int main()
 	// Test 1: Directly calling report_final_result on active_agent
 	{
 		assert(!agent->has_final_result());
-		std::string result = registry.execute_tool("report_final_result", "{\"result\": \"Task accomplished successfully!\"}", ctx);
+		std::string result = registry.execute_tool("report_final_result", R"({"result": "Task accomplished successfully!"})", ctx);
 		std::cout << "Direct tool execution result: " << result << std::endl;
 		assert(agent->has_final_result());
 		assert(agent->get_final_result() == "Task accomplished successfully!");
@@ -46,12 +46,12 @@ int main()
 		sub_ctx.active_agent = subagent.get();
 
 		assert(!subagent->has_final_result());
-		std::string report_res = registry.execute_tool("report_final_result", "{\"result\": \"Subagent final outcome!\"}", sub_ctx);
+		std::string report_res = registry.execute_tool("report_final_result", R"({"result": "Subagent final outcome!"})", sub_ctx);
 		assert(subagent->has_final_result());
 		assert(subagent->get_final_result() == "Subagent final outcome!");
 
 		// Test get_subagent_output on this subagent from the parent's context
-		std::string get_out_res = registry.execute_tool("get_subagent_output", std::format("{{\"id\": {}, \"keep\": true}}", sub_id), ctx);
+		std::string get_out_res = registry.execute_tool("get_subagent_output", std::format(R"({{"id": {}, "keep": true}})", sub_id), ctx);
 		std::cout << "get_subagent_output result: " << get_out_res << std::endl;
 		// It should be exactly the final result string
 		assert(fs_utils::unwrap_prompt_untrusted_data_tag(get_out_res) == "Subagent final outcome!");

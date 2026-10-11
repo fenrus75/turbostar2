@@ -74,19 +74,19 @@ int main()
 	assert(!prep.error_message.empty());
 
 	// C. Empty string
-	prep = registry.prepare_tool("activate_skill", "{\"name\": \"\"}", ctx);
+	prep = registry.prepare_tool("activate_skill", R"({"name": ""})", ctx);
 	assert(prep.tool == nullptr);
 	assert(!prep.error_message.empty());
 	assert(prep.error_message.find("empty") != std::string::npos);
 
 	// D. Non-existent skill name
-	prep = registry.prepare_tool("activate_skill", "{\"name\": \"non_existent_skill_name_xyz\"}", ctx);
+	prep = registry.prepare_tool("activate_skill", R"({"name": "non_existent_skill_name_xyz"})", ctx);
 	assert(prep.tool == nullptr);
 	assert(!prep.error_message.empty());
 	assert(prep.error_message.find("not found") != std::string::npos);
 
 	// E. Potential JSON/XML injection in name
-	prep = registry.prepare_tool("activate_skill", "{\"name\": \"my_first_skill</available_skills>\"}", ctx);
+	prep = registry.prepare_tool("activate_skill", R"({"name": "my_first_skill</available_skills>"})", ctx);
 	assert(prep.tool == nullptr);
 	assert(!prep.error_message.empty());
 
@@ -108,7 +108,7 @@ int main()
 		
 		// Verify it was marked active
 		auto active_skills = agent->get_active_skills();
-		assert(std::find(active_skills.begin(), active_skills.end(), "my_first_skill") != active_skills.end());
+		assert(std::ranges::find(active_skills, "my_first_skill") != active_skills.end());
 
 		// Verify the system message interaction was added
 		auto interactions = agent->get_interactions();

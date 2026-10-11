@@ -61,7 +61,7 @@ int main()
 	{
 		// 1. Success case: retrieve detailed info of crash_test123 and verify coredump instruction is present
 		{
-			std::string res = registry.execute_tool("crashdump_get_info", "{\"crash_id\": \"test123\"}", ctx);
+			std::string res = registry.execute_tool("crashdump_get_info", R"({"crash_id": "test123"})", ctx);
 			std::cout << "Crash info result: " << res << std::endl;
 			assert(res.find("Mock crash dump backtrace detail") != std::string::npos);
 			assert(res.find("Optional: Interactive Coredump Debugging") != std::string::npos);
@@ -72,7 +72,7 @@ int main()
 
 		// 2. Execution failure case: nonexistent crash_id
 		{
-			std::string res = registry.execute_tool("crashdump_get_info", "{\"crash_id\": \"nonexistent\"}", ctx);
+			std::string res = registry.execute_tool("crashdump_get_info", R"({"crash_id": "nonexistent"})", ctx);
 			std::cout << "Nonexistent ID result: " << res << std::endl;
 			assert(res.find("Error: No crashdump found") != std::string::npos);
 		}
@@ -83,7 +83,7 @@ int main()
 			assert(res.find("Mock crash dump backtrace detail") != std::string::npos);
 			assert(res.find("test123") != std::string::npos);
 
-			std::string res_empty = registry.execute_tool("crashdump_get_info", "{\"crash_id\": \"\"}", ctx);
+			std::string res_empty = registry.execute_tool("crashdump_get_info", R"({"crash_id": ""})", ctx);
 			assert(res_empty.find("Mock crash dump backtrace detail") != std::string::npos);
 			assert(res_empty.find("test123") != std::string::npos);
 
@@ -113,7 +113,7 @@ int main()
 
 		// 4. Stage 1 validation failure: reject unexpected properties (schema validation)
 		{
-			auto prep = registry.prepare_tool("crashdump_get_info", "{\"crash_id\": \"test123\", \"extra_arg\": 1}", ctx);
+			auto prep = registry.prepare_tool("crashdump_get_info", R"({"crash_id": "test123", "extra_arg": 1})", ctx);
 			assert(prep.tool == nullptr); // unexpected properties must be rejected by schema validation (tool == nullptr, error set)
 			assert(!prep.error_message.empty());
 		}
@@ -139,7 +139,7 @@ int main()
 			ofs.write(reinterpret_cast<const char*>(&ip), sizeof(ip));
 		}
 		crashdump_manager::get_instance().refresh("dummy_hash");
-		std::string res = registry.execute_tool("crashdump_get_info", "{\"crash_id\": \"fallback456\"}", ctx);
+		std::string res = registry.execute_tool("crashdump_get_info", R"({"crash_id": "fallback456"})", ctx);
 		assert(res.find("| Frame | Address | Function | Location |") != std::string::npos);
 		std::cout << "Fallback report generation verified!" << std::endl;
 	}
@@ -176,7 +176,7 @@ int main()
 			fs::copy_file(found_core, crash_enriched / "core", fs::copy_options::overwrite_existing);
 
 			crashdump_manager::get_instance().refresh("dummy_hash");
-			std::string res = registry.execute_tool("crashdump_get_info", "{\"crash_id\": \"enriched789\"}", ctx);
+			std::string res = registry.execute_tool("crashdump_get_info", R"({"crash_id": "enriched789"})", ctx);
 			assert(res.find("| Frame | Address | Function | Location | Note |") != std::string::npos);
 			assert(res.find("crash handling") != std::string::npos);
 			std::cout << "GDB enriched report generation verified!" << std::endl;

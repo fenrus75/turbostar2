@@ -64,13 +64,13 @@ void test_perform_code_review_execution()
 	reviewer_ctx.active_agent = reviewer_temp.get();
 	reviewer_ctx.properties = reviewer_temp->get_properties();
 
-	std::string args_json = "{\"files\": [\"src_to_review.cpp\"], \"instructions\": \"Check for bugs\", \"async\": true}";
+	std::string args_json = R"({"files": ["src_to_review.cpp"], "instructions": "Check for bugs", "async": true})";
 	auto prep = registry.prepare_tool("perform_code_review", args_json, reviewer_ctx);
 	assert(prep.tool == nullptr);
 	assert(!prep.error_message.empty());
 
 	// Test 2: Developer role calls it without explicit async (defaults to async=true)
-	std::string default_args_json = "{\"files\": [\"src_to_review.cpp\"], \"instructions\": \"Check for bugs\"}";
+	std::string default_args_json = R"({"files": ["src_to_review.cpp"], "instructions": "Check for bugs"})";
 	prep = registry.prepare_tool("perform_code_review", default_args_json, ctx);
 	assert(prep.tool != nullptr);
 
@@ -201,7 +201,7 @@ void test_perform_code_review_splitting()
 		ctx_a.active_agent = agent.get();
 		ctx_a.properties = agent->get_properties();
 
-		std::string args_json = "{\"files\": [\"file1.cpp\", \"file2.cpp\", \"file3.cpp\", \"file4.cpp\"], \"async\": true}";
+		std::string args_json = R"({"files": ["file1.cpp", "file2.cpp", "file3.cpp", "file4.cpp"], "async": true})";
 		auto prep = registry.prepare_tool("perform_code_review", args_json, ctx_a);
 		assert(prep.tool != nullptr);
 

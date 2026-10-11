@@ -67,7 +67,7 @@ int main()
 	// 4. Success case: inline C11 code execution using gcc
 	{
 		nlohmann::json args = {
-			{"code", "printf(\"Hello TurboStar C11: %d\\n\", 11);"},
+			{"code", R"(printf("Hello TurboStar C11: %d\n", 11);)"},
 			{"std", "c11"}
 		};
 		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);

@@ -45,7 +45,7 @@ int main()
 	ctx.is_family_active = [](const std::string &family) { return family != "x86"; };
 
 	{
-		std::string args = "{\"path\": \"" + elf_path + "\"}";
+		std::string args = R"({"path": ")" + elf_path + "\"}";
 		auto prep = registry.prepare_tool("elf_list_sections", args, ctx);
 		assert(prep.tool == nullptr && "elf_list_sections must block if x86 family is inactive");
 		assert(prep.error_message.find("Security Violation") != std::string::npos);
@@ -56,7 +56,7 @@ int main()
 
 	// 3. Test successful execution on mock ELF
 	{
-		std::string args = "{\"path\": \"" + elf_path + "\"}";
+		std::string args = R"({"path": ")" + elf_path + "\"}";
 		std::string res = registry.execute_tool("elf_list_sections", args, ctx);
 		std::cout << "elf_list_sections result:\n" << res << "\n";
 		assert(!res.empty());
@@ -70,7 +70,7 @@ int main()
 
 	// 4. Test validation of empty path
 	{
-		std::string args = "{\"path\": \"\"}";
+		std::string args = R"({"path": ""})";
 		auto prep = registry.prepare_tool("elf_list_sections", args, ctx);
 		assert(prep.tool == nullptr);
 		assert(!prep.error_message.empty());
@@ -78,7 +78,7 @@ int main()
 
 	// 5. Test nonexistent file
 	{
-		std::string args = "{\"path\": \"tests/unit/nonexistent_elf.bin\"}";
+		std::string args = R"({"path": "tests/unit/nonexistent_elf.bin"})";
 		std::string res = registry.execute_tool("elf_list_sections", args, ctx);
 		assert(res.find("Error:") != std::string::npos);
 	}

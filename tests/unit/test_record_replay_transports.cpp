@@ -83,7 +83,7 @@ class mock_transport : public llm_transport
 		if (call_count < responses.size()) {
 			return responses[call_count++];
 		}
-		return {404, "{}"};
+		return {.status_code=404, .body="{}"};
 	}
 
 	bool post_stream(const std::string &path, const std::string &json_body,

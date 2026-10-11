@@ -69,11 +69,11 @@ int main()
 
 	// 5. Test validator accepting crash_id and id alias
 	agentlib::tool_registry &registry = agentlib::tool_registry::get_instance();
-	auto prep = registry.prepare_tool("crashdump_clear", "{\"crash_id\": \"test123\"}", ctx);
+	auto prep = registry.prepare_tool("crashdump_clear", R"({"crash_id": "test123"})", ctx);
 	assert(prep.tool != nullptr);
 	assert(prep.error_message.empty());
 
-	auto prep_alias = registry.prepare_tool("crashdump_clear", "{\"id\": \"test123\"}", ctx);
+	auto prep_alias = registry.prepare_tool("crashdump_clear", R"({"id": "test123"})", ctx);
 	assert(prep_alias.tool != nullptr);
 	assert(prep_alias.error_message.empty());
 

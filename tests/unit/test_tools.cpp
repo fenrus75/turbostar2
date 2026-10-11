@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <fstream>
@@ -41,7 +42,7 @@ int main()
 
 	std::cout << "\nTesting fs_run_tests with specific tests..." << std::endl;
 	// We'll run a fast test like unit_event_logger
-	std::string run_result = registry.execute_tool("fs_run_tests", "{\"test_names\": [\"unit_event_logger\"]}", ctx);
+	std::string run_result = registry.execute_tool("fs_run_tests", R"({"test_names": ["unit_event_logger"]})", ctx);
 	std::cout << "Result:\n" << run_result << std::endl;
 
 	assert(run_result.find("meson test") != std::string::npos);
@@ -52,13 +53,13 @@ int main()
 #endif
 
 	std::cout << "\nTesting fs_run_tests with single string test_names..." << std::endl;
-	std::string single_str_result = registry.execute_tool("fs_run_tests", "{\"test_names\": \"unit_event_logger\"}", ctx);
+	std::string single_str_result = registry.execute_tool("fs_run_tests", R"({"test_names": "unit_event_logger"})", ctx);
 	std::cout << "Single string result:\n" << single_str_result << std::endl;
 	assert(single_str_result.find("meson test") != std::string::npos);
 	assert(single_str_result.find("unit_event_logger") != std::string::npos);
 
 	std::cout << "\nTesting fs_run_tests with space-containing test name..." << std::endl;
-	std::string space_run_result = registry.execute_tool("fs_run_tests", "{\"test_names\": [\"test with space\"]}", ctx);
+	std::string space_run_result = registry.execute_tool("fs_run_tests", R"({"test_names": ["test with space"]})", ctx);
 	std::cout << "Space run result:\n" << space_run_result << std::endl;
 	assert(space_run_result.find("'test with space'") != std::string::npos ||
 	       space_run_result.find("\"test with space\"") != std::string::npos);
@@ -66,23 +67,23 @@ int main()
 	std::cout << "\nTesting fs_run_tests verbose flag behaviors..." << std::endl;
 	// Test verbose=auto (default for single test) includes --print-errorlogs
 	std::string auto_run_result =
-	    registry.execute_tool("fs_run_tests", "{\"test_names\": [\"unit_event_logger\"], \"verbose\": \"auto\"}", ctx);
+	    registry.execute_tool("fs_run_tests", R"({"test_names": ["unit_event_logger"], "verbose": "auto"})", ctx);
 	assert(auto_run_result.find("--print-errorlogs") != std::string::npos);
 
 	// Test verbose=true includes -v in the command
 	std::string verbose_run_result =
-	    registry.execute_tool("fs_run_tests", "{\"test_names\": [\"unit_event_logger\"], \"verbose\": true}", ctx);
+	    registry.execute_tool("fs_run_tests", R"({"test_names": ["unit_event_logger"], "verbose": true})", ctx);
 	assert(verbose_run_result.find(" -v ") != std::string::npos || verbose_run_result.find(" -v '") != std::string::npos);
 
 	// Test verbose=false suppresses both -v and --print-errorlogs
 	std::string quiet_run_result =
-	    registry.execute_tool("fs_run_tests", "{\"test_names\": [\"unit_event_logger\"], \"verbose\": false}", ctx);
+	    registry.execute_tool("fs_run_tests", R"({"test_names": ["unit_event_logger"], "verbose": false})", ctx);
 	assert(quiet_run_result.find(" -v ") == std::string::npos);
 	assert(quiet_run_result.find("--print-errorlogs") == std::string::npos);
 
 	// Test invalid verbose value is rejected by validator
 	std::string invalid_verbose_result =
-	    registry.execute_tool("fs_run_tests", "{\"test_names\": [\"unit_event_logger\"], \"verbose\": \"invalid_mode\"}", ctx);
+	    registry.execute_tool("fs_run_tests", R"({"test_names": ["unit_event_logger"], "verbose": "invalid_mode"})", ctx);
 	assert(invalid_verbose_result.find("Invalid 'verbose' parameter") != std::string::npos);
 
 	std::cout << "\nTesting agent_set_timer..." << std::endl;
@@ -155,13 +156,10 @@ int main()
 	agent->update_episode_hint("episode_1", "Trivial or extremely brief episode.");
 	// We clean up the injected summary from the conversation so we can verify no new summary is added
 	auto cleaned_convo = agent->get_conversation();
-	cleaned_convo.erase(std::remove_if(cleaned_convo.begin(), cleaned_convo.end(),
-					   [](const message &m) {
-						   return m.role == "system" &&
-							  m.content.find("[SYSTEM MEMORY: Archived Episodes Directory]") !=
-							      std::string::npos;
-					   }),
-			    cleaned_convo.end());
+	std::erase_if(cleaned_convo, [](const message &m) {
+		return m.role == "system" &&
+		       m.content.find("[SYSTEM MEMORY: Archived Episodes Directory]") != std::string::npos;
+	});
 	agent->set_conversation(cleaned_convo);
 
 	size_t size_before_trivial = agent->get_conversation().size();
@@ -340,7 +338,7 @@ int main()
 		ctx.fs_security.add_allowed_root(".", access_type::read);
 
 		{
-			std::string args = "{\"path\": \"" + temp_file + "\", \"start_line\": 1, \"end_line\": 4}";
+			std::string args = R"({"path": ")" + temp_file + R"(", "start_line": 1, "end_line": 4})";
 			std::string res = registry.execute_tool("fs_read_lines", args, ctx);
 
 			assert(res.find("Code for lines 1 - 7 of " + temp_file + " (total 10 lines):") != std::string::npos);
@@ -351,7 +349,7 @@ int main()
 		}
 
 		{
-			std::string args = "{\"path\": \"" + temp_file + "\", \"start_line\": \"1\", \"end_line\": \"4\"}";
+			std::string args = R"({"path": ")" + temp_file + R"(", "start_line": "1", "end_line": "4"})";
 			std::string res = registry.execute_tool("fs_read_lines", args, ctx);
 			assert(res.find("1: line 1") != std::string::npos);
 		}
@@ -372,7 +370,7 @@ int main()
 		}
 
 		{
-			std::string args = "{\"path\": \"" + temp_file + "\", \"start_line\": 1, \"end_line\": 40}";
+			std::string args = R"({"path": ")" + temp_file + R"(", "start_line": 1, "end_line": 40})";
 			std::string res = registry.execute_tool("fs_read_lines", args, ctx);
 
 			assert(res.find("Code for lines 1 - 45 of " + temp_file + " (total 100 lines):") != std::string::npos);
@@ -395,7 +393,7 @@ int main()
 		}
 
 		{
-			std::string args = "{\"path\": \"" + temp_cpp + "\", \"start_line\": 1, \"end_line\": 40}";
+			std::string args = R"({"path": ")" + temp_cpp + R"(", "start_line": 1, "end_line": 40})";
 			std::string res = registry.execute_tool("fs_read_lines", args, ctx);
 			assert(res.find("Code for lines 1 - 45 of " + temp_cpp + " (total 100 lines):") != std::string::npos);
 			assert(res.find("45: }") != std::string::npos);
@@ -409,7 +407,7 @@ int main()
 
 		// Test tail success case (get last 3 lines)
 		{
-			std::string args = "{\"path\": \"" + temp_file + "\", \"tail\": 3}";
+			std::string args = R"({"path": ")" + temp_file + R"(", "tail": 3})";
 			std::string res = registry.execute_tool("fs_read_lines", args, ctx);
 			assert(res.find("8: eight") != std::string::npos);
 			assert(res.find("9: nine") != std::string::npos);
@@ -419,7 +417,7 @@ int main()
 
 		// Test tail validation failure (mixing tail with start_line)
 		{
-			std::string args = "{\"path\": \"" + temp_file + "\", \"start_line\": 1, \"tail\": 3}";
+			std::string args = R"({"path": ")" + temp_file + R"(", "start_line": 1, "tail": 3})";
 			auto prep = registry.prepare_tool("fs_read_lines", args, ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
@@ -456,7 +454,7 @@ int main()
 			out << "}\n";
 		}
 
-		std::string args = "{\"path\": \"" + type_file + "\", \"start_line\": 1, \"end_line\": 4}";
+		std::string args = R"({"path": ")" + type_file + R"(", "start_line": 1, "end_line": 4})";
 		std::string res1 = registry.execute_tool("fs_read_lines", args, ctx);
 		std::cout << "Type definition result 1:\n" << res1 << std::endl;
 
@@ -485,19 +483,19 @@ int main()
 
 	std::cout << "\nTesting fs_read_lines nonexistent file and directory error messages..." << std::endl;
 	{
-		std::string args_nonexistent = "{\"path\": \"nonexistent_dummy_file_12345.txt\", \"start_line\": 1, \"end_line\": 10}";
+		std::string args_nonexistent = R"({"path": "nonexistent_dummy_file_12345.txt", "start_line": 1, "end_line": 10})";
 		std::string res_nonexistent = registry.execute_tool("fs_read_lines", args_nonexistent, ctx);
 		std::cout << "Nonexistent file result: " << res_nonexistent << std::endl;
 		assert(res_nonexistent.find("Error: File does not exist") != std::string::npos);
 		assert(res_nonexistent.find("FIFO") == std::string::npos);
 
-		std::string args_dir = "{\"path\": \"src\", \"start_line\": 1, \"end_line\": 10}";
+		std::string args_dir = R"({"path": "src", "start_line": 1, "end_line": 10})";
 		std::string res_dir = registry.execute_tool("fs_read_lines", args_dir, ctx);
 		std::cout << "Directory read result: " << res_dir << std::endl;
 		assert(res_dir.find("Error: Path is a directory") != std::string::npos);
 		assert(res_dir.find("FIFO") == std::string::npos);
 
-		std::string args_tail_nonexistent = "{\"path\": \"nonexistent_dummy_file_12345.txt\", \"tail\": 5}";
+		std::string args_tail_nonexistent = R"({"path": "nonexistent_dummy_file_12345.txt", "tail": 5})";
 		std::string res_tail_nonexistent = registry.execute_tool("fs_read_lines", args_tail_nonexistent, ctx);
 		std::cout << "Tail nonexistent result: " << res_tail_nonexistent << std::endl;
 		assert(res_tail_nonexistent.find("Error: File does not exist") != std::string::npos);
@@ -527,7 +525,7 @@ int main()
 		std::this_thread::sleep_for(std::chrono::milliseconds(800));
 
 		{
-			std::string args = "{\"path\": \"" + temp_file + "\", \"symbol_name\": \"my_unit_test_function\"}";
+			std::string args = R"({"path": ")" + temp_file + R"(", "symbol_name": "my_unit_test_function"})";
 			std::string res = registry.execute_tool("fs_read_symbol", args, ctx);
 			std::cout << "fs_read_symbol result:\n" << res << std::endl;
 
@@ -548,7 +546,7 @@ int main()
 
 		// Test 1: Simple filter execution returning value
 		std::string result = registry.execute_tool(
-		    "apply_text_filter", "{\"text\": \"\\u001b[31mHello\\u001b[0m World\", \"filter\": \"strip_ansi\"}", ctx);
+		    "apply_text_filter", R"({"text": "\u001b[31mHello\u001b[0m World", "filter": "strip_ansi"})", ctx);
 		std::cout << "Result: " << result << std::endl;
 		assert(result.find("Hello World") != std::string::npos);
 
@@ -564,7 +562,7 @@ int main()
 		std::string output_file = "test_filtered_out.txt";
 		std::string result_write = registry.execute_tool(
 		    "apply_text_filter",
-		    "{\"text\": \"\\u001b[31mHello\\u001b[0m World\", \"filter\": \"strip_ansi\", \"output_path\": \"" + output_file +
+		    R"({"text": "\u001b[31mHello\u001b[0m World", "filter": "strip_ansi", "output_path": ")" + output_file +
 			"\"}",
 		    ctx);
 		std::cout << "Write result: " << result_write << std::endl;
@@ -581,7 +579,7 @@ int main()
 
 		// Test 3: Invalid filter name error validation
 		auto prep_invalid_filter =
-		    registry.prepare_tool("apply_text_filter", "{\"text\": \"Hello\", \"filter\": \"nonexistent_filter_name_xyz\"}", ctx);
+		    registry.prepare_tool("apply_text_filter", R"({"text": "Hello", "filter": "nonexistent_filter_name_xyz"})", ctx);
 		assert(prep_invalid_filter.tool == nullptr);
 		std::cout << "Invalid filter error: " << prep_invalid_filter.error_message << std::endl;
 		assert(prep_invalid_filter.error_message.find("Invalid filter name") != std::string::npos);
@@ -589,7 +587,7 @@ int main()
 
 		// Test 4: Security violation on write path
 		auto prep_security = registry.prepare_tool(
-		    "apply_text_filter", "{\"text\": \"Hello\", \"filter\": \"strip_ansi\", \"output_path\": \"../../unsafe.txt\"}", ctx);
+		    "apply_text_filter", R"({"text": "Hello", "filter": "strip_ansi", "output_path": "../../unsafe.txt"})", ctx);
 		assert(prep_security.tool == nullptr);
 		assert(prep_security.error_message.find("Validation Error") != std::string::npos ||
 		       prep_security.error_message.find("Security Violation") != std::string::npos ||
@@ -600,7 +598,7 @@ int main()
 		{
 			std::string result_troff = registry.execute_tool(
 			    "apply_text_filter",
-			    "{\"text\": \".SH Header\\nSome\\n.B \\\"bold text.\\\"\", \"filter\": \"troff_to_markdown\"}", ctx);
+			    R"({"text": ".SH Header\nSome\n.B \"bold text.\"", "filter": "troff_to_markdown"})", ctx);
 			std::cout << "Troff result:\n" << result_troff << std::endl;
 			assert(result_troff.find("# Header") != std::string::npos);
 			assert(result_troff.find("**bold text.**") != std::string::npos);
@@ -629,7 +627,7 @@ int main()
 			std::string out_file = "test_filter_in_out.txt";
 			std::string result_path = registry.execute_tool(
 			    "apply_text_filter",
-			    "{\"path\": \"" + in_file + "\", \"filter\": \"strip_ansi\", \"output_path\": \"" + out_file + "\"}", ctx);
+			    R"({"path": ")" + in_file + R"(", "filter": "strip_ansi", "output_path": ")" + out_file + "\"}", ctx);
 			std::cout << "Path filter result: " << result_path << std::endl;
 			assert(result_path.find("Successfully applied filter") != std::string::npos);
 
@@ -661,7 +659,7 @@ int main()
 		ctx.fs_security.set_vfs(&vfs);
 
 		// Write via tool execution
-		std::string args = "{\"path\": \"" + target_uri + "\", \"content\": \"VFS tool write!\", \"append\": false}";
+		std::string args = R"({"path": ")" + target_uri + R"(", "content": "VFS tool write!", "append": false})";
 		std::string res = registry.execute_tool("fs_write_file", args, ctx);
 		assert(res.find("Successfully wrote") != std::string::npos);
 
@@ -673,7 +671,7 @@ int main()
 		ifs.close();
 
 		// Append via tool execution
-		std::string append_args = "{\"path\": \"" + target_uri + "\", \"content\": \"Appended.\", \"append\": true}";
+		std::string append_args = R"({"path": ")" + target_uri + R"(", "content": "Appended.", "append": true})";
 		std::string append_res = registry.execute_tool("fs_write_file", append_args, ctx);
 		assert(append_res.find("Successfully wrote") != std::string::npos);
 
@@ -686,7 +684,7 @@ int main()
 
 		// Test tmp:// VFS scheme
 		std::string tmp_uri = "tmp://000_test_fs_write_tmp.txt";
-		std::string tmp_args = "{\"path\": \"" + tmp_uri + "\", \"content\": \"Temporary VFS write!\", \"append\": false}";
+		std::string tmp_args = R"({"path": ")" + tmp_uri + R"(", "content": "Temporary VFS write!", "append": false})";
 		std::string tmp_res = registry.execute_tool("fs_write_file", tmp_args, ctx);
 		assert(tmp_res.find("Successfully wrote") != std::string::npos);
 
@@ -706,7 +704,7 @@ int main()
 		// Write to test_auto_mkdir/models/new_file.txt ("models" vs "model" distance == 1)
 		std::string target_similar = base_dir + "/models/new_file.txt";
 		std::string sim_args =
-		    "{\"path\": \"" + target_similar + "\", \"content\": \"Auto mkdir similarity test!\", \"append\": false}";
+		    R"({"path": ")" + target_similar + R"(", "content": "Auto mkdir similarity test!", "append": false})";
 		std::string sim_res = registry.execute_tool("fs_write_file", sim_args, ctx);
 
 		std::cout << "Auto-mkdir result with similarity warning:\n" << sim_res << std::endl;
@@ -719,7 +717,7 @@ int main()
 		std::filesystem::remove_all(base_dir);
 
 		// Test tmp:// directory listing
-		std::string list_args = "{\"path\": \"tmp://\", \"rich_metadata\": false}";
+		std::string list_args = R"({"path": "tmp://", "rich_metadata": false})";
 		std::string list_res = registry.execute_tool("fs_list_dir", list_args, ctx);
 
 		assert(list_res.find("000_test_fs_write_tmp.txt") != std::string::npos);
@@ -731,11 +729,11 @@ int main()
 		std::string purge_file2 = "tmp://test_keep_task_2.txt";
 		std::string purge_file3 = "tmp://test_unique_purge_task_3.txt";
 
-		registry.execute_tool("fs_write_file", "{\"path\": \"" + purge_file1 + "\", \"content\": \"purge me!\", \"append\": false}",
+		registry.execute_tool("fs_write_file", R"({"path": ")" + purge_file1 + R"(", "content": "purge me!", "append": false})",
 				      ctx);
-		registry.execute_tool("fs_write_file", "{\"path\": \"" + purge_file2 + "\", \"content\": \"keep me!\", \"append\": false}",
+		registry.execute_tool("fs_write_file", R"({"path": ")" + purge_file2 + R"(", "content": "keep me!", "append": false})",
 				      ctx);
-		registry.execute_tool("fs_write_file", "{\"path\": \"" + purge_file3 + "\", \"content\": \"purge me!\", \"append\": false}",
+		registry.execute_tool("fs_write_file", R"({"path": ")" + purge_file3 + R"(", "content": "purge me!", "append": false})",
 				      ctx);
 
 		assert(vfs.exists(purge_file1));
@@ -743,7 +741,7 @@ int main()
 		assert(vfs.exists(purge_file3));
 
 		// Purge with substring "unique_purge_task"
-		std::string purge_res1 = registry.execute_tool("fs_purge_tmp", "{\"substring\": \"unique_purge_task\"}", ctx);
+		std::string purge_res1 = registry.execute_tool("fs_purge_tmp", R"({"substring": "unique_purge_task"})", ctx);
 		assert(purge_res1.find("Successfully purged 2 files") != std::string::npos);
 
 		assert(!vfs.exists(purge_file1));
@@ -756,12 +754,12 @@ int main()
 
 		// Test fs_mkdir in tmp://
 		std::string vfs_dir = "tmp://nested_test_dir/sub_dir";
-		std::string mkdir_args = "{\"path\": \"" + vfs_dir + "\"}";
+		std::string mkdir_args = R"({"path": ")" + vfs_dir + "\"}";
 		std::string mkdir_res = registry.execute_tool("fs_mkdir", mkdir_args, ctx);
 		assert(mkdir_res.find("Successfully created directory in virtual file system") != std::string::npos);
 
 		std::string vfs_file = vfs_dir + "/test_file.txt";
-		std::string write_args = "{\"path\": \"" + vfs_file + "\", \"content\": \"VFS nested file content\", \"append\": false}";
+		std::string write_args = R"({"path": ")" + vfs_file + R"(", "content": "VFS nested file content", "append": false})";
 		std::string write_res = registry.execute_tool("fs_write_file", write_args, ctx);
 		assert(write_res.find("Successfully wrote") != std::string::npos);
 		assert(vfs.exists(vfs_file));
@@ -775,7 +773,7 @@ int main()
 		std::string dummy_img_content = "VFS image mock text content";
 
 		std::string image_uri = "images://by-name/tool-test-image.png";
-		std::string img_args = "{\"path\": \"" + image_uri + "\", \"content\": \"" + dummy_img_content + "\", \"append\": false}";
+		std::string img_args = R"({"path": ")" + image_uri + R"(", "content": ")" + dummy_img_content + R"(", "append": false})";
 		std::string img_res = registry.execute_tool("fs_write_file", img_args, ctx);
 		assert(img_res.find("Successfully decompressed and ingested image") != std::string::npos);
 		assert(vfs.exists(image_uri));
@@ -817,7 +815,7 @@ int main()
 
 		// Writing to workspace file as read-only MUST be blocked
 		std::string ro_write_res =
-		    registry.execute_tool("fs_write_file", "{\"path\": \"src/main.cpp\", \"content\": \"test\"}", ro_ctx);
+		    registry.execute_tool("fs_write_file", R"({"path": "src/main.cpp", "content": "test"})", ro_ctx);
 		assert(ro_write_res.find("Security Violation: Agent is in read-only mode") != std::string::npos);
 	}
 
@@ -825,25 +823,25 @@ int main()
 	{
 		// 1. fs_read_lines with "file_path" instead of "path"
 		std::string res1 =
-		    registry.execute_tool("fs_read_lines", "{\"file_path\": \"src/main.cpp\", \"start_line\": 1, \"end_line\": 2}", ctx);
+		    registry.execute_tool("fs_read_lines", R"({"file_path": "src/main.cpp", "start_line": 1, "end_line": 2})", ctx);
 		std::cout << "Alias test res1 (file_path -> path): " << res1 << std::endl;
 		assert(res1.find("1:") != std::string::npos);
 
 		// 2. fs_read_lines with "filepath" instead of "path"
 		std::string res2 =
-		    registry.execute_tool("fs_read_lines", "{\"filepath\": \"src/main.cpp\", \"start_line\": 1, \"end_line\": 2}", ctx);
+		    registry.execute_tool("fs_read_lines", R"({"filepath": "src/main.cpp", "start_line": 1, "end_line": 2})", ctx);
 		std::cout << "Alias test res2 (filepath -> path): " << res2 << std::endl;
 		assert(res2.find("1:") != std::string::npos);
 
 		// 3. fs_list_dir with "count" instead of "limit"
-		std::string res3 = registry.execute_tool("fs_list_dir", "{\"path\": \"src\", \"count\": 2}", ctx);
+		std::string res3 = registry.execute_tool("fs_list_dir", R"({"path": "src", "count": 2})", ctx);
 		std::cout << "Alias test res3 (count -> limit): " << res3 << std::endl;
 		assert(res3.find("| Filename |") != std::string::npos);
 
 		// 4. fs_write_file with "target_file" instead of "path"
 		std::string tmp_test_file = "test_alias_write.tmp";
 		std::string res4 = registry.execute_tool("fs_write_file",
-							 "{\"target_file\": \"" + tmp_test_file + "\", \"content\": \"hello world\"}", ctx);
+							 R"({"target_file": ")" + tmp_test_file + R"(", "content": "hello world"})", ctx);
 		std::cout << "Alias test res4 (target_file -> path): " << res4 << std::endl;
 		assert(res4.find("Successfully wrote") != std::string::npos);
 		std::filesystem::remove(tmp_test_file);
@@ -853,44 +851,44 @@ int main()
 	{
 		// 1. start_line + length
 		std::string res_len1 =
-		    registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"start_line\": 1, \"length\": 2}", ctx);
+		    registry.execute_tool("fs_read_lines", R"({"path": "src/main.cpp", "start_line": 1, "length": 2})", ctx);
 		assert(res_len1.find("1:") != std::string::npos);
 		assert(res_len1.find("2:") != std::string::npos);
 		assert(res_len1.find("3:") == std::string::npos);
 
 		// 2. length without start_line (defaults start_line to 1)
-		std::string res_len2 = registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"length\": 3}", ctx);
+		std::string res_len2 = registry.execute_tool("fs_read_lines", R"({"path": "src/main.cpp", "length": 3})", ctx);
 		assert(res_len2.find("1:") != std::string::npos);
 		assert(res_len2.find("3:") != std::string::npos);
 		assert(res_len2.find("4:") == std::string::npos);
 
 		// 3. alias num_lines -> length
 		std::string res_alias1 =
-		    registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"start_line\": 1, \"num_lines\": 2}", ctx);
+		    registry.execute_tool("fs_read_lines", R"({"path": "src/main.cpp", "start_line": 1, "num_lines": 2})", ctx);
 		assert(res_alias1.find("1:") != std::string::npos);
 		assert(res_alias1.find("2:") != std::string::npos);
 		assert(res_alias1.find("3:") == std::string::npos);
 
 		// 4. alias line_count -> length
 		std::string res_alias2 =
-		    registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"start_line\": 1, \"line_count\": 2}", ctx);
+		    registry.execute_tool("fs_read_lines", R"({"path": "src/main.cpp", "start_line": 1, "line_count": 2})", ctx);
 		assert(res_alias2.find("1:") != std::string::npos);
 		assert(res_alias2.find("2:") != std::string::npos);
 		assert(res_alias2.find("3:") == std::string::npos);
 
 		// 5. length + end_line mutual exclusivity error
 		std::string res_err1 = registry.execute_tool(
-		    "fs_read_lines", "{\"path\": \"src/main.cpp\", \"start_line\": 1, \"end_line\": 5, \"length\": 2}", ctx);
+		    "fs_read_lines", R"({"path": "src/main.cpp", "start_line": 1, "end_line": 5, "length": 2})", ctx);
 		assert(res_err1.find("'length' parameter cannot be used together with 'end_line'") != std::string::npos);
 
 		// 6. length + tail mutual exclusivity error
 		std::string res_err2 =
-		    registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"tail\": 5, \"length\": 2}", ctx);
+		    registry.execute_tool("fs_read_lines", R"({"path": "src/main.cpp", "tail": 5, "length": 2})", ctx);
 		assert(res_err2.find("'tail' parameter cannot be used together with 'start_line', 'end_line', or 'length'") !=
 		       std::string::npos);
 
 		// 7. length <= 0 error
-		std::string res_err3 = registry.execute_tool("fs_read_lines", "{\"path\": \"src/main.cpp\", \"length\": 0}", ctx);
+		std::string res_err3 = registry.execute_tool("fs_read_lines", R"({"path": "src/main.cpp", "length": 0})", ctx);
 		assert(res_err3.find("'length' parameter must be greater than 0") != std::string::npos);
 		std::cout << "fs_read_lines 'length' parameter and aliases verified successfully!" << std::endl;
 	}

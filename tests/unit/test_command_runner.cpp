@@ -181,7 +181,7 @@ int main()
 	{
 		sync_command_runner runner;
 		runner.apply_internal_profile();
-		std::string output = runner.execute_and_get_output("printf 'line1\\r\\nline2\\r\\n'");
+		std::string output = runner.execute_and_get_output(R"(printf 'line1\r\nline2\r\n')");
 		assert_contains(output, "line1");
 		assert_contains(output, "line2");
 

@@ -53,7 +53,7 @@ public:
 		if (filepath == "target.cpp" && line == 42 && col == 10) {
 			location_info loc;
 			loc.path = "target.h";
-			loc.range = {15, 0, 15, 20};
+			loc.range = {.start_y=15, .start_x=0, .end_y=15, .end_x=20};
 			return {loc};
 		}
 		return {};
@@ -64,7 +64,7 @@ public:
 		if (filepath == "type_target.cpp" && line == 10 && col == 5) {
 			location_info loc;
 			loc.path = "type_target.h";
-			loc.range = {20, 0, 20, 30};
+			loc.range = {.start_y=20, .start_x=0, .end_y=20, .end_x=30};
 			return {loc};
 		}
 		return {};
@@ -75,7 +75,7 @@ public:
 		if (filepath == "target.cpp") {
 			location_info loc1;
 			loc1.path = "user1.cpp";
-			loc1.range = {1, 0, 1, 10};
+			loc1.range = {.start_y=1, .start_x=0, .end_y=1, .end_x=10};
 			return {loc1};
 		}
 		return {};
@@ -88,7 +88,7 @@ public:
 			info.name = "test_sym";
 			info.kind = 1;
 			info.location.path = "foo.h";
-			info.location.range = {5, 0, 5, 10};
+			info.location.range = {.start_y=5, .start_x=0, .end_y=5, .end_x=10};
 			return {info};
 		}
 		return {};
@@ -100,7 +100,7 @@ public:
 			symbol_node node;
 			node.name = "my_func";
 			node.kind = 12;
-			node.range = {10, 0, 20, 0};
+			node.range = {.start_y=10, .start_x=0, .end_y=20, .end_x=0};
 			return {node};
 		}
 		return {};
@@ -239,7 +239,7 @@ int main()
 		standard_lsp_backend backend;
 		diagnostic_info d1;
 		d1.message = "type error";
-		d1.range = {2, 5, 2, 10};
+		d1.range = {.start_y=2, .start_x=5, .end_y=2, .end_x=10};
 
 		backend.store_file_diagnostics("sample.cpp", {d1});
 		// Unsupported file query returns nullopt

@@ -46,7 +46,7 @@ int main()
 
 	// 1. Verify family security restrictions (non-active family)
 	sec_active = false;
-	std::string valid_args = "{\"paths\": [\"src/document_undo.cpp\"]}";
+	std::string valid_args = R"({"paths": ["src/document_undo.cpp"]})";
 	{
 		auto prep = registry.prepare_tool("security_scan_c", valid_args, ctx);
 		assert(prep.tool == nullptr && "Should fail prepare when family is inactive");
@@ -65,14 +65,14 @@ int main()
 
 	// 3. Verify path validation (nonexistent file)
 	{
-		std::string args = "{\"paths\": [\"nonexistent_c_file.cpp\"]}";
+		std::string args = R"({"paths": ["nonexistent_c_file.cpp"]})";
 		auto prep = registry.prepare_tool("security_scan_c", args, ctx);
 		assert(prep.tool == nullptr && "Should fail prepare when file does not exist");
 	}
 
 	// 4. Verify path validation (directory traversal escape attempt)
 	{
-		std::string args = "{\"paths\": [\"../../etc/passwd\"]}";
+		std::string args = R"({"paths": ["../../etc/passwd"]})";
 		auto prep = registry.prepare_tool("security_scan_c", args, ctx);
 		assert(prep.tool == nullptr && "Should fail prepare on directory traversal attempt");
 	}
@@ -85,7 +85,7 @@ int main()
 		out << "int main() { int x; return 0; }\n"; // uninitialized variable
 		out.close();
 
-		std::string args = "{\"paths\": [\"" + dummy_file + "\"]}";
+		std::string args = R"({"paths": [")" + dummy_file + "\"]}";
 		std::string res = registry.execute_tool("security_scan_c", args, ctx);
 
 		std::cout << "cppcheck output for dummy file:\n" << res << std::endl;

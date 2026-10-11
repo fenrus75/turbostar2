@@ -40,7 +40,7 @@ int main()
 		subagent->add_interaction(std::make_shared<interaction_user_message>("Please do work"));
 
 		// 2. Success case with keep = true
-		std::string result = registry.execute_tool("get_subagent_output", std::format("{{\"id\": {}, \"keep\": true}}", sub_id), ctx);
+		std::string result = registry.execute_tool("get_subagent_output", std::format(R"({{"id": {}, "keep": true}})", sub_id), ctx);
 		std::cout << "Result keep=true:\n" << result << std::endl;
 		assert(result.find("Hello subagent") != std::string::npos);
 		assert(result.find("Please do work") != std::string::npos);
@@ -73,7 +73,7 @@ int main()
 			assert(prep.error_message.find("read-only") != std::string::npos);
 
 			// Directly test validate_runtime on tool with read-only
-			tools::get_subagent_output_tool direct_tool({sub_id, false});
+			tools::get_subagent_output_tool direct_tool({.id=sub_id, .keep=false});
 			std::string direct_err;
 			assert(direct_tool.validate_runtime(ctx, direct_err) == false);
 			assert(direct_err.find("read-only") != std::string::npos);

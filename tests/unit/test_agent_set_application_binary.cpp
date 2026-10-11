@@ -27,7 +27,7 @@ int main()
 	std::cout << "Testing agent_set_application_binary..." << std::endl;
 	{
 		// 1. Success case: execute tool to set main executable
-		std::string res = registry.execute_tool("agent_set_application_binary", "{\"path\": \"my_test_exe\"}", ctx);
+		std::string res = registry.execute_tool("agent_set_application_binary", R"({"path": "my_test_exe"})", ctx);
 		std::cout << "Set application binary result: " << res << std::endl;
 		assert(res.find("successfully set to: my_test_exe") != std::string::npos);
 		assert(config_manager::get_instance().get_main_executable() == "my_test_exe");
@@ -41,14 +41,14 @@ int main()
 
 		// 3. Validation case: reject empty 'path' argument
 		{
-			auto prep = registry.prepare_tool("agent_set_application_binary", "{\"path\": \"\"}", ctx);
+			auto prep = registry.prepare_tool("agent_set_application_binary", R"({"path": ""})", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
 		}
 
 		// 4. Validation case: reject unexpected arguments
 		{
-			auto prep = registry.prepare_tool("agent_set_application_binary", "{\"path\": \"my_test_exe\", \"extra\": 123}", ctx);
+			auto prep = registry.prepare_tool("agent_set_application_binary", R"({"path": "my_test_exe", "extra": 123})", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
 		}

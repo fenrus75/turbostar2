@@ -1,5 +1,6 @@
 // Tested source file: src/tools/web_fetch/web_fetch_entry.cpp
 #include "test_watchdog.h"
+#include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <cstdlib>
@@ -257,7 +258,7 @@ int main()
 		{
 			filter_registry::get_instance().register_filter("uppercase", [](const std::string &input) {
 				std::string result = input;
-				std::transform(result.begin(), result.end(), result.begin(), ::toupper);
+				std::ranges::transform(result, result.begin(), ::toupper);
 				return result;
 			});
 

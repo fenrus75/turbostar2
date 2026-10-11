@@ -31,7 +31,7 @@ int main()
 
 		// 1. Success case: find matches for "sun"
 		{
-			std::string args = "{\"path\": \"" + poem_path + "\", \"pattern\": \"sun.*\"}";
+			std::string args = R"({"path": ")" + poem_path + R"(", "pattern": "sun.*"})";
 			std::string res = registry.execute_tool("fs_regexp_lines", args, ctx);
 			std::cout << "Regex search result: " << res << std::endl;
 			assert(res.find("| Line Number | Content |") != std::string::npos);
@@ -42,7 +42,7 @@ int main()
 
 		// 1b. Success case: find matches for "SUN" case-insensitively
 		{
-			std::string args = "{\"path\": \"" + poem_path + "\", \"pattern\": \"SUN.*\", \"case_insensitive\": true}";
+			std::string args = R"({"path": ")" + poem_path + R"(", "pattern": "SUN.*", "case_insensitive": true})";
 			std::string res = registry.execute_tool("fs_regexp_lines", args, ctx);
 			std::cout << "Regex search case-insensitive result: " << res << std::endl;
 			assert(res.find("| Line Number | Content |") != std::string::npos);
@@ -51,7 +51,7 @@ int main()
 
 		// 1c. Case-sensitive matching of "SUN" (should find nothing)
 		{
-			std::string args = "{\"path\": \"" + poem_path + "\", \"pattern\": \"SUN.*\", \"case_insensitive\": false}";
+			std::string args = R"({"path": ")" + poem_path + R"(", "pattern": "SUN.*", "case_insensitive": false})";
 			std::string res = registry.execute_tool("fs_regexp_lines", args, ctx);
 			std::cout << "Regex search case-sensitive result (SUN): " << res << std::endl;
 			assert(res.find("shines") == std::string::npos);
@@ -59,7 +59,7 @@ int main()
 
 		// 2. Stage 2 validation failure: invalid RE2 regex pattern (e.g. unmatched parenthesis)
 		{
-			std::string args = "{\"path\": \"" + poem_path + "\", \"pattern\": \"(unmatched\"}";
+			std::string args = R"({"path": ")" + poem_path + R"(", "pattern": "(unmatched"})";
 			auto prep = registry.prepare_tool("fs_regexp_lines", args, ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
@@ -68,21 +68,21 @@ int main()
 
 		// 3. Stage 1 validation failure: reject empty path
 		{
-			auto prep = registry.prepare_tool("fs_regexp_lines", "{\"path\": \"\", \"pattern\": \"sun\"}", ctx);
+			auto prep = registry.prepare_tool("fs_regexp_lines", R"({"path": "", "pattern": "sun"})", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
 		}
 
 		// 4. Stage 1 validation failure: reject empty pattern
 		{
-			auto prep = registry.prepare_tool("fs_regexp_lines", "{\"path\": \"tests/unit/poem.txt\", \"pattern\": \"\"}", ctx);
+			auto prep = registry.prepare_tool("fs_regexp_lines", R"({"path": "tests/unit/poem.txt", "pattern": ""})", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
 		}
 
 		// 5. Stage 1 validation failure: reject unexpected properties (based on review recommendations)
 		{
-			std::string args = "{\"path\": \"" + poem_path + "\", \"pattern\": \"sun\", \"unexpected_arg\": 123}";
+			std::string args = R"({"path": ")" + poem_path + R"(", "pattern": "sun", "unexpected_arg": 123})";
 			auto prep = registry.prepare_tool("fs_regexp_lines", args, ctx);
 			assert(prep.tool == nullptr); // This will fail initially as expected
 			assert(!prep.error_message.empty());
@@ -90,7 +90,7 @@ int main()
 
 		// 6. Stage 2 validation failure: reject path outside workspace
 		{
-			auto prep = registry.prepare_tool("fs_regexp_lines", "{\"path\": \"/etc/passwd\", \"pattern\": \"root\"}", ctx);
+			auto prep = registry.prepare_tool("fs_regexp_lines", R"({"path": "/etc/passwd", "pattern": "root"})", ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
 		}
@@ -103,7 +103,7 @@ int main()
 			global_vfs->register_provider("tmp", mem_prov);
 			ctx.fs_security.set_vfs(global_vfs.get());
 
-			std::string args = "{\"path\": \"tmp://mock_vfs_file.txt\", \"pattern\": \"hello.*\"}";
+			std::string args = R"({"path": "tmp://mock_vfs_file.txt", "pattern": "hello.*"})";
 			std::string res = registry.execute_tool("fs_regexp_lines", args, ctx);
 			std::cout << "VFS regex search result: " << res << std::endl;
 			assert(res.find("| Line Number | Content |") != std::string::npos);

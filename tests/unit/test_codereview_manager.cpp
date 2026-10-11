@@ -21,7 +21,7 @@ void test_codereview_manager_lifecycle()
 	(void)res;
 	// Create a commit so we have a valid HEAD hash
 	res = std::system(
-	    std::format("git -C \"{}\" commit --allow-empty -m \"Initial commit\" >/dev/null 2>&1", temp_proj.string()).c_str());
+	    std::format(R"(git -C "{}" commit --allow-empty -m "Initial commit" >/dev/null 2>&1)", temp_proj.string()).c_str());
 	(void)res;
 
 	// Set override project dir so project cache goes to this temp dir

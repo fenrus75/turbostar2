@@ -46,7 +46,7 @@ int main()
 
 	// 1. Verify family security restrictions (non-active family)
 	sec_active = false;
-	std::string valid_args = "{\"paths\": [\"docs/index.html\"]}";
+	std::string valid_args = R"({"paths": ["docs/index.html"]})";
 	{
 		auto prep = registry.prepare_tool("security_verify_html", valid_args, ctx);
 		assert(prep.tool == nullptr && "Should fail prepare when family is inactive");
@@ -65,14 +65,14 @@ int main()
 
 	// 3. Verify path validation (nonexistent file)
 	{
-		std::string args = "{\"paths\": [\"nonexistent_html_file.html\"]}";
+		std::string args = R"({"paths": ["nonexistent_html_file.html"]})";
 		auto prep = registry.prepare_tool("security_verify_html", args, ctx);
 		assert(prep.tool == nullptr && "Should fail prepare when file does not exist");
 	}
 
 	// 4. Verify path validation (directory traversal escape attempt)
 	{
-		std::string args = "{\"paths\": [\"../../etc/passwd\"]}";
+		std::string args = R"({"paths": ["../../etc/passwd"]})";
 		auto prep = registry.prepare_tool("security_verify_html", args, ctx);
 		assert(prep.tool == nullptr && "Should fail prepare on directory traversal attempt");
 	}
@@ -85,7 +85,7 @@ int main()
 		out << "<!DOCTYPE html>\n<html>\n<head>\n<title>Dummy</title>\n</head>\n<body>\n<p>hello</p>\n</body>\n</html>\n";
 		out.close();
 
-		std::string args = "{\"paths\": [\"" + dummy_file + "\"]}";
+		std::string args = R"({"paths": [")" + dummy_file + "\"]}";
 		std::string res = registry.execute_tool("security_verify_html", args, ctx);
 
 		std::cout << "HTML Tidy output for dummy file:\n" << res << std::endl;

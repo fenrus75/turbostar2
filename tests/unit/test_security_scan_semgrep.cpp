@@ -46,7 +46,7 @@ int main()
 
 	// 1. Verify family security restrictions (non-active family)
 	sec_active = false;
-	std::string valid_args = "{\"paths\": [\"src/document_undo.cpp\"]}";
+	std::string valid_args = R"({"paths": ["src/document_undo.cpp"]})";
 	{
 		auto prep = registry.prepare_tool("security_scan_semgrep", valid_args, ctx);
 		assert(prep.tool == nullptr && "Should fail prepare when family is inactive");
@@ -65,14 +65,14 @@ int main()
 
 	// 3. Verify path validation (nonexistent file)
 	{
-		std::string args = "{\"paths\": [\"nonexistent_semgrep_file.cpp\"]}";
+		std::string args = R"({"paths": ["nonexistent_semgrep_file.cpp"]})";
 		auto prep = registry.prepare_tool("security_scan_semgrep", args, ctx);
 		assert(prep.tool == nullptr && "Should fail prepare when file does not exist");
 	}
 
 	// 4. Verify path validation (directory traversal escape attempt)
 	{
-		std::string args = "{\"paths\": [\"../../etc/passwd\"]}";
+		std::string args = R"({"paths": ["../../etc/passwd"]})";
 		auto prep = registry.prepare_tool("security_scan_semgrep", args, ctx);
 		assert(prep.tool == nullptr && "Should fail prepare on directory traversal attempt");
 	}
@@ -85,7 +85,7 @@ int main()
 		out << "import os\nprint('hello')\n";
 		out.close();
 
-		std::string args = "{\"paths\": [\"" + dummy_file + "\"]}";
+		std::string args = R"({"paths": [")" + dummy_file + "\"]}";
 		std::string res = registry.execute_tool("security_scan_semgrep", args, ctx);
 
 		std::cout << "Semgrep output for dummy file:\n" << res << std::endl;
@@ -106,7 +106,7 @@ int main()
 		out << "<!DOCTYPE html>\n<html>\n<head><title>Test</title></head>\n<body>\n<h1>Hello</h1>\n</body>\n</html>\n";
 		out.close();
 
-		std::string args = "{\"paths\": [\"" + dummy_file + "\"]}";
+		std::string args = R"({"paths": [")" + dummy_file + "\"]}";
 		std::string res = registry.execute_tool("security_scan_semgrep", args, ctx);
 
 		std::cout << "Semgrep output for dummy HTML file:\n" << res << std::endl;

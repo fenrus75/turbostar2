@@ -258,10 +258,10 @@ inline void setup_watchdog(unsigned int seconds = 30, bool catch_crashes = true,
 extern "C" __attribute__((weak)) __attribute__((noreturn))
 void __assert_fail(const char *assertion, const char *file, unsigned int line, const char *function) noexcept
 {
-	typedef void (*assert_fail_fn)(const char *, const char *, unsigned int, const char *);
+	using assert_fail_fn = void (*)(const char *, const char *, unsigned int, const char *);
 	const char *dump_dir = getenv("TURBOSTAR_DUMP_DIR");
 	if (dump_dir && *dump_dir) {
-		assert_fail_fn orig = (assert_fail_fn)dlsym(RTLD_NEXT, "__assert_fail");
+		auto orig = (assert_fail_fn)dlsym(RTLD_NEXT, "__assert_fail");
 		if (orig) {
 			orig(assertion, file, line, function);
 		}
@@ -297,10 +297,10 @@ void __assert_fail(const char *assertion, const char *file, unsigned int line, c
 extern "C" __attribute__((weak)) __attribute__((noreturn))
 void __assert_perror_fail(int errnum, const char *file, unsigned int line, const char *function) noexcept
 {
-	typedef void (*assert_perror_fail_fn)(int, const char *, unsigned int, const char *);
+	using assert_perror_fail_fn = void (*)(int, const char *, unsigned int, const char *);
 	const char *dump_dir = getenv("TURBOSTAR_DUMP_DIR");
 	if (dump_dir && *dump_dir) {
-		assert_perror_fail_fn orig = (assert_perror_fail_fn)dlsym(RTLD_NEXT, "__assert_perror_fail");
+		auto orig = (assert_perror_fail_fn)dlsym(RTLD_NEXT, "__assert_perror_fail");
 		if (orig) {
 			orig(errnum, file, line, function);
 		}

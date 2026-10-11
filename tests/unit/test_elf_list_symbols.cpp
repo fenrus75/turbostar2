@@ -45,7 +45,7 @@ int main()
 	ctx.is_family_active = [](const std::string &family) { return family != "x86"; };
 
 	{
-		std::string args = "{\"path\": \"" + elf_path + "\"}";
+		std::string args = R"({"path": ")" + elf_path + "\"}";
 		auto prep = registry.prepare_tool("elf_list_symbols", args, ctx);
 		assert(prep.tool == nullptr && "elf_list_symbols must block if x86 family is inactive");
 		assert(prep.error_message.find("Security Violation") != std::string::npos);
@@ -56,7 +56,7 @@ int main()
 
 	// 3. Test successful execution on mock ELF (all symbols)
 	{
-		std::string args = "{\"path\": \"" + elf_path + "\"}";
+		std::string args = R"({"path": ")" + elf_path + "\"}";
 		std::string res = registry.execute_tool("elf_list_symbols", args, ctx);
 		std::cout << "elf_list_symbols result:\n" << res << "\n";
 		assert(!res.empty());
@@ -68,7 +68,7 @@ int main()
 
 	// 4. Test successful execution with regex pattern filter (matching)
 	{
-		std::string args = "{\"path\": \"" + elf_path + "\", \"pattern\": \"^my_.*\"}";
+		std::string args = R"({"path": ")" + elf_path + R"(", "pattern": "^my_.*"})";
 		std::string res = registry.execute_tool("elf_list_symbols", args, ctx);
 		std::cout << "elf_list_symbols result (matching pattern):\n" << res << "\n";
 		assert(!res.empty());
@@ -78,7 +78,7 @@ int main()
 
 	// 5. Test successful execution with regex pattern filter (non-matching)
 	{
-		std::string args = "{\"path\": \"" + elf_path + "\", \"pattern\": \"^nonexistent.*\"}";
+		std::string args = R"({"path": ")" + elf_path + R"(", "pattern": "^nonexistent.*"})";
 		std::string res = registry.execute_tool("elf_list_symbols", args, ctx);
 		std::cout << "elf_list_symbols result (non-matching pattern):\n" << res << "\n";
 		assert(!res.empty());
@@ -88,7 +88,7 @@ int main()
 
 	// 6. Test invalid regular expression pattern
 	{
-		std::string args = "{\"path\": \"" + elf_path + "\", \"pattern\": \"[\"}";
+		std::string args = R"({"path": ")" + elf_path + R"(", "pattern": "["})";
 		std::string res = registry.execute_tool("elf_list_symbols", args, ctx);
 		std::cout << "elf_list_symbols result (invalid pattern):\n" << res << "\n";
 		assert(res.find("Error:") != std::string::npos);
@@ -97,7 +97,7 @@ int main()
 
 	// 7. Test validation of empty path
 	{
-		std::string args = "{\"path\": \"\"}";
+		std::string args = R"({"path": ""})";
 		auto prep = registry.prepare_tool("elf_list_symbols", args, ctx);
 		assert(prep.tool == nullptr);
 		assert(!prep.error_message.empty());

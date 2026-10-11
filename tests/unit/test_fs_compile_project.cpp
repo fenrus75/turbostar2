@@ -40,7 +40,7 @@ int main()
 	{
 		// 1. Success case: compile project (sync)
 		{
-			std::string args = "{\"clean\": false, \"async\": false}";
+			std::string args = R"({"clean": false, "async": false})";
 			std::string res = registry.execute_tool("fs_compile_project", args, ctx);
 			std::cout << "Compile project sync result: " << res << std::endl;
 			assert(!res.empty());
@@ -48,7 +48,7 @@ int main()
 
 		// 1b. Success case: compile project with clean=true (sync)
 		{
-			std::string args = "{\"clean\": true, \"async\": false}";
+			std::string args = R"({"clean": true, "async": false})";
 			std::string res = registry.execute_tool("fs_compile_project", args, ctx);
 			std::cout << "Compile project sync result (clean=true): " << res << std::endl;
 			assert(!res.empty());
@@ -56,7 +56,7 @@ int main()
 
 		// 2. Stage 1 validation failure: reject unexpected properties (based on review recommendations)
 		{
-			std::string args = "{\"clean\": false, \"async\": false, \"unexpected_arg\": 123}";
+			std::string args = R"({"clean": false, "async": false, "unexpected_arg": 123})";
 			auto prep = registry.prepare_tool("fs_compile_project", args, ctx);
 			assert(prep.tool == nullptr); // This will fail initially as expected
 			assert(!prep.error_message.empty());
@@ -64,7 +64,7 @@ int main()
 
 		// 3. Success case: compile project (async)
 		{
-			std::string args = "{\"clean\": false, \"async\": true}";
+			std::string args = R"({"clean": false, "async": true})";
 			std::string res = registry.execute_tool("fs_compile_project", args, ctx);
 			std::cout << "Compile project async result: " << res << std::endl;
 			assert(res.find("background") != std::string::npos);
@@ -93,7 +93,7 @@ int main()
 			config_manager::get_instance().set_build_system("echo 'main.cpp:10: error: expected declaration' && false");
 			ctx.file_health_tracker["src/main.cpp"].state = lsp_health_state::dirty;
 			ctx.file_health_tracker["src/main.cpp"].originating_edit_id = "#2";
-			std::string args = "{\"clean\": false, \"async\": false}";
+			std::string args = R"({"clean": false, "async": false})";
 			std::string res = registry.execute_tool("fs_compile_project", args, ctx);
 			std::cout << "Compile project failure result: " << res << std::endl;
 			assert(res.find("Diagnostic Note: File 'src/main.cpp' was clean and first developed errors after Edit #2.") !=
@@ -103,7 +103,7 @@ int main()
 		// 5. Successful compilation clears dirty file health states
 		{
 			config_manager::get_instance().set_build_system("echo compilesuccessful");
-			std::string args = "{\"clean\": false, \"async\": false}";
+			std::string args = R"({"clean": false, "async": false})";
 			std::string res = registry.execute_tool("fs_compile_project", args, ctx);
 			assert(ctx.file_health_tracker["src/main.cpp"].state == lsp_health_state::clean);
 			assert(ctx.file_health_tracker["src/main.cpp"].originating_edit_id.empty());
@@ -112,31 +112,31 @@ int main()
 		// 6. Optional build_dir parameter tests
 		{
 			// 6a: Valid build_dir ("build")
-			std::string args_valid = "{\"clean\": false, \"async\": false, \"build_dir\": \"build\"}";
+			std::string args_valid = R"({"clean": false, "async": false, "build_dir": "build"})";
 			auto prep_valid = registry.prepare_tool("fs_compile_project", args_valid, ctx);
 			assert(prep_valid.tool != nullptr);
 			assert(prep_valid.error_message.empty());
 
 			// 6b: Non-existent build_dir
-			std::string args_missing = "{\"clean\": false, \"async\": false, \"build_dir\": \"nonexistent_build_dir_xyz\"}";
+			std::string args_missing = R"({"clean": false, "async": false, "build_dir": "nonexistent_build_dir_xyz"})";
 			auto prep_missing = registry.prepare_tool("fs_compile_project", args_missing, ctx);
 			assert(prep_missing.tool == nullptr);
 			assert(prep_missing.error_message.find("does not exist") != std::string::npos);
 
 			// 6c: Invalid build_dir (exists but not a build directory)
-			std::string args_invalid = "{\"clean\": false, \"async\": false, \"build_dir\": \"src\"}";
+			std::string args_invalid = R"({"clean": false, "async": false, "build_dir": "src"})";
 			auto prep_invalid = registry.prepare_tool("fs_compile_project", args_invalid, ctx);
 			assert(prep_invalid.tool == nullptr);
 			assert(prep_invalid.error_message.find("missing build definition files") != std::string::npos);
 
 			// 6d: Directory traversal outside workspace
-			std::string args_traversal = "{\"clean\": false, \"async\": false, \"build_dir\": \"../../../../etc\"}";
+			std::string args_traversal = R"({"clean": false, "async": false, "build_dir": "../../../../etc"})";
 			auto prep_traversal = registry.prepare_tool("fs_compile_project", args_traversal, ctx);
 			assert(prep_traversal.tool == nullptr);
 			assert(prep_traversal.error_message.find("Access denied") != std::string::npos);
 
 			// 6e: Alias 'build_directory'
-			std::string args_alias = "{\"clean\": false, \"async\": false, \"build_directory\": \"build\"}";
+			std::string args_alias = R"({"clean": false, "async": false, "build_directory": "build"})";
 			auto prep_alias = registry.prepare_tool("fs_compile_project", args_alias, ctx);
 			assert(prep_alias.tool != nullptr);
 		}
