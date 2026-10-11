@@ -72,7 +72,7 @@ Verify that TurboStar bootstraps cleanly in a completely blank user profile with
 - [ ] Execute an automated first-launch probe with an isolated `$HOME`:
       ```bash
       TMP_HOME=$(mktemp -d)
-      HOME="$TMP_HOME" build/turbostar --exit-immediately 1.0
+      HOME="$TMP_HOME" build/turbostar --exit-immediately=1
       EXIT_CODE=$?
       rm -rf "$TMP_HOME"
       test $EXIT_CODE -eq 0
@@ -117,12 +117,12 @@ Verify that all built-in shared object plugins in `src/plugins/` compile and lin
 
 - [ ] Valgrind full leak check (standard uninstrumented build):
       ```bash
-      valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 build/turbostar --exit-immediately 1.0
+      valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 build/turbostar --exit-immediately=3
       ```
       All leaks must be resolved prior to release.
 - [ ] ASAN leak check (sanitizer instrumented build):
       ```bash
-      ASAN_OPTIONS=detect_leaks=1 build_acov/turbostar --exit-immediately 1.0 2>&1 | grep -i "leak\|SUMMARY"
+      ASAN_OPTIONS=detect_leaks=1 build_acov/turbostar --exit-immediately=3 2>&1 | grep -i "leak\|SUMMARY"
       ```
       Confirm zero memory leaks reported on clean termination.
 
@@ -135,6 +135,10 @@ Coverage data is collected from `build_acov` (ASAN + gcov):
 - [ ] Run the test suite to populate coverage data:
       ```bash
       ninja -C build_acov test
+      ```
+- [ ] Run a live session to cover interactive UI display, rendering, and event loop paths:
+      ```bash
+      ASAN_OPTIONS=detect_leaks=0 build_acov/turbostar --exit-immediately=3
       ```
 - [ ] Capture the coverage snapshot:
       ```bash
