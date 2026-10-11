@@ -1,7 +1,8 @@
+// Tested source file: src/tools/output_filter.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
-#include "src/tools/output_filter.h"
+#include "tools/output_filter.h"
 
 int main() {
 	test_watchdog::setup_watchdog(30);
