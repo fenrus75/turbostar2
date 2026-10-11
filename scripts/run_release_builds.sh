@@ -3,6 +3,9 @@ set -e
 
 # Define build types
 builds=("build" "build_release" "build_debug" "build_acov" "build_cov" "build_ubsan" "build_msan" "build-tsan")
+if command -v clang >/dev/null 2>&1 && command -v clang++ >/dev/null 2>&1; then
+    builds+=("build-clang")
+fi
 
 echo "Starting release build verification..."
 
@@ -34,6 +37,9 @@ for b in "${builds[@]}"; do
             ;;
         "build-tsan")
             meson setup --wipe -Denable-tests=true -Db_sanitize=thread $b
+            ;;
+        "build-clang")
+            CC=clang CXX=clang++ meson setup --wipe -Denable-tests=true $b
             ;;
     esac
 

@@ -52,7 +52,7 @@ The following Meson build configurations validate compiler compatibility, saniti
 | **UBSAN** | `meson setup --wipe -Db_sanitize=undefined build_ubsan` | UndefinedBehaviorSanitizer checks |
 | **MSAN** | `meson setup --wipe -Db_sanitize=memory build_msan` | MemorySanitizer (requires instrumented system libs) |
 | **TSAN** | `meson setup --wipe -Db_sanitize=thread build-tsan` | ThreadSanitizer race condition detection |
-| **Clang Thread Safety** | `CXX=clang++ CC=clang meson setup --wipe build_clang` | Clang compile-time thread safety analysis |
+| **Clang++** | `CC=clang CXX=clang++ meson setup --wipe build-clang` | Full Clang/LLVM toolchain compilation & test verification |
 | **GCC Static Analysis** | `meson setup --wipe -Denable-analyzer=true build_analyzer` | GCC `-fanalyzer` checks (`ninja -j1`; run infrequently) |
 
 ---
@@ -60,9 +60,14 @@ The following Meson build configurations validate compiler compatibility, saniti
 ## 4. Release Automation & Test Suite
 
 - [ ] Run `scripts/run_release_builds.sh` to automate the verification across all standard build configurations.
+- [ ] Build and verify with the Clang / LLVM toolchain:
+      ```bash
+      CC=clang CXX=clang++ meson setup --wipe build-clang
+      ninja -C build-clang
+      meson test -C build-clang
+      ```
 - [ ] Ensure all unit and E2E tests pass.
       > **Policy**: There is an **absolute zero** tolerance for test failures for any release (including release candidates). If any test fails, inspect `build*/meson-logs/testlog.txt` to diagnose and fix the root cause before proceeding.
-
 ---
 
 ## 5. First-Launch & Out-of-the-Box Experience
