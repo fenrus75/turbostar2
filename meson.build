@@ -269,8 +269,15 @@ turbostar_semcode_indexer_exe = executable('turbostar-semcode-indexer',
   include_directories: inc,
   install : true)
 
-
+run_clang_tidy_sh = files('scripts/run_clang_tidy.sh')
+run_target('clang-tidy',
+  command: [run_clang_tidy_sh, meson.project_build_root()]
+)
+run_target('clang-tidy-thorough',
+  command: [run_clang_tidy_sh, '--thorough', meson.project_build_root()]
+)
 
 if get_option('enable-tests')
+
   subdir('tests')
 endif

@@ -66,7 +66,14 @@ The following Meson build configurations validate compiler compatibility, saniti
       ninja -C build-clang
       meson test -C build-clang
       ```
+- [ ] Run static analysis via Clang-Tidy:
+      ```bash
+      ninja -C build clang-tidy
+      # For pre-release deep code audits (includes const-correctness, cert, cppcoreguidelines):
+      ninja -C build clang-tidy-thorough
+      ```
 - [ ] Ensure all unit and E2E tests pass.
+
       > **Policy**: There is an **absolute zero** tolerance for test failures for any release (including release candidates). If any test fails, inspect `build*/meson-logs/testlog.txt` to diagnose and fix the root cause before proceeding.
 ---
 

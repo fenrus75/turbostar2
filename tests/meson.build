@@ -1340,7 +1340,23 @@ test_troff2md = executable('test_troff2md',
   include_directories: inc)
 test('unit_troff2md', test_troff2md, suite: 'editor')
 
+enable_clang_tidy_test_opt = get_option('enable-clang-tidy-test')
+clang_tidy_test_args = []
+if enable_clang_tidy_test_opt
+  clang_tidy_test_args += ['-DCLANG_TIDY_TEST_ENABLED=1']
+else
+  clang_tidy_test_args += ['-DCLANG_TIDY_TEST_ENABLED=0']
+endif
+
+test_clang_tidy = executable('test_clang_tidy',
+  'unit/test_clang_tidy.cpp',
+  cpp_args: clang_tidy_test_args,
+  dependencies: [core_dep],
+  include_directories: inc)
+test('unit_clang_tidy', test_clang_tidy, suite: 'lint', workdir: meson.project_source_root(), timeout: 600)
+
 live_llm_tests_opt = get_option('live-llm-tests')
+
 live_llm_url_opt = get_option('live-llm-url')
 live_llm_model_opt = get_option('live-llm-model')
 live_llm_api_key_opt = get_option('live-llm-api-key')
