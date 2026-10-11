@@ -16,6 +16,7 @@ project('turbostar', ['cpp', 'c'],
 add_project_arguments('-DTURBOSTAR_VERSION="' + meson.project_version() + '"', language : 'cpp')
 add_project_arguments('-DTURBOSTAR_CRASHPROCESS_PATH="' + get_option('prefix') + '/' + get_option('bindir') + '/turbostar-crashprocess"', language : 'cpp')
 add_project_arguments('-DCPPHTTPLIB_OPENSSL_SUPPORT', language : 'cpp')
+add_project_arguments('-D_GLIBCXX_ASSERTIONS', language : 'cpp')
 
 cc = meson.get_compiler('cpp')
 
