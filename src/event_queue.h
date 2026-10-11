@@ -117,25 +117,25 @@ constexpr int CRITICAL = 40;
 } // namespace status_priorities
 
 struct text_range {
-	int start_y;
-	int start_x;
-	int end_y;
-	int end_x;
+	int start_y{0};
+	int start_x{0};
+	int end_y{0};
+	int end_x{0};
 };
 
 struct build_error {
 	std::string filepath;
-	int line;
-	int column;
-	int end_column; // Optional: 0 means highlight the whole line
+	int line{0};
+	int column{0};
+	int end_column{0}; // Optional: 0 means highlight the whole line
 	std::string message;
-	bool is_warning;
-	int output_buffer_line; // Line in the "Compile Output" doc where this error was found
+	bool is_warning{false};
+	int output_buffer_line{0}; // Line in the "Compile Output" doc where this error was found
 };
 
 struct diagnostic_info {
-	text_range range;
-	int severity; // 1: Error, 2: Warning, 3: Info, 4: Hint
+	text_range range{};
+	int severity{1}; // 1: Error, 2: Warning, 3: Info, 4: Hint
 	std::string message;
 };
 
@@ -150,7 +150,7 @@ struct diagnostic_info {
  *    asynchronous processing of routed events.
  */
 struct editor_event {
-	event_type type;
+	event_type type{event_type::key_press};
 	int key_code{0};       ///< NCurses key code or ASCII value
 	int mouse_x{-1};       ///< Mouse X coordinate (if type == mouse_click)
 	int mouse_y{-1};       ///< Mouse Y coordinate (if type == mouse_click)

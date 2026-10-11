@@ -776,6 +776,7 @@ semcode_backend::query_call_hierarchy_outgoing(const std::string &filepath, int 
 			}
 			call_hierarchy_item item;
 			item.name = def.name;
+			item.kind = 12; // SymbolKind::Function
 			item.uri = "file://" + full_path.string();
 			int zero_start = std::max(0, def.line_start - 1);
 			int zero_end = std::max(0, def.line_end - 1);

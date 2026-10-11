@@ -53,9 +53,9 @@ struct cursor_state {
 struct edit_action {
 	enum class action_type { replace_line, insert_line, delete_line };
 
-	action_type type;
-	int y;
-	std::shared_ptr<line> saved_line;
+	action_type type{action_type::replace_line};
+	int y{0};
+	std::shared_ptr<line> saved_line{};
 };
 
 struct action_group {

@@ -44,39 +44,39 @@ class lsp_backend
 
 	struct symbol_info {
 		std::string name;
-		int kind;
-		location_info location;
+		int kind{0};
+		location_info location{};
 	};
 
 	struct symbol_node {
 		std::string name;
-		int kind;
-		text_range range;
-		text_range selection_range;
+		int kind{0};
+		text_range range{};
+		text_range selection_range{};
 		std::vector<symbol_node> children;
 	};
 
 	struct call_hierarchy_item {
 		std::string name;
-		int kind;
+		int kind{0};
 		std::string detail;
 		std::string uri;
-		text_range range;
-		text_range selection_range;
+		text_range range{};
+		text_range selection_range{};
 	};
 
 	struct outgoing_call_item {
-		int call_line;
-		call_hierarchy_item item;
+		int call_line{0};
+		call_hierarchy_item item{};
 	};
 
 	struct type_hierarchy_item {
 		std::string name;
-		int kind;
+		int kind{0};
 		std::string detail;
 		std::string uri;
-		text_range range;
-		text_range selection_range;
+		text_range range{};
+		text_range selection_range{};
 	};
 
 	virtual void start(event_queue &queue) = 0;

@@ -898,13 +898,7 @@ void editor::run()
 
 			// Verify that the window is still alive and located in the windows_ vector before
 			// accessing it further, as process_events() could have synchronously triggered its deletion.
-			bool alive = false;
-			for (size_t j = 0; j < windows_.size(); ++j) {
-				if (windows_[j].get() == raw_w) {
-					alive = true;
-					break;
-				}
-			}
+			const bool alive = std::ranges::any_of(windows_, [raw_w](const auto &w) { return w.get() == raw_w; });
 
 			if (alive) {
 				if (raw_w->needs_cursor()) {

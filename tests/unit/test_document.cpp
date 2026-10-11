@@ -660,6 +660,8 @@ int main()
 					std::vector<diagnostic_info> diags;
 					for (int k = 0; k < (counter % 50); ++k) {
 						diagnostic_info d;
+						d.range = {.start_y = k, .start_x = 0, .end_y = k, .end_x = 10};
+						d.severity = 1;
 						d.message = "diag " + std::to_string(k);
 						diags.push_back(d);
 					}

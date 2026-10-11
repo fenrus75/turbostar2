@@ -30,12 +30,12 @@ crashdump_manager &crashdump_manager::get_instance()
 }
 
 struct memory_map {
-	uint64_t start;
-	uint64_t end;
+	uint64_t start{0};
+	uint64_t end{0};
 	std::string permissions;
-	uint64_t offset;
+	uint64_t offset{0};
 	std::string dev;
-	uint64_t inode;
+	uint64_t inode{0};
 	std::string path;
 };
 
