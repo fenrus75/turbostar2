@@ -1371,7 +1371,7 @@ test('live_llm_ping', test_live_llm, suite: 'live_llm', is_parallel: false, work
 live_tool_tests = [
   { 'tool': 'run_python',          'prompt': 'Please use run_python to calculate 2468 * 1357',                      'expect': '3349076' },
   { 'tool': 'fs_list_dir',         'prompt': 'Please use fs_list_dir to list files in current directory',           'expect': 'meson.build' },
-  { 'tool': 'fs_read_lines',       'prompt': 'Please use fs_read_lines to view lines 1 to 5 of meson.build',        'expect': 'project(' },
+  { 'tool': 'fs_read_lines',       'prompt': 'Please use fs_read_lines to view lines 1 to 5 of meson.build',        'expect': 'TurboStar' },
   { 'tool': 'fs_grep_files',       'prompt': 'Please use fs_grep_files to search for "tool_registry" in src',       'expect': 'tool_registry' },
   { 'tool': 'fs_glob',             'prompt': 'Please use fs_glob to find files matching "*.md" in current directory', 'expect': '.md' },
   { 'tool': 'fs_man',              'prompt': 'Please use fs_man to read the manual page for ls',                   'expect': 'ls' },
