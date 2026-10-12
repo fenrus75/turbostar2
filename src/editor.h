@@ -132,6 +132,8 @@ class editor : public agentlib::document_provider
 
 	void update_terminal_windows();
 
+	static void sort_windows_by_priority(std::vector<window *> &sorted_windows, window *active_win);
+
 	event_queue &get_global_queue() noexcept { return global_queue_; }
 
       private:

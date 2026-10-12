@@ -1,9 +1,12 @@
+// Tested source file: src/ui/window.cpp, src/editor.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
-#include "../../src/document.h"
-#include "../../src/event_queue.h"
-#include "../../src/ui/window.h"
+#include <vector>
+#include "document.h"
+#include "editor.h"
+#include "event_queue.h"
+#include "ui/window.h"
 
 int main()
 {
@@ -55,6 +58,16 @@ int main()
 
 		// Cursor Y should have changed since it scrolled vertically.
 		assert(doc->get_cursor_y() > 0);
+	}
+
+	// Test 3: Null safety when sorting windows for display with null active window and null entries
+	{
+		window win1(1, 0, 0, 20, 10, "Win 1");
+		window win2(2, 0, 0, 20, 10, "Win 2");
+		std::vector<window *> windows = {nullptr, &win1, nullptr, &win2, nullptr};
+		editor::sort_windows_by_priority(windows, nullptr);
+		assert(windows.size() == 2);
+		assert(windows[0] != nullptr && windows[1] != nullptr);
 	}
 
 	std::cout << "Test window scrollbar click passed!\n";

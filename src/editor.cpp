@@ -1228,6 +1228,25 @@ bool editor::handle_k_block_key(int key)
 	return false;
 }
 
+void editor::sort_windows_by_priority(std::vector<window *> &sorted_windows, window *active_win)
+{
+	// Remove nullptrs first to ensure safe dereferencing throughout sorting and rendering
+	std::erase_if(sorted_windows, [](window *w) { return w == nullptr; });
+
+	// Sort: highest priority first. If priority is equal, newest timestamp first.
+	std::sort(sorted_windows.begin(), sorted_windows.end(), [active_win](window *a, window *b) {
+		if (!a) return false;
+		if (!b) return true;
+		int priority_a = (active_win && a == active_win) ? 9999 : a->get_display_priority();
+		int priority_b = (active_win && b == active_win) ? 9999 : b->get_display_priority();
+
+		if (priority_a != priority_b) {
+			return priority_a > priority_b;
+		}
+		return a->get_last_active_timestamp() > b->get_last_active_timestamp();
+	});
+}
+
 void editor::render(bool cursor_only)
 {
 	window *active_win = get_active_window();
@@ -1251,28 +1270,24 @@ void editor::render(bool cursor_only)
 		// Create a list of raw pointers to sort
 		std::vector<window *> sorted_windows;
 		for (auto &w : windows_) {
-			sorted_windows.push_back(w.get());
+			if (w) {
+				sorted_windows.push_back(w.get());
+			}
 		}
 
 		// Sort: highest priority first. If priority is equal, newest timestamp first.
-		std::sort(sorted_windows.begin(), sorted_windows.end(), [active_win](window *a, window *b) {
-			int priority_a = (a == active_win) ? 9999 : a->get_display_priority();
-			int priority_b = (b == active_win) ? 9999 : b->get_display_priority();
-
-			if (priority_a != priority_b) {
-				return priority_a > priority_b;
-			}
-			return a->get_last_active_timestamp() > b->get_last_active_timestamp();
-		});
+		sort_windows_by_priority(sorted_windows, active_win);
 
 		// Occlusion culling: Assume visible, hide if fully covered by earlier (higher priority) windows.
 		for (size_t i = 0; i < sorted_windows.size(); ++i) {
 			window *w = sorted_windows[i];
+			if (!w) continue;
 			w->set_visible(true); // Default to visible
 
 			// Check if fully covered by any single window above it
 			for (size_t j = 0; j < i; ++j) {
 				window *above = sorted_windows[j];
+				if (!above) continue;
 				if (above->is_visible() && w->get_x() >= above->get_x() && w->get_y() >= above->get_y() &&
 				    w->get_x() + w->get_width() <= above->get_x() + above->get_width() &&
 				    w->get_y() + w->get_height() <= above->get_y() + above->get_height()) {
