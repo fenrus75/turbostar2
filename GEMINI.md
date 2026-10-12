@@ -16,6 +16,7 @@ Top design documentation: `docs/design.md`
 - perform a code review before each commit to ensure no stray edits happened
 - when working on a crash report, use the process from `docs/turbostar-crash-analysis-protocol.md`
 - run the test suite before commit
+- run `./scripts/run_clang_tidy.sh --critical -p build <changed_files>` on any modified `.cpp`/`.h` files before commit to ensure zero critical safety warnings (dangling handles, use-after-move, null dereferences, buffer overflows) are introduced. Maintain a 0-warning baseline on all commits.
 - when fixing a bug (not: new feature), create a testcase BEFORE fixing the bug; the testcase
     should first fail, and pass once the bug is fixed.
 - when splitting a large source file into multiple files, always add a block comment at the top of the original file describing the new files and their general contents to aid discoverability.
