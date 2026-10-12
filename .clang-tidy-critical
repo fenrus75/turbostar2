@@ -1,0 +1,51 @@
+---
+# TurboStar .clang-tidy-critical configuration (High-Priority Safety & Critical Bug Subset)
+# Focused strictly on critical bug patterns: dangling handles, memory corruption,
+# buffer/size mismatches, use-after-move, and analyzer crash/security vectors.
+# Designed for frequent use during everyday development and pre-commit checks.
+
+Checks: >
+  -*,
+  bugprone-argument-selection-defects,
+  bugprone-copy-constructor-init,
+  bugprone-dangling-handle,
+  bugprone-infinite-loop,
+  bugprone-multiple-statement-macro,
+  bugprone-sizeof-expression,
+  bugprone-string-constructor,
+  bugprone-string-integer-assignment,
+  bugprone-undefined-memory-manipulation,
+  bugprone-unhandled-self-assignment,
+  bugprone-use-after-move,
+  bugprone-virtual-near-miss,
+  clang-analyzer-core.CallAndMessage,
+  clang-analyzer-core.DivideZero,
+  clang-analyzer-core.NonNullParamChecker,
+  clang-analyzer-core.NullDereference,
+  clang-analyzer-core.UndefinedBinaryOperatorResult,
+  clang-analyzer-core.uninitialized.ArraySubscript,
+  clang-analyzer-core.uninitialized.Assign,
+  clang-analyzer-core.uninitialized.Branch,
+  clang-analyzer-core.uninitialized.CapturedBlockVariable,
+  clang-analyzer-core.uninitialized.UndefReturn,
+  clang-analyzer-cplusplus.NewDeleteLeaks,
+  clang-analyzer-security.ArrayBound,
+  clang-analyzer-security.ArrayBoundV2,
+  clang-analyzer-security.insecureAPI.bcopy,
+  clang-analyzer-security.insecureAPI.bzero,
+  clang-analyzer-security.insecureAPI.gets,
+  clang-analyzer-security.insecureAPI.mkstemp,
+  clang-analyzer-security.insecureAPI.mktemp,
+  clang-analyzer-security.insecureAPI.strcpy,
+  clang-analyzer-security.insecureAPI.vfork,
+  clang-analyzer-unix.MallocSizeof,
+  misc-misplaced-const,
+  misc-new-delete-overloads,
+  misc-non-copyable-objects,
+  misc-redundant-expression,
+  misc-uniqueptr-reset-release
+
+WarningsAsErrors: ''
+HeaderFilterRegex: 'src/.*'
+FormatStyle: file
+...

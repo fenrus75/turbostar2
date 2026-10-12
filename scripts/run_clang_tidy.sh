@@ -26,6 +26,10 @@ FILES=()
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --critical)
+            CONFIG_FILE="${REPO_ROOT}/.clang-tidy-critical"
+            shift
+            ;;
         --thorough)
             CONFIG_FILE="${REPO_ROOT}/.clang-tidy-thorough"
             shift
@@ -39,9 +43,10 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -h|--help)
-            echo "Usage: $0 [--thorough] [--config CONFIG_FILE] [-p BUILD_DIR] [FILES...]"
+            echo "Usage: $0 [--critical] [--thorough] [--config CONFIG_FILE] [-p BUILD_DIR] [FILES...]"
             echo ""
             echo "Options:"
+            echo "  --critical          Use .clang-tidy-critical configuration (high-priority safety subset)"
             echo "  --thorough          Use .clang-tidy-thorough configuration for deep-dive checks"
             echo "  --config FILE       Use specified clang-tidy configuration file"
             echo "  -p, --build-dir DIR Path to build directory containing compile_commands.json"

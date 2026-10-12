@@ -68,6 +68,9 @@ The following Meson build configurations validate compiler compatibility, saniti
       ```
 - [ ] Run static analysis via Clang-Tidy:
       ```bash
+      # Fast check for critical bugs & memory/buffer safety (run frequently):
+      ninja -C build clang-tidy-critical
+      # Standard low-noise pass:
       ninja -C build clang-tidy
       # For pre-release deep code audits (includes const-correctness, cert, cppcoreguidelines):
       ninja -C build clang-tidy-thorough

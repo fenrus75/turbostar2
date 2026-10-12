@@ -270,6 +270,9 @@ turbostar_semcode_indexer_exe = executable('turbostar-semcode-indexer',
   install : true)
 
 run_clang_tidy_sh = files('scripts/run_clang_tidy.sh')
+run_target('clang-tidy-critical',
+  command: [run_clang_tidy_sh, '--critical', meson.project_build_root()]
+)
 run_target('clang-tidy',
   command: [run_clang_tidy_sh, meson.project_build_root()]
 )
