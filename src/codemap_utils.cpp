@@ -283,7 +283,7 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 		if (std::regex_search(lines[i], match, cpp_class_regex)) {
 			is_class_candidate = true;
 			// Filter out parameter usages such as 'struct cpuidle_device *dev, int index)'
-			std::string_view suffix = match.suffix().str();
+			std::string_view suffix(match.suffix().first, match.suffix().second);
 			size_t first_non_ws = suffix.find_first_not_of(" \t\r\n");
 			if (first_non_ws != std::string_view::npos) {
 				char next_ch = suffix[first_non_ws];
