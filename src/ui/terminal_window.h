@@ -15,7 +15,8 @@ class terminal_window : public ::window
 {
       public:
 	terminal_window(int id, int x, int y, int width, int height, const std::string &title);
-	virtual ~terminal_window();
+	~terminal_window() override;
+
 
 	bool start_process(const std::string &raw_command, std::unique_ptr<build_log_parser> parser = nullptr, bool enable_network = false,
 			   bool enable_crash_catcher = true, bool allow_display = false, bool collect_performance = false);

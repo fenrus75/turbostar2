@@ -98,7 +98,8 @@ class perf_manager : public document_listener
 
       private:
 	perf_manager() = default;
-	~perf_manager() = default;
+	~perf_manager() override = default;
+
 	perf_manager(const perf_manager &) = delete;
 	perf_manager &operator=(const perf_manager &) = delete;
 

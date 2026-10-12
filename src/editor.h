@@ -59,7 +59,8 @@ class editor : public agentlib::document_provider
 	};
 
 	explicit editor(editor_options opts);
-	~editor();
+	~editor() override;
+
 
 	friend void test_vim_emulation();
 	friend void test_status_bar_paste();

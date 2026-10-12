@@ -1,8 +1,10 @@
 #pragma once
-#include <string>
+#include <format>
 #include <memory>
+#include <string>
 #include <nlohmann/json.hpp>
 #include "tool_validator.h"
+
 
 namespace agentlib {
 
@@ -20,11 +22,12 @@ namespace agentlib {
 */
 class single_string_tool_validator : public tool_validator {
 public:
-    virtual ~single_string_tool_validator() = default;
+    ~single_string_tool_validator() override = default;
 
     // Required overrides for the derived class
-    virtual std::string get_name() const override = 0;
-    virtual std::string get_description() const override = 0;
+    std::string get_name() const override = 0;
+    std::string get_description() const override = 0;
+
     
     // Define the single parameter (and optional aliases/defaults)
     virtual std::string get_parameter_name() const = 0;
@@ -52,8 +55,9 @@ public:
         for (const auto& alias : get_parameter_aliases()) {
             nlohmann::json alias_def = {
                 {"type", "string"},
-                {"description", "Alias for '" + get_parameter_name() + "': " + get_parameter_description()}
+                {"description", std::format("Alias for '{}': {}", get_parameter_name(), get_parameter_description())}
             };
+
             if (def_val) {
                 alias_def["default"] = *def_val;
             }
@@ -96,7 +100,7 @@ protected:
             if (def_val) {
                 val = *def_val;
             } else {
-                out_error = "Missing or invalid '" + param_name + "' string parameter.";
+                out_error = std::format("Missing or invalid '{}' string parameter.", param_name);
                 return false;
             }
         }
@@ -104,10 +108,11 @@ protected:
         // Validate no unexpected other arguments are passed
         for (auto it = raw_args.begin(); it != raw_args.end(); ++it) {
             if (!found_key.empty() && it.key() != found_key) {
-                out_error = "Unexpected parameter '" + it.key() + "' passed to tool.";
+                out_error = std::format("Unexpected parameter '{}' passed to tool.", it.key());
                 return false;
             }
         }
+
         
         return validate_string_arg(val, ctx, out_error);
     }

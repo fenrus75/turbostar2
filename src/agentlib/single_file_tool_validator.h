@@ -10,7 +10,8 @@ namespace agentlib {
 // and validates it against the tool_context's file_security_manager.
 class single_file_tool_validator : public single_string_tool_validator {
 public:
-    virtual ~single_file_tool_validator() = default;
+    ~single_file_tool_validator() override = default;
+
 
     // Derived classes specify what level of access they need
     virtual access_type get_required_permission() const = 0;

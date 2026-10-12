@@ -1,4 +1,5 @@
 #pragma once
+#include <format>
 #include <string>
 #include <memory>
 #include <nlohmann/json.hpp>
@@ -11,11 +12,12 @@ namespace agentlib {
 // and enforces that no unexpected arguments are passed.
 class zero_argument_tool_validator : public tool_validator {
 public:
-	virtual ~zero_argument_tool_validator() = default;
+	~zero_argument_tool_validator() override = default;
 
 	// Required overrides for the derived class
-	virtual std::string get_name() const override = 0;
-	virtual std::string get_description() const override = 0;
+	std::string get_name() const override = 0;
+	std::string get_description() const override = 0;
+
 
 	// --- Final implementations of the base tool_validator interface ---
 
@@ -30,9 +32,10 @@ public:
 protected:
 	bool validate_args_impl(const nlohmann::json& raw_args, const tool_context& ctx, std::string& out_error) const final {
 		if (raw_args.is_object() && !raw_args.empty()) {
-			out_error = "Tool '" + get_name() + "' expects no arguments, but received some.";
+			out_error = std::format("Tool '{}' expects no arguments, but received some.", get_name());
 			return false;
 		}
+
 		return validate_zero_args(ctx, out_error);
 	}
 

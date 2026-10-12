@@ -80,7 +80,8 @@ class codereview_manager : public document_listener
 
       private:
 	codereview_manager() = default;
-	~codereview_manager() = default;
+	~codereview_manager() override = default;
+
 
 	// Helper to get filepath for review.json
 	std::string get_review_json_path() const;

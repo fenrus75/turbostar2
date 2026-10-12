@@ -28,7 +28,8 @@ enum class dialog_result {
 class dialog : public ui_container{
       public:
 	dialog(const std::string &title, int width, int height);
-	virtual ~dialog() = default;
+	~dialog() override = default;
+
 
 	void draw(int abs_x, int abs_y) const override;
 	bool handle_event(const editor_event &ev, int abs_x, int abs_y) override;
