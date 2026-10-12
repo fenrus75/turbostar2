@@ -4,7 +4,9 @@
 #include <nlohmann/json.hpp>
 #include <openssl/evp.h>
 #include <filesystem>
+#include <format>
 #include <fstream>
+
 #include <iomanip>
 #include <sstream>
 #include <chrono>
@@ -514,16 +516,17 @@ std::string image_manager::format_origin_chain(const std::string &uri)
 	for (size_t i = 0; i < chain.size(); ++i) {
 		if (i > 0) {
 			if (!chain[i].origin_ops.empty()) {
-				result += " -> " + chain[i].origin_ops + " -> ";
+				result += std::format(" -> {} -> ", chain[i].origin_ops);
 			} else {
 				result += " -> ";
 			}
 		}
 		std::string name_str = chain[i].name;
 		if (!name_str.starts_with("images://")) {
-			name_str = "images://" + name_str;
+			name_str = std::format("images://{}", name_str);
 		}
 		result += name_str;
+
 	}
 	return result;
 }

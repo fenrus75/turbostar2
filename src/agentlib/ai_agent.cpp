@@ -220,7 +220,7 @@ bool ai_agent::set_episode_state(const std::string &episode_id, int target_level
 			 */
 			if (ep->get_compaction_level() == COMPACTION_LEVEL_PAGED_OUT && target_level < COMPACTION_LEVEL_PAGED_OUT) {
 				std::string history_dir = fs_utils::get_project_history_dir(name_);
-				std::string filepath = history_dir + "/" + episode_id + ".json";
+				std::string filepath = std::format("{}/{}.json", history_dir, episode_id);
 				if (std::filesystem::exists(filepath)) {
 					try {
 						std::ifstream file(filepath);
@@ -233,7 +233,7 @@ bool ai_agent::set_episode_state(const std::string &episode_id, int target_level
 			} else if (ep->get_compaction_level() < COMPACTION_LEVEL_PAGED_OUT && target_level == COMPACTION_LEVEL_PAGED_OUT) {
 				if (!ep->is_finalized()) {
 					std::string history_dir = fs_utils::get_project_history_dir(name_);
-					std::string filepath = history_dir + "/" + episode_id + ".json";
+					std::string filepath = std::format("{}/{}.json", history_dir, episode_id);
 					try {
 						ep->set_finalized(true);
 						nlohmann::json root = ep->serialize();
@@ -254,7 +254,8 @@ bool ai_agent::set_episode_state(const std::string &episode_id, int target_level
 			
 			// Update LRU seq in meta file on disk
 			std::string history_dir = fs_utils::get_project_history_dir(name_);
-			std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
+			std::string meta_filepath = std::format("{}/{}_metadata.json", history_dir, episode_id);
+
 			try {
 				std::ifstream mfile(meta_filepath);
 				nlohmann::json meta_root;

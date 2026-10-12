@@ -494,7 +494,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				size_t last = token.find_last_not_of(" \t");
 				token = token.substr(first, last - first + 1);
 				if (token.empty()) continue;
-				if (token.front() != '.') token = "." + token;
+				if (token.front() != '.') token = std::format(".{}", token);
 				if (ext == token || filename.ends_with(token)) {
 					return true;
 				}

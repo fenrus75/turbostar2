@@ -2,18 +2,19 @@
 #include <algorithm>
 #include <cstdlib>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <nlohmann/json.hpp>
-#include "../agentlib/tool_registry.h"
-#include "../config_manager.h"
-#include "../event_logger.h"
+#include "agentlib/ai_agent.h"
+#include "agentlib/ai_model.h"
+#include "agentlib/copilot_manager.h"
+#include "agentlib/httplib_transport.h"
+#include "agentlib/llm_client.h"
+#include "agentlib/tool_registry.h"
+#include "config_manager.h"
+#include "event_logger.h"
 #include "fs_utils.h"
-#include "../project_manager.h"
-#include "../agentlib/ai_agent.h"
-#include "../agentlib/ai_model.h"
-#include "../agentlib/llm_client.h"
-#include "../agentlib/httplib_transport.h"
-#include "../agentlib/copilot_manager.h"
+#include "project_manager.h"
 
 namespace fs = std::filesystem;
 
@@ -235,7 +236,7 @@ void mcp_manager::toggle_tool(const std::string &server_name, const std::string 
 			tool.enabled = enable;
 			server->set_tools(tools);
 
-			std::string reg_name = "mcp:" + server_name + ":" + tool_name;
+			std::string reg_name = std::format("mcp:{}:{}", server_name, tool_name);
 			if (enable && server->is_running()) {
 				bool is_system = server->is_system();
 				tool_registry::get_instance().register_validator([server_name, tool, is_system]() {
@@ -518,10 +519,11 @@ void mcp_manager::prompt_worker_loop()
 			// Ensure it starts with "Activate when "
 			if (!result.starts_with("Activate when ")) {
 				if (result.starts_with("activate when ")) {
-					result = "Activate when " + result.substr(14);
+					result = std::format("Activate when {}", result.substr(14));
 				} else {
-					result = "Activate when " + result;
+					result = std::format("Activate when {}", result);
 				}
+
 			}
 
 			if (!result.empty() && !result.starts_with("Error connecting") && !result.starts_with("Error parsing")) {

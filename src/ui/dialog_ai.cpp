@@ -543,7 +543,7 @@ std::unique_ptr<dialog> create_tool_status_dialog()
 		if (name_col.length() < 15) {
 			name_col.append(15 - name_col.length(), ' ');
 		}
-		status_flow->add_child(std::make_unique<ui_text_label>("  " + name_col + status_str));
+		status_flow->add_child(std::make_unique<ui_text_label>(std::format("  {}{}", name_col, status_str)));
 	}
 
 	if (perf_paranoid >= 0) {
@@ -552,7 +552,8 @@ std::unique_ptr<dialog> create_tool_status_dialog()
 		if (name_col.length() < 15) {
 			name_col.append(15 - name_col.length(), ' ');
 		}
-		status_flow->add_child(std::make_unique<ui_text_label>("  " + name_col + status_str));
+		status_flow->add_child(std::make_unique<ui_text_label>(std::format("  {}{}", name_col, status_str)));
+
 	}
 
 	flow->add_child(std::move(status_flow));

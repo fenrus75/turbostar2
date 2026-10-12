@@ -1,5 +1,7 @@
 #include <filesystem>
+#include <format>
 #include "agentlib/tool_registry.h"
+
 #include "fs_utils.h"
 #include "security_verify_html.h"
 
@@ -37,14 +39,15 @@ bool security_verify_html_validator::validate_args_impl(const nlohmann::json &ar
 
 		// Require read access to verify the file.
 		if (!ctx.fs_security.validate_access(raw_path, agentlib::access_type::read, resolved_path, out_error)) {
-			out_error = "Access denied for path '" + raw_path + "': " + out_error;
+			out_error = std::format("Access denied for path '{}': {}", raw_path, out_error);
 			return false;
 		}
 
 		if (!fs_utils::is_regular_file(resolved_path)) {
-			out_error = "File is not a regular file: " + raw_path;
+			out_error = std::format("File is not a regular file: {}", raw_path);
 			return false;
 		}
+
 
 		resolved_paths_.push_back(resolved_path);
 	}

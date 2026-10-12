@@ -1,5 +1,7 @@
 #include "agentlib/tool_registry.h"
 #include "git_unstage.h"
+#include <format>
+
 
 namespace tools
 {
@@ -40,7 +42,7 @@ bool git_unstage_validator::validate_args_impl(const nlohmann::json &args, const
 
 	for (const auto &untrusted_path : untrusted_raw_paths) {
 		if (untrusted_path.find("://") != std::string::npos) {
-			out_error = "Validation Error: git_unstage cannot operate on virtual VFS paths ('" + untrusted_path + "').";
+			out_error = std::format("Validation Error: git_unstage cannot operate on virtual VFS paths ('{}').", untrusted_path);
 			return false;
 		}
 		if (untrusted_path.find(".git") != std::string::npos) {
@@ -52,9 +54,10 @@ bool git_unstage_validator::validate_args_impl(const nlohmann::json &args, const
 
 		// Stage 1 Security: Validate against the file_security_manager.
 		if (!ctx.fs_security.validate_access(untrusted_path, agentlib::access_type::read, resolved_path, out_error)) {
-			out_error = "Access denied for path '" + untrusted_path + "': " + out_error;
+			out_error = std::format("Access denied for path '{}': {}", untrusted_path, out_error);
 			return false;
 		}
+
 
 		resolved_paths_.push_back(resolved_path);
 	}

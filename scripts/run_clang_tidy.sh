@@ -84,7 +84,8 @@ echo "Running ${RUN_CLANG_TIDY} using config: $(basename "${CONFIG_FILE}") in ${
 
 # If no specific files passed, limit to src/ to avoid analyzing external subprojects
 if [ ${#FILES[@]} -eq 0 ]; then
-    exec "$RUN_CLANG_TIDY" -p "${BUILD_DIR}" -config-file="${CONFIG_FILE}" -quiet "^${REPO_ROOT}/src/.*"
+    exec "$RUN_CLANG_TIDY" -p "${BUILD_DIR}" -config-file="${CONFIG_FILE}" -extra-arg=-std=c++23 -quiet "^${REPO_ROOT}/src/.*"
 else
-    exec "$RUN_CLANG_TIDY" -p "${BUILD_DIR}" -config-file="${CONFIG_FILE}" -quiet "${FILES[@]}"
+    exec "$RUN_CLANG_TIDY" -p "${BUILD_DIR}" -config-file="${CONFIG_FILE}" -extra-arg=-std=c++23 -quiet "${FILES[@]}"
 fi
+

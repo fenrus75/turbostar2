@@ -13,7 +13,9 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
+#include <format>
 #include <fstream>
+
 #include <set>
 #include <nlohmann/json.hpp>
 #include <sstream>
@@ -204,13 +206,14 @@ static std::string generate_subagents_index(const std::string &query)
 		std::string model_name = agent->get_model() ? agent->get_model()->get_name() : "default";
 		std::string task = agent->get_task_description();
 
-		if (!query.empty() && !contains_case_insensitive(std::to_string(id) + " " + name + " " + task + " " + status_str, query)) {
+		if (!query.empty() && !contains_case_insensitive(std::format("{} {} {} {}", id, name, task, status_str), query)) {
 			continue;
 		}
 
-		std::string short_task = task.length() > 60 ? (task.substr(0, 57) + "...") : task;
-		ss << "| [`" << id << "`](system://subagents/" << id << ".md) | `" << name << "` | `"
-		   << status_str << "` | " << model_name << " | " << short_task << " |\n";
+		std::string short_task = task.length() > 60 ? std::format("{}...", task.substr(0, 57)) : task;
+		ss << std::format("| [`{}`](system://subagents/{}.md) | `{}` | `{}` | {} | {} |\n",
+		                  id, id, name, status_str, model_name, short_task);
+
 		count++;
 	}
 

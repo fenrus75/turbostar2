@@ -11,6 +11,7 @@ Checks: >
   -bugprone-implicit-widening-of-multiplication-result,
   -bugprone-empty-catch,
   -bugprone-macro-parentheses,
+  -bugprone-branch-clone,
   clang-analyzer-*,
   -clang-diagnostic-*,
   misc-misplaced-const,
@@ -34,13 +35,14 @@ Checks: >
   modernize-use-transparent-functors,
   performance-*,
   -performance-avoid-endl,
+  -performance-enum-size,
+  -performance-unnecessary-value-param,
   readability-container-size-empty,
   readability-delete-null-pointer,
   readability-make-member-function-const,
   readability-redundant-control-flow,
   readability-redundant-smartptr-get,
   readability-redundant-string-cstr,
-  readability-redundant-string-init,
   readability-simplify-subscript-expr
 
 WarningsAsErrors: ''

@@ -1,14 +1,16 @@
 #include "openai_completion_connection.h"
-#include "../data/conversation.h"
-#include "../../event_logger.h"
-#include "../tool_registry.h"
-#include "../agent_role.h"
-#include "images/image_manager.h"
-#include "fs_utils.h"
-#include <chrono>
-#include <map>
 #include <algorithm>
+#include <chrono>
+#include <format>
 #include <fstream>
+#include <map>
+#include "agentlib/agent_role.h"
+#include "agentlib/data/conversation.h"
+#include "agentlib/tool_registry.h"
+#include "event_logger.h"
+#include "fs_utils.h"
+#include "images/image_manager.h"
+
 
 namespace agentlib {
 
@@ -53,8 +55,9 @@ static nlohmann::json process_user_content_openai(const std::string &content)
 				if (images::image_manager::get_instance().get_metadata(uri, meta)) {
 					mime = meta.mime_type;
 				}
-				std::string data_url = "data:" + mime + ";base64," + b64;
+				std::string data_url = std::format("data:{};base64,{}", mime, b64);
 				arr.push_back({{"type", "image_url"}, {"image_url", {{"url", data_url}}}});
+
 			}
 		}
 

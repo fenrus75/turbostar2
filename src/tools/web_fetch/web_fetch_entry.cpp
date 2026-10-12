@@ -1,5 +1,7 @@
 #include <filesystem>
+#include <format>
 #include <fstream>
+
 #include <future>
 #include <regex>
 #include <curl/curl.h>
@@ -98,7 +100,7 @@ static std::string perform_http_request(const std::string &url, const std::strin
 
 	struct curl_slist *header_list = nullptr;
 	for (const auto &[key, val] : headers) {
-		std::string header_str = key + ": " + val;
+		std::string header_str = std::format("{}: {}", key, val);
 		header_list = curl_slist_append(header_list, header_str.c_str());
 	}
 	if (header_list) {

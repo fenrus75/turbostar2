@@ -56,8 +56,9 @@ bool tar_hex_highlighter::parse(std::span<const uint8_t> data)
 			}
 		}
 		if (!prefix.empty()) {
-			filename = prefix + "/" + filename;
+			filename = std::format("{}/{}", prefix, filename);
 		}
+
 
 		// Parse octal size at offset 124 (12 bytes)
 		size_t size = 0;

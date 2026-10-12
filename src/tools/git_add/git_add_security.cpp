@@ -1,5 +1,7 @@
-#include "../../agentlib/tool_registry.h"
+#include "agentlib/tool_registry.h"
 #include "git_add.h"
+#include <format>
+
 
 namespace tools
 {
@@ -45,9 +47,10 @@ bool git_add_validator::validate_args_impl(const nlohmann::json &args, const age
 		// Even though git add doesn't strictly 'read' the file into our process,
 		// it exposes file metadata to the git index, so we require read permission.
 		if (!ctx.fs_security.validate_access(untrusted_path, agentlib::access_type::read, resolved_path, out_error)) {
-			out_error = "Access denied for path '" + untrusted_path + "': " + out_error;
+			out_error = std::format("Access denied for path '{}': {}", untrusted_path, out_error);
 			return false;
 		}
+
 
 		resolved_paths_.push_back(resolved_path);
 	}

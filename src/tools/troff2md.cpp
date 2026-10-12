@@ -1,7 +1,9 @@
 #include "troff2md.h"
-#include <vector>
 #include <algorithm>
+#include <format>
 #include <sstream>
+#include <vector>
+
 #include <unordered_map>
 #include <functional>
 #include <set>
@@ -685,15 +687,16 @@ std::string troff2md(std::string troff_content) {
                 output += line_output;
             } else {
                 prefix = std::string(state.current_indent(), ' ');
-                output += prefix + "* " + line_output;
+                output += std::format("{}* {}", prefix, line_output);
             }
             state.tp_state = TPState::IN_BODY;
         } else if (state.tp_state == TPState::IN_BODY && command != ".IP" && command != ".TQ") {
             if (line_output == "\n" || line_output.empty()) {
                 output += line_output;
             } else {
-                output += prefix + "  " + line_output;
+                output += std::format("{}  {}", prefix, line_output);
             }
+
         } else {
             if (line_output.starts_with("```") || command == ".EX") {
                 output += prefix + line_output;

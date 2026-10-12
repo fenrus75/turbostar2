@@ -124,8 +124,9 @@ bool file_security_manager::is_ignored(const std::filesystem::path &path) const
 		// Normalize pattern prefix matching for path segments
 		std::string prefix_pat = pat;
 		if (!prefix_pat.starts_with('/')) {
-			prefix_pat = "/" + prefix_pat;
+			prefix_pat = std::format("/{}", prefix_pat);
 		}
+
 
 		if (path_str == pat || path_str.ends_with(prefix_pat) || path_str.find(prefix_pat + "/") != std::string::npos) {
 			return true;

@@ -422,7 +422,7 @@ std::string get_compile_command_for_file(std::string_view filepath, std::string_
 								strip_flag(" -MMD", false);
 							}
 							std::string prefix = syntax_only ? "export CCACHE_DISABLE=1 && cd " : "cd ";
-							return prefix + dir + " && " + cmd;
+							return std::format("{}{} && {}", prefix, dir, cmd);
 						}
 					}
 				}
@@ -919,14 +919,15 @@ std::string shorten_filename(std::string_view filepath, int max_length)
 
 	if (remaining_space < 0) {
 		std::string full(filepath);
-		return "...." + full.substr(full.length() - (max_length - 4));
+		return std::format("....{}", full.substr(full.length() - (max_length - 4)));
 	}
 
 	int current_idx = parts.size() - 2;
 	while (current_idx >= start_idx) {
-		std::string to_add = "/" + parts[current_idx];
+		std::string to_add = std::format("/{}", parts[current_idx]);
 		if (remaining_space >= static_cast<int>(to_add.length())) {
 			result_right = to_add + result_right;
+
 			remaining_space -= to_add.length();
 			current_idx--;
 		} else {

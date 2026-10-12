@@ -138,7 +138,7 @@ fs_run_tests_tool::resolve_result fs_run_tests_tool::resolve_test_names_detailed
 			    result.resolved_names.end()) {
 				result.resolved_names.push_back(matched_name);
 			}
-			result.auto_matched_notes.push_back("Note: '" + t + "' matched '" + matched_name + "'.");
+			result.auto_matched_notes.push_back(std::format("Note: '{}' matched '{}'.", t, matched_name));
 		} else if (token_matches.size() > 1 && token_matches.size() <= 5) {
 			// Multiple candidates: save as suggestions rather than guessing
 			for (const auto &cand : token_matches) {

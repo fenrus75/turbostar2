@@ -219,7 +219,8 @@ void skill_manager::scan_and_mount(const std::filesystem::path &base_dir, const 
 				std::string rel_path = std::filesystem::relative(entry.path(), base_dir).string();
 
 				// Construct URI: skills://skill_name/rel_path
-				std::string uri = "skills://" + skill_name + "/" + rel_path;
+				std::string uri = std::format("skills://{}/{}", skill_name, rel_path);
+
 
 				vfs_->mount_file(uri, entry.path().string());
 			}

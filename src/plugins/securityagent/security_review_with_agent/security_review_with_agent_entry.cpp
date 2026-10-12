@@ -111,7 +111,7 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 		std::string err;
 		if (!ctx.fs_security.validate_access(file_path, agentlib::access_type::read, resolved_path, err)) {
 			set_failure(ctx, err);
-			return fs_utils::wrap_prompt_untrusted_data_tag("security_review_with_agent_result", "Error: Access denied for file '" + file_path + "': " + err);
+			return fs_utils::wrap_prompt_untrusted_data_tag("security_review_with_agent_result", std::format("Error: Access denied for file '{}': {}", file_path, err));
 		}
 		resolved_files.push_back(resolved_path);
 	}
@@ -122,8 +122,9 @@ std::string security_review_with_agent_tool::execute(agentlib::tool_context &ctx
 		std::string err;
 		if (!ctx.fs_security.validate_access(args_.output_path, agentlib::access_type::write, resolved_output_path, err)) {
 			set_failure(ctx, err);
-			return fs_utils::wrap_prompt_untrusted_data_tag("security_review_with_agent_result", "Error: Access denied for output path '" + args_.output_path + "': " + err);
+			return fs_utils::wrap_prompt_untrusted_data_tag("security_review_with_agent_result", std::format("Error: Access denied for output path '{}': {}", args_.output_path, err));
 		}
+
 	}
 
 	auto parent = ctx.active_agent->shared_from_this();

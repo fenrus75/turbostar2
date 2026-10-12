@@ -337,12 +337,14 @@ void config_manager::load_from_file(const std::string &path)
 					}
 				} else if (subkey.ends_with(".enabled")) {
 					std::string tool_name = subkey.substr(0, subkey.length() - 8);
+					std::string tool_key = std::format("{}:{}", server_name, tool_name);
 					if (is_project) {
-						project_mcp_tools_enabled_[server_name + ":" + tool_name] =
+						project_mcp_tools_enabled_[tool_key] =
 						    (value == "true" || value == "1");
 					} else {
-						mcp_tools_enabled_[server_name + ":" + tool_name] = (value == "true" || value == "1");
+						mcp_tools_enabled_[tool_key] = (value == "true" || value == "1");
 					}
+
 				}
 			}
 		} else if (key.starts_with("task.")) {

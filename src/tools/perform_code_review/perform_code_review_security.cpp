@@ -1,6 +1,8 @@
-#include "../../agentlib/tool_registry.h"
+#include "agentlib/tool_registry.h"
 #include "perform_code_review.h"
 #include "fs_utils.h"
+#include <format>
+
 
 namespace tools
 {
@@ -50,7 +52,7 @@ bool perform_code_review_validator::validate_args_impl(const nlohmann::json &raw
 			std::string resolved;
 			std::string access_err;
 			if (!ctx.fs_security.validate_access(f, agentlib::access_type::read, resolved, access_err)) {
-				out_error = "Error: No read access to file '" + f + "': " + access_err;
+				out_error = std::format("Error: No read access to file '{}': {}", f, access_err);
 				return false;
 			}
 		}
@@ -58,10 +60,11 @@ bool perform_code_review_validator::validate_args_impl(const nlohmann::json &raw
 			std::string resolved;
 			std::string access_err;
 			if (!ctx.fs_security.validate_access(parsed.result_file, agentlib::access_type::write, resolved, access_err)) {
-				out_error = "Error: No write access to result_file '" + parsed.result_file + "': " + access_err;
+				out_error = std::format("Error: No write access to result_file '{}': {}", parsed.result_file, access_err);
 				return false;
 			}
 		}
+
 
 		args_.files = parsed.files;
 		args_.instructions = parsed.instructions;
