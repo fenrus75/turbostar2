@@ -620,7 +620,7 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int abs_x, int abs_
 					cursor_pos_++;
 					update_scroll();
 				}
-			} else if (key == '\t' || key == 9) {
+			} else if (key == '\t') {
 				if (selection_start_ != -1 && selection_end_ != -1 && selection_start_ != selection_end_) {
 					delete_selection();
 				}

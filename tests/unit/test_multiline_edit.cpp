@@ -1,3 +1,4 @@
+// Tested source file: src/ui/components/ui_multiline_edit.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
