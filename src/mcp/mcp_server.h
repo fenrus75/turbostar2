@@ -11,6 +11,9 @@
 #include <vector>
 #include "../agentlib/tool_validator.h"
 
+// Forward declaration for unit test
+void test_mcp_server_destructor_exception_safety();
+
 namespace agentlib
 {
 
@@ -25,7 +28,9 @@ class mcp_server
 {
       public:
 	mcp_server() = default;
-	~mcp_server();
+	~mcp_server() noexcept;
+
+	friend void ::test_mcp_server_destructor_exception_safety();
 
 	std::string get_name() const
 	{
@@ -112,7 +117,7 @@ class mcp_server
 
 	// Lifecycle management
 	bool start();
-	void stop();
+	void stop() noexcept;
 	bool is_running() const
 	{
 		return pid_ > 0;

@@ -1,4 +1,4 @@
-// Tested source file: src/mcp/mcp_manager.cpp
+// Tested source file: src/mcp/mcp_manager.cpp, src/mcp/mcp_server.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <cstdlib>
@@ -6,10 +6,11 @@
 #include <fstream>
 #include <iostream>
 #include <unistd.h>
-#include "../../src/agentlib/tool_registry.h"
-#include "../../src/config_manager.h"
-#include "../../src/event_logger.h"
-#include "../../src/mcp/mcp_manager.h"
+#include "agentlib/tool_registry.h"
+#include "config_manager.h"
+#include "event_logger.h"
+#include "mcp/mcp_manager.h"
+#include "mcp/mcp_server.h"
 
 namespace fs = std::filesystem;
 using namespace agentlib;
@@ -21,10 +22,35 @@ void write_file(const fs::path &path, const std::string &content)
 	out << content;
 }
 
+void test_mcp_server_destructor_exception_safety()
+{
+	std::cout << "Testing mcp_server destructor exception safety..." << std::endl;
+	auto server = std::make_unique<mcp_server>();
+	// Put an already-satisfied promise in pending_requests_
+	{
+		std::lock_guard<std::mutex> lock(server->requests_mutex_);
+		std::promise<nlohmann::json> p;
+		p.set_value(nlohmann::json::object());
+		server->pending_requests_[1] = std::move(p);
+	}
+	// Artificially mark server as running with an invalid PID
+	{
+		std::lock_guard<std::mutex> lock(server->state_mutex_);
+		server->pid_ = 99999999;
+	}
+	// Calling server.reset() triggers ~mcp_server() which calls stop().
+	// BEFORE FIX: pair.second.set_value(err) throws std::future_error (promise_already_satisfied),
+	// escaping ~mcp_server() and crashing via std::terminate (SIGABRT)!
+	// AFTER FIX: Caught safely, server destructs without throwing.
+	server.reset();
+	std::cout << "mcp_server destructor exception safety passed!" << std::endl;
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
 	test_watchdog::scoped_test_home home_guard("mcp_manager");
+	test_mcp_server_destructor_exception_safety();
 	std::cout << "Testing MCP Manager..." << std::endl;
 
 	// 1. Isolate HOME and Project environment in unique temp paths

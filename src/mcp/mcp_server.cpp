@@ -30,9 +30,12 @@ class mcp_command_runner : public command_runner
 	}
 };
 
-mcp_server::~mcp_server()
+mcp_server::~mcp_server() noexcept
 {
-	stop();
+	try {
+		stop();
+	} catch (...) {
+	}
 }
 
 void mcp_server::auto_detect_type()
@@ -404,70 +407,94 @@ bool mcp_server::start()
 	return pid_ > 0;
 }
 
-void mcp_server::stop()
+void mcp_server::stop() noexcept
 {
-	std::lock_guard<std::mutex> lock(state_mutex_);
-	if (pid_ <= 0) {
-		return;
-	}
-
-	event_logger::get_instance().log("Stopping MCP server '{}' (PID {})...", name_, pid_);
-
-	reader_running_ = false;
-
-	if (stdin_fd_ >= 0) {
-		close(stdin_fd_);
-		stdin_fd_ = -1;
-	}
-	if (stdout_fd_ >= 0) {
-		close(stdout_fd_);
-		stdout_fd_ = -1;
-	}
-	if (stderr_fd_ >= 0) {
-		close(stderr_fd_);
-		stderr_fd_ = -1;
-	}
-
-	// Kill child process group
-	kill(-pid_, SIGTERM);
-
-	int status;
-	int waited = 0;
-	while (waited < 50) {
-		pid_t res = waitpid(pid_, &status, WNOHANG);
-		if (res == pid_ || res < 0) {
-			break;
+	try {
+		std::lock_guard<std::mutex> lock(state_mutex_);
+		if (pid_ <= 0) {
+			return;
 		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
-		waited++;
-	}
 
-	if (waited >= 50) {
-		kill(-pid_, SIGKILL);
-		waitpid(pid_, &status, 0);
-	}
-
-	pid_ = 0;
-	startup_time_ms_ = -1;
-
-	if (reader_thread_.joinable()) {
-		reader_thread_.join();
-	}
-	if (stderr_thread_.joinable()) {
-		stderr_thread_.join();
-	}
-
-	// Terminate pending requests
-	{
-		std::lock_guard<std::mutex> lock(requests_mutex_);
-		for (auto &pair : pending_requests_) {
-			nlohmann::json err = {{"id", pair.first}, {"error", {{"code", -32603}, {"message", "Server stopped."}}}};
-			pair.second.set_value(err);
+		try {
+			event_logger::get_instance().log("Stopping MCP server '{}' (PID {})...", name_, pid_);
+		} catch (...) {
 		}
-		pending_requests_.clear();
-	}
 
-	event_logger::get_instance().log("MCP server '{}' stopped.", name_);
+		reader_running_ = false;
+
+		if (stdin_fd_ >= 0) {
+			close(stdin_fd_);
+			stdin_fd_ = -1;
+		}
+		if (stdout_fd_ >= 0) {
+			close(stdout_fd_);
+			stdout_fd_ = -1;
+		}
+		if (stderr_fd_ >= 0) {
+			close(stderr_fd_);
+			stderr_fd_ = -1;
+		}
+
+		// Kill child process group
+		kill(-pid_, SIGTERM);
+
+		int status;
+		int waited = 0;
+		while (waited < 50) {
+			pid_t res = waitpid(pid_, &status, WNOHANG);
+			if (res == pid_ || res < 0) {
+				break;
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+			waited++;
+		}
+
+		if (waited >= 50) {
+			kill(-pid_, SIGKILL);
+			waitpid(pid_, &status, 0);
+		}
+
+		pid_ = 0;
+		startup_time_ms_ = -1;
+
+		try {
+			if (reader_thread_.joinable()) {
+				reader_thread_.join();
+			}
+		} catch (...) {
+		}
+
+		try {
+			if (stderr_thread_.joinable()) {
+				stderr_thread_.join();
+			}
+		} catch (...) {
+		}
+
+		// Terminate pending requests
+		try {
+			std::lock_guard<std::mutex> req_lock(requests_mutex_);
+			for (auto &pair : pending_requests_) {
+				try {
+					nlohmann::json err = {
+						{"id", pair.first},
+						{"error", {{"code", -32603}, {"message", "Server stopped."}}}
+					};
+					pair.second.set_value(err);
+				} catch (...) {
+					// Ignore if promise already satisfied or memory error
+				}
+			}
+			pending_requests_.clear();
+		} catch (...) {
+		}
+
+		try {
+			event_logger::get_instance().log("MCP server '{}' stopped.", name_);
+		} catch (...) {
+		}
+	} catch (...) {
+	}
 }
 
 nlohmann::json mcp_server::send_request(const std::string &method, const nlohmann::json &params)
