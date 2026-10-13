@@ -170,6 +170,7 @@ class document
 	void move_selection();
 	bool has_selection() const noexcept;
 	bool write_selection_to_file(std::string_view filename);
+	std::string get_selection_text() const;
 
 	void get_selection_range(int &start_x, int &start_y, int &end_x, int &end_y) const;
 	void get_selection_range_unlocked(int &start_x, int &start_y, int &end_x, int &end_y) const;

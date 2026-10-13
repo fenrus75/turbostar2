@@ -1650,6 +1650,7 @@ if uv.found() or python.found()
     'PYTHONPATH=' + join_paths(meson.project_source_root(), 'tests/e2e'),
     'PROJECT_ROOT=' + meson.project_source_root(),
     'UV_CACHE_DIR=' + meson.project_source_root() / '.turbostar' / 'uv_cache',
+    'UV_OFFLINE=1',
     'TURBOSTAR_IN_TESTSUITE=1',
     'TURBOSTAR_PLUGIN_DIR=' + meson.project_build_root() / 'src' / 'plugins',
     'TURBOSTAR_TURBOCATCH_DIR=' + meson.project_build_root()

@@ -1492,9 +1492,15 @@ void editor::dispatch_event_key(const editor_event &ev)
 					if (active_mode_ == input_mode::k_block) {
 						active_mode_ = input_mode::normal;
 					}
+					editor_event redraw_ev;
+					redraw_ev.type = event_type::redraw;
+					global_queue_.push(redraw_ev);
 					return;
 				}
 				active_mode_ = input_mode::normal;
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
 			}
 
 			if (active_mode_ == input_mode::q_block) {
@@ -1502,9 +1508,15 @@ void editor::dispatch_event_key(const editor_event &ev)
 					if (active_mode_ == input_mode::q_block) {
 						active_mode_ = input_mode::normal;
 					}
+					editor_event redraw_ev;
+					redraw_ev.type = event_type::redraw;
+					global_queue_.push(redraw_ev);
 					return;
 				}
 				active_mode_ = input_mode::normal;
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
 			}
 
 			if (active_mode_ == input_mode::p_block) {
@@ -1512,9 +1524,15 @@ void editor::dispatch_event_key(const editor_event &ev)
 					if (active_mode_ == input_mode::p_block) {
 						active_mode_ = input_mode::normal;
 					}
+					editor_event redraw_ev;
+					redraw_ev.type = event_type::redraw;
+					global_queue_.push(redraw_ev);
 					return;
 				}
 				active_mode_ = input_mode::normal;
+				editor_event redraw_ev;
+				redraw_ev.type = event_type::redraw;
+				global_queue_.push(redraw_ev);
 			}
 
 			if (ev.key_code == 11) { // Ctrl-K

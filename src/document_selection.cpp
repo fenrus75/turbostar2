@@ -547,3 +547,19 @@ bool document::write_selection_to_file(std::string_view filename)
 	event_logger::get_instance().log("Block selection written to: {}", filename);
 	return true;
 }
+
+std::string document::get_selection_text() const
+{
+	std::shared_lock lock(mutex_);
+	std::vector<line> block = get_selection_block();
+	lock.unlock();
+
+	std::string result;
+	for (size_t i = 0; i < block.size(); ++i) {
+		result += block[i].get_text();
+		if (i + 1 < block.size()) {
+			result += "\n";
+		}
+	}
+	return result;
+}

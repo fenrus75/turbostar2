@@ -33,10 +33,9 @@ def test_ctrl_k_w_no_selection():
             runner.cleanup()
 
 def test_ctrl_k_w_mouse_selection():
-    """Verify that text selected with mouse drag is written by ^KW, not the whole file."""
+    """Verify that mouse selection does NOT create a block selection for ^KW."""
     with tempfile.TemporaryDirectory() as tmpdir:
         input_file = os.path.join(tmpdir, "input.txt")
-        output_file = os.path.join(tmpdir, "out_mouse.txt")
         with open(input_file, "w") as f:
             f.write("Line 1: Alpha\nLine 2: Beta\nLine 3: Gamma\nLine 4: Delta\n")
             
@@ -52,26 +51,22 @@ def test_ctrl_k_w_mouse_selection():
             runner.send_raw_keys(b"\x1b[<0;14;4m") # release at (12, 3)
             time.sleep(0.3)
             
+            # ^KW should report "No block selected" because mouse drag does NOT set block markers
             runner.send_ctrlk('w')
-            runner.assert_text_on_screen("Write Block to File", timeout=2.0)
-            runner.send_keys(output_file + '\n')
-            time.sleep(0.5)
+            time.sleep(0.3)
+            runner.assert_text_on_screen("No block selected", timeout=2.0)
+            runner.assert_text_not_on_screen("Write Block to File")
             
-            assert os.path.exists(output_file), f"Output file {output_file} was not created!"
-            with open(output_file, "r") as f:
-                content = f.read()
-            assert content == "Line 2: Beta", f"Expected only 'Line 2: Beta', but got:\n{repr(content)}"
-            
+            runner.send_keys(KEY_ESC)
             runner.send_ctrlk('q')
             runner.wait(timeout=5)
         finally:
             runner.cleanup()
 
 def test_ctrl_k_w_kb_only():
-    """Verify that setting ^KB and moving cursor (without explicit ^KK) defines block to cursor."""
+    """Verify that setting only ^KB (half-marker) does NOT create an active selection for ^KW."""
     with tempfile.TemporaryDirectory() as tmpdir:
         input_file = os.path.join(tmpdir, "input.txt")
-        output_file = os.path.join(tmpdir, "out_kb.txt")
         with open(input_file, "w") as f:
             f.write("Line 1: Alpha\nLine 2: Beta\nLine 3: Gamma\nLine 4: Delta\n")
             
@@ -83,19 +78,17 @@ def test_ctrl_k_w_kb_only():
             # Move to Line 2, set ^KB
             runner.send_keys(KEY_DOWN)
             runner.send_ctrlk('b')
+            runner.assert_text_on_screen("Block start set.", timeout=2.0)
             # Move to end of Line 2 without ^KK
             runner.send_keys(KEY_RIGHT, count=12)
             
+            # ^KW must fail with "No block selected" because half-marker is not a valid selection
             runner.send_ctrlk('w')
-            runner.assert_text_on_screen("Write Block to File", timeout=2.0)
-            runner.send_keys(output_file + '\n')
-            time.sleep(0.5)
+            time.sleep(0.3)
+            runner.assert_text_on_screen("No block selected", timeout=2.0)
+            runner.assert_text_not_on_screen("Write Block to File")
             
-            assert os.path.exists(output_file), f"Output file {output_file} was not created!"
-            with open(output_file, "r") as f:
-                content = f.read()
-            assert content == "Line 2: Beta", f"Expected only 'Line 2: Beta', but got:\n{repr(content)}"
-            
+            runner.send_keys(KEY_ESC)
             runner.send_ctrlk('q')
             runner.wait(timeout=5)
         finally:
@@ -136,6 +129,37 @@ def test_ctrl_k_w_explicit_selection():
         finally:
             runner.cleanup()
 
+def test_ctrl_k_t_block_copy():
+    """Verify that ^KT copies block selection to clipboard and displays status message."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        input_file = os.path.join(tmpdir, "input.txt")
+        with open(input_file, "w") as f:
+            f.write("Line 1: Alpha\nLine 2: Beta\nLine 3: Gamma\nLine 4: Delta\n")
+            
+        runner = TurbostarRunner()
+        try:
+            runner.start(filename=input_file)
+            runner.assert_text_on_screen("Line 1: Alpha", timeout=2.0)
+            
+            # Move to Line 2, set ^KB
+            runner.send_keys(KEY_DOWN)
+            runner.send_ctrlk('b')
+            runner.assert_text_on_screen("Block start set.", timeout=2.0)
+            
+            # Move to end of Line 2, set ^KK
+            runner.send_keys(KEY_RIGHT, count=12)
+            runner.send_ctrlk('k')
+            runner.assert_text_on_screen("Block end set.", timeout=2.0)
+            
+            # Press ^KT to copy block
+            runner.send_ctrlk('t')
+            runner.assert_text_on_screen("Block copied to clipboard.", timeout=2.0)
+            
+            runner.send_ctrlk('q')
+            runner.wait(timeout=5)
+        finally:
+            runner.cleanup()
+
 if __name__ == "__main__":
     test_ctrl_k_w_explicit_selection()
     print("test_ctrl_k_w_explicit_selection passed!")
@@ -145,3 +169,5 @@ if __name__ == "__main__":
     print("test_ctrl_k_w_mouse_selection passed!")
     test_ctrl_k_w_kb_only()
     print("test_ctrl_k_w_kb_only passed!")
+    test_ctrl_k_t_block_copy()
+    print("test_ctrl_k_t_block_copy passed!")

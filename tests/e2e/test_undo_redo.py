@@ -23,8 +23,9 @@ def test_undo_redo():
         runner.assert_text_on_screen("Hello World", timeout=1.5)
 
         # 4. Test deleting a block (which IS grouped)
-        runner.send_ctrlk('b') # ^K B
         runner.send_keys(KEY_LEFT, count=5) # Left 5 times (before 'World')
+        runner.send_ctrlk('b') # ^K B
+        runner.send_keys(KEY_RIGHT, count=5) # Right 5 times (end of 'World')
         runner.send_ctrlk('k') # ^K K
         runner.send_ctrlk('y') # ^K Y (Delete block)
         time.sleep(0.5)

@@ -12,6 +12,7 @@
 #include <unordered_set>
 #include "agentlib/ai_agent.h"
 #include "agentlib/ai_model.h"
+#include "ansi.h"
 #include "binary_document.h"
 #include "build_error_manager.h"
 #include "codereview_manager.h"
@@ -1052,23 +1053,34 @@ bool editor::handle_k_block_key(int key)
 		if (!active_doc)
 			return false;
 		active_doc->set_selection_start();
+		set_status_message("Block start set.", status_priorities::CRITICAL, std::chrono::seconds(2));
 		return true;
 	} else if (c == 'k') {
 		logger.log("K-block: Set Selection End");
 		if (!active_doc)
 			return false;
 		active_doc->set_selection_end();
+		if (active_doc->has_selection()) {
+			set_status_message("Block end set.", status_priorities::CRITICAL, std::chrono::seconds(2));
+		} else {
+			set_status_message("Selection cleared.", status_priorities::CRITICAL, std::chrono::seconds(2));
+		}
 		return true;
 	} else if (c == 'h') {
 		logger.log("K-block: Clear Selection");
 		if (!active_doc)
 			return false;
 		active_doc->clear_selection();
+		set_status_message("Selection cleared.", status_priorities::CRITICAL, std::chrono::seconds(2));
 		return true;
 	} else if (c == 'y') {
 		logger.log("K-block: Delete Block");
 		if (!active_doc)
 			return false;
+		if (!active_doc->has_selection()) {
+			set_status_message("No block selected.", status_priorities::CRITICAL, std::chrono::seconds(2));
+			return true;
+		}
 		active_doc->delete_selection();
 		editor_event redraw_ev;
 		redraw_ev.type = event_type::redraw;
@@ -1078,6 +1090,10 @@ bool editor::handle_k_block_key(int key)
 		logger.log("K-block: Copy Block");
 		if (!active_doc)
 			return false;
+		if (!active_doc->has_selection()) {
+			set_status_message("No block selected.", status_priorities::CRITICAL, std::chrono::seconds(2));
+			return true;
+		}
 		active_doc->copy_selection();
 		editor_event redraw_ev;
 		redraw_ev.type = event_type::redraw;
@@ -1087,6 +1103,10 @@ bool editor::handle_k_block_key(int key)
 		logger.log("K-block: Move Block");
 		if (!active_doc)
 			return false;
+		if (!active_doc->has_selection()) {
+			set_status_message("No block selected.", status_priorities::CRITICAL, std::chrono::seconds(2));
+			return true;
+		}
 		active_doc->move_selection();
 		editor_event redraw_ev;
 		redraw_ev.type = event_type::redraw;
@@ -1133,10 +1153,18 @@ bool editor::handle_k_block_key(int key)
 		set_focus(focus_target::dialog, "menu_insert_file");
 		return true;
 	} else if (c == 't') {
-		logger.log("K-block: Revert");
-		editor_event ev;
-		ev.type = event_type::revert;
-		global_queue_.push(ev);
+		logger.log("K-block: Copy Block to Clipboard");
+		if (!active_doc)
+			return false;
+		if (!active_doc->has_selection()) {
+			set_status_message("No block selected.", status_priorities::CRITICAL, std::chrono::seconds(2));
+			return true;
+		}
+		std::string text_to_copy = active_doc->get_selection_text();
+		if (!text_to_copy.empty()) {
+			ansi::copy_to_clipboard(text_to_copy);
+		}
+		set_status_message("Block copied to clipboard.", status_priorities::CRITICAL, std::chrono::seconds(2));
 		return true;
 	} else if (c == 'j') {
 		logger.log("K-block: Format Paragraph");
