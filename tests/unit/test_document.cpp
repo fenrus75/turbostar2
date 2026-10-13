@@ -415,7 +415,7 @@ int main()
 		std::filesystem::remove(temp_file);
 	}
 
-	// Test 10b: write_selection_to_file with begin marker only and cursor moved
+	// Test 10b: Incomplete or inverted block selection invariants
 	{
 		document doc(queue);
 		doc.append_line("Line 1");
@@ -423,25 +423,41 @@ int main()
 		doc.append_line("Line 3");
 		doc.append_line("Line 4");
 
-		// Move cursor to start of Line 2 (x=0, y=1)
+		// Move cursor to start of Line 2 (x=0, y=1) and set selection start only (^KB)
 		doc.set_cursor_position(0, 1);
 		doc.set_selection_start();
-		// Move cursor to end of Line 3 (x=6, y=2) without calling set_selection_end()
 		doc.set_cursor_position(6, 2);
 
-		assert(doc.has_selection());
+		// Half-marker must NOT be considered an active selection
+		assert(!doc.has_selection());
 
 		std::string temp_file = "temp_selection_write_kb.txt";
 		std::filesystem::remove(temp_file);
 
+		// write_selection_to_file must fail when only ^KB is set
 		bool success = doc.write_selection_to_file(temp_file);
-		assert(success);
+		assert(!success);
+		assert(!std::filesystem::exists(temp_file));
 
-		std::ifstream ifs(temp_file);
-		std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-		assert(content == "Line 2\nLine 3");
+		// Test setting end marker before start marker clears selection
+		doc.set_cursor_position(0, 0); // before start at (0, 1)
+		doc.set_selection_end();
+		assert(!doc.has_selection());
+		int sx = 0, sy = 0, ex = 0, ey = 0;
+		doc.get_selection_range(sx, sy, ex, ey);
+		assert(sx == -1 && sy == -1 && ex == -1 && ey == -1);
 
-		std::filesystem::remove(temp_file);
+		// Test setting only ^KK
+		doc.set_cursor_position(3, 1);
+		doc.set_selection_end();
+		assert(!doc.has_selection());
+
+		// Test setting valid selection then collapsing
+		doc.set_cursor_position(0, 1);
+		doc.set_selection_start();
+		doc.set_cursor_position(3, 1);
+		doc.set_selection_end();
+		assert(doc.has_selection());
 	}
 
 	// Test 11: delete_word_forward respects terminators (quote, semicolon, comma)
