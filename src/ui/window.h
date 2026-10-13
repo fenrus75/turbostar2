@@ -187,6 +187,12 @@ class window
 		return window_queue_;
 	}
 
+	bool has_mouse_selection() const noexcept
+	{
+		return mouse_sel_start_line_ != -1 && mouse_sel_end_line_ != -1 &&
+		       (mouse_sel_start_line_ != mouse_sel_end_line_ || mouse_sel_start_char_ != mouse_sel_end_char_);
+	}
+
       protected:
 	int x_, y_, width_, height_;
 	int restore_x_{0}, restore_y_{0}, restore_width_{0}, restore_height_{0};

@@ -121,11 +121,15 @@ bool window::process_events()
 	while (auto ev = window_queue_.pop()) {
 		event_logger::get_instance().log("Window {} processing key: {}", id_, ev->key_code);
 		if (ev->type == event_type::key_press && doc_) {
+			bool had_mouse_sel = (mouse_sel_start_line_ != -1);
 			is_mouse_selecting_ = false;
 			mouse_sel_start_char_ = -1;
 			mouse_sel_start_line_ = -1;
 			mouse_sel_end_char_ = -1;
 			mouse_sel_end_line_ = -1;
+			if (had_mouse_sel) {
+				invalidate();
+			}
 			switch (ev->key_code) {
 				case KEY_UP:
 					doc_->move_cursor(0, -1);
@@ -321,7 +325,6 @@ bool window::process_events()
 					click_char = l->display_col_to_char_pos(click_col_display);
 				}
 
-				doc_->clear_selection();
 				doc_->move_cursor(click_char - doc_->get_cursor_x(), click_row - doc_->get_cursor_y());
 
 				is_mouse_selecting_ = true;
@@ -410,7 +413,6 @@ bool window::process_events()
 					mouse_sel_start_line_ = click_row;
 					mouse_sel_end_char_ = end_pos + 1;
 					mouse_sel_end_line_ = click_row;
-					doc_->set_selection(click_row, start_pos, click_row, end_pos + 1);
 
 					std::string selected_text = get_mouse_selected_text();
 					if (!selected_text.empty()) {
@@ -454,7 +456,6 @@ bool window::process_events()
 				mouse_sel_start_line_ = start_row;
 				mouse_sel_end_char_ = end_line_obj->length_in_chars();
 				mouse_sel_end_line_ = end_row;
-				doc_->set_selection(start_row, 0, end_row, end_line_obj->length_in_chars());
 
 				std::string selected_text = get_mouse_selected_text();
 				if (!selected_text.empty()) {
@@ -464,6 +465,19 @@ bool window::process_events()
 			}
 		} else if (ev->type == event_type::mouse_drag && doc_) {
 			if (is_mouse_selecting_) {
+				if (ev->mouse_y <= y_) {
+					top_line_ = std::max(0, top_line_ - 1);
+				} else if (ev->mouse_y >= y_ + height_ - 1) {
+					int max_top = std::max(0, static_cast<int>(doc_->get_line_count()) - get_content_height());
+					top_line_ = std::min(max_top, top_line_ + 1);
+				}
+
+				if (ev->mouse_x <= x_) {
+					left_column_ = std::max(0, left_column_ - 2);
+				} else if (ev->mouse_x >= x_ + width_ - 1) {
+					left_column_ += 2;
+				}
+
 				int click_row = top_line_ + (ev->mouse_y - y_ - 1);
 				int click_col_display = left_column_ + (ev->mouse_x - x_ - 1);
 				click_row = std::clamp(click_row, 0, std::max(0, static_cast<int>(doc_->get_line_count()) - 1));
@@ -478,7 +492,6 @@ bool window::process_events()
 				mouse_sel_end_char_ = click_char;
 				mouse_sel_end_line_ = click_row;
 				doc_->move_cursor(click_char - doc_->get_cursor_x(), click_row - doc_->get_cursor_y());
-				doc_->set_selection(mouse_sel_start_line_, mouse_sel_start_char_, mouse_sel_end_line_, mouse_sel_end_char_);
 				invalidate();
 			}
 		} else if (ev->type == event_type::mouse_release && doc_) {
@@ -486,10 +499,6 @@ bool window::process_events()
 				std::string selected_text = get_mouse_selected_text();
 				if (!selected_text.empty()) {
 					ansi::copy_to_clipboard(selected_text);
-				}
-				if (mouse_sel_start_line_ != -1 && mouse_sel_end_line_ != -1 &&
-				    (mouse_sel_start_line_ != mouse_sel_end_line_ || mouse_sel_start_char_ != mouse_sel_end_char_)) {
-					doc_->set_selection(mouse_sel_start_line_, mouse_sel_start_char_, mouse_sel_end_line_, mouse_sel_end_char_);
 				}
 				is_mouse_selecting_ = false;
 				invalidate();
@@ -754,7 +763,7 @@ void window::draw_content(bool cursor_only) const
 								}
 							}
 
-							bool in_selection = (in_block_selection != in_mouse_selection);
+							bool in_selection = in_mouse_selection || in_block_selection;
 
 							bool is_match = false;
 							if (match_pos) {
@@ -901,7 +910,7 @@ void window::draw_content(bool cursor_only) const
 							}
 						}
 
-						bool in_selection = (in_block_selection != in_mouse_selection);
+						bool in_selection = in_mouse_selection || in_block_selection;
 
 						bool is_match = false;
 						if (match_pos) {

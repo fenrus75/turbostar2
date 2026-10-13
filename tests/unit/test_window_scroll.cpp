@@ -70,6 +70,80 @@ int main()
 		assert(windows[0] != nullptr && windows[1] != nullptr);
 	}
 
+	// Test 4: Mouse click and drag does not alter or clear document block selection
+	{
+		doc->set_selection(1, 0, 3, 5);
+		assert(doc->has_selection());
+
+		// Mouse click inside content
+		editor_event ev_click;
+		ev_click.type = event_type::mouse_click;
+		ev_click.mouse_x = 5;
+		ev_click.mouse_y = 5;
+		win.get_window_queue().push(ev_click);
+		win.process_events();
+
+		// Document block selection MUST remain intact!
+		assert(doc->has_selection());
+		int sx = 0, sy = 0, ex = 0, ey = 0;
+		doc->get_selection_range(sx, sy, ex, ey);
+		assert(sy == 1 && sx == 0 && ey == 3 && ex == 5);
+
+		// Mouse drag inside content
+		editor_event ev_drag;
+		ev_drag.type = event_type::mouse_drag;
+		ev_drag.mouse_x = 10;
+		ev_drag.mouse_y = 6;
+		win.get_window_queue().push(ev_drag);
+		win.process_events();
+
+		// Document block selection MUST still remain intact!
+		assert(doc->has_selection());
+		doc->get_selection_range(sx, sy, ex, ey);
+		assert(sy == 1 && sx == 0 && ey == 3 && ex == 5);
+
+		// Mouse release
+		editor_event ev_rel;
+		ev_rel.type = event_type::mouse_release;
+		ev_rel.mouse_x = 10;
+		ev_rel.mouse_y = 6;
+		win.get_window_queue().push(ev_rel);
+		win.process_events();
+
+		assert(doc->has_selection());
+		doc->get_selection_range(sx, sy, ex, ey);
+		assert(sy == 1 && sx == 0 && ey == 3 && ex == 5);
+		assert(win.has_mouse_selection());
+
+		// Keypress dismisses mouse selection while preserving block selection
+		editor_event ev_key;
+		ev_key.type = event_type::key_press;
+		ev_key.key_code = 'a';
+		ev_key.utf8_char = "a";
+		win.get_window_queue().push(ev_key);
+		win.process_events();
+
+		assert(!win.has_mouse_selection());
+		assert(doc->has_selection());
+
+		// Test mouse drag past bottom boundary triggers auto-scroll
+		int prev_top = win.get_scroll_top_line();
+		editor_event ev_drag_down;
+		ev_drag_down.type = event_type::mouse_click;
+		ev_drag_down.mouse_x = 5;
+		ev_drag_down.mouse_y = 5;
+		win.get_window_queue().push(ev_drag_down);
+		win.process_events();
+
+		ev_drag_down.type = event_type::mouse_drag;
+		ev_drag_down.mouse_x = 5;
+		ev_drag_down.mouse_y = 15; // past bottom of height 10
+		win.get_window_queue().push(ev_drag_down);
+		win.process_events();
+
+		assert(win.get_scroll_top_line() > prev_top);
+	}
+
 	std::cout << "Test window scrollbar click passed!\n";
 	return 0;
 }
