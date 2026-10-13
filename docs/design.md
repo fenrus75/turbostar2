@@ -28,6 +28,7 @@ sections updated as enhancements are made to the project.
 | `docs/design-plugin.md` | Plugin architecture, lifecycles, and tool registration |
 | `docs/design-subagents.md` | Subagent Library and Manager architecture |
 | `docs/design-website.md` | Project website structure, styling guidelines, and update rules |
+| `docs/design-selection.md` | Dual-mode selection architecture and specification |
 
 
 
@@ -54,12 +55,9 @@ After making a change, create a git commit for the change. Before committing, en
     - **Compile-Time Thread Safety**: Clang's Thread Safety Analysis annotations (defined in `src/thread_annotations.h` via `safe_mutex`, `safe_lock_guard`, `safe_unique_lock`, `GUARDED_BY`, `REQUIRES`, etc.) are used across the codebase to statically verify locking discipline at compile time under Clang (using `-Wthread-safety`).
   - Per-Window/Document Event Queues: Thread-safe queues for passing events between threads.
 - **Selection Model**:
-  - Turbostar uses a **Persistent Marker Selection** model (WordStar/Joe style) for block operations.
-  - Two markers, `Selection Begin` (^KB) and `Selection End` (^KK), define a contiguous range of text.
-  - The selection is "persistent": it stays active even as the cursor moves, until specifically moved or hidden.
-  - **Editing Awareness**: The document class ensures that markers stay pinned to the logical text. If characters are inserted or deleted before a marker, the marker's position is adjusted.
-  - **Native Mouse Selection**: In addition to block selections, the editor and TUI text input boxes (`ui_textbox`) support native click-and-drag mouse text selection. Left-clicking inside a text window or textbox places the cursor, clears any active mouse selection, and begins a new drag range. Dragging the mouse updates the boundaries, and releasing the mouse copies the selected text to the host system clipboard via standard OSC 52 terminal escape sequences. Any click elsewhere or keystroke automatically clears the mouse selection.
-  - **Visuals**: Both block selections and mouse selections are highlighted using a distinct color pair (pair 8: bright white on cyan). When a persistent block selection and active mouse selection intersect, they toggle visually (XOR rule: "double selected" text renders as unselected text), matching the authentic "joe" editor dialect behavior.
+  - Turbostar implements a strictly decoupled **Dual-Mode Selection Model** (see `docs/design-selection.md` for full specification):
+    1. **Persistent Block Selection** (WordStar/Joe style): Document-scoped markers, `Selection Begin` (^KB) and `Selection End` (^KK), define a contiguous range of text that stays pinned to logical text across edits and navigation. Active only when both markers are set and start < end; incomplete marker states do not highlight. Operates on by `^K` commands (`^KC`, `^KM`, `^KY`, `^KW`, `^KJ`, and `^KT` to copy block to clipboard).
+    2. **Transient Mouse Selection**: Window-scoped click-and-drag range that supports vertical auto-scrolling across screens, auto-copies to system clipboard via OSC 52 on mouse release, overrides block highlighting visually during interaction, and is cleared by any subsequent keypress or click.
 - **Stateful Key Sequences**:
   - Turbostar supports "prefix" keys, most notably the `Ctrl-K` block.
   - When a prefix key is pressed, the editor enters a sub-state waiting for the next "command" key.

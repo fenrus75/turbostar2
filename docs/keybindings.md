@@ -112,6 +112,7 @@ These commands require pressing `Ctrl+K` first, followed by the command letter.
 | `^K G` | Next Error | Jumps to the next build error in the compilation output. |
 | `^K L` | Go To Line | Prompts for a line number in the status bar to jump to. |
 | `^K J` | Format Paragraph | Runs `clang-format` on the current block of text. |
+| `^K T` | Copy Block to Clipboard | Copies block selection to system clipboard via OSC 52. |
 | `^K [` / `^K {` | Select Scope | Automatically selects the current enclosing `{}` block. |
 | `^K ]` | Expand Selection | Uses LSP to expand the selection to the next logical enclosing block. |
 | `^K Y` | Delete Block | Deletes all text between start and end markers. |
