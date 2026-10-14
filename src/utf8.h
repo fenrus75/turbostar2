@@ -86,4 +86,29 @@ std::string detect_mime(std::string_view buffer);
  */
 std::string sanitize_terminal_output(std::string_view input);
 
+/**
+ * @brief Converts an identifier (PascalCase, camelCase, kebab-case, or snake_case) to snake_case.
+ */
+std::string to_snake_case(std::string_view s);
+
+/**
+ * @brief Converts an identifier (snake_case, camelCase, kebab-case, or PascalCase) to PascalCase.
+ */
+std::string to_PascalCase(std::string_view s);
+
+inline std::string to_pascal_case(std::string_view s)
+{
+	return to_PascalCase(s);
+}
+
+/**
+ * @brief Converts an identifier (snake_case, PascalCase, kebab-case, or camelCase) to camelCase.
+ */
+std::string to_camelCase(std::string_view s);
+
+inline std::string to_camel_case(std::string_view s)
+{
+	return to_camelCase(s);
+}
+
 } // namespace utf8

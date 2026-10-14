@@ -161,6 +161,40 @@ void test_utf8_trim_and_terminal_sanitize()
 	assert(!detected.empty());
 }
 
+void test_utf8_case_conversions()
+{
+	// to_snake_case
+	assert(utf8::to_snake_case("") == "");
+	assert(utf8::to_snake_case("path") == "path");
+	assert(utf8::to_snake_case("start_line") == "start_line");
+	assert(utf8::to_snake_case("StartLine") == "start_line");
+	assert(utf8::to_snake_case("startLine") == "start_line");
+	assert(utf8::to_snake_case("WaitMsBeforeAsync") == "wait_ms_before_async");
+	assert(utf8::to_snake_case("URL") == "url");
+	assert(utf8::to_snake_case("HTMLParser") == "html_parser");
+	assert(utf8::to_snake_case("newX") == "new_x");
+	assert(utf8::to_snake_case("utf8Char") == "utf8_char");
+	assert(utf8::to_snake_case("kebab-case-name") == "kebab_case_name");
+
+	// to_PascalCase
+	assert(utf8::to_PascalCase("") == "");
+	assert(utf8::to_PascalCase("path") == "Path");
+	assert(utf8::to_PascalCase("start_line") == "StartLine");
+	assert(utf8::to_PascalCase("startLine") == "StartLine");
+	assert(utf8::to_PascalCase("StartLine") == "StartLine");
+	assert(utf8::to_PascalCase("wait_ms_before_async") == "WaitMsBeforeAsync");
+	assert(utf8::to_pascal_case("target_content") == "TargetContent");
+
+	// to_camelCase
+	assert(utf8::to_camelCase("") == "");
+	assert(utf8::to_camelCase("path") == "path");
+	assert(utf8::to_camelCase("start_line") == "startLine");
+	assert(utf8::to_camelCase("StartLine") == "startLine");
+	assert(utf8::to_camelCase("startLine") == "startLine");
+	assert(utf8::to_camelCase("wait_ms_before_async") == "waitMsBeforeAsync");
+	assert(utf8::to_camel_case("target_content") == "targetContent");
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -174,6 +208,7 @@ int main()
 	test_utf8_ascii_fastpath();
 	test_utf8_sanitize_and_validation();
 	test_utf8_trim_and_terminal_sanitize();
+	test_utf8_case_conversions();
 
 	std::cout << "All UTF-8 unit tests passed!" << std::endl;
 	return 0;

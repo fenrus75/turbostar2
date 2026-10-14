@@ -1,8 +1,9 @@
+// Tested source file: src/agentlib/tool_validator.cpp, src/agentlib/tool_registry.cpp
 #include <cassert>
 #include <iostream>
-#include "../../src/agentlib/llm_types.h"
-#include "../../src/agentlib/single_string_tool_validator.h"
-#include "../../src/agentlib/tool_registry.h"
+#include "agentlib/llm_types.h"
+#include "agentlib/single_string_tool_validator.h"
+#include "agentlib/tool_registry.h"
 #include "test_watchdog.h"
 
 using namespace agentlib;
@@ -365,13 +366,117 @@ int main()
 			assert(!v.get_validated_args().contains(alias));
 		}
 
-		// path aliases
-		for (const auto &alias : {"file_path", "filepath", "filename", "file", "target_file", "root_dir", "dir", "directory"}) {
+		// path aliases (including PascalCase / camelCase / external harness names)
+		for (const auto &alias : {"file_path", "filepath", "filename", "file", "target_file", "root_dir", "dir", "directory",
+					  "AbsolutePath", "TargetFile", "filePath", "DirectoryPath", "SearchDirectory"}) {
 			nlohmann::json a = {{alias, "src/main.cpp"}};
 			assert(v.validate_args(a, vctx, verr));
 			assert(v.get_validated_args()["path"] == "src/main.cpp");
 			assert(!v.get_validated_args().contains(alias));
 		}
+
+		// Test cross-harness casing & vocabulary normalization (Antigravity PascalCase & Copilot camelCase)
+		class test_cross_harness_validator : public tool_validator
+		{
+		      public:
+			std::string get_name() const override
+			{
+				return "test_cross_harness";
+			}
+			std::string get_description() const override
+			{
+				return "test cross harness";
+			}
+			nlohmann::json get_parameters_schema() const override
+			{
+				return {{"type", "object"},
+					{"properties",
+					 {{"path", {{"type", "string"}}},
+					  {"start_line", {{"type", "integer"}}},
+					  {"end_line", {{"type", "integer"}}},
+					  {"command", {{"type", "string"}}},
+					  {"content", {{"type", "string"}}},
+					  {"force_overwrite", {{"type", "boolean"}}},
+					  {"target_content", {{"type", "string"}}},
+					  {"replacement_content", {{"type", "string"}}},
+					  {"chunks",
+					   {{"type", "array"},
+					    {"items",
+					     {{"type", "object"},
+					      {"properties",
+					       {{"target_content", {{"type", "string"}}},
+						{"replacement_content", {{"type", "string"}}},
+						{"start_line", {{"type", "integer"}}},
+						{"end_line", {{"type", "integer"}}}}}}}}}}}};
+			}
+
+		      protected:
+			bool validate_args_impl(const nlohmann::json & /*args*/, const tool_context & /*ctx*/,
+						std::string & /*out_error*/) const override
+			{
+				return true;
+			}
+			std::unique_ptr<llm_tool> create_tool_impl(const nlohmann::json & /*args*/) const override
+			{
+				return nullptr;
+			}
+		};
+
+		test_cross_harness_validator chv;
+
+		// Antigravity style (PascalCase + vocabulary aliases)
+		nlohmann::json agy_args = {{"AbsolutePath", "src/utf8.cpp"},
+					   {"StartLine", 10},
+					   {"EndLine", 25},
+					   {"CommandLine", "meson test -C build"},
+					   {"CodeContent", "int main() {}"},
+					   {"Overwrite", true},
+					   {"TargetContent", "old_code"},
+					   {"ReplacementContent", "new_code"},
+					   {"ReplacementChunks",
+					    nlohmann::json::array({{{"TargetContent", "c_old"},
+								    {"ReplacementContent", "c_new"},
+								    {"StartLine", 1},
+								    {"EndLine", 5}}})}};
+		assert(chv.validate_args(agy_args, vctx, verr));
+		const auto &v_agy = chv.get_validated_args();
+		assert(v_agy["path"] == "src/utf8.cpp");
+		assert(v_agy["start_line"] == 10);
+		assert(v_agy["end_line"] == 25);
+		assert(v_agy["command"] == "meson test -C build");
+		assert(v_agy["content"] == "int main() {}");
+		assert(v_agy["force_overwrite"] == true);
+		assert(v_agy["target_content"] == "old_code");
+		assert(v_agy["replacement_content"] == "new_code");
+		assert(v_agy["chunks"].size() == 1);
+		assert(v_agy["chunks"][0]["target_content"] == "c_old");
+		assert(v_agy["chunks"][0]["replacement_content"] == "c_new");
+		assert(v_agy["chunks"][0]["start_line"] == 1);
+		assert(v_agy["chunks"][0]["end_line"] == 5);
+
+		// Copilot style (camelCase + vocabulary aliases)
+		nlohmann::json copilot_args = {{"filePath", "src/utf8.h"},
+					       {"startLine", 5},
+					       {"endLine", 15},
+					       {"commandLine", "ninja -C build"},
+					       {"oldString", "foo()"},
+					       {"newString", "bar()"},
+					       {"edits",
+						nlohmann::json::array(
+						    {{{"oldString", "x"}, {"newString", "y"}, {"startLine", 2}, {"endLine", 4}}})}};
+		assert(chv.validate_args(copilot_args, vctx, verr));
+		const auto &v_cop = chv.get_validated_args();
+		assert(v_cop["path"] == "src/utf8.h");
+		assert(v_cop["start_line"] == 5);
+		assert(v_cop["end_line"] == 15);
+		assert(v_cop["command"] == "ninja -C build");
+		assert(v_cop["target_content"] == "foo()");
+		assert(v_cop["replacement_content"] == "bar()");
+		assert(v_cop["chunks"].size() == 1);
+		assert(v_cop["chunks"][0]["target_content"] == "x");
+		assert(v_cop["chunks"][0]["replacement_content"] == "y");
+		assert(v_cop["chunks"][0]["start_line"] == 2);
+		assert(v_cop["chunks"][0]["end_line"] == 4);
 	}
 
 	std::cout << "Tool infrastructure NVI invariant tests passed!\n";

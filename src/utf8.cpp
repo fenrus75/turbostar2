@@ -352,4 +352,80 @@ std::string sanitize_terminal_output(std::string_view input)
 	return output;
 }
 
+// Converts an identifier from PascalCase, camelCase, kebab-case, or SCREAMING_SNAKE_CASE
+// into canonical snake_case. Preserves acronym cohesion (e.g., "HTMLParser" -> "html_parser",
+// "URL" -> "url") and separates digit-to-uppercase boundaries (e.g., "utf8Char" -> "utf8_char").
+std::string to_snake_case(std::string_view s)
+{
+	std::string res;
+	res.reserve(s.size() + 4);
+
+	for (size_t i = 0; i < s.size(); ++i) {
+		char c = s[i];
+		if (c == '_' || c == '-' || c == ' ') {
+			if (!res.empty() && res.back() != '_') {
+				res.push_back('_');
+			}
+			continue;
+		}
+
+		bool is_upper = (c >= 'A' && c <= 'Z');
+		if (is_upper) {
+			if (!res.empty() && res.back() != '_') {
+				char prev = s[i - 1];
+				bool prev_is_lower_or_digit =
+				    (prev >= 'a' && prev <= 'z') || (prev >= '0' && prev <= '9');
+				bool prev_is_upper = (prev >= 'A' && prev <= 'Z');
+				bool next_is_lower = (i + 1 < s.size()) && (s[i + 1] >= 'a' && s[i + 1] <= 'z');
+				if (prev_is_lower_or_digit || (prev_is_upper && next_is_lower)) {
+					res.push_back('_');
+				}
+			}
+			res.push_back(static_cast<char>(c - 'A' + 'a'));
+		} else {
+			res.push_back(c);
+		}
+	}
+
+	while (!res.empty() && res.back() == '_') {
+		res.pop_back();
+	}
+	return res;
+}
+
+// Converts an identifier to PascalCase (Google/Antigravity parameter style) by first
+// normalizing word boundaries via to_snake_case and capitalizing each segment's initial letter.
+std::string to_PascalCase(std::string_view s)
+{
+	std::string snake = to_snake_case(s);
+	std::string res;
+	res.reserve(snake.size());
+
+	bool capitalize_next = true;
+	for (char c : snake) {
+		if (c == '_') {
+			capitalize_next = true;
+			continue;
+		}
+		if (capitalize_next && c >= 'a' && c <= 'z') {
+			res.push_back(static_cast<char>(c - 'a' + 'A'));
+		} else {
+			res.push_back(c);
+		}
+		capitalize_next = false;
+	}
+	return res;
+}
+
+// Converts an identifier to camelCase (Microsoft/Copilot parameter style) by deriving
+// PascalCase and lowercasing the leading ASCII character.
+std::string to_camelCase(std::string_view s)
+{
+	std::string pascal = to_PascalCase(s);
+	if (!pascal.empty() && pascal[0] >= 'A' && pascal[0] <= 'Z') {
+		pascal[0] = static_cast<char>(pascal[0] - 'A' + 'a');
+	}
+	return pascal;
+}
+
 } // namespace utf8
