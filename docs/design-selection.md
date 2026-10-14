@@ -139,9 +139,9 @@ If any of `^K C`, `^K M`, `^K Y`, `^K W`, or `^K T` is executed when `has_block_
 Rendering occurs in `window::draw_content` ([src/ui/window.cpp](file:///home/arjan/git/turbostar2/src/ui/window.cpp)):
 
 1. **Block Selection Rendering**:
-   - When `doc_->has_block_selection()` is true, characters falling within `[block_start, block_end)` are drawn with the block selection attribute (Color Pair 8: White on Cyan, or Color Pair 2: White on Blue).
+   - When `doc_->has_block_selection()` is true, characters falling within `[block_start, block_end)` are drawn with the block selection attribute (Color Pair 8: White on Cyan, or Color Pair 13: Yellow on Cyan for keywords).
 2. **Mouse Selection Rendering & Precedence**:
-   - When `has_mouse_selection()` is true in the window, characters falling within the mouse selection range are highlighted.
+   - When `has_mouse_selection()` is true in the window, characters falling within the mouse selection range are highlighted using Color Pair 41 (Bright White on Light Blue) and Color Pair 42 (Bright Yellow on Light Blue for keywords).
    - **Precedence Rule**: If a character falls into both the block selection and the mouse selection, **mouse selection wins** and takes precedence. The user is actively interacting with the mouse selection, so its visual state dominates.
 3. **No XOR Hacks**:
    - Character cell attribute computation:
@@ -150,9 +150,9 @@ Rendering occurs in `window::draw_content` ([src/ui/window.cpp](file:///home/arj
      bool in_mouse = has_mouse_sel && is_in_range(char_pos, mouse_start, mouse_end);
      
      if (in_mouse) {
-         attr = COLOR_PAIR(MOUSE_SELECTION_PAIR);
+         pair = 41; // Bright White on Light Blue (keywords: pair 42)
      } else if (in_block) {
-         attr = COLOR_PAIR(BLOCK_SELECTION_PAIR);
+         pair = 8;  // Bright White on Cyan (keywords: pair 13)
      }
      ```
 

@@ -338,6 +338,10 @@ int main(int argc, char **argv)
 	init_pair(9, COLOR_BLACK + 8, COLOR_BLACK);   // Desktop pattern (Gray on Black)
 	init_pair(10, COLOR_BLACK, COLOR_GREEN);      // Buttons (Black on Green)
 	init_pair(40, COLOR_YELLOW + 8, COLOR_GREEN); // Button Highlight (Bright Yellow on Green)
+	init_pair(41, COLOR_WHITE + 8,
+		  COLOR_BLUE + 8); // Mouse Selection Highlight (Bright White on Light Blue)
+	init_pair(42, COLOR_YELLOW + 8,
+		  COLOR_BLUE + 8); // Syntax: Mouse Selected Keyword (Bright Yellow on Light Blue)
 	init_pair(11, COLOR_WHITE + 8,
 		  COLOR_WHITE); // Dialog borders (Bright White on Gray)
 	init_pair(16, COLOR_YELLOW + 8,

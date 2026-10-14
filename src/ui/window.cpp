@@ -763,8 +763,6 @@ void window::draw_content(bool cursor_only) const
 								}
 							}
 
-							bool in_selection = in_mouse_selection || in_block_selection;
-
 							bool is_match = false;
 							if (match_pos) {
 								if ((doc_line_idx == match_pos->first && static_cast<int>(char_idx) == match_pos->second) ||
@@ -833,10 +831,14 @@ void window::draw_content(bool cursor_only) const
 							int pair = line_bg_pair;
 							if (is_match) {
 								pair = 13; // Bright Yellow on Cyan
-							} else if (in_selection) {
-								pair = 8;
+							} else if (in_mouse_selection) {
+								pair = 41; // Bright White on Light Blue
 								if (attr == syntax_attribute::keyword)
-									pair = 13;
+									pair = 42; // Bright Yellow on Light Blue
+							} else if (in_block_selection) {
+								pair = 8; // Bright White on Cyan
+								if (attr == syntax_attribute::keyword)
+									pair = 13; // Bright Yellow on Cyan
 							} else {
 								if (doc_ && has_build_err) {
 									auto build_err =
@@ -910,8 +912,6 @@ void window::draw_content(bool cursor_only) const
 							}
 						}
 
-						bool in_selection = in_mouse_selection || in_block_selection;
-
 						bool is_match = false;
 						if (match_pos) {
 							if ((doc_line_idx == match_pos->first && static_cast<int>(char_idx) == match_pos->second) ||
@@ -980,10 +980,14 @@ void window::draw_content(bool cursor_only) const
 						int pair = line_bg_pair;
 						if (is_match) {
 							pair = 13; // Bright Yellow on Cyan
-						} else if (in_selection) {
-							pair = 8;
+						} else if (in_mouse_selection) {
+							pair = 41; // Bright White on Light Blue
 							if (attr == syntax_attribute::keyword)
-								pair = 13;
+								pair = 42; // Bright Yellow on Light Blue
+						} else if (in_block_selection) {
+							pair = 8; // Bright White on Cyan
+							if (attr == syntax_attribute::keyword)
+								pair = 13; // Bright Yellow on Cyan
 						} else {
 							if (doc_ && has_build_err) {
 								auto build_err =
