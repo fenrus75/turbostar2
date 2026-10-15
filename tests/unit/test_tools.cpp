@@ -20,13 +20,13 @@
 
 using namespace agentlib;
 
+#include "tools/troff2md.h"
+
 int main()
 {
 	test_watchdog::setup_watchdog(60);
 	// Initialize managers
 	project_manager::get_instance().initialize();
-
-	extern std::string troff2md(std::string troff_content);
 
 	filter_registry::get_instance().register_filter("troff_to_markdown", [](const std::string &input) { return troff2md(input); });
 

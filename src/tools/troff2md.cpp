@@ -26,7 +26,10 @@ struct ParserState {
     std::string current_inline_style = "";
 
     int current_indent() const {
-        return indent_stack.back();
+        if (indent_stack.empty()) {
+            return 0;
+        }
+        return std::clamp(indent_stack.back(), 0, 80);
     }
 };
 
@@ -34,12 +37,21 @@ static const std::unordered_set<std::string> structural_macros = {
     ".SH", ".SS", ".P", ".PP", ".TP", ".IP", ".TQ", ".RS", ".RE"
 };
 
-static std::vector<std::string> split_lines(const std::string& input) {
+static std::vector<std::string> split_lines(std::string_view input) {
     std::vector<std::string> lines;
-    std::istringstream iss(input);
-    std::string line;
-    while (std::getline(iss, line)) {
-        lines.push_back(line);
+    size_t start = 0;
+    while (start < input.size()) {
+        size_t end = input.find('\n', start);
+        if (end == std::string_view::npos) {
+            lines.emplace_back(input.substr(start));
+            break;
+        }
+        size_t line_len = end - start;
+        if (line_len > 0 && input[start + line_len - 1] == '\r') {
+            --line_len;
+        }
+        lines.emplace_back(input.substr(start, line_len));
+        start = end + 1;
     }
     return lines;
 }
@@ -108,7 +120,7 @@ static std::string process_escapes(const std::string& input, ParserState& state)
 
     bool has_text = false;
     for (size_t i = 0; i < len; ++i) {
-        if (!std::isspace(input[i])) {
+        if (!std::isspace(static_cast<unsigned char>(input[i]))) {
             has_text = true;
             break;
         }
@@ -249,8 +261,10 @@ static std::string tq_filter(const std::string& /*content*/, ParserState& state)
 
 static std::string nf_filter(const std::string& /*content*/, ParserState& state) {
     state.current_inline_style = "";
-    if (state.fill_depth++ == 0) {
-        return "```c\n";
+    if (state.fill_depth < 100) {
+        if (state.fill_depth++ == 0) {
+            return "```c\n";
+        }
     }
     return "";
 }
@@ -265,26 +279,38 @@ static std::string fi_filter(const std::string& /*content*/, ParserState& state)
 }
 
 static std::string in_filter(const std::string& content, ParserState& state) {
+    if (state.indent_stack.empty()) {
+        state.indent_stack.push_back(0);
+    }
     if (content.empty()) {
         state.indent_stack.back() = 0;
     } else {
         std::string arg = remove_quotes(content);
-        std::string num_str;
-        for (char c : arg) {
-            if (std::isdigit(c) || c == '+' || c == '-') {
-                num_str += c;
-            }
-        }
-        if (!num_str.empty()) {
-            try {
-                if (num_str.front() == '+') {
-                    state.indent_stack.back() += std::stoi(num_str.substr(1));
-                } else if (num_str.front() == '-') {
-                    state.indent_stack.back() = std::max(0, state.indent_stack.back() - std::stoi(num_str.substr(1)));
-                } else {
-                    state.indent_stack.back() = std::max(0, std::stoi(num_str));
+        size_t start = arg.find_first_not_of(" \t");
+        if (start != std::string::npos) {
+            size_t end = arg.find_first_of(" \t", start);
+            std::string token = (end == std::string::npos) ? arg.substr(start) : arg.substr(start, end - start);
+            if (!token.empty()) {
+                bool relative_plus = (token[0] == '+');
+                bool relative_minus = (token[0] == '-');
+                size_t num_start = (relative_plus || relative_minus) ? 1 : 0;
+                size_t num_end = num_start;
+                while (num_end < token.size() && std::isdigit(static_cast<unsigned char>(token[num_end]))) {
+                    ++num_end;
                 }
-            } catch (...) {
+                if (num_end > num_start) {
+                    try {
+                        int delta = std::stoi(token.substr(num_start, num_end - num_start));
+                        if (relative_plus) {
+                            state.indent_stack.back() = std::clamp(state.indent_stack.back() + delta, 0, 80);
+                        } else if (relative_minus) {
+                            state.indent_stack.back() = std::clamp(state.indent_stack.back() - delta, 0, 80);
+                        } else {
+                            state.indent_stack.back() = std::clamp(delta, 0, 80);
+                        }
+                    } catch (...) {
+                    }
+                }
             }
         }
     }
@@ -295,32 +321,47 @@ static std::string rs_filter(const std::string& content, ParserState& state) {
     int new_indent = state.current_indent() + 4;
     if (!content.empty()) {
         std::string arg = remove_quotes(content);
-        std::string num_str;
-        for (char c : arg) {
-            if (std::isdigit(c) || c == '+' || c == '-') {
-                num_str += c;
+        size_t start = arg.find_first_not_of(" \t");
+        if (start != std::string::npos) {
+            size_t end = arg.find_first_of(" \t", start);
+            std::string token = (end == std::string::npos) ? arg.substr(start) : arg.substr(start, end - start);
+            if (!token.empty()) {
+                bool relative_plus = (token[0] == '+');
+                bool relative_minus = (token[0] == '-');
+                size_t num_start = (relative_plus || relative_minus) ? 1 : 0;
+                size_t num_end = num_start;
+                while (num_end < token.size() && std::isdigit(static_cast<unsigned char>(token[num_end]))) {
+                    ++num_end;
+                }
+                if (num_end > num_start) {
+                    try {
+                        int delta = std::stoi(token.substr(num_start, num_end - num_start));
+                        if (relative_plus) {
+                            new_indent = state.current_indent() + delta;
+                        } else if (relative_minus) {
+                            new_indent = state.current_indent() - delta;
+                        } else {
+                            new_indent = delta;
+                        }
+                    } catch (...) {}
+                }
             }
         }
-        if (!num_str.empty()) {
-            try {
-                if (num_str.front() == '+') {
-                    new_indent = state.current_indent() + std::stoi(num_str.substr(1));
-                } else if (num_str.front() == '-') {
-                    new_indent = std::max(0, state.current_indent() - std::stoi(num_str.substr(1)));
-                } else {
-                    new_indent = std::max(0, std::stoi(num_str));
-                }
-            } catch (...) {}
-        }
     }
-    state.indent_stack.push_back(new_indent);
+    new_indent = std::clamp(new_indent, 0, 80);
+    if (state.indent_stack.size() < 64) {
+        state.indent_stack.push_back(new_indent);
+    } else {
+        state.indent_stack.back() = new_indent;
+    }
     return "\n";
 }
 
 static std::string re_filter(const std::string& /*content*/, ParserState& state) {
-    state.indent_stack.pop_back();
-    if (state.indent_stack.empty()) {
-        state.indent_stack.push_back(0);
+    if (state.indent_stack.size() > 1) {
+        state.indent_stack.pop_back();
+    } else {
+        state.indent_stack = {0};
     }
     return "\n";
 }
@@ -424,6 +465,14 @@ static std::string process_table_markdown(const std::vector<std::string>& lines)
         }
         if (!line.empty() && line.back() == delim) {
             cols.push_back("");
+        }
+
+        for (auto& c : cols) {
+            size_t pipe_pos = 0;
+            while ((pipe_pos = c.find('|', pipe_pos)) != std::string::npos) {
+                c.insert(pipe_pos, "\\");
+                pipe_pos += 2;
+            }
         }
 
         if (!header_done) {
@@ -610,9 +659,9 @@ static const std::unordered_map<std::string, FilterFunc> dispatch_table = {
     {"", pass_through_filter}
 };
 
-std::string troff2md(std::string troff_content) {
+std::string troff2md(std::string_view untrusted_content) {
     ParserState state;
-    std::vector<std::string> input_lines = split_lines(troff_content);
+    std::vector<std::string> input_lines = split_lines(untrusted_content);
     std::string output;
     std::set<std::string> unhandled_commands;
 
@@ -706,6 +755,12 @@ std::string troff2md(std::string troff_content) {
                 output += line_output;
             }
         }
+    }
+
+    if (state.in_table) {
+        state.in_table = false;
+        output += process_table(state.table_lines);
+        state.table_lines.clear();
     }
 
     if (state.fill_depth > 0) {

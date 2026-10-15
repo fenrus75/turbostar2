@@ -1,6 +1,6 @@
 #include "fs_man.h"
 #include "fs_utils.h"
-#include "../troff2md.h"
+#include "tools/troff2md.h"
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
