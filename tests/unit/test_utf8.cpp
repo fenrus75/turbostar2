@@ -10,64 +10,207 @@
 
 void test_utf8_char_len()
 {
+	// 1-byte ASCII (0x00 - 0x7F)
+	assert(utf8::char_len(0x00) == 1);
 	assert(utf8::char_len('a') == 1);
-	// 2-byte leading byte (0xC0 mask)
+	assert(utf8::char_len('Z') == 1);
+	assert(utf8::char_len('9') == 1);
+	assert(utf8::char_len(' ') == 1);
+	assert(utf8::char_len(0x7F) == 1);
+
+	// 2-byte leading byte (0xC0 - 0xDF)
 	assert(utf8::char_len(0xC0) == 2);
+	assert(utf8::char_len(0xC2) == 2);
 	assert(utf8::char_len(0xDF) == 2);
-	// 3-byte leading byte (0xE0 mask)
+
+	// 3-byte leading byte (0xE0 - 0xEF)
 	assert(utf8::char_len(0xE0) == 3);
+	assert(utf8::char_len(0xE2) == 3);
 	assert(utf8::char_len(0xEF) == 3);
-	// 4-byte leading byte (0xF0 mask)
+
+	// 4-byte leading byte (0xF0 - 0xF7)
 	assert(utf8::char_len(0xF0) == 4);
+	assert(utf8::char_len(0xF4) == 4);
 	assert(utf8::char_len(0xF7) == 4);
+
+	// Continuation bytes (0x80 - 0xBF) treated as invalid lead bytes -> 1 byte fallback
+	assert(utf8::char_len(0x80) == 1);
+	assert(utf8::char_len(0x9F) == 1);
+	assert(utf8::char_len(0xBF) == 1);
+
+	// Legacy / invalid lead bytes (0xF8 - 0xFF) -> 1 byte fallback
+	assert(utf8::char_len(0xF8) == 1);
+	assert(utf8::char_len(0xFC) == 1);
+	assert(utf8::char_len(0xFE) == 1);
+	assert(utf8::char_len(0xFF) == 1);
 }
 
 void test_utf8_length()
 {
-	assert(utf8::length("abc") == 3);
+	// Empty string
 	assert(utf8::length("") == 0);
-	// "🦀" is 4 bytes, "abc" is 3 bytes, total 4 characters
+
+	// Pure ASCII
+	assert(utf8::length("a") == 1);
+	assert(utf8::length("abc") == 3);
+	assert(utf8::length("Hello, World!") == 13);
+
+	// 2-byte sequences (Latin-1 supplement, Cyrillic, Greek)
+	assert(utf8::length("café") == 4);   // 5 bytes, 4 chars
+	assert(utf8::length("Привет") == 6); // 12 bytes, 6 chars
+	assert(utf8::length("Ελλάδα") == 6); // 12 bytes, 6 chars
+
+	// 3-byte sequences (CJK, Euro sign)
+	assert(utf8::length("€100") == 4);   // 6 bytes, 4 chars
+	assert(utf8::length("日本語") == 3);  // 9 bytes, 3 chars
+	assert(utf8::length("中文测试") == 4); // 12 bytes, 4 chars
+
+	// 4-byte sequences (Emojis, regional indicators)
+	assert(utf8::length("🦀") == 1);         // 4 bytes, 1 char
 	assert(utf8::length("🦀abc") == 4);
-	// UTF-8 flag emoji "🇺🇸" is composed of 2 regional indicator characters (each 4 bytes, total 8 bytes)
-	assert(utf8::length("🇺🇸") == 2);
+	assert(utf8::length("🦀🚀✨🔥") == 4);     // 16 bytes, 4 chars
+	assert(utf8::length("🇺🇸") == 2);         // 2 regional indicator codepoints, 8 bytes
+
+	// Mixed scripts with whitespace
+	assert(utf8::length("Hello 世界 🦀 123") == 14);
+
+	// Truncated multi-byte sequence at end of string does not read out of bounds
+	assert(utf8::length("abc\xE2\x82") == 4); // 3 ASCII + 1 truncated 3-byte char
+	assert(utf8::length("\xF0\x9F") == 1);    // 1 truncated 4-byte char
+
+	// Lone continuation bytes counted as individual characters
+	assert(utf8::length("\x80\x81") == 2);
 }
 
 void test_utf8_char_to_byte_offset()
 {
-	std::string s = "🦀abc";
-	assert(utf8::char_to_byte_offset(s, 0) == 0);
-	assert(utf8::char_to_byte_offset(s, 1) == 4); // After "🦀" (4 bytes)
-	assert(utf8::char_to_byte_offset(s, 2) == 5); // After "🦀a"
-	assert(utf8::char_to_byte_offset(s, 4) == 7); // After whole string
-	assert(utf8::char_to_byte_offset(s, 10) == 7); // Out of bounds fallback
+	// Empty string
+	assert(utf8::char_to_byte_offset("", 0) == 0);
+	assert(utf8::char_to_byte_offset("", 5) == 0);
+
+	// Pure ASCII string (1:1 mapping)
+	std::string ascii = "abcdef";
+	for (size_t i = 0; i <= ascii.length(); ++i) {
+		assert(utf8::char_to_byte_offset(ascii, i) == i);
+	}
+	assert(utf8::char_to_byte_offset(ascii, 100) == ascii.length());
+
+	// Simple mixed string
+	std::string s1 = "🦀abc";
+	assert(utf8::char_to_byte_offset(s1, 0) == 0);
+	assert(utf8::char_to_byte_offset(s1, 1) == 4); // After "🦀" (4 bytes)
+	assert(utf8::char_to_byte_offset(s1, 2) == 5); // After "🦀a"
+	assert(utf8::char_to_byte_offset(s1, 3) == 6); // After "🦀ab"
+	assert(utf8::char_to_byte_offset(s1, 4) == 7); // After whole string
+	assert(utf8::char_to_byte_offset(s1, 10) == 7); // Out of bounds fallback
+
+	// Complex multi-script string: "A_é_€_🦀_Z"
+	// Lengths: 'A'(1) + '_'(1) + 'é'(2) + '_'(1) + '€'(3) + '_'(1) + '🦀'(4) + '_'(1) + 'Z'(1) = 15 bytes, 9 chars
+	std::string s2 = "A_é_€_🦀_Z";
+	assert(utf8::length(s2) == 9);
+	assert(s2.length() == 15);
+	assert(utf8::char_to_byte_offset(s2, 0) == 0);
+	assert(utf8::char_to_byte_offset(s2, 1) == 1);
+	assert(utf8::char_to_byte_offset(s2, 2) == 2);
+	assert(utf8::char_to_byte_offset(s2, 3) == 4);  // after 'é' (2 bytes)
+	assert(utf8::char_to_byte_offset(s2, 4) == 5);
+	assert(utf8::char_to_byte_offset(s2, 5) == 8);  // after '€' (3 bytes)
+	assert(utf8::char_to_byte_offset(s2, 6) == 9);
+	assert(utf8::char_to_byte_offset(s2, 7) == 13); // after '🦀' (4 bytes)
+	assert(utf8::char_to_byte_offset(s2, 8) == 14);
+	assert(utf8::char_to_byte_offset(s2, 9) == 15);
+	assert(utf8::char_to_byte_offset(s2, 20) == 15);
 }
 
 void test_utf8_byte_to_char_pos()
 {
-	std::string s = "🦀abc";
-	assert(utf8::byte_to_char_pos(s, 0) == 0);
-	assert(utf8::byte_to_char_pos(s, 1) == 1); // inside first char -> maps to 1
-	assert(utf8::byte_to_char_pos(s, 4) == 1); // exactly after first char
-	assert(utf8::byte_to_char_pos(s, 5) == 2); // exactly after "🦀a"
-	assert(utf8::byte_to_char_pos(s, 7) == 4);
-	assert(utf8::byte_to_char_pos(s, 100) == 4);
+	// Empty string
+	assert(utf8::byte_to_char_pos("", 0) == 0);
+	assert(utf8::byte_to_char_pos("", 10) == 0);
+
+	// Pure ASCII string (1:1 mapping)
+	std::string ascii = "abcdef";
+	for (size_t i = 0; i <= ascii.length(); ++i) {
+		assert(utf8::byte_to_char_pos(ascii, i) == i);
+	}
+	assert(utf8::byte_to_char_pos(ascii, 100) == ascii.length());
+
+	// Simple mixed string
+	std::string s1 = "🦀abc";
+	assert(utf8::byte_to_char_pos(s1, 0) == 0);
+	assert(utf8::byte_to_char_pos(s1, 1) == 1); // inside first char -> maps to 1
+	assert(utf8::byte_to_char_pos(s1, 2) == 1);
+	assert(utf8::byte_to_char_pos(s1, 3) == 1);
+	assert(utf8::byte_to_char_pos(s1, 4) == 1); // exactly after first char
+	assert(utf8::byte_to_char_pos(s1, 5) == 2); // exactly after "🦀a"
+	assert(utf8::byte_to_char_pos(s1, 7) == 4);
+	assert(utf8::byte_to_char_pos(s1, 100) == 4);
+
+	// Complex multi-script string: "A_é_€_🦀_Z"
+	std::string s2 = "A_é_€_🦀_Z";
+	// Bidirectional round-trip identity at exact character boundaries
+	for (size_t char_idx = 0; char_idx <= utf8::length(s2); ++char_idx) {
+		size_t byte_off = utf8::char_to_byte_offset(s2, char_idx);
+		assert(utf8::byte_to_char_pos(s2, byte_off) == char_idx);
+	}
+
+	// Inside multi-byte sequences maps to completed character
+	assert(utf8::byte_to_char_pos(s2, 3) == 3);  // inside 'é' (bytes 2-3) -> maps to char 3
+	assert(utf8::byte_to_char_pos(s2, 6) == 5);  // inside '€' (bytes 5-7) -> maps to char 5
+	assert(utf8::byte_to_char_pos(s2, 10) == 7); // inside '🦀' (bytes 9-12) -> maps to char 7
+	assert(utf8::byte_to_char_pos(s2, 12) == 7);
 }
 
 void test_utf8_next_character()
 {
-	std::string s = "🦀a";
-	size_t offset = 0;
+	// Empty string
 	std::string c;
+	size_t offset = 0;
+	assert(!utf8::next_character("", offset, c));
+	assert(c.empty());
+	assert(offset == 0);
 
-	assert(utf8::next_character(s, offset, c));
-	assert(offset == 4);
+	// Out of bounds offset
+	std::string s1 = "abc";
+	offset = 10;
+	assert(!utf8::next_character(s1, offset, c));
+	assert(c.empty());
+
+	// Iteration across 1, 2, 3, 4-byte characters: "Aé€🦀"
+	std::string s2 = "Aé€🦀";
+	offset = 0;
+
+	assert(utf8::next_character(s2, offset, c));
+	assert(offset == 1);
+	assert(c == "A");
+
+	assert(utf8::next_character(s2, offset, c));
+	assert(offset == 3); // 1 + 2
+	assert(c == "é");
+
+	assert(utf8::next_character(s2, offset, c));
+	assert(offset == 6); // 3 + 3
+	assert(c == "€");
+
+	assert(utf8::next_character(s2, offset, c));
+	assert(offset == 10); // 6 + 4
 	assert(c == "🦀");
 
-	assert(utf8::next_character(s, offset, c));
-	assert(offset == 5);
-	assert(c == "a");
+	assert(!utf8::next_character(s2, offset, c));
+	assert(c.empty());
 
-	assert(!utf8::next_character(s, offset, c));
+	// Truncated multi-byte sequence at end of string
+	std::string s_trunc = "X\xE2\x82"; // 'X' followed by truncated 3-byte prefix
+	offset = 0;
+	assert(utf8::next_character(s_trunc, offset, c));
+	assert(offset == 1);
+	assert(c == "X");
+
+	assert(utf8::next_character(s_trunc, offset, c));
+	assert(offset == 3);
+	assert(c == "\xE2\x82");
+
+	assert(!utf8::next_character(s_trunc, offset, c));
 }
 
 void test_utf8_wrap_string()
@@ -99,66 +242,211 @@ void test_utf8_wrap_string()
 	assert(lines3[0] == "* 螃蟹 螃蟹");
 	assert(lines3[1] == "  螃蟹 螃蟹");
 	assert(lines3[2] == "  螃蟹");
+
+	// 4. Narrow width threshold (width <= prefix_width + 4): returns single unwrapped line
+	auto lines_narrow = utf8::wrap_string("// ", "short text", 7); // prefix len 3 + 4 = 7
+	assert(lines_narrow.size() == 1);
+	assert(lines_narrow[0] == "// short text");
+
+	// 5. Empty text
+	auto lines_empty = utf8::wrap_string("// ", "", 25);
+	assert(lines_empty.size() == 1);
+	assert(lines_empty[0] == "// ");
+
+	auto lines_both_empty = utf8::wrap_string("", "", 25);
+	assert(lines_both_empty.size() == 1);
+	assert(lines_both_empty[0] == "");
+
+	// 6. Long word without spaces exceeding available width splits cleanly across lines
+	std::string long_word = "abcdefghijklmnopqrstuvwxyz";
+	auto lines_long = utf8::wrap_string("", long_word, 10);
+	assert(lines_long.size() == 3);
+	assert(lines_long[0] == "abcdefghij");
+	assert(lines_long[1] == "klmnopqrst");
+	assert(lines_long[2] == "uvwxyz");
+
+	// 7. Multi-byte emojis wrapping without splitting bytes
+	std::string emoji_text = "🦀 🦀 🦀 🦀";
+	auto lines_emoji = utf8::wrap_string("", emoji_text, 5); // each emoji is width 2 + space = 5
+	assert(lines_emoji.size() == 2);
+	assert(lines_emoji[0] == "🦀 🦀");
+	assert(lines_emoji[1] == "🦀 🦀");
 }
 
 void test_utf8_ascii_fastpath()
 {
+	// Empty string display width
+	assert(utf8::display_width("") == 0);
+
+	// ASCII string
 	std::string_view ascii_str = "Hello, Turbostar Editor 2026!";
 	assert(utf8::display_width(ascii_str) == ascii_str.length());
 	assert(utf8::length(ascii_str) == ascii_str.length());
 	assert(utf8::is_valid_utf8(ascii_str));
 
+	// Accented Latin characters (display width 1 each)
+	assert(utf8::display_width("café") == 4);
+	assert(utf8::display_width("naïve") == 5);
+	assert(utf8::display_width("München") == 7);
+
+	// CJK East Asian Fullwidth characters (display width 2 each)
+	assert(utf8::display_width("你好") == 4);
+	assert(utf8::display_width("日本語") == 6);
+	assert(utf8::display_width("螃蟹") == 4);
+
+	// Emoji (display width 2 each)
+	assert(utf8::display_width("🦀") == 2);
+	assert(utf8::display_width("🚀") == 2);
+	assert(utf8::display_width("✨") == 2);
+
+	// Mixed ASCII, CJK, and Emoji
 	std::string_view mixed_str = "Hello 🦀 World!";
-	assert(utf8::display_width(mixed_str) == 15); // 6 ASCII + 2 for crab emoji + 7 ASCII
-	assert(utf8::length(mixed_str) == 14); // 6 ASCII + 1 crab emoji + 7 ASCII
+	assert(utf8::display_width(mixed_str) == 15); // 6 ASCII + 2 crab + 7 ASCII
+	assert(utf8::length(mixed_str) == 14);
+
+	std::string_view cjk_mixed = "Code: 螃蟹 100%";
+	assert(utf8::display_width(cjk_mixed) == 15); // 6 ASCII + 4 CJK + 5 ASCII
+	assert(utf8::length(cjk_mixed) == 13);
+
+	// Control / embedded NUL byte
+	std::string nul_embedded = std::string("a\0b", 3);
+	assert(utf8::display_width(nul_embedded) == 3);
 }
 
 void test_utf8_sanitize_and_validation()
 {
-	// Valid UTF-8
-	std::string valid = "Hello 🦀 World";
-	assert(utf8::is_valid_utf8(valid));
-	assert(utf8::sanitize(valid) == valid);
+	// 1. is_valid_utf8
+	// Valid strings
+	assert(utf8::is_valid_utf8(""));
+	assert(utf8::is_valid_utf8("Simple ASCII string 123"));
+	assert(utf8::is_valid_utf8("Hello 🦀 World"));
+	assert(utf8::is_valid_utf8("Café, München, Résumé"));
+	assert(utf8::is_valid_utf8("日本語 中文 Русский Ελληνικά"));
 
-	// Invalid UTF-8 bytes
-	std::string invalid = "Hello \xFF\xFE World";
-	assert(!utf8::is_valid_utf8(invalid));
-	std::string sanitized = utf8::sanitize(invalid);
-	assert(sanitized.find("?") != std::string::npos);
-
-	// Embedded NUL byte
+	// Invalid: embedded NUL byte
 	std::string nul_str = std::string("Hello\0World", 11);
 	assert(!utf8::is_valid_utf8(nul_str));
+	std::string trailing_nul = std::string("end\0", 4);
+	assert(!utf8::is_valid_utf8(trailing_nul));
+
+	// Invalid: lone continuation bytes (0x80 - 0xBF)
+	assert(!utf8::is_valid_utf8("\x80"));
+	assert(!utf8::is_valid_utf8("\xBF"));
+	assert(!utf8::is_valid_utf8("prefix\x80postfix"));
+	assert(!utf8::is_valid_utf8("\x80\x81\x82"));
+
+	// Invalid: invalid lead bytes (0xF8-0xFF)
+	assert(!utf8::is_valid_utf8("\xF8\x80\x80\x80\x80"));
+	assert(!utf8::is_valid_utf8("\xFF\xFE"));
+
+	// Invalid: truncated multi-byte sequence at end of string
+	assert(!utf8::is_valid_utf8("test\xC3"));             // missing 1 byte of 2-byte char
+	assert(!utf8::is_valid_utf8("test\xE2\x82"));         // missing 1 byte of 3-byte char
+	assert(!utf8::is_valid_utf8("test\xF0\x9F\xA6"));     // missing 1 byte of 4-byte char
+
+	// Invalid: malformed continuation byte
+	assert(!utf8::is_valid_utf8("\xC3\x20"));             // continuation replaced with space
+	assert(!utf8::is_valid_utf8("\xE2\x28\xA1"));         // invalid byte 2 of 3-byte char
+	assert(!utf8::is_valid_utf8("\xE2\x82\x28"));         // invalid byte 3 of 3-byte char
+	assert(!utf8::is_valid_utf8("\xF0\x28\x80\x80"));     // invalid byte 2 of 4-byte char
+
+	// 2. sanitize
+	// Already valid UTF-8 unchanged
+	assert(utf8::sanitize("") == "");
+	assert(utf8::sanitize("Hello 🦀 World") == "Hello 🦀 World");
+	assert(utf8::sanitize("café au lait") == "café au lait");
+
+	// Invalid bytes replaced with '?'
+	assert(utf8::sanitize("Hello \xFF\xFE World") == "Hello ?? World");
+	assert(utf8::sanitize("\x80lone continuation\xBF") == "?lone continuation?");
+	assert(utf8::sanitize("truncated 2-byte: \xC3") == "truncated 2-byte: ?");
+	assert(utf8::sanitize("truncated 3-byte: \xE2\x82") == "truncated 3-byte: ??");
+	assert(utf8::sanitize("truncated 4-byte: \xF0\x9F\xA6") == "truncated 4-byte: ???");
+	assert(utf8::sanitize("bad continuation: \xC3" "\x20" "end") == "bad continuation: ? end");
 }
 
 void test_utf8_trim_and_terminal_sanitize()
 {
-	// trim
-	std::string s = "   hello world   \n\t";
-	assert(utf8::trim(s) == "hello world");
+	// 1. trim
+	assert(utf8::trim("") == "");
+	assert(utf8::trim("   \t\r\n\t  ") == "");
+	assert(utf8::trim("hello world") == "hello world");
+	assert(utf8::trim("   hello world") == "hello world");
+	assert(utf8::trim("hello world   \n\t") == "hello world");
+	assert(utf8::trim(" \r\n\t  hello world   \t\r\n ") == "hello world");
+	assert(utf8::trim("  interior   spaces   kept  ") == "interior   spaces   kept");
+
+	// 2. trim_trailing_whitespace
+	std::string s_empty = "";
+	utf8::trim_trailing_whitespace(s_empty);
+	assert(s_empty == "");
+
+	std::string s_only_ws = "   \t\r\n   ";
+	utf8::trim_trailing_whitespace(s_only_ws);
+	assert(s_only_ws == "");
+
+	std::string s_leading = "   hello world";
+	utf8::trim_trailing_whitespace(s_leading);
+	assert(s_leading == "   hello world"); // leading whitespace preserved
 
 	std::string s_trailing = "hello world  \n";
 	utf8::trim_trailing_whitespace(s_trailing);
 	assert(s_trailing == "hello world");
 
-	// sanitize_terminal_output (ANSI codes removal)
+	std::string s_both = "   hello world  \r\n\t";
+	utf8::trim_trailing_whitespace(s_both);
+	assert(s_both == "   hello world");
+
+	// 3. sanitize_terminal_output
+	assert(utf8::sanitize_terminal_output("") == "");
+	assert(utf8::sanitize_terminal_output("Pure plain text") == "Pure plain text");
+
+	// ANSI CSI SGR color and styling codes
 	std::string ansi_colored = "\x1b[31mRed Error\x1b[0m Normal Text";
 	assert(utf8::sanitize_terminal_output(ansi_colored) == "Red Error Normal Text");
+	assert(utf8::sanitize_terminal_output("\x1b[1;32;40mBold Green\x1b[0m") == "Bold Green");
 
-	// Test incomplete trailing escape sequence is stripped, not leaked
-	std::string trailing_esc = "Program received signal SIGSEGV\x1b[";
-	assert(utf8::sanitize_terminal_output(trailing_esc) == "Program received signal SIGSEGV");
+	// CSI cursor and screen manipulation
+	assert(utf8::sanitize_terminal_output("\x1b[2J\x1b[HCleared") == "Cleared");
+	assert(utf8::sanitize_terminal_output("\x1b[?25hVisible Cursor") == "Visible Cursor");
+	assert(utf8::sanitize_terminal_output("\x1b[3~Deleted") == "Deleted");
+	assert(utf8::sanitize_terminal_output("\x1b[2@Inserted") == "Inserted");
 
-	std::string trailing_esc_alone = "Program received signal SIGSEGV\x1b";
-	assert(utf8::sanitize_terminal_output(trailing_esc_alone) == "Program received signal SIGSEGV");
+	// Literal string-escaped ANSI representations
+	assert(utf8::sanitize_terminal_output("\\x1b[32mSuccess\\x1b[0m") == "Success");
+	assert(utf8::sanitize_terminal_output("\\x1B[31mError\\x1B[0m") == "Error");
+	assert(utf8::sanitize_terminal_output("\\u001b[33mWarning\\u001b[0m") == "Warning");
+	assert(utf8::sanitize_terminal_output("\\u001B[34mInfo\\u001B[0m") == "Info");
 
-	std::string trailing_esc_csi = "Program received signal SIGSEGV\x1b[31";
-	assert(utf8::sanitize_terminal_output(trailing_esc_csi) == "Program received signal SIGSEGV");
+	// OSC sequences (window title, hyperlinks) with BEL (\x07) and ST (\x1b\) terminators
+	assert(utf8::sanitize_terminal_output("\x1b]0;Turbostar Editor\x07Text") == "Text");
+	assert(utf8::sanitize_terminal_output("\x1b]2;Status Window\x1b\\Active") == "Active");
 
-	// detect_mime
+	// 2-byte escape sequences
+	assert(utf8::sanitize_terminal_output("\x1b=Keypad\x1b>Normal") == "KeypadNormal");
+	assert(utf8::sanitize_terminal_output("\x1b" "7Save\x1b" "8Restore") == "SaveRestore");
+
+	// Incomplete trailing escape sequences stripped cleanly without leaking
+	assert(utf8::sanitize_terminal_output("Program crashed\x1b[") == "Program crashed");
+	assert(utf8::sanitize_terminal_output("Program crashed\x1b") == "Program crashed");
+	assert(utf8::sanitize_terminal_output("Program crashed\x1b[31") == "Program crashed");
+	assert(utf8::sanitize_terminal_output("Program crashed\x1b]0;Unterminated") == "Program crashed");
+
+	// 4. detect_mime
+	assert(!utf8::detect_mime("").empty());
 	std::string plain_text = "Plain text buffer content\n";
 	std::string detected = utf8::detect_mime(plain_text);
 	assert(!detected.empty());
+
+	// Detect signature bytes for common formats (fallback path in mime)
+	std::string png_sig = "\x89PNG\r\n\x1a\n";
+	assert(utf8::detect_mime(png_sig) == "image/png");
+
+	std::string jpeg_sig = "\xff\xd8\xff\xe0";
+	assert(utf8::detect_mime(jpeg_sig) == "image/jpeg");
+
+	std::string gif_sig = "GIF89a";
+	assert(utf8::detect_mime(gif_sig) == "image/gif");
 }
 
 void check_case_idempotence(std::string_view s)
@@ -280,6 +568,65 @@ void test_utf8_case_conversions()
 	assert(utf8::format_markdown_table_header("| Type | Kind | path | start_line | end_line |\n") ==
 	       "| Type | Kind | path | startLine | endLine |\n");
 
+	utf8::set_active_param_case_style(utf8::param_case_style::snake_case);
+}
+
+void test_utf8_param_case_formatting()
+{
+	// 1. get_active_param_case_style / set_active_param_case_style
+	utf8::set_active_param_case_style(utf8::param_case_style::snake_case);
+	assert(utf8::get_active_param_case_style() == utf8::param_case_style::snake_case);
+
+	utf8::set_active_param_case_style(utf8::param_case_style::pascal_case);
+	assert(utf8::get_active_param_case_style() == utf8::param_case_style::pascal_case);
+
+	utf8::set_active_param_case_style(utf8::param_case_style::camel_case);
+	assert(utf8::get_active_param_case_style() == utf8::param_case_style::camel_case);
+
+	// 2. format_param_name
+	utf8::set_active_param_case_style(utf8::param_case_style::snake_case);
+	assert(utf8::format_param_name("start_line") == "start_line");
+	assert(utf8::format_param_name("path") == "path");
+	assert(utf8::format_param_name("target_content") == "target_content");
+	assert(utf8::format_param_name("utf8_char") == "utf8_char");
+
+	utf8::set_active_param_case_style(utf8::param_case_style::pascal_case);
+	assert(utf8::format_param_name("start_line") == "StartLine");
+	assert(utf8::format_param_name("path") == "Path");
+	assert(utf8::format_param_name("target_content") == "TargetContent");
+	assert(utf8::format_param_name("utf8_char") == "Utf8Char");
+
+	utf8::set_active_param_case_style(utf8::param_case_style::camel_case);
+	assert(utf8::format_param_name("start_line") == "startLine");
+	assert(utf8::format_param_name("path") == "path");
+	assert(utf8::format_param_name("target_content") == "targetContent");
+	assert(utf8::format_param_name("utf8_char") == "utf8Char");
+
+	// 3. format_markdown_table_header
+	utf8::set_active_param_case_style(utf8::param_case_style::snake_case);
+	assert(utf8::format_markdown_table_header("| Symbol | start_line | end_line | lines |\n") ==
+	       "| Symbol | start_line | end_line | lines |\n");
+
+	utf8::set_active_param_case_style(utf8::param_case_style::pascal_case);
+	assert(utf8::format_markdown_table_header("| Symbol | start_line | end_line | lines |\n") ==
+	       "| Symbol | StartLine | EndLine | Lines |\n");
+	assert(utf8::format_markdown_table_header("| Symbol | path | start_line | end_line |\n") ==
+	       "| Symbol | Path | StartLine | EndLine |\n");
+	assert(utf8::format_markdown_table_header("| Type | Kind | path | start_line | end_line |\n") ==
+	       "| Type | Kind | Path | StartLine | EndLine |\n");
+	// Header containing parameters with digits
+	assert(utf8::format_markdown_table_header("| Method | arg1 | layer2_norm | count |\n") ==
+	       "| Method | Arg1 | Layer2Norm | Count |\n");
+
+	utf8::set_active_param_case_style(utf8::param_case_style::camel_case);
+	assert(utf8::format_markdown_table_header("| Symbol | start_line | end_line | lines |\n") ==
+	       "| Symbol | startLine | endLine | lines |\n");
+	assert(utf8::format_markdown_table_header("| Type | Kind | path | start_line | end_line |\n") ==
+	       "| Type | Kind | path | startLine | endLine |\n");
+	assert(utf8::format_markdown_table_header("| Method | arg1 | layer2_norm | count |\n") ==
+	       "| Method | arg1 | layer2Norm | count |\n");
+
+	// Reset to default snake_case
 	utf8::set_active_param_case_style(utf8::param_case_style::snake_case);
 }
 
@@ -472,6 +819,7 @@ int main()
 	test_utf8_sanitize_and_validation();
 	test_utf8_trim_and_terminal_sanitize();
 	test_utf8_case_conversions();
+	test_utf8_param_case_formatting();
 	test_utf8_case_idempotence();
 
 	std::cout << "All UTF-8 unit tests passed!" << std::endl;

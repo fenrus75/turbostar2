@@ -7,6 +7,10 @@
 namespace utf8
 {
 
+// Computes the number of UTF-8 code points in string s.
+// Multi-byte sequences (1 to 4 bytes) are counted as a single character.
+// If an incomplete or truncated UTF-8 sequence occurs at the end of the string,
+// it is clamped to the available bytes and counted as one character without reading out of bounds.
 size_t length(std::string_view s) noexcept
 {
 	size_t offset = 0;
@@ -23,6 +27,12 @@ size_t length(std::string_view s) noexcept
 	return chars;
 }
 
+// Measures the visual terminal display column width of string s.
+// Standard ASCII characters (< 0x80) have width 1 (fast-path).
+// Multi-byte sequences are decoded via mbrtowc and measured with wcwidth():
+// - East Asian Fullwidth / CJK glyphs and emojis contribute width 2.
+// - ASCII bytes (< 0x80) contribute width 1 via the fast-path.
+// - Invalid or incomplete byte sequences fall back to width 1 and advance 1 byte.
 size_t display_width(std::string_view s) noexcept
 {
 	size_t total_width = 0;
@@ -55,6 +65,8 @@ size_t display_width(std::string_view s) noexcept
 	return total_width;
 }
 
+// Translates a 0-indexed character position into a byte offset within string s.
+// Returns s.length() if char_pos exceeds the total number of characters.
 size_t char_to_byte_offset(std::string_view s, size_t char_pos) noexcept
 {
 	size_t offset = 0;
@@ -71,6 +83,10 @@ size_t char_to_byte_offset(std::string_view s, size_t char_pos) noexcept
 	return offset;
 }
 
+// Translates a byte offset into a 0-indexed character index within string s.
+// If byte_offset points into the middle of a multi-byte sequence, the returned
+// character count covers the complete character containing or ending at that offset.
+// Returns length(s) if byte_offset >= s.length().
 size_t byte_to_char_pos(std::string_view s, size_t byte_offset) noexcept
 {
 	size_t offset = 0;
@@ -87,6 +103,9 @@ size_t byte_to_char_pos(std::string_view s, size_t byte_offset) noexcept
 	return chars;
 }
 
+// Extracts the next UTF-8 character string starting at byte_offset and advances byte_offset.
+// Returns false and clears out_char if byte_offset is at or past the end of string s.
+// Truncated trailing sequences are safely clamped to the remainder of s.
 bool next_character(std::string_view s, size_t &byte_offset, std::string &out_char)
 {
 	if (byte_offset >= s.length()) {
@@ -111,6 +130,9 @@ bool next_character(std::string_view s, size_t &byte_offset, std::string &out_ch
 	return true;
 }
 
+// Replaces invalid UTF-8 sequences (invalid lead bytes, incomplete sequences,
+// or non-conforming continuation bytes) with replacement character '?'.
+// Preserves all valid UTF-8 sequences and ASCII characters unchanged.
 std::string sanitize(std::string_view s)
 {
 	std::string res;
@@ -154,6 +176,9 @@ std::string sanitize(std::string_view s)
 	return res;
 }
 
+// Validates whether string s contains strictly valid UTF-8 sequences.
+// Returns false if any embedded null bytes (0x00), invalid lead bytes (0x80..0xBF, 0xF8..0xFF),
+// truncated multi-byte sequences, or malformed continuation bytes are present.
 bool is_valid_utf8(std::string_view s) noexcept
 {
 	size_t i = 0;
@@ -184,6 +209,8 @@ bool is_valid_utf8(std::string_view s) noexcept
 	return true;
 }
 
+// Returns a copy of s with leading and trailing whitespace (' ', '\t', '\r', '\n') removed.
+// Preserves all internal whitespace. Returns empty string if s is entirely whitespace.
 std::string trim(std::string_view s)
 {
 	auto first = s.find_first_not_of(" \t\r\n");
@@ -193,6 +220,8 @@ std::string trim(std::string_view s)
 	return std::string(s.substr(first, (last - first + 1)));
 }
 
+// Strips trailing whitespace (' ', '\t', '\r', '\n') in-place from string s.
+// Preserves leading and internal whitespace. Clears s if it is entirely whitespace.
 void trim_trailing_whitespace(std::string &s)
 {
 	auto last = s.find_last_not_of(" \t\r\n");
@@ -203,6 +232,11 @@ void trim_trailing_whitespace(std::string &s)
 	}
 }
 
+// Wraps text to a target display width. Prepends prefix to line 1 and indents subsequent
+// wrapped lines with spaces matching the visual display width of prefix.
+// Word boundaries (spaces, tabs) are preferred for line breaks; if a single word exceeds
+// the available width, it is split across lines according to character display width.
+// If width is narrower than prefix_width + 4, text is returned as a single unwrapped line.
 std::vector<std::string> wrap_string(std::string_view prefix, std::string_view text, int width)
 {
 	std::vector<std::string> lines;
@@ -281,11 +315,16 @@ std::vector<std::string> wrap_string(std::string_view prefix, std::string_view t
 	return lines;
 }
 
+// Detects the MIME content type of buffer via libmagic inspection.
 std::string detect_mime(std::string_view buffer)
 {
 	return mime::detect_buffer_type(buffer);
 }
 
+// Strips ANSI escape sequences (CSI commands, OSC window/icon commands, 2-byte sequences)
+// from terminal output streams to prevent formatting codes leaking into logs or LLM context.
+// Handles both raw ESC bytes (\x1b) and literal string representations ("\\x1b", "\\u001b").
+// Incomplete trailing escape sequences (e.g. at buffer truncation boundaries) are stripped.
 std::string sanitize_terminal_output(std::string_view input)
 {
 	std::string output;
@@ -438,16 +477,23 @@ std::string to_camelCase(std::string_view s)
 
 static std::atomic<param_case_style> g_active_param_case_style{param_case_style::snake_case};
 
+// Configures the globally active parameter naming style for MCP tool schema advertising
+// and markdown table header formatting.
 void set_active_param_case_style(param_case_style style) noexcept
 {
 	g_active_param_case_style.store(style, std::memory_order_relaxed);
 }
 
+// Queries the globally active parameter naming style.
 param_case_style get_active_param_case_style() noexcept
 {
 	return g_active_param_case_style.load(std::memory_order_relaxed);
 }
 
+// Formats a canonical snake_case parameter name to match the active parameter case style:
+// - snake_case: returned as-is (e.g. "start_line")
+// - pascal_case: converted via to_PascalCase (e.g. "StartLine")
+// - camel_case: converted via to_camelCase (e.g. "startLine")
 std::string format_param_name(std::string_view snake_param)
 {
 	switch (get_active_param_case_style()) {
@@ -461,6 +507,10 @@ std::string format_param_name(std::string_view snake_param)
 	}
 }
 
+// Formats column header names in a markdown table header line (e.g. "| Symbol | start_line | end_line |\n").
+// Identifiers starting with a lowercase character are treated as parameter column names and
+// transformed to match the active parameter case style, while capitalized title columns (e.g. "Symbol",
+// "Type", "Kind") and markdown structural characters are preserved.
 std::string format_markdown_table_header(std::string_view header_line)
 {
 	if (get_active_param_case_style() == param_case_style::snake_case) {
