@@ -7,18 +7,24 @@
 namespace markdown_utils
 {
 
+// Heuristic to detect if a line is a markdown table row.
+// Matches lines containing at least one pipe '|' and at least one non-pipe, non-whitespace character.
 bool table_aligner::is_table_row(const std::string &line)
 {
 	static const re2::RE2 row_re("(?:\\|.*[^|\\s]|[^|\\s].*\\|)");
 	return re2::RE2::PartialMatch(line, row_re);
 }
 
+// Heuristic to detect markdown table header delimiter line (e.g. "|---|---|", "---|---", or "|:---|:---:|---:|").
+// Requires pipes, hyphens, and optional colons/spaces defining column boundaries and alignments.
 bool table_aligner::is_header_separator(const std::string &line)
 {
 	static const re2::RE2 sep_re("^(?:[-:\\s]*-[-|:\\s]*\\||[|:\\s]*\\|[-|:\\s]*-)[-|:\\s]*$");
 	return re2::RE2::FullMatch(line, sep_re);
 }
 
+// Finds contiguous ranges of line indices that represent valid markdown tables.
+// A valid table block must contain contiguous table rows and at least one header separator line.
 std::vector<table_range> table_aligner::find_table_ranges(const std::vector<std::string> &lines)
 {
 	std::vector<table_range> ranges;
@@ -54,6 +60,9 @@ std::vector<table_range> table_aligner::find_table_ranges(const std::vector<std:
 	return ranges;
 }
 
+// Splits a markdown table row into individual cell tokens.
+// Strips leading and trailing row boundary pipes and trims whitespace from each cell.
+// Escaped pipes ("\|") and backslashes ("\\") are preserved so cell contents remain valid markdown.
 std::vector<std::string> table_aligner::tokenize_row(const std::string &line)
 {
 	std::vector<std::string> tokens;
@@ -72,6 +81,7 @@ std::vector<std::string> table_aligner::tokenize_row(const std::string &line)
 	for (size_t i = start; i < end; ++i) {
 		char c = trimmed[i];
 		if (escaped) {
+			current += '\\';
 			current += c;
 			escaped = false;
 		} else if (c == '\\') {
@@ -83,20 +93,27 @@ std::vector<std::string> table_aligner::tokenize_row(const std::string &line)
 			current += c;
 		}
 	}
+	if (escaped) {
+		current += '\\';
+	}
 	tokens.push_back(trim(current));
 	return tokens;
 }
 
+// Trims leading and trailing whitespace characters using utf8::trim.
 std::string table_aligner::trim(const std::string &s)
 {
 	return utf8::trim(s);
 }
 
+// Computes visual terminal display column width of a UTF-8 string.
 size_t display_width(const std::string &s)
 {
 	return utf8::display_width(s);
 }
 
+// Computes visual display column width of markdown cell text, discounting formatting markers
+// (such as "**" bold markers) unless they appear inside inline code spans (`...`).
 static size_t formatted_display_width(const std::string &s)
 {
 	size_t total_width = 0;
@@ -126,6 +143,9 @@ static size_t formatted_display_width(const std::string &s)
 	return total_width;
 }
 
+// Truncates cell content to fit within a target visual display width.
+// Uses utf8::next_character to ensure multibyte characters are not split.
+// Appends "..." when target width exceeds 3.
 static std::string truncate_cell(const std::string &content, size_t target_width)
 {
 	size_t disp_w = formatted_display_width(content);
@@ -166,6 +186,8 @@ static std::string truncate_cell(const std::string &content, size_t target_width
 	}
 }
 
+// Word-wraps cell content into multiple sub-lines, each fitting within the target column width.
+// Breaks on whitespace where possible; if a single word exceeds the target width, breaks at glyph boundaries.
 static std::vector<std::string> wrap_cell(const std::string &content, size_t target_width)
 {
 	if (content.empty()) {
@@ -253,6 +275,8 @@ static std::vector<std::string> wrap_cell(const std::string &content, size_t tar
 	return lines;
 }
 
+// Scans a multiline markdown text document, detects all markdown tables, aligns each table block,
+// and splices the formatted tables back into the document, preserving surrounding markdown text and line endings.
 std::string align_all_tables(const std::string &text, bool framed, int min_width, int max_width, bool word_wrap)
 {
 	std::vector<std::string> lines;
@@ -298,6 +322,9 @@ std::string align_all_tables(const std::string &text, bool framed, int min_width
 	return result;
 }
 
+// Formats a single markdown table block.
+// Measures column widths, applies optional min_width expansion or max_width shrinking/wrapping,
+// formats header separators or UTF-8 box-drawing frames, and pads/aligns all cell contents.
 std::vector<std::string> table_aligner::align_table_block(const std::vector<std::string> &lines, const align_options &opts, int min_width, int max_width)
 {
 	if (lines.empty())
