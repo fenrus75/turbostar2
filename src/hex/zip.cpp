@@ -41,12 +41,18 @@ bool zip_hex_highlighter::parse(std::span<const uint8_t> data)
 		eocd_size_ = 22 + comment_len;
 
 		// Parse Central Directory Offset & Size
-		size_t cd_offset = data[eocd_pos + 16] | (data[eocd_pos + 17] << 8) | (data[eocd_pos + 18] << 16) | (data[eocd_pos + 19] << 24);
-		size_t cd_size = data[eocd_pos + 12] | (data[eocd_pos + 13] << 8) | (data[eocd_pos + 14] << 16) | (data[eocd_pos + 15] << 24);
+		size_t cd_offset = static_cast<uint32_t>(data[eocd_pos + 16]) |
+		                   (static_cast<uint32_t>(data[eocd_pos + 17]) << 8) |
+		                   (static_cast<uint32_t>(data[eocd_pos + 18]) << 16) |
+		                   (static_cast<uint32_t>(data[eocd_pos + 19]) << 24);
+		size_t cd_size = static_cast<uint32_t>(data[eocd_pos + 12]) |
+		                 (static_cast<uint32_t>(data[eocd_pos + 13]) << 8) |
+		                 (static_cast<uint32_t>(data[eocd_pos + 14]) << 16) |
+		                 (static_cast<uint32_t>(data[eocd_pos + 15]) << 24);
 
-		if (cd_offset + cd_size <= data.size()) {
+		if (cd_offset <= data.size() && cd_size <= data.size() - cd_offset) {
 			size_t offset = cd_offset;
-			while (offset + 46 <= cd_offset + cd_size && offset + 46 <= data.size()) {
+			while (offset <= cd_offset + cd_size && cd_offset + cd_size - offset >= 46 && data.size() - offset >= 46) {
 				if (data[offset] != 0x50 || data[offset + 1] != 0x4B || data[offset + 2] != 0x01 || data[offset + 3] != 0x02) {
 					break;
 				}
@@ -54,11 +60,17 @@ bool zip_hex_highlighter::parse(std::span<const uint8_t> data)
 				uint16_t filename_len = data[offset + 28] | (data[offset + 29] << 8);
 				uint16_t extra_len = data[offset + 30] | (data[offset + 31] << 8);
 				uint16_t comment_len_entry = data[offset + 32] | (data[offset + 33] << 8);
-				uint32_t local_header_offset = data[offset + 42] | (data[offset + 43] << 8) | (data[offset + 44] << 16) | (data[offset + 45] << 24);
+				uint32_t local_header_offset = static_cast<uint32_t>(data[offset + 42]) |
+				                               (static_cast<uint32_t>(data[offset + 43]) << 8) |
+				                               (static_cast<uint32_t>(data[offset + 44]) << 16) |
+				                               (static_cast<uint32_t>(data[offset + 45]) << 24);
 
 				std::string filename;
-				if (offset + 46 + filename_len <= data.size()) {
-					filename.assign(reinterpret_cast<const char *>(&data[offset + 46]), filename_len);
+				if (data.size() - offset >= 46 && filename_len <= data.size() - (offset + 46)) {
+					for (size_t k = 0; k < filename_len; ++k) {
+						char c = static_cast<char>(data[offset + 46 + k]);
+						filename.push_back((c >= 32 && c <= 126 && c != '|' && c != '`') ? c : '?');
+					}
 				}
 
 				parsed_cd_entry cd;
@@ -68,13 +80,19 @@ bool zip_hex_highlighter::parse(std::span<const uint8_t> data)
 				cd_entries_.push_back(cd);
 
 				// Parse corresponding LFH
-				if (local_header_offset + 30 <= data.size()) {
+				if (local_header_offset <= data.size() && data.size() - local_header_offset >= 30) {
 					size_t lfh = local_header_offset;
 					if (data[lfh] == 0x50 && data[lfh + 1] == 0x4B && data[lfh + 2] == 0x03 && data[lfh + 3] == 0x04) {
 						uint16_t lfh_filename_len = data[lfh + 26] | (data[lfh + 27] << 8);
 						uint16_t lfh_extra_len = data[lfh + 28] | (data[lfh + 29] << 8);
-						uint32_t comp_size = data[lfh + 18] | (data[lfh + 19] << 8) | (data[lfh + 20] << 16) | (data[lfh + 21] << 24);
-						uint32_t uncomp_size = data[lfh + 22] | (data[lfh + 23] << 8) | (data[lfh + 24] << 16) | (data[lfh + 25] << 24);
+						uint32_t comp_size = static_cast<uint32_t>(data[lfh + 18]) |
+						                     (static_cast<uint32_t>(data[lfh + 19]) << 8) |
+						                     (static_cast<uint32_t>(data[lfh + 20]) << 16) |
+						                     (static_cast<uint32_t>(data[lfh + 21]) << 24);
+						uint32_t uncomp_size = static_cast<uint32_t>(data[lfh + 22]) |
+						                       (static_cast<uint32_t>(data[lfh + 23]) << 8) |
+						                       (static_cast<uint32_t>(data[lfh + 24]) << 16) |
+						                       (static_cast<uint32_t>(data[lfh + 25]) << 24);
 
 						parsed_local_file lf;
 						lf.filename = filename;
@@ -86,8 +104,14 @@ bool zip_hex_highlighter::parse(std::span<const uint8_t> data)
 
 						// Overwrite sizes from CD if LFH sizes are zeroed out (Data Descriptor used)
 						if (comp_size == 0 || uncomp_size == 0) {
-							uint32_t cd_comp_size = data[offset + 20] | (data[offset + 21] << 8) | (data[offset + 22] << 16) | (data[offset + 23] << 24);
-							uint32_t cd_uncomp_size = data[offset + 24] | (data[offset + 25] << 8) | (data[offset + 26] << 16) | (data[offset + 27] << 24);
+							uint32_t cd_comp_size = static_cast<uint32_t>(data[offset + 20]) |
+							                        (static_cast<uint32_t>(data[offset + 21]) << 8) |
+							                        (static_cast<uint32_t>(data[offset + 22]) << 16) |
+							                        (static_cast<uint32_t>(data[offset + 23]) << 24);
+							uint32_t cd_uncomp_size = static_cast<uint32_t>(data[offset + 24]) |
+							                          (static_cast<uint32_t>(data[offset + 25]) << 8) |
+							                          (static_cast<uint32_t>(data[offset + 26]) << 16) |
+							                          (static_cast<uint32_t>(data[offset + 27]) << 24);
 							lf.compressed_size = cd_comp_size;
 							lf.uncompressed_size = cd_uncomp_size;
 						}
@@ -96,6 +120,9 @@ bool zip_hex_highlighter::parse(std::span<const uint8_t> data)
 					}
 				}
 
+				if (cd.entry_size < 46 || cd.entry_size > data.size() - offset) {
+					break;
+				}
 				offset += cd.entry_size;
 			}
 		}
@@ -106,12 +133,21 @@ bool zip_hex_highlighter::parse(std::span<const uint8_t> data)
 			if (data[offset] == 0x50 && data[offset + 1] == 0x4B && data[offset + 2] == 0x03 && data[offset + 3] == 0x04) {
 				uint16_t filename_len = data[offset + 26] | (data[offset + 27] << 8);
 				uint16_t extra_len = data[offset + 28] | (data[offset + 29] << 8);
-				uint32_t comp_size = data[offset + 18] | (data[offset + 19] << 8) | (data[offset + 20] << 16) | (data[offset + 21] << 24);
-				uint32_t uncomp_size = data[offset + 22] | (data[offset + 23] << 8) | (data[offset + 24] << 16) | (data[offset + 25] << 24);
+				uint32_t comp_size = static_cast<uint32_t>(data[offset + 18]) |
+				                     (static_cast<uint32_t>(data[offset + 19]) << 8) |
+				                     (static_cast<uint32_t>(data[offset + 20]) << 16) |
+				                     (static_cast<uint32_t>(data[offset + 21]) << 24);
+				uint32_t uncomp_size = static_cast<uint32_t>(data[offset + 22]) |
+				                       (static_cast<uint32_t>(data[offset + 23]) << 8) |
+				                       (static_cast<uint32_t>(data[offset + 24]) << 16) |
+				                       (static_cast<uint32_t>(data[offset + 25]) << 24);
 
 				std::string filename;
-				if (offset + 30 + filename_len <= data.size()) {
-					filename.assign(reinterpret_cast<const char *>(&data[offset + 30]), filename_len);
+				if (data.size() - offset >= 30 && filename_len <= data.size() - (offset + 30)) {
+					for (size_t k = 0; k < filename_len; ++k) {
+						char c = static_cast<char>(data[offset + 30 + k]);
+						filename.push_back((c >= 32 && c <= 126 && c != '|' && c != '`') ? c : '?');
+					}
 				}
 
 				parsed_local_file lf;
@@ -123,6 +159,9 @@ bool zip_hex_highlighter::parse(std::span<const uint8_t> data)
 				lf.uncompressed_size = uncomp_size;
 				local_files_.push_back(lf);
 
+				if (lf.header_size < 30 || lf.header_size > data.size() - offset || comp_size > data.size() - (offset + lf.header_size)) {
+					break;
+				}
 				offset += lf.header_size + comp_size;
 			} else if (data[offset] == 0x50 && data[offset + 1] == 0x4B && data[offset + 2] == 0x01 && data[offset + 3] == 0x02) {
 				uint16_t filename_len = data[offset + 28] | (data[offset + 29] << 8);
@@ -130,8 +169,11 @@ bool zip_hex_highlighter::parse(std::span<const uint8_t> data)
 				uint16_t comment_len_entry = data[offset + 32] | (data[offset + 33] << 8);
 
 				std::string filename;
-				if (offset + 46 + filename_len <= data.size()) {
-					filename.assign(reinterpret_cast<const char *>(&data[offset + 46]), filename_len);
+				if (data.size() - offset >= 46 && filename_len <= data.size() - (offset + 46)) {
+					for (size_t k = 0; k < filename_len; ++k) {
+						char c = static_cast<char>(data[offset + 46 + k]);
+						filename.push_back((c >= 32 && c <= 126 && c != '|' && c != '`') ? c : '?');
+					}
 				}
 
 				parsed_cd_entry cd;
@@ -140,6 +182,9 @@ bool zip_hex_highlighter::parse(std::span<const uint8_t> data)
 				cd.entry_size = 46 + filename_len + extra_len + comment_len_entry;
 				cd_entries_.push_back(cd);
 
+				if (cd.entry_size < 46 || cd.entry_size > data.size() - offset) {
+					break;
+				}
 				offset += cd.entry_size;
 			} else if (data[offset] == 0x50 && data[offset + 1] == 0x4B && data[offset + 2] == 0x05 && data[offset + 3] == 0x06) {
 				uint16_t comment_len = data[offset + 20] | (data[offset + 21] << 8);
@@ -159,7 +204,7 @@ bool zip_hex_highlighter::parse(std::span<const uint8_t> data)
 highlight_info zip_hex_highlighter::get_info(std::span<const uint8_t> data, size_t offset) const
 {
 	(void)data;
-	if (!parsed_successfully_) {
+	if (!parsed_successfully_ || offset >= data.size()) {
 		return {hex_semantic_type::normal, "", 0, 0};
 	}
 

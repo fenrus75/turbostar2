@@ -42,7 +42,8 @@ bool tar_hex_highlighter::parse(std::span<const uint8_t> data)
 			if (data[offset + i] == '\0') {
 				break;
 			}
-			filename.push_back(static_cast<char>(data[offset + i]));
+			char c = static_cast<char>(data[offset + i]);
+			filename.push_back((c >= 32 && c <= 126 && c != '|' && c != '`') ? c : '?');
 		}
 
 		// Also check prefix (offset 345, 155 bytes) if present to construct the full path
@@ -52,7 +53,8 @@ bool tar_hex_highlighter::parse(std::span<const uint8_t> data)
 				if (data[offset + 345 + i] == '\0') {
 					break;
 				}
-				prefix.push_back(static_cast<char>(data[offset + 345 + i]));
+				char c = static_cast<char>(data[offset + 345 + i]);
+				prefix.push_back((c >= 32 && c <= 126 && c != '|' && c != '`') ? c : '?');
 			}
 		}
 		if (!prefix.empty()) {
@@ -70,6 +72,9 @@ bool tar_hex_highlighter::parse(std::span<const uint8_t> data)
 			}
 			if (c >= '0' && c <= '7') {
 				size_str.push_back(c);
+			} else {
+				size_str.clear();
+				break;
 			}
 		}
 		if (!size_str.empty()) {
@@ -88,7 +93,16 @@ bool tar_hex_highlighter::parse(std::span<const uint8_t> data)
 		files_.push_back(pf);
 
 		// Tar padding: each file is padded to 512-byte boundaries
-		size_t padded_size = (size + 511) / 512 * 512;
+		size_t padded_size = 0;
+		if (size <= SIZE_MAX - 511) {
+			padded_size = (size + 511) / 512 * 512;
+		} else {
+			padded_size = SIZE_MAX;
+		}
+
+		if (offset > data.size() || 512 > data.size() - offset || padded_size > data.size() - (offset + 512)) {
+			break;
+		}
 		offset += 512 + padded_size;
 	}
 
@@ -103,7 +117,7 @@ highlight_info tar_hex_highlighter::get_info(std::span<const uint8_t> data, size
 	info.range_start = offset;
 	info.range_size = 1;
 
-	if (!parsed_successfully_) {
+	if (!parsed_successfully_ || offset >= data.size()) {
 		return info;
 	}
 

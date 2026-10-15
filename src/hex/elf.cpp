@@ -85,7 +85,7 @@ std::string demangle_section_name(const std::string &name)
 
 uint16_t read_u16(std::span<const uint8_t> data, size_t offset, bool is_lsb)
 {
-	if (offset + 2 > data.size())
+	if (offset > data.size() || 2 > data.size() - offset)
 		return 0;
 	if (is_lsb) {
 		return data[offset] | (data[offset + 1] << 8);
@@ -96,18 +96,24 @@ uint16_t read_u16(std::span<const uint8_t> data, size_t offset, bool is_lsb)
 
 uint32_t read_u32(std::span<const uint8_t> data, size_t offset, bool is_lsb)
 {
-	if (offset + 4 > data.size())
+	if (offset > data.size() || 4 > data.size() - offset)
 		return 0;
 	if (is_lsb) {
-		return data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24);
+		return static_cast<uint32_t>(data[offset]) |
+		       (static_cast<uint32_t>(data[offset + 1]) << 8) |
+		       (static_cast<uint32_t>(data[offset + 2]) << 16) |
+		       (static_cast<uint32_t>(data[offset + 3]) << 24);
 	} else {
-		return (data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3];
+		return (static_cast<uint32_t>(data[offset]) << 24) |
+		       (static_cast<uint32_t>(data[offset + 1]) << 16) |
+		       (static_cast<uint32_t>(data[offset + 2]) << 8) |
+		       static_cast<uint32_t>(data[offset + 3]);
 	}
 }
 
 uint64_t read_u64(std::span<const uint8_t> data, size_t offset, bool is_lsb)
 {
-	if (offset + 8 > data.size())
+	if (offset > data.size() || 8 > data.size() - offset)
 		return 0;
 	uint64_t low = read_u32(data, offset, is_lsb);
 	uint64_t high = read_u32(data, offset + 4, is_lsb);
@@ -121,13 +127,14 @@ uint64_t read_u64(std::span<const uint8_t> data, size_t offset, bool is_lsb)
 std::string read_string(std::span<const uint8_t> data, size_t offset, size_t max_len)
 {
 	std::string res;
-	for (size_t i = 0; i < max_len; ++i) {
-		if (offset + i >= data.size())
-			break;
+	if (offset >= data.size())
+		return res;
+	size_t count = std::min(max_len, data.size() - offset);
+	for (size_t i = 0; i < count; ++i) {
 		char c = static_cast<char>(data[offset + i]);
 		if (c == '\0')
 			break;
-		res.push_back(c);
+		res.push_back((c >= 32 && c <= 126 && c != '|' && c != '`') ? c : '?');
 	}
 	return res;
 }
@@ -386,11 +393,12 @@ bool elf_hex_highlighter::parse(std::span<const uint8_t> data)
 	}
 
 	// Parse sections bounds-safely
-	if (header_.e_shoff > 0 && header_.e_shnum > 0 && header_.e_shentsize >= (header_.is_64 ? 64 : 40)) {
+	if (header_.e_shoff > 0 && header_.e_shnum > 0 && header_.e_shentsize >= (header_.is_64 ? 64 : 40) && header_.e_shoff <= data.size()) {
+		size_t max_entries = (data.size() - header_.e_shoff) / header_.e_shentsize;
 		// First find string table offset
 		uint64_t strtab_offset = 0;
 		uint64_t strtab_size = 0;
-		if (header_.e_shstrndx < header_.e_shnum) {
+		if (header_.e_shstrndx < max_entries) {
 			size_t strtab_entry_start = header_.e_shoff + header_.e_shstrndx * header_.e_shentsize;
 			if (header_.is_64) {
 				strtab_offset = read_u64(data, strtab_entry_start + 24, lsb);
@@ -401,9 +409,10 @@ bool elf_hex_highlighter::parse(std::span<const uint8_t> data)
 			}
 		}
 
-		for (size_t i = 1; i < header_.e_shnum; ++i) {
+		size_t valid_shnum = std::min(static_cast<size_t>(header_.e_shnum), max_entries);
+		for (size_t i = 1; i < valid_shnum; ++i) {
 			size_t entry_start = header_.e_shoff + i * header_.e_shentsize;
-			if (entry_start + header_.e_shentsize > data.size())
+			if (entry_start > data.size() || header_.e_shentsize > data.size() - entry_start)
 				break;
 
 			parsed_section sec;
@@ -447,15 +456,17 @@ bool elf_hex_highlighter::parse(std::span<const uint8_t> data)
 	}
 
 	// Parse symbol table bounds-safely if SHT exists
-	if (header_.e_shoff > 0 && header_.e_shnum > 0 && header_.e_shentsize >= (header_.is_64 ? 64 : 40)) {
+	if (header_.e_shoff > 0 && header_.e_shnum > 0 && header_.e_shentsize >= (header_.is_64 ? 64 : 40) && header_.e_shoff <= data.size()) {
+		size_t max_entries = (data.size() - header_.e_shoff) / header_.e_shentsize;
+		size_t valid_shnum = std::min(static_cast<size_t>(header_.e_shnum), max_entries);
 		uint64_t symtab_offset = 0;
 		uint64_t symtab_size = 0;
 		uint64_t symtab_entsize = 0;
 		uint32_t symtab_link = 0;
 
-		for (size_t i = 1; i < header_.e_shnum; ++i) {
+		for (size_t i = 1; i < valid_shnum; ++i) {
 			size_t entry_start = header_.e_shoff + i * header_.e_shentsize;
-			if (entry_start + header_.e_shentsize > data.size())
+			if (entry_start > data.size() || header_.e_shentsize > data.size() - entry_start)
 				break;
 			uint32_t type = read_u32(data, entry_start + 4, lsb);
 			if (type == 2) { // SHT_SYMTAB
@@ -476,9 +487,9 @@ bool elf_hex_highlighter::parse(std::span<const uint8_t> data)
 
 		uint64_t symstr_offset = 0;
 		uint64_t symstr_size = 0;
-		if (symtab_offset > 0 && symtab_size > 0 && symtab_entsize > 0 && symtab_link < header_.e_shnum) {
+		if (symtab_offset > 0 && symtab_size > 0 && symtab_entsize > 0 && symtab_link < valid_shnum) {
 			size_t entry_start = header_.e_shoff + symtab_link * header_.e_shentsize;
-			if (entry_start + header_.e_shentsize <= data.size()) {
+			if (entry_start <= data.size() && header_.e_shentsize <= data.size() - entry_start) {
 				if (header_.is_64) {
 					symstr_offset = read_u64(data, entry_start + 24, lsb);
 					symstr_size = read_u64(data, entry_start + 32, lsb);
@@ -488,10 +499,12 @@ bool elf_hex_highlighter::parse(std::span<const uint8_t> data)
 				}
 			}
 
-			size_t sym_count = symtab_size / symtab_entsize;
 			size_t req_sym_size = header_.is_64 ? 24 : 16;
-			for (size_t j = 0; j < sym_count; ++j) {
-				size_t sym_start = symtab_offset + j * symtab_entsize;
+			if (symtab_entsize >= req_sym_size && symtab_offset <= data.size()) {
+				size_t max_syms = (data.size() - symtab_offset) / symtab_entsize;
+				size_t sym_count = std::min(static_cast<size_t>(symtab_size / symtab_entsize), max_syms);
+				for (size_t j = 0; j < sym_count; ++j) {
+					size_t sym_start = symtab_offset + j * symtab_entsize;
 				if (sym_start + req_sym_size > data.size() || symtab_entsize < req_sym_size)
 					break;
 
@@ -558,6 +571,7 @@ bool elf_hex_highlighter::parse(std::span<const uint8_t> data)
 					}
 				}
 			}
+			}
 		}
 
 		std::sort(symbols_.begin(), symbols_.end(), [](const parsed_symbol &a, const parsed_symbol &b) {
@@ -571,7 +585,7 @@ bool elf_hex_highlighter::parse(std::span<const uint8_t> data)
 
 highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size_t offset) const
 {
-	if (!parsed_successfully_)
+	if (!parsed_successfully_ || offset >= data.size())
 		return {};
 
 	bool lsb = header_.is_lsb;
@@ -708,8 +722,10 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 	}
 
 	// 4. Program Header Table
-	if (header_.e_phoff > 0 && header_.e_phnum > 0) {
-		size_t ph_table_end = header_.e_phoff + (header_.e_phnum * header_.e_phentsize);
+	if (header_.e_phoff > 0 && header_.e_phnum > 0 && header_.e_phentsize > 0 && header_.e_phoff <= data.size()) {
+		size_t max_entries = (data.size() - header_.e_phoff) / header_.e_phentsize;
+		size_t valid_entries = std::min(static_cast<size_t>(header_.e_phnum), max_entries);
+		size_t ph_table_end = header_.e_phoff + (valid_entries * header_.e_phentsize);
 		if (offset >= header_.e_phoff && offset < ph_table_end) {
 			size_t entry_idx = (offset - header_.e_phoff) / header_.e_phentsize;
 			size_t field_offset = (offset - header_.e_phoff) % header_.e_phentsize;
@@ -826,8 +842,10 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 	}
 
 	// 5. Section Header Table
-	if (header_.e_shoff > 0 && header_.e_shnum > 0) {
-		size_t sh_table_end = header_.e_shoff + (header_.e_shnum * header_.e_shentsize);
+	if (header_.e_shoff > 0 && header_.e_shnum > 0 && header_.e_shentsize > 0 && header_.e_shoff <= data.size()) {
+		size_t max_entries = (data.size() - header_.e_shoff) / header_.e_shentsize;
+		size_t valid_entries = std::min(static_cast<size_t>(header_.e_shnum), max_entries);
+		size_t sh_table_end = header_.e_shoff + (valid_entries * header_.e_shentsize);
 		if (offset >= header_.e_shoff && offset < sh_table_end) {
 			size_t entry_idx = (offset - header_.e_shoff) / header_.e_shentsize;
 			size_t field_offset = (offset - header_.e_shoff) % header_.e_shentsize;

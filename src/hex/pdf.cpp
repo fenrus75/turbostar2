@@ -67,11 +67,15 @@ bool pdf_hex_highlighter::parse(std::span<const uint8_t> data) {
 			
 			size_t start = i;
 			while (start > 0 && is_whitespace(data[start-1])) start--;
+			size_t gen_end = start;
 			while (start > 0 && is_digit(data[start-1])) start--; // gen
+			size_t gen_start = start;
 			while (start > 0 && is_whitespace(data[start-1])) start--;
+			size_t id_end = start;
 			while (start > 0 && is_digit(data[start-1])) start--; // id
+			size_t id_start = start;
 			
-			if (start < i) {
+			if (gen_start < gen_end && id_start < id_end) {
 				current_obj = pdf_object{};
 				current_obj.offset = start;
 				
@@ -175,7 +179,7 @@ bool pdf_hex_highlighter::parse(std::span<const uint8_t> data) {
 highlight_info pdf_hex_highlighter::get_info(std::span<const uint8_t> data, size_t offset) const
 {
 	(void)data;
-	if (!parsed_successfully_) {
+	if (!parsed_successfully_ || offset >= data.size()) {
 		return {hex_semantic_type::normal, "", 0, 0};
 	}
 

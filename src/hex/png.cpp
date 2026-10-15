@@ -33,7 +33,8 @@ bool png_hex_highlighter::parse(std::span<const uint8_t> data)
 		
 		std::string type;
 		for (int i = 0; i < 4; ++i) {
-			type.push_back(static_cast<char>(data[offset + 4 + i]));
+			char c = static_cast<char>(data[offset + 4 + i]);
+			type.push_back((c >= 32 && c <= 126 && c != '|' && c != '`') ? c : '?');
 		}
 
 		parsed_chunk chunk;
@@ -60,11 +61,12 @@ bool png_hex_highlighter::parse(std::span<const uint8_t> data)
 			break;
 		}
 
-		offset += 12 + len;
-
-		if (12 + len == 0 || offset < chunk.offset) {
+		size_t total_chunk_len = static_cast<size_t>(len) + 12;
+		if (total_chunk_len < 12 || offset > data.size() || total_chunk_len > data.size() - offset) {
 			break;
 		}
+
+		offset += total_chunk_len;
 	}
 
 	parsed_successfully_ = true;
@@ -73,7 +75,7 @@ bool png_hex_highlighter::parse(std::span<const uint8_t> data)
 
 highlight_info png_hex_highlighter::get_info(std::span<const uint8_t> data, size_t offset) const
 {
-	if (!parsed_successfully_)
+	if (!parsed_successfully_ || offset >= data.size())
 		return {};
 
 	if (offset < 8) {

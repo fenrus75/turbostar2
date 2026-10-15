@@ -716,6 +716,274 @@ void test_malicious_corrupt_files()
 		pdf_hl.get_info(pdf_bad, 10);
 	}
 
+	// 7. Universal Out-of-Bounds and Overflow Queries
+	{
+		std::vector<uint8_t> minimal_png = {0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
+		png_hex_highlighter png_hl;
+		if (png_hl.parse(minimal_png)) {
+			// Querying out-of-bounds offset should return normal/empty info
+			highlight_info oob_info = png_hl.get_info(minimal_png, minimal_png.size());
+			assert(oob_info.type == hex_semantic_type::normal);
+			highlight_info max_info = png_hl.get_info(minimal_png, SIZE_MAX);
+			assert(max_info.type == hex_semantic_type::normal);
+		}
+
+		// PNG 32-bit chunk length integer overflow attack:
+		// len = 0xFFFFFFFE. If evaluated as uint32_t (12 + len), 12 + 0xFFFFFFFE == 10,
+		// wrapping around and spuriously advancing offset by 10.
+		std::vector<uint8_t> png_len_wrap(40, 0);
+		png_len_wrap[0] = 0x89; png_len_wrap[1] = 'P'; png_len_wrap[2] = 'N'; png_len_wrap[3] = 'G';
+		png_len_wrap[4] = 0x0D; png_len_wrap[5] = 0x0A; png_len_wrap[6] = 0x1A; png_len_wrap[7] = 0x0A;
+		png_len_wrap[8] = 0xFF; png_len_wrap[9] = 0xFF; png_len_wrap[10] = 0xFF; png_len_wrap[11] = 0xFE;
+		png_len_wrap[12] = 't'; png_len_wrap[13] = 'E'; png_len_wrap[14] = 'S'; png_len_wrap[15] = 't';
+		// Next chunk signature placed at offset 18
+		png_len_wrap[18] = 0x00; png_len_wrap[19] = 0x00; png_len_wrap[20] = 0x00; png_len_wrap[21] = 0x00;
+		png_len_wrap[22] = 'I'; png_len_wrap[23] = 'E'; png_len_wrap[24] = 'N'; png_len_wrap[25] = 'D';
+		png_hl.parse(png_len_wrap);
+		// With 0xFFFFFFFE length, the chunk extends way past buffer (4.29GB).
+		// The parser must NOT have wrapped 12 + len to 10 and parsed a second chunk at offset 18!
+		assert(!png_hl.get_offset_by_name("IEND").has_value());
+
+		// TAR with declared size extending past data buffer
+		std::vector<uint8_t> tar_trunc_payload(512, 0);
+		std::string tfname = "bigfile.bin";
+		for (size_t i = 0; i < tfname.length(); ++i) {
+			tar_trunc_payload[i] = static_cast<uint8_t>(tfname[i]);
+		}
+		// Size = 100000 bytes octal: "00000303240"
+		std::string tsize = "00000303240";
+		for (size_t i = 0; i < tsize.length(); ++i) {
+			tar_trunc_payload[124 + i] = static_cast<uint8_t>(tsize[i]);
+		}
+		tar_trunc_payload[257] = 'u'; tar_trunc_payload[258] = 's'; tar_trunc_payload[259] = 't';
+		tar_trunc_payload[260] = 'a'; tar_trunc_payload[261] = 'r';
+		tar_hex_highlighter tar_hl;
+		assert(tar_hl.can_handle(tar_trunc_payload));
+		tar_hl.parse(tar_trunc_payload);
+		// Querying beyond data.size() must return normal, NOT report data_section for bytes that don't exist
+		highlight_info tar_oob = tar_hl.get_info(tar_trunc_payload, 600);
+		assert(tar_oob.type == hex_semantic_type::normal);
+
+		// PDF invalid object without number
+		pdf_hex_highlighter pdf_hl;
+		std::string bad_pdf = "%PDF-1.4\n obj\nendobj\n%%EOF\n";
+		std::vector<uint8_t> bad_pdf_data(bad_pdf.begin(), bad_pdf.end());
+		assert(pdf_hl.can_handle(bad_pdf_data));
+		pdf_hl.parse(bad_pdf_data);
+		// " obj" without object and generation numbers must not be treated as a valid object
+		assert(!pdf_hl.get_offset_by_name("").has_value());
+		assert(!pdf_hl.get_offset_by_name(" obj").has_value());
+	}
+
+	// 8. Deep ELF Malicious Inputs
+	{
+		elf_hex_highlighter elf_hl;
+
+		// 8a. Zero entry sizes (prevent divide-by-zero crashes)
+		std::vector<uint8_t> elf_zero_entsize(128, 0);
+		elf_zero_entsize[0] = 0x7F; elf_zero_entsize[1] = 'E'; elf_zero_entsize[2] = 'L'; elf_zero_entsize[3] = 'F';
+		elf_zero_entsize[4] = 2; // 64-bit
+		elf_zero_entsize[5] = 1; // LSB
+		write_u64_le(elf_zero_entsize, 32, 64); // e_phoff = 64
+		write_u16_le(elf_zero_entsize, 54, 0);  // e_phentsize = 0 (attack!)
+		write_u16_le(elf_zero_entsize, 56, 10); // e_phnum = 10
+		write_u64_le(elf_zero_entsize, 40, 64); // e_shoff = 64
+		write_u16_le(elf_zero_entsize, 58, 0);  // e_shentsize = 0 (attack!)
+		write_u16_le(elf_zero_entsize, 60, 10); // e_shnum = 10
+		assert(elf_hl.can_handle(elf_zero_entsize));
+		assert(elf_hl.parse(elf_zero_entsize));
+		// Querying at offset 64 must not crash with SIGFPE
+		highlight_info info64 = elf_hl.get_info(elf_zero_entsize, 64);
+		assert(info64.type == hex_semantic_type::normal);
+
+		// 8b. Out-of-bounds offset queries on valid ELF
+		highlight_info oob1 = elf_hl.get_info(elf_zero_entsize, elf_zero_entsize.size());
+		assert(oob1.type == hex_semantic_type::normal);
+		highlight_info oob2 = elf_hl.get_info(elf_zero_entsize, SIZE_MAX);
+		assert(oob2.type == hex_semantic_type::normal);
+
+		// 8c. Section headers wrapping size_t
+		std::vector<uint8_t> elf_wrap(128, 0);
+		elf_wrap[0] = 0x7F; elf_wrap[1] = 'E'; elf_wrap[2] = 'L'; elf_wrap[3] = 'F';
+		elf_wrap[4] = 2; elf_wrap[5] = 1;
+		write_u64_le(elf_wrap, 40, SIZE_MAX - 30); // e_shoff near SIZE_MAX
+		write_u16_le(elf_wrap, 58, 64);            // e_shentsize = 64
+		write_u16_le(elf_wrap, 60, 5);             // e_shnum = 5
+		assert(elf_hl.can_handle(elf_wrap));
+		assert(elf_hl.parse(elf_wrap));
+		highlight_info wrap_info = elf_hl.get_info(elf_wrap, 10);
+		assert(wrap_info.type == hex_semantic_type::file_header);
+	}
+
+	// 9. Deep PNG Malicious Inputs
+	{
+		png_hex_highlighter png_hl;
+
+		// 9a. Chunk type containing control characters and markdown injection
+		std::vector<uint8_t> png_inject(40, 0);
+		png_inject[0] = 0x89; png_inject[1] = 'P'; png_inject[2] = 'N'; png_inject[3] = 'G';
+		png_inject[4] = 0x0D; png_inject[5] = 0x0A; png_inject[6] = 0x1A; png_inject[7] = 0x0A;
+		// len = 0
+		write_u32_le(png_inject, 8, 0);
+		// Type with pipe, newline, backtick, escape
+		png_inject[12] = '|'; png_inject[13] = '\n'; png_inject[14] = '`'; png_inject[15] = 0x1B;
+		assert(png_hl.can_handle(png_inject));
+		assert(png_hl.parse(png_inject));
+		std::string summary = png_hl.get_structure_summary();
+		// Ensure control chars / pipes in chunk type were sanitized into '?'
+		assert(summary.find("`????`") != std::string::npos);
+
+		// 9b. Truncated IHDR (length < 13)
+		std::vector<uint8_t> png_short_ihdr(30, 0);
+		png_short_ihdr[0] = 0x89; png_short_ihdr[1] = 'P'; png_short_ihdr[2] = 'N'; png_short_ihdr[3] = 'G';
+		png_short_ihdr[4] = 0x0D; png_short_ihdr[5] = 0x0A; png_short_ihdr[6] = 0x1A; png_short_ihdr[7] = 0x0A;
+		write_u32_le(png_short_ihdr, 8, 5); // len = 5 (< 13 required for IHDR)
+		png_short_ihdr[12] = 'I'; png_short_ihdr[13] = 'H'; png_short_ihdr[14] = 'D'; png_short_ihdr[15] = 'R';
+		assert(png_hl.parse(png_short_ihdr));
+		// Querying IHDR offset must not read out of bounds
+		highlight_info ihdr_info = png_hl.get_info(png_short_ihdr, 16);
+		assert(ihdr_info.type == hex_semantic_type::code_section);
+
+		// 9c. Empty data / out of bounds get_info
+		highlight_info oob = png_hl.get_info(png_short_ihdr, 9999);
+		assert(oob.type == hex_semantic_type::normal);
+	}
+
+	// 10. Deep JPEG Malicious Inputs
+	{
+		jpeg_hex_highlighter jpeg_hl;
+
+		// 10a. Marker with length_val < 2 (0 and 1)
+		std::vector<uint8_t> jpeg_zero_len = {0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x00, 0xFF, 0xD9};
+		assert(jpeg_hl.can_handle(jpeg_zero_len));
+		assert(jpeg_hl.parse(jpeg_zero_len));
+
+		std::vector<uint8_t> jpeg_one_len = {0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x01, 0xFF, 0xD9};
+		assert(jpeg_hl.can_handle(jpeg_one_len));
+		assert(jpeg_hl.parse(jpeg_one_len));
+
+		// 10b. SOS marker without terminating EOI marker (scans to EOF)
+		std::vector<uint8_t> jpeg_sos_eof = {
+			0xFF, 0xD8,
+			0xFF, 0xDA, 0x00, 0x02, // SOS marker, length 2
+			0x12, 0x34, 0xFF, 0x00, 0x56, 0x78 // Entropy data with byte stuffing 0xFF 0x00
+		};
+		assert(jpeg_hl.can_handle(jpeg_sos_eof));
+		assert(jpeg_hl.parse(jpeg_sos_eof));
+		highlight_info sos_info = jpeg_hl.get_info(jpeg_sos_eof, 8);
+		assert(sos_info.type == hex_semantic_type::code_section);
+
+		// 10c. OOB get_info
+		highlight_info oob = jpeg_hl.get_info(jpeg_sos_eof, jpeg_sos_eof.size());
+		assert(oob.type == hex_semantic_type::normal);
+		highlight_info oob_max = jpeg_hl.get_info(jpeg_sos_eof, SIZE_MAX);
+		assert(oob_max.type == hex_semantic_type::normal);
+	}
+
+	// 11. Deep ZIP Malicious Inputs
+	{
+		zip_hex_highlighter zip_hl;
+
+		// 11a. ZIP with sign-extension in 32-bit fields (bit 31 set: 0x80000000)
+		std::vector<uint8_t> zip_sign(64, 0);
+		zip_sign[0] = 0x50; zip_sign[1] = 0x4B; zip_sign[2] = 0x03; zip_sign[3] = 0x04;
+		size_t eocd_pos = zip_sign.size() - 22;
+		zip_sign[eocd_pos] = 0x50; zip_sign[eocd_pos + 1] = 0x4B;
+		zip_sign[eocd_pos + 2] = 0x05; zip_sign[eocd_pos + 3] = 0x06;
+		// cd_offset = 0x80000000
+		zip_sign[eocd_pos + 16] = 0x00; zip_sign[eocd_pos + 17] = 0x00;
+		zip_sign[eocd_pos + 18] = 0x00; zip_sign[eocd_pos + 19] = 0x80;
+		// cd_size = 0x80000000
+		zip_sign[eocd_pos + 12] = 0x00; zip_sign[eocd_pos + 13] = 0x00;
+		zip_sign[eocd_pos + 14] = 0x00; zip_sign[eocd_pos + 15] = 0x80;
+		assert(zip_hl.can_handle(zip_sign));
+		assert(zip_hl.parse(zip_sign));
+		// Out of bounds get_info
+		highlight_info oob = zip_hl.get_info(zip_sign, 9999);
+		assert(oob.type == hex_semantic_type::normal);
+
+		// 11b. Path traversal & filename injection in ZIP
+		std::vector<uint8_t> zip_trav(120, 0);
+		zip_trav[0] = 0x50; zip_trav[1] = 0x4B; zip_trav[2] = 0x03; zip_trav[3] = 0x04;
+		std::string trav_name = "../../../etc/passwd|`\n";
+		write_u16_le(zip_trav, 26, static_cast<uint16_t>(trav_name.length())); // filename_len
+		for (size_t i = 0; i < trav_name.length(); ++i) {
+			zip_trav[30 + i] = static_cast<uint8_t>(trav_name[i]);
+		}
+		assert(zip_hl.parse(zip_trav));
+		std::string sum = zip_hl.get_structure_summary();
+		// Pipe and backticks must be sanitized
+		assert(sum.find('|') != std::string::npos); // Table markup exists
+		assert(sum.find("passwd?`") == std::string::npos); // Raw backtick was sanitized
+	}
+
+	// 12. Deep TAR Malicious Inputs
+	{
+		tar_hex_highlighter tar_hl;
+
+		// 12a. Octal size near overflow (SIZE_MAX - 100)
+		std::vector<uint8_t> tar_overflow(1024, 0);
+		std::string ofname = "overflow.dat";
+		for (size_t i = 0; i < ofname.length(); ++i) {
+			tar_overflow[i] = static_cast<uint8_t>(ofname[i]);
+		}
+		// 11 octal sevens: "77777777777"
+		std::string max_oct = "77777777777";
+		for (size_t i = 0; i < max_oct.length(); ++i) {
+			tar_overflow[124 + i] = static_cast<uint8_t>(max_oct[i]);
+		}
+		tar_overflow[257] = 'u'; tar_overflow[258] = 's'; tar_overflow[259] = 't';
+		tar_overflow[260] = 'a'; tar_overflow[261] = 'r';
+		assert(tar_hl.can_handle(tar_overflow));
+		assert(tar_hl.parse(tar_overflow));
+		// Querying at 600 must not claim data section
+		highlight_info inf = tar_hl.get_info(tar_overflow, 600);
+		assert(inf.type == hex_semantic_type::data_section); // 600 < 1024 so it is within data buffer!
+		// Querying at 2000 (beyond data.size()) must be normal
+		highlight_info inf_oob = tar_hl.get_info(tar_overflow, 2000);
+		assert(inf_oob.type == hex_semantic_type::normal);
+
+		// 12b. 100-byte unterminated filename
+		std::vector<uint8_t> tar_no_null(1024, 0);
+		for (size_t i = 0; i < 100; ++i) {
+			tar_no_null[i] = 'A'; // No null byte in 100 bytes
+		}
+		std::string s_oct = "00000000010";
+		for (size_t i = 0; i < s_oct.length(); ++i) {
+			tar_no_null[124 + i] = static_cast<uint8_t>(s_oct[i]);
+		}
+		tar_no_null[257] = 'u'; tar_no_null[258] = 's'; tar_no_null[259] = 't';
+		tar_no_null[260] = 'a'; tar_no_null[261] = 'r';
+		assert(tar_hl.parse(tar_no_null));
+		assert(tar_hl.get_files().size() == 1);
+		assert(tar_hl.get_files()[0].filename.length() == 100);
+	}
+
+	// 13. Deep PDF Malicious Inputs
+	{
+		pdf_hex_highlighter pdf_hl;
+
+		// 13a. Nested unclosed streams and objects
+		std::string nest_pdf = "%PDF-1.7\n1 0 obj\nstream\n2 0 obj\nstream\nendstream\n";
+		std::vector<uint8_t> nest_data(nest_pdf.begin(), nest_pdf.end());
+		assert(pdf_hl.can_handle(nest_data));
+		assert(pdf_hl.parse(nest_data));
+		highlight_info p_inf = pdf_hl.get_info(nest_data, 10);
+		assert(p_inf.type != hex_semantic_type::magic);
+
+		// 13b. startxref without EOF
+		std::string no_eof = "%PDF-1.4\nxref\n0 1\n0000000000 65535 f \ntrailer\n<< /Size 1 >>\nstartxref\n9\n";
+		std::vector<uint8_t> no_eof_data(no_eof.begin(), no_eof.end());
+		assert(pdf_hl.can_handle(no_eof_data));
+		assert(pdf_hl.parse(no_eof_data));
+		highlight_info tr_inf = pdf_hl.get_info(no_eof_data, no_eof_data.size() - 5);
+		assert(tr_inf.type == hex_semantic_type::magic);
+
+		// 13c. OOB get_info
+		highlight_info oob = pdf_hl.get_info(no_eof_data, no_eof_data.size() + 50);
+		assert(oob.type == hex_semantic_type::normal);
+	}
+
 	std::cout << "All robustness & malicious/corrupt file format tests passed cleanly!" << std::endl;
 }
 

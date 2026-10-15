@@ -94,11 +94,14 @@ bool jpeg_hex_highlighter::parse(std::span<const uint8_t> data)
 		}
 		
 		uint16_t length_val = (data[offset] << 8) | data[offset + 1];
+		if (length_val < 2) {
+			break;
+		}
 		pm.length = (offset - marker_start) + length_val;
 		markers_.push_back(pm);
 
-		if ((marker_code == 0xC0 || marker_code == 0xC2) && pm.length >= 10 && pm.offset + 10 <= data.size()) {
-			size_t data_start = pm.offset + 4;
+		if ((marker_code == 0xC0 || marker_code == 0xC2) && length_val >= 8 && offset + 8 <= data.size()) {
+			size_t data_start = offset + 2;
 			precision_ = data[data_start];
 			height_ = (data[data_start + 1] << 8) | data[data_start + 2];
 			width_ = (data[data_start + 3] << 8) | data[data_start + 4];
@@ -106,6 +109,9 @@ bool jpeg_hex_highlighter::parse(std::span<const uint8_t> data)
 			has_sof_ = true;
 		}
 		
+		if (offset > data.size() || length_val > data.size() - offset) {
+			break;
+		}
 		offset += length_val;
 		
 		if (marker_code == 0xDA) { // SOS
@@ -143,7 +149,7 @@ bool jpeg_hex_highlighter::parse(std::span<const uint8_t> data)
 
 highlight_info jpeg_hex_highlighter::get_info(std::span<const uint8_t> data, size_t offset) const
 {
-	if (!parsed_successfully_)
+	if (!parsed_successfully_ || offset >= data.size())
 		return {};
 
 	for (const auto &pm : markers_) {
