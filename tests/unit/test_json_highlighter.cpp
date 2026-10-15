@@ -1,3 +1,5 @@
+// Tested source file: src/highlighter/json_highlighter.cpp
+#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -7,6 +9,7 @@
 
 int main()
 {
+	test_watchdog::setup_watchdog(30);
 	std::cout << "Running test_json_highlighter..." << std::endl;
 
 	json_highlighter hl;
@@ -78,6 +81,31 @@ int main()
 	// Comment starts at index 15: // ...
 	assert(attrs3[15] == syntax_attribute::comment);
 	assert(attrs3[33] == syntax_attribute::comment);
+
+	// Test Line 4: String containing "//" (URL) and subsequent keys/values
+	auto line4 = std::make_shared<line>(R"(  "url": "https://turbostar.dev/docs", "id": 100 // real comment)");
+	hl.highlight(line4);
+
+	std::vector<syntax_attribute> attrs4;
+	std::string text4;
+	line4->get_content(text4, attrs4);
+
+	// "https://turbostar.dev/docs" must be string_literal
+	assert(attrs4[9] == syntax_attribute::string_literal);
+	assert(attrs4[17] == syntax_attribute::string_literal); // ':'
+	assert(attrs4[18] == syntax_attribute::string_literal); // '/'
+	assert(attrs4[19] == syntax_attribute::string_literal); // '/'
+	assert(attrs4[36] == syntax_attribute::string_literal); // closing '"'
+	assert(attrs4[37] == syntax_attribute::heading);        // comma ','
+
+	// "id" must be keyword (key)
+	assert(attrs4[40] == syntax_attribute::keyword);
+
+	// 100 must be italic (number)
+	assert(attrs4[45] == syntax_attribute::italic);
+
+	// "// real comment" must be comment
+	assert(attrs4[49] == syntax_attribute::comment);
 
 	std::cout << "All test_json_highlighter tests passed!" << std::endl;
 	return 0;

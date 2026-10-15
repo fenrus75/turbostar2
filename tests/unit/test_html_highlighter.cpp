@@ -1,3 +1,4 @@
+// Tested source file: src/highlighter/html_highlighter.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
@@ -82,6 +83,34 @@ void test_html_utf8()
 	}
 }
 
+void test_html_edge_cases()
+{
+	html_highlighter hl;
+	assert(hl.supports_language("html"));
+	assert(hl.supports_language("htm"));
+	assert(!hl.supports_language("xml"));
+
+	// Empty line
+	auto l_empty = std::make_shared<line>("");
+	hl.highlight(l_empty);
+	assert(l_empty->length_in_chars() == 0);
+
+	// Single quotes and self-closing tag
+	auto l_self = std::make_shared<line>("<input type='text' />");
+	hl.highlight(l_self);
+	assert(l_self->get_attribute(0) == syntax_attribute::keyword); // '<'
+	assert(l_self->get_attribute(11) == syntax_attribute::keyword); // '='
+	assert(l_self->get_attribute(12) == syntax_attribute::string_literal); // '\''
+	assert(l_self->get_attribute(17) == syntax_attribute::string_literal); // '\''
+	assert(l_self->get_attribute(20) == syntax_attribute::keyword); // '>'
+
+	// Unclosed tag
+	auto l_unclosed = std::make_shared<line>("<div class=\"unfinished");
+	hl.highlight(l_unclosed);
+	assert(l_unclosed->get_attribute(0) == syntax_attribute::keyword);
+	assert(l_unclosed->get_attribute(12) == syntax_attribute::string_literal);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -90,6 +119,7 @@ int main()
 	test_html_tag_attributes();
 	test_html_comments();
 	test_html_utf8();
+	test_html_edge_cases();
 
 	std::cout << "All HTML highlighter tests passed successfully!" << std::endl;
 	return 0;

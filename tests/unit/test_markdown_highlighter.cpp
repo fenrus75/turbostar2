@@ -1,3 +1,4 @@
+// Tested source file: src/highlighter/markdown_highlighter.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
@@ -85,6 +86,33 @@ void test_markdown_list_items()
 	assert(l2->get_attribute(2) == syntax_attribute::list_item);
 }
 
+void test_markdown_edge_cases()
+{
+	markdown_highlighter hl;
+	assert(hl.supports_language("markdown"));
+	assert(hl.supports_language("md"));
+	assert(!hl.supports_language("html"));
+
+	// Empty line
+	auto l_empty = std::make_shared<line>("");
+	hl.highlight(l_empty);
+	assert(l_empty->length_in_chars() == 0);
+
+	// Multiple bold segments on one line
+	auto l_multi = std::make_shared<line>("**one** and **two**");
+	hl.highlight(l_multi);
+	assert(l_multi->get_attribute(0) == syntax_attribute::bold);
+	assert(l_multi->get_attribute(6) == syntax_attribute::bold);
+	assert(l_multi->get_attribute(8) == syntax_attribute::normal); // 'a'
+	assert(l_multi->get_attribute(12) == syntax_attribute::bold); // '*'
+	assert(l_multi->get_attribute(18) == syntax_attribute::bold); // '*'
+
+	// Non-list item: hyphen without space or middle of text
+	auto l_hyphen = std::make_shared<line>("word-hyphenated");
+	hl.highlight(l_hyphen);
+	assert(l_hyphen->get_attribute(4) == syntax_attribute::normal);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -93,6 +121,7 @@ int main()
 	test_markdown_bold();
 	test_markdown_bold_utf8();
 	test_markdown_list_items();
+	test_markdown_edge_cases();
 
 	std::cout << "All markdown highlighter tests passed!" << std::endl;
 	return 0;

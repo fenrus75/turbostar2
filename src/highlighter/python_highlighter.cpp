@@ -68,15 +68,19 @@ void python_highlighter::highlight(std::shared_ptr<line> l)
 	}
 
 	// 3. Comments
-	size_t comment_pos = text.find('#');
-	if (comment_pos != std::string::npos) {
+	size_t comment_pos = 0;
+	size_t search_pos = 0;
+	while ((comment_pos = text.find('#', search_pos)) != std::string::npos) {
 		int char_comment_pos = byte_to_char(comment_pos);
-		// Only mark as comment if not already inside a string
-		if (attrs[char_comment_pos] != syntax_attribute::string_literal) {
-			for (size_t i = char_comment_pos; i < attrs.size(); ++i) {
-				attrs[i] = syntax_attribute::comment;
+		if (char_comment_pos >= 0 && char_comment_pos < static_cast<int>(attrs.size())) {
+			if (attrs[char_comment_pos] != syntax_attribute::string_literal) {
+				for (size_t i = static_cast<size_t>(char_comment_pos); i < attrs.size(); ++i) {
+					attrs[i] = syntax_attribute::comment;
+				}
+				break;
 			}
 		}
+		search_pos = comment_pos + 1;
 	}
 
 	// 4. Trailing whitespace

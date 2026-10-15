@@ -1290,6 +1290,23 @@ test_json_highlighter = executable('test_json_highlighter',
   include_directories: inc)
 test('unit_json_highlighter', test_json_highlighter, suite: 'editor')
 
+test_highlighter_registry = executable('test_highlighter_registry',
+  ['unit/test_highlighter_registry.cpp',
+   '../src/highlighter/highlighter_registry.cpp',
+   '../src/highlighter/cpp_highlighter.cpp',
+   '../src/highlighter/markdown_highlighter.cpp',
+   '../src/highlighter/python_highlighter.cpp',
+   '../src/highlighter/verilog_highlighter.cpp',
+   '../src/highlighter/html_highlighter.cpp',
+   '../src/highlighter/json_highlighter.cpp',
+   '../src/line.cpp',
+   '../src/utf8.cpp',
+   '../src/mime.cpp',
+   '../src/markdown_utils.cpp'],
+  dependencies : [re2_dep],
+  include_directories: inc)
+test('unit_highlighter_registry', test_highlighter_registry, suite: 'editor')
+
 
 
 test_markdown_utils = executable('test_markdown_utils',

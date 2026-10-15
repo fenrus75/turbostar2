@@ -37,16 +37,7 @@ void json_highlighter::highlight(std::shared_ptr<line> l)
 	re2::StringPiece submatch;
 	size_t search_start = 0;
 
-	// 1. Comments (standard single line comments: // ...)
-	size_t comment_pos = text.find("//");
-	if (comment_pos != std::string::npos) {
-		int char_comment_pos = byte_to_char(comment_pos);
-		for (size_t i = char_comment_pos; i < attrs.size(); ++i) {
-			attrs[i] = syntax_attribute::comment;
-		}
-	}
-
-	// 2. JSON Keys: ("key")\s*:
+	// 1. JSON Keys: ("key")\s*:
 	// We capture the key string as group 1, and the colon is part of the full match.
 	static const std::unique_ptr<re2::RE2> key_regex = std::make_unique<re2::RE2>("(\"([^\"\\\\]|\\\\.)*\")\\s*:");
 	re2::StringPiece matches[3];
@@ -76,7 +67,7 @@ void json_highlighter::highlight(std::shared_ptr<line> l)
 		search_start = (matches[0].data() - input.data()) + matches[0].size();
 	}
 
-	// 3. JSON String Values: any double-quoted string not already colored (i.e. not a key)
+	// 2. JSON String Values: any double-quoted string not already colored (i.e. not a key)
 	static const std::unique_ptr<re2::RE2> str_regex = std::make_unique<re2::RE2>("\"([^\"\\\\]|\\\\.)*\"");
 	search_start = 0;
 	while (str_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
@@ -90,6 +81,24 @@ void json_highlighter::highlight(std::shared_ptr<line> l)
 			}
 		}
 		search_start = (match.data() - input.data()) + match.size();
+	}
+
+	// 3. Comments (standard single line comments: // ...)
+	// Only recognized outside of keys and string values
+	size_t comment_pos = 0;
+	search_start = 0;
+	while ((comment_pos = text.find("//", search_start)) != std::string::npos) {
+		int char_comment_pos = byte_to_char(comment_pos);
+		if (char_comment_pos >= 0 && char_comment_pos < static_cast<int>(attrs.size())) {
+			if (attrs[char_comment_pos] != syntax_attribute::string_literal &&
+				attrs[char_comment_pos] != syntax_attribute::keyword) {
+				for (size_t i = static_cast<size_t>(char_comment_pos); i < attrs.size(); ++i) {
+					attrs[i] = syntax_attribute::comment;
+				}
+				break;
+			}
+		}
+		search_start = comment_pos + 2;
 	}
 
 	// 4. Booleans and Null

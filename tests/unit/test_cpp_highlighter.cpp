@@ -1,3 +1,4 @@
+// Tested source file: src/highlighter/cpp_highlighter.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
@@ -114,6 +115,12 @@ void test_cpp_collisions()
 	assert(l2->get_attribute(23) == syntax_attribute::comment);
 	// pos 27-31 is "class", should be comment
 	assert(l2->get_attribute(27) == syntax_attribute::comment);
+
+	// String containing "//" followed by a real line comment
+	auto l3 = std::make_shared<line>("const char* u = \"http://example.com\"; // comment");
+	hl.highlight(l3);
+	// pos 40 is '/' of "// comment", should be comment
+	assert(l3->get_attribute(40) == syntax_attribute::comment);
 }
 
 int main()

@@ -99,6 +99,12 @@ void test_verilog_strings()
 	assert(l->get_attribute(32) == syntax_attribute::normal);
 	assert(l->get_attribute(33) == syntax_attribute::comment);
 	assert(l->get_attribute(42) == syntax_attribute::comment);
+
+	// String containing "//" followed by a real line comment
+	auto l2 = std::make_shared<line>("string s = \"http://verilog.org\"; // real comment");
+	hl.highlight(l2);
+	// pos 33 is '/' of "// real comment", should be comment
+	assert(l2->get_attribute(33) == syntax_attribute::comment);
 }
 
 int main()

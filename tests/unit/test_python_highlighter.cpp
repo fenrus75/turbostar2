@@ -1,3 +1,4 @@
+// Tested source file: src/highlighter/python_highlighter.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
@@ -32,6 +33,12 @@ void test_python_comments()
 	assert(l->get_attribute(0) == syntax_attribute::normal);
 	assert(l->get_attribute(6) == syntax_attribute::comment);
 	assert(l->get_attribute(17) == syntax_attribute::comment);
+
+	// String containing '#' followed by a real line comment
+	auto l2 = std::make_shared<line>("color = \"#ff0000\" # hex code comment");
+	hl.highlight(l2);
+	// pos 18 is '#' of "# hex code comment", should be comment
+	assert(l2->get_attribute(18) == syntax_attribute::comment);
 }
 
 void test_python_strings()
