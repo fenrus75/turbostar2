@@ -51,12 +51,26 @@ bool get_number(const nlohmann::json &j, std::string_view key, T &out_val, T def
 		}
 		// 2. Native signed integer
 		if (v.is_number_integer()) {
-			out_val = static_cast<T>(v.get<int64_t>());
+			int64_t val = v.get<int64_t>();
+			if constexpr (std::is_unsigned_v<T>) {
+				if (val < 0) {
+					out_error = std::format("Parameter '{}' cannot be negative for unsigned type.", key);
+					return false;
+				}
+			}
+			out_val = static_cast<T>(val);
 			return true;
 		}
 		// 3. Native float/double
 		if (v.is_number_float()) {
-			out_val = static_cast<T>(v.get<double>());
+			double val = v.get<double>();
+			if constexpr (std::is_unsigned_v<T>) {
+				if (val < 0.0) {
+					out_error = std::format("Parameter '{}' cannot be negative for unsigned type.", key);
+					return false;
+				}
+			}
+			out_val = static_cast<T>(val);
 			return true;
 		}
 		// 4. String coercion (decimal, hex 0x/0X, whitespace-padded)
@@ -95,6 +109,10 @@ bool get_number(const nlohmann::json &j, std::string_view key, T &out_val, T def
 				out_val = static_cast<T>(parsed_int);
 				return true;
 			} else {
+				if (s.starts_with('-')) {
+					out_error = std::format("Parameter '{}' cannot be negative for unsigned type.", key);
+					return false;
+				}
 				int base = 10;
 				if (s.starts_with("0x") || s.starts_with("0X")) {
 					base = 16;
