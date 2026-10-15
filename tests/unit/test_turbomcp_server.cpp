@@ -154,6 +154,77 @@ int main()
 		assert(resp2["result"]["content"][0]["text"].get<std::string>().find("[Edit ID: #2]") != std::string::npos);
 
 		std::filesystem::remove(tmp_file);
+
+		// Verify MCP tool parameter identities (turbostar snake_case, antigravity PascalCase, copilot camelCase)
+		assert(server.get_tool_identity() == agentlib::mcp_tool_identity::turbostar);
+
+		auto find_tool_schema = [](const nlohmann::json &list_resp_json, const std::string &name) -> nlohmann::json {
+			for (const auto &tool : list_resp_json["result"]["tools"]) {
+				if (tool["name"] == name) {
+					return tool["inputSchema"];
+				}
+			}
+			return nlohmann::json::object();
+		};
+
+		// 1. Auto-detect "antigravity" from initialize clientInfo
+		nlohmann::json init_agy = {{"jsonrpc", "2.0"},
+					   {"id", "init-1"},
+					   {"method", "initialize"},
+					   {"params", {{"clientInfo", {{"name", "antigravity-cli"}, {"version", "2.0"}}}}}};
+		server.handle_request(init_agy);
+		assert(server.get_tool_identity() == agentlib::mcp_tool_identity::antigravity);
+
+		nlohmann::json list_agy = server.handle_request(list_req);
+		nlohmann::json read_schema_agy = find_tool_schema(list_agy, "fs_read_lines");
+		assert(read_schema_agy["properties"].contains("Path"));
+		assert(read_schema_agy["properties"].contains("StartLine"));
+		assert(read_schema_agy["properties"].contains("EndLine"));
+		assert(!read_schema_agy["properties"].contains("start_line"));
+		assert(read_schema_agy["required"][0] == "Path");
+
+		nlohmann::json multi_schema_agy = find_tool_schema(list_agy, "fs_multi_replace_content");
+		assert(multi_schema_agy["properties"].contains("Chunks"));
+		assert(multi_schema_agy["properties"]["Chunks"]["items"]["properties"].contains("TargetContent"));
+		assert(multi_schema_agy["properties"]["Chunks"]["items"]["properties"].contains("ReplacementContent"));
+
+		// 2. Auto-detect "copilot" from initialize clientInfo
+		nlohmann::json init_cop = {{"jsonrpc", "2.0"},
+					   {"id", "init-2"},
+					   {"method", "initialize"},
+					   {"params", {{"clientInfo", {{"name", "Visual Studio Code - Copilot"}, {"version", "1.0"}}}}}};
+		server.handle_request(init_cop);
+		assert(server.get_tool_identity() == agentlib::mcp_tool_identity::copilot);
+
+		nlohmann::json list_cop = server.handle_request(list_req);
+		nlohmann::json read_schema_cop = find_tool_schema(list_cop, "fs_read_lines");
+		assert(read_schema_cop["properties"].contains("path"));
+		assert(read_schema_cop["properties"].contains("startLine"));
+		assert(read_schema_cop["properties"].contains("endLine"));
+		assert(!read_schema_cop["properties"].contains("start_line"));
+		assert(read_schema_cop["required"][0] == "path");
+
+		nlohmann::json multi_schema_cop = find_tool_schema(list_cop, "fs_multi_replace_content");
+		assert(multi_schema_cop["properties"].contains("chunks"));
+		assert(multi_schema_cop["properties"]["chunks"]["items"]["properties"].contains("targetContent"));
+		assert(multi_schema_cop["properties"]["chunks"]["items"]["properties"].contains("replacementContent"));
+
+		// 3. Explicit set_tool_identity override takes precedence over subsequent initialize
+		assert(server.set_tool_identity("turbostar"));
+		assert(server.get_tool_identity() == agentlib::mcp_tool_identity::turbostar);
+		server.handle_request(init_agy);
+		assert(server.get_tool_identity() == agentlib::mcp_tool_identity::turbostar);
+
+		// 4. Verify tools/call accepts PascalCase, camelCase, and snake_case regardless of active identity
+		server.set_tool_identity(agentlib::mcp_tool_identity::antigravity);
+		for (const auto &arg_key : {"Path", "AbsolutePath", "filePath", "path"}) {
+			nlohmann::json call_req = {{"jsonrpc", "2.0"},
+						   {"id", "call-size"},
+						   {"method", "tools/call"},
+						   {"params", {{"name", "fs_file_size"}, {"arguments", {{arg_key, "src/main.cpp"}}}}}};
+			nlohmann::json call_resp = server.handle_request(call_req);
+			assert(!call_resp["result"].value("isError", false));
+		}
 	}
 
 	std::cout << "test_turbomcp_server passed!" << std::endl;

@@ -73,6 +73,7 @@ int main(int argc, char **argv)
 	bool yolo_mode = false;
 	bool all_tool_families = false;
 	bool mcp_mode = false;
+	std::string untrusted_mcp_identity;
 
 	app.add_option("--log", log_file, "Path to log file");
 	app.add_flag("--debug", debug_mode, "Enable debug mode");
@@ -80,6 +81,8 @@ int main(int argc, char **argv)
 	app.add_flag("--yolo", yolo_mode, "Automatically approve all permission prompts and user questions (non-interactive)");
 	app.add_flag("--all-tool-families", all_tool_families, "Automatically enable all registered tool families at startup");
 	app.add_flag("--mcp, --mcp-server", mcp_mode, "Run as a Model Context Protocol (MCP) stdio server");
+	app.add_option("--mcp-identity", untrusted_mcp_identity,
+		       "Parameter naming convention advertised by MCP tools/list (turbostar, antigravity, copilot)");
 	app.add_flag("--no-lsp", no_lsp, "Disable LSP functionality");
 	app.add_flag("--no-welcome-screen", no_welcome, "Disable the welcome screen on startup");
 	app.add_flag("--fresh-agent", fresh_agent, "Do not load previous agent state/history on startup");
@@ -192,6 +195,9 @@ int main(int argc, char **argv)
 		agentlib::subagent_manager::get_instance().initialize();
 
 		agentlib::turbomcp_server server;
+		if (!untrusted_mcp_identity.empty()) {
+			server.set_tool_identity(untrusted_mcp_identity);
+		}
 		int res = server.run_stdio_loop();
 		plugin_loader::get_instance().unload_all_plugins();
 		project_manager::get_instance().shutdown();

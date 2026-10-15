@@ -29,6 +29,10 @@ Tools in Turbostar implement `is_pure()` to enforce read-only agent security rul
 ### Tool Execution Tracing (`--tooltrace`)
 Turbostar supports tracing all LLM tool calls and outputs to sequential log files by specifying the `--tooltrace` CLI flag on startup. Each tool invocation creates a file named `toolcall.0`, `toolcall.1`, `toolcall.2`, etc., in the current working directory. Log files contain the tool call JSON object, followed by a `---` separator line, followed by the exact tool output payload returned to the LLM.
 
+### Cross-Harness Parameter Aliasing & MCP Tool Identities (`--mcp-identity`)
+All tools in `tool_validator` automatically normalize incoming `PascalCase` and `camelCase` parameter names to canonical `snake_case` via `utf8::to_snake_case`, and resolve cross-harness vocabulary aliases (e.g., `AbsolutePath`/`TargetFile`/`filePath` $\to$ `path`, `CommandLine` $\to$ `command`, `TargetContent`/`oldString` $\to$ `target_content`, `ReplacementContent`/`newString` $\to$ `replacement_content`, `ReplacementChunks` $\to$ `chunks`), including recursively inside nested array-of-object elements.
+When running as an MCP server (`turbomcp`), `tools/list` can advertise parameter names in the host harness's preferred naming style (`turbostar` = `snake_case`, `antigravity` = `PascalCase`, `copilot` = `camelCase`), auto-detected from `clientInfo.name` during the MCP `initialize` handshake or configured via `--mcp-identity` / `TURBOSTAR_MCP_IDENTITY`.
+
 ---
 
 ## 1. File System Reading & Inspection

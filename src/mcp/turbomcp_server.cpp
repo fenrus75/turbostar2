@@ -9,7 +9,9 @@
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "project_manager.h"
+#include "utf8.h"
 #include <chrono>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -45,7 +47,88 @@ turbomcp_server::turbomcp_server()
 	mcp_context_.fs_security.add_allowed_root(workspace_root, access_type::write);
 	mcp_context_.fs_security.set_vfs(skill_manager::get_instance().get_vfs());
 
+	const char *untrusted_env_identity = std::getenv("TURBOSTAR_MCP_IDENTITY");
+	if (untrusted_env_identity != nullptr && *untrusted_env_identity != '\0') {
+		set_tool_identity(untrusted_env_identity);
+	}
+
 	start_event_loop();
+}
+
+void turbomcp_server::set_tool_identity(mcp_tool_identity identity) noexcept
+{
+	tool_identity_ = identity;
+	identity_explicitly_set_ = true;
+}
+
+bool turbomcp_server::set_tool_identity(std::string_view untrusted_identity_name) noexcept
+{
+	std::string clean_id = utf8::to_snake_case(untrusted_identity_name);
+	if (clean_id == "turbostar" || clean_id == "snake_case" || clean_id == "default") {
+		tool_identity_ = mcp_tool_identity::turbostar;
+		identity_explicitly_set_ = true;
+		return true;
+	}
+	if (clean_id == "antigravity" || clean_id == "agy" || clean_id == "pascal_case") {
+		tool_identity_ = mcp_tool_identity::antigravity;
+		identity_explicitly_set_ = true;
+		return true;
+	}
+	if (clean_id == "copilot" || clean_id == "vscode" || clean_id == "github_copilot" || clean_id == "camel_case") {
+		tool_identity_ = mcp_tool_identity::copilot;
+		identity_explicitly_set_ = true;
+		return true;
+	}
+	return false;
+}
+
+nlohmann::json turbomcp_server::transform_schema_for_identity(const nlohmann::json &schema, mcp_tool_identity identity)
+{
+	if (identity == mcp_tool_identity::turbostar || !schema.is_object()) {
+		return schema;
+	}
+
+	auto format_key = [identity](std::string_view key) -> std::string {
+		if (identity == mcp_tool_identity::antigravity) {
+			return utf8::to_PascalCase(key);
+		}
+		if (identity == mcp_tool_identity::copilot) {
+			return utf8::to_camelCase(key);
+		}
+		return std::string(key);
+	};
+
+	nlohmann::json out = schema;
+	if (out.contains("properties") && out["properties"].is_object()) {
+		nlohmann::json new_props = nlohmann::json::object();
+		for (auto it = out["properties"].begin(); it != out["properties"].end(); ++it) {
+			nlohmann::json prop_schema = it.value();
+			if (prop_schema.is_object()) {
+				if (prop_schema.contains("properties")) {
+					prop_schema = transform_schema_for_identity(prop_schema, identity);
+				}
+				if (prop_schema.contains("items") && prop_schema["items"].is_object()) {
+					prop_schema["items"] = transform_schema_for_identity(prop_schema["items"], identity);
+				}
+			}
+			new_props[format_key(it.key())] = std::move(prop_schema);
+		}
+		out["properties"] = std::move(new_props);
+	}
+
+	if (out.contains("required") && out["required"].is_array()) {
+		nlohmann::json new_req = nlohmann::json::array();
+		for (const auto &req_item : out["required"]) {
+			if (req_item.is_string()) {
+				new_req.push_back(format_key(req_item.get<std::string>()));
+			} else {
+				new_req.push_back(req_item);
+			}
+		}
+		out["required"] = std::move(new_req);
+	}
+
+	return out;
 }
 
 turbomcp_server::~turbomcp_server()
@@ -170,8 +253,24 @@ nlohmann::json turbomcp_server::handle_request(const nlohmann::json &req)
 	return err;
 }
 
-nlohmann::json turbomcp_server::handle_initialize(const nlohmann::json &id, const nlohmann::json & /*params*/)
+nlohmann::json turbomcp_server::handle_initialize(const nlohmann::json &id, const nlohmann::json &untrusted_params)
 {
+	if (!identity_explicitly_set_ && untrusted_params.is_object() && untrusted_params.contains("clientInfo") &&
+	    untrusted_params["clientInfo"].is_object()) {
+		std::string untrusted_client_name = untrusted_params["clientInfo"].value("name", "");
+		std::string clean_client = utf8::to_snake_case(untrusted_client_name);
+		if (clean_client.find("antigravity") != std::string::npos || clean_client == "agy") {
+			tool_identity_ = mcp_tool_identity::antigravity;
+			event_logger::get_instance().log("turbomcp_server: auto-detected 'antigravity' tool identity from client '{}'",
+							 clean_client);
+		} else if (clean_client.find("copilot") != std::string::npos || clean_client.find("vscode") != std::string::npos ||
+			   clean_client.find("visual_studio") != std::string::npos) {
+			tool_identity_ = mcp_tool_identity::copilot;
+			event_logger::get_instance().log("turbomcp_server: auto-detected 'copilot' tool identity from client '{}'",
+							 clean_client);
+		}
+	}
+
 	nlohmann::json resp;
 	resp["jsonrpc"] = "2.0";
 	resp["id"] = id;
@@ -206,7 +305,7 @@ nlohmann::json turbomcp_server::handle_tools_list(const nlohmann::json &id)
 		nlohmann::json tool_item;
 		tool_item["name"] = val->get_name();
 		tool_item["description"] = val->get_description();
-		tool_item["inputSchema"] = val->get_parameters_schema();
+		tool_item["inputSchema"] = transform_schema_for_identity(val->get_parameters_schema(), tool_identity_);
 
 		tools_array.push_back(tool_item);
 	}
