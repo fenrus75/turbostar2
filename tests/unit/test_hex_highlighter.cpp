@@ -36,6 +36,26 @@ void write_u64_le(std::vector<uint8_t> &data, size_t offset, uint64_t val)
 	write_u32_le(data, offset + 4, (val >> 32) & 0xFFFFFFFF);
 }
 
+void write_u16_be(std::vector<uint8_t> &data, size_t offset, uint16_t val)
+{
+	data[offset] = (val >> 8) & 0xFF;
+	data[offset + 1] = val & 0xFF;
+}
+
+void write_u32_be(std::vector<uint8_t> &data, size_t offset, uint32_t val)
+{
+	data[offset] = (val >> 24) & 0xFF;
+	data[offset + 1] = (val >> 16) & 0xFF;
+	data[offset + 2] = (val >> 8) & 0xFF;
+	data[offset + 3] = val & 0xFF;
+}
+
+void write_u64_be(std::vector<uint8_t> &data, size_t offset, uint64_t val)
+{
+	write_u32_be(data, offset, (val >> 32) & 0xFFFFFFFF);
+	write_u32_be(data, offset + 4, val & 0xFFFFFFFF);
+}
+
 void test_elf_highlighter()
 {
 	std::vector<uint8_t> data(1000, 0);
@@ -228,6 +248,559 @@ void test_elf_highlighter()
 	// Test get_next_symbol_offset
 	assert(hl.get_next_symbol_offset(0) == 450);
 	assert(hl.get_next_symbol_offset(450) == 450);
+
+	// Additional 64-bit Ehdr fields
+	for (size_t off : {6, 7, 8, 9, 14, 18, 20, 24, 32, 40, 48, 52, 54, 56, 58, 60, 62}) {
+		auto f_inf = hl.get_info(data, off);
+		assert(f_inf.type == hex_semantic_type::file_header);
+	}
+
+	// 64-bit Phdr fields (p_type=64, p_flags=68, p_offset=72, p_vaddr=80, p_paddr=88, p_filesz=96, p_memsz=104, p_align=112)
+	for (size_t off : {68, 72, 80, 88, 96, 104, 112}) {
+		auto ph_inf = hl.get_info(data, off);
+		assert(ph_inf.type == hex_semantic_type::prog_header);
+	}
+
+	// 64-bit Shdr fields for section 1 (start 192)
+	for (size_t off : {196, 200, 208, 216, 224, 232, 236, 240, 248}) {
+		auto sh_inf = hl.get_info(data, off);
+		assert(sh_inf.type == hex_semantic_type::sect_header);
+	}
+
+	// Unmapped offset
+	assert(hl.get_info(data, 850).type == hex_semantic_type::normal);
+
+	// Structure summary
+	std::string summary = hl.get_structure_summary();
+	assert(summary.find("### ELF Structure Overview") != std::string::npos);
+	assert(summary.find("ELF64") != std::string::npos);
+	assert(summary.find(".text") != std::string::npos);
+	assert(summary.find("my_func") != std::string::npos);
+
+	// Section and symbol name lookup
+	auto off_shstr = hl.get_offset_by_name(".shstrtab");
+	assert(off_shstr.has_value() && *off_shstr == 500);
+	auto off_sym = hl.get_offset_by_name("my_func");
+	assert(off_sym.has_value() && *off_sym == 450);
+	assert(!hl.get_offset_by_name("nonexistent_symbol").has_value());
+
+	// Unparsed highlighter edge cases
+	elf_hex_highlighter unparsed_hl;
+	assert(!unparsed_hl.can_handle({}));
+	assert(!unparsed_hl.can_handle(std::vector<uint8_t>{0x7F, 'E', 'L'}));
+	assert(!unparsed_hl.can_handle(std::vector<uint8_t>{'n', 'o', 't', 'e', 'l', 'f'}));
+	assert(!unparsed_hl.parse({}));
+	assert(unparsed_hl.get_info({}, 0).type == hex_semantic_type::normal);
+	assert(!unparsed_hl.get_offset_by_name(".text").has_value());
+	assert(unparsed_hl.get_structure_summary().empty());
+}
+
+void test_elf_32bit()
+{
+	std::vector<uint8_t> data(1000, 0);
+	data[0] = 0x7F; data[1] = 'E'; data[2] = 'L'; data[3] = 'F';
+	data[4] = 1; // ELFCLASS32
+	data[5] = 1; // ELFDATA2LSB
+	data[6] = 1; // EV_CURRENT
+	data[7] = 0; // SYSV
+
+	write_u16_le(data, 16, 2);          // e_type = ET_EXEC
+	write_u16_le(data, 18, 3);          // e_machine = EM_386
+	write_u32_le(data, 20, 1);          // e_version
+	write_u32_le(data, 24, 0x08048000); // e_entry
+	write_u32_le(data, 28, 52);         // e_phoff = 52
+	write_u32_le(data, 32, 400);        // e_shoff = 400
+	write_u32_le(data, 36, 0);          // e_flags
+	write_u16_le(data, 40, 52);         // e_ehsize = 52
+	write_u16_le(data, 42, 32);         // e_phentsize = 32
+	write_u16_le(data, 44, 1);          // e_phnum = 1
+	write_u16_le(data, 46, 40);         // e_shentsize = 40
+	write_u16_le(data, 48, 7);          // e_shnum = 7
+	write_u16_le(data, 50, 6);          // e_shstrndx = 6
+
+	// 32-bit Phdr at offset 52 (size 32)
+	write_u32_le(data, 52, 1);          // p_type = PT_LOAD
+	write_u32_le(data, 56, 100);        // p_offset = 100
+	write_u32_le(data, 60, 0x08048000); // p_vaddr
+	write_u32_le(data, 64, 0x08048000); // p_paddr
+	write_u32_le(data, 68, 64);         // p_filesz = 64
+	write_u32_le(data, 72, 64);         // p_memsz = 64
+	write_u32_le(data, 76, 7);          // p_flags = R|W|X
+	write_u32_le(data, 80, 0x1000);     // p_align = 4K
+
+	// Section 1: .text at offset 100, size 32
+	// x86 32-bit instructions:
+	// xor %eax, %eax (31 c0)
+	// mov $0x0, %eax (b8 00 00 00 00)
+	data[100] = 0x31; data[101] = 0xC0;
+	data[102] = 0xB8; data[103] = 0x00; data[104] = 0x00; data[105] = 0x00; data[106] = 0x00;
+
+	// Section 4: .strtab at offset 180, size 80
+	std::string sym_strings = std::string("\0_Z3foov\0_Z3foovXYZ\0_Z9999invalid\0normal_func\0", 46);
+	for (size_t i = 0; i < sym_strings.size(); ++i) {
+		data[180 + i] = static_cast<uint8_t>(sym_strings[i]);
+	}
+
+	// Section 5: .symtab at offset 260, size 80 (5 entries x 16 bytes)
+	// Entry 0: Null
+	// Entry 1: _Z3foov (offset 1 in strtab), st_value = 0x08048000, st_size = 2, st_info = 0x12 (FUNC), st_shndx = 1
+	write_u32_le(data, 260 + 16, 1);
+	write_u32_le(data, 260 + 20, 0x08048000);
+	write_u32_le(data, 260 + 24, 2);
+	data[260 + 28] = 0x12;
+	write_u16_le(data, 260 + 30, 1);
+	// Entry 2: _Z3foovXYZ (offset 9 in strtab), st_value = 0x08048002, st_size = 5, st_info = 0x12 (FUNC), st_shndx = 1
+	write_u32_le(data, 260 + 32, 9);
+	write_u32_le(data, 260 + 36, 0x08048002);
+	write_u32_le(data, 260 + 40, 5);
+	data[260 + 44] = 0x12;
+	write_u16_le(data, 260 + 46, 1);
+	// Entry 3: _Z9999invalid (offset 20 in strtab), st_value = 0x08048000, st_size = 2, st_info = 0x12, st_shndx = 1
+	write_u32_le(data, 260 + 48, 20);
+	write_u32_le(data, 260 + 52, 0x08048000);
+	write_u32_le(data, 260 + 56, 2);
+	data[260 + 60] = 0x12;
+	write_u16_le(data, 260 + 62, 1);
+	// Entry 4: st_name = 9999 (unnamed), st_value = 0x08048000, st_size = 2, st_info = 0x12, st_shndx = 1
+	write_u32_le(data, 260 + 64, 9999);
+	write_u32_le(data, 260 + 68, 0x08048000);
+	write_u32_le(data, 260 + 72, 2);
+	data[260 + 76] = 0x12;
+	write_u16_le(data, 260 + 78, 1);
+
+	// Section 6: .shstrtab at offset 350, size 70
+	std::string sh_strings = std::string("\0.text\0.data\0.rodata\0.strtab\0.symtab\0.shstrtab\0", 47);
+	for (size_t i = 0; i < sh_strings.size(); ++i) {
+		data[350 + i] = static_cast<uint8_t>(sh_strings[i]);
+	}
+
+	// 32-bit Shdr table at offset 440 (7 entries x 40 bytes = 280 bytes)
+	// Entry 0: Null
+	// Entry 1: .text (sh_name = 1)
+	write_u32_le(data, 440 + 40, 1);
+	write_u32_le(data, 440 + 44, 1); // SHT_PROGBITS
+	write_u32_le(data, 440 + 48, 6); // ALLOC | EXEC
+	write_u32_le(data, 440 + 52, 0x08048000); // sh_addr
+	write_u32_le(data, 440 + 56, 100); // sh_offset
+	write_u32_le(data, 440 + 60, 32);  // sh_size
+	write_u32_le(data, 440 + 72, 4);   // sh_addralign
+
+	// Entry 2: .data (sh_name = 7)
+	write_u32_le(data, 440 + 80, 7);
+	write_u32_le(data, 440 + 84, 1); // SHT_PROGBITS
+	write_u32_le(data, 440 + 88, 3); // ALLOC | WRITE
+	write_u32_le(data, 440 + 96, 132); // sh_offset
+	write_u32_le(data, 440 + 100, 16);  // sh_size
+
+	// Entry 3: .rodata (sh_name = 13)
+	write_u32_le(data, 440 + 120, 13);
+	write_u32_le(data, 440 + 124, 1); // SHT_PROGBITS
+	write_u32_le(data, 440 + 128, 2); // ALLOC
+	write_u32_le(data, 440 + 136, 148); // sh_offset
+	write_u32_le(data, 440 + 140, 16);  // sh_size
+
+	// Entry 4: .strtab (sh_name = 21)
+	write_u32_le(data, 440 + 160, 21);
+	write_u32_le(data, 440 + 164, 3); // SHT_STRTAB
+	write_u32_le(data, 440 + 176, 180); // sh_offset
+	write_u32_le(data, 440 + 180, 80);  // sh_size
+
+	// Entry 5: .symtab (sh_name = 29)
+	write_u32_le(data, 440 + 200, 29);
+	write_u32_le(data, 440 + 204, 2); // SHT_SYMTAB
+	write_u32_le(data, 440 + 216, 260); // sh_offset
+	write_u32_le(data, 440 + 220, 80);  // sh_size
+	write_u32_le(data, 440 + 224, 4);   // sh_link = 4 (.strtab)
+	write_u32_le(data, 440 + 236, 16);  // sh_entsize = 16
+
+	// Entry 6: .shstrtab (sh_name = 37)
+	write_u32_le(data, 440 + 240, 37);
+	write_u32_le(data, 440 + 244, 3); // SHT_STRTAB
+	write_u32_le(data, 440 + 256, 350); // sh_offset
+	write_u32_le(data, 440 + 260, 70);  // sh_size
+
+	write_u32_le(data, 32, 440); // e_shoff = 440
+
+	elf_hex_highlighter hl32;
+	assert(hl32.can_handle(data));
+	assert(hl32.parse(data));
+
+	// Query all 32-bit Ehdr fields
+	for (size_t off : {4, 16, 18, 20, 24, 28, 32, 36, 40, 42, 44, 46, 48, 50}) {
+		auto inf = hl32.get_info(data, off);
+		assert(inf.type == hex_semantic_type::file_header);
+	}
+	// Query all 32-bit Phdr fields
+	for (size_t off : {52, 56, 60, 64, 68, 72, 76, 80}) {
+		auto inf = hl32.get_info(data, off);
+		assert(inf.type == hex_semantic_type::prog_header);
+	}
+	// Query all 32-bit Shdr fields for section 1
+	for (size_t off : {440, 444, 448, 452, 456, 460, 464, 468, 472, 476}) {
+		auto inf = hl32.get_info(data, off);
+		assert(inf.type == hex_semantic_type::sect_header);
+	}
+
+	// Query instruction disassembly in 32-bit .text
+	auto inf_inst1 = hl32.get_info(data, 100);
+	assert(inf_inst1.type == hex_semantic_type::code_section);
+	assert(inf_inst1.description.find("xor") != std::string::npos);
+
+	auto inf_inst2 = hl32.get_info(data, 102);
+	assert(inf_inst2.type == hex_semantic_type::code_section);
+	assert(inf_inst2.description.find("mov") != std::string::npos);
+
+	// Also test 32-bit ELF with ET_REL (e_type = 1)
+	write_u16_le(data, 16, 1); // ET_REL
+	elf_hex_highlighter hl_rel;
+	assert(hl_rel.parse(data));
+	assert(!hl_rel.get_symbols().empty());
+
+	// Test symbol when st_value < sh_addr in ET_EXEC
+	write_u16_le(data, 16, 2); // ET_EXEC
+	write_u32_le(data, 260 + 36, 0x01000000); // st_value < 0x08048000
+	elf_hex_highlighter hl_oob_sym;
+	assert(hl_oob_sym.parse(data));
+
+	std::string summary = hl32.get_structure_summary();
+	assert(summary.find("ELF32") != std::string::npos);
+}
+
+void test_elf_big_endian()
+{
+	std::vector<uint8_t> data(400, 0);
+	data[0] = 0x7F; data[1] = 'E'; data[2] = 'L'; data[3] = 'F';
+	data[4] = 2; // ELFCLASS64
+	data[5] = 2; // ELFDATA2MSB (Big Endian)
+	data[6] = 1; // EV_CURRENT
+	data[7] = 0; // SYSV
+
+	write_u16_be(data, 16, 2);          // e_type = ET_EXEC
+	write_u16_be(data, 18, 21);         // e_machine = EM_PPC64
+	write_u32_be(data, 20, 1);          // e_version
+	write_u64_be(data, 24, 0x10000000); // e_entry
+	write_u64_be(data, 32, 64);         // e_phoff = 64
+	write_u64_be(data, 40, 128);        // e_shoff = 128
+	write_u16_be(data, 52, 64);         // e_ehsize = 64
+	write_u16_be(data, 54, 56);         // e_phentsize = 56
+	write_u16_be(data, 56, 1);          // e_phnum = 1
+	write_u16_be(data, 58, 64);         // e_shentsize = 64
+	write_u16_be(data, 60, 2);          // e_shnum = 2
+	write_u16_be(data, 62, 0);          // e_shstrndx = 0
+
+	// 64-bit Big Endian Phdr at 64
+	write_u32_be(data, 64, 1);          // p_type = PT_LOAD
+	write_u32_be(data, 68, 5);          // p_flags = R | X
+	write_u64_be(data, 72, 200);        // p_offset = 200
+	write_u64_be(data, 80, 0x10000000); // p_vaddr
+	write_u64_be(data, 88, 0x10000000); // p_paddr
+	write_u64_be(data, 96, 64);         // p_filesz = 64
+	write_u64_be(data, 104, 64);        // p_memsz = 64
+	write_u64_be(data, 112, 0x10000);   // p_align = 64K
+
+	// 64-bit Big Endian Shdr[1] at 192
+	write_u32_be(data, 192, 0);         // sh_name = 0
+	write_u32_be(data, 196, 1);         // sh_type = SHT_PROGBITS
+	write_u64_be(data, 200, 6);         // sh_flags = ALLOC | EXEC
+	write_u64_be(data, 208, 0x10000000);// sh_addr
+	write_u64_be(data, 216, 200);       // sh_offset = 200
+	write_u64_be(data, 224, 64);        // sh_size = 64
+	write_u32_be(data, 232, 0);         // sh_link
+	write_u32_be(data, 236, 0);         // sh_info
+	write_u64_be(data, 240, 8);         // sh_addralign
+	write_u64_be(data, 248, 0);         // sh_entsize
+
+	elf_hex_highlighter hl_be;
+	assert(hl_be.can_handle(data));
+	assert(hl_be.parse(data));
+
+	auto inf_type = hl_be.get_info(data, 16);
+	assert(inf_type.description.find("ET_EXEC") != std::string::npos);
+	auto inf_mach = hl_be.get_info(data, 18);
+	assert(inf_mach.description.find("EM_PPC64") != std::string::npos);
+	auto inf_ph = hl_be.get_info(data, 64);
+	assert(inf_ph.description.find("PT_LOAD") != std::string::npos);
+	auto inf_sh = hl_be.get_info(data, 196);
+	assert(inf_sh.description.find("SHT_PROGBITS") != std::string::npos);
+}
+
+void test_elf_various_types()
+{
+	std::vector<uint8_t> data(400, 0);
+	data[0] = 0x7F; data[1] = 'E'; data[2] = 'L'; data[3] = 'F';
+	data[4] = 2; // 64-bit
+	data[5] = 1; // LSB
+	data[6] = 1;
+	write_u16_le(data, 52, 64); // e_ehsize = 64
+	write_u64_le(data, 32, 64); // e_phoff = 64
+	write_u16_le(data, 54, 56); // e_phentsize = 56
+	write_u16_le(data, 56, 1);  // e_phnum = 1
+	write_u64_le(data, 40, 120);// e_shoff = 120
+	write_u16_le(data, 58, 64); // e_shentsize = 64
+	write_u16_le(data, 60, 1);  // e_shnum = 1
+
+	// Cycle through OSABIs
+	for (uint8_t osabi : {0, 1, 2, 3, 6, 8, 9, 97, 255}) {
+		data[7] = osabi;
+		elf_hex_highlighter hl;
+		assert(hl.parse(data));
+		auto inf = hl.get_info(data, 7);
+		assert(!inf.description.empty());
+	}
+
+	// Cycle through e_type
+	for (uint16_t etype : {0, 1, 2, 3, 4, 0xFE00}) {
+		write_u16_le(data, 16, etype);
+		elf_hex_highlighter hl;
+		assert(hl.parse(data));
+		auto inf = hl.get_info(data, 16);
+		assert(!inf.description.empty());
+	}
+
+	// Cycle through e_machine
+	for (uint16_t emach : {0, 2, 3, 4, 8, 20, 21, 40, 50, 62, 0x9999}) {
+		write_u16_le(data, 18, emach);
+		elf_hex_highlighter hl;
+		assert(hl.parse(data));
+		auto inf = hl.get_info(data, 18);
+		assert(!inf.description.empty());
+	}
+
+	// Cycle through p_type
+	for (uint32_t ptype : {0u, 1u, 2u, 3u, 4u, 5u, 6u, 0x6474E551u, 0x12345678u}) {
+		write_u32_le(data, 64, ptype);
+		elf_hex_highlighter hl;
+		assert(hl.parse(data));
+		auto inf = hl.get_info(data, 64);
+		assert(!inf.description.empty());
+	}
+
+	// Cycle through sh_type
+	for (uint32_t shtype : {0u, 1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 9u, 11u, 0x88888888u}) {
+		write_u32_le(data, 124, shtype); // sh_type at offset 120 + 4 = 124
+		elf_hex_highlighter hl;
+		assert(hl.parse(data));
+		auto inf = hl.get_info(data, 124);
+		assert(!inf.description.empty());
+	}
+
+	// Cycle through sh_flags
+	for (uint64_t shflags : {0ull, 1ull, 2ull, 4ull, 7ull}) {
+		write_u64_le(data, 128, shflags); // sh_flags at offset 120 + 8 = 128
+		elf_hex_highlighter hl;
+		assert(hl.parse(data));
+		auto inf = hl.get_info(data, 128);
+		assert(!inf.description.empty());
+	}
+
+	// Check p_flags formatting in 64-bit and 32-bit
+	// flags = 0 -> "None"
+	write_u32_le(data, 68, 0); // 64-bit p_flags at offset 68
+	{
+		elf_hex_highlighter hl;
+		assert(hl.parse(data));
+		auto inf = hl.get_info(data, 68);
+		assert(inf.description.find("None") != std::string::npos);
+	}
+	// flags = 2 -> "W"
+	write_u32_le(data, 68, 2);
+	{
+		elf_hex_highlighter hl;
+		assert(hl.parse(data));
+		auto inf = hl.get_info(data, 68);
+		assert(inf.description.find("W") != std::string::npos);
+	}
+
+	// 32-bit p_flags at offset 52 + 24 = 76
+	std::vector<uint8_t> data32(200, 0);
+	data32[0] = 0x7F; data32[1] = 'E'; data32[2] = 'L'; data32[3] = 'F';
+	data32[4] = 1; data32[5] = 1;
+	write_u16_le(data32, 40, 52); // e_ehsize
+	write_u32_le(data32, 28, 52); // e_phoff
+	write_u16_le(data32, 42, 32); // e_phentsize
+	write_u16_le(data32, 44, 1);  // e_phnum
+	write_u32_le(data32, 76, 0);  // flags = 0 -> "None"
+	{
+		elf_hex_highlighter hl;
+		assert(hl.parse(data32));
+		auto inf = hl.get_info(data32, 76);
+		assert(inf.description.find("None") != std::string::npos);
+	}
+	write_u32_le(data32, 76, 2);  // flags = 2 -> "W"
+	{
+		elf_hex_highlighter hl;
+		assert(hl.parse(data32));
+		auto inf = hl.get_info(data32, 76);
+		assert(inf.description.find("W") != std::string::npos);
+	}
+
+	// Ehdr extra byte fallthrough (e_ehsize > 64 for 64-bit)
+	{
+		std::vector<uint8_t> data_eh(200, 0);
+		data_eh[0] = 0x7F; data_eh[1] = 'E'; data_eh[2] = 'L'; data_eh[3] = 'F';
+		data_eh[4] = 2; data_eh[5] = 1;
+		write_u16_le(data_eh, 52, 80); // e_ehsize = 80
+		elf_hex_highlighter hl;
+		assert(hl.parse(data_eh));
+		auto inf = hl.get_info(data_eh, 70); // beyond standard 64 bytes
+		assert(inf.type == hex_semantic_type::file_header);
+		assert(inf.description == "ELF Ehdr Header");
+	}
+
+	// Phdr extra byte fallthrough (e_phentsize > 56 for 64-bit)
+	{
+		std::vector<uint8_t> data_ph(300, 0);
+		data_ph[0] = 0x7F; data_ph[1] = 'E'; data_ph[2] = 'L'; data_ph[3] = 'F';
+		data_ph[4] = 2; data_ph[5] = 1;
+		write_u16_le(data_ph, 52, 64);
+		write_u64_le(data_ph, 32, 64); // e_phoff = 64
+		write_u16_le(data_ph, 54, 70); // e_phentsize = 70
+		write_u16_le(data_ph, 56, 1);
+		elf_hex_highlighter hl;
+		assert(hl.parse(data_ph));
+		auto inf = hl.get_info(data_ph, 64 + 60); // beyond standard 56 bytes
+		assert(inf.type == hex_semantic_type::prog_header);
+		assert(inf.description.find("Segment entry") != std::string::npos);
+	}
+
+	// Shdr extra byte fallthrough (e_shentsize > 64 for 64-bit)
+	{
+		std::vector<uint8_t> data_sh(300, 0);
+		data_sh[0] = 0x7F; data_sh[1] = 'E'; data_sh[2] = 'L'; data_sh[3] = 'F';
+		data_sh[4] = 2; data_sh[5] = 1;
+		write_u16_le(data_sh, 52, 64);
+		write_u64_le(data_sh, 40, 64); // e_shoff = 64
+		write_u16_le(data_sh, 58, 80); // e_shentsize = 80
+		write_u16_le(data_sh, 60, 1);
+		elf_hex_highlighter hl;
+		assert(hl.parse(data_sh));
+		auto inf = hl.get_info(data_sh, 64 + 70); // beyond standard 64 bytes
+		assert(inf.type == hex_semantic_type::sect_header);
+		assert(inf.description.find("Section entry") != std::string::npos);
+	}
+
+	// Invalid EI_CLASS and EI_DATA descriptions in get_info
+	{
+		std::vector<uint8_t> data_desc(100, 0);
+		data_desc[0] = 0x7F; data_desc[1] = 'E'; data_desc[2] = 'L'; data_desc[3] = 'F';
+		data_desc[4] = 2; data_desc[5] = 1;
+		write_u16_le(data_desc, 52, 64);
+		elf_hex_highlighter hl;
+		assert(hl.parse(data_desc));
+		data_desc[4] = 99; // Corrupt class after parsing
+		auto inf_c = hl.get_info(data_desc, 4);
+		assert(inf_c.description.find("Invalid (99)") != std::string::npos);
+		data_desc[5] = 99; // Corrupt data after parsing
+		auto inf_d = hl.get_info(data_desc, 5);
+		assert(inf_d.description.find("Invalid (99)") != std::string::npos);
+		data_desc[5] = 2; // MSB
+		auto inf_d2 = hl.get_info(data_desc, 5);
+		assert(inf_d2.description.find("Big Endian") != std::string::npos);
+	}
+
+	// Large section disassembly (> 65536 bytes) and limit_offset clamped to data.size()
+	{
+		std::vector<uint8_t> big_data(70000, 0x90); // NOPs
+		big_data[0] = 0x7F; big_data[1] = 'E'; big_data[2] = 'L'; big_data[3] = 'F';
+		big_data[4] = 2; big_data[5] = 1;
+		write_u16_le(big_data, 18, 62); // EM_X86_64
+		write_u16_le(big_data, 52, 64);
+		write_u64_le(big_data, 40, 100); // e_shoff = 100
+		write_u16_le(big_data, 58, 64);  // e_shentsize = 64
+		write_u16_le(big_data, 60, 3);   // e_shnum = 3 (null, .text, .shstrtab)
+		write_u16_le(big_data, 62, 2);   // e_shstrndx = 2
+
+		// .shstrtab contents at offset 300
+		std::string sh_names = std::string("\0.text\0.shstrtab\0", 17);
+		for (size_t i = 0; i < sh_names.size(); ++i) {
+			big_data[300 + i] = static_cast<uint8_t>(sh_names[i]);
+		}
+
+		// Section 1: .text at offset 400, size 100000 (> big_data.size())
+		write_u32_le(big_data, 100 + 64, 1);    // sh_name = 1 (".text")
+		write_u32_le(big_data, 100 + 64 + 4, 1); // SHT_PROGBITS
+		write_u64_le(big_data, 100 + 64 + 8, 6); // ALLOC | EXEC
+		write_u64_le(big_data, 100 + 64 + 16, 0x400000); // sh_addr
+		write_u64_le(big_data, 100 + 64 + 24, 400);      // sh_offset = 400
+		write_u64_le(big_data, 100 + 64 + 32, 100000);   // sh_size > data.size()
+
+		// Section 2: .shstrtab at offset 300, size 17
+		write_u32_le(big_data, 100 + 128, 7);    // sh_name = 7 (".shstrtab")
+		write_u32_le(big_data, 100 + 128 + 4, 3); // SHT_STRTAB
+		write_u64_le(big_data, 100 + 128 + 24, 300); // sh_offset = 300
+		write_u64_le(big_data, 100 + 128 + 32, 17);  // sh_size = 17
+
+		// Invalid instruction bytes to test disassembly decode failure
+		big_data[68000] = 0xFF; big_data[68001] = 0xFF; big_data[68002] = 0xFF;
+
+		elf_hex_highlighter hl_big;
+		assert(hl_big.parse(big_data));
+		// Query offset > 65536 from section start (400 + 67000 = 67400)
+		auto inf_big = hl_big.get_info(big_data, 67400);
+		assert(inf_big.type == hex_semantic_type::code_section);
+
+		// Query where disassembly fails
+		auto inf_fail = hl_big.get_info(big_data, 68000);
+		assert(inf_fail.type == hex_semantic_type::code_section);
+	}
+
+	// Test read_u64, read_u32, read_u16, and read_string bounds checks
+	{
+		// 64-bit Phdr query with buffer too short for read_u64
+		std::vector<uint8_t> short64(75, 0);
+		short64[0] = 0x7F; short64[1] = 'E'; short64[2] = 'L'; short64[3] = 'F';
+		short64[4] = 2; short64[5] = 1;
+		write_u16_le(short64, 52, 64);
+		write_u64_le(short64, 32, 64); // e_phoff = 64
+		write_u16_le(short64, 54, 11); // e_phentsize = 11
+		write_u16_le(short64, 56, 1);  // e_phnum = 1
+		elf_hex_highlighter hl_s64;
+		assert(hl_s64.parse(short64));
+		// field_offset = 72 - 64 = 8 -> triggers read_u64 at offset 72 with only 3 bytes remaining
+		hl_s64.get_info(short64, 72);
+
+		// 32-bit Phdr query with buffer too short for read_u32
+		std::vector<uint8_t> short32(74, 0);
+		short32[0] = 0x7F; short32[1] = 'E'; short32[2] = 'L'; short32[3] = 'F';
+		short32[4] = 1; short32[5] = 1;
+		write_u16_le(short32, 40, 52);
+		write_u32_le(short32, 28, 64); // e_phoff = 64
+		write_u16_le(short32, 42, 10); // e_phentsize = 10
+		write_u16_le(short32, 44, 1);  // e_phnum = 1
+		elf_hex_highlighter hl_s32;
+		assert(hl_s32.parse(short32));
+		// field_offset = 72 - 64 = 8 -> triggers read_u32 at offset 72 with only 2 bytes remaining
+		hl_s32.get_info(short32, 72);
+
+		// 32-bit Ehdr query with buffer too short for read_u16
+		std::vector<uint8_t> short_ehdr(65, 0);
+		short_ehdr[0] = 0x7F; short_ehdr[1] = 'E'; short_ehdr[2] = 'L'; short_ehdr[3] = 'F';
+		short_ehdr[4] = 1; short_ehdr[5] = 1;
+		write_u16_le(short_ehdr, 40, 65); // e_ehsize = 65
+		elf_hex_highlighter hl_sehdr;
+		assert(hl_sehdr.parse(short_ehdr));
+		// Query e_type (offset 16) when size is only 17 -> read_u16 with 1 byte remaining
+		short_ehdr.resize(17);
+		hl_sehdr.get_info(short_ehdr, 16);
+
+		// Shdr with name_offset pointing beyond data.size() to trigger read_string bounds check
+		std::vector<uint8_t> short_sh(200, 0);
+		short_sh[0] = 0x7F; short_sh[1] = 'E'; short_sh[2] = 'L'; short_sh[3] = 'F';
+		short_sh[4] = 2; short_sh[5] = 1;
+		write_u16_le(short_sh, 52, 64);
+		write_u64_le(short_sh, 40, 64); // e_shoff = 64
+		write_u16_le(short_sh, 58, 64); // e_shentsize = 64
+		write_u16_le(short_sh, 60, 2);  // e_shnum = 2
+		write_u16_le(short_sh, 62, 0);  // e_shstrndx = 0
+		// Section 0 (shstrtab) at offset 64: offset = 64, size = 500 (> 200)
+		write_u32_le(short_sh, 64 + 4, 3); // SHT_STRTAB
+		write_u64_le(short_sh, 64 + 24, 64);
+		write_u64_le(short_sh, 64 + 32, 500);
+		// Section 1: name_offset = 300 (64 + 300 = 364 > data.size())
+		write_u32_le(short_sh, 128, 300);
+		elf_hex_highlighter hl_shstr;
+		assert(hl_shstr.parse(short_sh));
+	}
 }
 
 void test_png_highlighter()
@@ -1423,6 +1996,9 @@ int main()
 {
 	test_watchdog::setup_watchdog(30);
 	test_elf_highlighter();
+	test_elf_32bit();
+	test_elf_big_endian();
+	test_elf_various_types();
 	test_png_highlighter();
 	test_jpeg_highlighter();
 	test_real_jpeg_file();

@@ -589,10 +589,7 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 		return {};
 
 	auto clamp_and_return = [&](hex_semantic_type type, std::string desc, size_t start, size_t size) -> highlight_info {
-		if (start >= data.size()) {
-			return {hex_semantic_type::normal, "", 0, 0};
-		}
-		size_t clamped_size = std::min(size, data.size() - start);
+		size_t clamped_size = (start < data.size()) ? std::min(size, data.size() - start) : 0;
 		return {type, std::move(desc), start, clamped_size};
 	};
 
