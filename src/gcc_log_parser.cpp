@@ -5,14 +5,19 @@
 
 namespace fs = std::filesystem;
 
+// Initializes regex for GCC/Clang diagnostic output lines.
+// Pattern: <filename>:<line>:<col>: <severity>: <message>
+// Supports non-greedy filename matching to handle spaces and Windows drive letters (C:/...),
+// extracts 1-based line and column coordinates, matches severity (fatal error, error, warning),
+// and captures the remaining error message text.
 gcc_log_parser::gcc_log_parser()
 {
-	// Regex matches: <filename>:<line>:<col>: <severity>: <message>
-	// Capture groups: 1=file, 2=line, 3=col, 4=severity, 5=message
-	// We use non-greedy matching on the filename to support spaces and Windows drive letters
-	error_regex_ = std::make_unique<re2::RE2>(R"(^(.*?):([0-9]+):([0-9]+): (error|warning): (.*)$)");
+	error_regex_ = std::make_unique<re2::RE2>(R"(^(.*?):([0-9]+):([0-9]+): (fatal error|error|warning): (.*)$)");
 }
 
+// Parses a single line of compiler output. If the line matches the GCC/Clang diagnostic format,
+// resolves relative filepaths against the configured build directory, converts 1-based coordinates
+// to 0-based editor buffer coordinates, and verifies that the file exists on disk before recording the error.
 void gcc_log_parser::parse_line(const std::string &log_line, int output_line, std::vector<build_error> &out_errors)
 {
 	std::string file_match, severity_match, message_match;

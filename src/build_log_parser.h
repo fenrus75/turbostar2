@@ -4,6 +4,16 @@
 #include <vector>
 #include "event_queue.h"
 
+/*
+
+# subclasses of build_log_parser
+
+| subclass       | filename             |
+| -------------- | -------------------- | 
+| gcc_log_parser | src/gcc_log_parser.h |
+
+*/
+
 /**
  * @brief Base class for parsing build logs into build_error structures.
  */
