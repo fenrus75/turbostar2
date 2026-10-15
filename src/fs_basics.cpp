@@ -429,17 +429,17 @@ std::vector<unsigned char> base64_decode(std::string_view encoded)
 
 std::string format_binary_output(std::span<const unsigned char> data, std::string_view format, std::string_view mime_type)
 {
-	if (format == "hex") {
-		std::string hex_str;
-		for (size_t i = 0; i < data.size(); ++i) {
-			if (i > 0) {
-				hex_str += " ";
-			}
-			hex_str += std::format("{:02x}", data[i]);
-		}
-		return hex_str;
+	if (format != "hex") {
+		return std::format("data:{};base64,{}", mime_type, base64_encode(data));
 	}
-	return std::format("data:{};base64,{}", mime_type, base64_encode(data));
+	std::string hex_str;
+	for (size_t i = 0; i < data.size(); ++i) {
+		if (i > 0) {
+			hex_str += " ";
+		}
+		hex_str += std::format("{:02x}", data[i]);
+	}
+	return hex_str;
 }
 
 size_t levenshtein_distance(std::string_view s1, std::string_view s2)
@@ -530,10 +530,8 @@ void set_current_thread_name(std::string_view name)
 std::string get_current_thread_name()
 {
 	char buf[16] = {0};
-	if (pthread_getname_np(pthread_self(), buf, sizeof(buf)) == 0) {
-		return std::string(buf);
-	}
-	return {};
+	(void)pthread_getname_np(pthread_self(), buf, sizeof(buf));
+	return std::string(buf);
 }
 
 } // namespace fs_utils

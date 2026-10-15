@@ -421,6 +421,15 @@ int main()
 		// Either repaired or fell back to "{}"
 		assert(nlohmann::json::accept(rep_slash));
 
+		// Truncated with balanced inner objects and arrays (exercising stack pop during recovery)
+		std::string trunc_closed_inner = "{\"outer\": {\"inner\": 123}, \"unclosed\": \"val";
+		std::string rep_closed = fs_utils::repair_json_string(trunc_closed_inner);
+		assert(nlohmann::json::accept(rep_closed));
+
+		std::string trunc_closed_arr = "{\"arr\": [1, 2, 3], \"unclosed\": 4";
+		std::string rep_arr = fs_utils::repair_json_string(trunc_closed_arr);
+		assert(nlohmann::json::accept(rep_arr));
+
 		// Total garbage input falls back gracefully to "{}"
 		assert(fs_utils::repair_json_string("!@#$%^&*()") == "{}");
 		assert(fs_utils::repair_json_string("<xml>not json</xml>") == "{}");
@@ -460,8 +469,16 @@ int main()
 		// Untagged raw content returns unmodified
 		assert(fs_utils::unwrap_prompt_untrusted_data_tag("no tags here") == "no tags here");
 
+		// unwrap edge cases: unclosed bracket, empty tag name, leading slash tag, unclosed opening tag
+		assert(fs_utils::unwrap_prompt_untrusted_data_tag("<tag_with_no_gt") == "<tag_with_no_gt");
+		assert(fs_utils::unwrap_prompt_untrusted_data_tag("<>empty_tag_name<>") == "<>empty_tag_name<>");
+		assert(fs_utils::unwrap_prompt_untrusted_data_tag("</closing_tag>first</>") == "</closing_tag>first</>");
+		assert(fs_utils::unwrap_prompt_untrusted_data_tag("<tag>hello world") == "<tag>hello world");
+
 		// is_prompt_tag_wrapped validation
 		assert(!fs_utils::is_prompt_tag_wrapped(""));
+		assert(!fs_utils::is_prompt_tag_wrapped("<>"));
+		assert(!fs_utils::is_prompt_tag_wrapped("<"));
 		assert(!fs_utils::is_prompt_tag_wrapped("plain text without tags"));
 		assert(!fs_utils::is_prompt_tag_wrapped("<tag>unclosed"));
 		assert(!fs_utils::is_prompt_tag_wrapped("unopened</tag>"));
