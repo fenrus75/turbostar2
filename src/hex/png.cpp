@@ -78,13 +78,23 @@ highlight_info png_hex_highlighter::get_info(std::span<const uint8_t> data, size
 	if (!parsed_successfully_ || offset >= data.size())
 		return {};
 
+	auto clamp_and_return = [&data](highlight_info info) -> highlight_info {
+		if (info.range_start >= data.size()) {
+			return {hex_semantic_type::normal, "", 0, 0};
+		}
+		if (info.range_size > data.size() - info.range_start) {
+			info.range_size = data.size() - info.range_start;
+		}
+		return info;
+	};
+
 	if (offset < 8) {
 		highlight_info info;
 		info.type = hex_semantic_type::magic;
 		info.description = "PNG File Signature";
 		info.range_start = 0;
 		info.range_size = 8;
-		return info;
+		return clamp_and_return(info);
 	}
 
 	for (const auto &chunk : chunks_) {
@@ -97,21 +107,21 @@ highlight_info png_hex_highlighter::get_info(std::span<const uint8_t> data, size
 				info.description = std::format("PNG Chunk \"{}\": Length = {} bytes", chunk.type, chunk.length);
 				info.range_start = chunk.offset;
 				info.range_size = 4;
-				return info;
+				return clamp_and_return(info);
 			}
 			if (offset >= chunk.offset + 4 && offset < chunk.offset + 8) {
 				info.type = hex_semantic_type::sect_header;
 				info.description = std::format("PNG Chunk \"{}\": Type", chunk.type);
 				info.range_start = chunk.offset + 4;
 				info.range_size = 4;
-				return info;
+				return clamp_and_return(info);
 			}
 			if (offset >= chunk.offset + 8 && offset < chunk.offset + 8 + chunk.length) {
 				info.type = hex_semantic_type::code_section;
 				info.range_start = chunk.offset + 8;
 				info.range_size = chunk.length;
 
-				if (chunk.type == "IHDR" && chunk.length >= 13 && chunk.offset + 21 <= data.size()) {
+				if (chunk.type == "IHDR" && chunk.length >= 13 && chunk.offset <= data.size() && data.size() - chunk.offset >= 21) {
 					size_t data_start = chunk.offset + 8;
 					uint32_t width = (data[data_start] << 24) | (data[data_start + 1] << 16) |
 							 (data[data_start + 2] << 8) | data[data_start + 3];
@@ -128,14 +138,14 @@ highlight_info png_hex_highlighter::get_info(std::span<const uint8_t> data, size
 				} else {
 					info.description = std::format("PNG Chunk \"{}\" Data ({} bytes)", chunk.type, chunk.length);
 				}
-				return info;
+				return clamp_and_return(info);
 			}
 			if (offset >= chunk.offset + 8 + chunk.length && offset < chunk_end) {
 				info.type = hex_semantic_type::symtab_section;
 				info.description = std::format("PNG Chunk \"{}\": CRC", chunk.type);
 				info.range_start = chunk.offset + 8 + chunk.length;
 				info.range_size = 4;
-				return info;
+				return clamp_and_return(info);
 			}
 		}
 	}

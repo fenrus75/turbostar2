@@ -17,3 +17,4 @@ The `pdf_hex_highlighter` class analyzes raw Adobe Portable Document Format (PDF
 
 ## Lessons Learned
 - **False Positive Object Matching**: Matching `" obj"` by scanning backward over whitespace without verifying that actual digit sequences existed for both object ID and generation number caused strings like `"   obj"` to be cataloged as valid objects with empty IDs. Verifying `gen_start < gen_end && id_start < id_end` fixes this defect.
+- **Clamping Highlight Info Range**: All returned ranges in `get_info` (header, object stream, object, xref, trailer) clamp `range_size = std::min(size, data.size() - start)` so callers can safely perform operations like `data.subspan(info.range_start, info.range_size)`.

@@ -152,6 +152,16 @@ highlight_info jpeg_hex_highlighter::get_info(std::span<const uint8_t> data, siz
 	if (!parsed_successfully_ || offset >= data.size())
 		return {};
 
+	auto clamp_and_return = [&data](highlight_info info) -> highlight_info {
+		if (info.range_start >= data.size()) {
+			return {hex_semantic_type::normal, "", 0, 0};
+		}
+		if (info.range_size > data.size() - info.range_start) {
+			info.range_size = data.size() - info.range_start;
+		}
+		return info;
+	};
+
 	for (const auto &pm : markers_) {
 		size_t segment_end = pm.offset + pm.length;
 		if (offset >= pm.offset && offset < segment_end) {
@@ -176,7 +186,7 @@ highlight_info jpeg_hex_highlighter::get_info(std::span<const uint8_t> data, siz
 				info.description = "JPEG End of Image (EOI)";
 			} else if (pm.marker_code == 0x00) {
 				info.description = std::format("JPEG Entropy-Coded Image Scan Data ({} bytes)", pm.length);
-			} else if (pm.marker_code == 0xE0 && pm.length >= 18 && pm.offset + 18 <= data.size()) {
+			} else if (pm.marker_code == 0xE0 && pm.length >= 18 && pm.offset <= data.size() && data.size() - pm.offset >= 18) {
 				// Parse JFIF APP0 details
 				size_t ident_offset = pm.offset + 4;
 				if (data[ident_offset] == 'J' && data[ident_offset + 1] == 'F' &&
@@ -199,7 +209,7 @@ highlight_info jpeg_hex_highlighter::get_info(std::span<const uint8_t> data, siz
 				} else {
 					info.description = std::format("JPEG APP0 Segment ({} bytes)", pm.length);
 				}
-			} else if ((pm.marker_code == 0xC0 || pm.marker_code == 0xC2) && pm.length >= 10 && pm.offset + 10 <= data.size()) {
+			} else if ((pm.marker_code == 0xC0 || pm.marker_code == 0xC2) && pm.length >= 10 && pm.offset <= data.size() && data.size() - pm.offset >= 10) {
 				// Parse SOF image dimensions
 				size_t data_start = pm.offset + 4;
 				uint8_t precision = data[data_start];
@@ -213,7 +223,7 @@ highlight_info jpeg_hex_highlighter::get_info(std::span<const uint8_t> data, siz
 				info.description = std::format("JPEG {} Segment ({} bytes)", pm.name, pm.length);
 			}
 
-			return info;
+			return clamp_and_return(info);
 		}
 	}
 

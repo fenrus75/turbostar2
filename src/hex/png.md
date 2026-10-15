@@ -18,4 +18,4 @@ The `png_hex_highlighter` class parses and highlights Portable Network Graphics 
 
 ## Lessons Learned
 - **32-Bit Arithmetic on Chunk Length Overhead**: Evaluating `offset += 12 + len` in 32-bit math wraps `0xFFFFFFFE` to `10`, advancing the parse offset into corrupted or forged chunks instead of halting. Calculating `static_cast<size_t>(len) + 12` and checking `total_chunk_len > data.size() - offset` eliminates this vulnerability.
-- **Truncated Chunks**: Declared chunk sizes that extend past buffer EOF must not parse subsequent chunks at invalid offsets.
+- **Truncated Chunks & Clamped Ranges**: Declared chunk sizes that extend past buffer EOF must not parse subsequent chunks at invalid offsets. In `get_info`, all returned `highlight_info` ranges must clamp `range_size = std::min(range_size, data.size() - range_start)` to guarantee safe subspan slicing by callers.

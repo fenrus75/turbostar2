@@ -118,8 +118,18 @@ highlight_info tar_hex_highlighter::get_info(std::span<const uint8_t> data, size
 	info.range_size = 1;
 
 	if (!parsed_successfully_ || offset >= data.size()) {
-		return info;
+		return {hex_semantic_type::normal, "", 0, 0};
 	}
+
+	auto clamp_and_return = [&data](highlight_info inf) -> highlight_info {
+		if (inf.range_start >= data.size()) {
+			return {hex_semantic_type::normal, "", 0, 0};
+		}
+		if (inf.range_size > data.size() - inf.range_start) {
+			inf.range_size = data.size() - inf.range_start;
+		}
+		return inf;
+	};
 
 	// Check if the offset falls into any parsed file header or data section
 	for (const auto &file : files_) {
@@ -129,7 +139,7 @@ highlight_info tar_hex_highlighter::get_info(std::span<const uint8_t> data, size
 			info.description = std::format("TAR Header: {} (size: {} bytes)", file.filename, file.size);
 			info.range_start = file.header_offset;
 			info.range_size = 512;
-			return info;
+			return clamp_and_return(info);
 		}
 		// Data section
 		if (file.size > 0 && offset >= file.data_offset && offset < file.data_offset + file.size) {
@@ -137,34 +147,34 @@ highlight_info tar_hex_highlighter::get_info(std::span<const uint8_t> data, size
 			info.description = std::format("TAR File Data: {}", file.filename);
 			info.range_start = file.data_offset;
 			info.range_size = file.size;
-			return info;
+			return clamp_and_return(info);
 		}
 		// Padding section after data (up to next 512-byte boundary)
-		size_t padded_size = (file.size + 511) / 512 * 512;
+		size_t padded_size = (file.size <= SIZE_MAX - 511) ? ((file.size + 511) / 512 * 512) : SIZE_MAX;
 		if (padded_size > file.size && offset >= file.data_offset + file.size && offset < file.data_offset + padded_size) {
 			info.type = hex_semantic_type::normal;
 			info.description = std::format("TAR Padding: {}", file.filename);
 			info.range_start = file.data_offset + file.size;
 			info.range_size = padded_size - file.size;
-			return info;
+			return clamp_and_return(info);
 		}
 	}
 
 	// Check if it's the EOD (two consecutive zero blocks)
 	if (!files_.empty()) {
 		const auto &last_file = files_.back();
-		size_t padded_size = (last_file.size + 511) / 512 * 512;
+		size_t padded_size = (last_file.size <= SIZE_MAX - 511) ? ((last_file.size + 511) / 512 * 512) : SIZE_MAX;
 		size_t eod_start = last_file.data_offset + padded_size;
-		if (offset >= eod_start && offset < data.size()) {
+		if (eod_start <= data.size() && offset >= eod_start && offset < data.size()) {
 			info.type = hex_semantic_type::magic;
 			info.description = "TAR End of Archive Marker";
 			info.range_start = eod_start;
 			info.range_size = data.size() - eod_start;
-			return info;
+			return clamp_and_return(info);
 		}
 	}
 
-	return info;
+	return clamp_and_return(info);
 }
 
 size_t tar_hex_highlighter::get_next_symbol_offset(size_t current_offset) const

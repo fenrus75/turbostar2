@@ -743,6 +743,9 @@ void test_malicious_corrupt_files()
 		// With 0xFFFFFFFE length, the chunk extends way past buffer (4.29GB).
 		// The parser must NOT have wrapped 12 + len to 10 and parsed a second chunk at offset 18!
 		assert(!png_hl.get_offset_by_name("IEND").has_value());
+		highlight_info chunk_info = png_hl.get_info(png_len_wrap, 16);
+		assert(chunk_info.range_start <= png_len_wrap.size());
+		assert(chunk_info.range_size <= png_len_wrap.size() - chunk_info.range_start);
 
 		// TAR with declared size extending past data buffer
 		std::vector<uint8_t> tar_trunc_payload(512, 0);
@@ -987,6 +990,119 @@ void test_malicious_corrupt_files()
 	std::cout << "All robustness & malicious/corrupt file format tests passed cleanly!" << std::endl;
 }
 
+void test_bounds_safety_and_clamped_ranges()
+{
+	std::cout << "Testing bounds safety and clamped highlight ranges across all 6 formats..." << std::endl;
+
+	auto verify_ranges_safe = [](const auto &hl, std::span<const uint8_t> data) {
+		for (size_t off = 0; off <= data.size() + 5; ++off) {
+			highlight_info info = hl.get_info(data, off);
+			if (off >= data.size()) {
+				assert(info.type == hex_semantic_type::normal);
+				assert(info.range_size == 0);
+			} else if (info.range_size > 0) {
+				assert(info.range_start <= data.size());
+				assert(info.range_size <= data.size() - info.range_start);
+				// Verify subspan does not throw or violate span bounds
+				auto sub = data.subspan(info.range_start, info.range_size);
+				(void)sub;
+			}
+		}
+	};
+
+	// 1. PNG with oversized IHDR length (e.g. 1000000 bytes) but buffer is only 40 bytes
+	{
+		png_hex_highlighter png_hl;
+		std::vector<uint8_t> buf = {0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A,
+		                            0x00, 0x10, 0x00, 0x00, // Length = 1,048,576
+		                            'I', 'H', 'D', 'R',
+		                            0x00, 0x00, 0x00, 0x01, // width
+		                            0x00, 0x00, 0x00, 0x01, // height
+		                            8, 2, 0, 0, 0,          // bit depth, color type, etc.
+		                            0, 0, 0, 0};            // CRC
+		assert(png_hl.can_handle(buf));
+		png_hl.parse(buf);
+		verify_ranges_safe(png_hl, buf);
+		highlight_info info = png_hl.get_info(buf, 12);
+		assert(info.range_start + info.range_size <= buf.size());
+	}
+
+	// 2. JPEG with oversized segment marker length
+	{
+		jpeg_hex_highlighter jpeg_hl;
+		std::vector<uint8_t> buf = {0xFF, 0xD8, 0xFF, 0xE0, 0xFF, 0x00, 'J', 'F', 'I', 'F', 0};
+		assert(jpeg_hl.can_handle(buf));
+		jpeg_hl.parse(buf);
+		verify_ranges_safe(jpeg_hl, buf);
+		highlight_info info = jpeg_hl.get_info(buf, 4);
+		assert(info.range_start + info.range_size <= buf.size());
+	}
+
+	// 3. ZIP with oversized local file header
+	{
+		zip_hex_highlighter zip_hl;
+		std::vector<uint8_t> buf(80, 0);
+		buf[0] = 'P'; buf[1] = 'K'; buf[2] = 0x03; buf[3] = 0x04; // LFH magic
+		write_u16_le(buf, 4, 20); // version
+		write_u32_le(buf, 18, 0x05000000); // 83 MB compressed
+		write_u32_le(buf, 22, 0x05000000); // 83 MB uncompressed
+		write_u16_le(buf, 26, 500); // filename length 500 (exceeds buffer)
+		write_u16_le(buf, 28, 500); // extra length 500
+		assert(zip_hl.can_handle(buf));
+		zip_hl.parse(buf);
+		verify_ranges_safe(zip_hl, buf);
+		highlight_info info = zip_hl.get_info(buf, 0);
+		assert(info.range_start + info.range_size <= buf.size());
+	}
+
+	// 4. TAR with 10MB declared file size in octal but small buffer
+	{
+		tar_hex_highlighter tar_hl;
+		std::vector<uint8_t> buf(600, 0);
+		std::string name = "bigfile.bin";
+		std::copy(name.begin(), name.end(), buf.begin());
+		std::string oct_size = "00077777777"; // huge size
+		for (size_t i = 0; i < oct_size.size(); ++i) {
+			buf[124 + i] = static_cast<uint8_t>(oct_size[i]);
+		}
+		buf[257] = 'u'; buf[258] = 's'; buf[259] = 't'; buf[260] = 'a'; buf[261] = 'r';
+		assert(tar_hl.can_handle(buf));
+		tar_hl.parse(buf);
+		verify_ranges_safe(tar_hl, buf);
+		highlight_info info = tar_hl.get_info(buf, 550);
+		assert(info.range_start + info.range_size <= buf.size());
+	}
+
+	// 5. PDF with oversized object stream
+	{
+		pdf_hex_highlighter pdf_hl;
+		std::string pdf_data = "%PDF-1.4\n1 0 obj\n<< /Length 1000000 >>\nstream\nABC\nendstream\nendobj\n%%EOF\n";
+		std::vector<uint8_t> buf(pdf_data.begin(), pdf_data.end());
+		assert(pdf_hl.can_handle(buf));
+		pdf_hl.parse(buf);
+		verify_ranges_safe(pdf_hl, buf);
+	}
+
+	// 6. ELF with oversized section header and section sizes
+	{
+		elf_hex_highlighter elf_hl;
+		std::vector<uint8_t> buf(120, 0);
+		buf[0] = 0x7F; buf[1] = 'E'; buf[2] = 'L'; buf[3] = 'F';
+		buf[4] = 2; // ELFCLASS64
+		buf[5] = 1; // LSB
+		buf[6] = 1; // EV_CURRENT
+		write_u64_le(buf, 40, 64); // e_shoff = 64
+		write_u16_le(buf, 52, 64); // e_ehsize
+		write_u16_le(buf, 58, 64); // e_shentsize
+		write_u16_le(buf, 60, 2);  // e_shnum
+		assert(elf_hl.can_handle(buf));
+		elf_hl.parse(buf);
+		verify_ranges_safe(elf_hl, buf);
+	}
+
+	std::cout << "Bounds safety and clamped highlight ranges verified successfully!" << std::endl;
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -998,6 +1114,7 @@ int main()
 	test_pdf_highlighter();
 	test_tar_highlighter();
 	test_malicious_corrupt_files();
+	test_bounds_safety_and_clamped_ranges();
 	std::cout << "All hex syntax highlighter tests passed!" << std::endl;
 	return 0;
 }

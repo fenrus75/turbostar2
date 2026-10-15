@@ -21,3 +21,4 @@ The `tar_hex_highlighter` class analyzes Tape Archive (TAR) files formatted acco
 ## Lessons Learned
 - **Octal Size Arithmetic Wrapping**: Evaluating `size + 511` on huge sizes near `SIZE_MAX` causes integer overflow, collapsing `padded_size` to 0 or small values and causing the parser to treat raw payload data as subsequent tar headers. Bounding `size <= SIZE_MAX - 511` eliminates this vulnerability.
 - **Non-Octal Character Rejection**: The 12-byte size field must strictly validate octal digits ('0'-'7') and ignore whitespace/nulls. Non-octal characters indicate corruption and must reset the size to 0.
+- **Range Size Clamping & OOB Invariants**: In `get_info`, when `offset >= data.size()`, return `{hex_semantic_type::normal, "", 0, 0}` with `range_size = 0`. For headers, data, and padding, clamp `inf.range_size = std::min(inf.range_size, data.size() - inf.range_start)` to guarantee safe subspan slicing by callers.

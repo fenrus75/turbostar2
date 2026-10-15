@@ -20,3 +20,4 @@ The `zip_hex_highlighter` class analyzes PKZIP archives in the hex editor. It ha
 ## Lessons Learned
 - **Bitwise Shift Integer Promotion & Sign Extension**: Shifting `uint8_t` promoted to signed `int` left by 24 sets the sign bit if byte $\ge 0x80$. When assigning to `size_t`, this sign-extends to an 18-exabyte number. Casting to `uint32_t` is mandatory for safe multi-byte integer decoding.
 - **Sequential Fallback Progress**: Corrupted or overlapping ZIP records can cause `offset` to stall or wrap if entry lengths wrap `size_t`. Strict subtraction-based upper bound checks guarantee forward progress.
+- **Highlight Range Clamping**: If an uncompressed or compressed file payload size exceeds the remaining buffer in truncated archives, `get_info` clamps `range_size = std::min(range_size, data.size() - range_start)` to maintain caller span-safety.

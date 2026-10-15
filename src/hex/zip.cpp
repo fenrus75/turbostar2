@@ -208,26 +208,36 @@ highlight_info zip_hex_highlighter::get_info(std::span<const uint8_t> data, size
 		return {hex_semantic_type::normal, "", 0, 0};
 	}
 
+	auto clamp_and_return = [&data](highlight_info info) -> highlight_info {
+		if (info.range_start >= data.size()) {
+			return {hex_semantic_type::normal, "", 0, 0};
+		}
+		if (info.range_size > data.size() - info.range_start) {
+			info.range_size = data.size() - info.range_start;
+		}
+		return info;
+	};
+
 	// Check local files
 	for (const auto &lf : local_files_) {
 		if (offset >= lf.lfh_offset && offset < lf.data_offset) {
-			return {hex_semantic_type::file_header, "ZIP Local File Header: " + lf.filename, lf.lfh_offset, lf.header_size};
+			return clamp_and_return({hex_semantic_type::file_header, "ZIP Local File Header: " + lf.filename, lf.lfh_offset, lf.header_size});
 		}
 		if (offset >= lf.data_offset && offset < lf.data_offset + lf.compressed_size) {
-			return {hex_semantic_type::data_section, std::format("ZIP Compressed Data: {} ({} bytes)", lf.filename, lf.compressed_size), lf.data_offset, lf.compressed_size};
+			return clamp_and_return({hex_semantic_type::data_section, std::format("ZIP Compressed Data: {} ({} bytes)", lf.filename, lf.compressed_size), lf.data_offset, lf.compressed_size});
 		}
 	}
 
 	// Check Central Directory entries
 	for (const auto &cd : cd_entries_) {
 		if (offset >= cd.offset && offset < cd.offset + cd.entry_size) {
-			return {hex_semantic_type::sect_header, "ZIP Central Directory Entry: " + cd.filename, cd.offset, cd.entry_size};
+			return clamp_and_return({hex_semantic_type::sect_header, "ZIP Central Directory Entry: " + cd.filename, cd.offset, cd.entry_size});
 		}
 	}
 
 	// Check EOCD
 	if (eocd_offset_ > 0 && offset >= eocd_offset_ && offset < eocd_offset_ + eocd_size_) {
-		return {hex_semantic_type::magic, "ZIP End of Central Directory Record", eocd_offset_, eocd_size_};
+		return clamp_and_return({hex_semantic_type::magic, "ZIP End of Central Directory Record", eocd_offset_, eocd_size_});
 	}
 
 	return {hex_semantic_type::normal, "", 0, 0};

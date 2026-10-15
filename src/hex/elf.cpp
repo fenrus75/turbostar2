@@ -505,8 +505,8 @@ bool elf_hex_highlighter::parse(std::span<const uint8_t> data)
 				size_t sym_count = std::min(static_cast<size_t>(symtab_size / symtab_entsize), max_syms);
 				for (size_t j = 0; j < sym_count; ++j) {
 					size_t sym_start = symtab_offset + j * symtab_entsize;
-				if (sym_start + req_sym_size > data.size() || symtab_entsize < req_sym_size)
-					break;
+					if (sym_start > data.size() || req_sym_size > data.size() - sym_start || symtab_entsize < req_sym_size)
+						break;
 
 				uint32_t st_name = 0;
 				uint8_t st_info = 0;
@@ -588,31 +588,39 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 	if (!parsed_successfully_ || offset >= data.size())
 		return {};
 
+	auto clamp_and_return = [&](hex_semantic_type type, std::string desc, size_t start, size_t size) -> highlight_info {
+		if (start >= data.size()) {
+			return {hex_semantic_type::normal, "", 0, 0};
+		}
+		size_t clamped_size = std::min(size, data.size() - start);
+		return {type, std::move(desc), start, clamped_size};
+	};
+
 	bool lsb = header_.is_lsb;
 
 	// 1. Magic
 	if (offset < 4) {
-		return {hex_semantic_type::magic, std::format("ELF Magic Sign: '\\x7fELF'")};
+		return clamp_and_return(hex_semantic_type::magic, "ELF Magic Sign: '\\x7fELF'", 0, 4);
 	}
 
 	// 2. Identification details
 	if (offset >= 4 && offset < 16) {
 		if (offset == 4) {
-			return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_ident[EI_CLASS] = {}", get_class_desc(data[4]))};
+			return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_ident[EI_CLASS] = {}", get_class_desc(data[4])), 4, 1);
 		}
 		if (offset == 5) {
-			return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_ident[EI_DATA] = {}", get_data_desc(data[5]))};
+			return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_ident[EI_DATA] = {}", get_data_desc(data[5])), 5, 1);
 		}
 		if (offset == 6) {
-			return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_ident[EI_VERSION] = {}", data[6])};
+			return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_ident[EI_VERSION] = {}", data[6]), 6, 1);
 		}
 		if (offset == 7) {
-			return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_ident[EI_OSABI] = {}", get_osabi_desc(data[7]))};
+			return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_ident[EI_OSABI] = {}", get_osabi_desc(data[7])), 7, 1);
 		}
 		if (offset == 8) {
-			return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_ident[EI_ABIVERSION] = {}", data[8])};
+			return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_ident[EI_ABIVERSION] = {}", data[8]), 8, 1);
 		}
-		return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_ident padding [{}]", offset - 9)};
+		return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_ident padding [{}]", offset - 9), 9, 7);
 	}
 
 	// 3. Ehdr remaining fields
@@ -621,104 +629,104 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 		if (header_.is_64) {
 			if (relative >= 16 && relative < 18) {
 				uint16_t type = read_u16(data, 16, lsb);
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_type = {}", get_type_desc(type))};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_type = {}", get_type_desc(type)), 16, 2);
 			}
 			if (relative >= 18 && relative < 20) {
 				uint16_t mach = read_u16(data, 18, lsb);
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_machine = {}", get_machine_desc(mach))};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_machine = {}", get_machine_desc(mach)), 18, 2);
 			}
 			if (relative >= 20 && relative < 24) {
 				uint32_t ver = read_u32(data, 20, lsb);
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_version = {}", ver)};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_version = {}", ver), 20, 4);
 			}
 			if (relative >= 24 && relative < 32) {
 				uint64_t ent = read_u64(data, 24, lsb);
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_entry = 0x{:08X}", ent)};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_entry = 0x{:08X}", ent), 24, 8);
 			}
 			if (relative >= 32 && relative < 40) {
 				uint64_t phoff = read_u64(data, 32, lsb);
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_phoff = 0x{:X}", phoff)};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_phoff = 0x{:X}", phoff), 32, 8);
 			}
 			if (relative >= 40 && relative < 48) {
 				uint64_t shoff = read_u64(data, 40, lsb);
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_shoff = 0x{:X}", shoff)};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_shoff = 0x{:X}", shoff), 40, 8);
 			}
 			if (relative >= 48 && relative < 52) {
 				uint32_t flags = read_u32(data, 48, lsb);
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_flags = 0x{:08X}", flags)};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_flags = 0x{:08X}", flags), 48, 4);
 			}
 			if (relative >= 52 && relative < 54) {
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_ehsize = {} bytes", header_.e_ehsize)};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_ehsize = {} bytes", header_.e_ehsize), 52, 2);
 			}
 			if (relative >= 54 && relative < 56) {
-				return {hex_semantic_type::file_header,
-					std::format("ELF Ehdr: e_phentsize = {} bytes", header_.e_phentsize)};
+				return clamp_and_return(hex_semantic_type::file_header,
+					std::format("ELF Ehdr: e_phentsize = {} bytes", header_.e_phentsize), 54, 2);
 			}
 			if (relative >= 56 && relative < 58) {
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_phnum = {}", header_.e_phnum)};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_phnum = {}", header_.e_phnum), 56, 2);
 			}
 			if (relative >= 58 && relative < 60) {
-				return {hex_semantic_type::file_header,
-					std::format("ELF Ehdr: e_shentsize = {} bytes", header_.e_shentsize)};
+				return clamp_and_return(hex_semantic_type::file_header,
+					std::format("ELF Ehdr: e_shentsize = {} bytes", header_.e_shentsize), 58, 2);
 			}
 			if (relative >= 60 && relative < 62) {
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_shnum = {}", header_.e_shnum)};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_shnum = {}", header_.e_shnum), 60, 2);
 			}
 			if (relative >= 62 && relative < 64) {
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_shstrndx = {}", header_.e_shstrndx)};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_shstrndx = {}", header_.e_shstrndx), 62, 2);
 			}
 		} else {
 			// 32-bit Ehdr
 			if (relative >= 16 && relative < 18) {
 				uint16_t type = read_u16(data, 16, lsb);
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_type = {}", get_type_desc(type))};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_type = {}", get_type_desc(type)), 16, 2);
 			}
 			if (relative >= 18 && relative < 20) {
 				uint16_t mach = read_u16(data, 18, lsb);
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_machine = {}", get_machine_desc(mach))};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_machine = {}", get_machine_desc(mach)), 18, 2);
 			}
 			if (relative >= 20 && relative < 24) {
 				uint32_t ver = read_u32(data, 20, lsb);
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_version = {}", ver)};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_version = {}", ver), 20, 4);
 			}
 			if (relative >= 24 && relative < 28) {
 				uint32_t ent = read_u32(data, 24, lsb);
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_entry = 0x{:08X}", ent)};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_entry = 0x{:08X}", ent), 24, 4);
 			}
 			if (relative >= 28 && relative < 32) {
 				uint32_t phoff = read_u32(data, 28, lsb);
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_phoff = 0x{:X}", phoff)};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_phoff = 0x{:X}", phoff), 28, 4);
 			}
 			if (relative >= 32 && relative < 36) {
 				uint32_t shoff = read_u32(data, 32, lsb);
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_shoff = 0x{:X}", shoff)};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_shoff = 0x{:X}", shoff), 32, 4);
 			}
 			if (relative >= 36 && relative < 40) {
 				uint32_t flags = read_u32(data, 36, lsb);
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_flags = 0x{:08X}", flags)};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_flags = 0x{:08X}", flags), 36, 4);
 			}
 			if (relative >= 40 && relative < 42) {
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_ehsize = {} bytes", header_.e_ehsize)};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_ehsize = {} bytes", header_.e_ehsize), 40, 2);
 			}
 			if (relative >= 42 && relative < 44) {
-				return {hex_semantic_type::file_header,
-					std::format("ELF Ehdr: e_phentsize = {} bytes", header_.e_phentsize)};
+				return clamp_and_return(hex_semantic_type::file_header,
+					std::format("ELF Ehdr: e_phentsize = {} bytes", header_.e_phentsize), 42, 2);
 			}
 			if (relative >= 44 && relative < 46) {
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_phnum = {}", header_.e_phnum)};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_phnum = {}", header_.e_phnum), 44, 2);
 			}
 			if (relative >= 46 && relative < 48) {
-				return {hex_semantic_type::file_header,
-					std::format("ELF Ehdr: e_shentsize = {} bytes", header_.e_shentsize)};
+				return clamp_and_return(hex_semantic_type::file_header,
+					std::format("ELF Ehdr: e_shentsize = {} bytes", header_.e_shentsize), 46, 2);
 			}
 			if (relative >= 48 && relative < 50) {
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_shnum = {}", header_.e_shnum)};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_shnum = {}", header_.e_shnum), 48, 2);
 			}
 			if (relative >= 50 && relative < 52) {
-				return {hex_semantic_type::file_header, std::format("ELF Ehdr: e_shstrndx = {}", header_.e_shstrndx)};
+				return clamp_and_return(hex_semantic_type::file_header, std::format("ELF Ehdr: e_shstrndx = {}", header_.e_shstrndx), 50, 2);
 			}
 		}
-		return {hex_semantic_type::file_header, "ELF Ehdr Header"};
+		return clamp_and_return(hex_semantic_type::file_header, "ELF Ehdr Header", 0, header_.e_ehsize);
 	}
 
 	// 4. Program Header Table
@@ -734,8 +742,9 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 			if (header_.is_64) {
 				if (field_offset < 4) {
 					uint32_t type = read_u32(data, entry_start, lsb);
-					return {hex_semantic_type::prog_header,
-						std::format("ELF Phdr[{}]: p_type = {}", entry_idx, get_phdr_type_desc(type))};
+					return clamp_and_return(hex_semantic_type::prog_header,
+						std::format("ELF Phdr[{}]: p_type = {}", entry_idx, get_phdr_type_desc(type)),
+						entry_start, 4);
 				}
 				if (field_offset >= 4 && field_offset < 8) {
 					uint32_t flags = read_u32(data, entry_start + 4, lsb);
@@ -750,70 +759,83 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 						f_str = "None";
 					else
 						f_str.pop_back();
-					return {hex_semantic_type::prog_header,
-						std::format("ELF Phdr[{}]: p_flags = 0x{:X} ({})", entry_idx, flags, f_str)};
+					return clamp_and_return(hex_semantic_type::prog_header,
+						std::format("ELF Phdr[{}]: p_flags = 0x{:X} ({})", entry_idx, flags, f_str),
+						entry_start + 4, 4);
 				}
 				if (field_offset >= 8 && field_offset < 16) {
 					uint64_t val = read_u64(data, entry_start + 8, lsb);
-					return {hex_semantic_type::prog_header,
-						std::format("ELF Phdr[{}]: p_offset = 0x{:X}", entry_idx, val)};
+					return clamp_and_return(hex_semantic_type::prog_header,
+						std::format("ELF Phdr[{}]: p_offset = 0x{:X}", entry_idx, val),
+						entry_start + 8, 8);
 				}
 				if (field_offset >= 16 && field_offset < 24) {
 					uint64_t val = read_u64(data, entry_start + 16, lsb);
-					return {hex_semantic_type::prog_header,
-						std::format("ELF Phdr[{}]: p_vaddr = 0x{:X}", entry_idx, val)};
+					return clamp_and_return(hex_semantic_type::prog_header,
+						std::format("ELF Phdr[{}]: p_vaddr = 0x{:X}", entry_idx, val),
+						entry_start + 16, 8);
 				}
 				if (field_offset >= 24 && field_offset < 32) {
 					uint64_t val = read_u64(data, entry_start + 24, lsb);
-					return {hex_semantic_type::prog_header,
-						std::format("ELF Phdr[{}]: p_paddr = 0x{:X}", entry_idx, val)};
+					return clamp_and_return(hex_semantic_type::prog_header,
+						std::format("ELF Phdr[{}]: p_paddr = 0x{:X}", entry_idx, val),
+						entry_start + 24, 8);
 				}
 				if (field_offset >= 32 && field_offset < 40) {
 					uint64_t val = read_u64(data, entry_start + 32, lsb);
-					return {hex_semantic_type::prog_header,
-						std::format("ELF Phdr[{}]: p_filesz = {} bytes (0x{:X})", entry_idx, val, val)};
+					return clamp_and_return(hex_semantic_type::prog_header,
+						std::format("ELF Phdr[{}]: p_filesz = {} bytes (0x{:X})", entry_idx, val, val),
+						entry_start + 32, 8);
 				}
 				if (field_offset >= 40 && field_offset < 48) {
 					uint64_t val = read_u64(data, entry_start + 40, lsb);
-					return {hex_semantic_type::prog_header,
-						std::format("ELF Phdr[{}]: p_memsz = {} bytes (0x{:X})", entry_idx, val, val)};
+					return clamp_and_return(hex_semantic_type::prog_header,
+						std::format("ELF Phdr[{}]: p_memsz = {} bytes (0x{:X})", entry_idx, val, val),
+						entry_start + 40, 8);
 				}
 				if (field_offset >= 48 && field_offset < 56) {
 					uint64_t val = read_u64(data, entry_start + 48, lsb);
-					return {hex_semantic_type::prog_header,
-						std::format("ELF Phdr[{}]: p_align = 0x{:X}", entry_idx, val)};
+					return clamp_and_return(hex_semantic_type::prog_header,
+						std::format("ELF Phdr[{}]: p_align = 0x{:X}", entry_idx, val),
+						entry_start + 48, 8);
 				}
 			} else {
 				// 32-bit Phdr
 				if (field_offset < 4) {
 					uint32_t type = read_u32(data, entry_start, lsb);
-					return {hex_semantic_type::prog_header,
-						std::format("ELF Phdr[{}]: p_type = {}", entry_idx, get_phdr_type_desc(type))};
+					return clamp_and_return(hex_semantic_type::prog_header,
+						std::format("ELF Phdr[{}]: p_type = {}", entry_idx, get_phdr_type_desc(type)),
+						entry_start, 4);
 				}
 				if (field_offset >= 4 && field_offset < 8) {
 					uint32_t val = read_u32(data, entry_start + 4, lsb);
-					return {hex_semantic_type::prog_header,
-						std::format("ELF Phdr[{}]: p_offset = 0x{:X}", entry_idx, val)};
+					return clamp_and_return(hex_semantic_type::prog_header,
+						std::format("ELF Phdr[{}]: p_offset = 0x{:X}", entry_idx, val),
+						entry_start + 4, 4);
 				}
 				if (field_offset >= 8 && field_offset < 12) {
 					uint32_t val = read_u32(data, entry_start + 8, lsb);
-					return {hex_semantic_type::prog_header,
-						std::format("ELF Phdr[{}]: p_vaddr = 0x{:X}", entry_idx, val)};
+					return clamp_and_return(hex_semantic_type::prog_header,
+						std::format("ELF Phdr[{}]: p_vaddr = 0x{:X}", entry_idx, val),
+						entry_start + 8, 4);
 				}
 				if (field_offset >= 12 && field_offset < 16) {
 					uint32_t val = read_u32(data, entry_start + 12, lsb);
-					return {hex_semantic_type::prog_header,
-						std::format("ELF Phdr[{}]: p_paddr = 0x{:X}", entry_idx, val)};
+					return clamp_and_return(hex_semantic_type::prog_header,
+						std::format("ELF Phdr[{}]: p_paddr = 0x{:X}", entry_idx, val),
+						entry_start + 12, 4);
 				}
 				if (field_offset >= 16 && field_offset < 20) {
 					uint32_t val = read_u32(data, entry_start + 16, lsb);
-					return {hex_semantic_type::prog_header,
-						std::format("ELF Phdr[{}]: p_filesz = {} bytes (0x{:X})", entry_idx, val, val)};
+					return clamp_and_return(hex_semantic_type::prog_header,
+						std::format("ELF Phdr[{}]: p_filesz = {} bytes (0x{:X})", entry_idx, val, val),
+						entry_start + 16, 4);
 				}
 				if (field_offset >= 20 && field_offset < 24) {
 					uint32_t val = read_u32(data, entry_start + 20, lsb);
-					return {hex_semantic_type::prog_header,
-						std::format("ELF Phdr[{}]: p_memsz = {} bytes (0x{:X})", entry_idx, val, val)};
+					return clamp_and_return(hex_semantic_type::prog_header,
+						std::format("ELF Phdr[{}]: p_memsz = {} bytes (0x{:X})", entry_idx, val, val),
+						entry_start + 20, 4);
 				}
 				if (field_offset >= 24 && field_offset < 28) {
 					uint32_t flags = read_u32(data, entry_start + 24, lsb);
@@ -828,16 +850,19 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 						f_str = "None";
 					else
 						f_str.pop_back();
-					return {hex_semantic_type::prog_header,
-						std::format("ELF Phdr[{}]: p_flags = 0x{:X} ({})", entry_idx, flags, f_str)};
+					return clamp_and_return(hex_semantic_type::prog_header,
+						std::format("ELF Phdr[{}]: p_flags = 0x{:X} ({})", entry_idx, flags, f_str),
+						entry_start + 24, 4);
 				}
 				if (field_offset >= 28 && field_offset < 32) {
 					uint32_t val = read_u32(data, entry_start + 28, lsb);
-					return {hex_semantic_type::prog_header,
-						std::format("ELF Phdr[{}]: p_align = 0x{:X}", entry_idx, val)};
+					return clamp_and_return(hex_semantic_type::prog_header,
+						std::format("ELF Phdr[{}]: p_align = 0x{:X}", entry_idx, val),
+						entry_start + 28, 4);
 				}
 			}
-			return {hex_semantic_type::prog_header, std::format("ELF Phdr[{}] Segment entry", entry_idx)};
+			return clamp_and_return(hex_semantic_type::prog_header, std::format("ELF Phdr[{}] Segment entry", entry_idx),
+				entry_start, header_.e_phentsize);
 		}
 	}
 
@@ -863,110 +888,131 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 			if (header_.is_64) {
 				if (field_offset < 4) {
 					uint32_t val = read_u32(data, entry_start, lsb);
-					return {
+					return clamp_and_return(
 					    hex_semantic_type::sect_header,
-					    std::format("ELF Shdr[{}]{}: sh_name = 0x{:X} String offset", entry_idx, sec_name_label, val)};
+					    std::format("ELF Shdr[{}]{}: sh_name = 0x{:X} String offset", entry_idx, sec_name_label, val),
+					    entry_start, 4);
 				}
 				if (field_offset >= 4 && field_offset < 8) {
 					uint32_t type = read_u32(data, entry_start + 4, lsb);
-					return {hex_semantic_type::sect_header, std::format("ELF Shdr[{}]{}: sh_type = {}", entry_idx,
-											    sec_name_label, get_shdr_type_desc(type))};
+					return clamp_and_return(hex_semantic_type::sect_header, std::format("ELF Shdr[{}]{}: sh_type = {}", entry_idx,
+											    sec_name_label, get_shdr_type_desc(type)),
+						entry_start + 4, 4);
 				}
 				if (field_offset >= 8 && field_offset < 16) {
 					uint64_t val = read_u64(data, entry_start + 8, lsb);
-					return {hex_semantic_type::sect_header, std::format("ELF Shdr[{}]{}: sh_flags = {}", entry_idx,
-											    sec_name_label, get_shdr_flags_desc(val))};
+					return clamp_and_return(hex_semantic_type::sect_header, std::format("ELF Shdr[{}]{}: sh_flags = {}", entry_idx,
+											    sec_name_label, get_shdr_flags_desc(val)),
+						entry_start + 8, 8);
 				}
 				if (field_offset >= 16 && field_offset < 24) {
 					uint64_t val = read_u64(data, entry_start + 16, lsb);
-					return {hex_semantic_type::sect_header,
-						std::format("ELF Shdr[{}]{}: sh_addr = 0x{:08X}", entry_idx, sec_name_label, val)};
+					return clamp_and_return(hex_semantic_type::sect_header,
+						std::format("ELF Shdr[{}]{}: sh_addr = 0x{:08X}", entry_idx, sec_name_label, val),
+						entry_start + 16, 8);
 				}
 				if (field_offset >= 24 && field_offset < 32) {
 					uint64_t val = read_u64(data, entry_start + 24, lsb);
-					return {hex_semantic_type::sect_header,
-						std::format("ELF Shdr[{}]{}: sh_offset = 0x{:X}", entry_idx, sec_name_label, val)};
+					return clamp_and_return(hex_semantic_type::sect_header,
+						std::format("ELF Shdr[{}]{}: sh_offset = 0x{:X}", entry_idx, sec_name_label, val),
+						entry_start + 24, 8);
 				}
 				if (field_offset >= 32 && field_offset < 40) {
 					uint64_t val = read_u64(data, entry_start + 32, lsb);
-					return {hex_semantic_type::sect_header, std::format("ELF Shdr[{}]{}: sh_size = {} bytes (0x{:X})",
-											    entry_idx, sec_name_label, val, val)};
+					return clamp_and_return(hex_semantic_type::sect_header, std::format("ELF Shdr[{}]{}: sh_size = {} bytes (0x{:X})",
+											    entry_idx, sec_name_label, val, val),
+						entry_start + 32, 8);
 				}
 				if (field_offset >= 40 && field_offset < 44) {
 					uint32_t val = read_u32(data, entry_start + 40, lsb);
-					return {hex_semantic_type::sect_header,
-						std::format("ELF Shdr[{}]{}: sh_link = {}", entry_idx, sec_name_label, val)};
+					return clamp_and_return(hex_semantic_type::sect_header,
+						std::format("ELF Shdr[{}]{}: sh_link = {}", entry_idx, sec_name_label, val),
+						entry_start + 40, 4);
 				}
 				if (field_offset >= 44 && field_offset < 48) {
 					uint32_t val = read_u32(data, entry_start + 44, lsb);
-					return {hex_semantic_type::sect_header,
-						std::format("ELF Shdr[{}]{}: sh_info = {}", entry_idx, sec_name_label, val)};
+					return clamp_and_return(hex_semantic_type::sect_header,
+						std::format("ELF Shdr[{}]{}: sh_info = {}", entry_idx, sec_name_label, val),
+						entry_start + 44, 4);
 				}
 				if (field_offset >= 48 && field_offset < 56) {
 					uint64_t val = read_u64(data, entry_start + 48, lsb);
-					return {hex_semantic_type::sect_header,
-						std::format("ELF Shdr[{}]{}: sh_addralign = {}", entry_idx, sec_name_label, val)};
+					return clamp_and_return(hex_semantic_type::sect_header,
+						std::format("ELF Shdr[{}]{}: sh_addralign = {}", entry_idx, sec_name_label, val),
+						entry_start + 48, 8);
 				}
 				if (field_offset >= 56 && field_offset < 64) {
 					uint64_t val = read_u64(data, entry_start + 56, lsb);
-					return {hex_semantic_type::sect_header,
-						std::format("ELF Shdr[{}]{}: sh_entsize = {} bytes", entry_idx, sec_name_label, val)};
+					return clamp_and_return(hex_semantic_type::sect_header,
+						std::format("ELF Shdr[{}]{}: sh_entsize = {} bytes", entry_idx, sec_name_label, val),
+						entry_start + 56, 8);
 				}
 			} else {
 				// 32-bit Shdr
 				if (field_offset < 4) {
 					uint32_t val = read_u32(data, entry_start, lsb);
-					return {
+					return clamp_and_return(
 					    hex_semantic_type::sect_header,
-					    std::format("ELF Shdr[{}]{}: sh_name = 0x{:X} String offset", entry_idx, sec_name_label, val)};
+					    std::format("ELF Shdr[{}]{}: sh_name = 0x{:X} String offset", entry_idx, sec_name_label, val),
+					    entry_start, 4);
 				}
 				if (field_offset >= 4 && field_offset < 8) {
 					uint32_t type = read_u32(data, entry_start + 4, lsb);
-					return {hex_semantic_type::sect_header, std::format("ELF Shdr[{}]{}: sh_type = {}", entry_idx,
-											    sec_name_label, get_shdr_type_desc(type))};
+					return clamp_and_return(hex_semantic_type::sect_header, std::format("ELF Shdr[{}]{}: sh_type = {}", entry_idx,
+											    sec_name_label, get_shdr_type_desc(type)),
+						entry_start + 4, 4);
 				}
 				if (field_offset >= 8 && field_offset < 12) {
 					uint32_t val = read_u32(data, entry_start + 8, lsb);
-					return {hex_semantic_type::sect_header, std::format("ELF Shdr[{}]{}: sh_flags = {}", entry_idx,
-											    sec_name_label, get_shdr_flags_desc(val))};
+					return clamp_and_return(hex_semantic_type::sect_header, std::format("ELF Shdr[{}]{}: sh_flags = {}", entry_idx,
+											    sec_name_label, get_shdr_flags_desc(val)),
+						entry_start + 8, 4);
 				}
 				if (field_offset >= 12 && field_offset < 16) {
 					uint32_t val = read_u32(data, entry_start + 12, lsb);
-					return {hex_semantic_type::sect_header,
-						std::format("ELF Shdr[{}]{}: sh_addr = 0x{:08X}", entry_idx, sec_name_label, val)};
+					return clamp_and_return(hex_semantic_type::sect_header,
+						std::format("ELF Shdr[{}]{}: sh_addr = 0x{:08X}", entry_idx, sec_name_label, val),
+						entry_start + 12, 4);
 				}
 				if (field_offset >= 16 && field_offset < 20) {
 					uint32_t val = read_u32(data, entry_start + 16, lsb);
-					return {hex_semantic_type::sect_header,
-						std::format("ELF Shdr[{}]{}: sh_offset = 0x{:X}", entry_idx, sec_name_label, val)};
+					return clamp_and_return(hex_semantic_type::sect_header,
+						std::format("ELF Shdr[{}]{}: sh_offset = 0x{:X}", entry_idx, sec_name_label, val),
+						entry_start + 16, 4);
 				}
 				if (field_offset >= 20 && field_offset < 24) {
 					uint32_t val = read_u32(data, entry_start + 20, lsb);
-					return {hex_semantic_type::sect_header, std::format("ELF Shdr[{}]{}: sh_size = {} bytes (0x{:X})",
-											    entry_idx, sec_name_label, val, val)};
+					return clamp_and_return(hex_semantic_type::sect_header, std::format("ELF Shdr[{}]{}: sh_size = {} bytes (0x{:X})",
+											    entry_idx, sec_name_label, val, val),
+						entry_start + 20, 4);
 				}
 				if (field_offset >= 24 && field_offset < 28) {
 					uint32_t val = read_u32(data, entry_start + 24, lsb);
-					return {hex_semantic_type::sect_header,
-						std::format("ELF Shdr[{}]{}: sh_link = {}", entry_idx, sec_name_label, val)};
+					return clamp_and_return(hex_semantic_type::sect_header,
+						std::format("ELF Shdr[{}]{}: sh_link = {}", entry_idx, sec_name_label, val),
+						entry_start + 24, 4);
 				}
 				if (field_offset >= 28 && field_offset < 32) {
 					uint32_t val = read_u32(data, entry_start + 28, lsb);
-					return {hex_semantic_type::sect_header,
-						std::format("ELF Shdr[{}]{}: sh_info = {}", entry_idx, sec_name_label, val)};
+					return clamp_and_return(hex_semantic_type::sect_header,
+						std::format("ELF Shdr[{}]{}: sh_info = {}", entry_idx, sec_name_label, val),
+						entry_start + 28, 4);
 				}
 				if (field_offset >= 32 && field_offset < 36) {
 					uint32_t val = read_u32(data, entry_start + 32, lsb);
-					return {hex_semantic_type::sect_header,
-						std::format("ELF Shdr[{}]{}: sh_addralign = {}", entry_idx, sec_name_label, val)};
+					return clamp_and_return(hex_semantic_type::sect_header,
+						std::format("ELF Shdr[{}]{}: sh_addralign = {}", entry_idx, sec_name_label, val),
+						entry_start + 32, 4);
 				}
 				if (field_offset >= 36 && field_offset < 40) {
 					uint32_t val = read_u32(data, entry_start + 36, lsb);
-					return {hex_semantic_type::sect_header,
-						std::format("ELF Shdr[{}]{}: sh_entsize = {} bytes", entry_idx, sec_name_label, val)};
+					return clamp_and_return(hex_semantic_type::sect_header,
+						std::format("ELF Shdr[{}]{}: sh_entsize = {} bytes", entry_idx, sec_name_label, val),
+						entry_start + 36, 4);
 				}
 			}
-			return {hex_semantic_type::sect_header, std::format("ELF Shdr[{}] Section entry", entry_idx)};
+			return clamp_and_return(hex_semantic_type::sect_header, std::format("ELF Shdr[{}] Section entry", entry_idx),
+				entry_start, header_.e_shentsize);
 		}
 	}
 
@@ -1028,14 +1074,11 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 						if (found_sym) {
 							symbol_ctx = std::format(" (in {} + 0x{:X})", found_sym->name, offset - found_sym->offset);
 						}
-						highlight_info info;
-						info.type = sec.semantic;
-						info.description = std::format("{}{} | ELF Sec \"{}\": type = {}, offset = 0x{:X}",
+						return clamp_and_return(sec.semantic,
+							std::format("{}{} | ELF Sec \"{}\": type = {}, offset = 0x{:X}",
 										  shorten_hex_numbers(instruction.text), symbol_ctx, sec.name,
-										  get_shdr_type_desc(sec.type_val), sec.offset);
-						info.range_start = inst_start;
-						info.range_size = inst_len;
-						return info;
+										  get_shdr_type_desc(sec.type_val), sec.offset),
+							inst_start, inst_len);
 					}
 
 					inst_start += inst_len;
@@ -1043,12 +1086,14 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 				}
 			}
 #endif
-			return {sec.semantic, std::format("ELF Sec \"{}\": type = {}, offset = 0x{:X}", sec.name,
-							  get_shdr_type_desc(sec.type_val), sec.offset)};
+			return clamp_and_return(sec.semantic,
+				std::format("ELF Sec \"{}\": type = {}, offset = 0x{:X}", sec.name,
+							  get_shdr_type_desc(sec.type_val), sec.offset),
+				sec.offset, sec.size);
 		}
 	}
 
-	return {hex_semantic_type::normal, ""};
+	return {hex_semantic_type::normal, "", 0, 0};
 }
 
 size_t elf_hex_highlighter::get_next_symbol_offset(size_t current_offset) const

@@ -43,7 +43,7 @@ bool pdf_hex_highlighter::parse(std::span<const uint8_t> data) {
 
 	auto match_str = [&data](size_t pos, const char* str) -> bool {
 		size_t len = strlen(str);
-		if (pos + len > data.size()) return false;
+		if (pos > data.size() || len > data.size() - pos) return false;
 		for (size_t i = 0; i < len; ++i) {
 			if (data[pos + i] != (uint8_t)str[i]) return false;
 		}
@@ -178,33 +178,40 @@ bool pdf_hex_highlighter::parse(std::span<const uint8_t> data) {
 
 highlight_info pdf_hex_highlighter::get_info(std::span<const uint8_t> data, size_t offset) const
 {
-	(void)data;
 	if (!parsed_successfully_ || offset >= data.size()) {
 		return {hex_semantic_type::normal, "", 0, 0};
 	}
 
+	auto clamp_and_return = [&](hex_semantic_type type, std::string_view desc, size_t start, size_t size) -> highlight_info {
+		if (start >= data.size()) {
+			return {hex_semantic_type::normal, "", 0, 0};
+		}
+		size_t clamped_size = std::min(size, data.size() - start);
+		return {type, std::string(desc), start, clamped_size};
+	};
+
 	if (offset < header_size_) {
-		return {hex_semantic_type::file_header, "PDF Header", 0, header_size_};
+		return clamp_and_return(hex_semantic_type::file_header, "PDF Header", 0, header_size_);
 	}
 
 	for (const auto &obj : objects_) {
 		if (obj.stream_size > 0 && offset >= obj.stream_offset && offset < obj.stream_offset + obj.stream_size) {
-			return {hex_semantic_type::data_section, "PDF Object Stream", obj.stream_offset, obj.stream_size};
+			return clamp_and_return(hex_semantic_type::data_section, "PDF Object Stream", obj.stream_offset, obj.stream_size);
 		}
 		if (offset >= obj.offset && offset < obj.offset + obj.size) {
-			return {hex_semantic_type::prog_header, "PDF Object", obj.offset, obj.size};
+			return clamp_and_return(hex_semantic_type::prog_header, "PDF Object", obj.offset, obj.size);
 		}
 	}
 
 	for (const auto &xr : xrefs_) {
 		if (offset >= xr.offset && offset < xr.offset + xr.size) {
-			return {hex_semantic_type::sect_header, "PDF Cross-Reference Table (xref)", xr.offset, xr.size};
+			return clamp_and_return(hex_semantic_type::sect_header, "PDF Cross-Reference Table (xref)", xr.offset, xr.size);
 		}
 	}
 
 	for (const auto &tr : trailers_) {
 		if (offset >= tr.offset && offset < tr.offset + tr.size) {
-			return {hex_semantic_type::magic, "PDF Trailer / startxref", tr.offset, tr.size};
+			return clamp_and_return(hex_semantic_type::magic, "PDF Trailer / startxref", tr.offset, tr.size);
 		}
 	}
 

@@ -19,3 +19,4 @@ The `jpeg_hex_highlighter` class inspects and labels JPEG / JFIF image data for 
 ## Lessons Learned
 - **Zero-Length Variable Markers**: A variable-length marker declaring length 0 or 1 does not consume the length parameter itself. Validating `length_val >= 2` prevents offset stagnation and re-parsing.
 - **Entropy Scan Data Bounds**: SOS entropy data extends until the next unescaped marker (or EOF). Byte stuffing (`0xFF 0x00`) and restart markers (`0xFF 0xD0..0xD7`) must be skipped without aborting scan boundaries prematurely.
+- **Subtraction Bounds Checking & Clamped Ranges**: When parsing JFIF or SOF marker fields (10-18 bytes), check `pm.offset <= data.size() && data.size() - pm.offset >= N` rather than adding `pm.offset + N > data.size()`. In `get_info`, clamp `range_size = std::min(info.range_size, data.size() - info.range_start)` to protect callers.
