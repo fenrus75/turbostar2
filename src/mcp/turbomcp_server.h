@@ -2,9 +2,11 @@
 
 #include <atomic>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <thread>
+#include <utility>
 #include <nlohmann/json.hpp>
 #include "editor.h"
 #include "agentlib/tool_context.h"
@@ -35,8 +37,16 @@ public:
 	bool set_tool_identity(std::string_view untrusted_identity_name) noexcept;
 	mcp_tool_identity get_tool_identity() const noexcept { return tool_identity_; }
 
-	// Transforms a canonical JSON Schema object's property names and required fields to match the target identity
-	static nlohmann::json transform_schema_for_identity(const nlohmann::json &schema, mcp_tool_identity identity);
+	// Transforms a canonical JSON Schema object's property names, required fields, and parameter references
+	// in descriptions to match the target identity. Optionally updates a top-level tool description as well.
+	static nlohmann::json transform_schema_for_identity(const nlohmann::json &schema, mcp_tool_identity identity,
+							    std::string *in_out_tool_description = nullptr);
+
+	// Rewrites parameter name references inside a tool or property description using the exact (old_key, new_key)
+	// pairs renamed for that tool.
+	static std::string transform_description_for_identity(
+		std::string_view description,
+		std::span<const std::pair<std::string, std::string>> renamed_params);
 
 	// Context accessor for inspection or testing
 	const tool_context &get_context() const { return mcp_context_; }

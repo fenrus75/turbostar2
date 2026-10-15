@@ -10,11 +10,14 @@
 #include "fs_utils.h"
 #include "project_manager.h"
 #include "utf8.h"
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <re2/re2.h>
 #include <string>
 #include <thread>
+#include <vector>
 
 namespace agentlib
 {
@@ -82,7 +85,55 @@ bool turbomcp_server::set_tool_identity(std::string_view untrusted_identity_name
 	return false;
 }
 
-nlohmann::json turbomcp_server::transform_schema_for_identity(const nlohmann::json &schema, mcp_tool_identity identity)
+std::string turbomcp_server::transform_description_for_identity(
+	std::string_view description,
+	std::span<const std::pair<std::string, std::string>> renamed_params)
+{
+	if (description.empty() || renamed_params.empty()) {
+		return std::string(description);
+	}
+
+	std::string result(description);
+
+	// Build an alternation of all known old/new parameter names in this tool for slash-separated lists
+	// such as "start/end/length".
+	std::string param_alt;
+	for (const auto &[old_key, new_key] : renamed_params) {
+		if (old_key.empty() || old_key == new_key) {
+			continue;
+		}
+		if (!param_alt.empty()) {
+			param_alt += '|';
+		}
+		param_alt += RE2::QuoteMeta(old_key) + "|" + RE2::QuoteMeta(new_key);
+	}
+
+	for (const auto &[old_key, new_key] : renamed_params) {
+		if (old_key.empty() || old_key == new_key) {
+			continue;
+		}
+		std::string escaped_old = RE2::QuoteMeta(old_key);
+		if (old_key.find('_') != std::string::npos) {
+			// Multi-word snake_case parameter names (e.g. start_line) are unambiguous identifiers
+			RE2::GlobalReplace(&result, "\\b" + escaped_old + "\\b", new_key);
+		} else {
+			// Single-word parameter names (e.g. tail, length, start, end): replace when quoted/backticked
+			// or when part of a slash-delimited parameter list (e.g. start/end/length).
+			RE2::GlobalReplace(&result, "(['\"`])" + escaped_old + "(['\"`])", "\\1" + new_key + "\\2");
+			if (!param_alt.empty()) {
+				RE2::GlobalReplace(&result, "\\b" + escaped_old + "/(" + param_alt + ")\\b",
+						   new_key + "/\\1");
+				RE2::GlobalReplace(&result, "\\b(" + param_alt + ")/" + escaped_old + "\\b",
+						   "\\1/" + new_key);
+			}
+		}
+	}
+
+	return result;
+}
+
+nlohmann::json turbomcp_server::transform_schema_for_identity(const nlohmann::json &schema, mcp_tool_identity identity,
+							      std::string *in_out_tool_description)
 {
 	if (identity == mcp_tool_identity::turbostar || !schema.is_object()) {
 		return schema;
@@ -98,34 +149,84 @@ nlohmann::json turbomcp_server::transform_schema_for_identity(const nlohmann::js
 		return std::string(key);
 	};
 
-	nlohmann::json out = schema;
-	if (out.contains("properties") && out["properties"].is_object()) {
-		nlohmann::json new_props = nlohmann::json::object();
-		for (auto it = out["properties"].begin(); it != out["properties"].end(); ++it) {
-			nlohmann::json prop_schema = it.value();
-			if (prop_schema.is_object()) {
-				if (prop_schema.contains("properties")) {
-					prop_schema = transform_schema_for_identity(prop_schema, identity);
-				}
-				if (prop_schema.contains("items") && prop_schema["items"].is_object()) {
-					prop_schema["items"] = transform_schema_for_identity(prop_schema["items"], identity);
-				}
-			}
-			new_props[format_key(it.key())] = std::move(prop_schema);
+	std::vector<std::pair<std::string, std::string>> renamed_params;
+	auto record_rename = [&renamed_params](const std::string &old_key, const std::string &new_key) {
+		if (old_key == new_key) {
+			return;
 		}
-		out["properties"] = std::move(new_props);
-	}
+		for (const auto &[existing_old, _] : renamed_params) {
+			if (existing_old == old_key) {
+				return;
+			}
+		}
+		renamed_params.emplace_back(old_key, new_key);
+	};
 
-	if (out.contains("required") && out["required"].is_array()) {
-		nlohmann::json new_req = nlohmann::json::array();
-		for (const auto &req_item : out["required"]) {
-			if (req_item.is_string()) {
-				new_req.push_back(format_key(req_item.get<std::string>()));
-			} else {
-				new_req.push_back(req_item);
+	auto rename_keys_recursive = [&](auto &self, const nlohmann::json &node) -> nlohmann::json {
+		if (!node.is_object()) {
+			return node;
+		}
+		nlohmann::json out = node;
+		if (out.contains("properties") && out["properties"].is_object()) {
+			nlohmann::json new_props = nlohmann::json::object();
+			for (auto it = out["properties"].begin(); it != out["properties"].end(); ++it) {
+				nlohmann::json prop_schema = it.value();
+				if (prop_schema.is_object()) {
+					if (prop_schema.contains("properties")) {
+						prop_schema = self(self, prop_schema);
+					}
+					if (prop_schema.contains("items") && prop_schema["items"].is_object()) {
+						prop_schema["items"] = self(self, prop_schema["items"]);
+					}
+				}
+				std::string mapped_key = format_key(it.key());
+				record_rename(it.key(), mapped_key);
+				new_props[mapped_key] = std::move(prop_schema);
+			}
+			out["properties"] = std::move(new_props);
+		}
+
+		if (out.contains("required") && out["required"].is_array()) {
+			nlohmann::json new_req = nlohmann::json::array();
+			for (const auto &req_item : out["required"]) {
+				if (req_item.is_string()) {
+					std::string old_req = req_item.get<std::string>();
+					std::string mapped_req = format_key(old_req);
+					record_rename(old_req, mapped_req);
+					new_req.push_back(std::move(mapped_req));
+				} else {
+					new_req.push_back(req_item);
+				}
+			}
+			out["required"] = std::move(new_req);
+		}
+		return out;
+	};
+
+	nlohmann::json out = rename_keys_recursive(rename_keys_recursive, schema);
+
+	auto rewrite_descriptions_recursive = [&](auto &self, nlohmann::json &node) -> void {
+		if (!node.is_object()) {
+			return;
+		}
+		if (node.contains("description") && node["description"].is_string()) {
+			node["description"] = transform_description_for_identity(
+				node["description"].get<std::string>(), renamed_params);
+		}
+		if (node.contains("properties") && node["properties"].is_object()) {
+			for (auto it = node["properties"].begin(); it != node["properties"].end(); ++it) {
+				self(self, it.value());
 			}
 		}
-		out["required"] = std::move(new_req);
+		if (node.contains("items") && node["items"].is_object()) {
+			self(self, node["items"]);
+		}
+	};
+
+	rewrite_descriptions_recursive(rewrite_descriptions_recursive, out);
+
+	if (in_out_tool_description != nullptr && !in_out_tool_description->empty()) {
+		*in_out_tool_description = transform_description_for_identity(*in_out_tool_description, renamed_params);
 	}
 
 	return out;
@@ -304,8 +405,10 @@ nlohmann::json turbomcp_server::handle_tools_list(const nlohmann::json &id)
 
 		nlohmann::json tool_item;
 		tool_item["name"] = val->get_name();
-		tool_item["description"] = val->get_description();
-		tool_item["inputSchema"] = transform_schema_for_identity(val->get_parameters_schema(), tool_identity_);
+		std::string tool_desc = val->get_description();
+		tool_item["inputSchema"] =
+			transform_schema_for_identity(val->get_parameters_schema(), tool_identity_, &tool_desc);
+		tool_item["description"] = std::move(tool_desc);
 
 		tools_array.push_back(tool_item);
 	}

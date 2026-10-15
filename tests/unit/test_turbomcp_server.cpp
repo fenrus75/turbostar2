@@ -183,6 +183,30 @@ int main()
 		assert(!read_schema_agy["properties"].contains("start_line"));
 		assert(read_schema_agy["required"][0] == "Path");
 
+		// Verify descriptions inside fs_read_lines are rewritten to PascalCase for parameter references
+		// while preserving normal English prose ("lines", "start", "end").
+		std::string len_desc_agy = read_schema_agy["properties"]["Length"]["description"].get<std::string>();
+		assert(len_desc_agy.find("'StartLine'") != std::string::npos);
+		assert(len_desc_agy.find("'EndLine'") != std::string::npos);
+		assert(len_desc_agy.find("'Tail'") != std::string::npos);
+		assert(len_desc_agy.find("number of lines to read") != std::string::npos);
+
+		std::string tail_desc_agy = read_schema_agy["properties"]["Tail"]["description"].get<std::string>();
+		assert(tail_desc_agy.find("'StartLine'") != std::string::npos);
+		assert(tail_desc_agy.find("'EndLine'") != std::string::npos);
+		assert(tail_desc_agy.find("'Length'") != std::string::npos);
+		assert(tail_desc_agy.find("from the end of the file") != std::string::npos);
+
+		// Verify slash-delimited parameter references in fs_batch_read ("start/end/length" -> "Start/End/Length")
+		// while preserving file path examples ("src/mime.h").
+		nlohmann::json batch_schema_agy = find_tool_schema(list_agy, "fs_batch_read");
+		std::string batch_tail_desc =
+			batch_schema_agy["properties"]["Items"]["items"]["properties"]["Tail"]["description"].get<std::string>();
+		assert(batch_tail_desc.find("Start/End/Length") != std::string::npos);
+		std::string batch_path_desc =
+			batch_schema_agy["properties"]["Items"]["items"]["properties"]["Path"]["description"].get<std::string>();
+		assert(batch_path_desc.find("src/mime.h") != std::string::npos);
+
 		nlohmann::json multi_schema_agy = find_tool_schema(list_agy, "fs_multi_replace_content");
 		assert(multi_schema_agy["properties"].contains("Chunks"));
 		assert(multi_schema_agy["properties"]["Chunks"]["items"]["properties"].contains("TargetContent"));
@@ -203,6 +227,11 @@ int main()
 		assert(read_schema_cop["properties"].contains("endLine"));
 		assert(!read_schema_cop["properties"].contains("start_line"));
 		assert(read_schema_cop["required"][0] == "path");
+
+		std::string len_desc_cop = read_schema_cop["properties"]["length"]["description"].get<std::string>();
+		assert(len_desc_cop.find("'startLine'") != std::string::npos);
+		assert(len_desc_cop.find("'endLine'") != std::string::npos);
+		assert(len_desc_cop.find("'tail'") != std::string::npos);
 
 		nlohmann::json multi_schema_cop = find_tool_schema(list_cop, "fs_multi_replace_content");
 		assert(multi_schema_cop["properties"].contains("chunks"));

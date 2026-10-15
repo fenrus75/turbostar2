@@ -14,8 +14,9 @@ The `turbomcp_server` class (`src/mcp/turbomcp_server.h`, `src/mcp/turbomcp_serv
     - `antigravity`: Google style `PascalCase` (`StartLine`, `TargetContent`).
     - `copilot`: Microsoft style `camelCase` (`startLine`, `targetContent`).
   - Automatically detects the active identity from `params.clientInfo.name` during the MCP `initialize` handshake unless explicitly overridden via `--mcp-identity` or `TURBOSTAR_MCP_IDENTITY`.
+  - Rewrites parameter references inside both property-level and top-level tool `description` fields using `RE2` (`transform_description_for_identity`) restricted to the exact `(old_key, new_key)` pairs renamed for that tool (replacing multi-word `snake_case` tokens on word boundaries and single-word parameter tokens when quoted/backticked or in slash-separated parameter lists, avoiding false positives on normal English prose).
   - Inbound `tools/call` requests accept all parameter naming styles and aliases regardless of the advertised identity via `tool_validator::normalize_object_args`.
 
 ## Lessons Learned
 - **Retaining `tool_context` Across Calls**: Preserving a single `mcp_context_` member across `tools/call` invocations is essential so stateful counters (like `edit_sequence_counter`) and active tool family registrations persist for the duration of the MCP session.
-- **Advertising Host-Matched Parameter Casing**: Keeping canonical tool names (`fs_read_lines`, `fs_replace_content`, etc.) while transforming advertised parameter schemas to match the host harness's native casing convention (`PascalCase` for Antigravity, `camelCase` for Copilot) reduces LLM friction without causing tool-name collisions or documentation drift.
+- **Advertising Host-Matched Parameter Casing & Descriptions**: Keeping canonical tool names (`fs_read_lines`, `fs_replace_content`, etc.) while transforming advertised parameter schemas and description text to match the host harness's native casing convention (`PascalCase` for Antigravity, `camelCase` for Copilot) reduces LLM friction without causing tool-name collisions or documentation drift.
