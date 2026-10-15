@@ -7,6 +7,9 @@
 namespace mime
 {
 
+// Looks up canonical MIME type based on file extension (case-insensitive).
+// Accepts either full filenames ("document.pdf") or bare extensions ("pdf").
+// Returns "application/octet-stream" if the extension is unknown or missing.
 std::string from_extension(std::string_view filename_or_ext)
 {
 	size_t dot = filename_or_ext.find_last_of('.');
@@ -43,6 +46,10 @@ std::string from_extension(std::string_view filename_or_ext)
 	return "application/octet-stream";
 }
 
+// Detects Markdown code block language tag from a file path or extension.
+// Strips directory paths and leading dots, and lowercases the extension.
+// Returns canonical language tag (e.g. "cpp", "python", "javascript", "rust", "go", "csharp", etc.)
+// or empty string if unknown.
 std::string get_language_from_extension(std::string_view path)
 {
 	std::filesystem::path p(path);
@@ -98,6 +105,9 @@ std::string get_language_from_extension(std::string_view path)
 	if (ext == "java") {
 		return "java";
 	}
+	if (ext == "cs") {
+		return "csharp";
+	}
 	if (ext == "rb") {
 		return "ruby";
 	}
@@ -122,6 +132,11 @@ std::string get_language_from_extension(std::string_view path)
 	return "";
 }
 
+// Detects the MIME type of a file on disk.
+// 1. If path is a URI ("scheme://"), skips disk inspection and falls back to extension.
+// 2. Uses libmagic (magic_file with MAGIC_MIME_TYPE) if file exists on disk and libmagic is enabled.
+// 3. Fallback: reads initial 8 bytes and inspects binary signature via detect_buffer_type.
+// 4. Fallback: inspects filename extension via from_extension.
 std::string detect_file_type(std::string_view path)
 {
 	std::string path_str(path);
@@ -158,8 +173,13 @@ std::string detect_file_type(std::string_view path)
 	return from_extension(path);
 }
 
+// Detects the MIME type of an in-memory data buffer.
+// 1. Uses libmagic (magic_buffer with MAGIC_MIME_TYPE) if available.
+// 2. Fallback: inspects binary signature bytes for common formats (PNG, JPEG, GIF).
+// 3. Returns "application/octet-stream" if type cannot be determined.
 std::string detect_buffer_type(std::string_view buffer)
 {
+	(void)buffer;
 #ifdef HAS_LIBMAGIC
 	magic_t magic = magic_open(MAGIC_MIME_TYPE);
 	if (magic) {
@@ -192,6 +212,8 @@ std::string detect_buffer_type(std::string_view buffer)
 	return "application/octet-stream";
 }
 
+// Detects a human-readable description of a file on disk (e.g. "PDF document, version 1.4").
+// Uses libmagic (magic_file with MAGIC_NONE) if available. Returns "Unknown file type" on failure.
 std::string detect_file_description([[maybe_unused]] std::string_view path)
 {
 	std::string path_str(path);
@@ -214,6 +236,8 @@ std::string detect_file_description([[maybe_unused]] std::string_view path)
 	return "Unknown file type";
 }
 
+// Detects a human-readable description of an in-memory buffer.
+// Uses libmagic (magic_buffer with MAGIC_NONE) if available. Returns "Unknown file type" on failure.
 std::string detect_buffer_description([[maybe_unused]] std::string_view buffer)
 {
 #ifdef HAS_LIBMAGIC
@@ -233,16 +257,27 @@ std::string detect_buffer_description([[maybe_unused]] std::string_view buffer)
 	return "Unknown file type";
 }
 
+// Determines if a source file or extension uses C-style curly brace '{' '}' blocks.
+// Accepts full file paths ("src/main.cpp"), dot-extensions (".cpp"), or bare extensions ("cpp").
+// Returns true for languages using curly braces (C, C++, C#, Java, Rust, Go, JS, TS, PHP, Swift, Kotlin, CSS, JSON, etc.),
+// and false for indentation- or keyword-based languages (Python, Bash, Ruby, YAML, TOML, Markdown, etc.).
 bool uses_brace_syntax(std::string_view path_or_ext)
 {
 	std::string lang = get_language_from_extension(path_or_ext);
 	if (lang == "cpp" || lang == "javascript" || lang == "rust" || lang == "go" ||
-	    lang == "java" || lang == "css" || lang == "json" || lang == "xml" || lang == "html") {
+	    lang == "java" || lang == "csharp" || lang == "css" || lang == "json" ||
+	    lang == "xml" || lang == "html" || lang == "php" || lang == "verilog" ||
+	    lang == "systemverilog") {
 		return true;
 	}
 
 	std::filesystem::path p(path_or_ext);
 	std::string ext = p.extension().string();
+	if (ext.empty() && !path_or_ext.empty()) {
+		if (path_or_ext.find('/') == std::string_view::npos && path_or_ext.find('\\') == std::string_view::npos) {
+			ext = std::string(path_or_ext);
+		}
+	}
 	if (!ext.empty() && ext.front() == '.') {
 		ext.erase(0, 1);
 	}
