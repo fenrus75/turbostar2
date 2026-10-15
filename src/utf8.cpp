@@ -374,7 +374,7 @@ std::string to_snake_case(std::string_view s)
 		if (std::isupper(uc)) {
 			if (!res.empty() && res.back() != '_') {
 				unsigned char prev = static_cast<unsigned char>(s[i - 1]);
-				bool prev_is_lower_or_digit = std::islower(prev) || std::isdigit(prev);
+				bool prev_is_lower_or_digit = std::islower(prev) || std::isdigit(prev) || (prev >= 0x80);
 				bool prev_is_upper = std::isupper(prev) != 0;
 				bool next_is_lower =
 				    (i + 1 < s.size()) && (std::islower(static_cast<unsigned char>(s[i + 1])) != 0);
@@ -412,6 +412,9 @@ std::string to_PascalCase(std::string_view s)
 		if (capitalize_next && std::islower(uc)) {
 			res.push_back(static_cast<char>(std::toupper(uc)));
 		} else {
+			if (capitalize_next && !res.empty() && res.back() != '_') {
+				res.push_back('_');
+			}
 			res.push_back(c);
 		}
 		capitalize_next = false;

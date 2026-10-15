@@ -161,6 +161,73 @@ void test_utf8_trim_and_terminal_sanitize()
 	assert(!detected.empty());
 }
 
+void check_case_idempotence(std::string_view s)
+{
+	std::string snake = utf8::to_snake_case(s);
+	if (snake.empty()) {
+		assert(utf8::to_PascalCase(snake).empty());
+		assert(utf8::to_camelCase(snake).empty());
+		assert(utf8::to_snake_case(snake).empty());
+		return;
+	}
+
+	using conv_fn = std::string (*)(std::string_view);
+	struct op_entry {
+		std::string_view name;
+		conv_fn fn;
+	};
+
+	const std::vector<op_entry> ops = {
+		{"snake", utf8::to_snake_case},
+		{"pascal", utf8::to_PascalCase},
+		{"camel", utf8::to_camelCase},
+	};
+
+	// Depth 1: to_snake_case(op1(snake)) == snake
+	for (const auto &op1 : ops) {
+		std::string mid = op1.fn(snake);
+		std::string back = utf8::to_snake_case(mid);
+		if (back != snake) {
+			std::cerr << "Depth 1 case idempotence failure for input '" << s << "':\n"
+				  << "  snake: '" << snake << "'\n"
+				  << "  after " << op1.name << ": '" << mid << "'\n"
+				  << "  back to snake: '" << back << "' (expected '" << snake << "')\n";
+			assert(back == snake);
+		}
+	}
+
+	// Depth 2: to_snake_case(op2(op1(snake))) == snake
+	for (const auto &op1 : ops) {
+		for (const auto &op2 : ops) {
+			std::string mid1 = op1.fn(snake);
+			std::string mid2 = op2.fn(mid1);
+			std::string back = utf8::to_snake_case(mid2);
+			if (back != snake) {
+				std::cerr << "Depth 2 case idempotence failure for input '" << s << "':\n"
+					  << "  snake: '" << snake << "'\n"
+					  << "  after " << op1.name << ": '" << mid1 << "'\n"
+					  << "  after " << op2.name << ": '" << mid2 << "'\n"
+					  << "  back to snake: '" << back << "' (expected '" << snake << "')\n";
+				assert(back == snake);
+			}
+		}
+	}
+
+	// PascalCase idempotence: to_PascalCase(to_PascalCase(snake)) == to_PascalCase(snake)
+	// and to_PascalCase(to_camelCase(snake)) == to_PascalCase(snake)
+	std::string pascal = utf8::to_PascalCase(snake);
+	assert(utf8::to_PascalCase(pascal) == pascal);
+	assert(utf8::to_PascalCase(utf8::to_camelCase(snake)) == pascal);
+	assert(utf8::to_pascal_case(snake) == pascal);
+
+	// camelCase idempotence: to_camelCase(to_camelCase(snake)) == to_camelCase(snake)
+	// and to_camelCase(to_PascalCase(snake)) == to_camelCase(snake)
+	std::string camel = utf8::to_camelCase(snake);
+	assert(utf8::to_camelCase(camel) == camel);
+	assert(utf8::to_camelCase(utf8::to_PascalCase(snake)) == camel);
+	assert(utf8::to_camel_case(snake) == camel);
+}
+
 void test_utf8_case_conversions()
 {
 	// to_snake_case
@@ -216,6 +283,181 @@ void test_utf8_case_conversions()
 	utf8::set_active_param_case_style(utf8::param_case_style::snake_case);
 }
 
+void test_utf8_case_idempotence()
+{
+	const std::vector<std::string_view> test_strings = {
+		"",
+		"a",
+		"x",
+		"word",
+		"Word",
+		"start_line",
+		"StartLine",
+		"startLine",
+		"end_line",
+		"EndLine",
+		"endLine",
+		"path",
+		"Path",
+		"file_path",
+		"target_content",
+		"TargetContent",
+		"targetContent",
+		"replacement_content",
+		"ReplacementContent",
+		"replacementContent",
+		"wait_ms_before_async",
+		"WaitMsBeforeAsync",
+		"waitMsBeforeAsync",
+		"is_daemon",
+		"IsDaemon",
+		"isDaemon",
+		"already_snake_case",
+		"camelCase",
+		"PascalCase",
+		"kebab-case-string",
+		"SCREAMING_SNAKE_CASE",
+		"with spaces in name",
+		"mix-of_delimiters and_styles",
+		"multi_word_long_identifier_name",
+		"alpha_beta_gamma_delta",
+		// Acronyms
+		"URL",
+		"url",
+		"Url",
+		"HTMLParser",
+		"html_parser",
+		"HtmlParser",
+		"htmlParser",
+		// Numbers
+		"utf8_char",
+		"utf8Char",
+		"Utf8Char",
+		"v2_engine",
+		"v2Engine",
+		"V2Engine",
+		"run3_step",
+		"run3Step",
+		"Run3Step",
+		"sha256_hash",
+		"sha256Hash",
+		"Sha256Hash",
+		"base64_encode",
+		"base64Encode",
+		"Base64Encode",
+		"mp3_player",
+		"mp3Player",
+		"Mp3Player",
+		"iso9660_filesystem",
+		"iso9660Filesystem",
+		"Iso9660Filesystem",
+		"plan9_protocol",
+		"plan9Protocol",
+		"Plan9Protocol",
+		"h264_decoder",
+		"h264Decoder",
+		"H264Decoder",
+		"model3_revision2",
+		"model3Revision2",
+		"Model3Revision2",
+		"item1",
+		"Item1",
+		"test123",
+		"Test123",
+		"step1_alpha",
+		"alpha2_beta3",
+		"arg0",
+		"param1",
+		"layer2_norm",
+		"win32_api",
+		"ipv4_address",
+		"ipv6_socket",
+		"oauth2_token",
+		"bfloat16_tensor",
+		"fp32_precision",
+		"int64_value",
+		"uint32_count",
+		"tls13_handshake",
+		"http2_stream",
+		"ec2_instance",
+		"s3_bucket",
+		"x86_64",
+		"step_1",
+		"item_2_prop_3",
+		"level_99_boss",
+		"p50_latency",
+		"p99_latency",
+		"v1_2_3",
+		"port_8080",
+		"width_1080p",
+		"3d_model",
+		"2_factor_auth",
+		"100_percent",
+		"4k_video",
+		"pos0_x",
+		"pos1_y",
+		"pos2_z",
+		"PascalCaseWithNumbers123",
+		"camelCaseWithNumbers456",
+		"UPPER_CASE_WITH_NUMBERS_789",
+		// UTF-8
+		"café_au_lait",
+		"café_noir",
+		"münchen_airport",
+		"résumé_data",
+		"déjà_vu",
+		"cliché_story",
+		"fiancé_status",
+		"attaché_case",
+		"naïve_bayes",
+		"año_nuevo",
+		"château_rouge",
+		"über_file",
+		"crème_brûlée_flavor",
+		"piñata_hit",
+		"jalapeño_pepper",
+		"habanero_sauce",
+		"façade_pattern",
+		"coöperation_token",
+		"grüße_aus_berlin",
+		"smörgåsbord_table",
+		"vis-à-vis_mode",
+		"maître_d",
+		"zaïre_currency",
+		"côte_d_azur",
+		"håkan_name",
+		"são_paulo",
+		"brötchen_bread",
+		"tête_à_tête",
+		"hello_world_螃蟹",
+		"螃蟹_item",
+		"漢字_name",
+		"東京_tower",
+		"русский_текст",
+		"привет_мир",
+		"москва_сити",
+		"greek_Ω_omega",
+		"math_π_pi",
+		"alpha_β_gamma",
+		"crab_🦀_test",
+		"rocket_🚀_launch",
+		"sparkles_✨_effect",
+		"fire_🔥_event",
+		// Delimiter edge cases
+		"multiple__consecutive___underscores",
+		"trailing_underscore_",
+		"_leading_underscore",
+		"__leading_and_trailing__",
+		"mixed---delimiters___test",
+		"kebab-and-snake_case-mix",
+		"spaces  and   tabs",
+	};
+
+	for (std::string_view s : test_strings) {
+		check_case_idempotence(s);
+	}
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -230,6 +472,7 @@ int main()
 	test_utf8_sanitize_and_validation();
 	test_utf8_trim_and_terminal_sanitize();
 	test_utf8_case_conversions();
+	test_utf8_case_idempotence();
 
 	std::cout << "All UTF-8 unit tests passed!" << std::endl;
 	return 0;
