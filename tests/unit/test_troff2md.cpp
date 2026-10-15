@@ -258,6 +258,170 @@ int main()
 		assert(md_unhandled.find("CUSTOM_MACRO") != std::string::npos);
 	}
 
+	// Test 17: .ft font macro, .SS subsections, .I italics, .RI alternating
+	{
+		std::string input =
+		    ".SH SECTION\n"
+		    ".SS SUBSECTION\n"
+		    ".ft B\n"
+		    "Bold text via ft\n"
+		    ".ft 3\n"
+		    "Bold text via ft 3\n"
+		    ".ft I\n"
+		    "Italic text via ft\n"
+		    ".ft 2\n"
+		    "Italic text via ft 2\n"
+		    ".ft R\n"
+		    "Roman text\n"
+		    ".ft unknown\n"
+		    ".I italic_word\n"
+		    ".RI \"roman_word\" \"italic_word\"\n"
+		    ".EX\n"
+		    ".I italic_in_fill\n"
+		    ".EE\n";
+		std::string md = troff2md(input);
+		assert(md.find("## SUBSECTION") != std::string::npos);
+		assert(md.find("*italic_word*") != std::string::npos);
+		assert(md.find("italic_in_fill") != std::string::npos);
+	}
+
+	// Test 18: .TQ tags, empty/bullet .IP, input without trailing newline
+	{
+		std::string input =
+		    ".SH COMMANDS\n"
+		    ".TP\n"
+		    ".B tag1\n"
+		    ".TQ\n"
+		    ".B tag2\n"
+		    "Description for both tags\n"
+		    ".IP\n"
+		    "Paragraph item without tag\n"
+		    ".IP \"\"\n"
+		    "Paragraph item with empty tag\n"
+		    "No trailing newline";
+		std::string md = troff2md(input);
+		assert(md.find("tag1") != std::string::npos);
+		assert(md.find("tag2") != std::string::npos);
+		assert(md.find("Description for both tags") != std::string::npos);
+		assert(md.find("No trailing newline") != std::string::npos);
+	}
+
+	// Test 19: Relative indent deltas (.RS +4, .RS -2, .in +4, .in -2, .in 0) and stack underflow
+	{
+		std::string input =
+		    ".RS +4\n"
+		    "Indented by 4\n"
+		    ".RS -2\n"
+		    "Indented by 2\n"
+		    ".in +6\n"
+		    "Indented by 8\n"
+		    ".in -4\n"
+		    "Indented by 4\n"
+		    ".in 0\n"
+		    "Indented by 0\n"
+		    ".RE\n"
+		    ".RE\n"
+		    ".RE\n" // Stack underflow test
+		    "Back to margin\n";
+		std::string md = troff2md(input);
+		assert(!md.empty());
+		assert(md.find("Back to margin") != std::string::npos);
+	}
+
+	// Test 20: Complex tables, T{ multiline cells, separators, comments, uneven columns
+	{
+		std::string input =
+		    ".TS\n"
+		    "allbox tab(;);\n"
+		    "l c r.\n"
+		    "Col1;Col2;Col3\n"
+		    "_\n"
+		    "=\n"
+		    ".\\\" table comment\n"
+		    "val1;val2;val3;\n" // Trailing delimiter creates empty col
+		    "short_row\n"        // Fewer columns than header
+		    "data with | pipe;col2;col3\n"
+		    ".TE\n"
+		    ".TS\n"
+		    "l l.\n"
+		    "Multi\tT{\n"        // Complex table with T{
+		    "line\n"
+		    "cell\n"
+		    "T}\n"
+		    ".TE\n";
+		std::string md = troff2md(input);
+		assert(!md.empty());
+		assert(md.find("Col1") != std::string::npos);
+		assert(md.find("short_row") != std::string::npos);
+		assert(md.find("Multi") != std::string::npos);
+	}
+
+	// Test 21: Malicious & fuzzing robustness
+	{
+		// Deeply nested .RS (exceeding max depth 64)
+		std::string deep_nesting;
+		for (int i = 0; i < 100; ++i) {
+			deep_nesting += ".RS +2\nText level\n";
+		}
+		for (int i = 0; i < 120; ++i) {
+			deep_nesting += ".RE\n";
+		}
+		std::string md_deep = troff2md(deep_nesting);
+		assert(!md_deep.empty());
+
+		// Enormous indent deltas
+		std::string extreme_in = ".in +99999999\nExtreme text\n.in -99999999\nReset text\n.RS +99999999\nDeep\n.RS -99999999\n";
+		std::string md_extreme = troff2md(extreme_in);
+		assert(!md_extreme.empty());
+
+		// Truncated escape sequences
+		std::string trunc_escapes =
+		    "Trailing single backslash \\\n"
+		    "Trailing font escape \\f\n"
+		    "Trailing font paren \\f(\n"
+		    "Trailing font bracket \\f[\n"
+		    "Trailing size \\s+\n"
+		    "Trailing string \\*\n"
+		    "Trailing char \\(\n";
+		std::string md_escapes = troff2md(trunc_escapes);
+		assert(!md_escapes.empty());
+
+		// Unterminated table at EOF
+		std::string unclosed_ts =
+		    ".SH TABLE\n"
+		    ".TS\n"
+		    "l r.\n"
+		    "a\tb\n"
+		    "c\td\n";
+		std::string md_ts = troff2md(unclosed_ts);
+		assert(md_ts.find("a") != std::string::npos);
+		assert(md_ts.find("d") != std::string::npos);
+	}
+
+	// Test 22: Macros in literal blocks (.EX), complex table separators, solitary macros
+	{
+		std::string input =
+		    ".EX\n"
+		    ".B bold_in_literal\n"
+		    ".BR alt1 alt2\n"
+		    ".EE\n"
+		    ".IP\n"
+		    "Item under empty IP\n"
+		    ".TS\n"
+		    "l l.\n"
+		    "_\n"
+		    ".\\\" comment in tab table\n"
+		    "Row1\tT{\n"
+		    "cell\n"
+		    "T}\n"
+		    ".TE\n"
+		    ".PP\n"
+		    "Paragraph after empty macro\n";
+		std::string md = troff2md(input);
+		assert(!md.empty());
+		assert(md.find("bold_in_literal") != std::string::npos);
+		assert(md.find("alt1") != std::string::npos);
+	}
+
 	std::cout << "troff2md unit test passed!\n";
-	return 0;
 }
