@@ -252,14 +252,6 @@ static std::vector<std::string> wrap_cell(const std::string &content, size_t tar
 			current_byte_len = last_space_byte_idx - line_start;
 		}
 
-		if (current_byte_len == 0) {
-			unsigned char c = static_cast<unsigned char>(content[byte_idx]);
-			size_t clen = utf8::char_len(c);
-			if (byte_idx + clen > text_len) {
-				clen = text_len - byte_idx;
-			}
-			current_byte_len = clen;
-		}
 
 		lines.push_back(content.substr(line_start, current_byte_len));
 		byte_idx = line_start + current_byte_len;
@@ -269,9 +261,6 @@ static std::vector<std::string> wrap_cell(const std::string &content, size_t tar
 		}
 	}
 
-	if (lines.empty()) {
-		lines.push_back("");
-	}
 	return lines;
 }
 
@@ -391,9 +380,6 @@ std::vector<std::string> table_aligner::align_table_block(const std::vector<std:
 					}
 				}
 
-				if (max_w == 0) {
-					break;
-				}
 				col_widths[widest_idx]--;
 			}
 		}

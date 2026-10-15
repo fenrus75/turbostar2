@@ -452,6 +452,95 @@ void test_align_all_tables()
 	assert(wrapped_res.find("at Google DeepMind") != std::string::npos);
 }
 
+void test_markdown_utils_coverage()
+{
+	// 1. Trailing backslash in tokenize_row
+	std::vector<std::string> trailing_bs = {
+		"| h1 | h2 \\",
+		"|---|---|",
+		"| a | b |"
+	};
+	auto aligned_bs = table_aligner::align_table_block(trailing_bs);
+	assert(!aligned_bs.empty());
+
+	// 2. Truncated/incomplete UTF-8 sequence in formatted_display_width and wrap_cell
+	std::string bad_utf8_cell = "test\xC2";
+	std::vector<std::string> bad_utf8_table = {
+		"| Header | Other |",
+		"|---|---|",
+		"| " + bad_utf8_cell + " | normal |"
+	};
+	auto aligned_bad_utf8 = table_aligner::align_table_block(bad_utf8_table);
+	assert(!aligned_bad_utf8.empty());
+	std::vector<std::string> bad_utf8_wrap_table = {
+		"| Header | Other |",
+		"|---|---|",
+		"| This is a very long string ending with a truncated character \xC2 | normal |"
+	};
+	align_options wrap_opt;
+	wrap_opt.word_wrap = true;
+	auto aligned_bad_utf8_wrap = table_aligner::align_table_block(bad_utf8_wrap_table, wrap_opt, 0, 15);
+	assert(!aligned_bad_utf8_wrap.empty());
+
+	// 3. Truncate cell with target_width <= 3 without wrapping
+	align_options opts_nowrap;
+	opts_nowrap.word_wrap = false;
+	opts_nowrap.padding = 0;
+	std::vector<std::string> long_cells = {
+		"| LongHeader1 | LongHeader2 |",
+		"|---|---|",
+		"| SomeLongData | AnotherLongData |"
+	};
+	auto truncated_small = table_aligner::align_table_block(long_cells, opts_nowrap, 0, 7);
+	assert(!truncated_small.empty());
+
+	// 4. Wrap cell with target_width == 0 and extreme max_width
+	align_options opts_wrap;
+	opts_wrap.word_wrap = true;
+	auto extreme_shrink = table_aligner::align_table_block(long_cells, opts_wrap, 0, 2);
+	assert(!extreme_shrink.empty());
+
+	// 5. Wrap cell with inline formatting: **bold** and `code`
+	std::vector<std::string> formatted_wrap_table = {
+		"| Column A | Column B |",
+		"|---|---|",
+		"| **This is bold text** that will be wrapped | Here is `some inline code` that spans across lines |"
+	};
+	auto wrapped_formatted = table_aligner::align_table_block(formatted_wrap_table, opts_wrap, 0, 30);
+	assert(!wrapped_formatted.empty());
+
+	// 6. Wrap cell with wide character that exceeds target_width (triggers fallback current_byte_len == 0 -> clen)
+	std::vector<std::string> cjk_table = {
+		"| A | B |",
+		"|---|---|",
+		"| 世界你好 | data |"
+	};
+	auto cjk_wrapped = table_aligner::align_table_block(cjk_table, opts_wrap, 0, 8);
+	assert(!cjk_wrapped.empty());
+
+	// 7. UTF-8 frames with word_wrap = false
+	align_options opts_framed_nowrap;
+	opts_framed_nowrap.use_utf8_frames = true;
+	opts_framed_nowrap.word_wrap = false;
+	std::vector<std::string> frame_table = {
+		"| Col 1 | Col 2 |",
+		"|---|---|",
+		"| Value A | Value B |"
+	};
+	auto framed_nowrap_res = table_aligner::align_table_block(frame_table, opts_framed_nowrap);
+	assert(!framed_nowrap_res.empty());
+	assert(framed_nowrap_res[0].find("┌") != std::string::npos);
+	assert(framed_nowrap_res.back().find("└") != std::string::npos);
+	bool has_pipe = false;
+	for (const auto &line : framed_nowrap_res) {
+		if (line.find("│") != std::string::npos) {
+			has_pipe = true;
+			break;
+		}
+	}
+	assert(has_pipe);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -468,7 +557,7 @@ int main()
 	test_align_table_formatted();
 	test_display_width();
 	test_align_all_tables();
+	test_markdown_utils_coverage();
 
 	std::cout << "All markdown_utils unit tests passed successfully!\n";
-	return 0;
 }
