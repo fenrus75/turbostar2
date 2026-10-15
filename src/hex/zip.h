@@ -35,6 +35,7 @@ class zip_hex_highlighter : public hex_highlighter
 
 	const std::vector<parsed_local_file> &get_local_files() const { return local_files_; }
 	const std::vector<parsed_cd_entry> &get_cd_entries() const { return cd_entries_; }
+	size_t get_eocd_offset() const { return eocd_offset_; }
 
       private:
 	std::vector<parsed_local_file> local_files_;

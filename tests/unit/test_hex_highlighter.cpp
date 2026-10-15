@@ -486,6 +486,74 @@ void test_zip_highlighter()
 	assert(inf.type == hex_semantic_type::file_header);
 	assert(inf.description.find("setup.py") != std::string::npos);
 
+	// Verify compressed data range query
+	for (const auto &lf : files) {
+		if (lf.filename == "setup.py" && lf.compressed_size > 0) {
+			highlight_info data_inf = hl.get_info(data, lf.data_offset + 1);
+			assert(data_inf.type == hex_semantic_type::data_section);
+			assert(data_inf.description.find("ZIP Compressed Data: setup.py") != std::string::npos);
+		}
+	}
+
+	// Verify Central Directory Entry query
+	const auto &cd_entries = hl.get_cd_entries();
+	assert(!cd_entries.empty());
+	highlight_info cd_inf = hl.get_info(data, cd_entries[0].offset + 2);
+	assert(cd_inf.type == hex_semantic_type::sect_header);
+	assert(cd_inf.description.find("ZIP Central Directory Entry:") != std::string::npos);
+
+	// Verify EOCD query
+	assert(hl.get_eocd_offset() > 0);
+	highlight_info eocd_inf = hl.get_info(data, hl.get_eocd_offset());
+	assert(eocd_inf.type == hex_semantic_type::magic);
+	assert(eocd_inf.description.find("ZIP End of Central Directory Record") != std::string::npos);
+
+	// Query beyond end or unmapped region
+	highlight_info normal_inf = hl.get_info(data, data.size() + 100);
+	assert(normal_inf.type == hex_semantic_type::normal);
+
+	// Verify structure summary
+	std::string summary = hl.get_structure_summary();
+	assert(summary.find("### Archive Contents (ZIP)") != std::string::npos);
+	assert(summary.find("setup.py") != std::string::npos);
+
+	// Verify symbol offset navigation
+	size_t next_sym = hl.get_next_symbol_offset(0);
+	assert(next_sym > 0);
+	assert(hl.get_next_symbol_offset(hl.get_eocd_offset()) == hl.get_eocd_offset());
+
+	// Nonexistent file lookup
+	assert(!hl.get_offset_by_name("nonexistent_dummy_file.txt").has_value());
+
+	// Unparsed highlighter handling
+	zip_hex_highlighter unparsed;
+	assert(unparsed.get_structure_summary().empty());
+	assert(!unparsed.get_offset_by_name("setup.py").has_value());
+	assert(unparsed.get_next_symbol_offset(50) == 50);
+	assert(!unparsed.can_handle(std::vector<uint8_t>(10, 0)));
+	assert(!unparsed.parse(std::vector<uint8_t>(10, 0)));
+
+	// Fallback sequential parser testing (ZIP payload without EOCD record)
+	if (hl.get_eocd_offset() > 0) {
+		std::vector<uint8_t> no_eocd(data.begin(), data.begin() + hl.get_eocd_offset());
+		zip_hex_highlighter fallback_hl;
+		assert(fallback_hl.can_handle(no_eocd));
+		assert(fallback_hl.parse(no_eocd));
+		assert(!fallback_hl.get_local_files().empty());
+		assert(!fallback_hl.get_cd_entries().empty());
+
+		// Fallback parser encountering an EOCD record in the sequential stream (EOCD beyond 65k reverse scan)
+		std::vector<uint8_t> with_eocd = no_eocd;
+		with_eocd.push_back(0x50); with_eocd.push_back(0x4B);
+		with_eocd.push_back(0x05); with_eocd.push_back(0x06);
+		for (int i = 0; i < 20; ++i) with_eocd.push_back(0);
+		// Append >65557 bytes of trailing data so reverse scan doesn't find it
+		with_eocd.resize(with_eocd.size() + 70000, 0);
+		zip_hex_highlighter fallback_hl2;
+		assert(fallback_hl2.parse(with_eocd));
+		assert(fallback_hl2.get_eocd_offset() == no_eocd.size());
+	}
+
 	// Test auto-detect registry
 	auto &reg = hex_highlighter_registry::get_instance();
 	auto detected = reg.detect_highlighter(data);
@@ -550,19 +618,58 @@ void test_tar_highlighter()
 	data[260] = 'a';
 	data[261] = 'r';
 
+	// ustar prefix at offset 345: "archive/subdir"
+	std::string prefix = "archive/subdir";
+	for (size_t i = 0; i < prefix.length(); ++i) {
+		data[345 + i] = static_cast<uint8_t>(prefix[i]);
+	}
+
 	tar_hex_highlighter hl;
 	assert(hl.can_handle(data) == true);
 	bool success = hl.parse(data);
 	assert(success == true);
 	assert(hl.get_files().size() == 1);
-	assert(hl.get_files()[0].filename == "hello.txt");
+	assert(hl.get_files()[0].filename == "archive/subdir/hello.txt");
 	assert(hl.get_files()[0].size == 12);
 
+	// Test header info
 	highlight_info inf = hl.get_info(data, 10);
 	assert(inf.type == hex_semantic_type::file_header);
+	assert(inf.description.find("archive/subdir/hello.txt") != std::string::npos);
 
-	assert(hl.get_offset_by_name("hello.txt").has_value());
+	// Test data section info
+	highlight_info data_inf = hl.get_info(data, 512 + 4);
+	assert(data_inf.type == hex_semantic_type::data_section);
+	assert(data_inf.description.find("TAR File Data: archive/subdir/hello.txt") != std::string::npos);
+
+	// Test EOD (End of Archive marker) info at offset 1024
+	highlight_info eod_inf = hl.get_info(data, 1024);
+	assert(eod_inf.type == hex_semantic_type::magic);
+	assert(eod_inf.description.find("TAR End of Archive Marker") != std::string::npos);
+
+	// Test out of range offset
+	highlight_info out_inf = hl.get_info(data, 2048);
+	assert(out_inf.type == hex_semantic_type::normal);
+
+	// Test structure summary
+	std::string summary = hl.get_structure_summary();
+	assert(summary.find("### Archive Contents (TAR)") != std::string::npos);
+	assert(summary.find("archive/subdir/hello.txt") != std::string::npos);
+
+	// Test symbol offset navigation
+	assert(hl.get_offset_by_name("archive/subdir/hello.txt").has_value());
+	assert(!hl.get_offset_by_name("nonexistent.txt").has_value());
 	assert(hl.get_next_symbol_offset(0) > 0);
+	assert(hl.get_next_symbol_offset(512) == 1024);
+	assert(hl.get_next_symbol_offset(1024) == 1024);
+
+	// Test unparsed highlighter behavior
+	tar_hex_highlighter unparsed;
+	assert(unparsed.get_structure_summary().empty());
+	assert(!unparsed.get_offset_by_name("hello.txt").has_value());
+	assert(unparsed.get_next_symbol_offset(50) == 50);
+	assert(!unparsed.can_handle(std::vector<uint8_t>(200, 0)));
+	assert(!unparsed.parse(std::vector<uint8_t>(200, 0)));
 
 	auto &reg = hex_highlighter_registry::get_instance();
 	auto detected = reg.detect_highlighter(data);
