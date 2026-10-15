@@ -104,6 +104,7 @@ bool pdf_hex_highlighter::parse(std::span<const uint8_t> data) {
 		if (in_obj && in_stream && match_str(i, "endstream")) {
 			current_obj.stream_size = (i + 9) - current_obj.stream_offset;
 			in_stream = false;
+			i += 8;
 		}
 		if (in_obj && !in_stream && match_str(i, "endobj")) {
 			current_obj.size = (i + 6) - current_obj.offset;
@@ -183,10 +184,7 @@ highlight_info pdf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 	}
 
 	auto clamp_and_return = [&](hex_semantic_type type, std::string_view desc, size_t start, size_t size) -> highlight_info {
-		if (start >= data.size()) {
-			return {hex_semantic_type::normal, "", 0, 0};
-		}
-		size_t clamped_size = std::min(size, data.size() - start);
+		size_t clamped_size = (start < data.size()) ? std::min(size, data.size() - start) : 0;
 		return {type, std::string(desc), start, clamped_size};
 	};
 

@@ -587,12 +587,149 @@ void test_pdf_highlighter()
 	assert(hl.can_handle(data) == true);
 	bool success = hl.parse(data);
 	assert(success == true);
+	assert(!hl.get_objects().empty());
 
 	auto &reg = hex_highlighter_registry::get_instance();
 	auto detected = reg.detect_highlighter(data);
 	assert(detected != nullptr);
 	assert(dynamic_cast<pdf_hex_highlighter *>(detected.get()) != nullptr);
 	std::cout << "Real PDF file test passed!" << std::endl;
+
+	// Synthetic PDF test with stream and multiple objects to verify stream/endstream parsing
+	std::string synthetic_pdf =
+		"%PDF-1.4\n"
+		"1 0 obj\n"
+		"<< /Length 5 >>\n"
+		"stream\n"
+		"hello\n"
+		"endstream\n"
+		"endobj\n"
+		"2 0 obj\n"
+		"<< /Type /Catalog >>\n"
+		"endobj\n"
+		"3   0   obj\n"
+		"<< >>\n"
+		"endobj\n"
+		"xref\n"
+		"0 4\n"
+		"0000000000 65535 f \n"
+		"0000000009 00000 n \n"
+		"0000000055 00000 n \n"
+		"0000000090 00000 n \n"
+		"trailer\n"
+		"<< /Size 4 >>\n"
+		"startxref\n"
+		"140\n"
+		"%%EOF\n";
+
+	std::vector<uint8_t> syn_data(synthetic_pdf.begin(), synthetic_pdf.end());
+	pdf_hex_highlighter syn_hl;
+	assert(syn_hl.can_handle(syn_data));
+	assert(syn_hl.parse(syn_data));
+	assert(syn_hl.get_objects().size() == 3);
+	assert(syn_hl.get_objects()[0].id == "1 0");
+	assert(syn_hl.get_objects()[1].id == "2 0");
+	assert(syn_hl.get_objects()[2].id == "3 0");
+
+	// Unparsed highlighter edge cases
+	pdf_hex_highlighter unparsed_hl;
+	assert(!unparsed_hl.can_handle({}));
+	assert(!unparsed_hl.parse({}));
+	assert(!unparsed_hl.can_handle(std::vector<uint8_t>{'%', 'P', 'D'}));
+	assert(!unparsed_hl.can_handle(std::vector<uint8_t>{'n', 'o', 't', 'p', 'd', 'f', '!', '!'}));
+	assert(unparsed_hl.get_info({}, 0).type == hex_semantic_type::normal);
+	assert(!unparsed_hl.get_offset_by_name("1 0").has_value());
+	assert(unparsed_hl.get_structure_summary().empty());
+
+	// Semantic info queries on synthetic PDF
+	auto info_header = syn_hl.get_info(syn_data, 0);
+	assert(info_header.type == hex_semantic_type::file_header);
+	assert(info_header.description.find("PDF Header") != std::string::npos);
+
+	const auto &objs = syn_hl.get_objects();
+	auto info_obj = syn_hl.get_info(syn_data, objs[0].offset);
+	assert(info_obj.type == hex_semantic_type::prog_header);
+	assert(info_obj.description.find("PDF Object") != std::string::npos);
+
+	auto info_stream = syn_hl.get_info(syn_data, objs[0].stream_offset + 1);
+	assert(info_stream.type == hex_semantic_type::data_section);
+	assert(info_stream.description.find("PDF Object Stream") != std::string::npos);
+
+	const auto &xrefs = syn_hl.get_xrefs();
+	assert(!xrefs.empty());
+	auto info_xref = syn_hl.get_info(syn_data, xrefs[0].offset);
+	assert(info_xref.type == hex_semantic_type::sect_header);
+	assert(info_xref.description.find("Cross-Reference") != std::string::npos);
+
+	const auto &trailers = syn_hl.get_trailers();
+	assert(!trailers.empty());
+	auto info_trailer = syn_hl.get_info(syn_data, trailers[0].offset);
+	assert(info_trailer.type == hex_semantic_type::magic);
+	assert(info_trailer.description.find("Trailer") != std::string::npos);
+
+	// Out of bounds and clamped offset
+	auto info_oob = syn_hl.get_info(syn_data, syn_data.size() + 100);
+	assert(info_oob.type == hex_semantic_type::normal);
+	// Truncated buffer passed to get_info clamping header size
+	std::vector<uint8_t> truncated_buffer(syn_data.begin(), syn_data.begin() + 4);
+	auto info_clamp = syn_hl.get_info(truncated_buffer, 2);
+	assert(info_clamp.type == hex_semantic_type::file_header);
+	assert(info_clamp.range_size == 4);
+	// Navigation & lookup
+	size_t cur = 0;
+	size_t next = syn_hl.get_next_symbol_offset(cur);
+	assert(next > cur);
+	while (next > cur) {
+		cur = next;
+		next = syn_hl.get_next_symbol_offset(cur);
+	}
+	assert(next == cur); // Reached the end, returns current_offset
+
+	auto off_id = syn_hl.get_offset_by_name("1 0");
+	assert(off_id.has_value() && *off_id == objs[0].offset);
+	auto off_id_obj = syn_hl.get_offset_by_name("1 0 obj");
+	assert(off_id_obj.has_value() && *off_id_obj == objs[0].offset);
+	auto off_missing = syn_hl.get_offset_by_name("99 0");
+	assert(!off_missing.has_value());
+
+	// Summary
+	std::string summary = syn_hl.get_structure_summary();
+	assert(summary.find("### PDF Structural Overview") != std::string::npos);
+	assert(summary.find("PDF Objects") != std::string::npos);
+	assert(summary.find("Cross-Reference (XRef) Tables") != std::string::npos);
+	assert(summary.find("Trailers") != std::string::npos);
+
+	// Direct xref -> startxref without trailer keyword
+	std::string pdf_no_trailer =
+		"%PDF-1.4\n"
+		"1 0 obj\n"
+		"<< >>\n"
+		"endobj\n"
+		"xref\n"
+		"0 1\n"
+		"0000000000 65535 f \n"
+		"startxref\n"
+		"35\n"
+		"%%EOF\n";
+	std::vector<uint8_t> no_trailer_data(pdf_no_trailer.begin(), pdf_no_trailer.end());
+	pdf_hex_highlighter no_tr_hl;
+	assert(no_tr_hl.can_handle(no_trailer_data));
+	assert(no_tr_hl.parse(no_trailer_data));
+	assert(!no_tr_hl.get_xrefs().empty());
+
+	// Truncated at xref
+	std::string pdf_trunc_xref = "%PDF-1.4\nxref\n0 1\n0000000000 65535 f \n";
+	std::vector<uint8_t> trunc_xref_data(pdf_trunc_xref.begin(), pdf_trunc_xref.end());
+	pdf_hex_highlighter trunc_xr_hl;
+	assert(trunc_xr_hl.parse(trunc_xref_data));
+	assert(!trunc_xr_hl.get_xrefs().empty());
+
+	// Truncated at trailer
+	std::string pdf_trunc_tr = "%PDF-1.4\ntrailer\n<< /Size 1 >>\n";
+	std::vector<uint8_t> trunc_tr_data(pdf_trunc_tr.begin(), pdf_trunc_tr.end());
+	pdf_hex_highlighter trunc_tr_hl;
+	assert(trunc_tr_hl.parse(trunc_tr_data));
+	assert(!trunc_tr_hl.get_trailers().empty());
 }
 
 void test_tar_highlighter()

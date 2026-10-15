@@ -37,6 +37,10 @@ class pdf_hex_highlighter : public hex_highlighter
 	std::string get_structure_summary() const override;
 	bool prefer_summary_in_tmp_only() const override { return true; }
 
+	const std::vector<pdf_object> &get_objects() const { return objects_; }
+	const std::vector<pdf_xref> &get_xrefs() const { return xrefs_; }
+	const std::vector<pdf_trailer> &get_trailers() const { return trailers_; }
+
       private:
 	std::vector<pdf_object> objects_;
 	std::vector<pdf_xref> xrefs_;
