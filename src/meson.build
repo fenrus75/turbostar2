@@ -12,6 +12,7 @@ core_sources = files(
   'document_format.cpp',
   'document_highlight.cpp',
   'fs_utils.cpp',
+  'fs_basics.cpp',
   'mime.cpp',
   'config_manager.cpp',
   'session_manager.cpp',
