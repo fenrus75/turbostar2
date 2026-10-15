@@ -153,10 +153,7 @@ highlight_info jpeg_hex_highlighter::get_info(std::span<const uint8_t> data, siz
 		return {};
 
 	auto clamp_and_return = [&data](highlight_info info) -> highlight_info {
-		if (info.range_start >= data.size()) {
-			return {hex_semantic_type::normal, "", 0, 0};
-		}
-		if (info.range_size > data.size() - info.range_start) {
+		if (info.range_start < data.size() && info.range_size > data.size() - info.range_start) {
 			info.range_size = data.size() - info.range_start;
 		}
 		return info;

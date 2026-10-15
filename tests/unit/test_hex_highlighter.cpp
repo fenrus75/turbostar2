@@ -404,6 +404,78 @@ void test_jpeg_highlighter()
 	auto detected = reg.detect_highlighter(data);
 	assert(detected != nullptr);
 	assert(dynamic_cast<jpeg_hex_highlighter *>(detected.get()) != nullptr);
+
+	// Unparsed highlighter edge cases
+	jpeg_hex_highlighter unparsed_hl;
+	assert(!unparsed_hl.can_handle({}));
+	assert(!unparsed_hl.can_handle(std::vector<uint8_t>{0xFF, 0xD8}));
+	assert(!unparsed_hl.can_handle(std::vector<uint8_t>{'n', 'o', 't', 'j', 'p', 'g'}));
+	assert(!unparsed_hl.parse({}));
+	assert(unparsed_hl.get_info({}, 0).type == hex_semantic_type::normal);
+	assert(!unparsed_hl.get_offset_by_name("SOI").has_value());
+	assert(unparsed_hl.get_structure_summary().empty());
+
+	// Unmapped offset in valid JPEG
+	assert(hl.get_info(data, 35).type == hex_semantic_type::normal);
+
+	// Navigation & lookup
+	size_t cur = 0;
+	size_t next = hl.get_next_symbol_offset(cur);
+	assert(next > cur);
+	while (next > cur) {
+		cur = next;
+		next = hl.get_next_symbol_offset(cur);
+	}
+	assert(next == cur);
+
+	auto off_soi = hl.get_offset_by_name("SOI");
+	assert(off_soi.has_value() && *off_soi == 0);
+	auto off_app0 = hl.get_offset_by_name("APP0");
+	assert(off_app0.has_value() && *off_app0 == 2);
+	auto off_missing = hl.get_offset_by_name("MISSING");
+	assert(!off_missing.has_value());
+
+	// Structure summary
+	std::string summary = hl.get_structure_summary();
+	assert(summary.find("### JPEG Structural Overview") != std::string::npos);
+	assert(summary.find("APP0") != std::string::npos);
+
+	// Additional marker types: DRI (0xDD), COM (0xFE), RST0 (0xD0), TEM (0x01), unknown (0xF0), units=2 (Pixels/cm)
+	std::vector<uint8_t> extra_jpeg = {
+		0xFF, 0xD8,                         // SOI
+		0xFF, 0xE0, 0x00, 0x10,             // APP0 length 16
+		'J', 'F', 'I', 'F', 0x00,           // JFIF
+		0x01, 0x01,                         // ver 1.1
+		0x02,                               // units = 2 (Pixels/cm)
+		0x00, 0x28, 0x00, 0x28,             // 40 x 40 density
+		0x00, 0x00,                         // thumb
+		0xFF, 0xDD, 0x00, 0x04, 0x00, 0x04, // DRI length 4
+		0xFF, 0xFE, 0x00, 0x07, 'C', 'O', 'M', 0x00, 0x00, // COM length 7
+		0xFF, 0xD0,                         // RST0 standalone
+		0xFF, 0x01,                         // TEM standalone
+		0xFF, 0xF0, 0x00, 0x03, 0x42,       // Unknown marker 0xF0 length 3
+		0xFF, 0xD9                          // EOI
+	};
+	jpeg_hex_highlighter extra_hl;
+	assert(extra_hl.can_handle(extra_jpeg));
+	assert(extra_hl.parse(extra_jpeg));
+	auto info_cm = extra_hl.get_info(extra_jpeg, 2);
+	assert(info_cm.description.find("Pixels/cm") != std::string::npos);
+	auto off_dri = extra_hl.get_offset_by_name("DRI");
+	assert(off_dri.has_value());
+	auto off_com = extra_hl.get_offset_by_name("COM");
+	assert(off_com.has_value());
+	auto off_rst0 = extra_hl.get_offset_by_name("RST0");
+	assert(off_rst0.has_value());
+	auto off_tem = extra_hl.get_offset_by_name("TEM");
+	assert(off_tem.has_value());
+	auto off_unk = extra_hl.get_offset_by_name("Marker 0xF0");
+	assert(off_unk.has_value());
+
+	// Truncated buffer right after marker (offset + 2 > data.size())
+	std::vector<uint8_t> trunc_jpeg = {0xFF, 0xD8, 0xFF, 0xE1, 0x00};
+	jpeg_hex_highlighter trunc_hl;
+	assert(trunc_hl.parse(trunc_jpeg));
 }
 
 void test_real_jpeg_file()
