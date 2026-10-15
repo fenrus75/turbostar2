@@ -168,6 +168,21 @@ int main()
 
 			assert(res.find("1:") != std::string::npos);
 		}
+
+		// 7e: PascalCase and camelCase nested range parameters (StartLine/EndLine, startLine/endLine)
+		{
+			nlohmann::json args = {
+			    {"Items",
+			     {{{"Path", poem_path}, {"StartLine", 1}, {"EndLine", 2}},
+			      {{"filePath", poem_path}, {"startLine", 1}, {"endLine", 2}}}}};
+			std::string raw_res = registry.execute_tool("fs_batch_read", args.dump(), ctx);
+			std::string res = fs_utils::unwrap_prompt_untrusted_data_tag(raw_res);
+
+			assert(res.find("(lines 1-2)") != std::string::npos);
+			assert(res.find("1:") != std::string::npos);
+			assert(res.find("2:") != std::string::npos);
+			assert(res.find("9:") == std::string::npos);
+		}
 	}
 
 	// Test 8: Error handling for invalid parameters

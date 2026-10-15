@@ -54,27 +54,28 @@ class fs_batch_read_validator : public agentlib::tool_validator
 			     {{"type", "string"},
 			      {"enum", nlohmann::json::array({"lines", "symbol", "class_context"})},
 			      {"description", "Type of read operation: 'lines' (default), 'symbol', or 'class_context'."}}},
-			    {"start",
+			    {"start_line",
 			     {{"type", "integer"},
 			      {"description", "1-based line number to start reading from (for type 'lines'). Default 1."}}},
-			    {"end",
+			    {"end_line",
 			     {{"type", "integer"},
 			      {"description", "1-based line number to end reading at (inclusive, for type 'lines')."}}},
 			    {"length",
 			     {{"type", "integer"},
-			      {"description", "Number of lines to read starting from 'start'. Mutually exclusive with 'end' and 'tail'."}}},
+			      {"description",
+			       "Number of lines to read starting from 'start_line'. Mutually exclusive with 'end_line' and 'tail'."}}},
 			    {"tail",
 			     {{"type", "integer"},
 			      {"description",
-			       "Number of lines to read from the end of the file. Mutually exclusive with start/end/length."}}},
+			       "Number of lines to read from the end of the file. Mutually exclusive with start_line/end_line/length."}}},
 			    {"name",
 			     {{"type", "string"},
 			      {"description", "Symbol name (for type 'symbol') or optional class name (for type 'class_context')."}}}}},
 			  {"required", nlohmann::json::array({"path"})}}}}},
 		      {"path", {{"type", "string"}}},
 		      {"type", {{"type", "string"}, {"enum", nlohmann::json::array({"lines", "symbol", "class_context"})}}},
-		      {"start", {{"type", "integer"}}},
-		      {"end", {{"type", "integer"}}},
+		      {"start_line", {{"type", "integer"}}},
+		      {"end_line", {{"type", "integer"}}},
 		      {"length", {{"type", "integer"}}},
 		      {"tail", {{"type", "integer"}}},
 		      {"name", {{"type", "string"}}}}},
@@ -83,8 +84,8 @@ class fs_batch_read_validator : public agentlib::tool_validator
 
 	std::unordered_map<std::string, std::string> get_custom_parameter_aliases() const override
 	{
-		return {{"files", "items"},  {"chunks", "items"}, {"requests", "items"},  {"start_line", "start"},
-			{"end_line", "end"}, {"symbol", "name"},  {"symbol_name", "name"}};
+		return {{"files", "items"}, {"chunks", "items"}, {"requests", "items"},   {"start", "start_line"},
+			{"end", "end_line"}, {"symbol", "name"}, {"symbol_name", "name"}};
 	}
 
 	std::vector<agentlib::tool_example> get_examples() const override

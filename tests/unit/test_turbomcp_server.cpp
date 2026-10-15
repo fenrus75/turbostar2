@@ -197,15 +197,24 @@ int main()
 		assert(tail_desc_agy.find("'Length'") != std::string::npos);
 		assert(tail_desc_agy.find("from the end of the file") != std::string::npos);
 
-		// Verify slash-delimited parameter references in fs_batch_read ("start/end/length" -> "Start/End/Length")
+		// Verify slash-delimited parameter references in fs_batch_read ("start_line/end_line/length" -> "StartLine/EndLine/Length")
 		// while preserving file path examples ("src/mime.h").
 		nlohmann::json batch_schema_agy = find_tool_schema(list_agy, "fs_batch_read");
+		assert(batch_schema_agy["properties"]["Items"]["items"]["properties"].contains("StartLine"));
+		assert(batch_schema_agy["properties"]["Items"]["items"]["properties"].contains("EndLine"));
 		std::string batch_tail_desc =
 			batch_schema_agy["properties"]["Items"]["items"]["properties"]["Tail"]["description"].get<std::string>();
-		assert(batch_tail_desc.find("Start/End/Length") != std::string::npos);
+		assert(batch_tail_desc.find("StartLine/EndLine/Length") != std::string::npos);
 		std::string batch_path_desc =
 			batch_schema_agy["properties"]["Items"]["items"]["properties"]["Path"]["description"].get<std::string>();
 		assert(batch_path_desc.find("src/mime.h") != std::string::npos);
+
+		// Also verify single-word slash-delimited parameter list ("start/end/length")
+		std::vector<std::pair<std::string, std::string>> single_word_renames = {
+			{"start", "Start"}, {"end", "End"}, {"length", "Length"}};
+		assert(agentlib::turbomcp_server::transform_description_for_identity(
+			       "Mutually exclusive with start/end/length in src/mime.h.", single_word_renames) ==
+		       "Mutually exclusive with Start/End/Length in src/mime.h.");
 
 		nlohmann::json multi_schema_agy = find_tool_schema(list_agy, "fs_multi_replace_content");
 		assert(multi_schema_agy["properties"].contains("Chunks"));

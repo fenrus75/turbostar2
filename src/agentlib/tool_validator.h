@@ -290,6 +290,8 @@ class tool_validator
 		register_aliases("chunks", {"replacement_chunks", "edits", "replacements"});
 		register_aliases("start_line", {"start", "from_line", "begin_line", "offset_line"});
 		register_aliases("end_line", {"end", "to_line", "stop_line"});
+		register_aliases("start", {"start_line", "from_line", "begin_line", "offset_line"});
+		register_aliases("end", {"end_line", "to_line", "stop_line"});
 		register_aliases("url", {"uri", "link", "web_url"});
 		register_aliases("async", {"is_async", "run_in_background", "is_background", "background"});
 		register_aliases("case_insensitive", {"ignore_case"});
@@ -321,8 +323,11 @@ class tool_validator
 			}
 		}
 
-		// 2. Merge tool-specific custom aliases (overrides default if any collision):
+		// 2. Merge tool-specific custom aliases (only when target canonical key exists in this schema level):
 		for (const auto &[alias, canonical] : custom_aliases) {
+			if (!props.contains(canonical)) {
+				continue;
+			}
 			alias_map[alias] = canonical;
 			std::string snake_alias = utf8::to_snake_case(alias);
 			if (!props.contains(snake_alias)) {
@@ -367,12 +372,15 @@ class tool_validator
 			}
 			const auto &prop_schema = it.value();
 			if (args[prop_key].is_object() && prop_schema.contains("properties")) {
-				normalize_object_args(args[prop_key], prop_schema);
+				normalize_object_args(args[prop_key], prop_schema, custom_aliases);
+			} else if (args[prop_key].is_object() && prop_schema.contains("items") &&
+				   prop_schema["items"].is_object() && prop_schema["items"].contains("properties")) {
+				normalize_object_args(args[prop_key], prop_schema["items"], custom_aliases);
 			} else if (args[prop_key].is_array() && prop_schema.contains("items") &&
 				   prop_schema["items"].is_object() && prop_schema["items"].contains("properties")) {
 				for (auto &elem : args[prop_key]) {
 					if (elem.is_object()) {
-						normalize_object_args(elem, prop_schema["items"]);
+						normalize_object_args(elem, prop_schema["items"], custom_aliases);
 					}
 				}
 			}
