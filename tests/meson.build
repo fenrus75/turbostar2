@@ -1328,8 +1328,8 @@ test_utf8 = executable('test_utf8',
 test('unit_utf8', test_utf8, suite: 'editor')
 
 test_mime = executable('test_mime',
-  ['unit/test_mime.cpp', '../src/mime.cpp', '../src/utf8.cpp'],
-  dependencies : [magic_dep],
+  ['unit/test_mime.cpp'],
+  dependencies : [core_dep, magic_dep],
   include_directories: inc)
 test('unit_mime', test_mime, suite: 'editor')
 

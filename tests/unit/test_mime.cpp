@@ -274,6 +274,16 @@ void test_mime_detect_buffer_type()
 	std::string rand_bin = "\x01\x02\x03\x04\x05\x06\x07\x08"s;
 	assert(mime::detect_buffer_type(rand_bin) == "application/octet-stream");
 
+	// Truncated signature buffer tests (fallback inspection)
+	std::string trunc_png = "\x89PNG"s;
+	assert(mime::detect_buffer_type(trunc_png) == "image/png");
+
+	std::string trunc_jpg = "\xff\xd8\x00\x00"s;
+	assert(mime::detect_buffer_type(trunc_jpg) == "image/jpeg");
+
+	std::string trunc_gif = "GIF8"s;
+	assert(mime::detect_buffer_type(trunc_gif) == "image/gif");
+
 #ifdef HAS_LIBMAGIC
 	// Plain text buffer via libmagic
 	std::string text_buf = "Hello, this is a plain text file content without binary bytes.\n";
@@ -361,6 +371,33 @@ void test_mime_detect_file_type()
 	}
 	assert(mime::detect_file_type(tmp_jpeg.string()) == "image/jpeg");
 	std::filesystem::remove(tmp_jpeg);
+
+	// Truncated PNG signature without extension
+	std::filesystem::path tmp_trunc = std::filesystem::temp_directory_path() / "test_mime_trunc_no_ext";
+	{
+		std::ofstream out(tmp_trunc, std::ios::binary);
+		out.write("\x89PNG", 4);
+	}
+	assert(mime::detect_file_type(tmp_trunc.string()) == "image/png");
+	std::filesystem::remove(tmp_trunc);
+
+	// Truncated unknown binary bytes with .txt extension fallback
+	std::filesystem::path tmp_bin_txt = std::filesystem::temp_directory_path() / "test_mime_unknown.txt";
+	{
+		std::ofstream out(tmp_bin_txt, std::ios::binary);
+		out.write("\x01\x02\x03\x04", 4);
+	}
+	assert(mime::detect_file_type(tmp_bin_txt.string()) == "text/plain");
+	std::filesystem::remove(tmp_bin_txt);
+
+	// Truncated unknown binary bytes with no extension
+	std::filesystem::path tmp_unknown = std::filesystem::temp_directory_path() / "test_mime_unknown_no_ext";
+	{
+		std::ofstream out(tmp_unknown, std::ios::binary);
+		out.write("\x01\x02\x03\x04", 4);
+	}
+	assert(mime::detect_file_type(tmp_unknown.string()) == "application/octet-stream");
+	std::filesystem::remove(tmp_unknown);
 }
 
 void test_mime_detect_file_description()

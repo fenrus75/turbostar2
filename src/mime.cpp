@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <memory>
 
 namespace mime
 {
@@ -132,70 +133,73 @@ std::string get_language_from_extension(std::string_view path)
 	return "";
 }
 
+#ifdef HAS_LIBMAGIC
+namespace
+{
+struct magic_cleanup {
+	void operator()(magic_t m) const noexcept
+	{
+		if (m) {
+			magic_close(m);
+		}
+	}
+};
+using scoped_magic = std::unique_ptr<struct magic_set, magic_cleanup>;
+} // namespace
+#endif
+
 // Detects the MIME type of a file on disk.
 // 1. If path is a URI ("scheme://"), skips disk inspection and falls back to extension.
-// 2. Uses libmagic (magic_file with MAGIC_MIME_TYPE) if file exists on disk and libmagic is enabled.
-// 3. Fallback: reads initial 8 bytes and inspects binary signature via detect_buffer_type.
+// 2. Inspects binary signature bytes for common formats via detect_buffer_type.
+// 3. Uses libmagic (magic_file with MAGIC_MIME_TYPE) if file exists on disk and libmagic is enabled.
 // 4. Fallback: inspects filename extension via from_extension.
 std::string detect_file_type(std::string_view path)
 {
 	std::string path_str(path);
-#ifdef HAS_LIBMAGIC
-	if (path.find("://") == std::string_view::npos && std::filesystem::exists(path_str)) {
-		magic_t magic = magic_open(MAGIC_MIME_TYPE);
-		if (magic) {
-			if (magic_load(magic, nullptr) == 0) {
-				const char *mime = magic_file(magic, path_str.c_str());
-				if (mime) {
-					std::string res(mime);
-					magic_close(magic);
-					return res;
-				}
-			}
-			magic_close(magic);
-		}
+	if (path.find("://") != std::string_view::npos) {
+		return from_extension(path);
 	}
-#endif
-	// Fallback to reading first 8 bytes and checking signatures via detect_buffer_type
+
+	// 1. Inspect initial bytes for known binary signatures
 	std::ifstream file(path_str, std::ios::binary);
 	if (file) {
 		char sig[8] = {0};
 		file.read(sig, 8);
 		std::streamsize bytes_read = file.gcount();
-		if (bytes_read > 0) {
+		if (bytes_read >= 4) {
 			std::string sig_mime = detect_buffer_type(std::string_view(sig, bytes_read));
-			if (sig_mime != "application/octet-stream") {
+			if (sig_mime != "application/octet-stream" && sig_mime != "application/x-empty" && sig_mime != "text/plain") {
 				return sig_mime;
 			}
 		}
 	}
 
+#ifdef HAS_LIBMAGIC
+	if (std::filesystem::exists(path_str)) {
+		scoped_magic magic(magic_open(MAGIC_MIME_TYPE));
+		if (magic && magic_load(magic.get(), nullptr) == 0) {
+			if (const char *mime = magic_file(magic.get(), path_str.c_str())) {
+				std::string res(mime);
+				if (res != "application/octet-stream") {
+					return res;
+				}
+			}
+		}
+	}
+#endif
+
 	return from_extension(path);
 }
 
 // Detects the MIME type of an in-memory data buffer.
-// 1. Uses libmagic (magic_buffer with MAGIC_MIME_TYPE) if available.
-// 2. Fallback: inspects binary signature bytes for common formats (PNG, JPEG, GIF).
+// 1. Inspects binary signature bytes for common image formats (PNG, JPEG, GIF).
+// 2. Uses libmagic (magic_buffer with MAGIC_MIME_TYPE) if available.
 // 3. Returns "application/octet-stream" if type cannot be determined.
 std::string detect_buffer_type(std::string_view buffer)
 {
 	(void)buffer;
-#ifdef HAS_LIBMAGIC
-	magic_t magic = magic_open(MAGIC_MIME_TYPE);
-	if (magic) {
-		if (magic_load(magic, nullptr) == 0) {
-			const char *mime = magic_buffer(magic, buffer.data(), buffer.size());
-			if (mime) {
-				std::string res(mime);
-				magic_close(magic);
-				return res;
-			}
-		}
-		magic_close(magic);
-	}
-#endif
 
-	// Fallback to signature bytes for common images
+	// Fast signature check for common images
 	if (buffer.size() >= 4) {
 		const unsigned char *sig = reinterpret_cast<const unsigned char *>(buffer.data());
 		if (sig[0] == 0x89 && sig[1] == 'P' && sig[2] == 'N' && sig[3] == 'G') {
@@ -209,6 +213,16 @@ std::string detect_buffer_type(std::string_view buffer)
 		}
 	}
 
+#ifdef HAS_LIBMAGIC
+	scoped_magic magic(magic_open(MAGIC_MIME_TYPE));
+	if (magic && magic_load(magic.get(), nullptr) == 0) {
+		if (const char *mime = magic_buffer(magic.get(), buffer.data(), buffer.size())) {
+			std::string res(mime);
+			return res;
+		}
+	}
+#endif
+
 	return "application/octet-stream";
 }
 
@@ -219,17 +233,11 @@ std::string detect_file_description([[maybe_unused]] std::string_view path)
 	std::string path_str(path);
 #ifdef HAS_LIBMAGIC
 	if (std::filesystem::exists(path_str)) {
-		magic_t magic = magic_open(MAGIC_NONE);
-		if (magic) {
-			if (magic_load(magic, nullptr) == 0) {
-				const char *desc = magic_file(magic, path_str.c_str());
-				if (desc) {
-					std::string res(desc);
-					magic_close(magic);
-					return res;
-				}
+		scoped_magic magic(magic_open(MAGIC_NONE));
+		if (magic && magic_load(magic.get(), nullptr) == 0) {
+			if (const char *desc = magic_file(magic.get(), path_str.c_str())) {
+				return desc;
 			}
-			magic_close(magic);
 		}
 	}
 #endif
@@ -241,17 +249,11 @@ std::string detect_file_description([[maybe_unused]] std::string_view path)
 std::string detect_buffer_description([[maybe_unused]] std::string_view buffer)
 {
 #ifdef HAS_LIBMAGIC
-	magic_t magic = magic_open(MAGIC_NONE);
-	if (magic) {
-		if (magic_load(magic, nullptr) == 0) {
-			const char *desc = magic_buffer(magic, buffer.data(), buffer.size());
-			if (desc) {
-				std::string res(desc);
-				magic_close(magic);
-				return res;
-			}
+	scoped_magic magic(magic_open(MAGIC_NONE));
+	if (magic && magic_load(magic.get(), nullptr) == 0) {
+		if (const char *desc = magic_buffer(magic.get(), buffer.data(), buffer.size())) {
+			return desc;
 		}
-		magic_close(magic);
 	}
 #endif
 	return "Unknown file type";
