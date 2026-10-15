@@ -511,7 +511,7 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 
 		if (!codemap_rows.empty()) {
 			report << "\n### Codemap Summary\n\n";
-			report << "| path | Symbol | start_line | end_line | lines |\n";
+			report << utf8::format_markdown_table_header("| path | Symbol | start_line | end_line | lines |\n");
 			report << "|---|---|---|---|---|\n";
 			for (const auto &row : codemap_rows) {
 				report << std::format("| `{}` | `{}` | {} | {} | {} |\n", row.rel_path, row.symbol_name, row.start_line,

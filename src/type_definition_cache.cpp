@@ -7,6 +7,7 @@
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "project_manager.h"
+#include "utf8.h"
 
 namespace tools
 {
@@ -338,7 +339,7 @@ std::string type_definition_cache::format_type_definition_table(const std::vecto
 
 	std::stringstream ss;
 	ss << "\n### Type Definitions:\n\n";
-	ss << "| Type | Kind | path | start_line | end_line |\n";
+	ss << utf8::format_markdown_table_header("| Type | Kind | path | start_line | end_line |\n");
 	ss << "| :--- | :--- | :--- | :---: | :---: |\n";
 	for (const auto &t : types) {
 		std::string kind_display = t.kind;

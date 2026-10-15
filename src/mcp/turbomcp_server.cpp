@@ -58,28 +58,42 @@ turbomcp_server::turbomcp_server()
 	start_event_loop();
 }
 
+static void sync_utf8_param_case_style(mcp_tool_identity identity) noexcept
+{
+	switch (identity) {
+	case mcp_tool_identity::antigravity:
+		utf8::set_active_param_case_style(utf8::param_case_style::pascal_case);
+		break;
+	case mcp_tool_identity::copilot:
+		utf8::set_active_param_case_style(utf8::param_case_style::camel_case);
+		break;
+	case mcp_tool_identity::turbostar:
+	default:
+		utf8::set_active_param_case_style(utf8::param_case_style::snake_case);
+		break;
+	}
+}
+
 void turbomcp_server::set_tool_identity(mcp_tool_identity identity) noexcept
 {
 	tool_identity_ = identity;
 	identity_explicitly_set_ = true;
+	sync_utf8_param_case_style(identity);
 }
 
 bool turbomcp_server::set_tool_identity(std::string_view untrusted_identity_name) noexcept
 {
 	std::string clean_id = utf8::to_snake_case(untrusted_identity_name);
 	if (clean_id == "turbostar" || clean_id == "snake_case" || clean_id == "default") {
-		tool_identity_ = mcp_tool_identity::turbostar;
-		identity_explicitly_set_ = true;
+		set_tool_identity(mcp_tool_identity::turbostar);
 		return true;
 	}
 	if (clean_id == "antigravity" || clean_id == "agy" || clean_id == "pascal_case") {
-		tool_identity_ = mcp_tool_identity::antigravity;
-		identity_explicitly_set_ = true;
+		set_tool_identity(mcp_tool_identity::antigravity);
 		return true;
 	}
 	if (clean_id == "copilot" || clean_id == "vscode" || clean_id == "github_copilot" || clean_id == "camel_case") {
-		tool_identity_ = mcp_tool_identity::copilot;
-		identity_explicitly_set_ = true;
+		set_tool_identity(mcp_tool_identity::copilot);
 		return true;
 	}
 	return false;
@@ -362,11 +376,13 @@ nlohmann::json turbomcp_server::handle_initialize(const nlohmann::json &id, cons
 		std::string clean_client = utf8::to_snake_case(untrusted_client_name);
 		if (clean_client.find("antigravity") != std::string::npos || clean_client == "agy") {
 			tool_identity_ = mcp_tool_identity::antigravity;
+			sync_utf8_param_case_style(tool_identity_);
 			event_logger::get_instance().log("turbomcp_server: auto-detected 'antigravity' tool identity from client '{}'",
 							 clean_client);
 		} else if (clean_client.find("copilot") != std::string::npos || clean_client.find("vscode") != std::string::npos ||
 			   clean_client.find("visual_studio") != std::string::npos) {
 			tool_identity_ = mcp_tool_identity::copilot;
+			sync_utf8_param_case_style(tool_identity_);
 			event_logger::get_instance().log("turbomcp_server: auto-detected 'copilot' tool identity from client '{}'",
 							 clean_client);
 		}

@@ -263,6 +263,36 @@ int main()
 			nlohmann::json call_resp = server.handle_request(call_req);
 			assert(!call_resp["result"].value("isError", false));
 		}
+
+		// 5. Verify codemap markdown table column headers follow the active MCP identity
+		{
+			std::string cm_file = "test_mcp_codemap.cpp";
+			{
+				std::ofstream ofs(cm_file);
+				ofs << "int sample_func(int x)\n{\n\treturn x + 1;\n}\n";
+			}
+
+			nlohmann::json codemap_req = {
+				{"jsonrpc", "2.0"},
+				{"id", "call-codemap"},
+				{"method", "tools/call"},
+				{"params", {{"name", "fs_file_codemap"}, {"arguments", {{"Path", cm_file}}}}}};
+			nlohmann::json cm_resp_agy = server.handle_request(codemap_req);
+			std::string text_agy = cm_resp_agy["result"]["content"][0]["text"].get<std::string>();
+			assert(text_agy.find("| Symbol | StartLine | EndLine | Lines |") != std::string::npos);
+
+			server.set_tool_identity(agentlib::mcp_tool_identity::copilot);
+			nlohmann::json cm_resp_cop = server.handle_request(codemap_req);
+			std::string text_cop = cm_resp_cop["result"]["content"][0]["text"].get<std::string>();
+			assert(text_cop.find("| Symbol | startLine | endLine | lines |") != std::string::npos);
+
+			server.set_tool_identity(agentlib::mcp_tool_identity::turbostar);
+			nlohmann::json cm_resp_ts = server.handle_request(codemap_req);
+			std::string text_ts = cm_resp_ts["result"]["content"][0]["text"].get<std::string>();
+			assert(text_ts.find("| Symbol | start_line | end_line | lines |") != std::string::npos);
+
+			std::filesystem::remove(cm_file);
+		}
 	}
 
 	std::cout << "test_turbomcp_server passed!" << std::endl;

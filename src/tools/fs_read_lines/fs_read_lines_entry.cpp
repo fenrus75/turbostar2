@@ -15,6 +15,7 @@
 #include "mime.h"
 #include "type_definition_cache.h"
 #include "type_token_extractor.h"
+#include "utf8.h"
 
 #include "agentlib/document_provider.h"
 #include "agentlib/interactions/action.h"
@@ -668,8 +669,10 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 			auto now = std::chrono::steady_clock::now();
 			if (ctx.last_batch_read_tip_time.time_since_epoch().count() == 0 ||
 			    now - ctx.last_batch_read_tip_time >= std::chrono::minutes(5)) {
-				ss << "\n*Tip: Fetch multiple symbols, line ranges, or class contexts from above in one turn using "
-				      "fs_batch_read(items=[...]).*\n";
+				ss << std::format(
+					"\n*Tip: Fetch multiple symbols, line ranges, or class contexts from above in one turn using "
+					"fs_batch_read({}=[...]).*\n",
+					utf8::format_param_name("items"));
 				ctx.last_batch_read_tip_time = now;
 			}
 		}

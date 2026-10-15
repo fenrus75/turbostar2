@@ -1,4 +1,5 @@
 #include "utf8.h"
+#include <atomic>
 #include <cctype>
 #include <wchar.h>
 #include "mime.h"
@@ -430,6 +431,71 @@ std::string to_camelCase(std::string_view s)
 		}
 	}
 	return pascal;
+}
+
+static std::atomic<param_case_style> g_active_param_case_style{param_case_style::snake_case};
+
+void set_active_param_case_style(param_case_style style) noexcept
+{
+	g_active_param_case_style.store(style, std::memory_order_relaxed);
+}
+
+param_case_style get_active_param_case_style() noexcept
+{
+	return g_active_param_case_style.load(std::memory_order_relaxed);
+}
+
+std::string format_param_name(std::string_view snake_param)
+{
+	switch (get_active_param_case_style()) {
+	case param_case_style::pascal_case:
+		return to_PascalCase(snake_param);
+	case param_case_style::camel_case:
+		return to_camelCase(snake_param);
+	case param_case_style::snake_case:
+	default:
+		return std::string(snake_param);
+	}
+}
+
+std::string format_markdown_table_header(std::string_view header_line)
+{
+	if (get_active_param_case_style() == param_case_style::snake_case) {
+		return std::string(header_line);
+	}
+
+	std::string res;
+	res.reserve(header_line.size() + 8);
+
+	size_t i = 0;
+	while (i < header_line.size()) {
+		unsigned char uc = static_cast<unsigned char>(header_line[i]);
+		if (std::islower(uc)) {
+			size_t start = i;
+			while (i < header_line.size()) {
+				unsigned char cur = static_cast<unsigned char>(header_line[i]);
+				if (!std::isalnum(cur) && cur != '_') {
+					break;
+				}
+				++i;
+			}
+			res.append(format_param_name(header_line.substr(start, i - start)));
+		} else if (std::isalnum(uc) || uc == '_') {
+			while (i < header_line.size()) {
+				unsigned char cur = static_cast<unsigned char>(header_line[i]);
+				if (!std::isalnum(cur) && cur != '_') {
+					break;
+				}
+				res.push_back(header_line[i]);
+				++i;
+			}
+		} else {
+			res.push_back(header_line[i]);
+			++i;
+		}
+	}
+
+	return res;
 }
 
 } // namespace utf8

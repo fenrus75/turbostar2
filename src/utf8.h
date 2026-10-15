@@ -111,4 +111,25 @@ inline std::string to_camel_case(std::string_view s)
 	return to_camelCase(s);
 }
 
+enum class param_case_style {
+	snake_case,  // Canonical turbostar style (e.g. start_line)
+	pascal_case, // Google/Antigravity style (e.g. StartLine)
+	camel_case   // Microsoft/Copilot style (e.g. startLine)
+};
+
+void set_active_param_case_style(param_case_style style) noexcept;
+param_case_style get_active_param_case_style() noexcept;
+
+/**
+ * @brief Formats a canonical snake_case parameter name according to the active parameter case style.
+ */
+std::string format_param_name(std::string_view snake_param);
+
+/**
+ * @brief Formats a markdown table header line (e.g. "| Symbol | start_line | end_line | lines |\n")
+ * by converting lowercase-starting parameter column names into the active parameter case style
+ * while preserving capitalized column titles (e.g. Symbol, Type, Kind).
+ */
+std::string format_markdown_table_header(std::string_view header_line);
+
 } // namespace utf8

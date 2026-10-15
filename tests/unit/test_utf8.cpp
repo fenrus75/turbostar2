@@ -193,6 +193,27 @@ void test_utf8_case_conversions()
 	assert(utf8::to_camelCase("startLine") == "startLine");
 	assert(utf8::to_camelCase("wait_ms_before_async") == "waitMsBeforeAsync");
 	assert(utf8::to_camel_case("target_content") == "targetContent");
+
+	// format_markdown_table_header
+	utf8::set_active_param_case_style(utf8::param_case_style::snake_case);
+	assert(utf8::format_markdown_table_header("| Symbol | start_line | end_line | lines |\n") ==
+	       "| Symbol | start_line | end_line | lines |\n");
+
+	utf8::set_active_param_case_style(utf8::param_case_style::pascal_case);
+	assert(utf8::format_markdown_table_header("| Symbol | start_line | end_line | lines |\n") ==
+	       "| Symbol | StartLine | EndLine | Lines |\n");
+	assert(utf8::format_markdown_table_header("| Symbol | path | start_line | end_line |\n") ==
+	       "| Symbol | Path | StartLine | EndLine |\n");
+	assert(utf8::format_markdown_table_header("| Type | Kind | path | start_line | end_line |\n") ==
+	       "| Type | Kind | Path | StartLine | EndLine |\n");
+
+	utf8::set_active_param_case_style(utf8::param_case_style::camel_case);
+	assert(utf8::format_markdown_table_header("| Symbol | start_line | end_line | lines |\n") ==
+	       "| Symbol | startLine | endLine | lines |\n");
+	assert(utf8::format_markdown_table_header("| Type | Kind | path | start_line | end_line |\n") ==
+	       "| Type | Kind | path | startLine | endLine |\n");
+
+	utf8::set_active_param_case_style(utf8::param_case_style::snake_case);
 }
 
 int main()
