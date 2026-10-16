@@ -245,12 +245,14 @@ bool crashdump_window::process_events()
 					detail_scroll_offset_ = std::clamp(detail_scroll_offset_ - 1, 0, max_scroll);
 				} else if (ev->mouse_y == track_bottom) {
 					detail_scroll_offset_ = std::clamp(detail_scroll_offset_ + 1, 0, max_scroll);
-				} else if (max_scroll > 0 && (track_bottom - track_top - 1) > 0) {
-					int rel_y = ev->mouse_y - (track_top + 1);
+				} else if (max_scroll > 0) {
 					int thumb_range = track_bottom - track_top - 1;
-					double ratio = static_cast<double>(rel_y) / thumb_range;
-					int target_offset = std::lround(ratio * max_scroll);
-					detail_scroll_offset_ = std::clamp(target_offset, 0, max_scroll);
+					if (thumb_range > 0) {
+						int rel_y = ev->mouse_y - (track_top + 1);
+						double ratio = (thumb_range > 1) ? static_cast<double>(rel_y) / (thumb_range - 1) : 0.0;
+						int target_offset = std::lround(ratio * max_scroll);
+						detail_scroll_offset_ = std::clamp(target_offset, 0, max_scroll);
+					}
 				}
 				needs_render = true;
 			} else if (listbox_ && listbox_->handle_event(*ev, 0, 0)) {
