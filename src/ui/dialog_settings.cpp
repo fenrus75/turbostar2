@@ -306,6 +306,7 @@ std::unique_ptr<dialog> create_editor_settings_dialog()
 		syntax_attribute::italic, syntax_attribute::list_item, syntax_attribute::trailing_space
 	};
 	std::vector<std::string> item_names;
+	item_names.reserve(attrs.size());
 	for (auto attr : attrs) {
 		item_names.push_back(syntax_color_manager::get_attribute_name(attr));
 	}
@@ -487,6 +488,7 @@ std::unique_ptr<dialog> create_syntax_colors_dialog()
 	};
 
 	std::vector<std::string> item_names;
+	item_names.reserve(attrs.size());
 	for (auto attr : attrs) {
 		item_names.push_back(syntax_color_manager::get_attribute_name(attr));
 	}

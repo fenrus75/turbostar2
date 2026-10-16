@@ -431,6 +431,7 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 
 		const auto &line_map = file_pair.second;
 		std::vector<int> hot_line_numbers;
+		hot_line_numbers.reserve(line_map.size());
 		for (const auto &lp : line_map) {
 			hot_line_numbers.push_back(lp.first);
 		}

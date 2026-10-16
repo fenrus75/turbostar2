@@ -381,6 +381,7 @@ replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, co
 		// Relaxed line matching fallback if exact match failed
 		if (match_pos == std::string::npos && !target_lines.empty()) {
 			std::vector<std::string> norm_target_strip;
+			norm_target_strip.reserve(target_lines.size());
 			for (const auto &tl : target_lines) {
 				norm_target_strip.push_back(normalize_line_for_relaxed(tl, true));
 			}

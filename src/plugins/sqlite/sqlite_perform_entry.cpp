@@ -42,6 +42,7 @@ static int callback(void *data_ptr, int argc, char **argv, char **azColName)
 	auto *data = static_cast<callback_data *>(data_ptr);
 
 	if (!data->headers_captured) {
+		data->headers.reserve(argc);
 		for (int i = 0; i < argc; i++) {
 			data->headers.push_back(azColName[i] ? azColName[i] : "NULL");
 		}
@@ -49,6 +50,7 @@ static int callback(void *data_ptr, int argc, char **argv, char **azColName)
 	}
 
 	std::vector<std::string> row;
+	row.reserve(argc);
 	for (int i = 0; i < argc; i++) {
 		row.push_back(argv[i] ? argv[i] : "NULL");
 	}

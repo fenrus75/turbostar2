@@ -33,6 +33,7 @@ void crashdump_window::populate_listbox()
 	crashdump_manager::get_instance().refresh("");
 	current_dumps_ = crashdump_manager::get_instance().get_crashdumps();
 	std::vector<std::string> display_items;
+	display_items.reserve(current_dumps_.size());
 
 	for (const auto &dump : current_dumps_) {
 		display_items.push_back(" " + dump.crash_id + " | " + dump.timestamp + " | " + dump.signal + " | " + dump.executable);

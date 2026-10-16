@@ -275,6 +275,7 @@ void project_manager::inventory_project(std::stop_token stop)
 
 	// Finalize Top 15/18
 	std::vector<directory_info> all_dirs;
+	all_dirs.reserve(dir_map.size());
 	for (auto &pair : dir_map) {
 		all_dirs.push_back(pair.second);
 	}

@@ -166,6 +166,7 @@ std::unique_ptr<dialog> create_ai_settings_dialog()
 					servers[idx]->get_name(), true, new_state);
 			}
 			std::vector<std::string> updated_names;
+			updated_names.reserve(servers.size());
 			for (const auto &srv : servers) {
 				updated_names.push_back(srv->get_name() + (srv->is_enabled() ? " [Enabled]" : " [Disabled]"));
 			}
@@ -313,6 +314,7 @@ std::unique_ptr<dialog> create_model_selection_dialog()
 	auto models = agentlib::ai_model_registry::get_instance().get_all_models();
 
 	std::vector<std::string> item_labels;
+	item_labels.reserve(models.size());
 	for (const auto &m : models) {
 		item_labels.push_back("  " + m->get_id() + " - " + m->get_name());
 	}
@@ -960,6 +962,7 @@ std::unique_ptr<dialog> create_model_server_list_dialog()
 	auto servers = agentlib::model_server_registry::get_instance().get_all_servers();
 
 	std::vector<std::string> item_labels;
+	item_labels.reserve(servers.size());
 	for (const auto &s : servers) {
 		item_labels.push_back("  " + s->get_id() + " - " + s->get_name());
 	}

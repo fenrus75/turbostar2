@@ -656,6 +656,7 @@ int main()
 		// when symbols are pruned vs unpruned.
 		// Directly test format_codemap_table with pruned_count > 0:
 		std::vector<tools::codemap_symbol_info> mock_syms;
+		mock_syms.reserve(493);
 		for (int i = 0; i < 493; ++i) {
 			mock_syms.push_back(
 			    {std::format("func_{}", i), std::format("func_{}", i), "Function", i * 2 + 1, i * 2 + 2, 2, 0, ""});

@@ -780,6 +780,7 @@ static void refresh_outgoing_calls_async(std::string safe_path, std::vector<code
 			}
 
 			std::vector<std::pair<int, int>> positions;
+			positions.reserve(effective_symbols.size());
 			for (const auto &sym : effective_symbols) {
 				positions.push_back(get_symbol_location(safe_path, sym.start_line, sym.end_line, sym.name));
 			}

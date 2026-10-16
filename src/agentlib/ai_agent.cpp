@@ -2425,6 +2425,7 @@ std::string ai_agent::get_memory_index() const
 
 	// Sort episodes by creation date
 	std::vector<const episode_index_entry *> sorted;
+	sorted.reserve(episode_index_.size());
 	for (const auto &pair : episode_index_) {
 		sorted.push_back(&pair.second);
 	}
@@ -3214,6 +3215,7 @@ void ai_agent::inject_archived_episodes_summary()
 		return;
 
 	std::vector<const episode_index_entry *> sorted;
+	sorted.reserve(episode_index_.size());
 	for (const auto &pair : episode_index_) {
 		sorted.push_back(&pair.second);
 	}

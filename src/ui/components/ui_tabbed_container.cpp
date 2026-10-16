@@ -30,6 +30,7 @@ void ui_tabbed_container::recalculate_sidebar_width()
 	sidebar_width_ = std::clamp(calculated, 14, 22);
 
 	std::vector<std::string> titles;
+	titles.reserve(pages_.size());
 	for (const auto &p : pages_) {
 		titles.push_back(p.title);
 	}

@@ -365,6 +365,7 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 		// Asynchronous: spawn all reviewers and the verifier in the background and return immediately.
 		// Pass weak refs so the detached thread does not keep the agents alive (Pattern C).
 		std::vector<std::weak_ptr<agentlib::ai_agent>> reviewer_agents_weak;
+		reviewer_agents_weak.reserve(reviewer_agents.size());
 		for (const auto &a : reviewer_agents) {
 			reviewer_agents_weak.push_back(a);
 		}
@@ -397,6 +398,7 @@ std::string perform_code_review_tool::execute(agentlib::tool_context &ctx)
 	// Spawn Agent 2 (Verifier) asynchronously in the background as a sanity check.
 	// Pass weak refs so the detached thread does not keep the agents alive (Pattern C).
 	std::vector<std::weak_ptr<agentlib::ai_agent>> reviewer_agents_weak;
+	reviewer_agents_weak.reserve(reviewer_agents.size());
 	for (const auto &a : reviewer_agents) {
 		reviewer_agents_weak.push_back(a);
 	}

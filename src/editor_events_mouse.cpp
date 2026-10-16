@@ -167,6 +167,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 		if (ev.mouse_y > 0) {
 			// Find window under click (Reverse Z-order)
 			std::vector<window *> sorted_windows;
+			sorted_windows.reserve(windows_.size());
 			for (auto &w : windows_) {
 				sorted_windows.push_back(w.get());
 			}
@@ -460,6 +461,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 		}
 		// Find window under mouse (Z-order sorted, topmost first)
 		std::vector<window *> sorted_windows;
+		sorted_windows.reserve(windows_.size());
 		for (auto &w : windows_) {
 			sorted_windows.push_back(w.get());
 		}

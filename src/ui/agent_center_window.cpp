@@ -155,6 +155,7 @@ void agent_center_window::sync_agent_tiles()
 	auto active_agents = editor_->get_all_active_agents();
 
 	std::vector<int> current_ids;
+	current_ids.reserve(active_agents.size());
 	for (const auto &agent : active_agents) {
 		current_ids.push_back(agent->get_id());
 	}
