@@ -327,7 +327,7 @@ void test_include_vfs_provider()
 
 	auto handle = vfs.read_file("include://stdio.h");
 	assert(handle.has_value());
-	assert((*handle)->view().size() > 0);
+	assert(!(*handle)->view().empty());
 
 
 	// Test C++ header resolution

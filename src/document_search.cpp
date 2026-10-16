@@ -104,7 +104,7 @@ bool document::find_next(const search_params &params, bool is_repeat)
 		size_t search_start = 0;
 		while (re.Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
 			search_start = (match.data() - input.data()) + match.size();
-			if (match.size() == 0)
+			if (match.empty())
 				search_start++; // prevent infinite loop
 
 			size_t byte_pos = match.data() - line_text.data();

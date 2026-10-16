@@ -131,7 +131,7 @@ void cpp_highlighter::highlight(std::shared_ptr<line> l)
 	search_start = 0;
 	while (kw_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
 		search_start = (match.data() - input.data()) + match.size();
-		if (match.size() == 0) {
+		if (match.empty()) {
 			search_start++;
 		}
 		int char_pos = byte_to_char(match.data() - text.data());

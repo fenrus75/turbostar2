@@ -88,7 +88,7 @@ int main()
 		assert(vfs != nullptr);
 		auto read_opt = vfs->read_file("tmp://exported_logo.png");
 		assert(read_opt.has_value());
-		assert((*read_opt)->view().size() > 0);
+		assert(!(*read_opt)->view().empty());
 	}
 
 	// 5. Test validation failures on import

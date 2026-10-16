@@ -49,7 +49,7 @@ void markdown_highlighter::highlight(std::shared_ptr<line> l)
 			size_t search_start = 0;
 			while (bold_regex.Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
 				search_start = (match.data() - input.data()) + match.size();
-				if (match.size() == 0)
+				if (match.empty())
 					search_start++;
 				size_t byte_pos = match.data() - text.data();
 				size_t byte_len = match.length();

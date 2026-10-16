@@ -183,7 +183,7 @@ int main()
 		std::vector<std::string> query = {"format"};
 		auto res = tools::fs_run_tests_tool::resolve_test_names_detailed(query, parsed);
 		// "format" matches format-test, format-impl-test, custom-formatter-test
-		assert(!res.suggestions.empty() || res.resolved_names.size() >= 1);
+		assert(!res.suggestions.empty() || !res.resolved_names.empty());
 		std::cout << "CTest test list parsing verified successfully!" << std::endl;
 	}
 

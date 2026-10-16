@@ -448,7 +448,7 @@ void crashdump_manager::generate_report_if_needed(std::string_view crash_dir) co
 
 				std::string location = res.location;
 				size_t colon_pos = location.find_last_of(':');
-				if (colon_pos != std::string::npos && location.length() > 0 && location[0] != '?') {
+				if (colon_pos != std::string::npos && !location.empty() && location[0] != '?') {
 					size_t first_colon = location.find(':');
 					std::string raw_file = location.substr(0, first_colon);
 					std::string line_part = location.substr(first_colon);
