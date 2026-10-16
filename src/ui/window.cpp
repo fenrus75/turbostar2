@@ -1,5 +1,6 @@
 #include "ui/window.h"
 #include <algorithm>
+#include <cmath>
 #include <format>
 #include <ncurses.h>
 #include <string>
@@ -1143,7 +1144,7 @@ void window::draw_border() const
 	if (total_lines > content_h && track_h > 0) {
 		int max_top = total_lines - content_h;
 		double ratio = static_cast<double>(top_line) / max_top;
-		int thumb_pos = static_cast<int>(ratio * (track_h - 1) + 0.5);
+		int thumb_pos = std::lround(ratio * (track_h - 1));
 		thumb_pos = std::clamp(thumb_pos, 0, track_h - 1);
 		mvaddstr(y_ + 2 + thumb_pos, x_ + width_ - 1, "█");
 	}

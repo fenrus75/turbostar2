@@ -1,6 +1,7 @@
 #include "plugins/image_basic/image_threshold_tool.h"
 #include "plugins/image_basic/image_basic_utils.h"
 #include <Magick++.h>
+#include <cmath>
 #include <cstddef>
 #include "images/image_manager.h"
 #include "fs_utils.h"
@@ -47,7 +48,7 @@ std::string image_threshold_tool::execute(agentlib::tool_context &ctx)
 				}
 			}
 		}
-		int white_pct = total_pixels > 0 ? static_cast<int>(100.0 * white_count / total_pixels + 0.5) : 0;
+		int white_pct = total_pixels > 0 ? std::lround(100.0 * white_count / total_pixels) : 0;
 
 		std::string temp_out = images::image_manager::get_instance().get_temp_image_path();
 		img.write(temp_out);

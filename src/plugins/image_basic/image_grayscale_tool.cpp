@@ -1,6 +1,7 @@
 #include "plugins/image_basic/image_grayscale_tool.h"
 #include "plugins/image_basic/image_basic_utils.h"
 #include <Magick++.h>
+#include <cmath>
 #include <cstddef>
 #include <format>
 #include "images/image_manager.h"
@@ -41,7 +42,7 @@ std::string image_grayscale_tool::execute(agentlib::tool_context &ctx)
 				luminance_sum += (static_cast<double>(row[x].red) / MaxRGB) * 255.0;
 			}
 		}
-		int avg_luminance = total_pixels > 0 ? static_cast<int>(luminance_sum / total_pixels + 0.5) : 0;
+		int avg_luminance = total_pixels > 0 ? std::lround(luminance_sum / total_pixels) : 0;
 
 		std::string temp_out = images::image_manager::get_instance().get_temp_image_path();
 		img.write(temp_out);

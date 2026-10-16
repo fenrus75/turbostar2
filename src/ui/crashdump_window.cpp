@@ -1,6 +1,7 @@
 #include "crashdump_window.h"
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -153,7 +154,7 @@ void crashdump_window::draw_border() const
 			int thumb_range = track_height - 2;
 			if (thumb_range > 0 && max_scroll > 0) {
 				double ratio = static_cast<double>(detail_scroll_offset_) / max_scroll;
-				int thumb_pos = static_cast<int>(ratio * (thumb_range - 1) + 0.5);
+				int thumb_pos = std::lround(ratio * (thumb_range - 1));
 				thumb_pos = std::clamp(thumb_pos, 0, thumb_range - 1);
 				mvaddstr(track_top + 1 + thumb_pos, x_ + width_ - 1, "█");
 			}
@@ -248,7 +249,8 @@ bool crashdump_window::process_events()
 					int rel_y = ev->mouse_y - (track_top + 1);
 					int thumb_range = track_bottom - track_top - 1;
 					double ratio = static_cast<double>(rel_y) / thumb_range;
-					detail_scroll_offset_ = std::clamp(static_cast<int>(ratio * max_scroll + 0.5), 0, max_scroll);
+					int target_offset = std::lround(ratio * max_scroll);
+					detail_scroll_offset_ = std::clamp(target_offset, 0, max_scroll);
 				}
 				needs_render = true;
 			} else if (listbox_ && listbox_->handle_event(*ev, 0, 0)) {
