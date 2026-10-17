@@ -10,6 +10,7 @@
 #include "system_docs_embedded.h"
 #include "fs_utils.h"
 #include "config_manager.h"
+#include "utf8.h"
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
@@ -30,7 +31,7 @@ static bool contains_case_insensitive(const std::string &haystack, const std::st
 	auto it = std::search(
 		haystack.begin(), haystack.end(),
 		needle.begin(), needle.end(),
-		[](char ch1, char ch2) { return std::toupper(ch1) == std::toupper(ch2); }
+		[](char ch1, char ch2) { return utf8::to_lower(ch1) == utf8::to_lower(ch2); }
 	);
 	return it != haystack.end();
 }
@@ -363,8 +364,7 @@ system_vfs_provider::system_vfs_provider()
 		if (search.starts_with("search=")) {
 			search = search.substr(7);
 		}
-		std::string search_lower = search;
-		std::transform(search_lower.begin(), search_lower.end(), search_lower.begin(), ::tolower);
+		std::string search_lower = utf8::to_lower(search);
 
 		std::ostringstream oss;
 		oss << "# Registered System Tools\n\n";
@@ -381,8 +381,7 @@ system_vfs_provider::system_vfs_provider()
 				std::string desc = func.value("description", "");
 
 				if (!search_lower.empty()) {
-					std::string name_lower = name;
-					std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
+					std::string name_lower = utf8::to_lower(name);
 					if (name_lower.find(search_lower) == std::string::npos) {
 						continue;
 					}
@@ -406,8 +405,7 @@ system_vfs_provider::system_vfs_provider()
 		if (search.starts_with("search=")) {
 			search = search.substr(7);
 		}
-		std::string search_lower = search;
-		std::transform(search_lower.begin(), search_lower.end(), search_lower.begin(), ::tolower);
+		std::string search_lower = utf8::to_lower(search);
 
 		std::ostringstream oss;
 		oss << "# Detailed System Tool Schemas\n\n";
@@ -421,8 +419,7 @@ system_vfs_provider::system_vfs_provider()
 				std::string desc = func.value("description", "");
 
 				if (!search_lower.empty()) {
-					std::string name_lower = name;
-					std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
+					std::string name_lower = utf8::to_lower(name);
 					if (name_lower.find(search_lower) == std::string::npos) {
 						continue;
 					}
