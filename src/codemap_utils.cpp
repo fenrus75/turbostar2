@@ -1480,16 +1480,22 @@ std::string extract_class_context_preview(const std::string &cpp_path, int start
 		}
 	}
 
-	if (simple_class_name.empty()) {
+	if (simple_class_name.empty() || method_name.empty()) {
 		static const re2::RE2 class_method_re(R"(([A-Za-z_][A-Za-z0-9_]*)::([A-Za-z_][A-Za-z0-9_]*))");
 		std::string c_name, m_name;
 		for (const auto &line : read_lines) {
 			if (re2::RE2::PartialMatch(line, class_method_re, &c_name, &m_name)) {
 				if (c_name != "std" && c_name != "boost" && c_name != "tools" && c_name != "agentlib" && c_name != "re2" &&
 				    c_name != "fs_utils") {
-					simple_class_name = c_name;
-					method_name = m_name;
-					break;
+					if (simple_class_name.empty()) {
+						simple_class_name = c_name;
+						method_name = m_name;
+						break;
+					}
+					if (c_name == simple_class_name) {
+						method_name = m_name;
+						break;
+					}
 				}
 			}
 		}
