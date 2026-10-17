@@ -38,7 +38,7 @@ bool fs_man_search_validator::validate_args_impl(const nlohmann::json& args, con
 				return false;
 			}
 
-			if (!utf8::is_alnum_only(sec, "-_")) {
+			if (!sec.empty() && !utf8::is_alnum_only(sec, "-_")) {
 				out_error = "Invalid section parameter: contains unsafe characters.";
 				return false;
 			}

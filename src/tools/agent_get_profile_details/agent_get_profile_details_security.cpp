@@ -66,7 +66,7 @@ class agent_get_profile_details_validator : public agentlib::tool_validator
 				} else if (args_json["run_id"].is_number()) {
 					args_.run_id = std::to_string(args_json["run_id"].get<int>());
 				}
-				if (!utf8::is_alnum_only(args_.run_id, "_-")) {
+				if (!args_.run_id.empty() && !utf8::is_alnum_only(args_.run_id, "_-")) {
 					out_error = "Validation Error: run_id contains invalid characters.";
 					return false;
 				}

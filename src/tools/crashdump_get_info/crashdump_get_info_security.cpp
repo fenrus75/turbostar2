@@ -47,7 +47,7 @@ class crashdump_get_info_validator : public agentlib::tool_validator
 				out_error = "Validation Error: crash_id must be max 128 characters.";
 				return false;
 			}
-			if (!utf8::is_alnum_only(raw_args.crash_id, "_-")) {
+			if (!raw_args.crash_id.empty() && !utf8::is_alnum_only(raw_args.crash_id, "_-")) {
 				out_error = "Security Violation: crash_id contains invalid or unsafe characters.";
 				return false;
 			}
