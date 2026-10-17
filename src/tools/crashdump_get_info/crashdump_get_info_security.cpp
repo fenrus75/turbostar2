@@ -3,6 +3,7 @@
 #include "agentlib/tool_registry.h"
 #include "agentlib/tool_validator.h"
 #include "crashdump_get_info.h"
+#include "utf8.h"
 
 namespace tools
 {
@@ -46,11 +47,9 @@ class crashdump_get_info_validator : public agentlib::tool_validator
 				out_error = "Validation Error: crash_id must be max 128 characters.";
 				return false;
 			}
-			for (char c : raw_args.crash_id) {
-				if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-') {
-					out_error = "Security Violation: crash_id contains invalid or unsafe characters.";
-					return false;
-				}
+			if (!utf8::is_alnum_only(raw_args.crash_id, "_-")) {
+				out_error = "Security Violation: crash_id contains invalid or unsafe characters.";
+				return false;
 			}
 			args_.crash_id = raw_args.crash_id;
 			return true;

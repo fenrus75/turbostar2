@@ -1,8 +1,9 @@
 #include <memory>
 #include <nlohmann/json.hpp>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
 #include "agent_debug_coredump.h"
+#include "utf8.h"
 
 namespace tools
 {
@@ -62,11 +63,9 @@ class agent_debug_coredump_validator : public agentlib::tool_validator
 				out_error = "Arguments Violation: crash_id cannot be empty.";
 				return false;
 			}
-			for (char c : raw.crash_id) {
-				if (!std::isalnum(c) && c != '-' && c != '_') {
-					out_error = "Security Violation: Invalid characters in crash_id.";
-					return false;
-				}
+			if (!utf8::is_alnum_only(raw.crash_id, "-_")) {
+				out_error = "Security Violation: Invalid characters in crash_id.";
+				return false;
 			}
 			args_.crash_id = raw.crash_id;
 			return true;

@@ -7,6 +7,7 @@
 #include "a2a/a2a_server_manager.h"
 #include "fs_utils.h"
 #include "invoke_subagent.h"
+#include "utf8.h"
 
 namespace tools
 {
@@ -206,11 +207,9 @@ class invoke_subagent_validator : public agentlib::tool_validator
 					out_error = "git_ref exceeds maximum length of 128 characters.";
 					return false;
 				}
-				for (char c : raw_args.git_ref) {
-					if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_' && c != '.' && c != '/' && c != '@') {
-						out_error = "Security Violation: git_ref contains invalid characters.";
-						return false;
-					}
+				if (!utf8::is_alnum_only(raw_args.git_ref, "-_./@")) {
+					out_error = "Security Violation: git_ref contains invalid characters.";
+					return false;
 				}
 			}
 

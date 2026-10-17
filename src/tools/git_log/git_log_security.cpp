@@ -2,6 +2,7 @@
 #include <format>
 #include "agentlib/tool_registry.h"
 #include "git_log.h"
+#include "utf8.h"
 
 namespace tools
 {
@@ -35,12 +36,9 @@ bool git_log_validator::validate_args_impl(const nlohmann::json &args, const age
 			}
 			std::string untrusted_commit = args["commit_id"].get<std::string>();
 			if (!untrusted_commit.empty()) {
-				for (char c : untrusted_commit) {
-					if (!std::isalnum(static_cast<unsigned char>(c)) && c != '.' && c != '_' && c != '-' && c != '^' &&
-					    c != '~' && c != '@' && c != '/') {
-						out_error = "Invalid characters in 'commit_id'. Must be a valid git commit or ref.";
-						return false;
-					}
+				if (!utf8::is_alnum_only(untrusted_commit, "._-^~@/")) {
+					out_error = "Invalid characters in 'commit_id'. Must be a valid git commit or ref.";
+					return false;
 				}
 				args_.commit_id = untrusted_commit;
 			}

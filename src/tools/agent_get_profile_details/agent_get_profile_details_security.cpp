@@ -1,6 +1,7 @@
 #include "agentlib/tool_registry.h"
 #include "agentlib/tool_validator.h"
 #include "agent_get_profile_details.h"
+#include "utf8.h"
 #include <memory>
 #include <nlohmann/json.hpp>
 
@@ -65,11 +66,9 @@ class agent_get_profile_details_validator : public agentlib::tool_validator
 				} else if (args_json["run_id"].is_number()) {
 					args_.run_id = std::to_string(args_json["run_id"].get<int>());
 				}
-				for (char c : args_.run_id) {
-					if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-') {
-						out_error = "Validation Error: run_id contains invalid characters.";
-						return false;
-					}
+				if (!utf8::is_alnum_only(args_.run_id, "_-")) {
+					out_error = "Validation Error: run_id contains invalid characters.";
+					return false;
 				}
 			}
 			args_.file_path.clear();

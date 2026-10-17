@@ -6,12 +6,13 @@
 #include <random>
 #include <sstream>
 #include <unistd.h>
-#include "../../command_runner.h"
-#include "../../crashdump_manager.h"
-#include "../../fs_utils.h"
+#include "command_runner.h"
+#include "crashdump_manager.h"
+#include "fs_utils.h"
 #include "config_manager.h"
-#include "../terminal_command_runner.h"
+#include "tools/terminal_command_runner.h"
 #include "run_python.h"
+#include "utf8.h"
 
 namespace tools
 {
@@ -137,10 +138,8 @@ std::string run_python_tool::execute(agentlib::tool_context &ctx)
 		if (dep.empty() || dep.starts_with('-')) {
 			return "Execution Error: Invalid dependency specification '" + dep + "'. Options cannot be smuggled as package names.";
 		}
-		for (char c : dep) {
-			if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-' && c != '.' && c != '[' && c != ']' && c != '=' && c != '>' && c != '<' && c != '!') {
-				return "Execution Error: Invalid characters in dependency package name '" + dep + "'.";
-			}
+		if (!utf8::is_alnum_only(dep, "_-.[]=><!")) {
+			return "Execution Error: Invalid characters in dependency package name '" + dep + "'.";
 		}
 	}
 

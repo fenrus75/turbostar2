@@ -1,5 +1,6 @@
 #include "agentlib/tool_registry.h"
 #include "agent_restore_context.h"
+#include "utf8.h"
 #include <cctype>
 
 namespace tools {
@@ -30,11 +31,9 @@ bool agent_restore_context_validator::validate_args_impl(const nlohmann::json& r
             out_error = "Validation Error: episode_id must be non-empty and max 128 characters.";
             return false;
         }
-        for (char c : args_.episode_id) {
-            if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-') {
-                out_error = "Security Violation: episode_id contains invalid or unsafe characters.";
-                return false;
-            }
+        if (!utf8::is_alnum_only(args_.episode_id, "_-")) {
+            out_error = "Security Violation: episode_id contains invalid or unsafe characters.";
+            return false;
         }
         if (args_.compression_level < 0 || args_.compression_level > 3) {
             out_error = "Validation Error: compression_level must be between 0 and 3.";

@@ -17,7 +17,7 @@ It was extracted from `src/fs_utils.cpp` to decouple pure algorithmic primitives
 ## Constraints & Design Principles
 - **Zero Heavy Subsystem Dependencies**: Never include or depend on `project_manager.h`, `event_logger.h`, or UI libraries. All functions must operate strictly on their arguments.
 - **C++ Standard Types**: Prefer `std::string_view` for input parameters, `std::span<const unsigned char>` for contiguous byte sequences, and `std::string` / `std::vector<unsigned char>` for owned return values.
-- **Ctype Safety**: Any call to `<cctype>` functions (`std::isalnum`, `std::isspace`) MUST explicitly cast `char` arguments to `static_cast<unsigned char>` to prevent undefined behavior on non-ASCII or UTF-8 bytes.
+- **Ctype Safety**: Strongly prefer `utf8::is_alnum`, `utf8::is_alnum_only`, and `utf8::is_space_at_*` helpers over `<cctype>` functions, as they eliminate undefined behavior on non-ASCII or UTF-8 bytes and provide safe allowlist matching. If direct `<cctype>` functions (`std::isalnum`, `std::isspace`) are called, `char` arguments MUST explicitly be cast to `static_cast<unsigned char>`.
 
 ## Lessons Learned
 - **Decoupling from Project Subsystems**: Previously, `src/fs_utils.cpp` combined low-level string utilities (base64, Levenshtein, escaping) with project root resolution, cache directory management, and compiler execution. Any test or tool wanting basic base64 encoding had to link extensive project subsystems. Extracting `fs_basics` eliminates circular and heavy linkage requirements.

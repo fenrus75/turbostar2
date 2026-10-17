@@ -1,5 +1,6 @@
 #include "fs_man_search.h"
-#include "../../agentlib/tool_registry.h"
+#include "agentlib/tool_registry.h"
+#include "utf8.h"
 #include <cctype>
 
 namespace tools {
@@ -18,11 +19,9 @@ bool fs_man_search_validator::validate_args_impl(const nlohmann::json& args, con
 		}
 
 		// Ensure search query is safe from shell command injection
-		for (char c : query) {
-			if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_' && c != '.' && c != ' ') {
-				out_error = "Invalid search query: contains unsafe characters. Only alphanumeric characters, spaces, dots, hyphens, and underscores are allowed.";
-				return false;
-			}
+		if (!utf8::is_alnum_only(query, "-_. ")) {
+			out_error = "Invalid search query: contains unsafe characters. Only alphanumeric characters, spaces, dots, hyphens, and underscores are allowed.";
+			return false;
 		}
 
 		args_.query = query;
@@ -39,11 +38,9 @@ bool fs_man_search_validator::validate_args_impl(const nlohmann::json& args, con
 				return false;
 			}
 
-			for (char c : sec) {
-				if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_') {
-					out_error = "Invalid section parameter: contains unsafe characters.";
-					return false;
-				}
+			if (!utf8::is_alnum_only(sec, "-_")) {
+				out_error = "Invalid section parameter: contains unsafe characters.";
+				return false;
 			}
 			args_.section = sec;
 		}

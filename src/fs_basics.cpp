@@ -52,14 +52,7 @@ bool is_binary_buffer(std::string_view buffer, bool treat_null_as_binary)
 
 bool is_valid_db_name(std::string_view name) noexcept
 {
-	if (name.empty())
-		return false;
-	for (char c : name) {
-		if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-') {
-			return false;
-		}
-	}
-	return true;
+	return utf8::is_alnum_only(name, "_-");
 }
 
 bool is_shell_safe(std::string_view s, bool allow_tilde) noexcept
@@ -75,8 +68,7 @@ bool is_shell_safe(std::string_view s, bool allow_tilde) noexcept
 	// Strict allowlist: Alphanumeric, slash, dot, underscore, hyphen, equals, colon, plus, comma, at-sign.
 	// Explicitly excludes: Space, quote marks, ampersand, pipe, redirect, semicolon, backtick, dollar, braces, etc.
 	for (char c : s) {
-		bool is_safe = std::isalnum(static_cast<unsigned char>(c)) || c == '/' || c == '.' || c == '_' || c == '-' || c == '=' || c == ':' || c == '+' ||
-			       c == ',' || c == '@';
+		bool is_safe = utf8::is_alnum(c, "/._-:=+,@");
 		if (allow_tilde && c == '~') {
 			is_safe = true;
 		}
@@ -376,7 +368,7 @@ std::vector<unsigned char> base64_decode(std::string_view encoded)
 						"abcdefghijklmnopqrstuvwxyz"
 						"0123456789+/";
 
-	auto is_base64 = [](unsigned char c) -> bool { return (std::isalnum(c) || (c == '+') || (c == '/')); };
+	auto is_base64 = [](char c) noexcept -> bool { return utf8::is_alnum(c, "+/"); };
 
 	size_t in_len = encoded.size();
 	size_t i = 0;
