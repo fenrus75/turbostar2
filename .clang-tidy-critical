@@ -9,6 +9,7 @@ Checks: >
   bugprone-argument-selection-defects,
   bugprone-copy-constructor-init,
   bugprone-dangling-handle,
+  bugprone-incorrect-roundings,
   bugprone-infinite-loop,
   bugprone-multiple-statement-macro,
   bugprone-sizeof-expression,
