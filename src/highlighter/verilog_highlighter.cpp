@@ -8,16 +8,13 @@ bool verilog_highlighter::supports_file(const std::string &filename) const
 	if (filename.empty())
 		return false;
 	std::filesystem::path p(filename);
-	std::string ext = p.extension().string();
+	std::string ext = utf8::to_lower(p.extension().string());
 	return ext == ".v" || ext == ".sv" || ext == ".vh" || ext == ".svh";
 }
 
 bool verilog_highlighter::supports_language(const std::string &lang) const
 {
-	std::string l = lang;
-	for (char &c : l) {
-		c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-	}
+	std::string l = utf8::to_lower(lang);
 	return l == "verilog" || l == "v" || l == "systemverilog" || l == "sv";
 }
 

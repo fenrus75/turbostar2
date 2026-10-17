@@ -220,10 +220,7 @@ std::string semcode_backend::find_semcode_cli()
 
 void semcode_backend::open_document(const std::string &filepath, const std::string &text)
 {
-	std::string ext = fs::path(filepath).extension().string();
-	for (auto &c : ext) {
-		c = std::tolower(c);
-	}
+	std::string ext = utf8::to_lower(fs::path(filepath).extension().string());
 	if (ext == ".py") {
 		standard_lsp_backend::open_document(filepath, text);
 		return;
@@ -237,10 +234,7 @@ void semcode_backend::update_document(const std::string &filepath, const std::st
 {
 	invalidate_hover_cache(filepath);
 
-	std::string ext = fs::path(filepath).extension().string();
-	for (auto &c : ext) {
-		c = std::tolower(c);
-	}
+	std::string ext = utf8::to_lower(fs::path(filepath).extension().string());
 	if (ext == ".py") {
 		standard_lsp_backend::update_document(filepath, text);
 		return;
@@ -384,10 +378,7 @@ void semcode_backend::request_selection_range(const std::string & /*filepath*/, 
 
 bool semcode_backend::is_supported_file(const std::string &filepath) const
 {
-	std::string ext = fs::path(filepath).extension().string();
-	for (auto &c : ext) {
-		c = std::tolower(c);
-	}
+	std::string ext = utf8::to_lower(fs::path(filepath).extension().string());
 	return (ext == ".cpp" || ext == ".c" || ext == ".h" || ext == ".hpp" || ext == ".cc" || ext == ".cxx" || ext == ".py" ||
 		ext == ".rs" || ext == ".zig");
 }
@@ -850,10 +841,7 @@ std::vector<lsp_backend::type_hierarchy_item> semcode_backend::query_type_hierar
 
 std::shared_ptr<standard_lsp_backend::server_instance> semcode_backend::get_server_for_file(const std::string &filepath)
 {
-	std::string ext = fs::path(filepath).extension().string();
-	for (auto &c : ext) {
-		c = std::tolower(c);
-	}
+	std::string ext = utf8::to_lower(fs::path(filepath).extension().string());
 
 	if (ext == ".py") {
 		return standard_lsp_backend::get_server_for_file(filepath);

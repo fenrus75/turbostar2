@@ -1,5 +1,6 @@
 #include "mime.h"
 #include "tools/magic_compat.h"
+#include "utf8.h"
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -20,7 +21,7 @@ std::string from_extension(std::string_view filename_or_ext)
 		if (ext.size() != target.size())
 			return false;
 		for (size_t i = 0; i < ext.size(); ++i) {
-			if (std::tolower(static_cast<unsigned char>(ext[i])) != target[i])
+			if (utf8::to_lower(ext[i]) != target[i])
 				return false;
 		}
 		return true;
@@ -63,9 +64,7 @@ std::string get_language_from_extension(std::string_view path)
 	if (!ext.empty() && ext.front() == '.') {
 		ext.erase(0, 1);
 	}
-	std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) {
-		return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-	});
+	ext = utf8::to_lower(ext);
 
 	if (ext == "cpp" || ext == "cxx" || ext == "cc" || ext == "c" || ext == "h" || ext == "hpp" || ext == "hh" || ext == "hxx") {
 		return "cpp";
@@ -283,9 +282,7 @@ bool uses_brace_syntax(std::string_view path_or_ext)
 	if (!ext.empty() && ext.front() == '.') {
 		ext.erase(0, 1);
 	}
-	std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) {
-		return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-	});
+	ext = utf8::to_lower(ext);
 
 	return (ext == "cs" || ext == "php" || ext == "kt" || ext == "kts" ||
 		ext == "swift" || ext == "scala" || ext == "d" || ext == "glsl" ||

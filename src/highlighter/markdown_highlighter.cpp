@@ -10,10 +10,7 @@ bool markdown_highlighter::supports_file(const std::string &filename) const
 	if (filename.empty())
 		return false;
 	std::filesystem::path p(filename);
-	std::string ext = p.extension().string();
-	std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) {
-		return std::tolower(c);
-	});
+	std::string ext = utf8::to_lower(p.extension().string());
 	return ext == ".md" || ext == ".markdown";
 }
 

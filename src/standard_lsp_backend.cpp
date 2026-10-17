@@ -14,6 +14,7 @@
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "project_manager.h"
+#include "utf8.h"
 
 namespace fs = std::filesystem;
 
@@ -191,9 +192,7 @@ void standard_lsp_backend::stop()
 
 std::shared_ptr<standard_lsp_backend::server_instance> standard_lsp_backend::get_server_for_file(const std::string &filepath)
 {
-	std::string ext = fs::path(filepath).extension().string();
-	for (auto &c : ext)
-		c = std::tolower(c);
+	std::string ext = utf8::to_lower(fs::path(filepath).extension().string());
 
 	std::string lang_id;
 	if (ext == ".cpp" || ext == ".c" || ext == ".h" || ext == ".hpp")
@@ -233,9 +232,7 @@ std::shared_ptr<standard_lsp_backend::server_instance> standard_lsp_backend::get
 
 bool standard_lsp_backend::is_supported_file(const std::string &filepath) const
 {
-	std::string ext = fs::path(filepath).extension().string();
-	for (auto &c : ext)
-		c = std::tolower(c);
+	std::string ext = utf8::to_lower(fs::path(filepath).extension().string());
 	return (ext == ".cpp" || ext == ".c" || ext == ".h" || ext == ".hpp" || ext == ".py");
 }
 
