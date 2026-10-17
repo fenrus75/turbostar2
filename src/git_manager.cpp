@@ -11,6 +11,7 @@
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "project_manager.h"
+#include "utf8.h"
 
 namespace fs = std::filesystem;
 
@@ -285,9 +286,7 @@ bool git_manager::is_valid_revision(const std::string &revision)
 		// List of allowed characters for revisions:
 		// Alphanumeric, slash, dot, underscore, hyphen, @, ~, ^, {, }, :, +
 		// Block everything else (including space, quotes, shell operators)
-		bool is_allowed = std::isalnum(static_cast<unsigned char>(c)) || c == '/' || c == '.' || c == '_' || c == '-' ||
-				  c == '@' || c == '~' || c == '^' || c == '{' || c == '}' || c == ':' || c == '+';
-		if (!is_allowed) {
+		if (!utf8::is_alnum(c, "/._-@~^{}:+")) {
 			return false;
 		}
 	}

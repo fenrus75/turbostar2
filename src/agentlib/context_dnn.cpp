@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "../event_logger.h"
+#include "utf8.h"
 
 namespace fs = std::filesystem;
 
@@ -190,7 +191,7 @@ std::vector<std::string> context_dnn::tokenize(std::string_view text)
 	std::vector<std::string> tokens;
 	std::string current;
 	for (char c : text) {
-		if (std::isalnum(static_cast<unsigned char>(c))) {
+		if (utf8::is_alnum(c)) {
 			current += std::tolower(static_cast<unsigned char>(c));
 		} else {
 			if (!current.empty()) {

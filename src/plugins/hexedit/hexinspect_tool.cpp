@@ -7,6 +7,7 @@
 #include "hex/hex_highlighter.h"
 #include "hex/hex_highlighter_registry.h"
 #include "mime.h"
+#include "utf8.h"
 
 namespace tools
 {
@@ -131,7 +132,7 @@ std::string hexinspect_tool::execute(agentlib::tool_context &ctx)
 			std::string raw_fn = std::filesystem::path(args_.requested_path).filename().string();
 			std::string filename;
 			for (char c : raw_fn) {
-				if (std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-') {
+				if (utf8::is_alnum(c, "_-")) {
 					filename += c;
 				} else {
 					filename += '_';

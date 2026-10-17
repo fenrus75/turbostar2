@@ -14,6 +14,7 @@
 #include "project_manager.h"
 #include "tools/output_filter.h"
 #include "tools/terminal_command_runner.h"
+#include "utf8.h"
 
 namespace tools
 {
@@ -40,7 +41,7 @@ static std::vector<std::string> extract_test_tokens(std::string_view s)
 	std::vector<std::string> tokens;
 	std::string cur;
 	for (char c : s) {
-		if (std::isalnum(static_cast<unsigned char>(c))) {
+		if (utf8::is_alnum(c)) {
 			cur += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
 		} else if (!cur.empty()) {
 			if (cur != "test" && cur != "tests" && cur != "turbostar") {

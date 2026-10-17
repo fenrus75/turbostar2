@@ -18,6 +18,7 @@
 #include "../mcp/mcp_manager.h"
 #include "../project_manager.h"
 #include "../statistics_manager.h"
+#include "utf8.h"
 #include "images/image_manager.h"
 #include "compaction_engine.h"
 #include "context_dnn.h"
@@ -1521,10 +1522,7 @@ void ai_agent::start_processing()
 						size_t data_start = base64_start + 8;
 						size_t data_end = data_start;
 						while (data_end < content.length() && 
-						       (std::isalnum(content[data_end]) || 
-						        content[data_end] == '+' || 
-						        content[data_end] == '/' || 
-						        content[data_end] == '=')) {
+						       utf8::is_alnum(content[data_end], "+/=")) {
 							data_end++;
 						}
 						

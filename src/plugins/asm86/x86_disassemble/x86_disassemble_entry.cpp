@@ -5,6 +5,7 @@
 #include <vector>
 #include "fs_utils.h"
 #include "x86_disassemble.h"
+#include "utf8.h"
 
 #ifdef HAVE_ZYDIS
 #include <Zydis/Zydis.h>
@@ -81,12 +82,9 @@ static bool parse_base64(const std::string &input, std::vector<uint8_t> &out_byt
 		}
 	}
 
-	for (char c : stripped) {
-		bool ok = std::isalnum(static_cast<unsigned char>(c)) || c == '+' || c == '/' || c == '=';
-		if (!ok) {
-			out_error = "Invalid character in Base64 input.";
-			return false;
-		}
+	if (!utf8::is_alnum_only(stripped, "+/=")) {
+		out_error = "Invalid character in Base64 input.";
+		return false;
 	}
 
 	auto decoded = fs_utils::base64_decode(stripped);
