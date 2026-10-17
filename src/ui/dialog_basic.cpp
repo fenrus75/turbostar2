@@ -466,10 +466,7 @@ std::unique_ptr<dialog> create_force_quit_dialog()
 
 std::unique_ptr<dialog> create_ask_user_dialog(const std::string &question, const std::vector<std::string> &options)
 {
-	std::string trimmed_q = question;
-	utf8::trim_trailing_whitespace(trimmed_q);
-	while (!trimmed_q.empty() && isspace(trimmed_q.front()))
-		trimmed_q.erase(0, 1);
+	std::string trimmed_q = utf8::trim_full(question);
 
 	int max_x = getmaxx(stdscr);
 	int max_text_width = std::max(40, max_x - 16);

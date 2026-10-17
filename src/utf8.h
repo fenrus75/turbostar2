@@ -76,14 +76,28 @@ std::string sanitize(std::string_view s);
 bool is_valid_utf8(std::string_view s) noexcept;
 
 /**
- * @brief Returns a trimmed copy of the string (removing leading and trailing whitespace).
+ * @brief Returns a copy of s with leading whitespace removed.
+ * Removes both ASCII whitespace (std::isspace) and Unicode space characters.
  */
-std::string trim(std::string_view s);
+std::string trim_leading_whitespace(std::string_view s);
 
 /**
- * @brief Removes trailing whitespace (spaces, tabs, newlines, carriage returns) from a string in-place.
+ * @brief Returns a copy of s with trailing whitespace removed.
+ * Removes both ASCII whitespace (std::isspace) and Unicode space characters.
  */
-void trim_trailing_whitespace(std::string& s);
+std::string trim_trailing_whitespace(std::string_view s);
+
+/**
+ * @brief Returns a copy of s with both leading and trailing whitespace removed.
+ * Removes both ASCII whitespace (std::isspace) and Unicode space characters.
+ */
+std::string trim_full(std::string_view s);
+
+/**
+ * @brief Returns a copy of s with both leading and trailing whitespace removed.
+ * Equivalent to trim_full(s).
+ */
+std::string trim(std::string_view s);
 
 /**
  * @brief Wrap a text string to a specific display width, prepending prefix to the first line and indents subsequent lines.

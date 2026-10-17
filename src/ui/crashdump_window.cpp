@@ -9,6 +9,7 @@ namespace fs = std::filesystem;
 #include "project_manager.h"
 #include "fs_utils.h"
 #include "markdown_utils.h"
+#include "utf8.h"
 
 crashdump_window::crashdump_window(int id, int x, int y, int width, int height, event_queue &global_queue)
     : window(id, x, y, width, height, "Crashdumps"), global_queue_(global_queue)
@@ -306,14 +307,8 @@ std::optional<std::pair<std::string, int>> crashdump_window::get_crash_location(
 			size_t line_end = dump.raw_info.find('\n', line_start);
 			std::string line_str = dump.raw_info.substr(line_start, line_end - line_start);
 
-			while (!file_path.empty() && std::isspace(file_path.back()))
-				file_path.pop_back();
-			while (!file_path.empty() && std::isspace(file_path.front()))
-				file_path.erase(file_path.begin());
-			while (!line_str.empty() && std::isspace(line_str.back()))
-				line_str.pop_back();
-			while (!line_str.empty() && std::isspace(line_str.front()))
-				line_str.erase(line_str.begin());
+			file_path = utf8::trim_full(file_path);
+			line_str = utf8::trim_full(line_str);
 
 			try {
 				int line_num = std::stoi(line_str);
@@ -359,11 +354,7 @@ std::optional<std::pair<std::string, int>> crashdump_window::get_crash_location(
 			}
 
 			if (parts.size() >= 5) {
-				std::string location = parts[4];
-				while (!location.empty() && std::isspace(location.back()))
-					location.pop_back();
-				while (!location.empty() && std::isspace(location.front()))
-					location.erase(location.begin());
+				std::string location = utf8::trim_full(parts[4]);
 
 				if (!location.empty() && location != "Location" && location[0] != '?' && !location.starts_with("[")) {
 					size_t colon = location.find_last_of(':');

@@ -367,35 +367,98 @@ void test_utf8_sanitize_and_validation()
 
 void test_utf8_trim_and_terminal_sanitize()
 {
-	// 1. trim
+	// 1. trim and trim_full basic ASCII
 	assert(utf8::trim("") == "");
-	assert(utf8::trim("   \t\r\n\t  ") == "");
+	assert(utf8::trim_full("") == "");
+	assert(utf8::trim("   \t\r\n\v\f  ") == "");
+	assert(utf8::trim_full("   \t\r\n\v\f  ") == "");
 	assert(utf8::trim("hello world") == "hello world");
+	assert(utf8::trim_full("hello world") == "hello world");
 	assert(utf8::trim("   hello world") == "hello world");
 	assert(utf8::trim("hello world   \n\t") == "hello world");
 	assert(utf8::trim(" \r\n\t  hello world   \t\r\n ") == "hello world");
 	assert(utf8::trim("  interior   spaces   kept  ") == "interior   spaces   kept");
 
-	// 2. trim_trailing_whitespace
-	std::string s_empty = "";
-	utf8::trim_trailing_whitespace(s_empty);
-	assert(s_empty == "");
+	// 2. trim_leading_whitespace
+	assert(utf8::trim_leading_whitespace("") == "");
+	assert(utf8::trim_leading_whitespace("   \t\r\n   ") == "");
+	assert(utf8::trim_leading_whitespace("   hello world") == "hello world");
+	assert(utf8::trim_leading_whitespace("hello world   ") == "hello world   ");
+	assert(utf8::trim_leading_whitespace("   hello world   ") == "hello world   ");
+	assert(utf8::trim_leading_whitespace("  interior   spaces  ") == "interior   spaces  ");
 
-	std::string s_only_ws = "   \t\r\n   ";
-	utf8::trim_trailing_whitespace(s_only_ws);
-	assert(s_only_ws == "");
+	// 3. trim_trailing_whitespace
+	assert(utf8::trim_trailing_whitespace("") == "");
+	assert(utf8::trim_trailing_whitespace("   \t\r\n   ") == "");
+	assert(utf8::trim_trailing_whitespace("   hello world") == "   hello world");
+	assert(utf8::trim_trailing_whitespace("hello world   ") == "hello world");
+	assert(utf8::trim_trailing_whitespace("   hello world   ") == "   hello world");
+	assert(utf8::trim_trailing_whitespace("  interior   spaces  ") == "  interior   spaces");
 
-	std::string s_leading = "   hello world";
-	utf8::trim_trailing_whitespace(s_leading);
-	assert(s_leading == "   hello world"); // leading whitespace preserved
+	// 4. Unicode whitespace trimming
+	const std::string nbsp = "\xC2\xA0";
+	const std::string ogham = "\xE1\x9A\x80";
+	const std::string quad = "\xE2\x80\x80";
+	const std::string em_space = "\xE2\x80\x83";
+	const std::string thin_space = "\xE2\x80\x89";
+	const std::string hair_space = "\xE2\x80\x8A";
+	const std::string line_sep = "\xE2\x80\xA8";
+	const std::string para_sep = "\xE2\x80\xA9";
+	const std::string n_nbsp = "\xE2\x80\xAF";
+	const std::string math_sp = "\xE2\x81\x9F";
+	const std::string cjk_space = "\xE3\x80\x80";
 
-	std::string s_trailing = "hello world  \n";
-	utf8::trim_trailing_whitespace(s_trailing);
-	assert(s_trailing == "hello world");
+	// All Unicode whitespace only
+	std::string all_unicode_spaces = nbsp + ogham + quad + em_space + thin_space + hair_space +
+	                                 line_sep + para_sep + n_nbsp + math_sp + cjk_space;
+	assert(utf8::trim(all_unicode_spaces) == "");
+	assert(utf8::trim_full(all_unicode_spaces) == "");
+	assert(utf8::trim_leading_whitespace(all_unicode_spaces) == "");
+	assert(utf8::trim_trailing_whitespace(all_unicode_spaces) == "");
 
-	std::string s_both = "   hello world  \r\n\t";
-	utf8::trim_trailing_whitespace(s_both);
-	assert(s_both == "   hello world");
+	// Mixed ASCII and Unicode spaces surrounding ASCII text
+	std::string surrounded = " \t" + nbsp + quad + "hello world" + em_space + cjk_space + "\r\n ";
+	assert(utf8::trim_full(surrounded) == "hello world");
+	assert(utf8::trim(surrounded) == "hello world");
+	assert(utf8::trim_leading_whitespace(surrounded) == "hello world" + em_space + cjk_space + "\r\n ");
+	assert(utf8::trim_trailing_whitespace(surrounded) == " \t" + nbsp + quad + "hello world");
+
+	// Multi-byte Unicode content with Unicode whitespace
+	std::string utf8_text = "こんにちは世界";
+	std::string cjk_surrounded = cjk_space + cjk_space + utf8_text + cjk_space;
+	assert(utf8::trim_full(cjk_surrounded) == utf8_text);
+	assert(utf8::trim_leading_whitespace(cjk_surrounded) == utf8_text + cjk_space);
+	assert(utf8::trim_trailing_whitespace(cjk_surrounded) == cjk_space + cjk_space + utf8_text);
+
+	// Whole character deletion verification: ensure multibyte characters aren't partially chopped
+	std::string mixed_nbsp = nbsp + "Café" + nbsp;
+	assert(utf8::trim_full(mixed_nbsp) == "Café");
+	assert(utf8::trim_leading_whitespace(mixed_nbsp) == "Café" + nbsp);
+	assert(utf8::trim_trailing_whitespace(mixed_nbsp) == nbsp + "Café");
+
+	// Internal Unicode whitespace must NOT be removed
+	std::string interior_unicode = "Café" + nbsp + "Au" + cjk_space + "Lait";
+	assert(utf8::trim_full(interior_unicode) == interior_unicode);
+	assert(utf8::trim_full(nbsp + interior_unicode + nbsp) == interior_unicode);
+
+	// 5. False positive resistance (similar lead bytes that are NOT spaces)
+	// \xC2\xA1 (¡) must NOT be trimmed
+	std::string inv_excl = "\xC2\xA1Hello\xC2\xA1";
+	assert(utf8::trim_full(inv_excl) == inv_excl);
+	assert(utf8::trim_leading_whitespace(inv_excl) == inv_excl);
+	assert(utf8::trim_trailing_whitespace(inv_excl) == inv_excl);
+
+	// \xE2\x80\x8B (Zero-width space) must NOT be trimmed
+	std::string zwsp = "\xE2\x80\x8Btext\xE2\x80\x8B";
+	assert(utf8::trim_full(zwsp) == zwsp);
+
+	// \xE3\x80\x81 (Ideographic comma 、) must NOT be trimmed
+	std::string cjk_comma = "\xE3\x80\x81text\xE3\x80\x81";
+	assert(utf8::trim_full(cjk_comma) == cjk_comma);
+
+	// Truncated multi-byte lead bytes at ends
+	assert(utf8::trim_full("\xC2") == "\xC2");
+	assert(utf8::trim_full("\xE2\x80") == "\xE2\x80");
 
 	// 3. sanitize_terminal_output
 	assert(utf8::sanitize_terminal_output("") == "");

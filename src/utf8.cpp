@@ -270,27 +270,78 @@ bool is_valid_utf8(std::string_view s) noexcept
 	return true;
 }
 
-// Returns a copy of s with leading and trailing whitespace (' ', '\t', '\r', '\n') removed.
-// Preserves all internal whitespace. Returns empty string if s is entirely whitespace.
-std::string trim(std::string_view s)
+// Returns a copy of s with leading whitespace removed.
+// Removes ASCII whitespace (std::isspace) and Unicode space characters.
+// Safely advances by entire UTF-8 character byte lengths.
+std::string trim_leading_whitespace(std::string_view s)
 {
-	auto first = s.find_first_not_of(" \t\r\n");
-	if (std::string_view::npos == first)
+	size_t start = 0;
+	while (start < s.length() && is_space_at_byte(s, start)) {
+		unsigned char c = static_cast<unsigned char>(s[start]);
+		start += char_len(c);
+	}
+	if (start >= s.length()) {
 		return "";
-	auto last = s.find_last_not_of(" \t\r\n");
-	return std::string(s.substr(first, (last - first + 1)));
+	}
+	return std::string(s.substr(start));
 }
 
-// Strips trailing whitespace (' ', '\t', '\r', '\n') in-place from string s.
-// Preserves leading and internal whitespace. Clears s if it is entirely whitespace.
-void trim_trailing_whitespace(std::string &s)
+// Returns a copy of s with trailing whitespace removed.
+// Removes ASCII whitespace (std::isspace) and Unicode space characters.
+// Safely steps back to preceding character boundaries and removes entire multi-byte characters.
+std::string trim_trailing_whitespace(std::string_view s)
 {
-	auto last = s.find_last_not_of(" \t\r\n");
-	if (std::string::npos == last) {
-		s.clear();
-	} else {
-		s.erase(last + 1);
+	size_t end = s.length();
+	while (end > 0) {
+		size_t prev = end - 1;
+		while (prev > 0 && (static_cast<unsigned char>(s[prev]) & 0xC0) == 0x80) {
+			prev--;
+		}
+		unsigned char lead = static_cast<unsigned char>(s[prev]);
+		size_t clen = char_len(lead);
+		if (prev + clen == end && is_space_at_byte(s, prev)) {
+			end = prev;
+		} else {
+			break;
+		}
 	}
+	return std::string(s.substr(0, end));
+}
+
+// Returns a copy of s with both leading and trailing whitespace removed.
+// Removes ASCII whitespace (std::isspace) and Unicode space characters.
+std::string trim_full(std::string_view s)
+{
+	size_t start = 0;
+	while (start < s.length() && is_space_at_byte(s, start)) {
+		unsigned char c = static_cast<unsigned char>(s[start]);
+		start += char_len(c);
+	}
+	if (start >= s.length()) {
+		return "";
+	}
+
+	size_t end = s.length();
+	while (end > start) {
+		size_t prev = end - 1;
+		while (prev > start && (static_cast<unsigned char>(s[prev]) & 0xC0) == 0x80) {
+			prev--;
+		}
+		unsigned char lead = static_cast<unsigned char>(s[prev]);
+		size_t clen = char_len(lead);
+		if (prev + clen == end && is_space_at_byte(s, prev)) {
+			end = prev;
+		} else {
+			break;
+		}
+	}
+	return std::string(s.substr(start, end - start));
+}
+
+// Convenience alias for trim_full.
+std::string trim(std::string_view s)
+{
+	return trim_full(s);
 }
 
 // Wraps text to a target display width. Prepends prefix to line 1 and indents subsequent
