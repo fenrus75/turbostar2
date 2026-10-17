@@ -668,7 +668,7 @@ std::string config_manager::auto_detect_main_executable() const
 	auto words_end = std::sregex_iterator();
 
 	for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
-		std::smatch match = *i;
+		const std::smatch &match = *i;
 		std::string name = match[1].str();
 
 		// Skip test and utility helper targets

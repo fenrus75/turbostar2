@@ -423,10 +423,8 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context &ctx, 
 			bool matches = true;
 			int test_idx = test_line - 1;
 			for (size_t i = 0; i < expected_lines.size(); ++i) {
-				std::string actual = lines[test_idx + i];
-				std::string expected = expected_lines[i];
-				std::string actual_trimmed = utf8::trim(actual);
-				std::string expected_trimmed = utf8::trim(expected);
+				std::string_view actual_trimmed = utf8::trim_view(lines[test_idx + i]);
+				std::string_view expected_trimmed = utf8::trim_view(expected_lines[i]);
 
 				if (expected_trimmed.empty()) {
 					if (!actual_trimmed.empty()) {

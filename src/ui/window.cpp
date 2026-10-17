@@ -369,7 +369,7 @@ bool window::process_events()
 						return true;
 					};
 
-					std::string click_uc = chars[click_char];
+					const std::string &click_uc = chars[click_char];
 					bool is_click_word = is_word_char(click_uc);
 					bool is_click_space = utf8::is_space_at_byte(click_uc, 0);
 
@@ -378,7 +378,7 @@ bool window::process_events()
 
 					// Expand left
 					while (start_pos > 0) {
-						std::string prev_uc = chars[start_pos - 1];
+						const std::string &prev_uc = chars[start_pos - 1];
 						bool is_prev_word = is_word_char(prev_uc);
 						bool is_prev_space = utf8::is_space_at_byte(prev_uc, 0);
 
@@ -394,7 +394,7 @@ bool window::process_events()
 					}
 					// Expand right
 					while (end_pos + 1 < static_cast<int>(chars.size())) {
-						std::string next_uc = chars[end_pos + 1];
+						const std::string &next_uc = chars[end_pos + 1];
 						bool is_next_word = is_word_char(next_uc);
 						bool is_next_space = utf8::is_space_at_byte(next_uc, 0);
 

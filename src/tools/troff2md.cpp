@@ -452,7 +452,7 @@ static std::string process_table_markdown(const std::vector<std::string>& lines)
     size_t num_cols = 0;
 
     for (size_t i = data_start_idx; i < lines.size(); ++i) {
-        std::string line = lines[i];
+        const std::string &line = lines[i];
         if (line.empty() || line == "_" || line == "=" || line.starts_with(".\\\"")) {
             continue;
         }

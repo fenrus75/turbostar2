@@ -957,9 +957,7 @@ std::vector<std::string> project_manager::detect_executable_candidates()
 	if (!project_name.empty()) {
 		auto it = std::find(candidates.begin(), candidates.end(), project_name);
 		if (it != candidates.end()) {
-			std::string p_name = *it;
-			candidates.erase(it);
-			candidates.insert(candidates.begin(), p_name);
+			std::rotate(candidates.begin(), it, it + 1);
 		}
 	}
 

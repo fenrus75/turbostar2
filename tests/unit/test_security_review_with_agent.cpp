@@ -82,7 +82,7 @@ void test_security_review_with_agent_execution()
 	// Verify subagent was created
 	auto subagents = agent->get_subagents();
 	assert(!subagents.empty());
-	auto subagent = subagents[0];
+	const auto &subagent = subagents[0];
 	assert(subagent->get_role() == agent_role::reviewer);
 	assert(subagent->get_name() == "Security Reviewer");
 	assert(subagent->get_animation_name() == "securityagent");
@@ -189,7 +189,7 @@ void test_security_review_with_agent_empty_instructions()
 	// Verify subagent was created
 	auto subagents = agent->get_subagents();
 	assert(!subagents.empty());
-	auto subagent = subagents[0];
+	const auto &subagent = subagents[0];
 	assert(subagent->get_role() == agent_role::reviewer);
 	assert(subagent->get_name() == "Security Reviewer");
 	assert(subagent->get_animation_name() == "securityagent");

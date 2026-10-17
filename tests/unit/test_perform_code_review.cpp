@@ -81,7 +81,7 @@ void test_perform_code_review_execution()
 	// Verify subagent was created
 	auto subagents = agent->get_subagents();
 	assert(!subagents.empty());
-	auto subagent = subagents[0];
+	const auto &subagent = subagents[0];
 	assert(subagent->get_role() == agent_role::reviewer);
 	assert(subagent->get_name() == "Code Reviewer");
 

@@ -347,7 +347,7 @@ size_t semcode_indexer::ingest_functions_stream(std::istream &input)
 
 size_t semcode_indexer::ingest_functions_file(const std::string &untrusted_json_path)
 {
-	std::string safe_path = untrusted_json_path;
+	const std::string &safe_path = untrusted_json_path;
 	if (!fs_utils::is_regular_file(safe_path)) {
 		return 0;
 	}
@@ -490,7 +490,7 @@ size_t semcode_indexer::ingest_types_stream(std::istream &input)
 
 size_t semcode_indexer::ingest_types_file(const std::string &untrusted_json_path)
 {
-	std::string safe_path = untrusted_json_path;
+	const std::string &safe_path = untrusted_json_path;
 	if (!fs_utils::is_regular_file(safe_path)) {
 		return 0;
 	}
@@ -787,7 +787,7 @@ std::vector<semcode_type_entry> semcode_indexer::lookup_types_by_prefix(std::str
 
 size_t semcode_indexer::prune_cache_directory(const std::string &untrusted_dir, size_t max_dbs)
 {
-	std::string safe_dir = untrusted_dir;
+	const std::string &safe_dir = untrusted_dir;
 	std::error_code ec;
 	if (safe_dir.empty() || !std::filesystem::is_directory(safe_dir, ec)) {
 		return 0;
@@ -862,7 +862,7 @@ bool semcode_indexer::has_blob_filter() const noexcept
 
 bool semcode_indexer::load_valid_blobs_from_git(const std::string &untrusted_project_dir, std::string_view git_ref)
 {
-	std::string safe_project = untrusted_project_dir;
+	const std::string &safe_project = untrusted_project_dir;
 	std::error_code ec;
 	if (safe_project.empty() || !std::filesystem::is_directory(safe_project, ec)) {
 		return false;
@@ -932,7 +932,7 @@ bool semcode_indexer::load_valid_blobs_from_git(const std::string &untrusted_pro
 
 void semcode_indexer::touch_database(const std::string &untrusted_db_path)
 {
-	std::string safe_path = untrusted_db_path;
+	const std::string &safe_path = untrusted_db_path;
 	std::error_code ec;
 	if (fs_utils::is_regular_file(safe_path)) {
 		std::filesystem::last_write_time(safe_path, std::filesystem::file_time_type::clock::now(), ec);
@@ -941,7 +941,7 @@ void semcode_indexer::touch_database(const std::string &untrusted_db_path)
 
 bool semcode_indexer::build_from_project(const std::string &untrusted_project_dir, std::string_view semcode_bin, size_t max_dbs)
 {
-	std::string safe_project = untrusted_project_dir;
+	const std::string &safe_project = untrusted_project_dir;
 	std::error_code ec;
 	if (safe_project.empty() || !std::filesystem::is_directory(safe_project, ec)) {
 		return false;

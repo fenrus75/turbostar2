@@ -142,7 +142,7 @@ int main()
 		assert(res_ro.find("sub_ro") != std::string::npos);
 		auto sub_ro_agents = agent->get_subagents();
 		assert(!sub_ro_agents.empty());
-		auto child_sub = sub_ro_agents.back();
+		const auto &child_sub = sub_ro_agents.back();
 		assert(child_sub->is_read_only() == true);
 
 		agent->set_read_only(original_ro);

@@ -702,7 +702,7 @@ bool ensure_parent_directory_exists(const std::string &target_path, std::string 
 	std::string warnings;
 
 	if (!missing_components.empty() && std::filesystem::exists(existing_grandparent)) {
-		std::filesystem::path first_missing = missing_components.back();
+		const std::filesystem::path &first_missing = missing_components.back();
 		std::string new_dir_name = first_missing.filename().string();
 
 		std::vector<std::string> similar_dirs;
