@@ -32,6 +32,14 @@ void test_vim_emulation()
 	assert(ed.is_running_ == false);
 	std::cout << "Test 3 passed: q! successfully quits\n";
 
+	// Test 3b: Command with leading and trailing whitespace and Unicode whitespace should be trimmed
+	ed.is_running_ = true;
+	ed.execute_vim_command("   \t   "); // Whitespace only - should do nothing
+	assert(ed.is_running_ == true);
+	ed.execute_vim_command(" \t \xC2\xA0" "q!" "\xE3\x80\x80 \n ");
+	assert(ed.is_running_ == false);
+	std::cout << "Test 3b passed: Vim command trimming with Unicode whitespace works\n";
+
 	// Reset for command w
 	ed.is_running_ = true;
 	ed.execute_vim_command("w");

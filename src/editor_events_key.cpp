@@ -29,6 +29,7 @@
 #include "codereview_manager.h"
 #include "images/image_manager.h"
 #include "syntax_color_manager.h"
+#include "utf8.h"
 
 namespace fs = std::filesystem;
 
@@ -1826,9 +1827,7 @@ void editor::execute_vim_command(std::string_view cmd_raw)
 	auto &logger = event_logger::get_instance();
 	logger.log(std::format("Executing Vim command: {}", cmd_raw));
 
-	std::string cmd(cmd_raw);
-	cmd.erase(cmd.begin(), std::find_if(cmd.begin(), cmd.end(), [](unsigned char ch) { return !std::isspace(ch); }));
-	cmd.erase(std::find_if(cmd.rbegin(), cmd.rend(), [](unsigned char ch) { return !std::isspace(ch); }).base(), cmd.end());
+	std::string_view cmd = utf8::trim_view(cmd_raw);
 
 	if (cmd.empty())
 		return;
@@ -1893,7 +1892,7 @@ void editor::execute_vim_command(std::string_view cmd_raw)
 	} else {
 		editor_event status_ev;
 		status_ev.type = event_type::set_transient_status;
-		status_ev.payload = "Error: Unknown command: " + cmd;
+		status_ev.payload = std::format("Error: Unknown command: {}", cmd);
 		status_ev.priority = status_priorities::WARNING;
 		global_queue_.push(status_ev);
 	}
