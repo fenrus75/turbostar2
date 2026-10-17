@@ -52,6 +52,20 @@ size_t byte_to_char_pos(std::string_view s, size_t byte_offset) noexcept;
 bool next_character(std::string_view s, size_t &byte_offset, std::string &out_char);
 
 /**
+ * @brief Returns true if the byte at byte_offset exists in s and starts a space
+ * (ASCII whitespace or Unicode space character: NBSP, typographic space, CJK ideographic space, etc.).
+ * Returns false if byte_offset is out of bounds, points to a non-space, or points to a UTF-8 continuation byte.
+ */
+bool is_space_at_byte(std::string_view s, size_t byte_offset) noexcept;
+
+/**
+ * @brief Returns true if the UTF-8 character at char_pos exists in s and is a space
+ * (ASCII whitespace or Unicode space character: NBSP, typographic space, CJK ideographic space, etc.).
+ * Returns false if char_pos is out of bounds or not a space.
+ */
+bool is_space_at_char(std::string_view s, size_t char_pos) noexcept;
+
+/**
  * @brief Sanitizes a string by replacing invalid UTF-8 sequences with '?'.
  */
 std::string sanitize(std::string_view s);

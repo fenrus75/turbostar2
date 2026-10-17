@@ -130,6 +130,67 @@ bool next_character(std::string_view s, size_t &byte_offset, std::string &out_ch
 	return true;
 }
 
+// Returns true if the byte at byte_offset starts an ASCII whitespace or Unicode space character.
+// Returns false if byte_offset is out of range, points to a non-space, or points to a continuation byte.
+bool is_space_at_byte(std::string_view s, size_t byte_offset) noexcept
+{
+	if (byte_offset >= s.length()) {
+		return false;
+	}
+
+	unsigned char c = static_cast<unsigned char>(s[byte_offset]);
+	// Fast-path: single-byte ASCII
+	if (c < 0x80) {
+		return std::isspace(c) != 0;
+	}
+
+	// Multibyte Unicode space sequences
+	// U+00A0: No-Break Space (\xC2\xA0)
+	if (c == 0xC2 && byte_offset + 1 < s.length()) {
+		return static_cast<unsigned char>(s[byte_offset + 1]) == 0xA0;
+	}
+
+	// 3-byte spaces starting with 0xE1:
+	// U+1680: Ogham Space Mark (\xE1\x9A\x80)
+	if (c == 0xE1 && byte_offset + 2 < s.length()) {
+		unsigned char b1 = static_cast<unsigned char>(s[byte_offset + 1]);
+		unsigned char b2 = static_cast<unsigned char>(s[byte_offset + 2]);
+		return b1 == 0x9A && b2 == 0x80;
+	}
+
+	// 3-byte spaces starting with 0xE2:
+	// U+2000..U+200A (En/Em/Thin/Hair/etc. spaces), U+2028, U+2029, U+202F, U+205F
+	if (c == 0xE2 && byte_offset + 2 < s.length()) {
+		unsigned char b1 = static_cast<unsigned char>(s[byte_offset + 1]);
+		unsigned char b2 = static_cast<unsigned char>(s[byte_offset + 2]);
+		if (b1 == 0x80) {
+			return (b2 >= 0x80 && b2 <= 0x8A) || b2 == 0xA8 || b2 == 0xA9 || b2 == 0xAF;
+		}
+		if (b1 == 0x81 && b2 == 0x9F) {
+			return true;
+		}
+		return false;
+	}
+
+	// 3-byte spaces starting with 0xE3:
+	// U+3000: Ideographic Fullwidth Space (\xE3\x80\x80)
+	if (c == 0xE3 && byte_offset + 2 < s.length()) {
+		unsigned char b1 = static_cast<unsigned char>(s[byte_offset + 1]);
+		unsigned char b2 = static_cast<unsigned char>(s[byte_offset + 2]);
+		return b1 == 0x80 && b2 == 0x80;
+	}
+
+	return false;
+}
+
+// Returns true if the UTF-8 character at char_pos is an ASCII whitespace or Unicode space character.
+// Returns false if char_pos is out of range or not a space.
+bool is_space_at_char(std::string_view s, size_t char_pos) noexcept
+{
+	size_t byte_offset = char_to_byte_offset(s, char_pos);
+	return is_space_at_byte(s, byte_offset);
+}
+
 // Replaces invalid UTF-8 sequences (invalid lead bytes, incomplete sequences,
 // or non-conforming continuation bytes) with replacement character '?'.
 // Preserves all valid UTF-8 sequences and ASCII characters unchanged.

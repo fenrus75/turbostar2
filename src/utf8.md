@@ -6,6 +6,7 @@ The `utf8` namespace (`src/utf8.h`, `src/utf8.cpp`) provides foundational string
 ## Architecture and Constraints
 - **UTF-8 Sequence Handling**:
   - Computes character counts (`length`), terminal column widths (`display_width`), and byte/character offset translations (`char_to_byte_offset`, `byte_to_char_pos`) without throwing exceptions on malformed byte sequences.
+  - Provides unified, symmetric ASCII and Unicode whitespace detection (`is_space_at_byte`, `is_space_at_char`) recognizing ASCII whitespace (`std::isspace`) as well as Unicode space separators (U+00A0 NBSP, U+1680, U+2000–U+200A, U+2028, U+2029, U+202F, U+205F, U+3000 CJK fullwidth space), maintaining exact semantic symmetry between byte- and character-addressed checks.
   - Provides `is_valid_utf8` and `sanitize` to defend UI rendering and JSON serialization against invalid UTF-8 sequences or embedded NUL bytes.
 - **Terminal Output Sanitization**:
   - `sanitize_terminal_output` strips ANSI CSI/OSC escape sequences (including incomplete trailing sequences) so terminal dumps remain safe for TUI and LLM consumption.

@@ -805,6 +805,210 @@ void test_utf8_case_idempotence()
 	}
 }
 
+static void verify_space_symmetry(std::string_view s)
+{
+	size_t n_chars = utf8::length(s);
+
+	// Verify symmetry between is_space_at_char and is_space_at_byte for valid and out-of-range positions
+	for (size_t char_pos = 0; char_pos <= n_chars + 5; ++char_pos) {
+		size_t byte_offset = utf8::char_to_byte_offset(s, char_pos);
+		bool space_char = utf8::is_space_at_char(s, char_pos);
+		bool space_byte = utf8::is_space_at_byte(s, byte_offset);
+		assert(space_char == space_byte);
+
+		if (char_pos >= n_chars) {
+			assert(!space_char);
+			assert(!space_byte);
+		}
+	}
+
+	// Verify all byte offsets directly
+	for (size_t b = 0; b <= s.length() + 5; ++b) {
+		bool space_byte = utf8::is_space_at_byte(s, b);
+		if (b >= s.length()) {
+			assert(!space_byte);
+		} else {
+			unsigned char uc = static_cast<unsigned char>(s[b]);
+			// A UTF-8 continuation byte (0x80 - 0xBF) cannot be the start of a character/space
+			if (uc >= 0x80 && uc < 0xC0) {
+				assert(!space_byte);
+			}
+		}
+	}
+}
+
+void test_utf8_is_space()
+{
+	// 1. Basic ASCII whitespace
+	assert(utf8::is_space_at_char(" ", 0));
+	assert(utf8::is_space_at_byte(" ", 0));
+	assert(utf8::is_space_at_char("\t", 0));
+	assert(utf8::is_space_at_byte("\t", 0));
+	assert(utf8::is_space_at_char("\n", 0));
+	assert(utf8::is_space_at_byte("\n", 0));
+	assert(utf8::is_space_at_char("\r", 0));
+	assert(utf8::is_space_at_byte("\r", 0));
+	assert(utf8::is_space_at_char("\v", 0));
+	assert(utf8::is_space_at_byte("\v", 0));
+	assert(utf8::is_space_at_char("\f", 0));
+	assert(utf8::is_space_at_byte("\f", 0));
+
+	// ASCII non-whitespace
+	assert(!utf8::is_space_at_char("a", 0));
+	assert(!utf8::is_space_at_byte("a", 0));
+	assert(!utf8::is_space_at_char("0", 0));
+	assert(!utf8::is_space_at_byte("0", 0));
+	assert(!utf8::is_space_at_char("_", 0));
+	assert(!utf8::is_space_at_byte("_", 0));
+	assert(!utf8::is_space_at_char("-", 0));
+	assert(!utf8::is_space_at_byte("-", 0));
+
+	// 2. Unicode spaces
+	// U+00A0 (No-Break Space: \xC2\xA0)
+	assert(utf8::is_space_at_char("\xC2\xA0", 0));
+	assert(utf8::is_space_at_byte("\xC2\xA0", 0));
+	assert(!utf8::is_space_at_byte("\xC2\xA0", 1)); // continuation byte
+
+	// U+1680 (Ogham Space Mark: \xE1\x9A\x80)
+	assert(utf8::is_space_at_char("\xE1\x9A\x80", 0));
+	assert(utf8::is_space_at_byte("\xE1\x9A\x80", 0));
+	assert(!utf8::is_space_at_byte("\xE1\x9A\x80", 1));
+	assert(!utf8::is_space_at_byte("\xE1\x9A\x80", 2));
+
+	// U+2000 through U+200A (En Quad, Em Quad, En Space, Em Space, Thin Space, Hair Space, etc.)
+	for (unsigned char b2 = 0x80; b2 <= 0x8A; ++b2) {
+		std::string space_str = {'\xE2', '\x80', static_cast<char>(b2)};
+		assert(utf8::is_space_at_char(space_str, 0));
+		assert(utf8::is_space_at_byte(space_str, 0));
+		assert(!utf8::is_space_at_byte(space_str, 1));
+		assert(!utf8::is_space_at_byte(space_str, 2));
+	}
+
+	// U+2028 (Line Separator: \xE2\x80\xA8)
+	assert(utf8::is_space_at_char("\xE2\x80\xA8", 0));
+	assert(utf8::is_space_at_byte("\xE2\x80\xA8", 0));
+
+	// U+2029 (Paragraph Separator: \xE2\x80\xA9)
+	assert(utf8::is_space_at_char("\xE2\x80\xA9", 0));
+	assert(utf8::is_space_at_byte("\xE2\x80\xA9", 0));
+
+	// U+202F (Narrow No-Break Space: \xE2\x80\xAF)
+	assert(utf8::is_space_at_char("\xE2\x80\xAF", 0));
+	assert(utf8::is_space_at_byte("\xE2\x80\xAF", 0));
+
+	// U+205F (Medium Mathematical Space: \xE2\x81\x9F)
+	assert(utf8::is_space_at_char("\xE2\x81\x9F", 0));
+	assert(utf8::is_space_at_byte("\xE2\x81\x9F", 0));
+
+	// U+3000 (Ideographic Space: \xE3\x80\x80)
+	assert(utf8::is_space_at_char("\xE3\x80\x80", 0));
+	assert(utf8::is_space_at_byte("\xE3\x80\x80", 0));
+	assert(!utf8::is_space_at_byte("\xE3\x80\x80", 1));
+	assert(!utf8::is_space_at_byte("\xE3\x80\x80", 2));
+
+	// 3. Unicode non-spaces (adjacent or similar lead bytes to test against false positives)
+	assert(!utf8::is_space_at_char("\xC2\x9F", 0));
+	assert(!utf8::is_space_at_byte("\xC2\x9F", 0));
+	assert(!utf8::is_space_at_char("\xC2\xA1", 0)); // Inverted exclamation ¡
+	assert(!utf8::is_space_at_byte("\xC2\xA1", 0));
+	assert(!utf8::is_space_at_char("\xE2\x80\x8B", 0)); // Zero width space
+	assert(!utf8::is_space_at_byte("\xE2\x80\x8B", 0));
+	assert(!utf8::is_space_at_char("\xE2\x80\x90", 0)); // Hyphen
+	assert(!utf8::is_space_at_byte("\xE2\x80\x90", 0));
+	assert(!utf8::is_space_at_char("\xE2\x81\x9E", 0));
+	assert(!utf8::is_space_at_byte("\xE2\x81\x9E", 0));
+	assert(!utf8::is_space_at_char("\xE3\x80\x81", 0)); // Ideographic comma
+	assert(!utf8::is_space_at_byte("\xE3\x80\x81", 0));
+	assert(!utf8::is_space_at_char("中", 0));
+	assert(!utf8::is_space_at_byte("中", 0));
+	assert(!utf8::is_space_at_char("é", 0));
+	assert(!utf8::is_space_at_byte("é", 0));
+	assert(!utf8::is_space_at_char("🚀", 0));
+	assert(!utf8::is_space_at_byte("🚀", 0));
+
+	// 4. Boundary and error conditions
+	// Empty string
+	assert(!utf8::is_space_at_char("", 0));
+	assert(!utf8::is_space_at_byte("", 0));
+	assert(!utf8::is_space_at_char("", 10));
+	assert(!utf8::is_space_at_byte("", 10));
+	assert(!utf8::is_space_at_char("", static_cast<size_t>(-1)));
+	assert(!utf8::is_space_at_byte("", static_cast<size_t>(-1)));
+
+	// Truncated multi-byte space sequences (end-of-buffer safety)
+	assert(!utf8::is_space_at_char("\xC2", 0));
+	assert(!utf8::is_space_at_byte("\xC2", 0));
+	assert(!utf8::is_space_at_char("\xE1\x9A", 0));
+	assert(!utf8::is_space_at_byte("\xE1\x9A", 0));
+	assert(!utf8::is_space_at_char("\xE2\x80", 0));
+	assert(!utf8::is_space_at_byte("\xE2\x80", 0));
+	assert(!utf8::is_space_at_char("\xE3\x80", 0));
+	assert(!utf8::is_space_at_byte("\xE3\x80", 0));
+
+	// Invalid UTF-8 lead and continuation bytes
+	assert(!utf8::is_space_at_char("\xFF", 0));
+	assert(!utf8::is_space_at_byte("\xFF", 0));
+	assert(!utf8::is_space_at_char("\x80", 0));
+	assert(!utf8::is_space_at_byte("\x80", 0));
+
+	// 5. In-context string testing with symmetry verification
+	const std::string nbsp = "\xC2\xA0";
+	const std::string ogham = "\xE1\x9A\x80";
+	const std::string quad = "\xE2\x80\x80";
+	const std::string em_space = "\xE2\x80\x83";
+	const std::string thin_space = "\xE2\x80\x89";
+	const std::string hair_space = "\xE2\x80\x8A";
+	const std::string cjk_space = "\xE3\x80\x80";
+
+	std::string mixed1 = "Hello World";
+	assert(!utf8::is_space_at_char(mixed1, 4));
+	assert(utf8::is_space_at_char(mixed1, 5)); // ' '
+	assert(!utf8::is_space_at_char(mixed1, 6));
+
+	std::string mixed_nbsp = "Café" + nbsp + "Au" + nbsp + "Lait";
+	// 'C'(0), 'a'(1), 'f'(2), 'é'(3), NBSP(4), 'A'(5), 'u'(6), NBSP(7), 'L'(8), 'a'(9), 'i'(10), 't'(11)
+	assert(!utf8::is_space_at_char(mixed_nbsp, 3)); // 'é'
+	assert(utf8::is_space_at_char(mixed_nbsp, 4));  // NBSP
+	assert(!utf8::is_space_at_char(mixed_nbsp, 5)); // 'A'
+	assert(utf8::is_space_at_char(mixed_nbsp, 7));  // NBSP
+	assert(!utf8::is_space_at_char(mixed_nbsp, 8)); // 'L'
+
+	std::string mixed_cjk = "こんにちは" + cjk_space + "世界";
+	// 5 Japanese kana chars, then ideographic space at char 5, then 2 kanji chars
+	assert(!utf8::is_space_at_char(mixed_cjk, 4));
+	assert(utf8::is_space_at_char(mixed_cjk, 5));
+	assert(!utf8::is_space_at_char(mixed_cjk, 6));
+
+	// 6. Prove symmetry on an exhaustive suite of test strings
+	const std::vector<std::string> symmetry_corpus = {
+		"",
+		" ",
+		"   ",
+		"\t\n\r",
+		"a",
+		"hello world",
+		"  leading and trailing  ",
+		"\tindented text\nnewline",
+		nbsp,
+		mixed_nbsp,
+		cjk_space,
+		mixed_cjk,
+		ogham + "ogham" + ogham + "space",
+		quad + "quad" + em_space + "em" + thin_space + "thin" + hair_space + "hair",
+		"Mixed \t" + nbsp + ogham + em_space + cjk_space + "spaces",
+		"🚀 sparkles ✨ fire 🔥",
+		"x86_64 and arm64_v8a",
+		"\xC2",
+		"\xE2\x80",
+		"\xE3\x80",
+		std::string("invalid\xFF\x80") + "bytes"
+	};
+
+	for (const auto &str : symmetry_corpus) {
+		verify_space_symmetry(str);
+	}
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -821,6 +1025,7 @@ int main()
 	test_utf8_case_conversions();
 	test_utf8_param_case_formatting();
 	test_utf8_case_idempotence();
+	test_utf8_is_space();
 
 	std::cout << "All UTF-8 unit tests passed!" << std::endl;
 	return 0;
