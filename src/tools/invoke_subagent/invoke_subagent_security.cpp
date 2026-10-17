@@ -202,15 +202,13 @@ class invoke_subagent_validator : public agentlib::tool_validator
 				}
 			}
 
-			if (!raw_args.git_ref.empty()) {
-				if (raw_args.git_ref.length() > 128) {
-					out_error = "git_ref exceeds maximum length of 128 characters.";
-					return false;
-				}
-				if (!utf8::is_alnum_only(raw_args.git_ref, "-_./@")) {
-					out_error = "Security Violation: git_ref contains invalid characters.";
-					return false;
-				}
+			if (raw_args.git_ref.length() > 128) {
+				out_error = "git_ref exceeds maximum length of 128 characters.";
+				return false;
+			}
+			if (utf8::is_not_alnum_only(raw_args.git_ref, "-_./@")) {
+				out_error = "Security Violation: git_ref contains invalid characters.";
+				return false;
 			}
 
 			args_.name = raw_args.name;

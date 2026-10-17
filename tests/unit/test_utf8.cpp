@@ -1207,6 +1207,25 @@ void test_utf8_is_alnum()
 	assert(!utf8::is_alnum_only("café"));
 	assert(utf8::is_alnum_only("café", "é"));
 	assert(!utf8::is_alnum_only("café\xC2", "é")); // Truncated sequence returns false
+
+	// 5. is_not_alnum_only
+	// Empty string contains no invalid characters -> false
+	assert(!utf8::is_not_alnum_only(""));
+	assert(!utf8::is_not_alnum_only("", "-_"));
+	// Pure alphanumeric strings -> false
+	assert(!utf8::is_not_alnum_only("hello123WORLD"));
+	assert(!utf8::is_not_alnum_only("hello_world", "_"));
+	assert(!utf8::is_not_alnum_only("test-123_abc", "-_"));
+	// Strings containing invalid / disallowed characters -> true
+	assert(utf8::is_not_alnum_only("hello_world")); // '_' not in extra
+	assert(utf8::is_not_alnum_only("test 123", "-_"));
+	assert(utf8::is_not_alnum_only("test;injection", "-_"));
+	assert(utf8::is_not_alnum_only("db.name", "-_"));
+	assert(!utf8::is_not_alnum_only("db.name", "-_."));
+	// Multibyte support in is_not_alnum_only
+	assert(utf8::is_not_alnum_only("café"));
+	assert(!utf8::is_not_alnum_only("café", "é"));
+	assert(utf8::is_not_alnum_only("café\xC2", "é"));
 }
 
 int main()

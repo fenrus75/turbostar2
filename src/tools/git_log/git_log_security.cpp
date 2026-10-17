@@ -35,13 +35,11 @@ bool git_log_validator::validate_args_impl(const nlohmann::json &args, const age
 				return false;
 			}
 			std::string untrusted_commit = args["commit_id"].get<std::string>();
-			if (!untrusted_commit.empty()) {
-				if (!utf8::is_alnum_only(untrusted_commit, "._-^~@/")) {
-					out_error = "Invalid characters in 'commit_id'. Must be a valid git commit or ref.";
-					return false;
-				}
-				args_.commit_id = untrusted_commit;
+			if (utf8::is_not_alnum_only(untrusted_commit, "._-^~@/")) {
+				out_error = "Invalid characters in 'commit_id'. Must be a valid git commit or ref.";
+				return false;
 			}
+			args_.commit_id = untrusted_commit;
 		}
 
 		if (args.contains("show_patch")) {

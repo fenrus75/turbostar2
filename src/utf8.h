@@ -97,6 +97,16 @@ bool is_space_at_char(std::string_view s, size_t char_pos) noexcept;
 [[nodiscard]] bool is_alnum_only(std::string_view s, std::string_view extra = {}) noexcept;
 
 /**
+ * @brief Returns true if s is non-empty and contains at least one character that is not alphanumeric and not in extra.
+ * Returns false if s is empty or consists purely of alphanumeric characters and extra.
+ * Convenient wrapper for parameter/argument validation to avoid double negatives and explicit empty checks.
+ */
+[[nodiscard]] inline bool is_not_alnum_only(std::string_view s, std::string_view extra = {}) noexcept
+{
+	return !s.empty() && !is_alnum_only(s, extra);
+}
+
+/**
  * @brief Sanitizes a string by replacing invalid UTF-8 sequences with '?'.
  */
 std::string sanitize(std::string_view s);
