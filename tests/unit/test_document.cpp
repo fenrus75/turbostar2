@@ -730,6 +730,34 @@ int main()
 			doc.format_paragraph(); // Should trigger C++ formatting branch
 		}
 
+		// Test 19: is_space_at with ASCII and Unicode whitespace
+		{
+			document doc(queue, "space_test.txt");
+			// Line 0: "Hello World" (ASCII space at char 5)
+			// Line 1: "Café\xC2\xA0Au\xE3\x80\x80Lait" (NBSP at char 4, CJK space at char 7)
+			doc.append_line("Hello World");
+			doc.append_line("Café\xC2\xA0" "Au\xE3\x80\x80" "Lait");
+
+			// Out of bounds
+			assert(!doc.is_space_at(-1, 0));
+			assert(!doc.is_space_at(10, 0));
+			assert(!doc.is_space_at(0, -1));
+			assert(!doc.is_space_at(0, 100));
+
+			// Line 0: "Hello World"
+			assert(!doc.is_space_at(0, 0)); // 'H'
+			assert(!doc.is_space_at(0, 4)); // 'o'
+			assert(doc.is_space_at(0, 5));  // ' '
+			assert(!doc.is_space_at(0, 6)); // 'W'
+
+			// Line 1: "Café\xC2\xA0Au\xE3\x80\x80Lait"
+			// 'C'(0), 'a'(1), 'f'(2), 'é'(3), NBSP(4), 'A'(5), 'u'(6), CJK_SPACE(7), 'L'(8)
+			assert(!doc.is_space_at(1, 3)); // 'é'
+			assert(doc.is_space_at(1, 4));  // NBSP
+			assert(!doc.is_space_at(1, 5)); // 'A'
+			assert(doc.is_space_at(1, 7));  // CJK ideographic space
+			assert(!doc.is_space_at(1, 8)); // 'L'
+		}
 
 	std::cout << "document unit test passed!\n";
 	return 0;

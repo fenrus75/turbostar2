@@ -32,6 +32,7 @@
 #include "highlighter/highlighter_registry.h"
 #include "history_manager.h"
 #include "project_manager.h"
+#include "utf8.h"
 
 namespace fs = std::filesystem;
 
@@ -618,14 +619,10 @@ bool document::is_space_at(int y, int x) const
 
 bool document::is_space_at_unlocked(int y, int x) const
 {
-	if (y < 0 || y >= line_count_unlocked())
+	if (y < 0 || y >= line_count_unlocked() || x < 0)
 		return false;
 	std::string text = lines_[y]->get_text();
-	size_t offset = lines_[y]->char_to_byte_offset(x);
-	if (offset < text.length()) {
-		return std::isspace(static_cast<unsigned char>(text[offset]));
-	}
-	return false;
+	return utf8::is_space_at_char(text, static_cast<size_t>(x));
 }
 
 bool document::is_terminator_at_unlocked(int y, int x) const

@@ -187,6 +187,7 @@ class document
 	void format_paragraph();
 	void trim_trailing_whitespace();
 
+	bool is_space_at(int y, int x) const;
 	std::optional<std::pair<int, int>> find_matching_bracket(int y, int x) const;
 	void select_enclosing_scope();
 
@@ -252,7 +253,6 @@ class document
 	void highlighter_thread_loop(std::stop_token stop_token);
 	void process_line_highlight(std::shared_ptr<line> l);
 	void refresh_highlighter();
-	bool is_space_at(int y, int x) const;
 	bool is_space_at_unlocked(int y, int x) const;
 	bool is_terminator_at_unlocked(int y, int x) const;
 	std::string get_word_under_cursor_unlocked() const;
