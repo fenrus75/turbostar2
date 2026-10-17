@@ -159,6 +159,9 @@ void test_utf8_byte_to_char_pos()
 	assert(utf8::byte_to_char_pos(s2, 6) == 5);  // inside '€' (bytes 5-7) -> maps to char 5
 	assert(utf8::byte_to_char_pos(s2, 10) == 7); // inside '🦀' (bytes 9-12) -> maps to char 7
 	assert(utf8::byte_to_char_pos(s2, 12) == 7);
+
+	// Truncated multi-byte sequence at end of string
+	assert(utf8::byte_to_char_pos("X\xE2\x82", 3) == 2);
 }
 
 void test_utf8_next_character()
@@ -271,6 +274,10 @@ void test_utf8_wrap_string()
 	assert(lines_emoji.size() == 2);
 	assert(lines_emoji[0] == "🦀 🦀");
 	assert(lines_emoji[1] == "🦀 🦀");
+
+	// 8. Truncated multi-byte sequence in wrapped text
+	auto lines_trunc = utf8::wrap_string("", "hello \xC2 world", 10);
+	assert(lines_trunc.size() >= 1);
 }
 
 void test_utf8_ascii_fastpath()
@@ -282,6 +289,10 @@ void test_utf8_ascii_fastpath()
 	std::string_view ascii_str = "Hello, Turbostar Editor 2026!";
 	assert(utf8::display_width(ascii_str) == ascii_str.length());
 	assert(utf8::length(ascii_str) == ascii_str.length());
+
+	// Invalid / truncated multi-byte sequences in display_width
+	assert(utf8::display_width("bad\xFF\xFE") == 5);
+	assert(utf8::display_width("trunc\xC2") == 6);
 	assert(utf8::is_valid_utf8(ascii_str));
 
 	// Accented Latin characters (display width 1 each)
@@ -1011,6 +1022,10 @@ void test_utf8_is_space()
 	assert(!utf8::is_space_at_byte("\xC2\x9F", 0));
 	assert(!utf8::is_space_at_char("\xC2\xA1", 0)); // Inverted exclamation ¡
 	assert(!utf8::is_space_at_byte("\xC2\xA1", 0));
+	assert(!utf8::is_space_at_char("\xE1\x9A\x81", 0)); // Ogham letter Beith (adjacent to U+1680)
+	assert(!utf8::is_space_at_byte("\xE1\x9A\x81", 0));
+	assert(!utf8::is_space_at_char("\xE1\x80\x80", 0)); // Myanmar letter Ka (different 2nd byte)
+	assert(!utf8::is_space_at_byte("\xE1\x80\x80", 0));
 	assert(!utf8::is_space_at_char("\xE2\x80\x8B", 0)); // Zero width space
 	assert(!utf8::is_space_at_byte("\xE2\x80\x8B", 0));
 	assert(!utf8::is_space_at_char("\xE2\x80\x90", 0)); // Hyphen
