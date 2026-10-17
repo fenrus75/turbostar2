@@ -598,6 +598,28 @@ std::string sanitize_terminal_output(std::string_view input)
 	return output;
 }
 
+// Returns a copy of s with all ASCII uppercase letters converted to lowercase.
+std::string to_lower(std::string_view s)
+{
+	std::string res;
+	res.reserve(s.size());
+	for (char c : s) {
+		res.push_back(to_lower(c));
+	}
+	return res;
+}
+
+// Returns a copy of s with all ASCII lowercase letters converted to uppercase.
+std::string to_upper(std::string_view s)
+{
+	std::string res;
+	res.reserve(s.size());
+	for (char c : s) {
+		res.push_back(to_upper(c));
+	}
+	return res;
+}
+
 // Converts an identifier from PascalCase, camelCase, kebab-case, or SCREAMING_SNAKE_CASE
 // into canonical snake_case. Preserves acronym cohesion (e.g., "HTMLParser" -> "html_parser",
 // "URL" -> "url") and separates digit-to-uppercase boundaries (e.g., "utf8Char" -> "utf8_char").

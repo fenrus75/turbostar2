@@ -629,6 +629,36 @@ void check_case_idempotence(std::string_view s)
 
 void test_utf8_case_conversions()
 {
+	// to_lower (char and string_view)
+	assert(utf8::to_lower('A') == 'a');
+	assert(utf8::to_lower('Z') == 'z');
+	assert(utf8::to_lower('a') == 'a');
+	assert(utf8::to_lower('0') == '0');
+	assert(utf8::to_lower('-') == '-');
+	assert(utf8::to_lower(static_cast<char>(0xC3)) == static_cast<char>(0xC3));
+
+	assert(utf8::to_lower("") == "");
+	assert(utf8::to_lower("hello_world") == "hello_world");
+	assert(utf8::to_lower("HELLO WORLD 123") == "hello world 123");
+	assert(utf8::to_lower("Extension.CPP") == "extension.cpp");
+	assert(utf8::to_lower("Café Au Lait — München €") == "café au lait — münchen €");
+	assert(utf8::to_lower("\x80\xFF\xFE") == "\x80\xFF\xFE");
+
+	// to_upper (char and string_view)
+	assert(utf8::to_upper('a') == 'A');
+	assert(utf8::to_upper('z') == 'Z');
+	assert(utf8::to_upper('A') == 'A');
+	assert(utf8::to_upper('0') == '0');
+	assert(utf8::to_upper('-') == '-');
+	assert(utf8::to_upper(static_cast<char>(0xC3)) == static_cast<char>(0xC3));
+
+	assert(utf8::to_upper("") == "");
+	assert(utf8::to_upper("HELLO_WORLD") == "HELLO_WORLD");
+	assert(utf8::to_upper("hello world 123") == "HELLO WORLD 123");
+	assert(utf8::to_upper("extension.cpp") == "EXTENSION.CPP");
+	assert(utf8::to_upper("Café Au Lait — München €") == "CAFé AU LAIT — MüNCHEN €");
+	assert(utf8::to_upper("\x80\xFF\xFE") == "\x80\xFF\xFE");
+
 	// to_snake_case
 	assert(utf8::to_snake_case("") == "");
 	assert(utf8::to_snake_case("path") == "path");

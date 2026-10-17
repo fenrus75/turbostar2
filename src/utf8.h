@@ -80,6 +80,31 @@ bool is_space_at_char(std::string_view s, size_t char_pos) noexcept;
 }
 
 /**
+ * @brief Converts an ASCII character to lowercase ([A-Z] -> [a-z]).
+ * Non-ASCII bytes and other characters are returned unchanged.
+ */
+[[nodiscard]] constexpr char to_lower(char c) noexcept
+{
+	const auto uc = static_cast<unsigned char>(c);
+	if (uc >= 'A' && uc <= 'Z') {
+		return static_cast<char>(uc + ('a' - 'A'));
+	}
+	return c;
+}
+
+/**
+ * @brief Converts an ASCII character to uppercase ([a-z] -> [A-Z]).
+ * Non-ASCII bytes and other characters are returned unchanged.
+ */
+[[nodiscard]] constexpr char to_upper(char c) noexcept
+{
+	const auto uc = static_cast<unsigned char>(c);
+	if (uc >= 'a' && uc <= 'z') {
+		return static_cast<char>(uc - ('a' - 'A'));
+	}
+	return c;
+}
+/**
  * @brief Checks if the character starting at byte_offset in s is alphanumeric or matches extra.
  * Safely handles multi-byte UTF-8 character boundaries if extra contains non-ASCII characters.
  */
@@ -179,6 +204,17 @@ std::string detect_mime(std::string_view buffer);
  */
 std::string sanitize_terminal_output(std::string_view input);
 
+/**
+ * @brief Returns a copy of s with all ASCII uppercase letters ([A-Z]) converted to lowercase.
+ * Multibyte UTF-8 sequences and non-ASCII bytes are preserved without modification.
+ */
+[[nodiscard]] std::string to_lower(std::string_view s);
+
+/**
+ * @brief Returns a copy of s with all ASCII lowercase letters ([a-z]) converted to uppercase.
+ * Multibyte UTF-8 sequences and non-ASCII bytes are preserved without modification.
+ */
+[[nodiscard]] std::string to_upper(std::string_view s);
 /**
  * @brief Converts an identifier (PascalCase, camelCase, kebab-case, or snake_case) to snake_case.
  */
