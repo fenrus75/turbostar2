@@ -429,7 +429,7 @@ bool window::process_events()
 			auto is_line_empty = [&](int row) -> bool {
 				auto line_obj = doc_->get_line(row);
 				if (!line_obj) return true;
-				return utf8::trim_full(line_obj->get_text()).empty();
+				return utf8::is_whitespace_only(line_obj->get_text());
 			};
 
 			int start_row = click_row;

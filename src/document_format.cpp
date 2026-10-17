@@ -197,8 +197,7 @@ void document::format_paragraph()
 		return;
 
 	auto is_empty = [&](int y) {
-		std::string t = lines_[y]->get_text();
-		return std::all_of(t.begin(), t.end(), [](unsigned char ch) { return std::isspace(ch); });
+		return utf8::is_whitespace_only(lines_[y]->get_text());
 	};
 
 	int sy = cursor_y_;

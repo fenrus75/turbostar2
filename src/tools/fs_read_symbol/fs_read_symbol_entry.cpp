@@ -11,17 +11,13 @@
 #include "project_manager.h"
 #include "fs_read_symbol.h"
 #include "fs_utils.h"
+#include "utf8.h"
 
 namespace tools
 {
 
 namespace
 {
-
-bool is_whitespace_only(const std::string &str)
-{
-	return std::all_of(str.begin(), str.end(), [](unsigned char c) { return std::isspace(c); });
-}
 
 void find_symbols_recursive(const lsp_manager::symbol_node &node, const std::string &parent_scope,
 			    const std::string &target_name, std::vector<lsp_manager::symbol_node> &matches,
@@ -198,18 +194,18 @@ std::string fs_read_symbol_tool::execute(agentlib::tool_context &ctx)
 		int symbol_len = match_end - match_start;
 
 		int keep_prev = 0;
-		if (offset >= 1 && offset <= static_cast<int>(raw_lines.size()) && !is_whitespace_only(raw_lines[offset - 1])) {
+		if (offset >= 1 && offset <= static_cast<int>(raw_lines.size()) && !utf8::is_whitespace_only(raw_lines[offset - 1])) {
 			keep_prev = 1;
-			if (offset >= 2 && !is_whitespace_only(raw_lines[offset - 2])) {
+			if (offset >= 2 && !utf8::is_whitespace_only(raw_lines[offset - 2])) {
 				keep_prev = 2;
 			}
 		}
 
 		int symbol_end_idx = offset + symbol_len;
 		int keep_next = 0;
-		if (static_cast<int>(raw_lines.size()) > symbol_end_idx + 1 && symbol_end_idx + 1 >= 0 && !is_whitespace_only(raw_lines[symbol_end_idx + 1])) {
+		if (static_cast<int>(raw_lines.size()) > symbol_end_idx + 1 && symbol_end_idx + 1 >= 0 && !utf8::is_whitespace_only(raw_lines[symbol_end_idx + 1])) {
 			keep_next = 1;
-			if (static_cast<int>(raw_lines.size()) > symbol_end_idx + 2 && symbol_end_idx + 2 >= 0 && !is_whitespace_only(raw_lines[symbol_end_idx + 2])) {
+			if (static_cast<int>(raw_lines.size()) > symbol_end_idx + 2 && symbol_end_idx + 2 >= 0 && !utf8::is_whitespace_only(raw_lines[symbol_end_idx + 2])) {
 				keep_next = 2;
 			}
 		}

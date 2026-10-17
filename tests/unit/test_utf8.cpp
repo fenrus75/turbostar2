@@ -460,6 +460,43 @@ void test_utf8_trim_and_terminal_sanitize()
 	assert(utf8::trim_full("\xC2") == "\xC2");
 	assert(utf8::trim_full("\xE2\x80") == "\xE2\x80");
 
+	// 6. is_whitespace_only
+	assert(utf8::is_whitespace_only(""));
+	assert(utf8::is_whitespace_only("   \t\r\n\v\f  "));
+	assert(utf8::is_whitespace_only(all_unicode_spaces));
+	assert(utf8::is_whitespace_only("  \t" + nbsp + quad + "\r\n " + cjk_space));
+	assert(!utf8::is_whitespace_only("a"));
+	assert(!utf8::is_whitespace_only("   a   "));
+	assert(!utf8::is_whitespace_only(surrounded));
+	assert(!utf8::is_whitespace_only("Café"));
+	assert(!utf8::is_whitespace_only(zwsp));
+	assert(!utf8::is_whitespace_only(inv_excl));
+	assert(!utf8::is_whitespace_only("\xC2"));
+	assert(!utf8::is_whitespace_only("\xE2\x80"));
+
+	// Invariance check: is_whitespace_only(s) == trim_full(s).empty()
+	for (const auto &s : {
+	         std::string(""),
+	         std::string(" "),
+	         std::string("   \t\r\n  "),
+	         all_unicode_spaces,
+	         surrounded,
+	         mixed_nbsp,
+	         utf8_text,
+	         zwsp,
+	         cjk_comma,
+	         std::string("non-space")
+	     }) {
+		assert(utf8::is_whitespace_only(s) == utf8::trim_full(s).empty());
+		assert(utf8::trim_view(s) == utf8::trim_full(s));
+		assert(utf8::trim_view_leading(s) == utf8::trim_leading_whitespace(s));
+		assert(utf8::trim_view_trailing(s) == utf8::trim_trailing_whitespace(s));
+		std::string_view tv = utf8::trim_view(s);
+		if (!tv.empty()) {
+			assert(tv.data() >= s.data() && (tv.data() + tv.size()) <= (s.data() + s.size()));
+		}
+	}
+
 	// 3. sanitize_terminal_output
 	assert(utf8::sanitize_terminal_output("") == "");
 	assert(utf8::sanitize_terminal_output("Pure plain text") == "Pure plain text");

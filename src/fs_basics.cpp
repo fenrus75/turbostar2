@@ -1,4 +1,5 @@
 #include "fs_basics.h"
+#include "utf8.h"
 
 #include <algorithm>
 #include <array>
@@ -245,13 +246,7 @@ std::string unwrap_prompt_untrusted_data_tag(std::string_view content)
 
 bool is_prompt_tag_wrapped(std::string_view content) noexcept
 {
-	std::string_view s = content;
-	while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front()))) {
-		s.remove_prefix(1);
-	}
-	while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back()))) {
-		s.remove_suffix(1);
-	}
+	std::string_view s = utf8::trim_view(content);
 	if (s.empty() || s.front() != '<') {
 		return false;
 	}

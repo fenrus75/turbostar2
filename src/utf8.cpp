@@ -270,10 +270,10 @@ bool is_valid_utf8(std::string_view s) noexcept
 	return true;
 }
 
-// Returns a copy of s with leading whitespace removed.
+// Returns a subview of s with leading whitespace removed without memory allocations.
 // Removes ASCII whitespace (std::isspace) and Unicode space characters.
 // Safely advances by entire UTF-8 character byte lengths.
-std::string trim_leading_whitespace(std::string_view s)
+std::string_view trim_view_leading(std::string_view s) noexcept
 {
 	size_t start = 0;
 	while (start < s.length() && is_space_at_byte(s, start)) {
@@ -281,15 +281,15 @@ std::string trim_leading_whitespace(std::string_view s)
 		start += char_len(c);
 	}
 	if (start >= s.length()) {
-		return "";
+		return {};
 	}
-	return std::string(s.substr(start));
+	return s.substr(start);
 }
 
-// Returns a copy of s with trailing whitespace removed.
+// Returns a subview of s with trailing whitespace removed without memory allocations.
 // Removes ASCII whitespace (std::isspace) and Unicode space characters.
 // Safely steps back to preceding character boundaries and removes entire multi-byte characters.
-std::string trim_trailing_whitespace(std::string_view s)
+std::string_view trim_view_trailing(std::string_view s) noexcept
 {
 	size_t end = s.length();
 	while (end > 0) {
@@ -305,12 +305,12 @@ std::string trim_trailing_whitespace(std::string_view s)
 			break;
 		}
 	}
-	return std::string(s.substr(0, end));
+	return s.substr(0, end);
 }
 
-// Returns a copy of s with both leading and trailing whitespace removed.
+// Returns a subview of s with both leading and trailing whitespace removed without memory allocations.
 // Removes ASCII whitespace (std::isspace) and Unicode space characters.
-std::string trim_full(std::string_view s)
+std::string_view trim_view(std::string_view s) noexcept
 {
 	size_t start = 0;
 	while (start < s.length() && is_space_at_byte(s, start)) {
@@ -318,7 +318,7 @@ std::string trim_full(std::string_view s)
 		start += char_len(c);
 	}
 	if (start >= s.length()) {
-		return "";
+		return {};
 	}
 
 	size_t end = s.length();
@@ -335,13 +335,38 @@ std::string trim_full(std::string_view s)
 			break;
 		}
 	}
-	return std::string(s.substr(start, end - start));
+	return s.substr(start, end - start);
+}
+
+// Returns a copy of s with leading whitespace removed.
+std::string trim_leading_whitespace(std::string_view s)
+{
+	return std::string(trim_view_leading(s));
+}
+
+// Returns a copy of s with trailing whitespace removed.
+std::string trim_trailing_whitespace(std::string_view s)
+{
+	return std::string(trim_view_trailing(s));
+}
+
+// Returns a copy of s with both leading and trailing whitespace removed.
+std::string trim_full(std::string_view s)
+{
+	return std::string(trim_view(s));
 }
 
 // Convenience alias for trim_full.
 std::string trim(std::string_view s)
 {
 	return trim_full(s);
+}
+
+// Returns true if s is empty or contains only whitespace (ASCII whitespace and Unicode space characters).
+// Evaluates without memory allocations.
+bool is_whitespace_only(std::string_view s) noexcept
+{
+	return trim_view(s).empty();
 }
 
 // Wraps text to a target display width. Prepends prefix to line 1 and indents subsequent
