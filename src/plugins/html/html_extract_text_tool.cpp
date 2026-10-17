@@ -1,5 +1,6 @@
 #include "plugins/html/html_extract_text_tool.h"
 #include "plugins/html/html_sanitize.h"
+#include "utf8.h"
 #include "fs_utils.h"
 #include <lexbor/html/parser.h>
 #include <lexbor/dom/interfaces/element.h>
@@ -288,7 +289,7 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 			attr_str += std::string(reinterpret_cast<const char *>(id_val), id_len) + " ";
 		if (class_val && class_len > 0)
 			attr_str += std::string(reinterpret_cast<const char *>(class_val), class_len);
-		std::transform(attr_str.begin(), attr_str.end(), attr_str.begin(), [](unsigned char c) { return std::tolower(c); });
+		attr_str = utf8::to_lower(attr_str);
 
 		std::string_view id_sv(id_val ? reinterpret_cast<const char *>(id_val) : "", id_len);
 
@@ -456,8 +457,7 @@ void walk_node(lxb_html_document_t *document, lxb_dom_node_t *node, std::string 
 			link_text = collapse_whitespace(link_text);
 			link_text = trim(link_text);
 
-			std::string lower_text = link_text;
-			std::transform(lower_text.begin(), lower_text.end(), lower_text.begin(), [](unsigned char c) { return std::tolower(c); });
+			std::string lower_text = utf8::to_lower(link_text);
 			if (lower_text == "edit" || lower_text == "[edit]" || lower_text == "edit source" || lower_text == "[edit source]" || lower_text == "edit links") {
 				return;
 			}

@@ -4,6 +4,7 @@
 #include <string_view>
 #include <algorithm>
 #include "fs_utils.h"
+#include "utf8.h"
 
 namespace html_sanitize
 {
@@ -11,8 +12,7 @@ namespace html_sanitize
 inline bool is_safe_url_scheme(std::string_view url)
 {
 	if (url.empty()) return true;
-	std::string s(url);
-	std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
+	std::string s = utf8::to_lower(url);
 	if (s.starts_with("javascript:") || s.starts_with("data:") || s.starts_with("vbscript:") || s.starts_with("file:")) {
 		return false;
 	}

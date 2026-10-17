@@ -153,10 +153,7 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 		if (line_str.starts_with("```")) {
 			in_code_block = !in_code_block;
 			if (in_code_block) {
-				std::string lang = utf8::trim_trailing_whitespace(line_str.substr(3));
-				for (char &ch : lang) {
-					ch = std::tolower(static_cast<unsigned char>(ch));
-				}
+				std::string lang = utf8::to_lower(utf8::trim_trailing_whitespace(line_str.substr(3)));
 				active_highlighter = highlighter_registry::get_instance().get_highlighter_for_language(lang);
 			} else {
 				active_highlighter = nullptr;

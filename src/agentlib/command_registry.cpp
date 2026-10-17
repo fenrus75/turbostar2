@@ -8,6 +8,7 @@
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "project_manager.h"
+#include "utf8.h"
 #include <algorithm>
 #include <cctype>
 #include <fstream>
@@ -378,15 +379,7 @@ class yolo_command : public agent_command
 	void execute(const context &ctx) override
 	{
 		auto &cfg = config_manager::get_instance();
-		std::string arg = ctx.arguments;
-		size_t first = arg.find_first_not_of(" \t\r\n");
-		if (first != std::string::npos) {
-			arg.erase(0, first);
-			arg.erase(arg.find_last_not_of(" \t\r\n") + 1);
-		} else {
-			arg.clear();
-		}
-		std::transform(arg.begin(), arg.end(), arg.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+		std::string arg = utf8::to_lower(utf8::trim(ctx.arguments));
 
 		bool target;
 		if (arg == "on" || arg == "1" || arg == "true" || arg == "enable") {

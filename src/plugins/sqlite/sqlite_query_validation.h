@@ -3,6 +3,7 @@
 #include <string>
 #include <algorithm>
 #include <cctype>
+#include "utf8.h"
 
 namespace tools
 {
@@ -89,11 +90,7 @@ inline bool validate_query_safety(const std::string &query, std::string &out_err
 		}
 	}
 
-	std::string upper;
-	upper.reserve(clean_sql.size());
-	for (char c : clean_sql) {
-		upper += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-	}
+	std::string upper = utf8::to_upper(clean_sql);
 
 	// Reject multiple statements (semicolons in body outside strings)
 	bool in_str = false;

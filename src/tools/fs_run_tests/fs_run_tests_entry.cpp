@@ -26,11 +26,8 @@ static bool contains_case_insensitive(std::string_view haystack, std::string_vie
 	if (needle.empty()) {
 		return false;
 	}
-	auto to_lower = [](char c) { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); };
-	std::string hay(haystack);
-	std::string ned(needle);
-	std::transform(hay.begin(), hay.end(), hay.begin(), to_lower);
-	std::transform(ned.begin(), ned.end(), ned.begin(), to_lower);
+	std::string hay = utf8::to_lower(haystack);
+	std::string ned = utf8::to_lower(needle);
 	return hay.find(ned) != std::string::npos;
 }
 
@@ -42,7 +39,7 @@ static std::vector<std::string> extract_test_tokens(std::string_view s)
 	std::string cur;
 	for (char c : s) {
 		if (utf8::is_alnum(c)) {
-			cur += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+			cur += utf8::to_lower(c);
 		} else if (!cur.empty()) {
 			if (cur != "test" && cur != "tests" && cur != "turbostar") {
 				tokens.push_back(cur);

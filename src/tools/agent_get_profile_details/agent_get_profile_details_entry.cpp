@@ -52,11 +52,7 @@ static bool match_symbol_string(std::string_view target, std::string_view query)
 		if (colons != std::string::npos) {
 			str = str.substr(colons + 2);
 		}
-		std::string lower;
-		for (char c : str) {
-			lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-		}
-		return lower;
+		return utf8::to_lower(str);
 	};
 
 	std::string t_base = extract_base_name(target);

@@ -6,6 +6,7 @@
 #include "fs_run_tests.h"
 #include "fs_utils.h"
 #include "project_manager.h"
+#include "utf8.h"
 
 namespace tools
 {
@@ -62,10 +63,7 @@ bool fs_run_tests_validator::validate_args_impl(const nlohmann::json &args, cons
 		if (untrusted_verbose.is_boolean()) {
 			safe_verbose = untrusted_verbose.get<bool>() ? "true" : "false";
 		} else if (untrusted_verbose.is_string()) {
-			std::string untrusted_val = untrusted_verbose.get<std::string>();
-			std::string val = untrusted_val;
-			std::transform(val.begin(), val.end(), val.begin(),
-				       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+			std::string val = utf8::to_lower(untrusted_verbose.get<std::string>());
 			if (val == "auto" || val == "true" || val == "false") {
 				safe_verbose = val;
 			} else {

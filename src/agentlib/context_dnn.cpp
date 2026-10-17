@@ -192,7 +192,7 @@ std::vector<std::string> context_dnn::tokenize(std::string_view text)
 	std::string current;
 	for (char c : text) {
 		if (utf8::is_alnum(c)) {
-			current += std::tolower(static_cast<unsigned char>(c));
+			current += utf8::to_lower(c);
 		} else {
 			if (!current.empty()) {
 				tokens.push_back(current);
