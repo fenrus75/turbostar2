@@ -66,6 +66,37 @@ bool is_space_at_byte(std::string_view s, size_t byte_offset) noexcept;
 bool is_space_at_char(std::string_view s, size_t char_pos) noexcept;
 
 /**
+ * @brief Checks if a character is an ASCII alphanumeric character ([0-9a-zA-Z])
+ *        or matches any character specified in extra.
+ * Safely handles signed char to prevent ctype undefined behavior on non-ASCII bytes.
+ */
+[[nodiscard]] constexpr bool is_alnum(char c, std::string_view extra = {}) noexcept
+{
+	const auto uc = static_cast<unsigned char>(c);
+	if ((uc >= '0' && uc <= '9') || (uc >= 'a' && uc <= 'z') || (uc >= 'A' && uc <= 'Z')) {
+		return true;
+	}
+	return !extra.empty() && extra.find(c) != std::string_view::npos;
+}
+
+/**
+ * @brief Checks if the character starting at byte_offset in s is alphanumeric or matches extra.
+ * Safely handles multi-byte UTF-8 character boundaries if extra contains non-ASCII characters.
+ */
+[[nodiscard]] bool is_alnum_at_byte(std::string_view s, size_t byte_offset, std::string_view extra = {}) noexcept;
+
+/**
+ * @brief Checks if the 0-indexed character at char_pos in s is alphanumeric or matches extra.
+ */
+[[nodiscard]] bool is_alnum_at_char(std::string_view s, size_t char_pos, std::string_view extra = {}) noexcept;
+
+/**
+ * @brief Returns true if s is non-empty and every character in s satisfies is_alnum with extra.
+ * Safely handles multi-byte UTF-8 character boundaries.
+ */
+[[nodiscard]] bool is_alnum_only(std::string_view s, std::string_view extra = {}) noexcept;
+
+/**
  * @brief Sanitizes a string by replacing invalid UTF-8 sequences with '?'.
  */
 std::string sanitize(std::string_view s);

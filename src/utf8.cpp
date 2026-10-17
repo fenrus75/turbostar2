@@ -191,6 +191,74 @@ bool is_space_at_char(std::string_view s, size_t char_pos) noexcept
 	return is_space_at_byte(s, byte_offset);
 }
 
+// Returns true if the character at byte_offset is alphanumeric ([0-9a-zA-Z]) or matches any character in extra.
+// If the character at byte_offset is a multi-byte UTF-8 sequence, it checks if the full multi-byte character
+// is contained in extra. Returns false if byte_offset is out of range or on a continuation byte.
+bool is_alnum_at_byte(std::string_view s, size_t byte_offset, std::string_view extra) noexcept
+{
+	if (byte_offset >= s.length()) {
+		return false;
+	}
+
+	unsigned char c = static_cast<unsigned char>(s[byte_offset]);
+	if (c < 0x80) {
+		return is_alnum(static_cast<char>(c), extra);
+	}
+
+	// Multi-byte character sequence
+	size_t clen = char_len(c);
+	if (clen == 1 || byte_offset + clen > s.length()) {
+		return false; // Continuation byte or truncated
+	}
+
+	if (!extra.empty()) {
+		std::string_view glyph = s.substr(byte_offset, clen);
+		return extra.find(glyph) != std::string_view::npos;
+	}
+
+	return false;
+}
+
+// Returns true if the 0-indexed character at char_pos is alphanumeric or matches extra.
+bool is_alnum_at_char(std::string_view s, size_t char_pos, std::string_view extra) noexcept
+{
+	size_t byte_offset = char_to_byte_offset(s, char_pos);
+	return is_alnum_at_byte(s, byte_offset, extra);
+}
+
+// Returns true if s is non-empty and every character in s satisfies is_alnum with extra.
+bool is_alnum_only(std::string_view s, std::string_view extra) noexcept
+{
+	if (s.empty()) {
+		return false;
+	}
+
+	size_t offset = 0;
+	while (offset < s.length()) {
+		unsigned char c = static_cast<unsigned char>(s[offset]);
+		if (c < 0x80) {
+			if (!is_alnum(static_cast<char>(c), extra)) {
+				return false;
+			}
+			offset++;
+		} else {
+			size_t clen = char_len(c);
+			if (clen == 1 || offset + clen > s.length()) {
+				return false; // Malformed or truncated
+			}
+			if (extra.empty()) {
+				return false;
+			}
+			std::string_view glyph = s.substr(offset, clen);
+			if (extra.find(glyph) == std::string_view::npos) {
+				return false;
+			}
+			offset += clen;
+		}
+	}
+	return true;
+}
+
 // Replaces invalid UTF-8 sequences (invalid lead bytes, incomplete sequences,
 // or non-conforming continuation bytes) with replacement character '?'.
 // Preserves all valid UTF-8 sequences and ASCII characters unchanged.

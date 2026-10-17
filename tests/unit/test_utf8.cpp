@@ -1124,6 +1124,91 @@ void test_utf8_is_space()
 	}
 }
 
+void test_utf8_is_alnum()
+{
+	// 1. is_alnum(char, extra)
+	// Digits and ASCII letters
+	for (char c = '0'; c <= '9'; ++c) {
+		assert(utf8::is_alnum(c));
+		assert(utf8::is_alnum(c, "_-"));
+	}
+	for (char c = 'a'; c <= 'z'; ++c) {
+		assert(utf8::is_alnum(c));
+		assert(utf8::is_alnum(c, "_-"));
+	}
+	for (char c = 'A'; c <= 'Z'; ++c) {
+		assert(utf8::is_alnum(c));
+		assert(utf8::is_alnum(c, "_-"));
+	}
+
+	// Punctuation and whitespace
+	assert(!utf8::is_alnum('_'));
+	assert(utf8::is_alnum('_', "_"));
+	assert(utf8::is_alnum('_', "-_"));
+	assert(!utf8::is_alnum('-'));
+	assert(utf8::is_alnum('-', "-_"));
+	assert(utf8::is_alnum('/', "/."));
+	assert(!utf8::is_alnum('/'));
+	assert(!utf8::is_alnum(' '));
+	assert(utf8::is_alnum(' ', " "));
+	assert(!utf8::is_alnum('@'));
+	assert(utf8::is_alnum('@', "@"));
+
+	// Signedness and non-ASCII safety
+	assert(!utf8::is_alnum(static_cast<char>(0x80)));
+	assert(!utf8::is_alnum(static_cast<char>(0xFF)));
+	assert(!utf8::is_alnum(static_cast<char>(-1)));
+	assert(!utf8::is_alnum(static_cast<char>(-50)));
+
+	// 2. is_alnum_at_byte
+	std::string s1 = "var_name_123";
+	assert(utf8::is_alnum_at_byte(s1, 0)); // 'v'
+	assert(!utf8::is_alnum_at_byte(s1, 3)); // '_'
+	assert(utf8::is_alnum_at_byte(s1, 3, "_")); // '_' allowed
+	assert(utf8::is_alnum_at_byte(s1, 11)); // '3'
+	assert(!utf8::is_alnum_at_byte(s1, 12)); // out of bounds
+	assert(!utf8::is_alnum_at_byte("", 0));
+
+	// Multi-byte characters at byte offset
+	std::string s_cjk = "var_🦀_end";
+	// 'v'(0), 'a'(1), 'r'(2), '_'(3), '🦀'(4..7), '_'(8), 'e'(9), 'n'(10), 'd'(11)
+	assert(utf8::is_alnum_at_byte(s_cjk, 2)); // 'r'
+	assert(!utf8::is_alnum_at_byte(s_cjk, 4)); // '🦀' without extra
+	assert(utf8::is_alnum_at_byte(s_cjk, 4, "🦀")); // '🦀' with extra
+	assert(!utf8::is_alnum_at_byte(s_cjk, 5, "🦀")); // continuation byte of 🦀
+	assert(!utf8::is_alnum_at_byte(s_cjk, 6, "🦀"));
+	assert(!utf8::is_alnum_at_byte(s_cjk, 7, "🦀"));
+
+	// Truncated multi-byte sequence
+	assert(!utf8::is_alnum_at_byte("\xC2", 0, "é"));
+
+	// 3. is_alnum_at_char
+	// In s_cjk: 'v'(0), 'a'(1), 'r'(2), '_'(3), '🦀'(4), '_'(5), 'e'(6), 'n'(7), 'd'(8)
+	assert(utf8::is_alnum_at_char(s_cjk, 0)); // 'v'
+	assert(!utf8::is_alnum_at_char(s_cjk, 3)); // '_'
+	assert(utf8::is_alnum_at_char(s_cjk, 3, "_")); // '_'
+	assert(!utf8::is_alnum_at_char(s_cjk, 4)); // '🦀'
+	assert(utf8::is_alnum_at_char(s_cjk, 4, "🦀")); // '🦀'
+	assert(utf8::is_alnum_at_char(s_cjk, 6)); // 'e'
+	assert(!utf8::is_alnum_at_char(s_cjk, 10)); // out of bounds
+
+	// 4. is_alnum_only
+	assert(!utf8::is_alnum_only("")); // Empty string returns false
+	assert(utf8::is_alnum_only("hello123WORLD"));
+	assert(!utf8::is_alnum_only("hello_world"));
+	assert(utf8::is_alnum_only("hello_world", "_"));
+	assert(utf8::is_alnum_only("my-cool-db_01", "-_"));
+	assert(!utf8::is_alnum_only("my cool db", "-_"));
+	assert(!utf8::is_alnum_only("db.name", "-_"));
+	assert(utf8::is_alnum_only("db.name", "-_."));
+	assert(utf8::is_alnum_only("valid-slug_100", "-_"));
+
+	// Multibyte support in is_alnum_only
+	assert(!utf8::is_alnum_only("café"));
+	assert(utf8::is_alnum_only("café", "é"));
+	assert(!utf8::is_alnum_only("café\xC2", "é")); // Truncated sequence returns false
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -1141,6 +1226,7 @@ int main()
 	test_utf8_param_case_formatting();
 	test_utf8_case_idempotence();
 	test_utf8_is_space();
+	test_utf8_is_alnum();
 
 	std::cout << "All UTF-8 unit tests passed!" << std::endl;
 	return 0;
