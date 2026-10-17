@@ -1,5 +1,6 @@
 #include "fs_man_search.h"
-#include "../../fs_utils.h"
+#include "fs_utils.h"
+#include "utf8.h"
 #include <algorithm>
 #include <cctype>
 #include <format>
@@ -36,19 +37,10 @@ std::string fs_man_search_tool::execute(agentlib::tool_context& ctx) {
 	std::stringstream ss(output);
 	std::string line;
 	while (std::getline(ss, line)) {
-		// Trim trailing whitespace
-		while (!line.empty() && std::isspace(static_cast<unsigned char>(line.back()))) {
-			line.pop_back();
-		}
-		// Trim leading whitespace
-		size_t start = 0;
-		while (start < line.size() && std::isspace(static_cast<unsigned char>(line[start]))) {
-			start++;
-		}
-		if (start >= line.size()) {
+		line = utf8::trim_full(line);
+		if (line.empty()) {
 			continue;
 		}
-		line = line.substr(start);
 
 		if (line.starts_with("Process exited with code")) {
 			continue;
@@ -60,20 +52,8 @@ std::string fs_man_search_tool::execute(agentlib::tool_context& ctx) {
 		size_t open_paren = line.find('(');
 		size_t close_paren = line.find(')');
 		if (open_paren != std::string::npos && close_paren != std::string::npos && open_paren < close_paren) {
-			std::string name = line.substr(0, open_paren);
-			while (!name.empty() && std::isspace(static_cast<unsigned char>(name.back()))) {
-				name.pop_back();
-			}
-
-			std::string sec = line.substr(open_paren + 1, close_paren - open_paren - 1);
-			while (!sec.empty() && std::isspace(static_cast<unsigned char>(sec.back()))) {
-				sec.pop_back();
-			}
-			size_t s_start = 0;
-			while (s_start < sec.size() && std::isspace(static_cast<unsigned char>(sec[s_start]))) {
-				s_start++;
-			}
-			sec = sec.substr(s_start);
+			std::string name = utf8::trim_trailing_whitespace(line.substr(0, open_paren));
+			std::string sec = utf8::trim_full(line.substr(open_paren + 1, close_paren - open_paren - 1));
 
 			// Filter by section if specified
 			if (args_.section.has_value() && !args_.section->empty()) {
@@ -87,14 +67,7 @@ std::string fs_man_search_tool::execute(agentlib::tool_context& ctx) {
 			if (dash != std::string::npos) {
 				desc = desc.substr(dash + 1);
 			}
-			while (!desc.empty() && std::isspace(static_cast<unsigned char>(desc.back()))) {
-				desc.pop_back();
-			}
-			size_t d_start = 0;
-			while (d_start < desc.size() && std::isspace(static_cast<unsigned char>(desc[d_start]))) {
-				d_start++;
-			}
-			desc = desc.substr(d_start);
+			desc = utf8::trim_full(desc);
 
 			if (seen.insert({name, sec}).second) {
 				results.push_back({name, sec, desc});

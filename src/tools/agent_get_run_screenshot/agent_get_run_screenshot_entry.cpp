@@ -1,5 +1,6 @@
 #include "tools/agent_get_run_screenshot/agent_get_run_screenshot.h"
 #include "fs_utils.h"
+#include "utf8.h"
 #include <chrono>
 #include <format>
 #include <memory>
@@ -82,12 +83,7 @@ std::string agent_get_run_screenshot_tool::execute(agentlib::tool_context &ctx)
 			}
 		}
 		// Trim trailing whitespace from each line
-		size_t last_non_space = clean_line.find_last_not_of(" \t");
-		if (last_non_space != std::string::npos) {
-			clean_line.erase(last_non_space + 1);
-		} else {
-			clean_line.clear();
-		}
+		clean_line = utf8::trim_trailing_whitespace(clean_line);
 		clean_grid.push_back(std::move(clean_line));
 	}
 

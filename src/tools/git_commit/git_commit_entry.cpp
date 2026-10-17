@@ -7,6 +7,7 @@
 #include "codereview_manager.h"
 #include "fs_utils.h"
 #include "git_commit.h"
+#include "utf8.h"
 
 namespace tools
 {
@@ -110,9 +111,7 @@ std::string git_commit_tool::execute(agentlib::tool_context &ctx)
 		std::stringstream hash_ss(hash_output);
 		std::string first_line;
 		if (std::getline(hash_ss, first_line)) {
-			while (!first_line.empty() && (first_line.back() == '\r' || first_line.back() == '\n' || std::isspace(first_line.back()))) {
-				first_line.pop_back();
-			}
+			first_line = utf8::trim_trailing_whitespace(first_line);
 			if (!first_line.empty() && !first_line.starts_with("Process exited with code")) {
 				commit_hash = first_line;
 			}

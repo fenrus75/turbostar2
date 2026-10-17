@@ -1,5 +1,6 @@
 #include "fs_man.h"
 #include "fs_utils.h"
+#include "utf8.h"
 #include "tools/troff2md.h"
 #include <algorithm>
 #include <cctype>
@@ -390,12 +391,7 @@ std::string fs_man_tool::execute(agentlib::tool_context& ctx) {
 		if (raw_content.starts_with(".so ")) {
 			std::string rel_path = raw_content.substr(4);
 			// Trim spaces and quotes
-			while (!rel_path.empty() && std::isspace(static_cast<unsigned char>(rel_path.front()))) {
-				rel_path.erase(rel_path.begin());
-			}
-			while (!rel_path.empty() && std::isspace(static_cast<unsigned char>(rel_path.back()))) {
-				rel_path.pop_back();
-			}
+			rel_path = utf8::trim_full(rel_path);
 			if (rel_path.size() >= 2 && rel_path.front() == '"' && rel_path.back() == '"') {
 				rel_path = rel_path.substr(1, rel_path.size() - 2);
 			}

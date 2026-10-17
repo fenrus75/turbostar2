@@ -1,8 +1,8 @@
 #include "base.h"
 #include <algorithm>
 #include <sstream>
-#include "../../markdown_utils.h"
-#include "../../utf8.h"
+#include "markdown_utils.h"
+#include "utf8.h"
 #include "highlighter/highlighter_registry.h"
 #include "syntax_color_manager.h"
 #include "line.h"
@@ -153,10 +153,7 @@ std::vector<interaction_line> agent_interaction::wrap_text(const std::string &pr
 		if (line_str.starts_with("```")) {
 			in_code_block = !in_code_block;
 			if (in_code_block) {
-				std::string lang = line_str.substr(3);
-				while (!lang.empty() && std::isspace(static_cast<unsigned char>(lang.back()))) {
-					lang.pop_back();
-				}
+				std::string lang = utf8::trim_trailing_whitespace(line_str.substr(3));
 				for (char &ch : lang) {
 					ch = std::tolower(static_cast<unsigned char>(ch));
 				}

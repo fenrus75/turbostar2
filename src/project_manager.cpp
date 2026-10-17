@@ -485,7 +485,7 @@ void project_manager::load_instructions()
 			int line_count = 0;
 			while (std::getline(file, line)) {
 				// Trim leading whitespace
-				line.erase(0, line.find_first_not_of(" \t\r\n"));
+				line = utf8::trim_leading_whitespace(line);
 				// Skip empty lines and comments
 				if (!line.empty() && line[0] != '#') {
 					minified += line + "\n";
@@ -694,8 +694,7 @@ std::vector<std::string> project_manager::parse_ctest_test_list(std::string_view
 			continue;
 		}
 		// Trim whitespace
-		line.erase(0, line.find_first_not_of(" \t\r\n"));
-		line.erase(line.find_last_not_of(" \t\r\n") + 1);
+		line = utf8::trim_full(line);
 		if (line.empty()) {
 			continue;
 		}
@@ -874,8 +873,7 @@ void project_manager::refresh_available_tests(std::string_view override_build_di
 			if (line.empty())
 				continue;
 			// Trim potential whitespace
-			line.erase(0, line.find_first_not_of(" \t\r\n"));
-			line.erase(line.find_last_not_of(" \t\r\n") + 1);
+			line = utf8::trim_full(line);
 			if (line.empty())
 				continue;
 			// `meson test --list` prefixes each test with a display-group label (e.g.

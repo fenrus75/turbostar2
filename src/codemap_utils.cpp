@@ -11,6 +11,7 @@
 #include "call_token_extractor.h"
 #include "event_logger.h"
 #include "type_definition_cache.h"
+#include "utf8.h"
 
 #include <algorithm>
 #include <cctype>
@@ -530,12 +531,8 @@ static void parse_markdown_headings(const std::string &content, int min_lines, s
 		while (text_start < line_text.size() && (line_text[text_start] == ' ' || line_text[text_start] == '\t')) {
 			++text_start;
 		}
-		std::string heading = line_text.substr(text_start);
-		// Trim trailing whitespace. Also handle CRLF input (files read in binary mode
-		// leave a trailing '\r'), so a bare '\r' is treated as whitespace.
-		while (!heading.empty() && (heading.back() == ' ' || heading.back() == '\t' || heading.back() == '\r')) {
-			heading.pop_back();
-		}
+		// Trim trailing whitespace (spaces, tabs, newlines, CRLF, and Unicode whitespace).
+		std::string heading = utf8::trim_trailing_whitespace(line_text.substr(text_start));
 		// Strip a closing ATX hash sequence ("## foo #####"), which CommonMark allows:
 		// any run of trailing '#'s, as long as it's preceded by whitespace.
 		if (heading.ends_with('#')) {

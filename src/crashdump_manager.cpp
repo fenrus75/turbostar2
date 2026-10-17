@@ -586,19 +586,15 @@ static std::string extract_summary(const fs::path &entry_path, const std::string
 						start = end + 1;
 					}
 					if (parts.size() >= 5) {
-						std::string fn = parts[3];
-						std::string loc = parts[4];
-						auto trim = [](std::string &s) {
-							while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front())))
-								s.erase(s.begin());
-							while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back())))
-								s.pop_back();
+						auto clean_entry = [](std::string_view sv) {
+							std::string s = utf8::trim_full(sv);
 							if (s.starts_with('`') && s.ends_with('`') && s.length() >= 2) {
 								s = s.substr(1, s.length() - 2);
 							}
+							return s;
 						};
-						trim(fn);
-						trim(loc);
+						std::string fn = clean_entry(parts[3]);
+						std::string loc = clean_entry(parts[4]);
 						if (!loc.empty() && loc != "?" && !loc.starts_with("??") &&
 						    loc.find(':') != std::string::npos) {
 							if (!fn.empty() && fn != "?" && fn != "??") {
@@ -757,22 +753,14 @@ std::string crashdump_manager::clean_function_signature(std::string_view raw_fun
 		return std::string(raw_func);
 	}
 
-	std::string func_prefix(raw_func.substr(0, open_paren));
-	while (!func_prefix.empty() && std::isspace(static_cast<unsigned char>(func_prefix.back()))) {
-		func_prefix.pop_back();
-	}
+	std::string func_prefix = utf8::trim_trailing_whitespace(raw_func.substr(0, open_paren));
+	std::string clean_args = utf8::trim_full(raw_func.substr(open_paren + 1, close_paren - (open_paren + 1)));
 
-	std::string_view args_sv = raw_func.substr(open_paren + 1, close_paren - (open_paren + 1));
-	while (!args_sv.empty() && std::isspace(static_cast<unsigned char>(args_sv.front()))) {
-		args_sv.remove_prefix(1);
-	}
-	while (!args_sv.empty() && std::isspace(static_cast<unsigned char>(args_sv.back()))) {
-		args_sv.remove_suffix(1);
-	}
-
-	if (args_sv.empty()) {
+	if (clean_args.empty()) {
 		return std::format("{} ()", func_prefix);
 	}
+
+	std::string_view args_sv = clean_args;
 
 	std::vector<std::string> args;
 	std::string current_arg;

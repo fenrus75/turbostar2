@@ -15,6 +15,7 @@
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "project_manager.h"
+#include "utf8.h"
 
 namespace fs = std::filesystem;
 
@@ -513,8 +514,7 @@ void mcp_manager::prompt_worker_loop()
 			}
 
 			// Trim leading/trailing whitespace
-			result.erase(0, result.find_first_not_of(" \t\r\n"));
-			result.erase(result.find_last_not_of(" \t\r\n") + 1);
+			result = utf8::trim_full(result);
 
 			// Ensure it starts with "Activate when "
 			if (!result.starts_with("Activate when ")) {

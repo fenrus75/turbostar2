@@ -37,6 +37,7 @@
 #include "ui/code_review_window.h"
 #include "ui/dialog_factories.h"
 #include "ui/terminal_window.h"
+#include "utf8.h"
 
 namespace fs = std::filesystem;
 
@@ -1344,12 +1345,7 @@ static std::string get_executable_for_crash(const std::string &crash_id)
 		constexpr std::string_view exe_prefix = "Executable: ";
 		while (std::getline(in, line)) {
 			if (line.starts_with(exe_prefix)) {
-				std::string orig = line.substr(exe_prefix.length());
-				while (!orig.empty() && (orig.back() == '\r' || orig.back() == '\n' ||
-							 std::isspace(static_cast<unsigned char>(orig.back()))))
-					orig.pop_back();
-				while (!orig.empty() && std::isspace(static_cast<unsigned char>(orig.front())))
-					orig.erase(orig.begin());
+				std::string orig = utf8::trim_full(line.substr(exe_prefix.length()));
 				if (fs::exists(orig)) {
 					return orig;
 				}

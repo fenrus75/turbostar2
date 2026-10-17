@@ -6,6 +6,7 @@
 #include <sstream>
 #include "event_logger.h"
 #include "fs_utils.h"
+#include "utf8.h"
 
 history_manager &history_manager::get_instance()
 {
@@ -38,11 +39,8 @@ void history_manager::load()
 
 	std::string line;
 	std::string current_section;
-
 	while (std::getline(file, line)) {
-		// Trim whitespace (simple approach)
-		line.erase(0, line.find_first_not_of(" \t\r\n"));
-		line.erase(line.find_last_not_of(" \t\r\n") + 1);
+		line = utf8::trim_full(line);
 
 		if (line.empty() || line[0] == '#') {
 			continue;
@@ -62,9 +60,7 @@ void history_manager::load()
 					std::string filepath;
 					std::getline(ss, filepath);
 					// Trim leading space from getline
-					if (!filepath.empty() && filepath[0] == ' ') {
-						filepath.erase(0, 1);
-					}
+					filepath = utf8::trim_leading_whitespace(filepath);
 					if (!filepath.empty()) {
 						cursor_memory_[filepath] = {x, y};
 						cursor_lru_.push_back(filepath);

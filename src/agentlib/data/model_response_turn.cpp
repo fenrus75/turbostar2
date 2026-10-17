@@ -4,6 +4,7 @@
 #include <sstream>
 #include <algorithm>
 #include "agentlib/interactions/interactions.h"
+#include "utf8.h"
 
 namespace agentlib {
 
@@ -48,9 +49,7 @@ std::vector<message> model_response_turn::to_messages(const model_capabilities& 
 			}
 		}
 		// Trim leading newlines/whitespace
-		while (!msg.content.empty() && std::isspace(static_cast<unsigned char>(msg.content.front()))) {
-			msg.content.erase(msg.content.begin());
-		}
+		msg.content = utf8::trim_leading_whitespace(msg.content);
 	}
 
 	// Compaction Level 2: Clear assistant content when tools are called

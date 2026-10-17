@@ -6,6 +6,7 @@
 #include <regex>
 #include "event_logger.h"
 #include "project_manager.h"
+#include "utf8.h"
 
 #include <algorithm>
 #include <cctype>
@@ -238,14 +239,8 @@ void config_manager::load_from_file(const std::string &path)
 		if (eq == std::string::npos)
 			continue;
 
-		std::string key = line.substr(0, eq);
-		std::string value = line.substr(eq + 1);
-
-		// Trim whitespace
-		key.erase(0, key.find_first_not_of(" \t"));
-		key.erase(key.find_last_not_of(" \t") + 1);
-		value.erase(0, value.find_first_not_of(" \t"));
-		value.erase(value.find_last_not_of(" \t") + 1);
+		std::string key = utf8::trim_full(line.substr(0, eq));
+		std::string value = utf8::trim_full(line.substr(eq + 1));
 
 		if (key == "clang_format_style") {
 			clang_format_style_ = value;
@@ -611,14 +606,8 @@ void config_manager::read_clang_format(const std::string &project_root)
 		if (colon == std::string::npos)
 			continue;
 
-		std::string key = line.substr(0, colon);
-		std::string val = line.substr(colon + 1);
-
-		// Trim key and val
-		key.erase(0, key.find_first_not_of(" \t"));
-		key.erase(key.find_last_not_of(" \t") + 1);
-		val.erase(0, val.find_first_not_of(" \t"));
-		val.erase(val.find_last_not_of(" \t") + 1);
+		std::string key = utf8::trim_full(line.substr(0, colon));
+		std::string val = utf8::trim_full(line.substr(colon + 1));
 
 		if (key == "TabWidth") {
 			try {

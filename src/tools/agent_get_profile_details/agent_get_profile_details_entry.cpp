@@ -1,10 +1,11 @@
 #include "agent_get_profile_details.h"
-#include "../../config_manager.h"
-#include "../../fs_utils.h"
-#include "../../lsp_manager.h"
-#include "../../perf_manager.h"
-#include "../../project_manager.h"
+#include "config_manager.h"
+#include "fs_utils.h"
+#include "lsp_manager.h"
+#include "perf_manager.h"
+#include "project_manager.h"
 #include "codemap_utils.h"
+#include "utf8.h"
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
@@ -46,9 +47,7 @@ static bool match_symbol_string(std::string_view target, std::string_view query)
 		if (paren != std::string::npos) {
 			str = str.substr(0, paren);
 		}
-		while (!str.empty() && std::isspace(static_cast<unsigned char>(str.back()))) {
-			str.pop_back();
-		}
+		str = utf8::trim_trailing_whitespace(str);
 		size_t colons = str.rfind("::");
 		if (colons != std::string::npos) {
 			str = str.substr(colons + 2);

@@ -355,11 +355,11 @@ bool window::process_events()
 				}
 
 				if (click_char >= 0 && click_char < static_cast<int>(chars.size())) {
-					auto is_word_char = [](const std::string &u) -> bool {
+					auto is_word_char = [](std::string_view u) -> bool {
 						if (u.empty()) return false;
-						if (u.length() > 1) return true; // UTF-8 multibyte characters
+						if (utf8::is_space_at_byte(u, 0)) return false;
+						if (u.length() > 1) return true; // UTF-8 multibyte non-space characters
 						char c = u[0];
-						if (std::isspace(static_cast<unsigned char>(c))) return false;
 						if (c == '"' || c == '\'' || c == ';' || c == ',' || c == '.' ||
 						    c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}' ||
 						    c == '=' || c == '+' || c == '-' || c == '*' || c == '/' || c == '&' ||
@@ -371,7 +371,7 @@ bool window::process_events()
 
 					std::string click_uc = chars[click_char];
 					bool is_click_word = is_word_char(click_uc);
-					bool is_click_space = (click_uc.length() == 1 && std::isspace(static_cast<unsigned char>(click_uc[0])));
+					bool is_click_space = utf8::is_space_at_byte(click_uc, 0);
 
 					int start_pos = click_char;
 					int end_pos = click_char;
@@ -380,7 +380,7 @@ bool window::process_events()
 					while (start_pos > 0) {
 						std::string prev_uc = chars[start_pos - 1];
 						bool is_prev_word = is_word_char(prev_uc);
-						bool is_prev_space = (prev_uc.length() == 1 && std::isspace(static_cast<unsigned char>(prev_uc[0])));
+						bool is_prev_space = utf8::is_space_at_byte(prev_uc, 0);
 
 						if (is_click_word && is_prev_word) {
 							start_pos--;
@@ -396,7 +396,7 @@ bool window::process_events()
 					while (end_pos + 1 < static_cast<int>(chars.size())) {
 						std::string next_uc = chars[end_pos + 1];
 						bool is_next_word = is_word_char(next_uc);
-						bool is_next_space = (next_uc.length() == 1 && std::isspace(static_cast<unsigned char>(next_uc[0])));
+						bool is_next_space = utf8::is_space_at_byte(next_uc, 0);
 
 						if (is_click_word && is_next_word) {
 							end_pos++;
@@ -429,13 +429,7 @@ bool window::process_events()
 			auto is_line_empty = [&](int row) -> bool {
 				auto line_obj = doc_->get_line(row);
 				if (!line_obj) return true;
-				std::string text = line_obj->get_text();
-				for (char ch : text) {
-					if (!std::isspace(static_cast<unsigned char>(ch))) {
-						return false;
-					}
-				}
-				return true;
+				return utf8::trim_full(line_obj->get_text()).empty();
 			};
 
 			int start_row = click_row;
