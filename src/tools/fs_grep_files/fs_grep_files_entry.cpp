@@ -18,6 +18,7 @@
 #include <format>
 #include <algorithm>
 #include <cctype>
+#include "utf8.h"
 
 namespace fs = std::filesystem;
 
@@ -370,10 +371,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	std::string lsp_section;
-	bool is_regular_word = !args_.is_regex && !args_.pattern.empty() &&
-		std::all_of(args_.pattern.begin(), args_.pattern.end(), [](char c) {
-			return std::isalnum(c) || c == '_';
-		});
+	bool is_regular_word = !args_.is_regex && utf8::is_alnum_only(args_.pattern, "_");
 
 	if (is_regular_word) {
 		std::vector<lsp_manager::symbol_info> raw_symbols = get_lsp_symbols(args_.pattern);

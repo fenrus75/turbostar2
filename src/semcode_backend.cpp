@@ -912,11 +912,11 @@ std::string semcode_backend::extract_identifier_at(const std::string &filepath, 
 	}
 
 	size_t start = static_cast<size_t>(character);
-	while (start > 0 && (std::isalnum(static_cast<unsigned char>(current_line[start - 1])) || current_line[start - 1] == '_')) {
+	while (start > 0 && utf8::is_alnum(current_line[start - 1], "_")) {
 		--start;
 	}
 	size_t end = static_cast<size_t>(character);
-	while (end < current_line.size() && (std::isalnum(static_cast<unsigned char>(current_line[end])) || current_line[end] == '_')) {
+	while (end < current_line.size() && utf8::is_alnum(current_line[end], "_")) {
 		++end;
 	}
 	if (start >= end) {
@@ -939,8 +939,7 @@ std::string semcode_backend::extract_identifier_at(const std::string &filepath, 
 				scan++;
 			}
 			size_t w_start = scan;
-			while (scan < current_line.size() &&
-			       (std::isalnum(static_cast<unsigned char>(current_line[scan])) || current_line[scan] == '_')) {
+			while (scan < current_line.size() && utf8::is_alnum(current_line[scan], "_")) {
 				scan++;
 			}
 			if (scan > w_start) {

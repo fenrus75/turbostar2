@@ -94,11 +94,9 @@ static void extract_typedef_or_alias(std::string_view line, std::string_view typ
 
 			size_t name_pos = stmt.rfind(type_name);
 			if (name_pos != std::string_view::npos) {
-				bool start_ok = (name_pos == 0) || (!std::isalnum(static_cast<unsigned char>(stmt[name_pos - 1])) &&
-								    stmt[name_pos - 1] != '_');
+				bool start_ok = (name_pos == 0) || !utf8::is_alnum(stmt[name_pos - 1], "_");
 				bool end_ok = (name_pos + type_name.size() == stmt.size()) ||
-					      (!std::isalnum(static_cast<unsigned char>(stmt[name_pos + type_name.size()])) &&
-					       stmt[name_pos + type_name.size()] != '_');
+					      !utf8::is_alnum(stmt[name_pos + type_name.size()], "_");
 				if (start_ok && end_ok) {
 					std::string_view underlying = stmt.substr(0, name_pos);
 					size_t first = underlying.find_first_not_of(" \t");

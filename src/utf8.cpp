@@ -731,17 +731,15 @@ std::string format_markdown_table_header(std::string_view header_line)
 		if (std::islower(uc)) {
 			size_t start = i;
 			while (i < header_line.size()) {
-				unsigned char cur = static_cast<unsigned char>(header_line[i]);
-				if (!std::isalnum(cur) && cur != '_') {
+				if (!is_alnum(header_line[i], "_")) {
 					break;
 				}
 				++i;
 			}
 			res.append(format_param_name(header_line.substr(start, i - start)));
-		} else if (std::isalnum(uc) || uc == '_') {
+		} else if (is_alnum(header_line[i], "_")) {
 			while (i < header_line.size()) {
-				unsigned char cur = static_cast<unsigned char>(header_line[i]);
-				if (!std::isalnum(cur) && cur != '_') {
+				if (!is_alnum(header_line[i], "_")) {
 					break;
 				}
 				res.push_back(header_line[i]);

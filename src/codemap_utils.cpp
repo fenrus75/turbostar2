@@ -440,7 +440,7 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 					std::string token;
 					for (size_t ci = 0; ci <= trimmed.size(); ++ci) {
 						char c = (ci < trimmed.size()) ? trimmed[ci] : ' ';
-						if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
+						if (utf8::is_alnum(c, "_")) {
 							token += c;
 						} else {
 							if (!token.empty()) {
@@ -713,11 +713,9 @@ static std::pair<int, int> get_symbol_location(const std::string &file_path, int
 			if (!short_name.empty()) {
 				size_t pos = line.find(short_name);
 				if (pos != std::string::npos) {
-					bool left_ok = (pos == 0 ||
-							(!std::isalnum(static_cast<unsigned char>(line[pos - 1])) && line[pos - 1] != '_'));
+					bool left_ok = (pos == 0 || !utf8::is_alnum(line[pos - 1], "_"));
 					size_t after = pos + short_name.size();
-					bool right_ok = (after >= line.size() ||
-							 (!std::isalnum(static_cast<unsigned char>(line[after])) && line[after] != '_'));
+					bool right_ok = (after >= line.size() || !utf8::is_alnum(line[after], "_"));
 					if (left_ok && right_ok) {
 						return {current_line - 1, static_cast<int>(pos)};
 					}

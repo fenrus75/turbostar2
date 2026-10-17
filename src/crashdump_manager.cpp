@@ -1157,7 +1157,7 @@ crash_frame_info crashdump_manager::get_crash_frame_info(std::string_view crash_
 				if (eq_pos != std::string::npos && eq_pos > 0) {
 					size_t var_end = eq_pos;
 					size_t var_start = var_end;
-					while (var_start > 0 && (std::isalnum(args_str[var_start - 1]) || args_str[var_start - 1] == '_')) {
+					while (var_start > 0 && utf8::is_alnum(args_str[var_start - 1], "_")) {
 						--var_start;
 					}
 					if (var_start < var_end) {
@@ -1286,8 +1286,7 @@ crash_frame_info crashdump_manager::get_crash_frame_info(std::string_view crash_
 					if (arrow_pos != std::string::npos && arrow_pos > 0) {
 						size_t var_end = arrow_pos;
 						size_t var_start = var_end;
-						while (var_start > 0 &&
-						       (std::isalnum(src_line[var_start - 1]) || src_line[var_start - 1] == '_')) {
+						while (var_start > 0 && utf8::is_alnum(src_line[var_start - 1], "_")) {
 							--var_start;
 						}
 						if (var_start < var_end) {
@@ -1303,8 +1302,7 @@ crash_frame_info crashdump_manager::get_crash_frame_info(std::string_view crash_
 								++var_start;
 							}
 							size_t var_end = var_start;
-							while (var_end < src_line.length() &&
-							       (std::isalnum(src_line[var_end]) || src_line[var_end] == '_')) {
+							while (var_end < src_line.length() && utf8::is_alnum(src_line[var_end], "_")) {
 								++var_end;
 							}
 							if (var_end > var_start) {
