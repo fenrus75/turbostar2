@@ -365,20 +365,11 @@ void document::trim_trailing_whitespace()
 	bool any_modified = false;
 	for (int y = start_y; y <= end_y; ++y) {
 		std::string orig_text = lines_[y]->get_text();
-		
-		// Find trailing whitespace (spaces and tabs)
-		size_t end_idx = orig_text.find_last_not_of(" \t");
-		std::string trimmed;
-		if (end_idx == std::string::npos) {
-			// Line is entirely whitespace
-			trimmed = "";
-		} else {
-			trimmed = orig_text.substr(0, end_idx + 1);
-		}
+		std::string_view trimmed = utf8::trim_view_trailing(orig_text);
 
 		if (trimmed.length() < orig_text.length()) {
 			record_action(edit_action::action_type::replace_line, y, lines_[y]);
-			lines_[y]->set_text(trimmed);
+			lines_[y]->set_text(std::string(trimmed));
 			mark_line_dirty(lines_[y]);
 			any_modified = true;
 		}

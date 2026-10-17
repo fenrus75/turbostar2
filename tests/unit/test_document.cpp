@@ -162,6 +162,8 @@ int main()
 		doc.append_line("Line 2\t ");
 		doc.append_line("Line 3");
 		doc.append_line("   "); // Entirely spaces
+		doc.append_line("Line 4\xC2\xA0\xC2\xA0"); // U+00A0 non-breaking spaces
+		doc.append_line("Line 5\xE3\x80\x80");     // U+3000 CJK fullwidth space
 
 		doc.break_undo_coalescing();
 
@@ -172,12 +174,16 @@ int main()
 		assert(doc.get_line(1)->get_text() == "Line 2");
 		assert(doc.get_line(2)->get_text() == "Line 3");
 		assert(doc.get_line(3)->get_text() == "");
+		assert(doc.get_line(4)->get_text() == "Line 4");
+		assert(doc.get_line(5)->get_text() == "Line 5");
 
 		// Test undo
 		doc.undo();
 		assert(doc.get_line(0)->get_text() == "Line 1  ");
 		assert(doc.get_line(1)->get_text() == "Line 2\t ");
 		assert(doc.get_line(3)->get_text() == "   ");
+		assert(doc.get_line(4)->get_text() == "Line 4\xC2\xA0\xC2\xA0");
+		assert(doc.get_line(5)->get_text() == "Line 5\xE3\x80\x80");
 
 		// Test selection scope
 		doc.set_selection(1, 0, 2, 6); // Selection covers lines 1 and 2
