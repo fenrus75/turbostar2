@@ -699,6 +699,12 @@ test_editor_start_app = executable('test_editor_start_app',
   include_directories: inc)
 test('unit_test_editor_start_app', test_editor_start_app, suite: 'ui')
 
+test_window_id_allocation = executable('test_window_id_allocation',
+  'unit/test_window_id_allocation.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_window_id_allocation', test_window_id_allocation, suite: 'ui')
+
 
 
 

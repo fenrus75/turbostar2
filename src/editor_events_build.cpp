@@ -43,7 +43,7 @@ void editor::dispatch_event_build(const editor_event &ev)
 			if (compile_win_idx == static_cast<size_t>(-1)) {
 				int compile_height = 10;
 				auto win = std::make_unique<ui::terminal_window>(
-					static_cast<int>(windows_.size() + 1), 0, LINES - compile_height - 1,
+					get_new_window_id(), 0, LINES - compile_height - 1,
 					COLS, compile_height, "Compile Output"
 				);
 				win->set_display_priority(10);	    // Put it above normal windows
@@ -121,7 +121,7 @@ void editor::dispatch_event_build(const editor_event &ev)
 			if (compile_win_idx == static_cast<size_t>(-1)) {
 				int compile_height = 10;
 				auto win = std::make_unique<ui::terminal_window>(
-					static_cast<int>(windows_.size() + 1), 0, LINES - compile_height - 1,
+					get_new_window_id(), 0, LINES - compile_height - 1,
 					COLS, compile_height, "Compile Output"
 				);
 				win->set_display_priority(10);
@@ -172,7 +172,7 @@ void editor::dispatch_event_build(const editor_event &ev)
 			if (test_win_idx == static_cast<size_t>(-1)) {
 				int test_height = 10;
 				auto win = std::make_unique<ui::terminal_window>(
-					static_cast<int>(windows_.size() + 1), 0, LINES - test_height - 1,
+					get_new_window_id(), 0, LINES - test_height - 1,
 					COLS, test_height, "Test Output"
 				);
 				win->set_display_priority(10);

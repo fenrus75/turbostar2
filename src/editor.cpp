@@ -202,12 +202,29 @@ void editor::new_window(std::string_view filename)
 	}
 }
 
+int editor::get_new_window_id() const
+{
+	std::unordered_set<int> used_ids;
+	used_ids.reserve(windows_.size());
+	for (const auto &win : windows_) {
+		if (win) {
+			used_ids.insert(win->get_id());
+		}
+	}
+
+	int candidate = 1;
+	while (used_ids.contains(candidate)) {
+		++candidate;
+	}
+	return candidate;
+}
+
 void editor::open_file_as_text(std::string_view filename)
 {
 	std::string fname(filename);
 	auto doc = std::make_shared<document>(global_queue_, fname);
 	doc->add_listener(&codereview_manager::get_instance());
-	auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, fname);
+	auto win = std::make_unique<window>(get_new_window_id(), 0, 1, COLS, LINES - 2, fname);
 	win->attach_document(doc);
 
 	documents_.push_back(doc);
@@ -219,7 +236,7 @@ void editor::open_file_as_binary(std::string_view filename)
 {
 	std::string fname(filename);
 	auto bin_doc = std::make_shared<binary_document>(global_queue_, fname);
-	auto win = std::make_unique<hex_editor_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, fname, bin_doc);
+	auto win = std::make_unique<hex_editor_window>(get_new_window_id(), 0, 1, COLS, LINES - 2, fname, bin_doc);
 
 	documents_.push_back(bin_doc);
 	windows_.push_back(std::move(win));
@@ -246,7 +263,7 @@ void editor::open_prompt_in_editor(ui_multiline_edit *edit, std::string_view ini
 	doc->insert_text(initial_text);
 	doc->clear_modified();
 
-	auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, virtual_filename);
+	auto win = std::make_unique<window>(get_new_window_id(), 0, 1, COLS, LINES - 2, virtual_filename);
 	win->attach_document(doc);
 
 	documents_.push_back(doc);
@@ -261,7 +278,7 @@ void editor::new_diff_window()
 	auto doc = get_active_doc();
 	if (!doc)
 		return;
-	auto diff_win = std::make_unique<diff_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, doc, global_queue_);
+	auto diff_win = std::make_unique<diff_window>(get_new_window_id(), 0, 1, COLS, LINES - 2, doc, global_queue_);
 	windows_.push_back(std::move(diff_win));
 	update_window_layout();
 	activate_window(windows_.size() - 1);
@@ -333,7 +350,7 @@ void editor::new_agent_window()
 
 	auto model = agentlib::ai_model_registry::get_instance().get_default_model();
 
-	auto main_agent_win = std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, model,
+	auto main_agent_win = std::make_unique<agent_window>(get_new_window_id(), 0, 1, COLS, LINES - 2, model,
 							     global_queue_, this, fresh_agent_);
 
 	windows_.push_back(std::move(main_agent_win));
@@ -354,7 +371,7 @@ void editor::new_agent_center_window()
 		}
 	}
 
-	auto center_win = std::make_unique<agent_center_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, this);
+	auto center_win = std::make_unique<agent_center_window>(get_new_window_id(), 0, 1, COLS, LINES - 2, this);
 	windows_.push_back(std::move(center_win));
 	update_window_layout();
 	activate_window(windows_.size() - 1);
@@ -363,7 +380,7 @@ void editor::new_agent_center_window()
 void editor::open_subagent_window(std::shared_ptr<agentlib::ai_agent> subagent)
 {
 	auto subagent_win =
-	    std::make_unique<agent_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, std::move(subagent));
+	    std::make_unique<agent_window>(get_new_window_id(), 0, 1, COLS, LINES - 2, std::move(subagent));
 
 	windows_.push_back(std::move(subagent_win));
 	update_window_layout();
@@ -374,7 +391,7 @@ void editor::open_subagent_window(std::shared_ptr<agentlib::ai_agent> subagent)
 
 void editor::new_crashdump_window()
 {
-	auto dump_win = std::make_unique<crashdump_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, global_queue_);
+	auto dump_win = std::make_unique<crashdump_window>(get_new_window_id(), 0, 1, COLS, LINES - 2, global_queue_);
 	windows_.push_back(std::move(dump_win));
 	update_window_layout();
 	activate_window(windows_.size() - 1);
@@ -392,7 +409,7 @@ void editor::new_codereview_window(int focus_item_id)
 		}
 	}
 
-	auto cr_win = std::make_unique<code_review_window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, global_queue_,
+	auto cr_win = std::make_unique<code_review_window>(get_new_window_id(), 0, 1, COLS, LINES - 2, global_queue_,
 							   focus_item_id);
 	windows_.push_back(std::move(cr_win));
 	update_window_layout();

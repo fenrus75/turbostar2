@@ -134,6 +134,9 @@ class editor : public agentlib::document_provider
 
 	static void sort_windows_by_priority(std::vector<window *> &sorted_windows, window *active_win);
 
+	int get_new_window_id() const;
+	const std::vector<std::unique_ptr<window>> &get_windows() const noexcept { return windows_; }
+
 	event_queue &get_global_queue() noexcept { return global_queue_; }
 
       private:

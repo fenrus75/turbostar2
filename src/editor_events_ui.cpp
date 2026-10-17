@@ -250,7 +250,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		doc->set_read_only(true);
 		documents_.push_back(doc);
 
-		auto win = std::make_unique<window>(static_cast<int>(windows_.size() + 1), 0, 1, COLS, LINES - 2, "Help");
+		auto win = std::make_unique<window>(get_new_window_id(), 0, 1, COLS, LINES - 2, "Help");
 		win->attach_document(doc);
 		windows_.push_back(std::move(win));
 		activate_window(windows_.size() - 1);
