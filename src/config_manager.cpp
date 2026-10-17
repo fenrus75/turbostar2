@@ -30,8 +30,7 @@ config_manager &config_manager::get_instance()
 
 void config_manager::set_build_system(const std::string &sys, bool explicit_user_set)
 {
-	std::string bs = sys;
-	std::transform(bs.begin(), bs.end(), bs.begin(), [](unsigned char c) { return std::tolower(c); });
+	std::string bs = utf8::to_lower(sys);
 	if (bs == "pyproject.toml") {
 		bs = "python";
 	}

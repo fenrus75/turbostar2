@@ -27,7 +27,7 @@
 #include "config_manager.h"
 #include "fs_utils.h"
 #include "project_manager.h"
-#include "utf8.h"
+
 
 namespace tools
 {
@@ -200,10 +200,7 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 		lines.push_back(l);
 	}
 
-	std::string ext = std::filesystem::path(safe_path).extension().string();
-	for (char &c : ext) {
-		c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-	}
+	std::string ext = utf8::to_lower(std::filesystem::path(safe_path).extension().string());
 	bool is_py = (ext == ".py");
 	bool is_sv = (ext == ".sv" || ext == ".svh" || ext == ".v" || ext == ".vh");
 
@@ -591,11 +588,7 @@ static void parse_markdown_headings(const std::string &content, int min_lines, s
 // Returns true if a file path is a Markdown document by extension.
 static bool is_markdown_file(const std::string_view path)
 {
-	std::string ext = std::filesystem::path(path).extension().string();
-	// Lowercase for case-insensitive matching.
-	for (char &c : ext) {
-		c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-	}
+	std::string ext = utf8::to_lower(std::filesystem::path(path).extension().string());
 	return ext == ".md" || ext == ".markdown" || ext == ".mdown" || ext == ".mkd";
 }
 
@@ -1113,12 +1106,8 @@ codemap_selection_result select_prioritized_codemap_symbols(const std::vector<co
 		double grep_weight = 5.0;
 		for (const auto &pattern : ctx.recent_grep_patterns) {
 			if (!pattern.empty()) {
-				std::string name_lower = sym.name;
-				std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(),
-					       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-				std::string pat_lower = pattern;
-				std::transform(pat_lower.begin(), pat_lower.end(), pat_lower.begin(),
-					       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+				std::string name_lower = utf8::to_lower(sym.name);
+				std::string pat_lower = utf8::to_lower(pattern);
 
 				if (name_lower.find(pat_lower) != std::string::npos || pat_lower.find(name_lower) != std::string::npos) {
 					score += grep_weight;
@@ -1323,8 +1312,7 @@ std::string format_codemap_table(const std::string &display_path, const std::vec
 std::string find_matching_impl_file(const std::string &header_path, agentlib::tool_context * /*ctx*/)
 {
 	std::filesystem::path hp(header_path);
-	std::string ext = hp.extension().string();
-	std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+	std::string ext = utf8::to_lower(hp.extension().string());
 
 	std::vector<std::string> candidates;
 	if (ext == ".h" || ext == ".hpp" || ext == ".hh" || ext == ".hxx") {
@@ -1359,8 +1347,7 @@ std::string find_matching_impl_file(const std::string &header_path, agentlib::to
 std::string find_matching_header_file(const std::string &impl_path, agentlib::tool_context * /*ctx*/)
 {
 	std::filesystem::path ip(impl_path);
-	std::string ext = ip.extension().string();
-	std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+	std::string ext = utf8::to_lower(ip.extension().string());
 
 	std::vector<std::string> candidates;
 	if (ext == ".cpp" || ext == ".c" || ext == ".cc" || ext == ".cxx") {
@@ -1441,8 +1428,7 @@ std::string extract_class_context_preview(const std::string &cpp_path, int start
 					  const std::vector<std::string> &read_lines, agentlib::tool_context &ctx)
 {
 	std::filesystem::path ip(cpp_path);
-	std::string ext = ip.extension().string();
-	std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+	std::string ext = utf8::to_lower(ip.extension().string());
 	if (ext != ".cpp" && ext != ".c" && ext != ".cc" && ext != ".cxx") {
 		return "";
 	}
@@ -1547,8 +1533,7 @@ std::string extract_class_context_preview(const std::string &cpp_path, int start
 		auto locs = project_manager::get_instance().lsp_query_definition(cpp_path, lsp_line, lsp_col);
 		for (const auto &loc : locs) {
 			std::filesystem::path lp(loc.path);
-			std::string lext = lp.extension().string();
-			std::transform(lext.begin(), lext.end(), lext.begin(), ::tolower);
+			std::string lext = utf8::to_lower(lp.extension().string());
 			if (lext == ".h" || lext == ".hpp" || lext == ".hh" || lext == ".hxx") {
 				header_path = loc.path;
 				break;

@@ -10,6 +10,7 @@
 #include <fstream>
 #include <map>
 #include "project_templates_embedded.h"
+#include "utf8.h"
 
 namespace turbostar
 {
@@ -134,9 +135,7 @@ bool project_template_manager::create_project(const project_create_options &opts
 		localtime_r(&now_c, &tm_buf);
 		std::string current_year = std::to_string(tm_buf.tm_year + 1900);
 
-		std::string project_name_lower = opts.project_name;
-		std::transform(project_name_lower.begin(), project_name_lower.end(), project_name_lower.begin(),
-			       [](unsigned char c) { return std::tolower(c); });
+		std::string project_name_lower = utf8::to_lower(opts.project_name);
 
 		// Group embedded files for target_template_id
 		std::string prefix = target_template_id + "/";

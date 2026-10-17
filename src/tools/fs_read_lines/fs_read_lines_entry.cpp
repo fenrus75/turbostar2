@@ -565,8 +565,7 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		bool read_whole_file = (start == 1 && static_cast<size_t>(adjusted_end) >= read_res.total_file_lines);
 		bool is_header = false;
 		std::filesystem::path p(args_.safe_path);
-		std::string ext = p.extension().string();
-		std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+		std::string ext = utf8::to_lower(p.extension().string());
 		if (ext == ".h" || ext == ".hpp" || ext == ".hh" || ext == ".hxx") {
 			is_header = true;
 		}

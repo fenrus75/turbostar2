@@ -1026,8 +1026,7 @@ void project_manager::scan_dependencies()
 	    {"zydis", "github://zyantific/zydis"},	     {"sdl2", "github://libsdl-org/SDL@SDL2/"}};
 
 	for (const auto &dep_name : deps) {
-		std::string dep_lower = dep_name;
-		std::transform(dep_lower.begin(), dep_lower.end(), dep_lower.begin(), [](unsigned char c) { return std::tolower(c); });
+		std::string dep_lower = utf8::to_lower(dep_name);
 
 		auto it = known_deps.find(dep_lower);
 		if (it != known_deps.end()) {

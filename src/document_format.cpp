@@ -220,8 +220,7 @@ void document::format_paragraph()
 	bool is_c_cpp = false;
 	size_t dot = filename_.find_last_of('.');
 	if (dot != std::string::npos) {
-		std::string ext = filename_.substr(dot);
-		std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+		std::string ext = utf8::to_lower(std::string_view(filename_).substr(dot));
 		if (ext == ".cpp" || ext == ".hpp" || ext == ".cc" || ext == ".cxx" || ext == ".c" || ext == ".h" || ext == ".cu" || ext == ".cuh") {
 			is_c_cpp = true;
 		}
