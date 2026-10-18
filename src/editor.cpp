@@ -1658,6 +1658,15 @@ void editor::check_files_changed()
 	}
 }
 
+int editor::get_hotkey_printed_len(std::string_view s) noexcept
+{
+	int len = static_cast<int>(utf8::length(s));
+	if (s.contains('^')) {
+		len--;
+	}
+	return std::max(0, len);
+}
+
 std::string editor::get_k_block_status_help() const
 {
 	auto active_doc = get_active_doc();
@@ -1716,16 +1725,6 @@ std::string editor::get_k_block_status_help() const
 		return a.original_idx < b.original_idx;
 	});
 
-	// Helper to calculate printed length (excluding '^' carets)
-	auto get_printed_len = [](const std::string &s) {
-		int len = 0;
-		for (char c : s) {
-			if (c != '^')
-				len++;
-		}
-		return len;
-	};
-
 	// 3. Greedily add options that fit within COLS - 2
 	int limit = COLS - 2;
 	if (limit < 9)
@@ -1743,7 +1742,7 @@ std::string editor::get_k_block_status_help() const
 		for (size_t i = 0; i < temp.size(); ++i) {
 			if (i > 0)
 				total_printed_len += 1;
-			total_printed_len += get_printed_len(temp[i].label);
+			total_printed_len += get_hotkey_printed_len(temp[i].label);
 		}
 
 		if (total_printed_len <= limit) {

@@ -133,6 +133,7 @@ class editor : public agentlib::document_provider
 	void update_terminal_windows();
 
 	static void sort_windows_by_priority(std::vector<window *> &sorted_windows, window *active_win);
+	static int get_hotkey_printed_len(std::string_view s) noexcept;
 
 	int get_new_window_id() const;
 	const std::vector<std::unique_ptr<window>> &get_windows() const noexcept { return windows_; }
