@@ -76,6 +76,13 @@ void lsp_manager::update_document(const std::string &filepath, const std::string
 	}
 }
 
+void lsp_manager::save_document(const std::string &filepath, const std::string &text)
+{
+	if (backend_) {
+		backend_->save_document(filepath, text);
+	}
+}
+
 void lsp_manager::request_hover(const std::string &filepath, int line, int character)
 {
 	if (backend_) {

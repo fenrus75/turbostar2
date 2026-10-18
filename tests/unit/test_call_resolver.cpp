@@ -37,6 +37,9 @@ class mock_lsp_hierarchy_backend : public lsp_backend
 	void update_document(const std::string &, const std::string &) override
 	{
 	}
+	void save_document(const std::string &, const std::string &) override
+	{
+	}
 	void request_hover(const std::string &, int, int) override
 	{
 	}

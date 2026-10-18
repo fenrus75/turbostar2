@@ -40,6 +40,7 @@ class lsp_manager
 
 	void open_document(const std::string &filepath, const std::string &text);
 	void update_document(const std::string &filepath, const std::string &text);
+	void save_document(const std::string &filepath, const std::string &text);
 	void request_hover(const std::string &filepath, int line, int character);
 	void request_document_highlight(const std::string &filepath, int line, int character);
 	void request_selection_range(const std::string &filepath, int line, int character);

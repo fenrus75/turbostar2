@@ -3,6 +3,7 @@
 #include "agentlib/virtual_file_system.h"
 #include "filter_registry.h"
 #include "fs_utils.h"
+#include "project_manager.h"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -62,6 +63,7 @@ std::string apply_text_filter_tool::execute(agentlib::tool_context &ctx)
 			if (desc.empty()) {
 				return "Error: Failed to write output to VFS path '" + args_.output_path + "'.";
 			}
+			project_manager::get_instance().lsp_save_document(args_.safe_output_path, result);
 			return fs_utils::wrap_prompt_untrusted_data_tag("apply_text_filter_result", "Successfully applied filter '" + args_.filter + "' and wrote output to '" + args_.output_path + "'.");
 		}
 
@@ -73,6 +75,7 @@ std::string apply_text_filter_tool::execute(agentlib::tool_context &ctx)
 		if (out.fail()) {
 			return "Error: Failed to write filtered content to '" + args_.output_path + "'.";
 		}
+		project_manager::get_instance().lsp_save_document(args_.safe_output_path, result);
 		return fs_utils::wrap_prompt_untrusted_data_tag("apply_text_filter_result", "Successfully applied filter '" + args_.filter + "' and wrote output to '" + args_.output_path + "'.");
 	}
 

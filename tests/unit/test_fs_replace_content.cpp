@@ -323,6 +323,59 @@ int main()
 			assert(missing_res.find("Error: target_content not found in") != std::string::npos);
 		}
 
+		// 18. Verify LSP save_document notification and pre-caching triggered on file replacement
+		{
+			class mock_save_tracker_backend : public lsp_backend
+			{
+			      public:
+				bool save_called{false};
+				std::string saved_path;
+				std::string saved_text;
+
+				void start(event_queue &) override {}
+				void stop() override {}
+				void open_document(const std::string &, const std::string &) override {}
+				void update_document(const std::string &, const std::string &) override {}
+				void save_document(const std::string &filepath, const std::string &text) override
+				{
+					save_called = true;
+					saved_path = filepath;
+					saved_text = text;
+				}
+				void request_hover(const std::string &, int, int) override {}
+				void request_document_highlight(const std::string &, int, int) override {}
+				void request_selection_range(const std::string &, int, int) override {}
+				bool is_supported_file(const std::string &) const override { return true; }
+				std::vector<text_range> query_selection_ranges(const std::string &, int, int) override { return {}; }
+				std::vector<location_info> query_definition(const std::string &, int, int) override { return {}; }
+				std::vector<location_info> query_type_definition(const std::string &, int, int) override { return {}; }
+				std::vector<location_info> query_references(const std::string &, int, int) override { return {}; }
+				std::vector<symbol_info> query_workspace_symbols(const std::string &) override { return {}; }
+				std::vector<symbol_node> query_document_symbols(const std::string &) override { return {}; }
+				void prefetch_document_symbols(const std::string &) override {}
+				void invalidate_symbol_cache(const std::string &) override {}
+				std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &, int, int) override { return {}; }
+				std::vector<outgoing_call_item> query_call_hierarchy_outgoing_batch(const std::string &, const std::vector<std::pair<int, int>> &, std::chrono::steady_clock::time_point) override { return {}; }
+				std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &, int, int) override { return {}; }
+				std::optional<std::vector<diagnostic_info>> query_file_diagnostics(const std::string &) override { return std::nullopt; }
+				void store_file_diagnostics(const std::string &, const std::vector<diagnostic_info> &) override {}
+			};
+
+			auto mock = std::make_unique<mock_save_tracker_backend>();
+			auto *mock_ptr = mock.get();
+			project_manager::get_instance().set_lsp_backend_for_testing(std::move(mock));
+
+			write_file("line 1\nold value\nline 3\n");
+			nlohmann::json args = {{"path", temp_file},
+					       {"target_content", "old value"},
+					       {"replacement_content", "new value"}};
+			std::string res = registry.execute_tool("fs_replace_content", args.dump(), ctx);
+			assert(res.find("Successfully replaced") != std::string::npos);
+			assert(mock_ptr->save_called);
+			assert(mock_ptr->saved_path.find("test_replace_") != std::string::npos);
+			assert(mock_ptr->saved_text == "line 1\nnew value\nline 3\n");
+		}
+
 		// Clean up
 		std::filesystem::remove(temp_file);
 		std::cout << "fs_replace_content tool verified successfully!" << std::endl;

@@ -84,6 +84,7 @@ class lsp_backend
 
 	virtual void open_document(const std::string &filepath, const std::string &text) = 0;
 	virtual void update_document(const std::string &filepath, const std::string &text) = 0;
+	virtual void save_document(const std::string &filepath, const std::string &text) = 0;
 	virtual void request_hover(const std::string &filepath, int line, int character) = 0;
 	virtual void request_document_highlight(const std::string &filepath, int line, int character) = 0;
 	virtual void request_selection_range(const std::string &filepath, int line, int character) = 0;

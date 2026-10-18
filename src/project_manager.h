@@ -132,6 +132,7 @@ class project_manager
 	void lsp_stop();
 	void lsp_open_document(const std::string &filepath, const std::string &text);
 	void lsp_update_document(const std::string &filepath, const std::string &text);
+	void lsp_save_document(const std::string &filepath, const std::string &text);
 	void lsp_request_hover(const std::string &filepath, int line, int character);
 	void lsp_request_document_highlight(const std::string &filepath, int line, int character);
 	void lsp_request_selection_range(const std::string &filepath, int line, int character);

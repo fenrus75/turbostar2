@@ -403,6 +403,10 @@ void standard_lsp_backend::open_document(const std::string &filepath, const std:
 
 	try {
 		std::lock_guard<std::mutex> lock(doc_mutex_);
+		auto it = doc_versions_.find(filepath);
+		if (it != doc_versions_.end()) {
+			return;
+		}
 		doc_versions_[filepath] = 1;
 
 		auto uri = lsp::DocumentUri::fromPath(fs::absolute(filepath).string());
@@ -423,7 +427,16 @@ void standard_lsp_backend::update_document(const std::string &filepath, const st
 
 	try {
 		std::lock_guard<std::mutex> lock(doc_mutex_);
-		int version = ++doc_versions_[filepath];
+		auto it = doc_versions_.find(filepath);
+		if (it == doc_versions_.end()) {
+			doc_versions_[filepath] = 1;
+			auto uri = lsp::DocumentUri::fromPath(fs::absolute(filepath).string());
+			server->message_handler->sendNotification<lsp::notifications::TextDocument_DidOpen>(
+			    {.textDocument = {.uri = std::move(uri), .languageId = server->language_id, .version = 1, .text = text}});
+			return;
+		}
+
+		int version = ++it->second;
 
 		auto uri = lsp::DocumentUri::fromPath(fs::absolute(filepath).string());
 		lsp::DidChangeTextDocumentParams didChangeParams;
@@ -437,6 +450,48 @@ void standard_lsp_backend::update_document(const std::string &filepath, const st
 		server->message_handler->sendNotification<lsp::notifications::TextDocument_DidChange>(std::move(didChangeParams));
 	} catch (...) {
 		event_logger::get_instance().log("LSP: Caught unknown exception");
+	}
+}
+
+void standard_lsp_backend::save_document(const std::string &filepath, const std::string &text)
+{
+	invalidate_hover_cache(filepath);
+	invalidate_symbol_cache(filepath);
+
+	auto server = get_server_for_file(filepath);
+	if (!server)
+		return;
+
+	try {
+		std::lock_guard<std::mutex> lock(doc_mutex_);
+		auto abs_path = fs::absolute(filepath).string();
+		auto it = doc_versions_.find(filepath);
+		if (it == doc_versions_.end()) {
+			doc_versions_[filepath] = 1;
+			auto open_uri = lsp::DocumentUri::fromPath(abs_path);
+			server->message_handler->sendNotification<lsp::notifications::TextDocument_DidOpen>(
+			    {.textDocument = {.uri = std::move(open_uri), .languageId = server->language_id, .version = 1, .text = text}});
+		} else {
+			int version = ++it->second;
+			auto change_uri = lsp::DocumentUri::fromPath(abs_path);
+			lsp::DidChangeTextDocumentParams didChangeParams;
+			didChangeParams.textDocument.uri = std::move(change_uri);
+			didChangeParams.textDocument.version = version;
+
+			lsp::TextDocumentContentChangeEvent_Text changeEvent;
+			changeEvent.text = text;
+			didChangeParams.contentChanges.push_back(changeEvent);
+
+			server->message_handler->sendNotification<lsp::notifications::TextDocument_DidChange>(std::move(didChangeParams));
+		}
+
+		auto save_uri = lsp::DocumentUri::fromPath(abs_path);
+		lsp::DidSaveTextDocumentParams didSaveParams;
+		didSaveParams.textDocument.uri = std::move(save_uri);
+		didSaveParams.text = text;
+		server->message_handler->sendNotification<lsp::notifications::TextDocument_DidSave>(std::move(didSaveParams));
+	} catch (...) {
+		event_logger::get_instance().log("LSP: Caught unknown exception in save_document");
 	}
 }
 

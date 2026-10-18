@@ -1,5 +1,7 @@
-#include "fs_utils.h"
 #include "git_restore.h"
+#include <fstream>
+#include "fs_utils.h"
+#include "project_manager.h"
 
 namespace tools
 {
@@ -30,6 +32,13 @@ std::string git_restore_tool::execute(agentlib::tool_context &ctx)
 			  (output.find("Process exited with code") != std::string::npos && output.find("Process exited with code 0") == std::string::npos));
 
 	if (!has_error) {
+		std::string restored_content;
+		std::ifstream file(safe_path_, std::ios::binary);
+		if (file.is_open()) {
+			restored_content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+			file.close();
+		}
+		project_manager::get_instance().lsp_save_document(safe_path_, restored_content);
 		set_success(ctx, "File restored");
 		return fs_utils::wrap_prompt_untrusted_data_tag("git_restore_result", "Successfully restored path: `" + safe_path_ + "`");
 	}

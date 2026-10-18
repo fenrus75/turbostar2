@@ -1,8 +1,10 @@
+#include "fs_write_file.h"
 #include <filesystem>
 #include <fstream>
-#include "../../agentlib/interactions/action.h"
-#include "../../fs_utils.h"
-#include "fs_write_file.h"
+#include "agentlib/file_health_utils.h"
+#include "agentlib/interactions/action.h"
+#include "fs_utils.h"
+#include "project_manager.h"
 
 
 namespace tools
@@ -85,6 +87,8 @@ std::string fs_write_file_tool::execute(agentlib::tool_context &ctx)
 			if (ctx.trigger_ui_update)
 				ctx.trigger_ui_update();
 
+			project_manager::get_instance().lsp_save_document(args_.safe_path, final_content);
+
 			return desc;
 		}
 
@@ -131,6 +135,15 @@ std::string fs_write_file_tool::execute(agentlib::tool_context &ctx)
 		
 		out << args_.content;
 		out.close();
+
+		std::string saved_content;
+		std::ifstream in(args_.safe_path, std::ios::binary);
+		if (in.is_open()) {
+			saved_content.assign((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+			in.close();
+		}
+		agentlib::update_file_health_state(ctx, args_.safe_path);
+		project_manager::get_instance().lsp_save_document(args_.safe_path, saved_content);
 
 		if (custom_interaction)
 			custom_interaction->set_status(agentlib::interaction_action::status::success);

@@ -22,6 +22,7 @@
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "git_manager.h"
+#include "type_definition_cache.h"
 #include "utf8.h"
 
 namespace fs = std::filesystem;
@@ -528,6 +529,14 @@ void project_manager::lsp_update_document(const std::string &filepath, const std
 {
 	if (lsp_manager_)
 		lsp_manager_->update_document(filepath, text);
+}
+void project_manager::lsp_save_document(const std::string &filepath, const std::string &text)
+{
+	if (lsp_manager_)
+		lsp_manager_->save_document(filepath, text);
+	tools::codemap_cache::get_instance().invalidate(filepath);
+	tools::type_definition_cache::get_instance().invalidate_file(filepath);
+	tools::prefetch_document_codemap_symbols(filepath);
 }
 void project_manager::lsp_request_hover(const std::string &filepath, int line, int character)
 {

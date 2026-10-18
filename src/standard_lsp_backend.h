@@ -49,6 +49,7 @@ class standard_lsp_backend : public lsp_backend
 
 	void open_document(const std::string &filepath, const std::string &text) override;
 	void update_document(const std::string &filepath, const std::string &text) override;
+	void save_document(const std::string &filepath, const std::string &text) override;
 	void request_hover(const std::string &filepath, int line, int character) override;
 	void request_document_highlight(const std::string &filepath, int line, int character) override;
 	void request_selection_range(const std::string &filepath, int line, int character) override;

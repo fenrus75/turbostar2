@@ -1,9 +1,10 @@
-// Tested source file: src/lsp_backend.cpp src/standard_lsp_backend.cpp src/lsp_manager.cpp
+// Tested source file: src/lsp_backend.cpp src/standard_lsp_backend.cpp src/lsp_manager.cpp src/project_manager.cpp
 #include <cassert>
 #include <iostream>
 #include <memory>
 #include "lsp_backend.h"
 #include "lsp_manager.h"
+#include "project_manager.h"
 #include "standard_lsp_backend.h"
 #include "test_watchdog.h"
 
@@ -17,9 +18,11 @@ class mock_lsp_backend : public lsp_backend
 	bool stop_called{false};
 	bool open_doc_called{false};
 	bool update_doc_called{false};
+	bool save_doc_called{false};
 	bool hover_called{false};
 	bool invalidate_symbol_called{false};
 	std::string last_filepath;
+	std::string last_saved_text;
 
 	void start(event_queue &) override
 	{
@@ -40,6 +43,13 @@ class mock_lsp_backend : public lsp_backend
 	{
 		update_doc_called = true;
 		last_filepath = filepath;
+	}
+
+	void save_document(const std::string &filepath, const std::string &text) override
+	{
+		save_doc_called = true;
+		last_filepath = filepath;
+		last_saved_text = text;
 	}
 
 	void request_hover(const std::string &, int, int) override
@@ -202,6 +212,11 @@ int main()
 		mgr.update_document("hello.custom", "contents v2");
 		assert(mock_ptr->update_doc_called);
 
+		mgr.save_document("hello.custom", "contents saved");
+		assert(mock_ptr->save_doc_called);
+		assert(mock_ptr->last_filepath == "hello.custom");
+		assert(mock_ptr->last_saved_text == "contents saved");
+
 		mgr.request_hover("hello.custom", 1, 1);
 		assert(mock_ptr->hover_called);
 
@@ -273,6 +288,18 @@ int main()
 		// Multiple stop() calls should be safe and idempotent
 		backend.stop();
 		backend.stop();
+	}
+
+	// 5. Verify project_manager::lsp_save_document delegates to lsp_manager
+	{
+		auto mock = std::make_unique<mock_lsp_backend>();
+		auto *mock_ptr = mock.get();
+		project_manager::get_instance().set_lsp_backend_for_testing(std::move(mock));
+
+		project_manager::get_instance().lsp_save_document("test_save.cpp", "int x = 42;\n");
+		assert(mock_ptr->save_doc_called);
+		assert(mock_ptr->last_filepath == "test_save.cpp");
+		assert(mock_ptr->last_saved_text == "int x = 42;\n");
 	}
 
 	std::cout << "All lsp_backend tests passed successfully!" << std::endl;
