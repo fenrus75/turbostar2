@@ -49,9 +49,7 @@ void editor::dispatch_event_file(const editor_event &ev)
 			}
 			update_window_menu();
 			if (config_manager::get_instance().is_compile_on_save()) {
-				editor_event compile_ev;
-				compile_ev.type = event_type::compile_file;
-				global_queue_.push(compile_ev);
+				global_queue_.push(event_type::compile_file);
 			}
 			return;
 		}
@@ -79,9 +77,7 @@ void editor::dispatch_event_file(const editor_event &ev)
 					// We only compile the active document to avoid spawning too many processes.
 					// Or we could compile the one that was just saved. But active is safer.
 					if (doc == get_active_doc()) {
-						editor_event compile_ev;
-						compile_ev.type = event_type::compile_file;
-						global_queue_.push(compile_ev);
+						global_queue_.push(event_type::compile_file);
 					}
 				}
 			}
@@ -102,9 +98,7 @@ void editor::dispatch_event_file(const editor_event &ev)
 		if (!active_doc->has_selection()) {
 			logger.log("Write block requested but no block is selected.");
 			set_status_message("No block selected.", status_priorities::CRITICAL, std::chrono::seconds(3));
-			editor_event redraw_ev;
-			redraw_ev.type = event_type::redraw;
-			global_queue_.push(redraw_ev);
+			global_queue_.push(event_type::redraw);
 			return;
 		}
 
@@ -146,9 +140,7 @@ void editor::dispatch_event_file(const editor_event &ev)
 			} else {
 				active_doc->clear_modified();
 			}
-			editor_event redraw_ev;
-			redraw_ev.type = event_type::redraw;
-			global_queue_.push(redraw_ev);
+			global_queue_.push(event_type::redraw);
 		}
 		return;
 	}
@@ -245,9 +237,7 @@ void editor::dispatch_event_file(const editor_event &ev)
 		}
 
 		// Force redraw to ensure the new/focused window renders immediately
-		editor_event redraw_ev;
-		redraw_ev.type = event_type::redraw;
-		global_queue_.push(redraw_ev);
+		global_queue_.push(event_type::redraw);
 		return;
 	}
 }

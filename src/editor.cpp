@@ -17,30 +17,30 @@
 #include "build_error_manager.h"
 #include "codereview_manager.h"
 #include "config_manager.h"
-#include "session_manager.h"
 #include "crashdump_manager.h"
 #include "event_logger.h"
+#include "filter_registry.h"
 #include "fs_utils.h"
 #include "gcc_log_parser.h"
 #include "git_manager.h"
 #include "history_manager.h"
+#include "input_history_manager.h"
+#include "line.h"
 #include "perf_manager.h"
 #include "project_manager.h"
 #include "project_template_manager.h"
-#include "utf8.h"
-#include "line.h"
-#include "filter_registry.h"
+#include "session_manager.h"
 #include "tools/troff2md.h"
 #include "ui/agent_center_window.h"
 #include "ui/agent_window.h"
 #include "ui/code_review_window.h"
+#include "ui/components/ui_multiline_edit.h"
 #include "ui/crashdump_window.h"
 #include "ui/dialog_factories.h"
 #include "ui/diff_window.h"
 #include "ui/hex_editor_window.h"
 #include "ui/terminal_window.h"
-#include "ui/components/ui_multiline_edit.h"
-#include "input_history_manager.h"
+#include "utf8.h"
 
 namespace fs = std::filesystem;
 
@@ -53,57 +53,64 @@ editor::editor(editor_options opts)
 	// The troff_to_markdown filter parses manual page troff syntax and converts it to GitHub Flavored Markdown (GFM).
 	// This filter is registered dynamically at editor startup rather than statically inside the filter registry to avoid
 	// linking troff2md.cpp's AST parser functions into headless unit test binaries that don't need UI-related filters.
-	agentlib::filter_registry::get_instance().register_filter("troff_to_markdown", [](const std::string &input) {
-		return ::troff2md(input);
-	}, {"text"});
+	agentlib::filter_registry::get_instance().register_filter("troff_to_markdown",
+								  [](const std::string &input) { return ::troff2md(input); }, {"text"});
 
-	agentlib::filter_registry::get_instance().register_filter("to_markdown", [](const std::string &input) {
-		std::string trimmed = input;
-		trimmed.erase(0, trimmed.find_first_not_of(" \t\r\n"));
+	agentlib::filter_registry::get_instance().register_filter(
+	    "to_markdown",
+	    [](const std::string &input) {
+		    std::string trimmed = input;
+		    trimmed.erase(0, trimmed.find_first_not_of(" \t\r\n"));
 
-		bool detected_html = false;
-		bool detected_troff = false;
+		    bool detected_html = false;
+		    bool detected_troff = false;
 
-		// 1. Try detecting format using libmagic
-		std::string mime_str = utf8::detect_mime(input);
-		if (!mime_str.empty()) {
-			if (mime_str.find("html") != std::string::npos) {
-				detected_html = true;
-			} else if (mime_str.find("troff") != std::string::npos || mime_str.find("nroff") != std::string::npos || mime_str.find("x-man") != std::string::npos) {
-				detected_troff = true;
-			}
-		}
+		    // 1. Try detecting format using libmagic
+		    std::string mime_str = utf8::detect_mime(input);
+		    if (!mime_str.empty()) {
+			    if (mime_str.find("html") != std::string::npos) {
+				    detected_html = true;
+			    } else if (mime_str.find("troff") != std::string::npos || mime_str.find("nroff") != std::string::npos ||
+				       mime_str.find("x-man") != std::string::npos) {
+				    detected_troff = true;
+			    }
+		    }
 
-		// 2. Fall back to existing heuristics if libmagic didn't detect or is disabled
-		if (!detected_html && !detected_troff) {
-			if (trimmed.starts_with("<html") || trimmed.starts_with("<!DOCTYPE") || trimmed.starts_with("<div") || trimmed.starts_with("<p>")) {
-				detected_html = true;
-			} else if (trimmed.starts_with(".SH") || trimmed.starts_with(".TH") || trimmed.starts_with(".PP") || trimmed.starts_with(".Dd") || trimmed.starts_with(".de")) {
-				detected_troff = true;
-			}
-		}
+		    // 2. Fall back to existing heuristics if libmagic didn't detect or is disabled
+		    if (!detected_html && !detected_troff) {
+			    if (trimmed.starts_with("<html") || trimmed.starts_with("<!DOCTYPE") || trimmed.starts_with("<div") ||
+				trimmed.starts_with("<p>")) {
+				    detected_html = true;
+			    } else if (trimmed.starts_with(".SH") || trimmed.starts_with(".TH") || trimmed.starts_with(".PP") ||
+				       trimmed.starts_with(".Dd") || trimmed.starts_with(".de")) {
+				    detected_troff = true;
+			    }
+		    }
 
-		// 3. Delegate to sub-filters
-		if (detected_html) {
-			auto &registry = agentlib::filter_registry::get_instance();
-			if (registry.has_filter("html_to_markdown")) {
-				bool success = false;
-				std::string result = registry.apply_filter("html_to_markdown", input, success);
-				if (success) return result;
-			}
-		}
+		    // 3. Delegate to sub-filters
+		    if (detected_html) {
+			    auto &registry = agentlib::filter_registry::get_instance();
+			    if (registry.has_filter("html_to_markdown")) {
+				    bool success = false;
+				    std::string result = registry.apply_filter("html_to_markdown", input, success);
+				    if (success)
+					    return result;
+			    }
+		    }
 
-		if (detected_troff) {
-			auto &registry = agentlib::filter_registry::get_instance();
-			if (registry.has_filter("troff_to_markdown")) {
-				bool success = false;
-				std::string result = registry.apply_filter("troff_to_markdown", input, success);
-				if (success) return result;
-			}
-		}
+		    if (detected_troff) {
+			    auto &registry = agentlib::filter_registry::get_instance();
+			    if (registry.has_filter("troff_to_markdown")) {
+				    bool success = false;
+				    std::string result = registry.apply_filter("troff_to_markdown", input, success);
+				    if (success)
+					    return result;
+			    }
+		    }
 
-		return input;
-	}, {"text", "web"});
+		    return input;
+	    },
+	    {"text", "web"});
 	line::global_tab_width = config_manager::get_instance().get_tab_width();
 	main_thread_id_ = std::this_thread::get_id();
 	last_mtime_check_time_ = std::chrono::steady_clock::now();
@@ -160,7 +167,8 @@ editor::editor(editor_options opts)
 		fs::path crash_dir = fs::path(fs_utils::get_global_cache_dir()) / "crashes";
 		if (fs::exists(crash_dir)) {
 			for (auto &p : fs::directory_iterator(crash_dir)) {
-				if (p.is_regular_file() && p.path().filename().string().starts_with("crash_") && fs::file_size(p.path()) > 0) {
+				if (p.is_regular_file() && p.path().filename().string().starts_with("crash_") &&
+				    fs::file_size(p.path()) > 0) {
 					crash_file_path = p.path().string();
 					std::ifstream f(p.path());
 					crash_text = std::string((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
@@ -168,7 +176,8 @@ editor::editor(editor_options opts)
 				}
 			}
 		}
-	} catch (...) {}
+	} catch (...) {
+	}
 
 	if (!crash_text.empty()) {
 		active_dialog_ = create_crash_dialog(crash_text, crash_file_path);
@@ -352,8 +361,8 @@ void editor::new_agent_window()
 
 	auto model = agentlib::ai_model_registry::get_instance().get_default_model();
 
-	auto main_agent_win = std::make_unique<agent_window>(get_new_window_id(), 0, 1, COLS, LINES - 2, model,
-							     global_queue_, this, fresh_agent_);
+	auto main_agent_win =
+	    std::make_unique<agent_window>(get_new_window_id(), 0, 1, COLS, LINES - 2, model, global_queue_, this, fresh_agent_);
 
 	windows_.push_back(std::move(main_agent_win));
 
@@ -381,8 +390,7 @@ void editor::new_agent_center_window()
 
 void editor::open_subagent_window(std::shared_ptr<agentlib::ai_agent> subagent)
 {
-	auto subagent_win =
-	    std::make_unique<agent_window>(get_new_window_id(), 0, 1, COLS, LINES - 2, std::move(subagent));
+	auto subagent_win = std::make_unique<agent_window>(get_new_window_id(), 0, 1, COLS, LINES - 2, std::move(subagent));
 
 	windows_.push_back(std::move(subagent_win));
 	update_window_layout();
@@ -411,8 +419,7 @@ void editor::new_codereview_window(int focus_item_id)
 		}
 	}
 
-	auto cr_win = std::make_unique<code_review_window>(get_new_window_id(), 0, 1, COLS, LINES - 2, global_queue_,
-							   focus_item_id);
+	auto cr_win = std::make_unique<code_review_window>(get_new_window_id(), 0, 1, COLS, LINES - 2, global_queue_, focus_item_id);
 	windows_.push_back(std::move(cr_win));
 	update_window_layout();
 	activate_window(windows_.size() - 1);
@@ -457,19 +464,17 @@ void editor::update_recent_files_menu()
 		recent_items.push_back(empty_item);
 	}
 
-	std::vector<menu_item> file_items = {
-		{"New Project...", event_type::new_project, 'p', "", false},
-		{"New File", event_type::new_doc, 'n', "^KN", false},
-		{"Open...", event_type::load, 'o', "^KE", false},
-		menu_item("Open Recent...", recent_items, 'r'),
-		{"Save", event_type::save, 's', "^KS", false},
-		{"Save as...", event_type::save_as, 'a', "^QS", false},
-		{"Save All", event_type::save_all, 'v', "^KA", false},
-		{"Write Block...", event_type::write_block, 'w', "^KW", false},
-		{"Close", event_type::close_window, 'c', "Alt+F3", false},
-		{"", event_type::key_press, 0, "", true},
-		menu_item("Exit", event_type::quit, 'x', "^KQ", false)
-	};
+	std::vector<menu_item> file_items = {{"New Project...", event_type::new_project, 'p', "", false},
+					     {"New File", event_type::new_doc, 'n', "^KN", false},
+					     {"Open...", event_type::load, 'o', "^KE", false},
+					     menu_item("Open Recent...", recent_items, 'r'),
+					     {"Save", event_type::save, 's', "^KS", false},
+					     {"Save as...", event_type::save_as, 'a', "^QS", false},
+					     {"Save All", event_type::save_all, 'v', "^KA", false},
+					     {"Write Block...", event_type::write_block, 'w', "^KW", false},
+					     {"Close", event_type::close_window, 'c', "Alt+F3", false},
+					     {"", event_type::key_press, 0, "", true},
+					     menu_item("Exit", event_type::quit, 'x', "^KQ", false)};
 
 	top_menu_.set_category_items("File", file_items);
 }
@@ -740,16 +745,13 @@ void editor::run()
 			if (active_dialog_->tick()) {
 				if (active_dialog_mode_ == dialog_mode::force_quit_prompt) {
 					// Countdown expired, force quit
-					editor_event quit_ev;
-					quit_ev.type = event_type::force_quit;
-					global_queue_.push(quit_ev);
+					global_queue_.push(event_type::force_quit);
 				} else {
 					resolve_dialog(active_dialog_->get_action());
 				}
 				needs_render = true;
 			} else if (active_dialog_mode_ == dialog_mode::force_quit_prompt ||
-				   active_dialog_mode_ == dialog_mode::copilot_connect ||
-				   active_dialog_mode_ == dialog_mode::welcome) {
+				   active_dialog_mode_ == dialog_mode::copilot_connect || active_dialog_mode_ == dialog_mode::welcome) {
 				needs_render = true;
 			}
 		}
@@ -900,7 +902,7 @@ void editor::run()
 		// windows_ vector (either erasing an element or appending a new one). An index-based check,
 		// combined with searching for the raw pointer, ensures we do not access invalidated iterators
 		// or dangling pointers if windows are deleted or shifted during iteration.
-		for (size_t i = 0; i < windows_.size(); ) {
+		for (size_t i = 0; i < windows_.size();) {
 			window *raw_w = windows_[i].get();
 
 			if (auto tw = dynamic_cast<ui::terminal_window *>(raw_w)) {
@@ -931,7 +933,8 @@ void editor::run()
 		}
 
 		if (debug_exited) {
-			event_logger::get_instance().log("Debugger or run output process exited. Terminal window preserved for output inspection.");
+			event_logger::get_instance().log(
+			    "Debugger or run output process exited. Terminal window preserved for output inspection.");
 		}
 
 		if (needs_render) {
@@ -1068,218 +1071,212 @@ bool editor::handle_k_block_key(int key)
 	std::shared_ptr<document> active_doc = get_active_doc();
 
 	switch (c) {
-	case 'b': {
-		logger.log("K-block: Set Selection Begin");
-		if (!active_doc)
-			return false;
-		active_doc->set_selection_start();
-		set_status_message("Block start set.", status_priorities::CRITICAL, std::chrono::seconds(2));
-		return true;
-	}
-	case 'k': {
-		logger.log("K-block: Set Selection End");
-		if (!active_doc)
-			return false;
-		active_doc->set_selection_end();
-		if (active_doc->has_selection()) {
-			set_status_message("Block end set.", status_priorities::CRITICAL, std::chrono::seconds(2));
-		} else {
+		case 'b': {
+			logger.log("K-block: Set Selection Begin");
+			if (!active_doc)
+				return false;
+			active_doc->set_selection_start();
+			set_status_message("Block start set.", status_priorities::CRITICAL, std::chrono::seconds(2));
+			return true;
+		}
+		case 'k': {
+			logger.log("K-block: Set Selection End");
+			if (!active_doc)
+				return false;
+			active_doc->set_selection_end();
+			if (active_doc->has_selection()) {
+				set_status_message("Block end set.", status_priorities::CRITICAL, std::chrono::seconds(2));
+			} else {
+				set_status_message("Selection cleared.", status_priorities::CRITICAL, std::chrono::seconds(2));
+			}
+			return true;
+		}
+		case 'h': {
+			logger.log("K-block: Clear Selection");
+			if (!active_doc)
+				return false;
+			active_doc->clear_selection();
 			set_status_message("Selection cleared.", status_priorities::CRITICAL, std::chrono::seconds(2));
-		}
-		return true;
-	}
-	case 'h': {
-		logger.log("K-block: Clear Selection");
-		if (!active_doc)
-			return false;
-		active_doc->clear_selection();
-		set_status_message("Selection cleared.", status_priorities::CRITICAL, std::chrono::seconds(2));
-		return true;
-	}
-	case 'y': {
-		logger.log("K-block: Delete Block");
-		if (!active_doc)
-			return false;
-		if (!active_doc->has_selection()) {
-			set_status_message("No block selected.", status_priorities::CRITICAL, std::chrono::seconds(2));
 			return true;
 		}
-		active_doc->delete_selection();
-		editor_event redraw_ev;
-		redraw_ev.type = event_type::redraw;
-		global_queue_.push(redraw_ev);
-		return true;
-	}
-	case 'c': {
-		logger.log("K-block: Copy Block");
-		if (!active_doc)
-			return false;
-		if (!active_doc->has_selection()) {
-			set_status_message("No block selected.", status_priorities::CRITICAL, std::chrono::seconds(2));
-			return true;
-		}
-		active_doc->copy_selection();
-		editor_event redraw_ev;
-		redraw_ev.type = event_type::redraw;
-		global_queue_.push(redraw_ev);
-		return true;
-	}
-	case 'm': {
-		logger.log("K-block: Move Block");
-		if (!active_doc)
-			return false;
-		if (!active_doc->has_selection()) {
-			set_status_message("No block selected.", status_priorities::CRITICAL, std::chrono::seconds(2));
-			return true;
-		}
-		active_doc->move_selection();
-		global_queue_.push(event_type::redraw);
-		return true;
-	}
-	case 'n': {
-		logger.log("K-block: New Window");
-		new_window("");
-		return true;
-	}
-	case 'p': {
-		logger.log("K-block: Compile File");
-		global_queue_.push(event_type::compile_file);
-		return true;
-	}
-	case 'g': {
-		logger.log("K-block: Next Error");
-		global_queue_.push(event_type::next_error);
-		return true;
-	}
-	case 'e': {
-		logger.log("K-block: Edit (Open File)");
-		global_queue_.push(event_type::load);
-		return true;
-	}
-	case 'a': {
-		logger.log("K-block: Save All");
-		if (active_doc && active_doc->is_read_only()) {
-			logger.log("Cannot save-all read-only buffer via hotkey.");
-			return true;
-		}
-		global_queue_.push(event_type::save_all);
-		return true;
-	}
-	case 'r': {
-		logger.log("K-block: Insert File");
-		if (!active_doc)
-			return false;
-		active_dialog_ = create_file_dialog("Insert File", ".");
-		active_dialog_mode_ = dialog_mode::insert_file;
-		set_focus(focus_target::dialog, "menu_insert_file");
-		return true;
-	}
-	case 't': {
-		logger.log("K-block: Copy Block to Clipboard");
-		if (!active_doc)
-			return false;
-		if (!active_doc->has_selection()) {
-			set_status_message("No block selected.", status_priorities::CRITICAL, std::chrono::seconds(2));
-			return true;
-		}
-		std::string text_to_copy = active_doc->get_selection_text();
-		if (!text_to_copy.empty()) {
-			ansi::copy_to_clipboard(text_to_copy);
-		}
-		set_status_message("Block copied to clipboard.", status_priorities::CRITICAL, std::chrono::seconds(2));
-		return true;
-	}
-	case 'j': {
-		logger.log("K-block: Format Paragraph");
-		if (active_doc) {
-			active_doc->format_paragraph();
-		}
-		return true;
-	}
-	case ']': {
-		logger.log("K-block: Expand Selection (LSP)");
-		if (active_doc && !active_doc->get_filename().empty()) {
-			project_manager::get_instance().lsp_request_selection_range(
-			    active_doc->get_filename(), active_doc->get_cursor_y(), active_doc->get_cursor_x());
-		}
-		return true;
-	}
-	case '[':
-	case '{': {
-		logger.log("K-block: Select Scope");
-		if (active_doc) {
-			active_doc->select_enclosing_scope();
+		case 'y': {
+			logger.log("K-block: Delete Block");
+			if (!active_doc)
+				return false;
+			if (!active_doc->has_selection()) {
+				set_status_message("No block selected.", status_priorities::CRITICAL, std::chrono::seconds(2));
+				return true;
+			}
+			active_doc->delete_selection();
 			global_queue_.push(event_type::redraw);
-		}
-		return true;
-	}
-	case 'd':
-	case 's': {
-		logger.log("K-block: Save File");
-		if (!active_doc || active_doc->is_read_only()) {
-			logger.log("Cannot save read-only or empty buffer via hotkey.");
 			return true;
 		}
-		global_queue_.push(event_type::save);
-		return true;
-	}
-	case 'w': {
-		logger.log("K-block: Write Block");
-		if (!active_doc || active_doc->is_read_only()) {
-			logger.log("Cannot write-block read-only or empty buffer via hotkey.");
+		case 'c': {
+			logger.log("K-block: Copy Block");
+			if (!active_doc)
+				return false;
+			if (!active_doc->has_selection()) {
+				set_status_message("No block selected.", status_priorities::CRITICAL, std::chrono::seconds(2));
+				return true;
+			}
+			active_doc->copy_selection();
+			global_queue_.push(event_type::redraw);
 			return true;
 		}
-		global_queue_.push(event_type::write_block);
-		return true;
-	}
-	case 'q': {
-		logger.log("K-block: Quit (Abort)");
-		global_queue_.push(event_type::quit);
-		return true;
-	}
-	case 'x': {
-		logger.log("K-block: Force Exit");
-		global_queue_.push(event_type::force_quit);
-		return true;
-	}
-	case 'f': {
-		logger.log("K-block: Find (Status Bar Prompt)");
-		active_mode_ = input_mode::searching;
-		search_input_buffer_ = "";
-		return true;
-	}
-	case 'l': {
-		logger.log("K-block: Go to Line (Status Bar Prompt)");
-		active_mode_ = input_mode::going_to_line;
-		line_input_buffer_ = "";
-		return true;
-	}
-	case 'u': {
-		logger.log("K-block: Top of File");
-		if (!active_doc)
-			return false;
-		active_doc->move_to_top();
-		return true;
-	}
-	case 'v': {
-		logger.log("K-block: End of File");
-		if (!active_doc)
-			return false;
-		active_doc->move_to_bottom();
-		return true;
-	}
-	case 'z': {
-		logger.log("K-block: Zap Trailing Whitespace");
-		if (active_doc) {
-			active_doc->trim_trailing_whitespace();
-			editor_event redraw_ev;
-			redraw_ev.type = event_type::redraw;
-			global_queue_.push(redraw_ev);
+		case 'm': {
+			logger.log("K-block: Move Block");
+			if (!active_doc)
+				return false;
+			if (!active_doc->has_selection()) {
+				set_status_message("No block selected.", status_priorities::CRITICAL, std::chrono::seconds(2));
+				return true;
+			}
+			active_doc->move_selection();
+			global_queue_.push(event_type::redraw);
+			return true;
 		}
-		return true;
-	}
-	default:
-		break;
+		case 'n': {
+			logger.log("K-block: New Window");
+			new_window("");
+			return true;
+		}
+		case 'p': {
+			logger.log("K-block: Compile File");
+			global_queue_.push(event_type::compile_file);
+			return true;
+		}
+		case 'g': {
+			logger.log("K-block: Next Error");
+			global_queue_.push(event_type::next_error);
+			return true;
+		}
+		case 'e': {
+			logger.log("K-block: Edit (Open File)");
+			global_queue_.push(event_type::load);
+			return true;
+		}
+		case 'a': {
+			logger.log("K-block: Save All");
+			if (active_doc && active_doc->is_read_only()) {
+				logger.log("Cannot save-all read-only buffer via hotkey.");
+				return true;
+			}
+			global_queue_.push(event_type::save_all);
+			return true;
+		}
+		case 'r': {
+			logger.log("K-block: Insert File");
+			if (!active_doc)
+				return false;
+			active_dialog_ = create_file_dialog("Insert File", ".");
+			active_dialog_mode_ = dialog_mode::insert_file;
+			set_focus(focus_target::dialog, "menu_insert_file");
+			return true;
+		}
+		case 't': {
+			logger.log("K-block: Copy Block to Clipboard");
+			if (!active_doc)
+				return false;
+			if (!active_doc->has_selection()) {
+				set_status_message("No block selected.", status_priorities::CRITICAL, std::chrono::seconds(2));
+				return true;
+			}
+			std::string text_to_copy = active_doc->get_selection_text();
+			if (!text_to_copy.empty()) {
+				ansi::copy_to_clipboard(text_to_copy);
+			}
+			set_status_message("Block copied to clipboard.", status_priorities::CRITICAL, std::chrono::seconds(2));
+			return true;
+		}
+		case 'j': {
+			logger.log("K-block: Format Paragraph");
+			if (active_doc) {
+				active_doc->format_paragraph();
+			}
+			return true;
+		}
+		case ']': {
+			logger.log("K-block: Expand Selection (LSP)");
+			if (active_doc && !active_doc->get_filename().empty()) {
+				project_manager::get_instance().lsp_request_selection_range(
+				    active_doc->get_filename(), active_doc->get_cursor_y(), active_doc->get_cursor_x());
+			}
+			return true;
+		}
+		case '[':
+		case '{': {
+			logger.log("K-block: Select Scope");
+			if (active_doc) {
+				active_doc->select_enclosing_scope();
+				global_queue_.push(event_type::redraw);
+			}
+			return true;
+		}
+		case 'd':
+		case 's': {
+			logger.log("K-block: Save File");
+			if (!active_doc || active_doc->is_read_only()) {
+				logger.log("Cannot save read-only or empty buffer via hotkey.");
+				return true;
+			}
+			global_queue_.push(event_type::save);
+			return true;
+		}
+		case 'w': {
+			logger.log("K-block: Write Block");
+			if (!active_doc || active_doc->is_read_only()) {
+				logger.log("Cannot write-block read-only or empty buffer via hotkey.");
+				return true;
+			}
+			global_queue_.push(event_type::write_block);
+			return true;
+		}
+		case 'q': {
+			logger.log("K-block: Quit (Abort)");
+			global_queue_.push(event_type::quit);
+			return true;
+		}
+		case 'x': {
+			logger.log("K-block: Force Exit");
+			global_queue_.push(event_type::force_quit);
+			return true;
+		}
+		case 'f': {
+			logger.log("K-block: Find (Status Bar Prompt)");
+			active_mode_ = input_mode::searching;
+			search_input_buffer_ = "";
+			return true;
+		}
+		case 'l': {
+			logger.log("K-block: Go to Line (Status Bar Prompt)");
+			active_mode_ = input_mode::going_to_line;
+			line_input_buffer_ = "";
+			return true;
+		}
+		case 'u': {
+			logger.log("K-block: Top of File");
+			if (!active_doc)
+				return false;
+			active_doc->move_to_top();
+			return true;
+		}
+		case 'v': {
+			logger.log("K-block: End of File");
+			if (!active_doc)
+				return false;
+			active_doc->move_to_bottom();
+			return true;
+		}
+		case 'z': {
+			logger.log("K-block: Zap Trailing Whitespace");
+			if (active_doc) {
+				active_doc->trim_trailing_whitespace();
+				global_queue_.push(event_type::redraw);
+			}
+			return true;
+		}
+		default:
+			break;
 	}
 
 	return false;
@@ -1292,8 +1289,10 @@ void editor::sort_windows_by_priority(std::vector<window *> &sorted_windows, win
 
 	// Sort: highest priority first. If priority is equal, newest timestamp first.
 	std::sort(sorted_windows.begin(), sorted_windows.end(), [active_win](window *a, window *b) {
-		if (!a) return false;
-		if (!b) return true;
+		if (!a)
+			return false;
+		if (!b)
+			return true;
 		int priority_a = (active_win && a == active_win) ? 9999 : a->get_display_priority();
 		int priority_b = (active_win && b == active_win) ? 9999 : b->get_display_priority();
 
@@ -1338,13 +1337,15 @@ void editor::render(bool cursor_only)
 		// Occlusion culling: Assume visible, hide if fully covered by earlier (higher priority) windows.
 		for (size_t i = 0; i < sorted_windows.size(); ++i) {
 			window *w = sorted_windows[i];
-			if (!w) continue;
+			if (!w)
+				continue;
 			w->set_visible(true); // Default to visible
 
 			// Check if fully covered by any single window above it
 			for (size_t j = 0; j < i; ++j) {
 				window *above = sorted_windows[j];
-				if (!above) continue;
+				if (!above)
+					continue;
 				if (above->is_visible() && w->get_x() >= above->get_x() && w->get_y() >= above->get_y() &&
 				    w->get_x() + w->get_width() <= above->get_x() + above->get_width() &&
 				    w->get_y() + w->get_height() <= above->get_y() + above->get_height()) {
@@ -1531,8 +1532,8 @@ void editor::render(bool cursor_only)
 	}
 
 	if (active_doc && !active_doc->get_filename().empty()) {
-		std::string perf_msg = turbostar::perf_manager::get_instance().get_line_profile_statusmsg(
-		    active_doc->get_filename(), cur_y + 1);
+		std::string perf_msg =
+		    turbostar::perf_manager::get_instance().get_line_profile_statusmsg(active_doc->get_filename(), cur_y + 1);
 		if (!perf_msg.empty()) {
 			set_status_message(perf_msg, status_priorities::HOVER);
 		} else if (diag_text.empty()) {
@@ -1577,10 +1578,7 @@ void editor::render(bool cursor_only)
 
 bool editor::apply_live_edits(std::string_view safe_path, std::string_view edits_json_payload)
 {
-	editor_event ev;
-	ev.type = event_type::apply_edits;
-	ev.payload = std::string(safe_path) + "\n" + std::string(edits_json_payload);
-	global_queue_.push(ev);
+	global_queue_.push(event_type::apply_edits, std::string(safe_path) + "\n" + std::string(edits_json_payload));
 	return true;
 }
 
@@ -1616,7 +1614,8 @@ void editor::check_files_changed()
 		if (doc->check_disk_changed()) {
 			if (doc != active_doc && !doc->is_modified()) {
 				// Clean background document: auto-reload silently from disk
-				event_logger::get_instance().log("editor: auto-reloading clean background document {}", doc->get_filename());
+				event_logger::get_instance().log("editor: auto-reloading clean background document {}",
+								 doc->get_filename());
 				doc->load_from_file(doc->get_filename());
 				git_manager::get_instance().request_status(doc->get_filename());
 				need_redraw = true;
@@ -1632,9 +1631,7 @@ void editor::check_files_changed()
 	}
 
 	if (need_redraw) {
-		editor_event redraw_ev;
-		redraw_ev.type = event_type::redraw;
-		global_queue_.push(redraw_ev);
+		global_queue_.push(event_type::redraw);
 	}
 }
 
@@ -1786,10 +1783,7 @@ void editor::handle_status_bar_click(int mouse_x)
 		active_msg_obj->click_handler();
 	} else {
 		// Fallback: Open general code review viewer
-		editor_event open_ev;
-		open_ev.type = event_type::open_codereview_viewer;
-		open_ev.key_code = -1;
-		global_queue_.push(open_ev);
+		global_queue_.push(event_type::open_codereview_viewer, -1);
 	}
 }
 
@@ -1850,7 +1844,7 @@ void editor::print_latency_report() const
 }
 
 void editor::collect_agents_recursive(const std::shared_ptr<agentlib::ai_agent> &agent,
-				     std::vector<std::shared_ptr<agentlib::ai_agent>> &out_agents, std::unordered_set<int> &seen_ids)
+				      std::vector<std::shared_ptr<agentlib::ai_agent>> &out_agents, std::unordered_set<int> &seen_ids)
 {
 	if (!agent) {
 		return;

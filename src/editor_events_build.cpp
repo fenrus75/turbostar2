@@ -42,10 +42,8 @@ void editor::dispatch_event_build(const editor_event &ev)
 		if (!is_running) {
 			if (compile_win_idx == static_cast<size_t>(-1)) {
 				int compile_height = 10;
-				auto win = std::make_unique<ui::terminal_window>(
-					get_new_window_id(), 0, LINES - compile_height - 1,
-					COLS, compile_height, "Compile Output"
-				);
+				auto win = std::make_unique<ui::terminal_window>(get_new_window_id(), 0, LINES - compile_height - 1, COLS,
+										 compile_height, "Compile Output");
 				win->set_display_priority(10);	    // Put it above normal windows
 				win->set_background_color_pair(29); // White on Black
 				windows_.push_back(std::move(win));
@@ -77,9 +75,7 @@ void editor::dispatch_event_build(const editor_event &ev)
 			logger.log("Build already running.");
 		}
 
-		editor_event redraw_ev;
-		redraw_ev.type = event_type::redraw;
-		global_queue_.push(redraw_ev);
+		global_queue_.push(event_type::redraw);
 		return;
 	}
 
@@ -120,10 +116,8 @@ void editor::dispatch_event_build(const editor_event &ev)
 		if (!is_running) {
 			if (compile_win_idx == static_cast<size_t>(-1)) {
 				int compile_height = 10;
-				auto win = std::make_unique<ui::terminal_window>(
-					get_new_window_id(), 0, LINES - compile_height - 1,
-					COLS, compile_height, "Compile Output"
-				);
+				auto win = std::make_unique<ui::terminal_window>(get_new_window_id(), 0, LINES - compile_height - 1, COLS,
+										 compile_height, "Compile Output");
 				win->set_display_priority(10);
 				win->set_background_color_pair(29);
 				windows_.push_back(std::move(win));
@@ -141,9 +135,7 @@ void editor::dispatch_event_build(const editor_event &ev)
 			logger.log("Build already running.");
 		}
 
-		editor_event redraw_ev;
-		redraw_ev.type = event_type::redraw;
-		global_queue_.push(redraw_ev);
+		global_queue_.push(event_type::redraw);
 		return;
 	}
 
@@ -171,10 +163,8 @@ void editor::dispatch_event_build(const editor_event &ev)
 		if (!is_running) {
 			if (test_win_idx == static_cast<size_t>(-1)) {
 				int test_height = 10;
-				auto win = std::make_unique<ui::terminal_window>(
-					get_new_window_id(), 0, LINES - test_height - 1,
-					COLS, test_height, "Test Output"
-				);
+				auto win = std::make_unique<ui::terminal_window>(get_new_window_id(), 0, LINES - test_height - 1, COLS,
+										 test_height, "Test Output");
 				win->set_display_priority(10);
 				win->set_background_color_pair(29);
 				windows_.push_back(std::move(win));
@@ -206,9 +196,7 @@ void editor::dispatch_event_build(const editor_event &ev)
 			logger.log("Process already running.");
 		}
 
-		editor_event redraw_ev;
-		redraw_ev.type = event_type::redraw;
-		global_queue_.push(redraw_ev);
+		global_queue_.push(event_type::redraw);
 		return;
 	}
 
@@ -262,9 +250,7 @@ void editor::dispatch_event_build(const editor_event &ev)
 			}
 		}
 
-		editor_event redraw_ev;
-		redraw_ev.type = event_type::redraw;
-		global_queue_.push(redraw_ev);
+		global_queue_.push(event_type::redraw);
 		return;
 	}
 }

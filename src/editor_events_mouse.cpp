@@ -5,6 +5,7 @@
 #include <ncurses.h>
 #include <sstream>
 #include "build_error_manager.h"
+#include "codereview_manager.h"
 #include "config_manager.h"
 #include "editor.h"
 #include "event_logger.h"
@@ -12,9 +13,8 @@
 #include "gcc_log_parser.h"
 #include "history_manager.h"
 #include "lsp_manager.h"
-#include "ui/agent_window.h"
-#include "codereview_manager.h"
 #include "project_manager.h"
+#include "ui/agent_window.h"
 
 namespace fs = std::filesystem;
 
@@ -37,9 +37,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 			logger.log("Mouse drag released.");
 			current_drag_mode_ = drag_mode::none;
 			drag_window_ = nullptr;
-			editor_event redraw_ev;
-			redraw_ev.type = event_type::redraw;
-			global_queue_.push(redraw_ev);
+			global_queue_.push(event_type::redraw);
 		} else {
 			window *w = get_active_window();
 			if (w) {
@@ -86,9 +84,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 				drag_window_->set_bounds(drag_start_win_x_, drag_start_win_y_, new_w, new_h);
 			}
 
-			editor_event redraw_ev;
-			redraw_ev.type = event_type::redraw;
-			global_queue_.push(redraw_ev);
+			global_queue_.push(event_type::redraw);
 		} else {
 			window *w = get_active_window();
 			if (w) {
@@ -117,9 +113,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 					resolve_dialog(dres);
 				}
 			}
-			editor_event redraw_ev;
-			redraw_ev.type = event_type::redraw;
-			global_queue_.push(redraw_ev);
+			global_queue_.push(event_type::redraw);
 			// CRITICAL: Return immediately. Clicks outside the dialog must NOT fall through to
 			// underlying window components, as that would shift window focus and hijack keyboard input.
 			return;
@@ -135,14 +129,10 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 				set_focus(focus_target::window, "popup_close");
 
 				if (id != popup_menu::cancel_id) {
-					editor_event action_ev;
-					action_ev.type = static_cast<event_type>(id);
-					global_queue_.push(action_ev);
+					global_queue_.push(static_cast<event_type>(id));
 				}
 
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 				return;
 			}
 		}
@@ -157,9 +147,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 				} else {
 					set_focus(focus_target::window, "menu_close");
 				}
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 				return;
 			}
 		}
@@ -193,7 +181,6 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 
 					// Found the topmost window under the click
 
-
 					// 1. Check for Close Button [■]
 					// The close button is drawn at (y_, x_ + 2) through (y_, x_ + 4)
 					if (ev.mouse_y == w->get_y() && ev.mouse_x >= w->get_x() + 2 && ev.mouse_x <= w->get_x() + 4) {
@@ -208,9 +195,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 								break;
 							}
 						}
-						editor_event close_ev;
-						close_ev.type = event_type::close_window;
-						global_queue_.push(close_ev);
+						global_queue_.push(event_type::close_window);
 						return;
 					}
 
@@ -237,11 +222,11 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 							items.push_back(
 							    {static_cast<int>(event_type::agent_save_history), "Save History", 'S', false});
 							if (aw->is_sidebar_expanded()) {
-								items.push_back(
-								    {static_cast<int>(event_type::agent_hide_sidebar), "Hide status pane", 'H', false});
+								items.push_back({static_cast<int>(event_type::agent_hide_sidebar),
+										 "Hide status pane", 'H', false});
 							} else {
-								items.push_back(
-								    {static_cast<int>(event_type::agent_show_sidebar), "Show status pane", 'H', false});
+								items.push_back({static_cast<int>(event_type::agent_show_sidebar),
+										 "Show status pane", 'H', false});
 							}
 							items.push_back(
 							    {static_cast<int>(event_type::maximize_window), max_label, max_hotkey, false});
@@ -262,9 +247,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 						    std::make_unique<popup_menu>(w->get_popup_button_x(), w->get_y() + 1, items);
 						set_focus(focus_target::popup, "mouse_click");
 
-						editor_event redraw_ev;
-						redraw_ev.type = event_type::redraw;
-						global_queue_.push(redraw_ev);
+						global_queue_.push(event_type::redraw);
 						return;
 					}
 
@@ -283,9 +266,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 								break;
 							}
 						}
-						editor_event git_ev;
-						git_ev.type = event_type::git_add;
-						global_queue_.push(git_ev);
+						global_queue_.push(event_type::git_add);
 						return;
 					}
 
@@ -308,9 +289,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 										break;
 									}
 								}
-								editor_event save_ev;
-								save_ev.type = event_type::save;
-								global_queue_.push(save_ev);
+								global_queue_.push(event_type::save);
 								return;
 							}
 						}
@@ -338,9 +317,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 								break;
 							}
 						}
-						editor_event redraw_ev;
-						redraw_ev.type = event_type::redraw;
-						global_queue_.push(redraw_ev);
+						global_queue_.push(event_type::redraw);
 						return;
 					}
 
@@ -371,9 +348,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 									break;
 								}
 							}
-							editor_event redraw_ev;
-							redraw_ev.type = event_type::redraw;
-							global_queue_.push(redraw_ev);
+							global_queue_.push(event_type::redraw);
 							return;
 						}
 
@@ -398,9 +373,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 								break;
 							}
 						}
-						editor_event redraw_ev;
-						redraw_ev.type = event_type::redraw;
-						global_queue_.push(redraw_ev);
+						global_queue_.push(event_type::redraw);
 						return;
 					}
 
@@ -416,9 +389,10 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 							editor_event target_ev = ev;
 
 							if (last_content_click_window_id_ == w->get_id() &&
-							    last_content_click_x_ == ev.mouse_x &&
-							    last_content_click_y_ == ev.mouse_y &&
-							    std::chrono::duration_cast<std::chrono::milliseconds>(now - last_content_click_time_).count() <= 500) {
+							    last_content_click_x_ == ev.mouse_x && last_content_click_y_ == ev.mouse_y &&
+							    std::chrono::duration_cast<std::chrono::milliseconds>(now -
+														  last_content_click_time_)
+								    .count() <= 500) {
 								content_click_count_++;
 								if (content_click_count_ == 2) {
 									target_ev.type = event_type::mouse_double_click;
@@ -441,9 +415,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 							// Forward mouse event to window local queue
 							w->get_window_queue().push(target_ev);
 
-							editor_event redraw_ev;
-							redraw_ev.type = event_type::redraw;
-							global_queue_.push(redraw_ev);
+							global_queue_.push(event_type::redraw);
 							return;
 						}
 					}
@@ -453,9 +425,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 	} else if (ev.type == event_type::mouse_scroll_up || ev.type == event_type::mouse_scroll_down) {
 		if (active_dialog_) {
 			active_dialog_->handle_event(ev, active_dialog_->x(), active_dialog_->y());
-			editor_event redraw_ev;
-			redraw_ev.type = event_type::redraw;
-			global_queue_.push(redraw_ev);
+			global_queue_.push(event_type::redraw);
 			// Swallowed by active dialog
 			return;
 		}
@@ -492,9 +462,7 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 						doc->move_cursor(0, 3); // Scroll down by 3 lines
 					}
 
-					editor_event redraw_ev;
-					redraw_ev.type = event_type::redraw;
-					global_queue_.push(redraw_ev);
+					global_queue_.push(event_type::redraw);
 				} else {
 					// Forward scroll event to window local queue
 					w->get_window_queue().push(ev);

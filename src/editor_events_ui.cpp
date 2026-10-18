@@ -451,9 +451,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 			clear();
 
 			// Trigger editor redraw
-			editor_event redraw_ev;
-			redraw_ev.type = event_type::redraw;
-			global_queue_.push(redraw_ev);
+			global_queue_.push(event_type::redraw);
 			break;
 		}
 		case event_type::models_config: {
@@ -587,9 +585,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 					}
 				}
 				needs_full_redraw_ = true;
-				editor_event update_ev;
-				update_ev.type = event_type::codereview_updated;
-				global_queue_.push(update_ev);
+				global_queue_.push(event_type::codereview_updated);
 				return;
 			}
 			auto item_opt = codereview_manager::get_instance().get_code_review_item(ev.key_code);

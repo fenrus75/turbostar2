@@ -5,30 +5,30 @@
 #include <lsp/json/json.h>
 #include <ncurses.h>
 #include <sstream>
+#include "a2a/a2a_client.h"
 #include "a2a/a2a_server.h"
 #include "a2a/a2a_server_manager.h"
-#include "a2a/a2a_client.h"
 #include "agentlib/ai_agent.h"
 #include "agentlib/ai_model.h"
-#include "agentlib/model_server.h"
 #include "agentlib/httplib_transport.h"
+#include "agentlib/model_server.h"
 #include "build_error_manager.h"
+#include "codereview_manager.h"
 #include "config_manager.h"
 #include "editor.h"
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "gcc_log_parser.h"
 #include "history_manager.h"
+#include "images/image_manager.h"
 #include "input_history_manager.h"
 #include "linux_clang_format.h"
 #include "mcp/mcp_manager.h"
 #include "project_manager.h"
 #include "project_template_manager.h"
+#include "syntax_color_manager.h"
 #include "ui/agent_window.h"
 #include "ui/dialog_factories.h"
-#include "codereview_manager.h"
-#include "images/image_manager.h"
-#include "syntax_color_manager.h"
 #include "utf8.h"
 
 namespace fs = std::filesystem;
@@ -58,14 +58,10 @@ void editor::resolve_dialog(dialog_result res)
 			}
 			update_window_menu();
 			if (config_manager::get_instance().is_compile_on_save()) {
-				editor_event compile_ev;
-				compile_ev.type = event_type::compile_file;
-				global_queue_.push(compile_ev);
+				global_queue_.push(event_type::compile_file);
 			}
 			if (is_quitting_) {
-				editor_event quit_ev;
-				quit_ev.type = event_type::quit;
-				global_queue_.push(quit_ev);
+				global_queue_.push(event_type::quit);
 			}
 		} else if (active_dialog_mode_ == dialog_mode::write_block) {
 			std::string result_path = active_dialog_->get_result();
@@ -73,7 +69,8 @@ void editor::resolve_dialog(dialog_result res)
 				if (doc->write_selection_to_file(result_path)) {
 					set_status_message(std::format("Block written to {}.", result_path));
 				} else {
-					set_status_message(std::format("Failed to write block to {}.", result_path), status_priorities::WARNING);
+					set_status_message(std::format("Failed to write block to {}.", result_path),
+							   status_priorities::WARNING);
 				}
 				history_manager::get_instance().add_file(result_path);
 			}
@@ -83,9 +80,7 @@ void editor::resolve_dialog(dialog_result res)
 			input_history_manager::get_instance().add_entry("search_query", current_search_.query);
 			save_search_persistence();
 			if (doc && doc->find_next(current_search_)) {
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 			}
 		} else if (active_dialog_mode_ == dialog_mode::replace) {
 			current_search_ = extract_search_params(*active_dialog_, current_search_);
@@ -98,31 +93,29 @@ void editor::resolve_dialog(dialog_result res)
 			if (dlg_res == "change_all") {
 				if (doc) {
 					int count = doc->replace_all(current_search_);
-					set_status_message(std::format("Replaced {} occurrence(s).", count), status_priorities::CRITICAL, std::chrono::seconds(5));
-					editor_event redraw_ev;
-					redraw_ev.type = event_type::redraw;
-					global_queue_.push(redraw_ev);
+					set_status_message(std::format("Replaced {} occurrence(s).", count), status_priorities::CRITICAL,
+							   std::chrono::seconds(5));
+					global_queue_.push(event_type::redraw);
 				}
 			} else if (dlg_res == "ok") {
 				if (current_search_.prompt_on_replace) {
 					if (doc && doc->find_next(current_search_)) {
 						active_mode_ = input_mode::replace_prompt;
-						doc->set_selection(doc->get_cursor_y(), doc->get_cursor_x(),
-								   doc->get_cursor_y(), doc->get_cursor_x() + doc->get_last_match_len());
-						set_status_message("Replace? (Y)es / (N)o / (A)ll / (Q)uit", status_priorities::CRITICAL, std::chrono::seconds(10));
-						editor_event redraw_ev;
-						redraw_ev.type = event_type::redraw;
-						global_queue_.push(redraw_ev);
+						doc->set_selection(doc->get_cursor_y(), doc->get_cursor_x(), doc->get_cursor_y(),
+								   doc->get_cursor_x() + doc->get_last_match_len());
+						set_status_message("Replace? (Y)es / (N)o / (A)ll / (Q)uit", status_priorities::CRITICAL,
+								   std::chrono::seconds(10));
+						global_queue_.push(event_type::redraw);
 					} else {
-						set_status_message("Search string not found.", status_priorities::CRITICAL, std::chrono::seconds(3));
+						set_status_message("Search string not found.", status_priorities::CRITICAL,
+								   std::chrono::seconds(3));
 					}
 				} else {
 					if (doc) {
 						int count = doc->replace_all(current_search_);
-						set_status_message(std::format("Replaced {} occurrence(s).", count), status_priorities::CRITICAL, std::chrono::seconds(5));
-						editor_event redraw_ev;
-						redraw_ev.type = event_type::redraw;
-						global_queue_.push(redraw_ev);
+						set_status_message(std::format("Replaced {} occurrence(s).", count),
+								   status_priorities::CRITICAL, std::chrono::seconds(5));
+						global_queue_.push(event_type::redraw);
 					}
 				}
 			}
@@ -157,24 +150,20 @@ void editor::resolve_dialog(dialog_result res)
 			std::string val = active_dialog_->get_result();
 			if (!val.empty() && val != "cancel") {
 				int id = codereview_edit_item_id_;
-				if (codereview_manager::get_instance().update_code_review_item(id, val, std::nullopt, std::nullopt, std::nullopt)) {
+				if (codereview_manager::get_instance().update_code_review_item(id, val, std::nullopt, std::nullopt,
+											       std::nullopt)) {
 					codereview_manager::get_instance().save_project();
-					editor_event update_ev;
-					update_ev.type = event_type::codereview_updated;
-					update_ev.key_code = id;
-					global_queue_.push(update_ev);
+					global_queue_.push(event_type::codereview_updated, id);
 				}
 			}
 		} else if (active_dialog_mode_ == dialog_mode::codereview_select_severity) {
 			std::string val = active_dialog_->get_result();
 			if (!val.empty() && val != "cancel") {
 				int id = codereview_edit_item_id_;
-				if (codereview_manager::get_instance().update_code_review_item(id, std::nullopt, val, std::nullopt, std::nullopt)) {
+				if (codereview_manager::get_instance().update_code_review_item(id, std::nullopt, val, std::nullopt,
+											       std::nullopt)) {
 					codereview_manager::get_instance().save_project();
-					editor_event update_ev;
-					update_ev.type = event_type::codereview_updated;
-					update_ev.key_code = id;
-					global_queue_.push(update_ev);
+					global_queue_.push(event_type::codereview_updated, id);
 				}
 			}
 		} else if (active_dialog_mode_ == dialog_mode::codereview_add_comment) {
@@ -184,12 +173,10 @@ void editor::resolve_dialog(dialog_result res)
 				auto item_opt = codereview_manager::get_instance().get_code_review_item(id);
 				if (item_opt) {
 					std::string new_desc = item_opt->description + "\n\n-- Comment: " + val;
-					if (codereview_manager::get_instance().update_code_review_item(id, std::nullopt, std::nullopt, new_desc, std::nullopt)) {
+					if (codereview_manager::get_instance().update_code_review_item(id, std::nullopt, std::nullopt,
+												       new_desc, std::nullopt)) {
 						codereview_manager::get_instance().save_project();
-						editor_event update_ev;
-						update_ev.type = event_type::codereview_updated;
-						update_ev.key_code = id;
-						global_queue_.push(update_ev);
+						global_queue_.push(event_type::codereview_updated, id);
 					}
 				}
 			}
@@ -201,20 +188,11 @@ void editor::resolve_dialog(dialog_result res)
 			auto severity_opt = active_dialog_->get_value("severity");
 			auto state_opt = active_dialog_->get_value("state");
 
-			bool success = codereview_manager::get_instance().update_code_review_item(
-				id,
-				state_opt,
-				severity_opt,
-				desc_opt,
-				fix_opt,
-				summary_opt
-			);
+			bool success = codereview_manager::get_instance().update_code_review_item(id, state_opt, severity_opt, desc_opt,
+												  fix_opt, summary_opt);
 			if (success) {
 				codereview_manager::get_instance().save_project();
-				editor_event update_ev;
-				update_ev.type = event_type::codereview_updated;
-				update_ev.key_code = id;
-				global_queue_.push(update_ev);
+				global_queue_.push(event_type::codereview_updated, id);
 			}
 		} else if (active_dialog_mode_ == dialog_mode::settings) {
 			std::string res_str = active_dialog_->get_result();
@@ -284,7 +262,8 @@ void editor::resolve_dialog(dialog_result res)
 				auto server = agentlib::model_server_registry::get_instance().get_server(id);
 				if (server) {
 					std::string error_msg;
-					auto imported_models = agentlib::fetch_models_from_server(server->get_url(), error_msg, server->get_api_key(), server->get_id(), server->get_api_type());
+					auto imported_models = agentlib::fetch_models_from_server(
+					    server->get_url(), error_msg, server->get_api_key(), server->get_id(), server->get_api_type());
 					if (!imported_models.empty()) {
 						auto &registry = agentlib::ai_model_registry::get_instance();
 						std::vector<std::string> to_remove;
@@ -300,10 +279,14 @@ void editor::resolve_dialog(dialog_result res)
 							registry.register_model(model);
 						}
 						registry.save_models();
-						std::vector<std::string> lines = {std::format("Successfully imported {} models", imported_models.size()), "from server " + server->get_name()};
+						std::vector<std::string> lines = {
+						    std::format("Successfully imported {} models", imported_models.size()),
+						    "from server " + server->get_name()};
 						active_dialog_ = create_message_dialog("Query Successful", lines);
 					} else {
-						std::vector<std::string> lines = {"Failed to fetch models from server " + server->get_name() + ":", error_msg.empty() ? "No models returned or connection failed" : error_msg};
+						std::vector<std::string> lines = {
+						    "Failed to fetch models from server " + server->get_name() + ":",
+						    error_msg.empty() ? "No models returned or connection failed" : error_msg};
 						active_dialog_ = create_message_dialog("Query Error", lines);
 					}
 					active_dialog_mode_ = dialog_mode::reopen_ai_settings;
@@ -345,12 +328,16 @@ void editor::resolve_dialog(dialog_result res)
 				auto srv_opt = a2a::a2a_server_manager::get_instance().find_server(srv_name);
 				if (srv_opt) {
 					std::string err;
-					auto card = a2a::a2a_client::get_instance().fetch_agent_card(srv_opt->url, err, srv_opt->auth_token);
+					auto card =
+					    a2a::a2a_client::get_instance().fetch_agent_card(srv_opt->url, err, srv_opt->auth_token);
 					if (card) {
-						std::vector<std::string> lines = {"Server: " + card->name, "Description: " + card->description, "Skills: " + std::to_string(card->skills.size())};
+						std::vector<std::string> lines = {"Server: " + card->name,
+										  "Description: " + card->description,
+										  "Skills: " + std::to_string(card->skills.size())};
 						active_dialog_ = create_message_dialog("A2A Server Connection OK", lines);
 					} else {
-						std::vector<std::string> lines = {"URL: " + srv_opt->url, "Error: " + (err.empty() ? "Unable to reach server" : err)};
+						std::vector<std::string> lines = {
+						    "URL: " + srv_opt->url, "Error: " + (err.empty() ? "Unable to reach server" : err)};
 						active_dialog_ = create_message_dialog("A2A Server Connection Failed", lines);
 					}
 					active_dialog_mode_ = dialog_mode::none;
@@ -463,9 +450,7 @@ void editor::resolve_dialog(dialog_result res)
 					set_focus(focus_target::dialog, "error");
 					return;
 				}
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 			}
 		} else if (active_dialog_mode_ == dialog_mode::model_list) {
 			std::string res_str = active_dialog_->get_result();
@@ -535,7 +520,8 @@ void editor::resolve_dialog(dialog_result res)
 			} else if (res_str.starts_with("edit:")) {
 				std::string id = res_str.substr(5);
 				editing_model_server_id_ = id;
-				active_dialog_ = create_model_server_edit_dialog(agentlib::model_server_registry::get_instance().get_server(id));
+				active_dialog_ =
+				    create_model_server_edit_dialog(agentlib::model_server_registry::get_instance().get_server(id));
 				active_dialog_mode_ = dialog_mode::model_server_edit;
 				set_focus(focus_target::dialog, "id");
 				return;
@@ -566,7 +552,8 @@ void editor::resolve_dialog(dialog_result res)
 				auto server = agentlib::model_server_registry::get_instance().get_server(id);
 				if (server) {
 					std::string error_msg;
-					auto imported_models = agentlib::fetch_models_from_server(server->get_url(), error_msg, server->get_api_key(), server->get_id(), server->get_api_type());
+					auto imported_models = agentlib::fetch_models_from_server(
+					    server->get_url(), error_msg, server->get_api_key(), server->get_id(), server->get_api_type());
 					if (!imported_models.empty()) {
 						auto &registry = agentlib::ai_model_registry::get_instance();
 
@@ -593,8 +580,8 @@ void editor::resolve_dialog(dialog_result res)
 						bool restored_default = false;
 						for (const auto &model : imported_models) {
 							registry.register_model(model);
-							if (!old_default_id.empty() && 
-							    (model->get_id() == old_default_id || 
+							if (!old_default_id.empty() &&
+							    (model->get_id() == old_default_id ||
 							     (!old_default_name.empty() && model->get_name() == old_default_name))) {
 								config_manager::get_instance().set_default_model_id(model->get_id());
 								restored_default = true;
@@ -605,11 +592,17 @@ void editor::resolve_dialog(dialog_result res)
 							config_manager::get_instance().save_global();
 						}
 
-						active_dialog_ = create_message_dialog("Query Successful", std::vector<std::string>{std::format("Successfully imported {} models", imported_models.size()), "from server " + server->get_name()});
+						active_dialog_ = create_message_dialog(
+						    "Query Successful",
+						    std::vector<std::string>{
+							std::format("Successfully imported {} models", imported_models.size()),
+							"from server " + server->get_name()});
 						active_dialog_mode_ = dialog_mode::model_server_list;
 						set_focus(focus_target::dialog, "btn_ok");
 					} else {
-						active_dialog_ = create_message_dialog("Query Error", std::vector<std::string>{"Failed to fetch models from server:", error_msg});
+						active_dialog_ = create_message_dialog(
+						    "Query Error",
+						    std::vector<std::string>{"Failed to fetch models from server:", error_msg});
 						active_dialog_mode_ = dialog_mode::model_server_list;
 						set_focus(focus_target::dialog, "btn_ok");
 					}
@@ -659,7 +652,8 @@ void editor::resolve_dialog(dialog_result res)
 			if (idx_opt) {
 				try {
 					current_idx = std::stoi(*idx_opt);
-				} catch (...) {}
+				} catch (...) {
+				}
 			}
 
 			if (res_str.starts_with("toggle:")) {
@@ -692,34 +686,37 @@ void editor::resolve_dialog(dialog_result res)
 				return;
 			} else if (res_str.starts_with("edit:")) {
 				int idx = 0;
-				try { idx = std::stoi(res_str.substr(5)); } catch (...) {}
+				try {
+					idx = std::stoi(res_str.substr(5));
+				} catch (...) {
+				}
 				auto servers = a2a::a2a_server_manager::get_instance().get_all_servers();
 				if (idx >= 0 && idx < (int)servers.size()) {
-					active_dialog_ = create_a2a_server_edit_dialog(servers[idx].name, servers[idx].url, servers[idx].auth_token);
+					active_dialog_ =
+					    create_a2a_server_edit_dialog(servers[idx].name, servers[idx].url, servers[idx].auth_token);
 					active_dialog_mode_ = dialog_mode::a2a_server_edit;
 					set_focus(focus_target::dialog, "a2a_server_edit");
 					return;
 				}
 			} else if (res_str.starts_with("test:")) {
 				int idx = 0;
-				try { idx = std::stoi(res_str.substr(5)); } catch (...) {}
+				try {
+					idx = std::stoi(res_str.substr(5));
+				} catch (...) {
+				}
 				auto servers = a2a::a2a_server_manager::get_instance().get_all_servers();
 				if (idx >= 0 && idx < (int)servers.size()) {
 					std::string err;
-					auto card = a2a::a2a_client::get_instance().fetch_agent_card(servers[idx].url, err, servers[idx].auth_token);
+					auto card = a2a::a2a_client::get_instance().fetch_agent_card(servers[idx].url, err,
+												     servers[idx].auth_token);
 					if (card.has_value()) {
 						std::vector<std::string> lines = {
-							std::format("Handle: {}", servers[idx].name),
-							std::format("URL: {}", servers[idx].url),
-							std::format("Name: {}", card->name),
-							std::format("Description: {}", card->description)
-						};
+						    std::format("Handle: {}", servers[idx].name), std::format("URL: {}", servers[idx].url),
+						    std::format("Name: {}", card->name), std::format("Description: {}", card->description)};
 						active_dialog_ = create_message_dialog("A2A Server Online", lines);
 					} else {
 						std::vector<std::string> err_lines = {
-							std::format("Failed to reach '{}':", servers[idx].name),
-							err
-						};
+						    std::format("Failed to reach '{}':", servers[idx].name), err};
 						active_dialog_ = create_message_dialog("A2A Connection Error", err_lines);
 					}
 				}
@@ -727,7 +724,10 @@ void editor::resolve_dialog(dialog_result res)
 				return;
 			} else if (res_str.starts_with("remove:")) {
 				int idx = 0;
-				try { idx = std::stoi(res_str.substr(7)); } catch (...) {}
+				try {
+					idx = std::stoi(res_str.substr(7));
+				} catch (...) {
+				}
 				auto servers = a2a::a2a_server_manager::get_instance().get_all_servers();
 				if (idx >= 0 && idx < (int)servers.size()) {
 					a2a::a2a_server_manager::get_instance().remove_server(servers[idx].name);
@@ -766,7 +766,8 @@ void editor::resolve_dialog(dialog_result res)
 			if (idx_opt) {
 				try {
 					current_idx = std::stoi(*idx_opt);
-				} catch (...) {}
+				} catch (...) {
+				}
 			}
 
 			if (res_str.starts_with("toggle:")) {
@@ -809,13 +810,9 @@ void editor::resolve_dialog(dialog_result res)
 				event_logger::get_instance().log("Application exit requested (source: force_quit dialog).");
 				is_running_ = false;
 			} else if (res_str == "save_all") {
-				editor_event save_all_ev;
-				save_all_ev.type = event_type::save_all;
-				global_queue_.push(save_all_ev);
+				global_queue_.push(event_type::save_all);
 
-				editor_event quit_ev;
-				quit_ev.type = event_type::force_quit;
-				global_queue_.push(quit_ev);
+				global_queue_.push(event_type::force_quit);
 			}
 
 			active_dialog_.reset();
@@ -845,33 +842,22 @@ void editor::resolve_dialog(dialog_result res)
 
 			if (res_str == "save") {
 				if (doc->get_filename().empty()) {
-					editor_event save_as_ev;
-					save_as_ev.type = event_type::save_as;
-					global_queue_.push(save_as_ev);
+					global_queue_.push(event_type::save_as);
 				} else {
 					doc->save();
 					if (is_quitting_) {
-						editor_event quit_ev;
-						quit_ev.type = event_type::quit;
-						global_queue_.push(quit_ev);
+						global_queue_.push(event_type::quit);
 					} else {
-						editor_event close_ev;
-						close_ev.type = event_type::close_window;
-						global_queue_.push(close_ev);
+						global_queue_.push(event_type::close_window);
 					}
 				}
 			} else if (res_str == "discard") {
 				if (is_quitting_ && doc) {
 					doc->clear_modified();
 				}
-				editor_event close_ev;
-				close_ev.type = event_type::close_window;
-				close_ev.key_code = 1;
-				global_queue_.push(close_ev);
+				global_queue_.push(event_type::close_window, 1);
 				if (is_quitting_) {
-					editor_event quit_ev;
-					quit_ev.type = event_type::quit;
-					global_queue_.push(quit_ev);
+					global_queue_.push(event_type::quit);
 				}
 			}
 			return;
@@ -880,7 +866,8 @@ void editor::resolve_dialog(dialog_result res)
 			active_dialog_.reset();
 			active_dialog_mode_ = dialog_mode::none;
 			if (res_str == "success") {
-				active_dialog_ = create_message_dialog("Copilot Connected", {"GitHub Copilot has been successfully", "connected and authenticated!"});
+				active_dialog_ = create_message_dialog(
+				    "Copilot Connected", {"GitHub Copilot has been successfully", "connected and authenticated!"});
 				set_focus(focus_target::dialog, "btn_ok");
 				return;
 			}
@@ -921,7 +908,8 @@ void editor::resolve_dialog(dialog_result res)
 				std::string src_path = images::image_manager::get_instance().resolve_uri(pending_image_vfs_uri_);
 				if (!src_path.empty()) {
 					std::error_code ec;
-					std::filesystem::copy_file(src_path, dest_path, std::filesystem::copy_options::overwrite_existing, ec);
+					std::filesystem::copy_file(src_path, dest_path, std::filesystem::copy_options::overwrite_existing,
+								   ec);
 				}
 			}
 			pending_image_vfs_uri_ = "";
@@ -934,7 +922,8 @@ void editor::resolve_dialog(dialog_result res)
 		bool open_new_project = false;
 		if (active_dialog_mode_ == dialog_mode::welcome) {
 			std::string dlg_res = active_dialog_->get_result();
-			if (dlg_res == "new_project" || turbostar::project_template_manager::is_directory_empty(project_manager::get_instance().get_project_root())) {
+			if (dlg_res == "new_project" ||
+			    turbostar::project_template_manager::is_directory_empty(project_manager::get_instance().get_project_root())) {
 				open_new_project = true;
 			}
 		}
@@ -977,7 +966,8 @@ void editor::resolve_dialog(dialog_result res)
 		bool open_new_project = false;
 		if (active_dialog_mode_ == dialog_mode::welcome) {
 			std::string dlg_res = active_dialog_->get_result();
-			if (dlg_res == "new_project" || turbostar::project_template_manager::is_directory_empty(project_manager::get_instance().get_project_root())) {
+			if (dlg_res == "new_project" ||
+			    turbostar::project_template_manager::is_directory_empty(project_manager::get_instance().get_project_root())) {
 				open_new_project = true;
 			}
 		}
@@ -1038,18 +1028,14 @@ void editor::dispatch_event_key(const editor_event &ev)
 			if (res != dialog_result::pending) {
 				resolve_dialog(res);
 			}
-			editor_event redraw_ev;
-			redraw_ev.type = event_type::redraw;
-			global_queue_.push(redraw_ev);
+			global_queue_.push(event_type::redraw);
 			return;
 		}
 
 		// Global shortcuts
 		if (ev.key_code == KEY_F(1)) {
 			logger.log("Help shortcut pressed.");
-			editor_event help_ev;
-			help_ev.type = event_type::help;
-			global_queue_.push(help_ev);
+			global_queue_.push(event_type::help);
 			return;
 		}
 		if (ev.key_code == KEY_F(2)) {
@@ -1058,40 +1044,28 @@ void editor::dispatch_event_key(const editor_event &ev)
 				logger.log("Cannot save read-only or empty buffer.");
 				return;
 			}
-			editor_event save_ev;
-			save_ev.type = event_type::save;
-			global_queue_.push(save_ev);
+			global_queue_.push(event_type::save);
 			return;
 		}
 		if (ev.key_code == KEY_F(3)) {
 			logger.log("Open shortcut pressed.");
-			editor_event load_ev;
-			load_ev.type = event_type::load;
-			global_queue_.push(load_ev);
+			global_queue_.push(event_type::load);
 			return;
 		}
 		if (ev.key_code == KEY_F(4)) {
-			editor_event err_ev;
-			err_ev.type = event_type::next_error;
-			global_queue_.push(err_ev);
+			global_queue_.push(event_type::next_error);
 			return;
 		}
 		if (ev.key_code == KEY_F(9)) {
-			editor_event compile_ev;
-			compile_ev.type = event_type::compile;
-			global_queue_.push(compile_ev);
+			global_queue_.push(event_type::compile);
 			return;
 		}
 		if (ev.key_code == KEY_F(7)) {
-			editor_event hs_ev;
-			hs_ev.type = event_type::go_to_next_hotspot;
-			global_queue_.push(hs_ev);
+			global_queue_.push(event_type::go_to_next_hotspot);
 			return;
 		}
 		if (ev.key_code == KEY_F(8)) {
-			editor_event test_ev;
-			test_ev.type = event_type::run_tests;
-			global_queue_.push(test_ev);
+			global_queue_.push(event_type::run_tests);
 			return;
 		}
 		if (ev.key_code == KEY_F(6)) {
@@ -1114,38 +1088,28 @@ void editor::dispatch_event_key(const editor_event &ev)
 				} else if (active_win == windows_[gdb_idx].get()) {
 					activate_window(run_idx);
 				}
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 				return;
 			}
 		}
 		if (ev.key_code == -static_cast<int>(KEY_F(3))) {
-			editor_event close_ev;
-			close_ev.type = event_type::close_window;
-			global_queue_.push(close_ev);
+			global_queue_.push(event_type::close_window);
 			return;
 		}
-
-
 
 		// 1.5 Vim command prompt
 		if (active_mode_ == input_mode::vim) {
 			if (ev.key_code == 27 || ev.key_code == 3) { // ESC or Ctrl-C
 				active_mode_ = input_mode::normal;
 				vim_input_buffer_.clear();
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 				return;
 			}
 			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {
 				active_mode_ = input_mode::normal;
 				execute_vim_command(vim_input_buffer_);
 				vim_input_buffer_.clear();
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 				return;
 			}
 			if (ev.key_code == KEY_BACKSPACE || ev.key_code == 127 || ev.key_code == 8) {
@@ -1154,16 +1118,12 @@ void editor::dispatch_event_key(const editor_event &ev)
 				} else {
 					active_mode_ = input_mode::normal;
 				}
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 				return;
 			}
 			if (!ev.utf8_char.empty() && ev.key_code >= 32 && ev.key_code < 127) {
 				vim_input_buffer_ += ev.utf8_char;
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 				return;
 			}
 			return; // Consume all keys in vim prompt mode
@@ -1173,9 +1133,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 		if (active_mode_ == input_mode::searching) {
 			if (ev.key_code == 27 || ev.key_code == 3) { // ESC or Ctrl-C
 				active_mode_ = input_mode::normal;
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 				return;
 			}
 			std::string suggestion = get_search_autocomplete();
@@ -1210,9 +1168,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 		if (active_mode_ == input_mode::search_options) {
 			if (ev.key_code == 27 || ev.key_code == 3) { // ESC or Ctrl-C
 				active_mode_ = input_mode::normal;
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 				return;
 			}
 			if (ev.key_code == 13 || ev.key_code == 10 || ev.key_code == KEY_ENTER) {
@@ -1242,18 +1198,14 @@ void editor::dispatch_event_key(const editor_event &ev)
 				if (is_replace) {
 					active_mode_ = input_mode::replace_query;
 					replace_input_buffer_ = "";
-					editor_event redraw_ev;
-					redraw_ev.type = event_type::redraw;
-					global_queue_.push(redraw_ev);
+					global_queue_.push(event_type::redraw);
 					return;
 				}
 
 				std::shared_ptr<document> active_doc = get_active_doc();
 
 				if (active_doc && active_doc->find_next(current_search_)) {
-					editor_event redraw_ev;
-					redraw_ev.type = event_type::redraw;
-					global_queue_.push(redraw_ev);
+					global_queue_.push(event_type::redraw);
 				}
 				active_mode_ = input_mode::normal;
 				return;
@@ -1280,9 +1232,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 		if (active_mode_ == input_mode::replace_query) {
 			if (ev.key_code == 27 || ev.key_code == 3) { // ESC or Ctrl-C
 				active_mode_ = input_mode::normal;
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 				return;
 			}
 
@@ -1295,15 +1245,16 @@ void editor::dispatch_event_key(const editor_event &ev)
 				if (active_doc && active_doc->find_next(current_search_)) {
 					active_mode_ = input_mode::replace_prompt;
 					active_doc->set_selection(active_doc->get_cursor_y(), active_doc->get_cursor_x(),
-								  active_doc->get_cursor_y(), active_doc->get_cursor_x() + active_doc->get_last_match_len());
-					set_status_message("Replace? (Y)es / (N)o / (A)ll / (Q)uit", status_priorities::CRITICAL, std::chrono::seconds(10));
+								  active_doc->get_cursor_y(),
+								  active_doc->get_cursor_x() + active_doc->get_last_match_len());
+					set_status_message("Replace? (Y)es / (N)o / (A)ll / (Q)uit", status_priorities::CRITICAL,
+							   std::chrono::seconds(10));
 				} else {
 					active_mode_ = input_mode::normal;
-					set_status_message("Search string not found.", status_priorities::CRITICAL, std::chrono::seconds(3));
+					set_status_message("Search string not found.", status_priorities::CRITICAL,
+							   std::chrono::seconds(3));
 				}
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 				return;
 			}
 			if (ev.key_code == KEY_BACKSPACE || ev.key_code == 127 || ev.key_code == 8) {
@@ -1333,9 +1284,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 					doc->clear_selection();
 				clear_status_message(status_priorities::WARNING);
 				set_status_message("Search/replace cancelled.", status_priorities::CRITICAL, std::chrono::seconds(3));
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 				return;
 			}
 			if (c == 'y' || ev.key_code == 10 || ev.key_code == 13 || ev.key_code == KEY_ENTER || c == ' ') {
@@ -1344,19 +1293,19 @@ void editor::dispatch_event_key(const editor_event &ev)
 					search_params cont_search = current_search_;
 					cont_search.from_cursor = true;
 					if (doc->find_next(cont_search, true)) {
-						doc->set_selection(doc->get_cursor_y(), doc->get_cursor_x(),
-								   doc->get_cursor_y(), doc->get_cursor_x() + doc->get_last_match_len());
-						set_status_message("Replace? (Y)es / (N)o / (A)ll / (Q)uit", status_priorities::CRITICAL, std::chrono::seconds(10));
+						doc->set_selection(doc->get_cursor_y(), doc->get_cursor_x(), doc->get_cursor_y(),
+								   doc->get_cursor_x() + doc->get_last_match_len());
+						set_status_message("Replace? (Y)es / (N)o / (A)ll / (Q)uit", status_priorities::CRITICAL,
+								   std::chrono::seconds(10));
 					} else {
 						active_mode_ = input_mode::normal;
 						doc->clear_selection();
 						clear_status_message(status_priorities::WARNING);
-						set_status_message("Search/replace complete.", status_priorities::CRITICAL, std::chrono::seconds(3));
+						set_status_message("Search/replace complete.", status_priorities::CRITICAL,
+								   std::chrono::seconds(3));
 					}
 				}
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 				return;
 			}
 			if (c == 'n') {
@@ -1364,19 +1313,19 @@ void editor::dispatch_event_key(const editor_event &ev)
 					search_params cont_search = current_search_;
 					cont_search.from_cursor = true;
 					if (doc->find_next(cont_search, true)) {
-						doc->set_selection(doc->get_cursor_y(), doc->get_cursor_x(),
-								   doc->get_cursor_y(), doc->get_cursor_x() + doc->get_last_match_len());
-						set_status_message("Replace? (Y)es / (N)o / (A)ll / (Q)uit", status_priorities::CRITICAL, std::chrono::seconds(10));
+						doc->set_selection(doc->get_cursor_y(), doc->get_cursor_x(), doc->get_cursor_y(),
+								   doc->get_cursor_x() + doc->get_last_match_len());
+						set_status_message("Replace? (Y)es / (N)o / (A)ll / (Q)uit", status_priorities::CRITICAL,
+								   std::chrono::seconds(10));
 					} else {
 						active_mode_ = input_mode::normal;
 						doc->clear_selection();
 						clear_status_message(status_priorities::WARNING);
-						set_status_message("Search/replace complete.", status_priorities::CRITICAL, std::chrono::seconds(3));
+						set_status_message("Search/replace complete.", status_priorities::CRITICAL,
+								   std::chrono::seconds(3));
 					}
 				}
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 				return;
 			}
 			if (c == 'a') {
@@ -1395,16 +1344,14 @@ void editor::dispatch_event_key(const editor_event &ev)
 					active_mode_ = input_mode::normal;
 					doc->clear_selection();
 					clear_status_message(status_priorities::WARNING);
-					set_status_message(std::format("Replaced {} occurrence(s).", count), status_priorities::CRITICAL, std::chrono::seconds(5));
+					set_status_message(std::format("Replaced {} occurrence(s).", count), status_priorities::CRITICAL,
+							   std::chrono::seconds(5));
 				}
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 				return;
 			}
 			return; // Consume all other keys while in prompt
 		}
-
 
 		// 3. Status Bar Go to Line Prompt
 		if (active_mode_ == input_mode::going_to_line) {
@@ -1458,9 +1405,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 					bool found = active_doc->find_next(current_search_, true);
 					logger.log("find_next returned: " + std::to_string(found));
 					if (found) {
-						editor_event redraw_ev;
-						redraw_ev.type = event_type::redraw;
-						global_queue_.push(redraw_ev);
+						global_queue_.push(event_type::redraw);
 					}
 				}
 				return;
@@ -1482,9 +1427,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 					logger.log("Entering Vim Command mode.");
 					active_mode_ = input_mode::vim;
 					vim_input_buffer_ = "";
-					editor_event redraw_ev;
-					redraw_ev.type = event_type::redraw;
-					global_queue_.push(redraw_ev);
+					global_queue_.push(event_type::redraw);
 					return;
 				}
 			}
@@ -1494,15 +1437,11 @@ void editor::dispatch_event_key(const editor_event &ev)
 					if (active_mode_ == input_mode::k_block) {
 						active_mode_ = input_mode::normal;
 					}
-					editor_event redraw_ev;
-					redraw_ev.type = event_type::redraw;
-					global_queue_.push(redraw_ev);
+					global_queue_.push(event_type::redraw);
 					return;
 				}
 				active_mode_ = input_mode::normal;
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 			}
 
 			if (active_mode_ == input_mode::q_block) {
@@ -1510,15 +1449,11 @@ void editor::dispatch_event_key(const editor_event &ev)
 					if (active_mode_ == input_mode::q_block) {
 						active_mode_ = input_mode::normal;
 					}
-					editor_event redraw_ev;
-					redraw_ev.type = event_type::redraw;
-					global_queue_.push(redraw_ev);
+					global_queue_.push(event_type::redraw);
 					return;
 				}
 				active_mode_ = input_mode::normal;
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 			}
 
 			if (active_mode_ == input_mode::p_block) {
@@ -1526,41 +1461,31 @@ void editor::dispatch_event_key(const editor_event &ev)
 					if (active_mode_ == input_mode::p_block) {
 						active_mode_ = input_mode::normal;
 					}
-					editor_event redraw_ev;
-					redraw_ev.type = event_type::redraw;
-					global_queue_.push(redraw_ev);
+					global_queue_.push(event_type::redraw);
 					return;
 				}
 				active_mode_ = input_mode::normal;
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 			}
 
 			if (ev.key_code == 11) { // Ctrl-K
 				logger.log("Entering K-block mode.");
 				active_mode_ = input_mode::k_block;
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 				return;
 			}
 
 			if (ev.key_code == 17) { // Ctrl-Q
 				logger.log("Entering Q-block mode.");
 				active_mode_ = input_mode::q_block;
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 				return;
 			}
 
 			if (ev.key_code == 16) { // Ctrl-P
 				logger.log("Entering P-block mode.");
 				active_mode_ = input_mode::p_block;
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 				return;
 			}
 			if (ev.key_code == 31) { // Ctrl-_ (Undo)
@@ -1597,11 +1522,11 @@ void editor::dispatch_event_key(const editor_event &ev)
 						items.push_back(
 						    {static_cast<int>(event_type::agent_save_history), "Save History", 'S', false});
 						if (aw->is_sidebar_expanded()) {
-							items.push_back(
-							    {static_cast<int>(event_type::agent_hide_sidebar), "Hide status pane", 'H', false});
+							items.push_back({static_cast<int>(event_type::agent_hide_sidebar),
+									 "Hide status pane", 'H', false});
 						} else {
-							items.push_back(
-							    {static_cast<int>(event_type::agent_show_sidebar), "Show status pane", 'H', false});
+							items.push_back({static_cast<int>(event_type::agent_show_sidebar),
+									 "Show status pane", 'H', false});
 						}
 						items.push_back(
 						    {static_cast<int>(event_type::maximize_window), max_label, max_hotkey, false});
@@ -1621,9 +1546,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 					    std::make_unique<popup_menu>(active_win->get_popup_button_x(), active_win->get_y() + 1, items);
 					set_focus(focus_target::popup, "alt_equal");
 
-					editor_event redraw_ev;
-					redraw_ev.type = event_type::redraw;
-					global_queue_.push(redraw_ev);
+					global_queue_.push(event_type::redraw);
 				}
 				return;
 			}
@@ -1653,14 +1576,10 @@ void editor::dispatch_event_key(const editor_event &ev)
 				set_focus(focus_target::window, "popup_close");
 
 				if (id != popup_menu::cancel_id) {
-					editor_event action_ev;
-					action_ev.type = static_cast<event_type>(id);
-					global_queue_.push(action_ev);
+					global_queue_.push(static_cast<event_type>(id));
 				}
 
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 			}
 			return; // Consume all keys when popup is focused
 		} else if (current_focus_ == focus_target::menu_bar) {
@@ -1842,22 +1761,16 @@ void editor::execute_vim_command(std::string_view cmd_raw)
 			}
 		}
 		if (any_modified) {
-			editor_event status_ev;
-			status_ev.type = event_type::set_transient_status;
-			status_ev.payload = "Error: No write since last change (add ! to override)";
-			status_ev.priority = status_priorities::WARNING;
-			global_queue_.push(status_ev);
+			global_queue_.push({.type = event_type::set_transient_status,
+					    .payload = "Error: No write since last change (add ! to override)",
+					    .priority = status_priorities::WARNING});
 		} else {
-			editor_event quit_ev;
-			quit_ev.type = event_type::quit;
-			global_queue_.push(quit_ev);
+			global_queue_.push(event_type::quit);
 		}
 	} else if (cmd == "q!") {
 		is_running_ = false;
 	} else if (cmd == "w") {
-		editor_event save_ev;
-		save_ev.type = event_type::save;
-		global_queue_.push(save_ev);
+		global_queue_.push(event_type::save);
 	} else if (cmd == "wq") {
 		std::shared_ptr<document> active_doc = get_active_doc();
 		if (active_doc && active_doc->is_modified() && !active_doc->is_read_only()) {
@@ -1873,15 +1786,11 @@ void editor::execute_vim_command(std::string_view cmd_raw)
 			} else {
 				// Untitled
 				is_quitting_ = true;
-				editor_event save_as_ev;
-				save_as_ev.type = event_type::save_as;
-				global_queue_.push(save_as_ev);
+				global_queue_.push(event_type::save_as);
 				return;
 			}
 		}
-		editor_event quit_ev;
-		quit_ev.type = event_type::quit;
-		global_queue_.push(quit_ev);
+		global_queue_.push(event_type::quit);
 	} else if (cmd == "wq!") {
 		std::shared_ptr<document> active_doc = get_active_doc();
 		if (active_doc && active_doc->is_modified() && !active_doc->is_read_only()) {
@@ -1891,10 +1800,8 @@ void editor::execute_vim_command(std::string_view cmd_raw)
 		}
 		is_running_ = false;
 	} else {
-		editor_event status_ev;
-		status_ev.type = event_type::set_transient_status;
-		status_ev.payload = std::format("Error: Unknown command: {}", cmd);
-		status_ev.priority = status_priorities::WARNING;
-		global_queue_.push(status_ev);
+		global_queue_.push({.type = event_type::set_transient_status,
+				    .payload = std::format("Error: Unknown command: {}", cmd),
+				    .priority = status_priorities::WARNING});
 	}
 }

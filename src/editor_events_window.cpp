@@ -12,8 +12,8 @@
 #include "gcc_log_parser.h"
 #include "history_manager.h"
 #include "lsp_manager.h"
-#include "ui/dialog_factories.h"
 #include "ui/agent_window.h"
+#include "ui/dialog_factories.h"
 
 namespace fs = std::filesystem;
 
@@ -88,9 +88,7 @@ void editor::dispatch_event_window(const editor_event &ev)
 			}
 
 			if (windows_.empty()) {
-				editor_event quit_ev;
-				quit_ev.type = event_type::quit;
-				global_queue_.push(quit_ev);
+				global_queue_.push(event_type::quit);
 			} else {
 				size_t next_idx = (active_idx == 0) ? 0 : active_idx - 1;
 				if (next_idx >= windows_.size())
@@ -118,9 +116,7 @@ void editor::dispatch_event_window(const editor_event &ev)
 				w->set_maximized(true);
 				w->set_bounds(0, 1, COLS, LINES - 2);
 			}
-			editor_event redraw_ev;
-			redraw_ev.type = event_type::redraw;
-			global_queue_.push(redraw_ev);
+			global_queue_.push(event_type::redraw);
 		}
 		return;
 	}
@@ -131,9 +127,7 @@ void editor::dispatch_event_window(const editor_event &ev)
 		if (w) {
 			if (auto aw = dynamic_cast<agent_window *>(w)) {
 				aw->set_sidebar_expanded(false);
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 			}
 		}
 		return;
@@ -145,9 +139,7 @@ void editor::dispatch_event_window(const editor_event &ev)
 		if (w) {
 			if (auto aw = dynamic_cast<agent_window *>(w)) {
 				aw->set_sidebar_expanded(true);
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 			}
 		}
 		return;

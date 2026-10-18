@@ -89,9 +89,7 @@ void editor::dispatch_event_lsp(const editor_event &ev)
 				}
 			}
 
-			editor_event redraw_ev;
-			redraw_ev.type = event_type::redraw;
-			global_queue_.push(redraw_ev);
+			global_queue_.push(event_type::redraw);
 		}
 		return;
 	}
@@ -100,9 +98,7 @@ void editor::dispatch_event_lsp(const editor_event &ev)
 		std::shared_ptr<document> active_doc = get_active_doc();
 		if (active_doc) {
 			active_doc->set_lsp_diagnostics(ev.diagnostics);
-			editor_event redraw_ev;
-			redraw_ev.type = event_type::redraw;
-			global_queue_.push(redraw_ev);
+			global_queue_.push(event_type::redraw);
 		}
 		return;
 	}

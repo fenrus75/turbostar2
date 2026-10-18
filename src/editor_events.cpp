@@ -41,40 +41,34 @@ bool editor::handle_q_block_key(int key)
 	int c = std::tolower(key);
 
 	switch (c) {
-	case 'f': {
-		logger.log("Q-block: Find Text");
-		editor_event ev;
-		ev.type = event_type::find;
-		global_queue_.push(ev);
-		return true;
-	}
-	case 'a': {
-		logger.log("Q-block: Replace Text");
-		editor_event ev;
-		ev.type = event_type::replace;
-		global_queue_.push(ev);
-		return true;
-	}
-	case 'h': {
-		logger.log("Q-block: Undo History");
-		auto doc = get_active_doc();
-		if (doc && doc->get_undo_count() > 0) {
-			new_diff_window();
-		} else {
-			logger.log("No undo history available.");
+		case 'f': {
+			logger.log("Q-block: Find Text");
+			global_queue_.push(event_type::find);
+			return true;
 		}
-		return true;
-	}
-	case 's':
-	case 'w': {
-		logger.log("Q-block: Save As");
-		editor_event ev;
-		ev.type = event_type::save_as;
-		global_queue_.push(ev);
-		return true;
-	}
-	default:
-		break;
+		case 'a': {
+			logger.log("Q-block: Replace Text");
+			global_queue_.push(event_type::replace);
+			return true;
+		}
+		case 'h': {
+			logger.log("Q-block: Undo History");
+			auto doc = get_active_doc();
+			if (doc && doc->get_undo_count() > 0) {
+				new_diff_window();
+			} else {
+				logger.log("No undo history available.");
+			}
+			return true;
+		}
+		case 's':
+		case 'w': {
+			logger.log("Q-block: Save As");
+			global_queue_.push(event_type::save_as);
+			return true;
+		}
+		default:
+			break;
 	}
 	return false;
 }
@@ -86,62 +80,49 @@ bool editor::handle_p_block_key(int key)
 	logger.log(std::format("P-block handling key: {}", key));
 
 	switch (c) {
-	case 'r': {
-		logger.log("P-block: Reformat");
-		editor_event ev;
-		ev.type = event_type::inline_agent_request;
-		ev.payload = "Reformat the code in the target range.";
-		global_queue_.push(ev);
-		return true;
-	}
-	case 'f': {
-		logger.log("P-block: Fix Warnings");
-		editor_event ev;
-		ev.type = event_type::inline_agent_request;
-		ev.payload = "Fix any flagged warnings or errors in the target range.";
-		global_queue_.push(ev);
-		return true;
-	}
-	case 'c': {
-		logger.log("P-block: Add Comments");
-		editor_event ev;
-		ev.type = event_type::inline_agent_request;
-		ev.payload = "Add descriptive comments to the code in the target range.";
-		global_queue_.push(ev);
-		return true;
-	}
-	case 'v': {
-		logger.log("P-block: Review");
-		editor_event ev;
-		ev.type = event_type::inline_agent_request;
-		ev.payload = "Provide a code review and flag potential issues as errors or warnings in the target range.";
-		global_queue_.push(ev);
-		return true;
-	}
-	case 't': {
-		logger.log("P-block: Complete TODOs");
-		editor_event ev;
-		ev.type = event_type::inline_agent_request;
-		ev.payload = "Complete the function framework and any TODOs in the target range, removing completed TODO comments.";
-		global_queue_.push(ev);
-		return true;
-	}
-	case 's': {
-		logger.log("P-block: Spell Check");
-		editor_event ev;
-		ev.type = event_type::inline_agent_request;
-		ev.payload = "Spell check the target range. For code, focus on comments and strings. For non-code, check everything.";
-		global_queue_.push(ev);
-		return true;
-	}
-	case 'u': {
-		logger.log("P-block: Custom Prompt");
-		active_mode_ = input_mode::inline_agent;
-		inline_agent_input_buffer_ = "";
-		return true;
-	}
-	default:
-		break;
+		case 'r': {
+			logger.log("P-block: Reformat");
+			global_queue_.push(event_type::inline_agent_request, "Reformat the code in the target range.");
+			return true;
+		}
+		case 'f': {
+			logger.log("P-block: Fix Warnings");
+			global_queue_.push(event_type::inline_agent_request, "Fix any flagged warnings or errors in the target range.");
+			return true;
+		}
+		case 'c': {
+			logger.log("P-block: Add Comments");
+			global_queue_.push(event_type::inline_agent_request, "Add descriptive comments to the code in the target range.");
+			return true;
+		}
+		case 'v': {
+			logger.log("P-block: Review");
+			global_queue_.push(event_type::inline_agent_request,
+					   "Provide a code review and flag potential issues as errors or warnings in the target range.");
+			return true;
+		}
+		case 't': {
+			logger.log("P-block: Complete TODOs");
+			global_queue_.push(
+			    event_type::inline_agent_request,
+			    "Complete the function framework and any TODOs in the target range, removing completed TODO comments.");
+			return true;
+		}
+		case 's': {
+			logger.log("P-block: Spell Check");
+			global_queue_.push(
+			    event_type::inline_agent_request,
+			    "Spell check the target range. For code, focus on comments and strings. For non-code, check everything.");
+			return true;
+		}
+		case 'u': {
+			logger.log("P-block: Custom Prompt");
+			active_mode_ = input_mode::inline_agent;
+			inline_agent_input_buffer_ = "";
+			return true;
+		}
+		default:
+			break;
 	}
 	return false;
 }
@@ -267,38 +248,26 @@ void editor::dispatch(const editor_event &ev)
 				active_dialog_->handle_event(ev, active_dialog_->x(), active_dialog_->y());
 			} else if (active_mode_ == input_mode::searching) {
 				search_input_buffer_ += ev.payload;
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 			} else if (active_mode_ == input_mode::search_options) {
 				search_options_buffer_ += ev.payload;
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 			} else if (active_mode_ == input_mode::replace_query) {
 				replace_input_buffer_ += ev.payload;
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 			} else if (active_mode_ == input_mode::going_to_line) {
 				for (char c : ev.payload) {
 					if (c >= '0' && c <= '9') {
 						line_input_buffer_ += c;
 					}
 				}
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 			} else if (active_mode_ == input_mode::inline_agent) {
 				inline_agent_input_buffer_ += ev.payload;
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 			} else if (active_mode_ == input_mode::vim) {
 				vim_input_buffer_ += ev.payload;
-				editor_event redraw_ev;
-				redraw_ev.type = event_type::redraw;
-				global_queue_.push(redraw_ev);
+				global_queue_.push(event_type::redraw);
 			} else {
 				window *active_win = get_active_window();
 				if (active_win) {
