@@ -122,4 +122,7 @@ std::string augment_compiler_output_with_codemap(const std::string &output, agen
 bool expand_range_to_symbol_bounds(const std::string &file_path, std::string_view symbol_name, int &start_line, int &end_line,
 				   std::string &kind);
 
+// Joins and stops all background outgoing calls indexing worker threads during shutdown.
+void shutdown_outgoing_calls_threads();
+
 } // namespace tools

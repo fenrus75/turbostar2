@@ -13,6 +13,7 @@
 #include <regex>
 #include <set>
 #include <sstream>
+#include "codemap_utils.h"
 #include "codereview_manager.h"
 #include "command_runner.h"
 #include "config_manager.h"
@@ -904,6 +905,7 @@ void project_manager::shutdown()
 	if (lsp_manager_) {
 		lsp_manager_->stop();
 	}
+	tools::shutdown_outgoing_calls_threads();
 }
 
 std::vector<std::string> project_manager::detect_executable_candidates()

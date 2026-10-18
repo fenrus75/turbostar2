@@ -1,7 +1,7 @@
 #include "call_token_extractor.h"
 #include <algorithm>
 #include <cctype>
-#include <regex>
+#include <re2/re2.h>
 #include <unordered_set>
 
 namespace tools
@@ -46,7 +46,7 @@ std::vector<candidate_call_token> call_token_extractor::extract_candidates(const
 	// Pattern to match identifier directly followed by opening parenthesis:
 	// Matches `ident(` with optional whitespace before `(`.
 	// Also matches member / scoped calls like `obj.ident(`, `obj->ident(`, `ns::ident(`.
-	static const std::regex call_pattern(R"(\b([A-Za-z_][A-Za-z0-9_]*)\s*\()");
+	static const re2::RE2 call_pattern(R"(\b([A-Za-z_][A-Za-z0-9_]*)\s*\()");
 
 	for (size_t i = 0; i < lines.size(); ++i) {
 		const std::string &line = lines[i];
@@ -62,20 +62,17 @@ std::vector<candidate_call_token> call_token_extractor::extract_candidates(const
 			continue;
 		}
 
-		auto words_begin = std::sregex_iterator(line.begin(), line.end(), call_pattern);
-		auto words_end = std::sregex_iterator();
-
-		for (std::sregex_iterator it = words_begin; it != words_end; ++it) {
-			const std::smatch &match = *it;
-			if (match.size() > 1 && match[1].matched) {
-				std::string candidate = match[1].str();
-				if (!is_denylisted(candidate) && seen.find(candidate) == seen.end()) {
-					seen.insert(candidate);
-					int col = static_cast<int>(match.position(1));
-					result.push_back({std::move(candidate), line_num, col});
-					if (result.size() >= 20) {
-						return result;
-					}
+		size_t pos = 0;
+		re2::StringPiece submatches[2];
+		while (pos < line.size() && call_pattern.Match(line, pos, line.size(), re2::RE2::UNANCHORED, submatches, 2)) {
+			std::string candidate(submatches[1].data(), submatches[1].size());
+			int col = static_cast<int>(submatches[1].data() - line.data());
+			pos = static_cast<size_t>(submatches[0].data() - line.data()) + submatches[0].size();
+			if (!is_denylisted(candidate) && seen.find(candidate) == seen.end()) {
+				seen.insert(candidate);
+				result.push_back({std::move(candidate), line_num, col});
+				if (result.size() >= 20) {
+					return result;
 				}
 			}
 		}

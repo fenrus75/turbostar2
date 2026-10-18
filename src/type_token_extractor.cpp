@@ -1,7 +1,7 @@
 #include "type_token_extractor.h"
 #include <algorithm>
 #include <cctype>
-#include <regex>
+#include <re2/re2.h>
 #include <unordered_set>
 
 namespace tools
@@ -60,10 +60,10 @@ std::vector<candidate_type_token> type_token_extractor::extract_candidates(const
 	// 2. Type in pointer/reference param (e.g. MyType *ptr, const MyType &ref)
 	// 3. Template argument (e.g. <MyType>)
 	// 4. Type followed by identifier (e.g. MyContext ctx, Widget widget)
-	static const std::regex type_patterns(
+	static const re2::RE2 type_patterns(
 	    R"((?:class|struct|enum)\s+([A-Za-z_][A-Za-z0-9_]*)|)"
 	    R"(\b([A-Za-z_][A-Za-z0-9_]*)::|)"
-	    R"(<(?:\s*const\s+)?([A-Za-z_][A-Za-z0-9_]*)(?:\s*[*&])?\s*>|)"
+	    R"(<\s*(?:const\s+)?([A-Za-z_][A-Za-z0-9_]*)(?:\s*[*&])?\s*>|)"
 	    R"(\b([A-Za-z_][A-Za-z0-9_]*)\s+(?:const\s+)?(?:\*|&)+\s*[A-Za-z_]|)"
 	    R"(\b(?:const\s+)?([A-Za-z_][A-Za-z0-9_]*)\s+(?:\*|&)*\s*[A-Za-z_][A-Za-z0-9_]*\s*[\(\)\{\;\,])");
 
@@ -81,17 +81,16 @@ std::vector<candidate_type_token> type_token_extractor::extract_candidates(const
 			continue;
 		}
 
-		auto words_begin = std::sregex_iterator(line.begin(), line.end(), type_patterns);
-		auto words_end = std::sregex_iterator();
-
-		for (std::sregex_iterator it = words_begin; it != words_end; ++it) {
-			const std::smatch &match = *it;
-			for (size_t g = 1; g < match.size(); ++g) {
-				if (match[g].matched) {
-					std::string candidate = match[g].str();
+		size_t pos = 0;
+		re2::StringPiece submatches[6];
+		while (pos < line.size() && type_patterns.Match(line, pos, line.size(), re2::RE2::UNANCHORED, submatches, 6)) {
+			pos = static_cast<size_t>(submatches[0].data() - line.data()) + std::max<size_t>(1, submatches[0].size());
+			for (size_t g = 1; g < 6; ++g) {
+				if (submatches[g].data() != nullptr) {
+					std::string candidate(submatches[g].data(), submatches[g].size());
 					if (!is_denylisted(candidate) && seen.find(candidate) == seen.end()) {
 						seen.insert(candidate);
-						int col = static_cast<int>(match.position(g));
+						int col = static_cast<int>(submatches[g].data() - line.data());
 						result.push_back({candidate, line_num, col});
 						if (result.size() >= 15) {
 							return result;

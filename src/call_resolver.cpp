@@ -4,7 +4,7 @@
 #include <cctype>
 #include <filesystem>
 #include <fstream>
-#include <regex>
+#include <re2/re2.h>
 
 #include "call_token_extractor.h"
 #include "event_logger.h"
@@ -102,17 +102,15 @@ std::unordered_set<std::string> call_resolver::extract_included_headers(const st
 		return includes;
 	}
 
-	static const std::regex inc_regex(R"(^\s*#\s*include\s*[<"]([^>"]+)[>"])");
+	static const re2::RE2 inc_regex(R"(^\s*#\s*include\s*[<"]([^>"]+)[>"])");
 	std::string line;
 	int line_count = 0;
 
 	while (std::getline(file, line) && line_count < 1000) {
 		line_count++;
-		std::smatch match;
-		if (std::regex_search(line, match, inc_regex)) {
-			if (match.size() > 1) {
-				includes.insert(match[1].str());
-			}
+		std::string inc_path;
+		if (re2::RE2::PartialMatch(line, inc_regex, &inc_path)) {
+			includes.insert(inc_path);
 		}
 	}
 
@@ -378,6 +376,10 @@ bool call_resolver::resolve_target(
 		event_logger::get_instance().log(std::format(
 			"call_resolver::resolve_target: name='{}', caller='{}', definition file not found",
 			item.name, ref.caller_file));
+		return false;
+	}
+
+	if (project_manager::get_instance().is_exiting()) {
 		return false;
 	}
 

@@ -247,6 +247,7 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::vector<message> get_conversation() const;
 	void set_conversation(std::span<const message> c);
 	std::shared_ptr<Conversation> get_conversation_data() const;
+	bool is_closed() const noexcept { return is_closed_.load(); }
 
        protected:
 	int id_;

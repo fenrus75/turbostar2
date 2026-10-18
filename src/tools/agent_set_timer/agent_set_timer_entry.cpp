@@ -5,6 +5,7 @@
 #include "agent_set_timer.h"
 #include "event_logger.h"
 #include "fs_utils.h"
+#include "project_manager.h"
 
 namespace tools
 {
@@ -28,11 +29,29 @@ bool agent_set_timer_tool::validate_runtime(const agentlib::tool_context &ctx, s
 
 std::string agent_set_timer_tool::execute(agentlib::tool_context &ctx)
 {
-	// Detach a background thread to wait and then trigger
-	std::thread([agent = ctx.active_agent->shared_from_this(), seconds = args_.seconds]() {
+	// Detach a background thread using weak_ptr to prevent dangling references or preventing shutdown (Pattern C)
+	std::weak_ptr<agentlib::ai_agent> weak_agent = ctx.active_agent->shared_from_this();
+	std::thread([weak_agent, seconds = args_.seconds]() {
 		fs_utils::set_current_thread_name("agent_timer");
 		event_logger::get_instance().log("Timer thread started: sleeping for {} seconds.", seconds);
-		std::this_thread::sleep_for(std::chrono::seconds(seconds));
+
+		auto end_time = std::chrono::steady_clock::now() + std::chrono::seconds(seconds);
+		while (std::chrono::steady_clock::now() < end_time) {
+			if (project_manager::get_instance().is_exiting() || weak_agent.expired()) {
+				event_logger::get_instance().log("Timer cancelled early: editor exiting or agent destroyed.");
+				return;
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+		}
+
+		if (project_manager::get_instance().is_exiting()) {
+			return;
+		}
+
+		auto agent = weak_agent.lock();
+		if (!agent || agent->is_closed()) {
+			return;
+		}
 
 		// When the timer triggers, IF the agent is idle, we inject the context.
 		if (agent->get_status() == agentlib::agent_status::idle) {

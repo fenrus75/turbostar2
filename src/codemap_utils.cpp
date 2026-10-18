@@ -20,7 +20,6 @@
 #include <fstream>
 #include <map>
 #include <re2/re2.h>
-#include <regex>
 #include <set>
 #include <sstream>
 #include <unordered_set>
@@ -204,28 +203,30 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 	bool is_py = (ext == ".py");
 	bool is_sv = (ext == ".sv" || ext == ".svh" || ext == ".v" || ext == ".vh");
 
-	static const std::regex cpp_func_head_regex(R"(^\s*(?:[\w:\<\>]+\s*[\*\&]*\s+)*[\*\&]*\s*([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*)\s*\()");
-	static const std::regex cpp_class_regex(R"(^\s*(?:typedef\s+)?(?:class|struct)\s+(?:\[\[.*?\]\]\s+)?(?:__attribute__\s*\(\(.*?\)\)\s+)?([a-zA-Z_]\w*))");
-	static const std::regex cpp_enum_regex(R"(^\s*(?:typedef\s+)?enum(?:\s+class|\s+struct)?\s+([a-zA-Z_]\w*))");
-	static const std::regex py_func_regex(R"(^\s*def\s+([a-zA-Z_]\w*)\s*\()");
-	static const std::regex py_class_regex(R"(^\s*class\s+([a-zA-Z_]\w*))");
+	static const re2::RE2 cpp_func_head_regex(R"(^(\s*(?:[\w:<>]+[\s*&]*\s+)*[\s*&]*([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*)\s*\())");
+	static const re2::RE2 cpp_class_regex(R"(^(\s*(?:typedef\s+)?(?:class|struct)\s+(?:\[\[.*?\]\]\s+)?(?:__attribute__\s*\(\(.*?\)\)\s+)?([a-zA-Z_]\w*)))");
+	static const re2::RE2 cpp_enum_regex(R"(^\s*(?:typedef\s+)?enum(?:\s+class|\s+struct)?\s+([a-zA-Z_]\w*))");
+	static const re2::RE2 py_func_regex(R"(^\s*def\s+([a-zA-Z_]\w*)\s*\()");
+	static const re2::RE2 py_class_regex(R"(^\s*class\s+([a-zA-Z_]\w*))");
 
-	static const std::regex sv_module_regex(R"(^\s*(?:extern\s+)?module\s+([a-zA-Z_]\w*))");
-	static const std::regex sv_interface_regex(R"(^\s*(?:extern\s+)?interface\s+([a-zA-Z_]\w*))");
-	static const std::regex sv_package_regex(R"(^\s*package\s+([a-zA-Z_]\w*))");
-	static const std::regex sv_class_regex(R"(^\s*(?:virtual\s+)?class\s+([a-zA-Z_]\w*))");
-	static const std::regex sv_func_regex(
+	static const re2::RE2 sv_module_regex(R"(^\s*(?:extern\s+)?module\s+([a-zA-Z_]\w*))");
+	static const re2::RE2 sv_interface_regex(R"(^\s*(?:extern\s+)?interface\s+([a-zA-Z_]\w*))");
+	static const re2::RE2 sv_package_regex(R"(^\s*package\s+([a-zA-Z_]\w*))");
+	static const re2::RE2 sv_class_regex(R"(^\s*(?:virtual\s+)?class\s+([a-zA-Z_]\w*))");
+	static const re2::RE2 sv_func_regex(
 	    R"(^\s*(?:(?:pure\s+virtual|virtual|static|local|protected)\s+)*function\s+(?:.*?\s+)?([a-zA-Z_]\w*)\s*[\(;])");
-	static const std::regex sv_task_regex(
+	static const re2::RE2 sv_task_regex(
 	    R"(^\s*(?:(?:pure\s+virtual|virtual|static|local|protected)\s+)*task\s+(?:.*?\s+)?([a-zA-Z_]\w*)\s*[\(;])");
 
 	for (size_t i = 0; i < lines.size(); ++i) {
+		if ((i & 63) == 0 && project_manager::get_instance().is_exiting()) {
+			return;
+		}
 		int line_num = static_cast<int>(i + 1);
-		std::smatch match;
 
 		if (is_py) {
-			if (std::regex_search(lines[i], match, py_class_regex) || std::regex_search(lines[i], match, py_func_regex)) {
-				std::string name = match[1].str();
+			std::string name;
+			if (re2::RE2::PartialMatch(lines[i], py_class_regex, &name) || re2::RE2::PartialMatch(lines[i], py_func_regex, &name)) {
 				out.push_back({name, name, "Function", line_num, line_num, 1, 0, ""});
 			}
 			continue;
@@ -236,28 +237,22 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 			std::string kind;
 			std::string end_kw;
 
-			if (std::regex_search(lines[i], match, sv_module_regex)) {
-				name = match[1].str();
+			if (re2::RE2::PartialMatch(lines[i], sv_module_regex, &name)) {
 				kind = "Module";
 				end_kw = "endmodule";
-			} else if (std::regex_search(lines[i], match, sv_interface_regex)) {
-				name = match[1].str();
+			} else if (re2::RE2::PartialMatch(lines[i], sv_interface_regex, &name)) {
 				kind = "Interface";
 				end_kw = "endinterface";
-			} else if (std::regex_search(lines[i], match, sv_package_regex)) {
-				name = match[1].str();
+			} else if (re2::RE2::PartialMatch(lines[i], sv_package_regex, &name)) {
 				kind = "Package";
 				end_kw = "endpackage";
-			} else if (std::regex_search(lines[i], match, sv_class_regex)) {
-				name = match[1].str();
+			} else if (re2::RE2::PartialMatch(lines[i], sv_class_regex, &name)) {
 				kind = "Class";
 				end_kw = "endclass";
-			} else if (std::regex_search(lines[i], match, sv_func_regex)) {
-				name = match[1].str();
+			} else if (re2::RE2::PartialMatch(lines[i], sv_func_regex, &name)) {
 				kind = "Function";
 				end_kw = "endfunction";
-			} else if (std::regex_search(lines[i], match, sv_task_regex)) {
-				name = match[1].str();
+			} else if (re2::RE2::PartialMatch(lines[i], sv_task_regex, &name)) {
 				kind = "Task";
 				end_kw = "endtask";
 			}
@@ -279,10 +274,13 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 		}
 
 		bool is_class_candidate = false;
-		if (std::regex_search(lines[i], match, cpp_class_regex)) {
+		re2::StringPiece full_class_match, class_name_sp;
+		if (re2::RE2::PartialMatch(lines[i], cpp_class_regex, &full_class_match, &class_name_sp)) {
 			is_class_candidate = true;
 			// Filter out parameter usages such as 'struct cpuidle_device *dev, int index)'
-			std::string_view suffix(match.suffix().first, match.suffix().second);
+			std::string_view line_v = lines[i];
+			size_t match_end = static_cast<size_t>(full_class_match.data() - line_v.data()) + full_class_match.size();
+			std::string_view suffix = (match_end <= line_v.size()) ? line_v.substr(match_end) : std::string_view{};
 			size_t first_non_ws = suffix.find_first_not_of(" \t\r\n");
 			if (first_non_ws != std::string_view::npos) {
 				char next_ch = suffix[first_non_ws];
@@ -297,6 +295,8 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 			}
 		}
 
+		re2::StringPiece full_func_match, func_name_sp;
+		std::string enum_name;
 		if (is_class_candidate) {
 			std::string_view trimmed_line = lines[i];
 			size_t last_non_ws = trimmed_line.find_last_not_of(" \t\r\n");
@@ -325,10 +325,11 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 				int len = end_line - line_num + 1;
 				if (len >= min_lines) {
 					std::string kind_val = (lines[i].find("struct") != std::string::npos) ? "Struct" : "Class";
-					out.push_back({match[1].str(), match[1].str(), kind_val, line_num, end_line, len, 0, ""});
+					std::string class_name(class_name_sp);
+					out.push_back({class_name, class_name, kind_val, line_num, end_line, len, 0, ""});
 				}
 			}
-		} else if (std::regex_search(lines[i], match, cpp_enum_regex)) {
+		} else if (re2::RE2::PartialMatch(lines[i], cpp_enum_regex, &enum_name)) {
 			std::string_view trimmed_line = lines[i];
 			size_t last_non_ws = trimmed_line.find_last_not_of(" \t\r\n");
 			if (last_non_ws != std::string_view::npos && trimmed_line[last_non_ws] == ';') {
@@ -355,11 +356,11 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 			if (started) {
 				int len = end_line - line_num + 1;
 				if (len >= min_lines) {
-					out.push_back({match[1].str(), match[1].str(), "Enum", line_num, end_line, len, 0, ""});
+					out.push_back({enum_name, enum_name, "Enum", line_num, end_line, len, 0, ""});
 				}
 			}
-		} else if (std::regex_search(lines[i], match, cpp_func_head_regex)) {
-			std::string name = match[1].str();
+		} else if (re2::RE2::PartialMatch(lines[i], cpp_func_head_regex, &full_func_match, &func_name_sp)) {
+			std::string name(func_name_sp);
 			if (name != "if" && name != "for" && name != "while" && name != "switch" && name != "catch" &&
 			    name != "__attribute__" && !name.starts_with("__builtin_")) {
 				// Forward scan to find body '{' and verify it's not a prototype ';'
@@ -367,6 +368,7 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 				bool found_brace = false;
 				size_t brace_line_idx = i;
 				bool is_prototype = false;
+				size_t func_head_pos = static_cast<size_t>(full_func_match.data() - lines[i].data());
 
 				for (size_t j = i; j < std::min(lines.size(), i + 40); ++j) {
 					std::string_view scan_line = lines[j];
@@ -375,7 +377,7 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 						scan_line = scan_line.substr(0, comment_pos);
 					}
 
-					for (size_t char_idx = (j == i ? match.position(0) : 0); char_idx < scan_line.size(); ++char_idx) {
+					for (size_t char_idx = (j == i ? func_head_pos : 0); char_idx < scan_line.size(); ++char_idx) {
 						char c = scan_line[char_idx];
 						if (c == '(') {
 							paren_depth++;
@@ -680,8 +682,30 @@ struct outgoing_call_cache_entry {
 	std::vector<outgoing_call_reference> calls;
 };
 
+// Protects g_outgoing_calls_cache and g_outgoing_calls_in_flight.
+// Short-lived locks only; must never be held during blocking I/O or LSP queries.
 static std::mutex g_outgoing_calls_cache_mutex;
 static std::unordered_map<std::string, outgoing_call_cache_entry> g_outgoing_calls_cache;
+static std::unordered_set<std::string> g_outgoing_calls_in_flight;
+
+// Protects g_outgoing_calls_threads.
+// Short-lived lock only; thread joining must be performed outside this mutex.
+static std::mutex g_outgoing_calls_threads_mutex;
+static std::vector<std::thread> g_outgoing_calls_threads;
+
+void shutdown_outgoing_calls_threads()
+{
+	std::vector<std::thread> threads_to_join;
+	{
+		std::lock_guard<std::mutex> lock(g_outgoing_calls_threads_mutex);
+		threads_to_join.swap(g_outgoing_calls_threads);
+	}
+	for (auto &t : threads_to_join) {
+		if (t.joinable()) {
+			t.join();
+		}
+	}
+}
 
 static std::pair<int, int> get_symbol_location(const std::string &file_path, int start_line, int end_line, std::string_view sym_name = "")
 {
@@ -753,9 +777,33 @@ bool resolve_outgoing_call_target(outgoing_call_reference &ref, const lsp_manage
 
 static void refresh_outgoing_calls_async(std::string safe_path, std::vector<codemap_symbol_info> doc_symbols)
 {
-	std::thread([safe_path = std::move(safe_path), doc_symbols = std::move(doc_symbols)]() {
+	if (!project_manager::get_instance().has_lsp_backend() || project_manager::get_instance().is_exiting()) {
+		return;
+	}
+
+	{
+		std::lock_guard<std::mutex> lock(g_outgoing_calls_cache_mutex);
+		if (g_outgoing_calls_in_flight.contains(safe_path)) {
+			return;
+		}
+		g_outgoing_calls_in_flight.insert(safe_path);
+	}
+
+	std::thread worker([safe_path = std::move(safe_path), doc_symbols = std::move(doc_symbols)]() {
 		fs_utils::set_current_thread_name("codemap_idx");
+		struct in_flight_guard {
+			std::string path;
+			~in_flight_guard()
+			{
+				std::lock_guard<std::mutex> lock(g_outgoing_calls_cache_mutex);
+				g_outgoing_calls_in_flight.erase(path);
+			}
+		} guard{safe_path};
+
 		try {
+			if (project_manager::get_instance().is_exiting()) {
+				return;
+			}
 			std::error_code ec;
 			auto current_mtime = std::filesystem::last_write_time(safe_path, ec);
 			if (ec)
@@ -764,6 +812,10 @@ static void refresh_outgoing_calls_async(std::string safe_path, std::vector<code
 			std::vector<codemap_symbol_info> effective_symbols = doc_symbols;
 			if (effective_symbols.empty()) {
 				fallback_find_symbols(safe_path, 1, effective_symbols);
+			}
+
+			if (project_manager::get_instance().is_exiting()) {
+				return;
 			}
 
 			std::vector<std::pair<int, int>> positions;
@@ -782,12 +834,14 @@ static void refresh_outgoing_calls_async(std::string safe_path, std::vector<code
 			auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
 			auto lsp_items =
 			    project_manager::get_instance().lsp_query_call_hierarchy_outgoing_batch(safe_path, positions, deadline);
-			if (lsp_items.empty())
+			if (lsp_items.empty() || project_manager::get_instance().is_exiting())
 				return;
 
 			std::unordered_map<std::string, std::vector<codemap_symbol_info>> symbols_cache;
 			std::vector<outgoing_call_reference> all_calls;
 			for (const auto &item : lsp_items) {
+				if (project_manager::get_instance().is_exiting())
+					return;
 				outgoing_call_reference ref;
 				ref.caller_file = safe_path;
 				ref.call_line = item.call_line + 1;
@@ -799,7 +853,7 @@ static void refresh_outgoing_calls_async(std::string safe_path, std::vector<code
 				}
 			}
 
-			if (!all_calls.empty()) {
+			if (!all_calls.empty() && !project_manager::get_instance().is_exiting()) {
 				std::lock_guard<std::mutex> lock(g_outgoing_calls_cache_mutex);
 				g_outgoing_calls_cache[safe_path] = {current_mtime, std::chrono::steady_clock::now(), all_calls};
 				event_logger::get_instance().log(std::format(
@@ -807,7 +861,12 @@ static void refresh_outgoing_calls_async(std::string safe_path, std::vector<code
 			}
 		} catch (...) {
 		}
-	}).detach();
+	});
+
+	{
+		std::lock_guard<std::mutex> lock(g_outgoing_calls_threads_mutex);
+		g_outgoing_calls_threads.push_back(std::move(worker));
+	}
 }
 
 static std::vector<outgoing_call_reference>
@@ -861,7 +920,9 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 			// Stale cache hit (>= 5s): update last_fetch_time to avoid duplicate background requests
 			// and return cached calls immediately while triggering background refresh.
 			it->second.last_fetch_time = now;
-			refresh_outgoing_calls_async(safe_path, doc_symbols);
+			if (project_manager::get_instance().has_lsp_backend() && !project_manager::get_instance().is_exiting()) {
+				refresh_outgoing_calls_async(safe_path, doc_symbols);
+			}
 			return result;
 		}
 	}
@@ -936,7 +997,9 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 	} else if (all_calls.empty()) {
 		// Synchronous lookup timed out or returned empty: launch background refresh thread with 10s deadline
 		// so if clangd finishes after the synchronous deadline, the result is saved to cache for the next call!
-		refresh_outgoing_calls_async(safe_path, doc_symbols);
+		if (project_manager::get_instance().has_lsp_backend() && !project_manager::get_instance().is_exiting()) {
+			refresh_outgoing_calls_async(safe_path, doc_symbols);
+		}
 	}
 
 	std::vector<outgoing_call_reference> range_result;

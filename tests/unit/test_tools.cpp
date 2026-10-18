@@ -228,6 +228,10 @@ int main()
 	assert(found_anchor_again);
 	std::cout << "Episode state machine transitions verified successfully!" << std::endl;
 
+	agent->close();
+	agent.reset();
+	ctx.active_agent = nullptr;
+
 	std::cout << "\nTesting compaction_engine planning logic..." << std::endl;
 	std::vector<active_episode_info> candidates = {{"episode_1", 0, 10, 1000, 600, 400}, {"episode_2", 0, 20, 2000, 1200, 800}};
 
@@ -894,5 +898,6 @@ int main()
 	}
 
 	std::cout << "\nAll test tools verified!" << std::endl;
+	project_manager::get_instance().shutdown();
 	return 0;
 }
