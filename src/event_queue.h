@@ -8,6 +8,7 @@ class ui_multiline_edit;
 #include <optional>
 #include <queue>
 #include <string>
+#include <string_view>
 #include <vector>
 
 /**
@@ -154,20 +155,20 @@ struct editor_event {
 	int key_code{0};       ///< NCurses key code or ASCII value
 	int mouse_x{-1};       ///< Mouse X coordinate (if type == mouse_click)
 	int mouse_y{-1};       ///< Mouse Y coordinate (if type == mouse_click)
-	std::string utf8_char; ///< UTF-8 character sequence for typing
+	std::string utf8_char{}; ///< UTF-8 character sequence for typing
 	bool alt_pressed{false};
 	bool auto_continue{true};
 	bool collect_performance{false};
-	std::string target_binary;
-	std::string payload;			  ///< General payload for complex events (like LSP results)
-	std::vector<text_range> highlight_ranges; ///< Payload for LSP highlights
-	std::vector<diagnostic_info> diagnostics; ///< Payload for LSP diagnostics
+	std::string target_binary{};
+	std::string payload{};			  ///< General payload for complex events (like LSP results)
+	std::vector<text_range> highlight_ranges{}; ///< Payload for LSP highlights
+	std::vector<diagnostic_info> diagnostics{}; ///< Payload for LSP diagnostics
 	int priority{0};			  ///< Status message priority (0 = lowest)
 
 	// Payload for prompt_user
-	std::vector<std::string> prompt_options;
-	std::shared_ptr<std::promise<std::string>> prompt_promise;
-	std::shared_ptr<void> generic_promise;
+	std::vector<std::string> prompt_options{};
+	std::shared_ptr<std::promise<std::string>> prompt_promise{nullptr};
+	std::shared_ptr<void> generic_promise{nullptr};
 	ui_multiline_edit *multiline_edit_ptr{nullptr};
 };
 
@@ -182,6 +183,11 @@ class event_queue
 	~event_queue() = default;
 
 	void push(const editor_event &ev);
+	void push(editor_event &&ev);
+	void push(event_type type);
+	void push(event_type type, int key_code);
+	void push(event_type type, std::string_view payload);
+	void push(event_type type, int key_code, std::string_view payload);
 	std::optional<editor_event> pop();
 
       private:

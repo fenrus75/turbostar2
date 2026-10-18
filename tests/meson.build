@@ -19,11 +19,16 @@ add_test_setup('default',
 )
 
 # --- Tests ---
-# Unit tests
 test_event_logger = executable('test_event_logger',
   ['unit/test_event_logger.cpp', '../src/event_logger.cpp'],
   include_directories: inc)
 test('unit_event_logger', test_event_logger, suite: 'agent')
+
+test_event_queue = executable('test_event_queue',
+  ['unit/test_event_queue.cpp', '../src/event_queue.cpp', '../src/event_logger.cpp'],
+  dependencies: [thread_dep],
+  include_directories: inc)
+test('unit_event_queue', test_event_queue, suite: 'agent')
 
 test_file_health_tracker = executable('test_file_health_tracker',
   ['unit/test_file_health_tracker.cpp', '../src/event_logger.cpp', '../src/lsp_backend.cpp', '../src/standard_lsp_backend.cpp', '../src/semcode_backend.cpp', '../src/lsp_manager.cpp', '../src/fs_utils.cpp', '../src/fs_basics.cpp', '../src/git_manager.cpp', '../src/config_manager.cpp', '../src/build_error_manager.cpp', '../src/gcc_log_parser.cpp', '../src/command_runner.cpp', '../src/event_queue.cpp', '../src/crashdump_manager.cpp', '../src/address_lookup.cpp', '../src/project_manager.cpp', '../src/codereview_manager.cpp', '../src/perf_manager.cpp'],

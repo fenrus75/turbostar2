@@ -1133,9 +1133,7 @@ bool editor::handle_k_block_key(int key)
 			return true;
 		}
 		active_doc->move_selection();
-		editor_event redraw_ev;
-		redraw_ev.type = event_type::redraw;
-		global_queue_.push(redraw_ev);
+		global_queue_.push(event_type::redraw);
 		return true;
 	}
 	case 'n': {
@@ -1145,23 +1143,17 @@ bool editor::handle_k_block_key(int key)
 	}
 	case 'p': {
 		logger.log("K-block: Compile File");
-		editor_event ev;
-		ev.type = event_type::compile_file;
-		global_queue_.push(ev);
+		global_queue_.push(event_type::compile_file);
 		return true;
 	}
 	case 'g': {
 		logger.log("K-block: Next Error");
-		editor_event err_ev;
-		err_ev.type = event_type::next_error;
-		global_queue_.push(err_ev);
+		global_queue_.push(event_type::next_error);
 		return true;
 	}
 	case 'e': {
 		logger.log("K-block: Edit (Open File)");
-		editor_event ev;
-		ev.type = event_type::load;
-		global_queue_.push(ev);
+		global_queue_.push(event_type::load);
 		return true;
 	}
 	case 'a': {
@@ -1170,9 +1162,7 @@ bool editor::handle_k_block_key(int key)
 			logger.log("Cannot save-all read-only buffer via hotkey.");
 			return true;
 		}
-		editor_event ev;
-		ev.type = event_type::save_all;
-		global_queue_.push(ev);
+		global_queue_.push(event_type::save_all);
 		return true;
 	}
 	case 'r': {
@@ -1219,9 +1209,7 @@ bool editor::handle_k_block_key(int key)
 		logger.log("K-block: Select Scope");
 		if (active_doc) {
 			active_doc->select_enclosing_scope();
-			editor_event redraw_ev;
-			redraw_ev.type = event_type::redraw;
-			global_queue_.push(redraw_ev);
+			global_queue_.push(event_type::redraw);
 		}
 		return true;
 	}
@@ -1232,9 +1220,7 @@ bool editor::handle_k_block_key(int key)
 			logger.log("Cannot save read-only or empty buffer via hotkey.");
 			return true;
 		}
-		editor_event ev;
-		ev.type = event_type::save;
-		global_queue_.push(ev);
+		global_queue_.push(event_type::save);
 		return true;
 	}
 	case 'w': {
@@ -1243,23 +1229,17 @@ bool editor::handle_k_block_key(int key)
 			logger.log("Cannot write-block read-only or empty buffer via hotkey.");
 			return true;
 		}
-		editor_event ev;
-		ev.type = event_type::write_block;
-		global_queue_.push(ev);
+		global_queue_.push(event_type::write_block);
 		return true;
 	}
 	case 'q': {
 		logger.log("K-block: Quit (Abort)");
-		editor_event quit_ev;
-		quit_ev.type = event_type::quit;
-		global_queue_.push(quit_ev);
+		global_queue_.push(event_type::quit);
 		return true;
 	}
 	case 'x': {
 		logger.log("K-block: Force Exit");
-		editor_event quit_ev;
-		quit_ev.type = event_type::force_quit;
-		global_queue_.push(quit_ev);
+		global_queue_.push(event_type::force_quit);
 		return true;
 	}
 	case 'f': {
