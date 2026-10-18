@@ -258,7 +258,7 @@ int main()
 				location_info loc;
 				if (filepath.find("my_types") != std::string::npos) {
 					loc.path = typedef_tgt_;
-					loc.range = {.start_y=line, .start_x=0, .end_y=line, .end_x=0};
+					loc.range = {.start_y = line, .start_x = 0, .end_y = line, .end_x = 0};
 					if (line == 1) {
 						loc.kind = "typedef";
 						loc.underlying_type =
@@ -266,10 +266,13 @@ int main()
 					}
 				} else if (filepath.find("macro") != std::string::npos || line == 1) {
 					loc.path = macro_tgt_;
-					loc.range = {.start_y=1, .start_x=0, .end_y=1, .end_x=0}; // Line 2 to 2 (1-line range)
+					loc.range = {.start_y = 1, .start_x = 0, .end_y = 1, .end_x = 0}; // Line 2 to 2 (1-line range)
 				} else {
 					loc.path = tgt_;
-					loc.range = {.start_y=41, .start_x=0, .end_y=41, .end_x=0}; // Line 42 to 42 (1-line range like semcode)
+					loc.range = {.start_y = 41,
+						     .start_x = 0,
+						     .end_y = 41,
+						     .end_x = 0}; // Line 42 to 42 (1-line range like semcode)
 				}
 				return {loc};
 			}
@@ -289,6 +292,9 @@ int main()
 			[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &) override
 			{
 				return {};
+			}
+			void prefetch_document_symbols(const std::string &) override
+			{
 			}
 			void invalidate_symbol_cache(const std::string &) override
 			{

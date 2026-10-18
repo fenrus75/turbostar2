@@ -95,21 +95,19 @@ void standard_lsp_backend::start_server(const std::string &name, const std::vect
 			    std::vector<diagnostic_info> diagnostics;
 			    for (const auto &diag : params.diagnostics) {
 				    diagnostic_info info;
-				    info.range = {
-					static_cast<int>(diag.range.start.line), static_cast<int>(diag.range.start.character),
-					static_cast<int>(diag.range.end.line), static_cast<int>(diag.range.end.character)};
+				    info.range = {static_cast<int>(diag.range.start.line), static_cast<int>(diag.range.start.character),
+						  static_cast<int>(diag.range.end.line), static_cast<int>(diag.range.end.character)};
 				    info.severity = diag.severity.value_or(lsp::DiagnosticSeverity::Error);
 				    info.message = diag.message;
 				    diagnostics.push_back(info);
 			    }
 
-			    std::sort(diagnostics.begin(), diagnostics.end(),
-				      [](const diagnostic_info &a, const diagnostic_info &b) {
-					      if (a.range.start_y != b.range.start_y) {
-						      return a.range.start_y < b.range.start_y;
-					      }
-					      return a.range.start_x < b.range.start_x;
-				      });
+			    std::sort(diagnostics.begin(), diagnostics.end(), [](const diagnostic_info &a, const diagnostic_info &b) {
+				    if (a.range.start_y != b.range.start_y) {
+					    return a.range.start_y < b.range.start_y;
+				    }
+				    return a.range.start_x < b.range.start_x;
+			    });
 
 			    std::string path_str = std::string(params.uri.path());
 			    store_file_diagnostics(path_str, diagnostics);
@@ -215,7 +213,9 @@ std::shared_ptr<standard_lsp_backend::server_instance> standard_lsp_backend::get
 		std::string build_dir = config_manager::get_instance().get_build_directory();
 		unsigned int num_cores = std::thread::hardware_concurrency();
 		unsigned int clangd_jobs = std::clamp(num_cores / 2, 2u, 8u);
-		start_server("clangd", {"-log=error", std::format("--compile-commands-dir={}", build_dir), std::format("-j={}", clangd_jobs), "--malloc-trim", "--background-index"},
+		start_server("clangd",
+			     {"-log=error", std::format("--compile-commands-dir={}", build_dir), std::format("-j={}", clangd_jobs),
+			      "--malloc-trim", "--background-index"},
 			     "cpp");
 	} else if (lang_id == "python") {
 		start_server("pylsp", {}, "python");
@@ -278,7 +278,8 @@ std::vector<text_range> standard_lsp_backend::query_selection_ranges(const std::
 	return {};
 }
 
-std::vector<standard_lsp_backend::location_info> standard_lsp_backend::query_definition(const std::string &filepath, int line, int character)
+std::vector<standard_lsp_backend::location_info> standard_lsp_backend::query_definition(const std::string &filepath, int line,
+											int character)
 {
 	auto server = get_server_for_file(filepath);
 	if (!server)
@@ -343,13 +344,15 @@ std::vector<standard_lsp_backend::location_info> standard_lsp_backend::query_def
 	return {};
 }
 
-std::vector<standard_lsp_backend::location_info> standard_lsp_backend::query_type_definition(const std::string &filepath, int line, int character)
+std::vector<standard_lsp_backend::location_info> standard_lsp_backend::query_type_definition(const std::string &filepath, int line,
+											     int character)
 {
 	// Standard LSP fallback: query definition location
 	return query_definition(filepath, line, character);
 }
 
-std::vector<standard_lsp_backend::location_info> standard_lsp_backend::query_references(const std::string &filepath, int line, int character)
+std::vector<standard_lsp_backend::location_info> standard_lsp_backend::query_references(const std::string &filepath, int line,
+											int character)
 {
 	auto server = get_server_for_file(filepath);
 	if (!server)
@@ -667,8 +670,12 @@ std::vector<standard_lsp_backend::symbol_info> standard_lsp_backend::query_works
 						    }
 					    }
 				    }
-				    auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - req_start_time).count();
-				    event_logger::get_instance().log(std::format("LSP: query_workspace_symbols response received query='{}' after {}ms (found {} symbols)", query, dur_ms, out.size()));
+				    auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
+													req_start_time)
+						      .count();
+				    event_logger::get_instance().log(std::format(
+					"LSP: query_workspace_symbols response received query='{}' after {}ms (found {} symbols)", query,
+					dur_ms, out.size()));
 				    promise->set_value(out);
 			    } catch (...) {
 				    event_logger::get_instance().log("LSP: Caught unknown exception");
@@ -694,7 +701,8 @@ std::vector<standard_lsp_backend::symbol_info> standard_lsp_backend::query_works
 	if (future.wait_for(std::chrono::milliseconds(1000)) == std::future_status::ready) {
 		auto result = future.get();
 		auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time).count();
-		event_logger::get_instance().log(std::format("LSP: query_workspace_symbols query='{}' finished in {}ms (found {} symbols)", query, dur_ms, result.size()));
+		event_logger::get_instance().log(std::format("LSP: query_workspace_symbols query='{}' finished in {}ms (found {} symbols)",
+							     query, dur_ms, result.size()));
 		return result;
 	}
 
@@ -702,8 +710,8 @@ std::vector<standard_lsp_backend::symbol_info> standard_lsp_backend::query_works
 	return {};
 }
 
-std::vector<standard_lsp_backend::call_hierarchy_item> standard_lsp_backend::query_call_hierarchy_outgoing(const std::string &filepath, int line,
-											 int character)
+std::vector<standard_lsp_backend::call_hierarchy_item> standard_lsp_backend::query_call_hierarchy_outgoing(const std::string &filepath,
+													   int line, int character)
 {
 	auto server = get_server_for_file(filepath);
 	if (!server)
@@ -813,10 +821,9 @@ std::vector<standard_lsp_backend::call_hierarchy_item> standard_lsp_backend::que
 	return {};
 }
 
-std::vector<standard_lsp_backend::outgoing_call_item> standard_lsp_backend::query_call_hierarchy_outgoing_batch(
-	const std::string &filepath,
-	const std::vector<std::pair<int, int>> &positions,
-	std::chrono::steady_clock::time_point deadline)
+std::vector<standard_lsp_backend::outgoing_call_item>
+standard_lsp_backend::query_call_hierarchy_outgoing_batch(const std::string &filepath, const std::vector<std::pair<int, int>> &positions,
+							  std::chrono::steady_clock::time_point deadline)
 {
 	if (positions.empty()) {
 		return {};
@@ -830,7 +837,7 @@ std::vector<standard_lsp_backend::outgoing_call_item> standard_lsp_backend::quer
 		return {};
 
 	event_logger::get_instance().log(
-		std::format("LSP: query_call_hierarchy_outgoing_batch path='{}' ({} positions)", filepath, positions.size()));
+	    std::format("LSP: query_call_hierarchy_outgoing_batch path='{}' ({} positions)", filepath, positions.size()));
 
 	struct prep_entry {
 		int line;
@@ -856,11 +863,16 @@ std::vector<standard_lsp_backend::outgoing_call_item> standard_lsp_backend::quer
 			int target_line = pos.first;
 			server->message_handler->sendRequest<lsp::requests::TextDocument_PrepareCallHierarchy>(
 			    std::move(params),
-			    [promise_prep, filepath, target_line, req_start_time](const lsp::requests::TextDocument_PrepareCallHierarchy::Result &res) {
+			    [promise_prep, filepath, target_line,
+			     req_start_time](const lsp::requests::TextDocument_PrepareCallHierarchy::Result &res) {
 				    try {
-					    auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - req_start_time).count();
+					    auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+							      std::chrono::steady_clock::now() - req_start_time)
+							      .count();
 					    bool has_items = !res.isNull() && !res.value().empty();
-					    event_logger::get_instance().log(std::format("LSP: prepareCallHierarchy response received path='{}' line={} after {}ms (found={})", filepath, target_line, dur_ms, has_items));
+					    event_logger::get_instance().log(std::format(
+						"LSP: prepareCallHierarchy response received path='{}' line={} after {}ms (found={})",
+						filepath, target_line, dur_ms, has_items));
 					    if (!res.isNull()) {
 						    promise_prep->set_value(res.value());
 					    } else {
@@ -887,7 +899,9 @@ std::vector<standard_lsp_backend::outgoing_call_item> standard_lsp_backend::quer
 		}
 	}
 
-	int rem_prep_ms = std::clamp<int>(static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()).count()), 1, 1000);
+	int rem_prep_ms = std::clamp<int>(
+	    static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()).count()), 1,
+	    1000);
 	auto deadline_prep = std::chrono::steady_clock::now() + std::chrono::milliseconds(rem_prep_ms);
 
 	struct call_entry {
@@ -912,7 +926,8 @@ std::vector<standard_lsp_backend::outgoing_call_item> standard_lsp_backend::quer
 					int caller_line = pe.line;
 					server->message_handler->sendRequest<lsp::requests::CallHierarchy_OutgoingCalls>(
 					    std::move(params),
-					    [promise_out, filepath, caller_line, req_out_start_time](const lsp::requests::CallHierarchy_OutgoingCalls::Result &res) {
+					    [promise_out, filepath, caller_line,
+					     req_out_start_time](const lsp::requests::CallHierarchy_OutgoingCalls::Result &res) {
 						    try {
 							    std::vector<call_hierarchy_item> out;
 							    if (!res.isNull()) {
@@ -927,15 +942,21 @@ std::vector<standard_lsp_backend::outgoing_call_item> standard_lsp_backend::quer
 											  static_cast<int>(call.to.range.start.character),
 											  static_cast<int>(call.to.range.end.line),
 											  static_cast<int>(call.to.range.end.character)};
-									    item.selection_range = {static_cast<int>(call.to.selectionRange.start.line),
-												    static_cast<int>(call.to.selectionRange.start.character),
-												    static_cast<int>(call.to.selectionRange.end.line),
-												    static_cast<int>(call.to.selectionRange.end.character)};
+									    item.selection_range = {
+										static_cast<int>(call.to.selectionRange.start.line),
+										static_cast<int>(call.to.selectionRange.start.character),
+										static_cast<int>(call.to.selectionRange.end.line),
+										static_cast<int>(call.to.selectionRange.end.character)};
 									    out.push_back(item);
 								    }
 							    }
-							    auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - req_out_start_time).count();
-							    event_logger::get_instance().log(std::format("LSP: outgoingCalls response received path='{}' line={} after {}ms (found {} calls)", filepath, caller_line, dur_ms, out.size()));
+							    auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+									      std::chrono::steady_clock::now() - req_out_start_time)
+									      .count();
+							    event_logger::get_instance().log(
+								std::format("LSP: outgoingCalls response received path='{}' line={} after "
+									    "{}ms (found {} calls)",
+									    filepath, caller_line, dur_ms, out.size()));
 							    promise_out->set_value(out);
 						    } catch (...) {
 							    event_logger::get_instance().log("LSP: Caught unknown exception");
@@ -964,7 +985,9 @@ std::vector<standard_lsp_backend::outgoing_call_item> standard_lsp_backend::quer
 		return {};
 	}
 
-	int rem_out_ms = std::clamp<int>(static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()).count()), 1, 1000);
+	int rem_out_ms = std::clamp<int>(
+	    static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()).count()), 1,
+	    1000);
 	auto deadline_out = std::chrono::steady_clock::now() + std::chrono::milliseconds(rem_out_ms);
 	std::vector<outgoing_call_item> result;
 
@@ -981,8 +1004,8 @@ std::vector<standard_lsp_backend::outgoing_call_item> standard_lsp_backend::quer
 	return result;
 }
 
-std::vector<standard_lsp_backend::type_hierarchy_item> standard_lsp_backend::query_type_hierarchy_supertypes(const std::string &filepath, int line,
-											   int character)
+std::vector<standard_lsp_backend::type_hierarchy_item> standard_lsp_backend::query_type_hierarchy_supertypes(const std::string &filepath,
+													     int line, int character)
 {
 	auto server = get_server_for_file(filepath);
 	if (!server)
@@ -1092,15 +1115,133 @@ std::vector<standard_lsp_backend::type_hierarchy_item> standard_lsp_backend::que
 	return {};
 }
 
+static std::vector<standard_lsp_backend::symbol_node>
+parse_document_symbols_result(const lsp::requests::TextDocument_DocumentSymbol::Result &res)
+{
+	std::vector<standard_lsp_backend::symbol_node> out;
+	if (!res.isNull()) {
+		const auto &val = res.value();
+		if (std::holds_alternative<lsp::Array<lsp::DocumentSymbol>>(val)) {
+			const auto &arr = std::get<lsp::Array<lsp::DocumentSymbol>>(val);
+			auto convert_symbol = [](auto &self, const lsp::DocumentSymbol &sym) -> standard_lsp_backend::symbol_node {
+				standard_lsp_backend::symbol_node node;
+				node.name = sym.name;
+				node.kind = static_cast<int>(sym.kind);
+				node.range = {static_cast<int>(sym.range.start.line), static_cast<int>(sym.range.start.character),
+					      static_cast<int>(sym.range.end.line), static_cast<int>(sym.range.end.character)};
+				node.selection_range = {
+				    static_cast<int>(sym.selectionRange.start.line), static_cast<int>(sym.selectionRange.start.character),
+				    static_cast<int>(sym.selectionRange.end.line), static_cast<int>(sym.selectionRange.end.character)};
+				if (sym.children && !sym.children->empty()) {
+					for (const auto &child : *sym.children) {
+						node.children.push_back(self(self, child));
+					}
+				}
+				return node;
+			};
+
+			for (const auto &sym : arr) {
+				out.push_back(convert_symbol(convert_symbol, sym));
+			}
+		} else if (std::holds_alternative<lsp::Array<lsp::SymbolInformation>>(val)) {
+			const auto &arr = std::get<lsp::Array<lsp::SymbolInformation>>(val);
+			for (const auto &sym : arr) {
+				standard_lsp_backend::symbol_node node;
+				node.name = sym.name;
+				node.kind = static_cast<int>(sym.kind);
+				node.range = {
+				    static_cast<int>(sym.location.range.start.line), static_cast<int>(sym.location.range.start.character),
+				    static_cast<int>(sym.location.range.end.line), static_cast<int>(sym.location.range.end.character)};
+				node.selection_range = node.range;
+				out.push_back(node);
+			}
+		}
+	}
+	return out;
+}
+
 void standard_lsp_backend::invalidate_symbol_cache(const std::string &filepath)
 {
 	std::string abs_path = std::filesystem::absolute(filepath).string();
 	{
 		std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+		symbol_cache_.erase(filepath);
 		symbol_cache_.erase(abs_path);
+		in_flight_symbol_queries_.erase(filepath);
+		in_flight_symbol_queries_.erase(abs_path);
 	}
 	invalidate_hover_cache(filepath);
 	invalidate_hover_cache(abs_path);
+}
+
+void standard_lsp_backend::prefetch_document_symbols(const std::string &filepath)
+{
+	std::string abs_path = std::filesystem::absolute(filepath).string();
+	std::filesystem::file_time_type current_mtime{};
+	std::error_code ec;
+	if (std::filesystem::exists(abs_path, ec)) {
+		current_mtime = std::filesystem::last_write_time(abs_path, ec);
+	}
+
+	{
+		std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+		auto it = symbol_cache_.find(abs_path);
+		if (it != symbol_cache_.end() && it->second.last_mtime == current_mtime && !it->second.symbols.empty()) {
+			return; // Cache hit
+		}
+		if (in_flight_symbol_queries_.contains(abs_path)) {
+			return; // Already in-flight
+		}
+		in_flight_symbol_queries_.insert(abs_path);
+	}
+
+	auto server = get_server_for_file(filepath);
+	if (!server) {
+		std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+		in_flight_symbol_queries_.erase(abs_path);
+		return;
+	}
+
+	event_logger::get_instance().log(std::format("LSP: prefetch_document_symbols path='{}'", filepath));
+
+	try {
+		auto params = lsp::requests::TextDocument_DocumentSymbol::Params();
+		params.textDocument.uri = lsp::DocumentUri::fromPath(abs_path);
+
+		auto req_start_time = std::chrono::steady_clock::now();
+		server->message_handler->sendRequest<lsp::requests::TextDocument_DocumentSymbol>(
+		    std::move(params),
+		    [abs_path, current_mtime, req_start_time, this](const lsp::requests::TextDocument_DocumentSymbol::Result &res) {
+			    std::vector<symbol_node> out;
+			    try {
+				    out = parse_document_symbols_result(res);
+				    auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
+													req_start_time)
+						      .count();
+				    event_logger::get_instance().log(std::format(
+					"LSP: prefetch_document_symbols response received path='{}' after {}ms (found {} symbols)",
+					abs_path, dur_ms, out.size()));
+				    std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+				    in_flight_symbol_queries_.erase(abs_path);
+				    if (!out.empty()) {
+					    symbol_cache_[abs_path] = {current_mtime, std::chrono::steady_clock::now(), out};
+				    }
+			    } catch (...) {
+				    event_logger::get_instance().log("LSP: Caught unknown exception in prefetch_document_symbols lambda");
+				    std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+				    in_flight_symbol_queries_.erase(abs_path);
+			    }
+		    },
+		    [abs_path, this](const lsp::ResponseError &err) {
+			    event_logger::get_instance().log("LSP: prefetch document symbol query error: {}", err.message());
+			    std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+			    in_flight_symbol_queries_.erase(abs_path);
+		    });
+	} catch (...) {
+		event_logger::get_instance().log("LSP: Caught unknown exception in prefetch_document_symbols");
+		std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+		in_flight_symbol_queries_.erase(abs_path);
+	}
 }
 
 std::vector<standard_lsp_backend::symbol_node> standard_lsp_backend::query_document_symbols(const std::string &filepath)
@@ -1127,7 +1268,8 @@ std::vector<standard_lsp_backend::symbol_node> standard_lsp_backend::query_docum
 
 			auto server = get_server_for_file(filepath);
 			if (server) {
-				event_logger::get_instance().log(std::format("LSP: background refresh query_document_symbols path='{}'", filepath));
+				event_logger::get_instance().log(
+				    std::format("LSP: background refresh query_document_symbols path='{}'", filepath));
 				try {
 					auto params = lsp::requests::TextDocument_DocumentSymbol::Params();
 					params.textDocument.uri = lsp::DocumentUri::fromPath(abs_path);
@@ -1136,66 +1278,30 @@ std::vector<standard_lsp_backend::symbol_node> standard_lsp_backend::query_docum
 					    [abs_path, current_mtime, this](const lsp::requests::TextDocument_DocumentSymbol::Result &res) {
 						    std::vector<symbol_node> out;
 						    try {
-							    if (!res.isNull()) {
-								    const auto &val = res.value();
-								    if (std::holds_alternative<lsp::Array<lsp::DocumentSymbol>>(val)) {
-									    const auto &arr = std::get<lsp::Array<lsp::DocumentSymbol>>(val);
-									    auto convert_symbol = [](auto &self, const lsp::DocumentSymbol &sym) -> symbol_node {
-										    symbol_node node;
-										    node.name = sym.name;
-										    node.kind = static_cast<int>(sym.kind);
-										    node.range = {
-											    static_cast<int>(sym.range.start.line),
-											    static_cast<int>(sym.range.start.character),
-											    static_cast<int>(sym.range.end.line),
-											    static_cast<int>(sym.range.end.character)
-										    };
-										    node.selection_range = {
-											    static_cast<int>(sym.selectionRange.start.line),
-											    static_cast<int>(sym.selectionRange.start.character),
-											    static_cast<int>(sym.selectionRange.end.line),
-											    static_cast<int>(sym.selectionRange.end.character)
-										    };
-										    if (sym.children && !sym.children->empty()) {
-											    for (const auto &child : *sym.children) {
-												    node.children.push_back(self(self, child));
-											    }
-										    }
-										    return node;
-									    };
-
-									    for (const auto &sym : arr) {
-										    out.push_back(convert_symbol(convert_symbol, sym));
-									    }
-								    } else if (std::holds_alternative<lsp::Array<lsp::SymbolInformation>>(val)) {
-									    const auto &arr = std::get<lsp::Array<lsp::SymbolInformation>>(val);
-									    for (const auto &sym : arr) {
-										    symbol_node node;
-										    node.name = sym.name;
-										    node.kind = static_cast<int>(sym.kind);
-										    node.range = {
-											    static_cast<int>(sym.location.range.start.line),
-											    static_cast<int>(sym.location.range.start.character),
-											    static_cast<int>(sym.location.range.end.line),
-											    static_cast<int>(sym.location.range.end.character)
-										    };
-										    node.selection_range = node.range;
-										    out.push_back(node);
-									    }
-								    }
-							    }
+							    out = parse_document_symbols_result(res);
+							    std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+							    in_flight_symbol_queries_.erase(abs_path);
 							    if (!out.empty()) {
-								    std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
-								    symbol_cache_[abs_path] = {current_mtime, std::chrono::steady_clock::now(), out};
+								    symbol_cache_[abs_path] = {current_mtime,
+											       std::chrono::steady_clock::now(), out};
 							    }
 						    } catch (...) {
-							    event_logger::get_instance().log("LSP: Caught unknown exception in background refresh lambda");
+							    event_logger::get_instance().log(
+								"LSP: Caught unknown exception in background refresh lambda");
+							    std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+							    in_flight_symbol_queries_.erase(abs_path);
 						    }
 					    },
-					    [](const lsp::ResponseError &err) {
-						    event_logger::get_instance().log("LSP: background document symbol refresh error: {}", err.message());
+					    [abs_path, this](const lsp::ResponseError &err) {
+						    event_logger::get_instance().log("LSP: background document symbol refresh error: {}",
+										     err.message());
+						    std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+						    in_flight_symbol_queries_.erase(abs_path);
 					    });
-				} catch (...) {}
+				} catch (...) {
+					std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+					in_flight_symbol_queries_.erase(abs_path);
+				}
 			}
 
 			return cached_symbols;
@@ -1218,87 +1324,55 @@ std::vector<standard_lsp_backend::symbol_node> standard_lsp_backend::query_docum
 		auto req_start_time = std::chrono::steady_clock::now();
 		server->message_handler->sendRequest<lsp::requests::TextDocument_DocumentSymbol>(
 		    std::move(params),
-		    [promise, abs_path, current_mtime, req_start_time, this](const lsp::requests::TextDocument_DocumentSymbol::Result &res) {
+		    [promise, abs_path, current_mtime, req_start_time,
+		     this](const lsp::requests::TextDocument_DocumentSymbol::Result &res) {
 			    std::vector<symbol_node> out;
 			    try {
-				    if (!res.isNull()) {
-					    const auto &val = res.value();
-					    if (std::holds_alternative<lsp::Array<lsp::DocumentSymbol>>(val)) {
-						    const auto &arr = std::get<lsp::Array<lsp::DocumentSymbol>>(val);
-						    auto convert_symbol = [](auto &self, const lsp::DocumentSymbol &sym) -> symbol_node {
-							    symbol_node node;
-							    node.name = sym.name;
-							    node.kind = static_cast<int>(sym.kind);
-							    node.range = {
-								    static_cast<int>(sym.range.start.line),
-								    static_cast<int>(sym.range.start.character),
-								    static_cast<int>(sym.range.end.line),
-								    static_cast<int>(sym.range.end.character)
-							    };
-							    node.selection_range = {
-								    static_cast<int>(sym.selectionRange.start.line),
-								    static_cast<int>(sym.selectionRange.start.character),
-								    static_cast<int>(sym.selectionRange.end.line),
-								    static_cast<int>(sym.selectionRange.end.character)
-							    };
-							    if (sym.children && !sym.children->empty()) {
-								    for (const auto &child : *sym.children) {
-									    node.children.push_back(self(self, child));
-								    }
-							    }
-							    return node;
-						    };
-
-						    for (const auto &sym : arr) {
-							    out.push_back(convert_symbol(convert_symbol, sym));
-						    }
-					    } else if (std::holds_alternative<lsp::Array<lsp::SymbolInformation>>(val)) {
-						    const auto &arr = std::get<lsp::Array<lsp::SymbolInformation>>(val);
-						    for (const auto &sym : arr) {
-							    symbol_node node;
-							    node.name = sym.name;
-							    node.kind = static_cast<int>(sym.kind);
-							    node.range = {
-								    static_cast<int>(sym.location.range.start.line),
-								    static_cast<int>(sym.location.range.start.character),
-								    static_cast<int>(sym.location.range.end.line),
-								    static_cast<int>(sym.location.range.end.character)
-							    };
-							    node.selection_range = node.range;
-							    out.push_back(node);
-						    }
-					    }
-				    }
-				    auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - req_start_time).count();
-				    event_logger::get_instance().log(std::format("LSP: query_document_symbols response received path='{}' after {}ms (found {} symbols)", abs_path, dur_ms, out.size()));
+				    out = parse_document_symbols_result(res);
+				    auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
+													req_start_time)
+						      .count();
+				    event_logger::get_instance().log(
+					std::format("LSP: query_document_symbols response received path='{}' after {}ms (found {} symbols)",
+						    abs_path, dur_ms, out.size()));
+				    std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+				    in_flight_symbol_queries_.erase(abs_path);
 				    if (!out.empty()) {
-					    std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
 					    symbol_cache_[abs_path] = {current_mtime, std::chrono::steady_clock::now(), out};
 				    }
 				    promise->set_value(out);
 			    } catch (...) {
 				    event_logger::get_instance().log("LSP: Caught unknown exception in query_document_symbols lambda");
+				    std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+				    in_flight_symbol_queries_.erase(abs_path);
 				    promise->set_value({});
 			    }
 		    },
-		    [promise](const lsp::ResponseError &err) {
+		    [promise, abs_path, this](const lsp::ResponseError &err) {
 			    event_logger::get_instance().log("LSP: document symbol query error: {}", err.message());
+			    std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+			    in_flight_symbol_queries_.erase(abs_path);
 			    try {
 				    promise->set_value({});
-			    } catch (...) {}
+			    } catch (...) {
+			    }
 		    });
 	} catch (...) {
 		event_logger::get_instance().log("LSP: Caught unknown exception in query_document_symbols");
+		std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
+		in_flight_symbol_queries_.erase(abs_path);
 		try {
 			promise->set_value({});
-		} catch (...) {}
+		} catch (...) {
+		}
 	}
 
 	auto start_time = std::chrono::steady_clock::now();
 	if (future.wait_for(std::chrono::milliseconds(1000)) == std::future_status::ready) {
 		auto result = future.get();
 		auto dur_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time).count();
-		event_logger::get_instance().log(std::format("LSP: query_document_symbols path='{}' finished in {}ms (found {} symbols)", filepath, dur_ms, result.size()));
+		event_logger::get_instance().log(std::format("LSP: query_document_symbols path='{}' finished in {}ms (found {} symbols)",
+							     filepath, dur_ms, result.size()));
 		return result;
 	}
 

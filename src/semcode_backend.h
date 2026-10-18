@@ -55,6 +55,9 @@ class semcode_backend : public standard_lsp_backend
 	[[nodiscard]] std::vector<location_info> query_references(const std::string &filepath, int line, int character) override;
 	[[nodiscard]] std::vector<symbol_info> query_workspace_symbols(const std::string &query) override;
 	[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &filepath) override;
+	void prefetch_document_symbols(const std::string &) override
+	{
+	}
 	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &filepath, int line,
 										     int character) override
 	{

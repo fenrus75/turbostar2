@@ -53,6 +53,7 @@ std::vector<outgoing_call_reference> get_outgoing_calls_for_symbol(const std::st
 // Query LSP (or regex fallback) and collect flat symbol list for a given file
 std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, agentlib::tool_context &ctx, int min_lines = 1);
 std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, int min_lines = 1);
+void prefetch_document_codemap_symbols(const std::string &safe_path, agentlib::tool_context *ctx = nullptr);
 void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vector<codemap_symbol_info> &out);
 
 // Select and prioritize top N codemap symbols for a file read range based on scope, search history, position, and deduplication
@@ -71,8 +72,8 @@ std::string format_codemap_table(const std::string &display_path, const std::vec
 bool resolve_outgoing_call_target(outgoing_call_reference &ref, const lsp_manager::call_hierarchy_item &item,
 				  std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache);
 inline bool resolve_outgoing_call_target(outgoing_call_reference &ref, const lsp_manager::call_hierarchy_item &item,
-				  std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
-				  agentlib::tool_context *)
+					 std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
+					 agentlib::tool_context *)
 {
 	return resolve_outgoing_call_target(ref, item, symbols_cache);
 }

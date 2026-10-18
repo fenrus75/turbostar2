@@ -15,8 +15,9 @@
  * concrete LSP communications to an underlying lsp_backend strategy (such as
  * standard_lsp_backend or semcode_backend).
  */
-class lsp_manager {
-public:
+class lsp_manager
+{
+      public:
 	using location_info = lsp_backend::location_info;
 	using symbol_info = lsp_backend::symbol_info;
 	using symbol_node = lsp_backend::symbol_node;
@@ -51,16 +52,17 @@ public:
 	[[nodiscard]] std::vector<location_info> query_references(const std::string &filepath, int line, int character);
 	[[nodiscard]] std::vector<symbol_info> query_workspace_symbols(const std::string &query);
 	[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &filepath);
+	void prefetch_document_symbols(const std::string &filepath);
 	void invalidate_symbol_cache(const std::string &filepath);
 	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &filepath, int line, int character);
-	[[nodiscard]] std::vector<outgoing_call_item> query_call_hierarchy_outgoing_batch(
-		const std::string &filepath,
-		const std::vector<std::pair<int, int>> &positions,
-		std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::time_point::max());
-	[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &filepath, int line, int character);
+	[[nodiscard]] std::vector<outgoing_call_item>
+	query_call_hierarchy_outgoing_batch(const std::string &filepath, const std::vector<std::pair<int, int>> &positions,
+					    std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::time_point::max());
+	[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &filepath, int line,
+										       int character);
 	[[nodiscard]] std::optional<std::vector<diagnostic_info>> query_file_diagnostics(const std::string &filepath);
 	void store_file_diagnostics(const std::string &filepath, const std::vector<diagnostic_info> &diags);
 
-private:
+      private:
 	std::unique_ptr<lsp_backend> backend_;
 };

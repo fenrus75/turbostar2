@@ -96,6 +96,7 @@ class lsp_backend
 	[[nodiscard]] virtual std::vector<location_info> query_references(const std::string &filepath, int line, int character) = 0;
 	[[nodiscard]] virtual std::vector<symbol_info> query_workspace_symbols(const std::string &query) = 0;
 	[[nodiscard]] virtual std::vector<symbol_node> query_document_symbols(const std::string &filepath) = 0;
+	virtual void prefetch_document_symbols(const std::string &filepath) = 0;
 	virtual void invalidate_symbol_cache(const std::string &filepath) = 0;
 	[[nodiscard]] virtual std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &filepath, int line,
 											     int character) = 0;

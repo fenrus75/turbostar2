@@ -14,3 +14,4 @@ The `standard_lsp_backend` class (`src/standard_lsp_backend.h`, `src/standard_ls
 
 ## Lessons Learned
 - **Extension Normalization**: Normalizing file extensions with `utf8::to_lower` avoids locale-dependent bugs and signed-char undefined behavior when routing documents to `clangd` or `pylsp`.
+- **Asynchronous Document Symbol Prefetching**: Sequential synchronous calls to `query_document_symbols` across multiple unindexed candidate files (e.g. during search annotations) accumulate multi-second timeouts. Decoupling prefetch requests into non-blocking JSON-RPC calls with `in_flight_symbol_queries_` deduplication allows the language server to process files concurrently and warm `symbol_cache_` ahead of time.

@@ -596,6 +596,12 @@ std::vector<lsp_manager::symbol_node> project_manager::lsp_query_document_symbol
 	return {};
 }
 
+void project_manager::lsp_prefetch_document_symbols(const std::string &filepath)
+{
+	if (lsp_manager_)
+		lsp_manager_->prefetch_document_symbols(filepath);
+}
+
 void project_manager::lsp_invalidate_symbol_cache(const std::string &filepath)
 {
 	if (lsp_manager_)

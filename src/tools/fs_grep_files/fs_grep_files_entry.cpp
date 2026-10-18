@@ -570,6 +570,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 					total_match_count += match_lines.size();
 					int tier = calculate_file_priority_tier(path, is_open_buffer);
 					raw_matches.push_back({tier, rel_path_str, std::move(match_lines), std::move(file_lines)});
+					prefetch_document_codemap_symbols(abs_path_str, &ctx);
 				}
 			}
 		};
@@ -639,6 +640,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 					total_match_count += match_lines.size();
 					int tier = calculate_file_priority_tier(p, false);
 					raw_matches.push_back({tier, file_uri, std::move(match_lines), std::move(file_lines)});
+					prefetch_document_codemap_symbols(file_uri, &ctx);
 				}
 			}
 		} else if (fs::is_regular_file(search_path)) {

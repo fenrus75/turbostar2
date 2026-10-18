@@ -7,10 +7,12 @@
 #include "standard_lsp_backend.h"
 #include "test_watchdog.h"
 
-namespace {
+namespace
+{
 
-class mock_lsp_backend : public lsp_backend {
-public:
+class mock_lsp_backend : public lsp_backend
+{
+      public:
 	bool start_called{false};
 	bool stop_called{false};
 	bool open_doc_called{false};
@@ -19,8 +21,14 @@ public:
 	bool invalidate_symbol_called{false};
 	std::string last_filepath;
 
-	void start(event_queue &) override { start_called = true; }
-	void stop() override { stop_called = true; }
+	void start(event_queue &) override
+	{
+		start_called = true;
+	}
+	void stop() override
+	{
+		stop_called = true;
+	}
 
 	void open_document(const std::string &filepath, const std::string &) override
 	{
@@ -34,9 +42,16 @@ public:
 		last_filepath = filepath;
 	}
 
-	void request_hover(const std::string &, int, int) override { hover_called = true; }
-	void request_document_highlight(const std::string &, int, int) override {}
-	void request_selection_range(const std::string &, int, int) override {}
+	void request_hover(const std::string &, int, int) override
+	{
+		hover_called = true;
+	}
+	void request_document_highlight(const std::string &, int, int) override
+	{
+	}
+	void request_selection_range(const std::string &, int, int) override
+	{
+	}
 
 	[[nodiscard]] bool is_supported_file(const std::string &filepath) const override
 	{
@@ -53,7 +68,7 @@ public:
 		if (filepath == "target.cpp" && line == 42 && col == 10) {
 			location_info loc;
 			loc.path = "target.h";
-			loc.range = {.start_y=15, .start_x=0, .end_y=15, .end_x=20};
+			loc.range = {.start_y = 15, .start_x = 0, .end_y = 15, .end_x = 20};
 			return {loc};
 		}
 		return {};
@@ -64,7 +79,7 @@ public:
 		if (filepath == "type_target.cpp" && line == 10 && col == 5) {
 			location_info loc;
 			loc.path = "type_target.h";
-			loc.range = {.start_y=20, .start_x=0, .end_y=20, .end_x=30};
+			loc.range = {.start_y = 20, .start_x = 0, .end_y = 20, .end_x = 30};
 			return {loc};
 		}
 		return {};
@@ -75,7 +90,7 @@ public:
 		if (filepath == "target.cpp") {
 			location_info loc1;
 			loc1.path = "user1.cpp";
-			loc1.range = {.start_y=1, .start_x=0, .end_y=1, .end_x=10};
+			loc1.range = {.start_y = 1, .start_x = 0, .end_y = 1, .end_x = 10};
 			return {loc1};
 		}
 		return {};
@@ -88,7 +103,7 @@ public:
 			info.name = "test_sym";
 			info.kind = 1;
 			info.location.path = "foo.h";
-			info.location.range = {.start_y=5, .start_x=0, .end_y=5, .end_x=10};
+			info.location.range = {.start_y = 5, .start_x = 0, .end_y = 5, .end_x = 10};
 			return {info};
 		}
 		return {};
@@ -100,10 +115,16 @@ public:
 			symbol_node node;
 			node.name = "my_func";
 			node.kind = 12;
-			node.range = {.start_y=10, .start_x=0, .end_y=20, .end_x=0};
+			node.range = {.start_y = 10, .start_x = 0, .end_y = 20, .end_x = 0};
 			return {node};
 		}
 		return {};
+	}
+
+	bool prefetch_symbol_called = false;
+	void prefetch_document_symbols(const std::string &) override
+	{
+		prefetch_symbol_called = true;
 	}
 
 	void invalidate_symbol_cache(const std::string &) override
@@ -116,10 +137,9 @@ public:
 		return {};
 	}
 
-	[[nodiscard]] std::vector<outgoing_call_item> query_call_hierarchy_outgoing_batch(
-		const std::string &,
-		const std::vector<std::pair<int, int>> &,
-		std::chrono::steady_clock::time_point) override
+	[[nodiscard]] std::vector<outgoing_call_item> query_call_hierarchy_outgoing_batch(const std::string &,
+											  const std::vector<std::pair<int, int>> &,
+											  std::chrono::steady_clock::time_point) override
 	{
 		return {};
 	}
@@ -139,7 +159,9 @@ public:
 		return std::nullopt;
 	}
 
-	void store_file_diagnostics(const std::string &, const std::vector<diagnostic_info> &) override {}
+	void store_file_diagnostics(const std::string &, const std::vector<diagnostic_info> &) override
+	{
+	}
 };
 
 } // namespace
@@ -209,6 +231,9 @@ int main()
 		assert(doc_syms.size() == 1);
 		assert(doc_syms[0].name == "my_func");
 
+		mgr.prefetch_document_symbols("doc.cpp");
+		assert(mock_ptr->prefetch_symbol_called);
+
 		mgr.invalidate_symbol_cache("doc.cpp");
 		assert(mock_ptr->invalidate_symbol_called);
 
@@ -239,7 +264,7 @@ int main()
 		standard_lsp_backend backend;
 		diagnostic_info d1;
 		d1.message = "type error";
-		d1.range = {.start_y=2, .start_x=5, .end_y=2, .end_x=10};
+		d1.range = {.start_y = 2, .start_x = 5, .end_y = 2, .end_x = 10};
 
 		backend.store_file_diagnostics("sample.cpp", {d1});
 		// Unsupported file query returns nullopt

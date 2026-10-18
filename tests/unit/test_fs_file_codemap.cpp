@@ -11,45 +11,94 @@
 #include "project_manager.h"
 #include "test_watchdog.h"
 
-namespace {
+namespace
+{
 
-class mock_no_hierarchy_backend : public lsp_backend {
-public:
-	void start(event_queue &) override {}
-	void stop() override {}
-	void open_document(const std::string &, const std::string &) override {}
-	void update_document(const std::string &, const std::string &) override {}
-	void request_hover(const std::string &, int, int) override {}
-	void request_document_highlight(const std::string &, int, int) override {}
-	void request_selection_range(const std::string &, int, int) override {}
-	[[nodiscard]] bool is_supported_file(const std::string &) const override { return true; }
-	[[nodiscard]] std::vector<text_range> query_selection_ranges(const std::string &, int, int) override { return {}; }
+class mock_no_hierarchy_backend : public lsp_backend
+{
+      public:
+	void start(event_queue &) override
+	{
+	}
+	void stop() override
+	{
+	}
+	void open_document(const std::string &, const std::string &) override
+	{
+	}
+	void update_document(const std::string &, const std::string &) override
+	{
+	}
+	void request_hover(const std::string &, int, int) override
+	{
+	}
+	void request_document_highlight(const std::string &, int, int) override
+	{
+	}
+	void request_selection_range(const std::string &, int, int) override
+	{
+	}
+	[[nodiscard]] bool is_supported_file(const std::string &) const override
+	{
+		return true;
+	}
+	[[nodiscard]] std::vector<text_range> query_selection_ranges(const std::string &, int, int) override
+	{
+		return {};
+	}
 	[[nodiscard]] std::vector<location_info> query_definition(const std::string &filepath, int line, int col) override
 	{
-		(void)filepath; (void)line; (void)col;
+		(void)filepath;
+		(void)line;
+		(void)col;
 		location_info loc;
 		loc.path = "test_opt_a_dep.cpp";
-		loc.range = {.start_y=0, .start_x=0, .end_y=3, .end_x=0};
+		loc.range = {.start_y = 0, .start_x = 0, .end_y = 3, .end_x = 0};
 		return {loc};
 	}
 	[[nodiscard]] std::vector<location_info> query_type_definition(const std::string &filepath, int line, int col) override
 	{
 		return query_definition(filepath, line, col);
 	}
-	[[nodiscard]] std::vector<location_info> query_references(const std::string &, int, int) override { return {}; }
-	[[nodiscard]] std::vector<symbol_info> query_workspace_symbols(const std::string &) override { return {}; }
-	[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &) override { return {}; }
-	void invalidate_symbol_cache(const std::string &) override {}
-	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &, int, int) override { return {}; }
-	[[nodiscard]] std::vector<outgoing_call_item> query_call_hierarchy_outgoing_batch(
-		const std::string &, const std::vector<std::pair<int, int>> &,
-		std::chrono::steady_clock::time_point) override
+	[[nodiscard]] std::vector<location_info> query_references(const std::string &, int, int) override
+	{
+		return {};
+	}
+	[[nodiscard]] std::vector<symbol_info> query_workspace_symbols(const std::string &) override
+	{
+		return {};
+	}
+	[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &) override
+	{
+		return {};
+	}
+	void prefetch_document_symbols(const std::string &) override
+	{
+	}
+	void invalidate_symbol_cache(const std::string &) override
+	{
+	}
+	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &, int, int) override
+	{
+		return {};
+	}
+	[[nodiscard]] std::vector<outgoing_call_item> query_call_hierarchy_outgoing_batch(const std::string &,
+											  const std::vector<std::pair<int, int>> &,
+											  std::chrono::steady_clock::time_point) override
 	{
 		return {}; // Intentionally empty to simulate LSP servers without call hierarchy (like semcode-lsp)
 	}
-	[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &, int, int) override { return {}; }
-	[[nodiscard]] std::optional<std::vector<diagnostic_info>> query_file_diagnostics(const std::string &) override { return std::nullopt; }
-	void store_file_diagnostics(const std::string &, const std::vector<diagnostic_info> &) override {}
+	[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &, int, int) override
+	{
+		return {};
+	}
+	[[nodiscard]] std::optional<std::vector<diagnostic_info>> query_file_diagnostics(const std::string &) override
+	{
+		return std::nullopt;
+	}
+	void store_file_diagnostics(const std::string &, const std::vector<diagnostic_info> &) override
+	{
+	}
 };
 
 } // namespace
@@ -583,8 +632,9 @@ int main()
 		item_ascii.name = "is_force_ascii";
 		item_ascii.kind = 6;
 		item_ascii.uri = "src/config_manager.h";
-		item_ascii.range = {.start_y=ascii_sym->start_line - 1, .start_x=1, .end_y=ascii_sym->end_line - 1, .end_x=2};
-		item_ascii.selection_range = {.start_y=ascii_sym->start_line - 1, .start_x=6, .end_y=ascii_sym->start_line - 1, .end_x=20};
+		item_ascii.range = {.start_y = ascii_sym->start_line - 1, .start_x = 1, .end_y = ascii_sym->end_line - 1, .end_x = 2};
+		item_ascii.selection_range = {
+		    .start_y = ascii_sym->start_line - 1, .start_x = 6, .end_y = ascii_sym->start_line - 1, .end_x = 20};
 
 		bool ok = tools::resolve_outgoing_call_target(ref, item_ascii, syms_cache, &ctx);
 		assert(ok);
@@ -603,8 +653,8 @@ int main()
 		item_file_type.name = "get_file_type";
 		item_file_type.kind = 12;
 		item_file_type.uri = "src/fs_utils.h";
-		item_file_type.range = {.start_y=58, .start_x=0, .end_y=58, .end_x=56};
-		item_file_type.selection_range = {.start_y=58, .start_x=12, .end_y=58, .end_x=25};
+		item_file_type.range = {.start_y = 58, .start_x = 0, .end_y = 58, .end_x = 56};
+		item_file_type.selection_range = {.start_y = 58, .start_x = 12, .end_y = 58, .end_x = 25};
 
 		ok = tools::resolve_outgoing_call_target(ref, item_file_type, syms_cache, &ctx);
 		assert(ok);
@@ -622,8 +672,8 @@ int main()
 		item_get_inst.name = "get_instance";
 		item_get_inst.kind = 6;
 		item_get_inst.uri = "src/config_manager.h";
-		item_get_inst.range = {.start_y=11, .start_x=1, .end_y=11, .end_x=40};
-		item_get_inst.selection_range = {.start_y=11, .start_x=25, .end_y=11, .end_x=37};
+		item_get_inst.range = {.start_y = 11, .start_x = 1, .end_y = 11, .end_x = 40};
+		item_get_inst.selection_range = {.start_y = 11, .start_x = 25, .end_y = 11, .end_x = 37};
 
 		ok = tools::resolve_outgoing_call_target(ref, item_get_inst, syms_cache, &ctx);
 		assert(ok);

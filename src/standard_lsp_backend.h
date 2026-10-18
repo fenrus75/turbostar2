@@ -7,17 +7,20 @@
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include "lsp_backend.h"
 
-namespace lsp {
-	class Connection;
-	class MessageHandler;
-	class Process;
-	namespace io {
-		class Stream;
-	}
+namespace lsp
+{
+class Connection;
+class MessageHandler;
+class Process;
+namespace io
+{
+class Stream;
 }
+} // namespace lsp
 
 /*
 
@@ -35,8 +38,9 @@ namespace lsp {
  * and pylsp for Python) using stdio JSON-RPC connections, and manages symbol caching,
  * document versions, and diagnostic updates.
  */
-class standard_lsp_backend : public lsp_backend {
-public:
+class standard_lsp_backend : public lsp_backend
+{
+      public:
 	standard_lsp_backend();
 	~standard_lsp_backend() override;
 
@@ -55,18 +59,20 @@ public:
 	[[nodiscard]] std::vector<location_info> query_type_definition(const std::string &filepath, int line, int character) override;
 	[[nodiscard]] std::vector<location_info> query_references(const std::string &filepath, int line, int character) override;
 	[[nodiscard]] std::vector<symbol_info> query_workspace_symbols(const std::string &query) override;
-	[[nodiscard]] std::vector<symbol_node> query_document_symbols(const std::string &filepath) override;
+	[[nodiscard]] virtual std::vector<symbol_node> query_document_symbols(const std::string &filepath) override;
+	void prefetch_document_symbols(const std::string &filepath) override;
 	void invalidate_symbol_cache(const std::string &filepath) override;
-	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &filepath, int line, int character) override;
+	[[nodiscard]] std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &filepath, int line,
+										     int character) override;
 	[[nodiscard]] std::vector<outgoing_call_item> query_call_hierarchy_outgoing_batch(
-		const std::string &filepath,
-		const std::vector<std::pair<int, int>> &positions,
-		std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::time_point::max()) override;
-	[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &filepath, int line, int character) override;
+	    const std::string &filepath, const std::vector<std::pair<int, int>> &positions,
+	    std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::time_point::max()) override;
+	[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &filepath, int line,
+										       int character) override;
 	[[nodiscard]] std::optional<std::vector<diagnostic_info>> query_file_diagnostics(const std::string &filepath) override;
 	void store_file_diagnostics(const std::string &filepath, const std::vector<diagnostic_info> &diags) override;
 
-protected:
+      protected:
 	struct server_instance {
 		std::string language_id;
 		std::unique_ptr<lsp::Process> process;
@@ -105,13 +111,15 @@ protected:
 	};
 
 	/*
-	 * symbol_cache_mutex_ protects symbol_cache_ map of filepaths to cached symbol_node ASTs.
+	 * symbol_cache_mutex_ protects symbol_cache_ map of filepaths to cached symbol_node ASTs,
+	 * as well as in_flight_symbol_queries_ set tracking in-flight asynchronous document symbol requests.
 	 * Locking Rules:
-	 * - Held briefly when reading or writing symbol cache entries in query_document_symbols()
-	 *   and invalidate_symbol_cache().
+	 * - Held briefly when reading or writing symbol cache entries in query_document_symbols(),
+	 *   prefetch_document_symbols(), and invalidate_symbol_cache().
 	 */
 	mutable std::mutex symbol_cache_mutex_;
 	std::unordered_map<std::string, symbol_cache_entry> symbol_cache_;
+	std::unordered_set<std::string> in_flight_symbol_queries_;
 
 	/*
 	 * diagnostics_mutex_ protects file_diagnostics_ map of filepaths to active LSP diagnostic lists.

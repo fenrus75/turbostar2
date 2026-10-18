@@ -640,11 +640,6 @@ static std::vector<codemap_symbol_info> get_document_codemap_symbols_impl(const 
 
 	// Query symbols (cached inside lsp_manager if unchanged)
 	auto root_symbols = project_manager::get_instance().lsp_query_document_symbols(safe_path);
-	if (root_symbols.empty()) {
-		// Retry once if LSP was starting up
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-		root_symbols = project_manager::get_instance().lsp_query_document_symbols(safe_path);
-	}
 
 	if (!root_symbols.empty()) {
 		for (const auto &root : root_symbols) {
@@ -675,6 +670,50 @@ std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string 
 std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, int min_lines)
 {
 	return get_document_codemap_symbols_impl(safe_path, nullptr, nullptr, min_lines);
+}
+
+void prefetch_document_codemap_symbols(const std::string &safe_path, agentlib::tool_context *ctx)
+{
+	if (!project_manager::get_instance().has_lsp_backend() || project_manager::get_instance().is_exiting()) {
+		return;
+	}
+
+	if (is_markdown_file(safe_path)) {
+		return;
+	}
+
+	// Read document content if VFS URI, open in doc_provider, else disk
+	std::string content;
+	if (safe_path.find("://") != std::string::npos && ctx) {
+		auto vfs = ctx->fs_security.get_vfs();
+		if (vfs) {
+			auto view_opt = vfs->read_file(safe_path);
+			if (view_opt && *view_opt) {
+				content = std::string((*view_opt)->view());
+			}
+		}
+	}
+	if (content.empty()) {
+		auto *doc_prov = ctx ? ctx->doc_provider : nullptr;
+		if (doc_prov && doc_prov->get_open_document(safe_path)) {
+			auto doc_snapshot = doc_prov->get_open_document(safe_path);
+			size_t line_count = doc_snapshot->get_line_count();
+			for (size_t i = 0; i < line_count; ++i) {
+				content += doc_snapshot->get_line_text(i) + "\n";
+			}
+		} else {
+			std::ifstream file(safe_path, std::ios::binary);
+			if (file.is_open()) {
+				content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+			}
+		}
+	}
+
+	// Synchronize buffer with LSP (non-blocking didOpen notification)
+	project_manager::get_instance().lsp_open_document(safe_path, content);
+
+	// Trigger non-blocking async prefetch of document symbols
+	project_manager::get_instance().lsp_prefetch_document_symbols(safe_path);
 }
 
 struct outgoing_call_cache_entry {

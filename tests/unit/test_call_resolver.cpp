@@ -61,7 +61,7 @@ class mock_lsp_hierarchy_backend : public lsp_backend
 		(void)col;
 		location_info loc;
 		loc.path = expected_target_path;
-		loc.range = {.start_y=0, .start_x=0, .end_y=1, .end_x=0};
+		loc.range = {.start_y = 0, .start_x = 0, .end_y = 1, .end_x = 0};
 		return {loc};
 	}
 	[[nodiscard]] std::vector<location_info> query_type_definition(const std::string &filepath, int line, int col) override
@@ -80,6 +80,9 @@ class mock_lsp_hierarchy_backend : public lsp_backend
 	{
 		return {};
 	}
+	void prefetch_document_symbols(const std::string &) override
+	{
+	}
 	void invalidate_symbol_cache(const std::string &) override
 	{
 	}
@@ -96,7 +99,7 @@ class mock_lsp_hierarchy_backend : public lsp_backend
 		item.item.name = "brelse";
 		item.item.kind = 12; // Function
 		item.item.uri = "file://" + expected_target_path;
-		item.item.selection_range = {.start_y=0, .start_x=0, .end_y=0, .end_x=0};
+		item.item.selection_range = {.start_y = 0, .start_x = 0, .end_y = 0, .end_x = 0};
 		return {item};
 	}
 	[[nodiscard]] std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &, int, int) override
@@ -135,9 +138,10 @@ static void test_disambiguation_with_included_headers()
 		    << "}\n";
 	}
 
-	std::vector<lsp_backend::location_info> locs = {{test_dir + "/arch/mips/include/asm/ktime.h", {.start_y=10, .start_x=0, .end_y=15, .end_x=0}},
-							{test_dir + "/include/linux/ktime.h", {.start_y=20, .start_x=0, .end_y=25, .end_x=0}},
-							{test_dir + "/tools/testing/selftests/ktime.h", {.start_y=30, .start_x=0, .end_y=35, .end_x=0}}};
+	std::vector<lsp_backend::location_info> locs = {
+	    {test_dir + "/arch/mips/include/asm/ktime.h", {.start_y = 10, .start_x = 0, .end_y = 15, .end_x = 0}},
+	    {test_dir + "/include/linux/ktime.h", {.start_y = 20, .start_x = 0, .end_y = 25, .end_x = 0}},
+	    {test_dir + "/tools/testing/selftests/ktime.h", {.start_y = 30, .start_x = 0, .end_y = 35, .end_x = 0}}};
 
 	fs_utils::set_override_project_dir(test_dir);
 
@@ -165,7 +169,8 @@ static void test_disambiguation_rejects_test_files_for_production()
 		out << "void main_func() {}\n";
 	}
 
-	std::vector<lsp_backend::location_info> locs = {{test_dir + "/tests/unit/test_mock.cpp", {.start_y=5, .start_x=0, .end_y=10, .end_x=0}}};
+	std::vector<lsp_backend::location_info> locs = {
+	    {test_dir + "/tests/unit/test_mock.cpp", {.start_y = 5, .start_x = 0, .end_y = 10, .end_x = 0}}};
 
 	fs_utils::set_override_project_dir(test_dir);
 
@@ -308,7 +313,7 @@ static void test_resolve_target_direct_and_cross_c()
 	item.name = "tick_freeze";
 	item.kind = 12; // Function
 	item.uri = "file://" + callee_file;
-	item.selection_range = text_range{.start_y=0, .start_x=0, .end_y=0, .end_x=0}; // line 1 (0-indexed 0)
+	item.selection_range = text_range{.start_y = 0, .start_x = 0, .end_y = 0, .end_x = 0}; // line 1 (0-indexed 0)
 
 	tools::outgoing_call_reference ref;
 	ref.caller_file = caller_file;
@@ -428,7 +433,7 @@ static void test_resolve_target_prefers_cpp_implementation_over_header()
 	item.name = "apply_profile";
 	item.kind = 12; // Function
 	item.uri = "file://" + header_file;
-	item.selection_range = text_range{.start_y=1, .start_x=0, .end_y=1, .end_x=10}; // line 2
+	item.selection_range = text_range{.start_y = 1, .start_x = 0, .end_y = 1, .end_x = 10}; // line 2
 
 	tools::outgoing_call_reference ref;
 	ref.caller_file = caller_file;
@@ -503,21 +508,23 @@ static void test_extract_calls_from_slice_prefers_cpp_and_skips_self_definition(
 	sym.line_count = 3;
 	doc_symbols.push_back(sym);
 
-	class mock_def_backend : public mock_lsp_hierarchy_backend {
-	public:
+	class mock_def_backend : public mock_lsp_hierarchy_backend
+	{
+	      public:
 		std::string header_path;
 		std::string mgr_header_path;
-		[[nodiscard]] std::vector<location_info> query_definition(const std::string &, int line, int) override {
+		[[nodiscard]] std::vector<location_info> query_definition(const std::string &, int line, int) override
+		{
 			if (line == 2) {
 				location_info loc;
 				loc.path = mgr_header_path;
-				loc.range = {.start_y=2, .start_x=0, .end_y=2, .end_x=0};
+				loc.range = {.start_y = 2, .start_x = 0, .end_y = 2, .end_x = 0};
 				return {loc};
 			}
 			if (line == 3) {
 				location_info loc;
 				loc.path = header_path;
-				loc.range = {.start_y=1, .start_x=0, .end_y=1, .end_x=0};
+				loc.range = {.start_y = 1, .start_x = 0, .end_y = 1, .end_x = 0};
 				return {loc};
 			}
 			return {};
@@ -531,8 +538,7 @@ static void test_extract_calls_from_slice_prefers_cpp_and_skips_self_definition(
 
 	std::unordered_map<std::string, std::vector<tools::codemap_symbol_info>> symbols_cache;
 	auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-	auto calls = tools::call_resolver::extract_calls_from_slice(
-		caller_file, 3, 5, doc_symbols, symbols_cache, deadline);
+	auto calls = tools::call_resolver::extract_calls_from_slice(caller_file, 3, 5, doc_symbols, symbols_cache, deadline);
 
 	// 1. run_status must NOT be in calls (it's the self-definition header)
 	for (const auto &c : calls) {

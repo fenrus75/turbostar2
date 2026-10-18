@@ -11,24 +11,22 @@ std::unique_ptr<lsp_backend> lsp_manager::create_default_backend(const std::stri
 		root = project_manager::get_instance().get_project_root();
 	}
 	if (!root.empty() && semcode_backend::is_available(root)) {
-		event_logger::get_instance().log("semcode index detected in '{}' with semcode-lsp available. Activating semcode_backend.", root);
+		event_logger::get_instance().log("semcode index detected in '{}' with semcode-lsp available. Activating semcode_backend.",
+						 root);
 		return std::make_unique<semcode_backend>(root);
 	}
 	return std::make_unique<standard_lsp_backend>();
 }
 
-lsp_manager::lsp_manager()
-	: backend_(create_default_backend())
+lsp_manager::lsp_manager() : backend_(create_default_backend())
 {
 }
 
-lsp_manager::lsp_manager(std::string_view project_root)
-	: backend_(create_default_backend(std::string(project_root)))
+lsp_manager::lsp_manager(std::string_view project_root) : backend_(create_default_backend(std::string(project_root)))
 {
 }
 
-lsp_manager::lsp_manager(std::unique_ptr<lsp_backend> backend)
-	: backend_(std::move(backend))
+lsp_manager::lsp_manager(std::unique_ptr<lsp_backend> backend) : backend_(std::move(backend))
 {
 }
 
@@ -155,6 +153,13 @@ std::vector<lsp_manager::symbol_node> lsp_manager::query_document_symbols(const 
 	return {};
 }
 
+void lsp_manager::prefetch_document_symbols(const std::string &filepath)
+{
+	if (backend_) {
+		backend_->prefetch_document_symbols(filepath);
+	}
+}
+
 void lsp_manager::invalidate_symbol_cache(const std::string &filepath)
 {
 	if (backend_) {
@@ -162,7 +167,8 @@ void lsp_manager::invalidate_symbol_cache(const std::string &filepath)
 	}
 }
 
-std::vector<lsp_manager::call_hierarchy_item> lsp_manager::query_call_hierarchy_outgoing(const std::string &filepath, int line, int character)
+std::vector<lsp_manager::call_hierarchy_item> lsp_manager::query_call_hierarchy_outgoing(const std::string &filepath, int line,
+											 int character)
 {
 	if (backend_) {
 		return backend_->query_call_hierarchy_outgoing(filepath, line, character);
@@ -170,10 +176,9 @@ std::vector<lsp_manager::call_hierarchy_item> lsp_manager::query_call_hierarchy_
 	return {};
 }
 
-std::vector<lsp_manager::outgoing_call_item> lsp_manager::query_call_hierarchy_outgoing_batch(
-	const std::string &filepath,
-	const std::vector<std::pair<int, int>> &positions,
-	std::chrono::steady_clock::time_point deadline)
+std::vector<lsp_manager::outgoing_call_item>
+lsp_manager::query_call_hierarchy_outgoing_batch(const std::string &filepath, const std::vector<std::pair<int, int>> &positions,
+						 std::chrono::steady_clock::time_point deadline)
 {
 	if (backend_) {
 		return backend_->query_call_hierarchy_outgoing_batch(filepath, positions, deadline);
@@ -181,7 +186,8 @@ std::vector<lsp_manager::outgoing_call_item> lsp_manager::query_call_hierarchy_o
 	return {};
 }
 
-std::vector<lsp_manager::type_hierarchy_item> lsp_manager::query_type_hierarchy_supertypes(const std::string &filepath, int line, int character)
+std::vector<lsp_manager::type_hierarchy_item> lsp_manager::query_type_hierarchy_supertypes(const std::string &filepath, int line,
+											   int character)
 {
 	if (backend_) {
 		return backend_->query_type_hierarchy_supertypes(filepath, line, character);
