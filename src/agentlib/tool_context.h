@@ -7,6 +7,7 @@
 #include <string>
 #include <unordered_map>
 #include "agent_properties.h"
+#include "agent_run_registry.h"
 #include "document_provider.h"
 #include "event_queue.h"
 #include "file_security_manager.h"
@@ -47,6 +48,7 @@ class tool_context
 	agent_properties properties;
 	bool mutation_possible = true;
 	std::string tool_call_id;
+	std::shared_ptr<agent_run_registry> run_registry{std::make_shared<agent_run_registry>()};
 
 	// Callback to trigger a UI redraw during long-running tool executions
 	std::function<void()> trigger_ui_update;

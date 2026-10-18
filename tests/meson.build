@@ -251,6 +251,12 @@ test_agent_highlight = executable('test_agent_highlight',
   include_directories: inc)
 test('unit_test_agent_highlight', test_agent_highlight, suite: 'agent')
 
+test_agent_run_registry = executable('test_agent_run_registry',
+  ['unit/test_agent_run_registry.cpp'],
+  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
+  include_directories: inc)
+test('unit_test_agent_run_registry', test_agent_run_registry, suite: 'agent')
+
 test_tools = executable('test_tools',
   ['unit/test_tools.cpp',
    '../src/tools/fs_run_tests/fs_run_tests_entry.cpp',

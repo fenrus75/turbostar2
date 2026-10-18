@@ -118,7 +118,7 @@ The `docs/` directory contains crucial context. Keep these files updated as we m
 # Interactive Debugging (Live GDB)
 Always use `run_executable` with `debugger: true` instead of shell-based `gdb` or adding temporary print statements:
 - Launch session: `run_executable(binary="build/<target>", debugger=true)` -> returns `app_run_id` and `gdb_run_id`
-- Set breakpoints & run: `agent_write_to_run(run_id=gdb_run_id, data="break <file>:<line>\ncontinue\n", output=true)`
-- Inspect state: `agent_write_to_run(run_id=gdb_run_id, data="bt\n", output=true)` or `data="p <expr>\n"`
-- Step execution: `agent_write_to_run(run_id=gdb_run_id, data="next\n", output=true)`
-- Terminate when done: `agent_terminate_run(run_id=app_run_id)`
+- Set breakpoints & run: `agent_write_to_run(run_id="gdb", data="break <file>:<line>\ncontinue\n", output=true)` (run_id defaults to active debugger)
+- Inspect state: `agent_write_to_run(data="bt\n", output=true)` or `data="p <expr>\n"`
+- Step execution: `agent_write_to_run(data="next\n", output=true)`
+- Terminate when done: `agent_terminate_run()` (terminates both app and gdb, reporting both IDs)

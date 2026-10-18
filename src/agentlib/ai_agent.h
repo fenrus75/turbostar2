@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <vector>
 #include "agent_properties.h"
+#include "agent_run_registry.h"
 #include "ai_model.h"
 #include "document_provider.h"
 #include "interactions/interactions.h"
@@ -29,7 +30,6 @@ enum class agent_status { idle, thinking, tool_execution, waiting, error, dead }
 
 std::string agent_status_to_string(agent_status status, const std::string &tool_name = "");
 std::string agent_status_to_name(agent_status status);
-
 
 struct episode_index_entry {
 	std::string id;
@@ -97,7 +97,6 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	{
 		return waiting_on_id_;
 	}
-
 
 	std::shared_ptr<ai_agent> spawn_subagent(const std::string &untrusted_name);
 	void remove_subagent(int id);
@@ -247,12 +246,28 @@ class ai_agent : public std::enable_shared_from_this<ai_agent>
 	std::vector<message> get_conversation() const;
 	void set_conversation(std::span<const message> c);
 	std::shared_ptr<Conversation> get_conversation_data() const;
-	bool is_closed() const noexcept { return is_closed_.load(); }
+	bool is_closed() const noexcept
+	{
+		return is_closed_.load();
+	}
+	std::shared_ptr<agent_run_registry> get_run_registry_ptr() const noexcept
+	{
+		return run_registry_;
+	}
+	agent_run_registry &get_run_registry() noexcept
+	{
+		return *run_registry_;
+	}
+	const agent_run_registry &get_run_registry() const noexcept
+	{
+		return *run_registry_;
+	}
 
-       protected:
+      protected:
 	int id_;
 	std::string name_;
 	std::shared_ptr<ai_model> model_;
+	std::shared_ptr<agent_run_registry> run_registry_{std::make_shared<agent_run_registry>()};
 	event_queue *global_queue_{nullptr};
 	document_provider *doc_provider_{nullptr};
 	std::atomic<agent_status> status_{agent_status::idle};

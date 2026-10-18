@@ -1,40 +1,39 @@
 #include "ai_agent.h"
-#include "agentlib/tool_registry.h"
 #include <algorithm>
 #include <chrono>
-#include <iostream>
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <iostream>
 #include <map>
 #include <nlohmann/json.hpp>
 #include <set>
 #include <unordered_map>
-#include "../config_manager.h"
 #include "../codereview_manager.h"
+#include "../config_manager.h"
 #include "../event_logger.h"
 #include "../event_queue.h"
 #include "../fs_utils.h"
 #include "../mcp/mcp_manager.h"
 #include "../project_manager.h"
 #include "../statistics_manager.h"
-#include "utf8.h"
-#include "images/image_manager.h"
+#include "agentlib/tool_registry.h"
 #include "compaction_engine.h"
 #include "context_dnn.h"
 #include "copilot_manager.h"
-#include "httplib_transport.h"
-#include "skill_manager.h"
 #include "data/conversation.h"
-#include "data/system_turn.h"
-#include "data/user_turn.h"
-#include "data/model_response_turn.h"
-#include "data/tool_execution_turn.h"
 #include "data/error_turn.h"
+#include "data/model_response_turn.h"
+#include "data/system_turn.h"
+#include "data/tool_execution_turn.h"
+#include "data/user_turn.h"
+#include "httplib_transport.h"
+#include "images/image_manager.h"
+#include "skill_manager.h"
+#include "utf8.h"
 
 namespace agentlib
 {
-
 
 std::string agent_status_to_string(agent_status status, const std::string &tool_name)
 {
@@ -78,10 +77,11 @@ std::string agent_status_to_name(agent_status status)
 	}
 }
 
-namespace {
+namespace
+{
 static std::mutex g_agent_registry_mutex;
 static std::map<int, std::weak_ptr<ai_agent>> g_agent_registry;
-}
+} // namespace
 
 std::shared_ptr<ai_agent> ai_agent::create(int id, const std::string &name, std::shared_ptr<ai_model> model, event_queue *queue,
 					   document_provider *doc_provider)
@@ -108,7 +108,7 @@ std::vector<std::shared_ptr<ai_agent>> ai_agent::get_all_active_agents()
 {
 	std::lock_guard<std::mutex> lock(g_agent_registry_mutex);
 	std::vector<std::shared_ptr<ai_agent>> result;
-	for (auto it = g_agent_registry.begin(); it != g_agent_registry.end(); ) {
+	for (auto it = g_agent_registry.begin(); it != g_agent_registry.end();) {
 		if (auto sp = it->second.lock()) {
 			result.push_back(sp);
 			++it;
@@ -133,7 +133,8 @@ bool ai_agent::page_in_context(const std::string &episode_id, int compression_le
 
 int ai_agent::calculate_current_tokens() const
 {
-	if (!conversation_) return 0;
+	if (!conversation_)
+		return 0;
 	return conversation_->estimate_token_count();
 }
 
@@ -170,8 +171,9 @@ std::vector<std::string> ai_agent::page_in_history_auto(int default_level, doubl
 	int current_tokens = calculate_current_tokens();
 	int max_tokens = model_ ? model_->get_max_context_tokens() : 250000;
 	int limit_tokens = static_cast<int>(max_tokens * target_fraction);
-	event_logger::get_instance().log(std::format("[debug page_in_history_auto] current_tokens={}, max_tokens={}, limit_tokens={}, paged_out count={}",
-		current_tokens, max_tokens, limit_tokens, paged_out.size()));
+	event_logger::get_instance().log(
+	    std::format("[debug page_in_history_auto] current_tokens={}, max_tokens={}, limit_tokens={}, paged_out count={}",
+			current_tokens, max_tokens, limit_tokens, paged_out.size()));
 
 	std::vector<std::string> paged_in_ids;
 
@@ -188,10 +190,12 @@ std::vector<std::string> ai_agent::page_in_history_auto(int default_level, doubl
 
 		int old_tokens = static_cast<int>((entry.title.size() + entry.summary.size()) / 4 + 50);
 		int net_change = ep_tokens - old_tokens;
-		if (net_change < 0) net_change = 0;
+		if (net_change < 0)
+			net_change = 0;
 
-		event_logger::get_instance().log(std::format("  [debug page_in_history_auto] entry={}, ep_tokens={}, old_tokens={}, net_change={}, sum={}",
-			entry.id, ep_tokens, old_tokens, net_change, current_tokens + net_change));
+		event_logger::get_instance().log(
+		    std::format("  [debug page_in_history_auto] entry={}, ep_tokens={}, old_tokens={}, net_change={}, sum={}", entry.id,
+				ep_tokens, old_tokens, net_change, current_tokens + net_change));
 		if (current_tokens + net_change <= limit_tokens) {
 			if (set_episode_state(entry.id, default_level)) {
 				current_tokens += net_change;
@@ -209,7 +213,7 @@ std::vector<std::string> ai_agent::page_in_history_auto(int default_level, doubl
 bool ai_agent::set_episode_state(const std::string &episode_id, int target_level)
 {
 	std::lock_guard<std::mutex> lock(conversation_mutex_);
-	
+
 	// Find in loaded episodes
 	for (const auto &ep : conversation_->get_episodes()) {
 		if (ep->get_id() == episode_id) {
@@ -229,7 +233,8 @@ bool ai_agent::set_episode_state(const std::string &episode_id, int target_level
 						file >> root;
 						auto disk_ep = Episode::deserialize(root);
 						ep->copy_from(*disk_ep);
-					} catch (...) {}
+					} catch (...) {
+					}
 				}
 			} else if (ep->get_compaction_level() < COMPACTION_LEVEL_PAGED_OUT && target_level == COMPACTION_LEVEL_PAGED_OUT) {
 				if (!ep->is_finalized()) {
@@ -242,7 +247,8 @@ bool ai_agent::set_episode_state(const std::string &episode_id, int target_level
 						if (file.is_open()) {
 							file << root.dump(4);
 						}
-					} catch (...) {}
+					} catch (...) {
+					}
 				}
 				ep->clear_transactions();
 			}
@@ -252,7 +258,7 @@ bool ai_agent::set_episode_state(const std::string &episode_id, int target_level
 			if (episode_index_.find(episode_id) != episode_index_.end()) {
 				episode_index_[episode_id].lru_seq = l_seq;
 			}
-			
+
 			// Update LRU seq in meta file on disk
 			std::string history_dir = fs_utils::get_project_history_dir(name_);
 			std::string meta_filepath = std::format("{}/{}_metadata.json", history_dir, episode_id);
@@ -264,7 +270,8 @@ bool ai_agent::set_episode_state(const std::string &episode_id, int target_level
 				meta_root["lru_seq"] = l_seq;
 				std::ofstream mfile_out(meta_filepath);
 				mfile_out << meta_root.dump(4);
-			} catch (...) {}
+			} catch (...) {
+			}
 
 			if (global_queue_) {
 				editor_event ev;
@@ -275,7 +282,7 @@ bool ai_agent::set_episode_state(const std::string &episode_id, int target_level
 			return true;
 		}
 	}
-	
+
 	// If not found in memory but exists in metadata, we load it from disk
 	std::string history_dir = fs_utils::get_project_history_dir(name_);
 	std::string filepath = history_dir + "/" + episode_id + ".json";
@@ -287,12 +294,12 @@ bool ai_agent::set_episode_state(const std::string &episode_id, int target_level
 			auto ep = Episode::deserialize(root);
 			ep->set_compaction_level(target_level);
 			conversation_->add_episode(ep);
-			
+
 			long long l_seq = next_lru_seq_++;
 			if (episode_index_.find(episode_id) != episode_index_.end()) {
 				episode_index_[episode_id].lru_seq = l_seq;
 			}
-			
+
 			std::string meta_filepath = history_dir + "/" + episode_id + "_metadata.json";
 			try {
 				std::ifstream mfile(meta_filepath);
@@ -301,7 +308,8 @@ bool ai_agent::set_episode_state(const std::string &episode_id, int target_level
 				meta_root["lru_seq"] = l_seq;
 				std::ofstream mfile_out(meta_filepath);
 				mfile_out << meta_root.dump(4);
-			} catch (...) {}
+			} catch (...) {
+			}
 
 			if (global_queue_) {
 				editor_event ev;
@@ -310,12 +318,12 @@ bool ai_agent::set_episode_state(const std::string &episode_id, int target_level
 				global_queue_->push(ev);
 			}
 			return true;
-		} catch (...) {}
+		} catch (...) {
+		}
 	}
 
 	return false;
 }
-
 
 ai_agent::ai_agent(int id, const std::string &name, std::shared_ptr<ai_model> model, event_queue *queue, document_provider *doc_provider)
     : id_(id), name_(name), model_(std::move(model)), global_queue_(queue), doc_provider_(doc_provider)
@@ -400,7 +408,7 @@ bool ai_agent::load_active_state(bool fresh_agent)
 				}
 				set_conversation_unlocked(old_convo);
 			}
-			
+
 			if (model_ && !conversation_->get_model()) {
 				conversation_->set_model(model_);
 			}
@@ -422,10 +430,12 @@ bool ai_agent::load_active_state(bool fresh_agent)
 
 				if (msg.role == "assistant" && msg.tool_calls) {
 					for (const auto &tc : *msg.tool_calls) {
-						// Find the first unconsumed tool response for this tool_call_id that appears after this assistant message
+						// Find the first unconsumed tool response for this tool_call_id that appears after this
+						// assistant message
 						bool found = false;
 						for (size_t j = i + 1; j < flat_convo.size(); ++j) {
-							if (!consumed[j] && flat_convo[j].role == "tool" && flat_convo[j].tool_call_id && *flat_convo[j].tool_call_id == tc.id) {
+							if (!consumed[j] && flat_convo[j].role == "tool" && flat_convo[j].tool_call_id &&
+							    *flat_convo[j].tool_call_id == tc.id) {
 								normalized_convo.push_back(flat_convo[j]);
 								consumed[j] = true;
 								found = true;
@@ -439,11 +449,13 @@ bool ai_agent::load_active_state(bool fresh_agent)
 							abort_msg.role = "tool";
 							abort_msg.tool_call_id = tc.id;
 							abort_msg.name = tc.function.name;
-							abort_msg.content = "Tool execution aborted: Editor session was restarted before completion.";
+							abort_msg.content =
+							    "Tool execution aborted: Editor session was restarted before completion.";
 							normalized_convo.push_back(abort_msg);
 							needs_update = true;
 
-							event_logger::get_instance().log("Aborted pending tool call: " + tc.id + " (" + tc.function.name + ")");
+							event_logger::get_instance().log("Aborted pending tool call: " + tc.id + " (" +
+											 tc.function.name + ")");
 						}
 					}
 				}
@@ -457,8 +469,9 @@ bool ai_agent::load_active_state(bool fresh_agent)
 				}
 			}
 			if (unconsumed_count > 0) {
-				event_logger::get_instance().log("Discarded " + std::to_string(unconsumed_count) +
-					" orphaned tool response(s) with no matching assistant tool call in active context.");
+				event_logger::get_instance().log(
+				    "Discarded " + std::to_string(unconsumed_count) +
+				    " orphaned tool response(s) with no matching assistant tool call in active context.");
 				needs_update = true;
 			}
 
@@ -554,18 +567,24 @@ void ai_agent::set_status(agent_status s, int target_id)
 
 	auto status_to_string = [](agent_status st) -> const char * {
 		switch (st) {
-		case agent_status::idle: return "idle";
-		case agent_status::thinking: return "thinking";
-		case agent_status::tool_execution: return "tool_execution";
-		case agent_status::waiting: return "waiting";
-		case agent_status::error: return "error";
-		case agent_status::dead: return "dead";
+			case agent_status::idle:
+				return "idle";
+			case agent_status::thinking:
+				return "thinking";
+			case agent_status::tool_execution:
+				return "tool_execution";
+			case agent_status::waiting:
+				return "waiting";
+			case agent_status::error:
+				return "error";
+			case agent_status::dead:
+				return "dead";
 		}
 		return "unknown";
 	};
 
-	event_logger::get_instance().log("Agent {} ({}) status: {} -> {} (parent_id={})", id_, name_,
-					 status_to_string(old_status), status_to_string(s), parent_id);
+	event_logger::get_instance().log("Agent {} ({}) status: {} -> {} (parent_id={})", id_, name_, status_to_string(old_status),
+					 status_to_string(s), parent_id);
 
 	if (global_queue_) {
 		editor_event tool_ev;
@@ -581,9 +600,8 @@ void ai_agent::wait_until_idle()
 	// The wait predicate must allow returning when the agent reaches the
 	// terminal dead state, in addition to normal idle or error states, to
 	// prevent waiting threads from hanging indefinitely on dead subagents.
-	status_cv_.wait(lock, [this]() {
-		return status_ == agent_status::idle || status_ == agent_status::error || status_ == agent_status::dead;
-	});
+	status_cv_.wait(
+	    lock, [this]() { return status_ == agent_status::idle || status_ == agent_status::error || status_ == agent_status::dead; });
 }
 
 bool ai_agent::wait_until_idle_for(std::chrono::milliseconds timeout)
@@ -653,8 +671,7 @@ void ai_agent::clear_conversation()
 
 	update_system_prompt_with_families();
 
-	add_interaction(std::make_shared<interaction_system_message>(
-	    "Agent context cleared. Ready for new instructions."));
+	add_interaction(std::make_shared<interaction_system_message>("Agent context cleared. Ready for new instructions."));
 
 	save_active_state();
 
@@ -665,8 +682,6 @@ void ai_agent::clear_conversation()
 		global_queue_->push(ev);
 	}
 }
-
-
 
 void ai_agent::add_active_skill(const std::string &untrusted_skill_name)
 {
@@ -704,7 +719,8 @@ void ai_agent::add_active_tool_family(const std::string &family_name)
 {
 	{
 		std::lock_guard<std::mutex> lock(properties_mutex_);
-		if (std::find(properties_.active_families.begin(), properties_.active_families.end(), family_name) == properties_.active_families.end()) {
+		if (std::find(properties_.active_families.begin(), properties_.active_families.end(), family_name) ==
+		    properties_.active_families.end()) {
 			properties_.active_families.push_back(family_name);
 			if (global_queue_) {
 				editor_event tool_ev;
@@ -777,22 +793,24 @@ bool ai_agent::is_tool_family_active(const std::string &family_name) const
 						}
 					}
 				}
-			} catch (...) {}
+			} catch (...) {
+			}
 		}
 	}
-
 
 	// Check if dynamically activated for this agent session
 	{
 		std::lock_guard<std::mutex> lock(properties_mutex_);
-		if (std::find(properties_.active_families.begin(), properties_.active_families.end(), family_name) != properties_.active_families.end()) {
+		if (std::find(properties_.active_families.begin(), properties_.active_families.end(), family_name) !=
+		    properties_.active_families.end()) {
 			return true;
 		}
 	}
 
 	// Check if enabled in configuration (global or project) or --all-tool-families CLI flag
 	config_manager &cfg = config_manager::get_instance();
-	if (cfg.is_all_tool_families_enabled() || cfg.is_tool_family_enabled(family_name, true) || cfg.is_tool_family_enabled(family_name, false)) {
+	if (cfg.is_all_tool_families_enabled() || cfg.is_tool_family_enabled(family_name, true) ||
+	    cfg.is_tool_family_enabled(family_name, false)) {
 		return true;
 	}
 
@@ -818,10 +836,12 @@ void ai_agent::update_system_prompt_with_families()
 			for (const auto &turn : tx->get_turns()) {
 				if (turn->get_type() == turn_type::system) {
 					first_sys = std::dynamic_pointer_cast<system_turn>(turn);
-					if (first_sys) break;
+					if (first_sys)
+						break;
 				}
 			}
-			if (first_sys) break;
+			if (first_sys)
+				break;
 		}
 	}
 	if (!first_sys) {
@@ -830,12 +850,15 @@ void ai_agent::update_system_prompt_with_families()
 				for (const auto &turn : tx->get_turns()) {
 					if (turn->get_type() == turn_type::system) {
 						first_sys = std::dynamic_pointer_cast<system_turn>(turn);
-						if (first_sys) break;
+						if (first_sys)
+							break;
 					}
 				}
-				if (first_sys) break;
+				if (first_sys)
+					break;
 			}
-			if (first_sys) break;
+			if (first_sys)
+				break;
 		}
 	}
 
@@ -880,8 +903,7 @@ void ai_agent::update_system_prompt_with_families()
 			for (const auto &fam : inactive_families) {
 				std::string reason = tool_registry::get_instance().get_tool_family_reason(fam);
 				if (reason.empty()) {
-					std::string cached =
-					    config_manager::get_instance().get_mcp_server_when_to_activate(fam, false);
+					std::string cached = config_manager::get_instance().get_mcp_server_when_to_activate(fam, false);
 					if (cached.empty()) {
 						cached = config_manager::get_instance().get_mcp_server_when_to_activate(fam, true);
 					}
@@ -896,8 +918,8 @@ void ai_agent::update_system_prompt_with_families()
 		}
 
 		std::string new_content = std::format("{}\n\n*** ACTIVE TOOL FAMILIES ***\n"
-					  "The following tool families are currently active and available: [{}].{}",
-					  original_system_prompt_, families_str, table_str);
+						      "The following tool families are currently active and available: [{}].{}",
+						      original_system_prompt_, families_str, table_str);
 		first_sys->set_content(new_content);
 	}
 }
@@ -985,8 +1007,7 @@ void ai_agent::archive_to_cache() const
 	if (has_final_result()) {
 		std::ofstream out_fr(dir + "/final_result.md");
 		if (out_fr.is_open()) {
-			out_fr << "# Final Result for Subagent " << id_ << " (" << name_ << ")\n\n"
-			       << get_final_result() << "\n";
+			out_fr << "# Final Result for Subagent " << id_ << " (" << name_ << ")\n\n" << get_final_result() << "\n";
 		}
 	}
 
@@ -1111,7 +1132,10 @@ void ai_agent::add_interaction(std::shared_ptr<agent_interaction> interaction)
 		curr_ep->set_sequence_number(seq);
 	}
 
-	std::string tx_id = "tx_ui_notif_" + std::to_string(std::rand()) + "_" + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+	std::string tx_id =
+	    "tx_ui_notif_" + std::to_string(std::rand()) + "_" +
+	    std::to_string(
+		std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
 	auto tx = std::make_shared<Transaction>(tx_id, transaction_type::ui_notification);
 
 	std::string turn_id = "turn_ui_notif_" + std::to_string(std::rand());
@@ -1156,8 +1180,8 @@ void ai_agent::inject_context(const std::string &role, const std::string &truste
 							inter->push_content(new_content);
 						}
 						// If this turn is the first system turn (which caches its original prompt),
-						// we must also update original_system_prompt_ so that subsequent 
-						// update_system_prompt_with_families() calls do not overwrite/discard 
+						// we must also update original_system_prompt_ so that subsequent
+						// update_system_prompt_with_families() calls do not overwrite/discard
 						// the merged content.
 						if (!original_system_prompt_.empty()) {
 							original_system_prompt_ += "\n\n" + trusted_content;
@@ -1166,15 +1190,19 @@ void ai_agent::inject_context(const std::string &role, const std::string &truste
 					}
 				}
 			}
-			
+
 			if (!merged) {
-				std::string tx_id = "tx_" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count()) + "_" + std::to_string(std::rand() % 1000);
+				std::string tx_id = "tx_" +
+						    std::to_string(std::chrono::duration_cast<std::chrono::seconds>(
+								       std::chrono::system_clock::now().time_since_epoch())
+								       .count()) +
+						    "_" + std::to_string(std::rand() % 1000);
 				transaction_type tx_type = transaction_type::system_injection;
 				if (role == "user" || role == "assistant") {
 					tx_type = transaction_type::user_exchange;
 				}
 				auto tx = std::make_shared<Transaction>(tx_id, tx_type);
-				
+
 				std::string turn_id = "turn_" + std::to_string(std::rand());
 				std::shared_ptr<Turn> t;
 				std::shared_ptr<agent_interaction> inter;
@@ -1182,7 +1210,8 @@ void ai_agent::inject_context(const std::string &role, const std::string &truste
 					t = std::make_shared<system_turn>(turn_id, trusted_content, "context_injection");
 					inter = std::make_shared<interaction_system_message>(trusted_content);
 				} else if (role == "assistant") {
-					t = std::make_shared<model_response_turn>(turn_id, trusted_content, std::nullopt, std::vector<tool_call>{});
+					t = std::make_shared<model_response_turn>(turn_id, trusted_content, std::nullopt,
+										  std::vector<tool_call>{});
 					inter = std::make_shared<interaction_llm_response>(trusted_content);
 				} else {
 					t = std::make_shared<user_turn>(turn_id, trusted_content);
@@ -1245,13 +1274,19 @@ void ai_agent::submit_prompt(const std::string &untrusted_prompt_text)
 		if (conversation_) {
 			auto ep = conversation_->get_current_episode();
 			if (!ep) {
-				std::string ep_id = "episode_" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+				std::string ep_id = "episode_" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(
+										    std::chrono::system_clock::now().time_since_epoch())
+										    .count());
 				ep = conversation_->create_new_episode(ep_id, "Default Episode", "Active session episode");
 			}
-			
-			std::string tx_id = "tx_" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count()) + "_" + std::to_string(std::rand() % 1000);
+
+			std::string tx_id = "tx_" +
+					    std::to_string(std::chrono::duration_cast<std::chrono::seconds>(
+							       std::chrono::system_clock::now().time_since_epoch())
+							       .count()) +
+					    "_" + std::to_string(std::rand() % 1000);
 			auto tx = std::make_shared<Transaction>(tx_id, transaction_type::user_exchange);
-			
+
 			std::string turn_id = "turn_" + std::to_string(std::rand());
 			auto t = std::make_shared<user_turn>(turn_id, untrusted_prompt_text);
 			auto inter = std::make_shared<interaction_user_message>(untrusted_prompt_text);
@@ -1333,6 +1368,7 @@ void ai_agent::start_processing()
 		ctx.doc_provider = self->doc_provider_;
 		ctx.queue = self->global_queue_;
 		ctx.active_agent = self.get();
+		ctx.run_registry = self->run_registry_;
 		ctx.properties = self->get_properties();
 		ctx.mutation_possible = self->is_mutation_possible();
 		ctx.is_family_active = [self](const std::string &family) { return self->is_tool_family_active(family); };
@@ -1347,452 +1383,468 @@ void ai_agent::start_processing()
 		// guard can 'continue' and restart a fresh turn.
 		std::shared_ptr<Transaction> last_processed_tx = nullptr;
 		for (;;) {
-		while (true) {
-			if (self->is_closed_) {
-				event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed early]", self->id_);
-				return;
-			}
-
-			self->evaluate_compaction();
-			std::vector<message> convo = self->get_conversation();
-			self->evaluate_auto_episode(convo);
-
-			std::string previous_response_id;
-			{
-				std::lock_guard<std::mutex> lock(self->conversation_mutex_);
-				previous_response_id = self->last_response_id_;
-				convo = self->get_conversation_unlocked();
-			}
-
-			self->set_status(agent_status::thinking);
-
-			std::shared_ptr<Transaction> active_tx = nullptr;
-			{
-				std::lock_guard<std::mutex> lock(self->conversation_mutex_);
-				if (self->conversation_->get_current_episode() && 
-					!self->conversation_->get_current_episode()->get_transactions().empty()) {
-					active_tx = self->conversation_->get_current_episode()->get_transactions().back();
+			while (true) {
+				if (self->is_closed_) {
+					event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed early]",
+									 self->id_);
+					return;
 				}
-			}
-			if (!active_tx) {
-				std::string tx_id = "tx_" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count()) + "_" + std::to_string(std::rand() % 1000);
-				active_tx = std::make_shared<Transaction>(tx_id, transaction_type::user_exchange);
-				self->conversation_->add_transaction(active_tx);
-			}
 
-			std::string turn_id = "turn_" + std::to_string(std::rand());
-			auto response_turn = std::make_shared<model_response_turn>(turn_id, "", std::nullopt, std::vector<tool_call>{});
-			response_turn->set_sequence_number(self->conversation_->allocate_next_turn_seq());
-			active_tx->add_turn(response_turn);
+				self->evaluate_compaction();
+				std::vector<message> convo = self->get_conversation();
+				self->evaluate_auto_episode(convo);
 
-			std::shared_ptr<interaction_reasoning> current_reasoning = nullptr;
-			std::shared_ptr<interaction_llm_response> current_response = nullptr;
-			std::vector<tool_call> accumulated_tool_calls;
+				std::string previous_response_id;
+				{
+					std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+					previous_response_id = self->last_response_id_;
+					convo = self->get_conversation_unlocked();
+				}
 
-			auto props = self->get_properties();
-			props.active_families = self->get_active_tool_families();
+				self->set_status(agent_status::thinking);
 
-			std::shared_ptr<llm_client> local_client;
-			{
-				std::lock_guard<std::mutex> lock(self->conversation_mutex_);
-				local_client = self->client_;
-			}
+				std::shared_ptr<Transaction> active_tx = nullptr;
+				{
+					std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+					if (self->conversation_->get_current_episode() &&
+					    !self->conversation_->get_current_episode()->get_transactions().empty()) {
+						active_tx = self->conversation_->get_current_episode()->get_transactions().back();
+					}
+				}
+				if (!active_tx) {
+					std::string tx_id = "tx_" +
+							    std::to_string(std::chrono::duration_cast<std::chrono::seconds>(
+									       std::chrono::system_clock::now().time_since_epoch())
+									       .count()) +
+							    "_" + std::to_string(std::rand() % 1000);
+					active_tx = std::make_shared<Transaction>(tx_id, transaction_type::user_exchange);
+					self->conversation_->add_transaction(active_tx);
+				}
 
-			if (local_client) {
-				local_client->send_chat_stream(
-				    convo,
-			    [&](const chat_delta &delta) {
-				    if (self->is_closed_)
-					    return;
+				std::string turn_id = "turn_" + std::to_string(std::rand());
+				auto response_turn =
+				    std::make_shared<model_response_turn>(turn_id, "", std::nullopt, std::vector<tool_call>{});
+				response_turn->set_sequence_number(self->conversation_->allocate_next_turn_seq());
+				active_tx->add_turn(response_turn);
 
-				    self->update_last_activity_time();
+				std::shared_ptr<interaction_reasoning> current_reasoning = nullptr;
+				std::shared_ptr<interaction_llm_response> current_response = nullptr;
+				std::vector<tool_call> accumulated_tool_calls;
 
-				    if (!delta.response_id.empty()) {
-					    std::lock_guard<std::mutex> lock(self->conversation_mutex_);
-					    self->last_response_id_ = delta.response_id;
-				    }
+				auto props = self->get_properties();
+				props.active_families = self->get_active_tool_families();
 
-				    if (!delta.reasoning_content.empty()) {
-					    if (!current_reasoning) {
-						    current_reasoning = std::make_shared<interaction_reasoning>("");
-						    response_turn->set_reasoning_interaction(current_reasoning);
-					    }
-					    response_turn->append_reasoning_content(delta.reasoning_content);
-					    if (self->global_queue_) {
-						    editor_event ev;
-						    ev.type = event_type::agent_tool_update;
-						    ev.key_code = self->id_;
-						    self->global_queue_->push(ev);
-					    }
-				    }
+				std::shared_ptr<llm_client> local_client;
+				{
+					std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+					local_client = self->client_;
+				}
 
-				    if (!delta.content.empty()) {
-					    if (!current_response) {
-						    current_response = std::make_shared<interaction_llm_response>("");
-						    response_turn->set_interaction(current_response);
-					    }
-					    response_turn->append_content(delta.content);
-					    if (self->global_queue_) {
-						    editor_event ev;
-						    ev.type = event_type::agent_tool_update;
-						    ev.key_code = self->id_;
-						    self->global_queue_->push(ev);
-					    }
-				    }
+				if (local_client) {
+					local_client->send_chat_stream(
+					    convo,
+					    [&](const chat_delta &delta) {
+						    if (self->is_closed_)
+							    return;
 
-				    if (delta.tool_calls) {
-					    for (auto tc : *delta.tool_calls) {
-						    if (tc.id.empty() && !accumulated_tool_calls.empty()) {
-							    auto &last = accumulated_tool_calls.back();
-							    if (!tc.function.name.empty())
-								    last.function.name += tc.function.name;
-							    if (!tc.function.arguments.empty())
-								    last.function.arguments += tc.function.arguments;
-							    if (tc.signature)
-								    last.signature = tc.signature;
-						    } else {
-							    if (tc.id.empty()) {
-								    tc.id = "call_" + std::to_string(std::rand());
-							    }
-							    accumulated_tool_calls.push_back(tc);
+						    self->update_last_activity_time();
+
+						    if (!delta.response_id.empty()) {
+							    std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+							    self->last_response_id_ = delta.response_id;
 						    }
-					    }
-				    }
 
-				    if (delta.usage.total_tokens > 0) {
-					    self->tokens_tx_ += delta.usage.prompt_tokens;
-					    self->tokens_rx_ += delta.usage.completion_tokens;
-					    self->tokens_cached_ = delta.usage.cached_tokens; // Update to latest cached amount
+						    if (!delta.reasoning_content.empty()) {
+							    if (!current_reasoning) {
+								    current_reasoning = std::make_shared<interaction_reasoning>("");
+								    response_turn->set_reasoning_interaction(current_reasoning);
+							    }
+							    response_turn->append_reasoning_content(delta.reasoning_content);
+							    if (self->global_queue_) {
+								    editor_event ev;
+								    ev.type = event_type::agent_tool_update;
+								    ev.key_code = self->id_;
+								    self->global_queue_->push(ev);
+							    }
+						    }
 
-					    double turn_cost = self->model_->calculate_and_record_cost(delta.usage.prompt_tokens,
-												       delta.usage.completion_tokens);
-					    double current_cost = self->estimated_cost_.load();
-					    self->estimated_cost_.store(current_cost + turn_cost);
+						    if (!delta.content.empty()) {
+							    if (!current_response) {
+								    current_response = std::make_shared<interaction_llm_response>("");
+								    response_turn->set_interaction(current_response);
+							    }
+							    response_turn->append_content(delta.content);
+							    if (self->global_queue_) {
+								    editor_event ev;
+								    ev.type = event_type::agent_tool_update;
+								    ev.key_code = self->id_;
+								    self->global_queue_->push(ev);
+							    }
+						    }
 
-					    if (self->global_queue_) {
-						    editor_event tool_ev;
-						    tool_ev.type = event_type::agent_tool_update;
-						    tool_ev.key_code = self->id_;
-						    self->global_queue_->push(tool_ev);
-					    }
-				    }
-			    },
-			    &registry, previous_response_id, props);
-			}
+						    if (delta.tool_calls) {
+							    for (auto tc : *delta.tool_calls) {
+								    if (tc.id.empty() && !accumulated_tool_calls.empty()) {
+									    auto &last = accumulated_tool_calls.back();
+									    if (!tc.function.name.empty())
+										    last.function.name += tc.function.name;
+									    if (!tc.function.arguments.empty())
+										    last.function.arguments += tc.function.arguments;
+									    if (tc.signature)
+										    last.signature = tc.signature;
+								    } else {
+									    if (tc.id.empty()) {
+										    tc.id = "call_" + std::to_string(std::rand());
+									    }
+									    accumulated_tool_calls.push_back(tc);
+								    }
+							    }
+						    }
 
-			if (self->is_closed_) {
-				event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed early]", self->id_);
-				return;
-			}
+						    if (delta.usage.total_tokens > 0) {
+							    self->tokens_tx_ += delta.usage.prompt_tokens;
+							    self->tokens_rx_ += delta.usage.completion_tokens;
+							    self->tokens_cached_ =
+								delta.usage.cached_tokens; // Update to latest cached amount
 
-			if (!accumulated_tool_calls.empty()) {
-				for (auto &call : accumulated_tool_calls) {
-					normalize_tool_call(call);
+							    double turn_cost = self->model_->calculate_and_record_cost(
+								delta.usage.prompt_tokens, delta.usage.completion_tokens);
+							    double current_cost = self->estimated_cost_.load();
+							    self->estimated_cost_.store(current_cost + turn_cost);
+
+							    if (self->global_queue_) {
+								    editor_event tool_ev;
+								    tool_ev.type = event_type::agent_tool_update;
+								    tool_ev.key_code = self->id_;
+								    self->global_queue_->push(tool_ev);
+							    }
+						    }
+					    },
+					    &registry, previous_response_id, props);
 				}
-				response_turn->set_tool_calls(accumulated_tool_calls);
-			}
 
-			// Complete the response turn's time range
-			{
-				std::lock_guard<std::mutex> lock(self->conversation_mutex_);
-				time_range r = response_turn->get_time_range();
-				r.end_time = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-				response_turn->set_time_range(r);
+				if (self->is_closed_) {
+					event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed early]",
+									 self->id_);
+					return;
+				}
 
-				std::string content = response_turn->get_content();
-				if (content.find("data:image/") != std::string::npos) {
-					std::string updated_content;
-					size_t last_pos = 0;
-					while (true) {
-						size_t start = content.find("data:image/", last_pos);
-						if (start == std::string::npos) {
-							updated_content += content.substr(last_pos);
-							break;
-						}
-						
-						updated_content += content.substr(last_pos, start - last_pos);
-						
-						size_t base64_start = content.find(";base64,", start);
-						if (base64_start == std::string::npos) {
-							updated_content += "data:image/";
-							last_pos = start + 11;
-							continue;
-						}
-						
-						size_t data_start = base64_start + 8;
-						size_t data_end = data_start;
-						while (data_end < content.length() && 
-						       utf8::is_alnum(content[data_end], "+/=")) {
-							data_end++;
-						}
-						
-						std::string b64_data = content.substr(data_start, data_end - data_start);
-						
-						std::vector<unsigned char> decoded = fs_utils::base64_decode(b64_data);
-						if (!decoded.empty()) {
-							std::string temp_path = images::image_manager::get_instance().get_temp_image_path();
-							std::ofstream ofs(temp_path, std::ios::binary);
-							if (ofs) {
-								ofs.write(reinterpret_cast<const char*>(decoded.data()), decoded.size());
-								ofs.close();
-								
-								std::string vfs_uri = images::image_manager::get_instance().ingest_image(temp_path);
-								updated_content += vfs_uri;
+				if (!accumulated_tool_calls.empty()) {
+					for (auto &call : accumulated_tool_calls) {
+						normalize_tool_call(call);
+					}
+					response_turn->set_tool_calls(accumulated_tool_calls);
+				}
+
+				// Complete the response turn's time range
+				{
+					std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+					time_range r = response_turn->get_time_range();
+					r.end_time = std::chrono::duration_cast<std::chrono::seconds>(
+							 std::chrono::system_clock::now().time_since_epoch())
+							 .count();
+					response_turn->set_time_range(r);
+
+					std::string content = response_turn->get_content();
+					if (content.find("data:image/") != std::string::npos) {
+						std::string updated_content;
+						size_t last_pos = 0;
+						while (true) {
+							size_t start = content.find("data:image/", last_pos);
+							if (start == std::string::npos) {
+								updated_content += content.substr(last_pos);
+								break;
+							}
+
+							updated_content += content.substr(last_pos, start - last_pos);
+
+							size_t base64_start = content.find(";base64,", start);
+							if (base64_start == std::string::npos) {
+								updated_content += "data:image/";
+								last_pos = start + 11;
+								continue;
+							}
+
+							size_t data_start = base64_start + 8;
+							size_t data_end = data_start;
+							while (data_end < content.length() && utf8::is_alnum(content[data_end], "+/=")) {
+								data_end++;
+							}
+
+							std::string b64_data = content.substr(data_start, data_end - data_start);
+
+							std::vector<unsigned char> decoded = fs_utils::base64_decode(b64_data);
+							if (!decoded.empty()) {
+								std::string temp_path =
+								    images::image_manager::get_instance().get_temp_image_path();
+								std::ofstream ofs(temp_path, std::ios::binary);
+								if (ofs) {
+									ofs.write(reinterpret_cast<const char *>(decoded.data()),
+										  decoded.size());
+									ofs.close();
+
+									std::string vfs_uri =
+									    images::image_manager::get_instance().ingest_image(temp_path);
+									updated_content += vfs_uri;
+								} else {
+									updated_content += content.substr(start, data_end - start);
+								}
 							} else {
 								updated_content += content.substr(start, data_end - start);
 							}
-						} else {
-							updated_content += content.substr(start, data_end - start);
+
+							last_pos = data_end;
 						}
-						
-						last_pos = data_end;
+						response_turn->set_content(updated_content);
 					}
-					response_turn->set_content(updated_content);
 				}
-			}
 
-			if (!accumulated_tool_calls.empty()) {
-				for (const auto &call : accumulated_tool_calls) {
-					if (self->is_closed_) {
-						event_logger::get_instance().log(
-						    "Thread exited: ai_agent main loop ({}) [closed in callback]", self->id_);
-						return;
+				if (!accumulated_tool_calls.empty()) {
+					for (const auto &call : accumulated_tool_calls) {
+						if (self->is_closed_) {
+							event_logger::get_instance().log(
+							    "Thread exited: ai_agent main loop ({}) [closed in callback]", self->id_);
+							return;
+						}
+
+						{
+							std::lock_guard<std::mutex> lock(self->current_tool_mutex_);
+							self->current_tool_ = call.function.name;
+						}
+						self->set_status(agent_status::tool_execution);
+
+						std::string arg_preview;
+						try {
+							auto args_json = nlohmann::json::parse(call.function.arguments);
+							if (args_json.is_object()) {
+								bool first = true;
+								for (const auto &item : args_json.items()) {
+									if (!first)
+										arg_preview += ", ";
+									first = false;
+
+									std::string val_str;
+									if (item.value().is_string()) {
+										std::string s = item.value().get<std::string>();
+										std::replace(s.begin(), s.end(), '\n', ' ');
+										std::replace(s.begin(), s.end(), '\r', ' ');
+										if (s.length() > 40)
+											s = s.substr(0, 37) + "...";
+										val_str = "\"" + s + "\"";
+									} else {
+										std::string s = item.value().dump();
+										if (s.length() > 40)
+											s = s.substr(0, 37) + "...";
+										val_str = s;
+									}
+									arg_preview += val_str;
+								}
+							}
+						} catch (...) {
+							arg_preview = "...";
+						}
+
+						bool is_silent = registry.is_tool_silent(call.function.name);
+						if (config_manager::get_instance().is_log_all_tool_calls()) {
+							is_silent = false;
+						}
+
+						// Provide UI update callback for long-running tools. Captures the
+						// strong reference (self) instead of a raw ai_agent*: async tools
+						// (e.g. fs_compile_project / fs_compile_file) copy
+						// ctx.trigger_ui_update into detached helper threads that can
+						// outlive this run-loop turn. With a raw pointer, a concurrent
+						// close()/destruction while the helper thread is still running
+						// would dereference freed memory (use-after-free).
+						ctx.trigger_ui_update = [self]() {
+							self->update_last_activity_time();
+							if (self->global_queue_) {
+								editor_event ev;
+								ev.type = event_type::agent_tool_update;
+								ev.key_code = self->id_;
+								self->global_queue_->push(ev);
+							}
+						};
+
+						std::string tool_result;
+						std::shared_ptr<agent_interaction> custom_interaction;
+						std::shared_ptr<tool_execution_turn> tool_turn = nullptr;
+						{
+							std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+							if (!active_tx->get_turns().empty()) {
+								auto last_t = active_tx->get_turns().back();
+								if (last_t->get_type() == turn_type::tool_execution) {
+									tool_turn = std::dynamic_pointer_cast<tool_execution_turn>(last_t);
+								}
+							}
+							if (!tool_turn) {
+								std::string tool_turn_id = "turn_" + std::to_string(std::rand());
+								tool_turn = std::make_shared<tool_execution_turn>(tool_turn_id);
+								tool_turn->set_sequence_number(
+								    self->conversation_->allocate_next_turn_seq());
+								active_tx->add_turn(tool_turn);
+							}
+						}
+
+						ctx.properties = self->get_properties();
+						ctx.tool_call_id = call.id;
+						auto prep = registry.prepare_tool(call.function.name, call.function.arguments, ctx);
+
+						if (prep.tool) {
+							custom_interaction = prep.tool->get_interaction();
+						}
+
+						if (!is_silent) {
+							if (custom_interaction) {
+								tool_turn->add_tool_interaction(custom_interaction);
+							} else {
+								tool_turn->add_tool_interaction(std::make_shared<interaction_tool_call>(
+								    call.function.name, call.function.name + "(" + arg_preview + ")"));
+							}
+							if (self->global_queue_) {
+								editor_event tool_ev;
+								tool_ev.type = event_type::agent_tool_update;
+								tool_ev.key_code = self->id_;
+								self->global_queue_->push(tool_ev);
+							}
+						}
+
+						bool tool_failed = false;
+						self->update_last_activity_time();
+						tool_result =
+						    registry.execute_prepared_tool(call.function.name, call.function.arguments, prep, ctx);
+						self->update_last_activity_time();
+						if (!prep.error_message.empty() || tool_result.rfind("Execution Error:", 0) == 0) {
+							tool_failed = true;
+						}
+
+						std::string result_preview = tool_result;
+						if (result_preview.length() > 1024) {
+							result_preview = result_preview.substr(0, 1021) + "...";
+						}
+
+						if (!is_silent && !custom_interaction) {
+							tool_turn->add_tool_interaction(
+							    std::make_shared<interaction_tool_result>(call.function.name, result_preview));
+							if (self->global_queue_) {
+								editor_event result_ev;
+								result_ev.type = event_type::agent_tool_update;
+								result_ev.key_code = self->id_;
+								self->global_queue_->push(result_ev);
+							}
+						} else if (!is_silent && custom_interaction) {
+							if (self->global_queue_) {
+								editor_event result_ev;
+								result_ev.type = event_type::agent_tool_update;
+								result_ev.key_code = self->id_;
+								self->global_queue_->push(result_ev);
+							}
+						}
+
+						agentlib::tool_result res;
+						res.call_id = call.id;
+						res.name = call.function.name;
+						res.content = tool_result;
+						// A tool result is an error if execution explicitly failed (exception or prep
+						// error) OR if the tool returned an error-prefixed string (the codebase convention
+						// for tools reporting failure without throwing). We include "Execution Error:" -
+						// the prefix used by the catch block - which the old heuristic missed.
+						res.is_error = tool_failed || tool_result.starts_with("Error:") ||
+							       tool_result.starts_with("Execution Error:") ||
+							       tool_result.starts_with("Verification Error:");
+
+						{
+							std::lock_guard<std::mutex> lock(self->conversation_mutex_);
+							tool_turn->add_result(res);
+						}
+
+						// Attempt to zap transient failure loops now that a tool has completed
+						auto temp_convo = self->get_conversation();
+						self->compact_ephemeral_errors(temp_convo);
 					}
-
 					{
 						std::lock_guard<std::mutex> lock(self->current_tool_mutex_);
-						self->current_tool_ = call.function.name;
+						self->current_tool_.clear();
 					}
-					self->set_status(agent_status::tool_execution);
+					self->set_status(agent_status::thinking);
+				} else {
+					auto msgs = response_turn->to_messages(model_capabilities{}, 0);
+					final_response = msgs.empty() ? "" : msgs[0].content;
 
-					std::string arg_preview;
-					try {
-						auto args_json = nlohmann::json::parse(call.function.arguments);
-						if (args_json.is_object()) {
-							bool first = true;
-							for (const auto &item : args_json.items()) {
-								if (!first)
-									arg_preview += ", ";
-								first = false;
-
-								std::string val_str;
-								if (item.value().is_string()) {
-									std::string s = item.value().get<std::string>();
-									std::replace(s.begin(), s.end(), '\n', ' ');
-									std::replace(s.begin(), s.end(), '\r', ' ');
-									if (s.length() > 40)
-										s = s.substr(0, 37) + "...";
-									val_str = "\"" + s + "\"";
-								} else {
-									std::string s = item.value().dump();
-									if (s.length() > 40)
-										s = s.substr(0, 37) + "...";
-									val_str = s;
-								}
-								arg_preview += val_str;
-							}
-						}
-					} catch (...) {
-						arg_preview = "...";
-					}
-
-					bool is_silent = registry.is_tool_silent(call.function.name);
-					if (config_manager::get_instance().is_log_all_tool_calls()) {
-						is_silent = false;
-					}
-
-					// Provide UI update callback for long-running tools. Captures the
-					// strong reference (self) instead of a raw ai_agent*: async tools
-					// (e.g. fs_compile_project / fs_compile_file) copy
-					// ctx.trigger_ui_update into detached helper threads that can
-					// outlive this run-loop turn. With a raw pointer, a concurrent
-					// close()/destruction while the helper thread is still running
-					// would dereference freed memory (use-after-free).
-					ctx.trigger_ui_update = [self]() {
-						self->update_last_activity_time();
-						if (self->global_queue_) {
-							editor_event ev;
-							ev.type = event_type::agent_tool_update;
-							ev.key_code = self->id_;
-							self->global_queue_->push(ev);
-						}
-					};
-
-					std::string tool_result;
-					std::shared_ptr<agent_interaction> custom_interaction;
-					std::shared_ptr<tool_execution_turn> tool_turn = nullptr;
+					bool more_user_input = false;
 					{
 						std::lock_guard<std::mutex> lock(self->conversation_mutex_);
-						if (!active_tx->get_turns().empty()) {
-							auto last_t = active_tx->get_turns().back();
-							if (last_t->get_type() == turn_type::tool_execution) {
-								tool_turn = std::dynamic_pointer_cast<tool_execution_turn>(last_t);
+						if (self->conversation_->get_current_episode() &&
+						    !self->conversation_->get_current_episode()->get_transactions().empty()) {
+							auto latest_tx =
+							    self->conversation_->get_current_episode()->get_transactions().back();
+							if (latest_tx != active_tx) {
+								more_user_input = true;
 							}
 						}
-						if (!tool_turn) {
-							std::string tool_turn_id = "turn_" + std::to_string(std::rand());
-							tool_turn = std::make_shared<tool_execution_turn>(tool_turn_id);
-							tool_turn->set_sequence_number(self->conversation_->allocate_next_turn_seq());
-							active_tx->add_turn(tool_turn);
-						}
+					}
+					if (more_user_input) {
+						continue; // Loop around to instantly process the queued user prompt!
 					}
 
-					ctx.properties = self->get_properties();
-					ctx.tool_call_id = call.id;
-					auto prep = registry.prepare_tool(call.function.name, call.function.arguments, ctx);
+					// Record the transaction this turn finalized so the drain guard below
+					// can detect a prompt queued while the turn was winding down.
+					last_processed_tx = active_tx;
 
-					if (prep.tool) {
-						custom_interaction = prep.tool->get_interaction();
-					}
-
-					if (!is_silent) {
-						if (custom_interaction) {
-							tool_turn->add_tool_interaction(custom_interaction);
-						} else {
-							tool_turn->add_tool_interaction(std::make_shared<interaction_tool_call>(
-							    call.function.name, call.function.name + "(" + arg_preview + ")"));
-						}
-						if (self->global_queue_) {
-							editor_event tool_ev;
-							tool_ev.type = event_type::agent_tool_update;
-							tool_ev.key_code = self->id_;
-							self->global_queue_->push(tool_ev);
-						}
-					}
-
-					bool tool_failed = false;
-					self->update_last_activity_time();
-					tool_result = registry.execute_prepared_tool(call.function.name, call.function.arguments, prep, ctx);
-					self->update_last_activity_time();
-					if (!prep.error_message.empty() || tool_result.rfind("Execution Error:", 0) == 0) {
-						tool_failed = true;
-					}
-
-					std::string result_preview = tool_result;
-					if (result_preview.length() > 1024) {
-						result_preview = result_preview.substr(0, 1021) + "...";
-					}
-
-					if (!is_silent && !custom_interaction) {
-						tool_turn->add_tool_interaction(
-						    std::make_shared<interaction_tool_result>(call.function.name, result_preview));
-						if (self->global_queue_) {
-							editor_event result_ev;
-							result_ev.type = event_type::agent_tool_update;
-							result_ev.key_code = self->id_;
-							self->global_queue_->push(result_ev);
-						}
-					} else if (!is_silent && custom_interaction) {
-						if (self->global_queue_) {
-							editor_event result_ev;
-							result_ev.type = event_type::agent_tool_update;
-							result_ev.key_code = self->id_;
-							self->global_queue_->push(result_ev);
-						}
-					}
-
-					agentlib::tool_result res;
-				res.call_id = call.id;
-				res.name = call.function.name;
-				res.content = tool_result;
-				// A tool result is an error if execution explicitly failed (exception or prep
-				// error) OR if the tool returned an error-prefixed string (the codebase convention
-				// for tools reporting failure without throwing). We include "Execution Error:" -
-				// the prefix used by the catch block - which the old heuristic missed.
-				res.is_error = tool_failed || tool_result.starts_with("Error:") ||
-					      tool_result.starts_with("Execution Error:") || tool_result.starts_with("Verification Error:");
-					
-					{
-						std::lock_guard<std::mutex> lock(self->conversation_mutex_);
-						tool_turn->add_result(res);
-					}
-
-					// Attempt to zap transient failure loops now that a tool has completed
-					auto temp_convo = self->get_conversation();
-					self->compact_ephemeral_errors(temp_convo);
+					self->evaluate_compaction();
+					self->evaluate_auto_episode(convo);
+					break;
 				}
-				{
-					std::lock_guard<std::mutex> lock(self->current_tool_mutex_);
-					self->current_tool_.clear();
-				}
-				self->set_status(agent_status::thinking);
-			} else {
-				auto msgs = response_turn->to_messages(model_capabilities{}, 0);
-				final_response = msgs.empty() ? "" : msgs[0].content;
-
-				bool more_user_input = false;
-				{
-					std::lock_guard<std::mutex> lock(self->conversation_mutex_);
-					if (self->conversation_->get_current_episode() && 
-						!self->conversation_->get_current_episode()->get_transactions().empty()) {
-						auto latest_tx = self->conversation_->get_current_episode()->get_transactions().back();
-						if (latest_tx != active_tx) {
-							more_user_input = true;
-						}
-					}
-				}
-				if (more_user_input) {
-					continue; // Loop around to instantly process the queued user prompt!
-				}
-
-				// Record the transaction this turn finalized so the drain guard below
-				// can detect a prompt queued while the turn was winding down.
-				last_processed_tx = active_tx;
-
-				self->evaluate_compaction();
-				self->evaluate_auto_episode(convo);
-				break;
-			}
-		}
-
-		if (self->is_closed_) {
-			event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed at end]", self->id_);
-			return;
-		}
-
-		if (self->is_exit_implicitly_on_idle()) {
-			if (!self->has_final_result()) {
-				self->set_final_result(final_response);
-			}
-		}
-
-		bool is_subagent = self->is_exit_implicitly_on_idle() || (self->get_parent() != nullptr);
-		event_logger::get_instance().log("Agent {} ({}) ended run loop turn: is_subagent={}, has_final_result={}, exit_on_idle={}",
-						 self->id_, self->name_, is_subagent, self->has_final_result(),
-						 self->is_exit_implicitly_on_idle());
-
-		// Drain guard: submit_prompt() can queue a user transaction concurrently
-		// with this thread deciding to exit the loop. Prompt insertion
-		// (submit_prompt) and this re-check both serialize on conversation_mutex_,
-		// so any prompt queued before the guard runs is observed here and the loop
-		// is restarted (via 'continue' on the outer for(;;)) instead of exiting -
-		// otherwise the prompt would be stranded with no worker left to process it.
-		//
-		// We also perform the idle/dead transition while still holding
-		// conversation_mutex_: this is the other half of the same handshake. A
-		// submit_prompt() that was blocked on the mutex and inserts *after* the
-		// guard releases will observe status idle and successfully wake a fresh
-		// worker via start_processing(). Lock order here is conversation-mutex then
-		// state-mutex, matching set_model(); this cannot deadlock.
-		{
-			std::lock_guard<std::mutex> guard(self->conversation_mutex_);
-			if (self->conversation_ && self->conversation_->get_current_episode() &&
-			    !self->conversation_->get_current_episode()->get_transactions().empty() &&
-			    self->conversation_->get_current_episode()->get_transactions().back() != last_processed_tx) {
-				continue; // restart the outer for(;;) -> re-run the turn loop to drain the queued prompt
 			}
 
-			// Subagents (ephemeral task agents) transition to the terminal 'dead' state upon
-			// recording a final result. Main interactive session agents must ALWAYS return to
-			// the 'idle' state so that the user can send follow-up prompts.
-			if (is_subagent && self->has_final_result()) {
-				self->set_status(agent_status::dead);
-			} else {
-				self->set_final_result(""); // Reset transient final result for interactive main agent turns
-				self->set_status(agent_status::idle);
+			if (self->is_closed_) {
+				event_logger::get_instance().log("Thread exited: ai_agent main loop ({}) [closed at end]", self->id_);
+				return;
 			}
-			break; // confirmed exit - no queued work pending
-		}
+
+			if (self->is_exit_implicitly_on_idle()) {
+				if (!self->has_final_result()) {
+					self->set_final_result(final_response);
+				}
+			}
+
+			bool is_subagent = self->is_exit_implicitly_on_idle() || (self->get_parent() != nullptr);
+			event_logger::get_instance().log(
+			    "Agent {} ({}) ended run loop turn: is_subagent={}, has_final_result={}, exit_on_idle={}", self->id_,
+			    self->name_, is_subagent, self->has_final_result(), self->is_exit_implicitly_on_idle());
+
+			// Drain guard: submit_prompt() can queue a user transaction concurrently
+			// with this thread deciding to exit the loop. Prompt insertion
+			// (submit_prompt) and this re-check both serialize on conversation_mutex_,
+			// so any prompt queued before the guard runs is observed here and the loop
+			// is restarted (via 'continue' on the outer for(;;)) instead of exiting -
+			// otherwise the prompt would be stranded with no worker left to process it.
+			//
+			// We also perform the idle/dead transition while still holding
+			// conversation_mutex_: this is the other half of the same handshake. A
+			// submit_prompt() that was blocked on the mutex and inserts *after* the
+			// guard releases will observe status idle and successfully wake a fresh
+			// worker via start_processing(). Lock order here is conversation-mutex then
+			// state-mutex, matching set_model(); this cannot deadlock.
+			{
+				std::lock_guard<std::mutex> guard(self->conversation_mutex_);
+				if (self->conversation_ && self->conversation_->get_current_episode() &&
+				    !self->conversation_->get_current_episode()->get_transactions().empty() &&
+				    self->conversation_->get_current_episode()->get_transactions().back() != last_processed_tx) {
+					continue; // restart the outer for(;;) -> re-run the turn loop to drain the queued prompt
+				}
+
+				// Subagents (ephemeral task agents) transition to the terminal 'dead' state upon
+				// recording a final result. Main interactive session agents must ALWAYS return to
+				// the 'idle' state so that the user can send follow-up prompts.
+				if (is_subagent && self->has_final_result()) {
+					self->set_status(agent_status::dead);
+				} else {
+					self->set_final_result(""); // Reset transient final result for interactive main agent turns
+					self->set_status(agent_status::idle);
+				}
+				break; // confirmed exit - no queued work pending
+			}
 		} // end outer for(;;) drain loop
 
 		event_logger::get_instance().log("Agent {} ended run loop. Cumulative tokens: Tx={} Rx={} Cached={}", self->id_,
@@ -1834,17 +1886,19 @@ void ai_agent::start_processing()
 
 			std::string target_uri = self->has_final_result() ? final_result_uri : transcript_uri;
 
-			nlohmann::json notification_json = {{"event", "SubagentStop"},
-							    {"agent_id", std::to_string(self->id_)},
-							    {"name", self->name_},
-							    {"status", "completed"},
-							    {"result", {{"summary", summary_text}, {"output_path", "`" + target_uri + "`"}}}};
+			nlohmann::json notification_json = {
+			    {"event", "SubagentStop"},
+			    {"agent_id", std::to_string(self->id_)},
+			    {"name", self->name_},
+			    {"status", "completed"},
+			    {"result", {{"summary", summary_text}, {"output_path", "`" + target_uri + "`"}}}};
 
 			if (self->is_notify_parent_on_completion()) {
-				std::string system_msg =
-				    "Subagent " + agent_id_str + " (" + self->name_ + ") has finished processing and returned to idle state.\n\n";
+				std::string system_msg = "Subagent " + agent_id_str + " (" + self->name_ +
+							 ") has finished processing and returned to idle state.\n\n";
 				system_msg += "Completion Event Data:\n```json\n" + notification_json.dump(2) + "\n```\n\n";
-				system_msg += "You can read the full interaction history log with the fs_read_lines tool from `" + transcript_uri + "`";
+				system_msg += "You can read the full interaction history log with the fs_read_lines tool from `" +
+					      transcript_uri + "`";
 
 				parent->inject_untrusted_context("user", system_msg, true);
 			}
@@ -1859,13 +1913,13 @@ std::vector<message> ai_agent::get_conversation_unlocked() const
 	}
 	model_capabilities caps = model_ ? model_->get_capabilities() : model_capabilities{};
 	std::vector<message> messages;
-	for (const auto& ep : conversation_->get_episodes()) {
+	for (const auto &ep : conversation_->get_episodes()) {
 		auto ep_msgs = ep->to_messages(caps);
 		messages.insert(messages.end(), ep_msgs.begin(), ep_msgs.end());
 	}
 	if (auto curr_ep = conversation_->get_current_episode()) {
 		auto ep_msgs = curr_ep->to_messages(caps, false);
-		for (auto& m : ep_msgs) {
+		for (auto &m : ep_msgs) {
 			m.episode_id = "";
 			m.episode_level = 0;
 		}
@@ -1897,11 +1951,11 @@ void ai_agent::set_conversation_unlocked(std::span<const message> untrusted_c)
 	if (model_) {
 		conversation_->set_model(model_);
 	}
-	
+
 	std::map<std::string, std::shared_ptr<Episode>> ep_map;
 	std::shared_ptr<Episode> current_ep = nullptr;
 	std::shared_ptr<Transaction> current_tx = nullptr;
-	
+
 	std::shared_ptr<Episode> last_ep = nullptr;
 	for (const auto &msg : untrusted_c) {
 		std::shared_ptr<Episode> ep = nullptr;
@@ -1936,23 +1990,27 @@ void ai_agent::set_conversation_unlocked(std::span<const message> untrusted_c)
 			current_tx = nullptr;
 			last_ep = ep;
 		}
-		
+
 		transaction_type tx_type = transaction_type::user_exchange;
 		if (msg.role == "system") {
 			tx_type = transaction_type::system_injection;
 		}
-		
+
 		bool start_new_tx = !current_tx;
 		if (msg.role == "user" || msg.role == "system") {
 			start_new_tx = true;
 		}
-		
+
 		if (start_new_tx) {
-			std::string tx_id = "tx_" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count()) + "_" + std::to_string(std::rand() % 1000);
+			std::string tx_id = "tx_" +
+					    std::to_string(std::chrono::duration_cast<std::chrono::seconds>(
+							       std::chrono::system_clock::now().time_since_epoch())
+							       .count()) +
+					    "_" + std::to_string(std::rand() % 1000);
 			current_tx = std::make_shared<Transaction>(tx_id, tx_type);
 			ep->add_transaction(current_tx);
 		}
-		
+
 		std::string turn_id = "turn_" + std::to_string(std::rand());
 		std::shared_ptr<Turn> turn = nullptr;
 		if (msg.role == "system") {
@@ -1992,7 +2050,7 @@ void ai_agent::set_conversation_unlocked(std::span<const message> untrusted_c)
 			tool_turn->add_result(res);
 			continue;
 		}
-		
+
 		if (turn && current_tx) {
 			turn->set_sequence_number(conversation_->allocate_next_turn_seq());
 			current_tx->add_turn(turn);
@@ -2189,8 +2247,8 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, std::strin
 		}
 	}
 
-	event_logger::get_instance().log(std::format("[page_out_context] start_index={}, end_index={}, flat_convo.size()={}",
-		start_index, end_index, flat_convo.size()));
+	event_logger::get_instance().log(std::format("[page_out_context] start_index={}, end_index={}, flat_convo.size()={}", start_index,
+						     end_index, flat_convo.size()));
 	if (start_index >= end_index || end_index > flat_convo.size()) {
 		event_logger::get_instance().log("[page_out_context] Early return triggered!");
 		return;
@@ -2217,7 +2275,11 @@ void ai_agent::page_out_context(size_t start_index, size_t end_index, std::strin
 		}
 
 		if (start_new_tx) {
-			std::string tx_id = "tx_" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count()) + "_" + std::to_string(std::rand() % 1000);
+			std::string tx_id = "tx_" +
+					    std::to_string(std::chrono::duration_cast<std::chrono::seconds>(
+							       std::chrono::system_clock::now().time_since_epoch())
+							       .count()) +
+					    "_" + std::to_string(std::rand() % 1000);
 			current_tx = std::make_shared<Transaction>(tx_id, tx_type);
 			temp_ep->add_transaction(current_tx);
 		}
@@ -2461,13 +2523,14 @@ static bool is_episode_boundary_message(const message &msg)
 }
 
 void ai_agent::page_out_prior_context(std::string_view target_episode_id, bool include_all_prior, std::string_view untrusted_title,
-				    std::string_view untrusted_summary, const std::vector<std::string> &tags)
+				      std::string_view untrusted_summary, const std::vector<std::string> &tags)
 {
 	std::unique_lock<std::mutex> lock(conversation_mutex_);
 
 	auto flat_convo = get_conversation_unlocked();
-	event_logger::get_instance().log(std::format("[page_out_prior_context] called. target_episode_id={}, include_all_prior={}, flat_convo.size()={}",
-		target_episode_id, include_all_prior, flat_convo.size()));
+	event_logger::get_instance().log(
+	    std::format("[page_out_prior_context] called. target_episode_id={}, include_all_prior={}, flat_convo.size()={}",
+			target_episode_id, include_all_prior, flat_convo.size()));
 	if (flat_convo.size() < 3) {
 		event_logger::get_instance().log("[page_out_prior_context] flat_convo.size() < 3, early return!");
 		return; // Nothing to compress
@@ -2583,7 +2646,7 @@ void ai_agent::compact_ephemeral_errors(std::vector<message> &convo)
 		// Sync the exact same mutations to the global conversation array
 		std::lock_guard<std::mutex> lock(conversation_mutex_);
 		last_response_id_.clear();
-		
+
 		auto flat = get_conversation_unlocked();
 		bool flat_compacted = false;
 		while (flat.size() >= 4) {
@@ -2638,14 +2701,15 @@ void ai_agent::replace_tool_result(const std::string &tool_call_id, const std::s
 	if (!conversation_)
 		return;
 
-	auto search_in_episode = [&](const std::shared_ptr<Episode>& ep) -> bool {
-		if (!ep) return false;
-		for (const auto& tx : ep->get_transactions()) {
-			for (const auto& turn : tx->get_turns()) {
+	auto search_in_episode = [&](const std::shared_ptr<Episode> &ep) -> bool {
+		if (!ep)
+			return false;
+		for (const auto &tx : ep->get_transactions()) {
+			for (const auto &turn : tx->get_turns()) {
 				if (turn->get_type() == turn_type::tool_execution) {
 					auto tool_turn = std::dynamic_pointer_cast<tool_execution_turn>(turn);
 					if (tool_turn) {
-						for (const auto& res : tool_turn->get_results()) {
+						for (const auto &res : tool_turn->get_results()) {
 							if (res.call_id == tool_call_id) {
 								tool_turn->update_result_content(tool_call_id, new_content);
 								return true;
@@ -2663,7 +2727,7 @@ void ai_agent::replace_tool_result(const std::string &tool_call_id, const std::s
 		found = search_in_episode(curr_ep);
 	}
 	if (!found) {
-		for (const auto& ep : conversation_->get_episodes()) {
+		for (const auto &ep : conversation_->get_episodes()) {
 			if (search_in_episode(ep)) {
 				found = true;
 				break;
@@ -2844,7 +2908,9 @@ void ai_agent::evaluate_compaction()
 							curr_ep->set_compaction_level(COMPACTION_LEVEL_PAGED_OUT);
 						}
 						conversation_->archive_current_episode("Compacted History", "Compacted stateful session");
-						conversation_->create_new_episode("episode_" + std::to_string(conversation_->allocate_next_episode_seq()), "Active Episode", "");
+						conversation_->create_new_episode(
+						    "episode_" + std::to_string(conversation_->allocate_next_episode_seq()),
+						    "Active Episode", "");
 					}
 					event_logger::get_instance().log(
 					    std::format("Responses API compaction succeeded. New response ID: {}", compacted_id));
@@ -2973,7 +3039,8 @@ void ai_agent::force_compaction()
 
 				if (conversation_) {
 					conversation_->archive_current_episode("Compacted History", "Compacted stateful session");
-					conversation_->create_new_episode("episode_" + std::to_string(conversation_->allocate_next_episode_seq()), "Active Episode", "");
+					conversation_->create_new_episode(
+					    "episode_" + std::to_string(conversation_->allocate_next_episode_seq()), "Active Episode", "");
 				}
 				add_interaction(std::make_shared<interaction_system_message>(
 				    std::format("Responses API compaction succeeded. New response ID: {}", compacted_id)));
@@ -3247,7 +3314,8 @@ void ai_agent::inject_archived_episodes_summary()
 	if (conversation_) {
 		auto curr_ep = conversation_->get_current_episode();
 		if (!curr_ep) {
-			curr_ep = conversation_->create_new_episode("episode_" + std::to_string(conversation_->allocate_next_episode_seq()), "Active Session", "");
+			curr_ep = conversation_->create_new_episode("episode_" + std::to_string(conversation_->allocate_next_episode_seq()),
+								    "Active Session", "");
 		}
 
 		std::string tx_id = "tx_archived_summary_" + std::to_string(std::rand());
@@ -3343,7 +3411,6 @@ void ai_agent::set_animation_name(const std::string &name)
 	animation_name_ = name;
 }
 
-
 std::string ai_agent::get_allowed_write_file() const
 {
 	std::lock_guard<std::mutex> lock(const_cast<std::mutex &>(state_mutex_));
@@ -3382,10 +3449,12 @@ void ai_agent::set_role(agent_role r)
 	if (r == agent_role::summarizer) {
 		properties_.active_families.clear();
 	} else {
-		if (std::find(properties_.active_families.begin(), properties_.active_families.end(), "base") == properties_.active_families.end()) {
+		if (std::find(properties_.active_families.begin(), properties_.active_families.end(), "base") ==
+		    properties_.active_families.end()) {
 			properties_.active_families.insert(properties_.active_families.begin(), "base");
 		}
-		if (std::find(properties_.active_families.begin(), properties_.active_families.end(), "git") == properties_.active_families.end()) {
+		if (std::find(properties_.active_families.begin(), properties_.active_families.end(), "git") ==
+		    properties_.active_families.end()) {
 			properties_.active_families.push_back("git");
 		}
 	}

@@ -1,38 +1,67 @@
 // Tested source file: src/tools/agent_get_run_screenshot/agent_get_run_screenshot_entry.cpp
-#include "test_watchdog.h"
 #include <cassert>
+#include <chrono>
 #include <iostream>
 #include <thread>
-#include <chrono>
 #include "agentlib/ai_agent.h"
 #include "agentlib/tool_registry.h"
-#include "project_manager.h"
 #include "event_queue.h"
+#include "project_manager.h"
+#include "test_watchdog.h"
 #include "tools/agent_get_run_screenshot/agent_get_run_screenshot.h"
 
 using namespace agentlib;
 
-class mock_document_provider : public document_provider {
-public:
-	std::vector<std::string> get_open_document_paths() const override { return {}; }
-	std::unique_ptr<document_snapshot> get_open_document(std::string_view) const override { return nullptr; }
-	bool apply_live_edits(std::string_view, std::string_view) override { return false; }
-	void save_all_documents() override {}
+class mock_document_provider : public document_provider
+{
+      public:
+	std::vector<std::string> get_open_document_paths() const override
+	{
+		return {};
+	}
+	std::unique_ptr<document_snapshot> get_open_document(std::string_view) const override
+	{
+		return nullptr;
+	}
+	bool apply_live_edits(std::string_view, std::string_view) override
+	{
+		return false;
+	}
+	void save_all_documents() override
+	{
+	}
 
-	run_screenshot_data get_run_screenshot(int run_id) override {
+	run_screenshot_data get_run_screenshot(int run_id) override
+	{
 		if (run_id == 42) {
-			return {.grid={"line1", "line2"}, .cursor_x=10, .cursor_y=5, .cursor_visible=true, .is_alive=true, .crash_notification=""};
+			return {.grid = {"line1", "line2"},
+				.cursor_x = 10,
+				.cursor_y = 5,
+				.cursor_visible = true,
+				.is_alive = true,
+				.crash_notification = ""};
 		}
 		if (run_id == 43) {
-			return {.grid={"line1", "line2"}, .cursor_x=0, .cursor_y=0, .cursor_visible=false, .is_alive=false, .crash_notification="CRASH DETECTED"};
+			return {.grid = {"line1", "line2"},
+				.cursor_x = 0,
+				.cursor_y = 0,
+				.cursor_visible = false,
+				.is_alive = false,
+				.crash_notification = "CRASH DETECTED"};
 		}
 		if (run_id == 44) {
-			return {.grid={"hello world    ", "  indented    ", "              ", "              "}, .cursor_x=11, .cursor_y=0, .cursor_visible=true, .is_alive=true, .crash_notification=""};
+			return {.grid = {"hello world    ", "  indented    ", "              ", "              "},
+				.cursor_x = 11,
+				.cursor_y = 0,
+				.cursor_visible = true,
+				.is_alive = true,
+				.crash_notification = ""};
 		}
 		return {};
 	}
 
-	int64_t get_run_last_modified_age(int) override {
+	int64_t get_run_last_modified_age(int) override
+	{
 		return 500; // Simulated age of 500ms (already settled)
 	}
 };
@@ -122,7 +151,7 @@ int main()
 			assert(prep.error_message.find("provider") != std::string::npos);
 
 			// Directly test validate_runtime
-			tools::agent_get_run_screenshot_tool direct_tool({.run_id=42});
+			tools::agent_get_run_screenshot_tool direct_tool({.run_id = 42});
 			std::string direct_err;
 			assert(direct_tool.validate_runtime(ctx, direct_err) == false);
 			assert(direct_err.find("provider") != std::string::npos);
@@ -132,8 +161,28 @@ int main()
 
 		// 7. Success case with settle
 		{
-			std::string result_settle = registry.execute_tool("agent_get_run_terminaldump", R"({"run_id": 42, "settle": true})", ctx);
+			std::string result_settle =
+			    registry.execute_tool("agent_get_run_terminaldump", R"({"run_id": 42, "settle": true})", ctx);
 			assert(result_settle.find("line1") != std::string::npos);
+		}
+
+		// 8. Success case with aliases and omitted run_id
+		{
+			ctx.run_registry->clear();
+			ctx.run_registry->register_app_run(44, "app_bin", 42);
+			ctx.run_registry->register_gdb_run(42, 44);
+
+			// Test alias "gdb"
+			std::string res_gdb = registry.execute_tool("agent_get_run_terminaldump", R"({"run_id": "gdb"})", ctx);
+			assert(res_gdb.find("line1") != std::string::npos);
+
+			// Test alias "app"
+			std::string res_app = registry.execute_tool("agent_get_run_terminaldump", R"({"run_id": "app"})", ctx);
+			assert(res_app.find("hello world") != std::string::npos);
+
+			// Test omitted run_id (prefers gdb)
+			std::string res_omit = registry.execute_tool("agent_get_run_terminaldump", R"({})", ctx);
+			assert(res_omit.find("line1") != std::string::npos);
 		}
 
 		std::cout << "agent_get_run_terminaldump & aliases verified successfully!" << std::endl;

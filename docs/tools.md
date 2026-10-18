@@ -627,7 +627,7 @@ These tools allow the agent to interact with the project's Git repository.
     *   `path` *(string, required)*: The path to the main application executable, relative to the `build/` directory.
 
 ### `run_executable`
-*   **Description:** Runs a binary/executable located within the project directory (or the configured main application if omitted), optionally under GDB debugging with split screen or CPU performance sampling. Unlike `run_shell_command`, this tool runs directly without requiring user permission or confirmation prompts. Always prefer this tool over `run_shell_command` for running project executables, binaries, and benchmarks. Returns JSON with `app_run_id` and `gdb_run_id`. In GDB mode (`debugger: true`), send commands to GDB via `agent_write_to_run(run_id=gdb_run_id, data="break <loc>\ncontinue\n", output=true)`, inspect state with `agent_write_to_run(run_id=gdb_run_id, data="bt\n" or "p <var>\n", output=true)`, and clean up with `agent_terminate_run(run_id=app_run_id)`.
+*   **Description:** Runs a binary/executable located within the project directory (or the configured main application if omitted), optionally under GDB debugging with split screen or CPU performance sampling. Unlike `run_shell_command`, this tool runs directly without requiring user permission or confirmation prompts. Always prefer this tool over `run_shell_command` for running project executables, binaries, and benchmarks. Returns JSON with `app_run_id` and `gdb_run_id`. In GDB mode (`debugger: true`), send commands to GDB via `agent_write_to_run(run_id="gdb", data="break <loc>\ncontinue\n", output=true)` (or simply omit `run_id`), inspect state with `agent_write_to_run(data="bt\n" or "p <var>\n", output=true)`, and clean up with `agent_terminate_run()`. Terminating either ID terminates both linked sessions and reports both IDs.
 *   **Arguments:**
     *   `binary` *(string, optional)*: Optional relative or build path to the executable within the project directory (e.g., `'crash'`, `'build/crash'`, `'turbostar'`). Defaults to the configured main application binary. Aliased by `executable` and `path`.
     *   `arguments` *(string, optional)*: Command line arguments to pass to the application. Aliased by `args`.
@@ -653,7 +653,7 @@ These tools allow the agent to interact with the project's Git repository.
 ### `agent_wait_for_app`
 *   **Description:** Waits until a running process has either ended/crashed or reached a settled state without output for at least 500ms. Returns JSON with execution status, is_alive, age_ms, and optional crash_notification.
 *   **Arguments:**
-    *   `run_id` *(integer, required)*: The unique execution ID returned by `run_executable`.
+    *   `run_id` *(integer or string, optional)*: Optional execution run ID (e.g. `1010`, `'1010'`, `'run_1010'`) or alias: `'app'` (latest application run), `'gdb'` (latest debugger session), or `'latest'`. If omitted, automatically defaults to the most recent application run.
     *   `type` *(string, optional)*: The wait condition: `'ended'` (default) waits for process termination or crash, `'settled'` waits for either termination or 500ms of no output.
     *   `timeout_sec` *(integer, optional)*: Maximum time in seconds to wait before returning status `'timeout'`. Defaults to 30.
 
@@ -665,7 +665,7 @@ These tools allow the agent to interact with the project's Git repository.
 ### `agent_write_to_run`
 *   **Description:** Writes/injects keyboard input sequences into the application or debugger PTY master stream (e.g. sending commands to GDB).
 *   **Arguments:**
-    *   `run_id` *(integer, required)*: The unique execution ID returned by `run_executable`.
+    *   `run_id` *(integer or string, optional)*: Optional execution run ID (e.g. `1010`, `'1010'`, `'run_1010'`) or alias: `'gdb'` (latest debugger session), `'app'` (latest application run), or `'latest'`. If omitted, automatically defaults to the active debugger session (if present) or the most recent run.
     *   `data` *(string, required)*: The raw string data or escape sequence to inject.
     *   `output` *(boolean, optional)*: If true, records terminal output, waits for the terminal state to settle, and returns the recorded text in the tool response. Defaults to false.
 
@@ -673,13 +673,13 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Description:** Returns an ASCII terminal dump of the screen buffer, cursor coordinates, and process alive status (`process running` / `process ended`) for a given run ID formatted as clean Markdown with a fenced code block (with trailing spaces per line and trailing empty lines stripped).
 *   **Aliases:** `agent_get_run_screenshot`, `agent_run_get_terminaldump`, `agent_run_get_screenshot`.
 *   **Arguments:**
-    *   `run_id` *(integer, required)*: The unique execution ID returned by `run_executable`.
+    *   `run_id` *(integer or string, optional)*: Optional execution run ID (e.g. `1010`, `'1010'`, `'run_1010'`) or alias: `'gdb'` (latest debugger session), `'app'` (latest application run), or `'latest'`. If omitted, automatically defaults to the active debugger session (if present) or the most recent run.
     *   `settle` *(boolean, optional)*: If true, waits up to 3 seconds for terminal content to settle before dumping the screen.
 
 ### `agent_terminate_run`
-*   **Description:** Terminates/stops a running process and closes its window based on its run ID.
+*   **Description:** Terminates/stops a running process and closes its window based on its run ID. If the run is linked to another session (e.g. application and attached GDB debugger), both sessions are terminated and both IDs are reported. Redundant calls to terminate the companion session succeed benignly.
 *   **Arguments:**
-    *   `run_id` *(integer, required)*: The unique execution ID returned by `run_executable`.
+    *   `run_id` *(integer or string, optional)*: Optional execution run ID (e.g. `1010`, `'1010'`, `'run_1010'`) or alias: `'app'`, `'gdb'`, or `'latest'`. If omitted, automatically defaults to the most recent application run or active session.
 
 ---
 

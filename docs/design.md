@@ -254,6 +254,9 @@ To provide agents with high-value architectural awareness without token bloat or
 
 ## Profiling and Debugging
 - **Memory Profiling**: To diagnose Out of Memory (OOM) errors, identify allocation bottlenecks, or track down memory leaks, use `heaptrack`. A detailed guide for agents is available at `docs/heaptrack.md`.
+- **Process Execution & Interactive Debugging Registry**: Maintained in `tool_context::run_registry` and scoped to each agent session, tracking child processes and interactive GDB sessions started via `run_executable` or `agent_debug_coredump`.
+  - **Linked App & Debugger Sessions**: When an executable is launched with `debugger: true`, the application run ID and GDB run ID are linked bidirectionally. Terminating either session via `agent_terminate_run` terminates both windows, stops both processes, and reports both IDs in the response message. Subsequent termination calls for the companion ID succeed benignly.
+  - **Contextual Defaults & Aliases**: Tools operating on execution sessions (`agent_write_to_run`, `agent_terminate_run`, `agent_wait_for_app`, `agent_get_run_terminaldump`) accept integer run IDs, string representations (e.g. `"run_1010"`, `"1010"`), or symbolic aliases (`"gdb"`, `"app"`, `"latest"`). Omitting `run_id` automatically defaults to the most relevant active session (the active debugger session for inspection/PTY input, or the active application for termination/waiting).
 
 ## Plugins
 Turbostar supports dynamic plugin loading to extend the editor's capabilities at runtime.

@@ -72,6 +72,7 @@ agentlib_sources = files(
   'agentlib/command_registry.cpp',
   'agentlib/ai_agent.cpp',
   'agentlib/agent_animation.cpp',
+  'agentlib/agent_run_registry.cpp',
   'agentlib/llm_client.cpp',
   'agentlib/tool_registry.cpp',
   'agentlib/tool_tracer.cpp',

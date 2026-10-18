@@ -1,31 +1,46 @@
-#include "test_watchdog.h"
+// Tested source file: src/tools/agent_wait_for_app/agent_wait_for_app_entry.cpp
 #include <cassert>
 #include <iostream>
 #include <string>
-#include "../../src/agentlib/ai_agent.h"
-#include "../../src/agentlib/tool_registry.h"
-#include "../../src/project_manager.h"
-#include "../../src/event_queue.h"
-#include "../../src/perf_manager.h"
+#include "agentlib/agent_run_registry.h"
+#include "agentlib/ai_agent.h"
+#include "agentlib/tool_registry.h"
+#include "event_queue.h"
+#include "perf_manager.h"
+#include "project_manager.h"
+#include "test_watchdog.h"
 
 using namespace agentlib;
 
-class dummy_doc_provider_wait : public document_provider {
-public:
-	std::vector<std::string> get_open_document_paths() const override { return {}; }
-	std::unique_ptr<document_snapshot> get_open_document(std::string_view) const override { return nullptr; }
-	bool apply_live_edits(std::string_view, std::string_view) override { return false; }
-	void save_all_documents() override {}
+class dummy_doc_provider_wait : public document_provider
+{
+      public:
+	std::vector<std::string> get_open_document_paths() const override
+	{
+		return {};
+	}
+	std::unique_ptr<document_snapshot> get_open_document(std::string_view) const override
+	{
+		return nullptr;
+	}
+	bool apply_live_edits(std::string_view, std::string_view) override
+	{
+		return false;
+	}
+	void save_all_documents() override
+	{
+	}
 
-	wait_for_app_result wait_for_app(int run_id, std::string_view type, int /*timeout_sec*/) override {
+	wait_for_app_result wait_for_app(int run_id, std::string_view type, int /*timeout_sec*/) override
+	{
 		if (run_id == 42) {
 			if (type == "settled") {
-				return {.status="settled", .age_ms=1500, .is_alive=true, .crash_notification=""};
+				return {.status = "settled", .age_ms = 1500, .is_alive = true, .crash_notification = ""};
 			} else if (type == "ended") {
-				return {.status="ended", .age_ms=50, .is_alive=false, .crash_notification="CRASHED WITH SIGSEGV"};
+				return {.status = "ended", .age_ms = 50, .is_alive = false, .crash_notification = "CRASHED WITH SIGSEGV"};
 			}
 		}
-		return {.status="not_found", .age_ms=0, .is_alive=false, .crash_notification=""};
+		return {.status = "not_found", .age_ms = 0, .is_alive = false, .crash_notification = ""};
 	}
 };
 
@@ -74,7 +89,8 @@ int main()
 		{
 			dummy_doc_provider_wait dummy;
 			ctx.doc_provider = &dummy;
-			std::string res = registry.execute_tool("agent_wait_for_app", R"({"run_id": 42, "type": "settled", "timeout_sec": 5})", ctx);
+			std::string res =
+			    registry.execute_tool("agent_wait_for_app", R"({"run_id": 42, "type": "settled", "timeout_sec": 5})", ctx);
 			assert(res.find("settled") != std::string::npos);
 			assert(res.find("1500") != std::string::npos);
 		}
@@ -83,7 +99,8 @@ int main()
 		{
 			dummy_doc_provider_wait dummy;
 			ctx.doc_provider = &dummy;
-			std::string res = registry.execute_tool("agent_wait_for_app", R"({"run_id": 42, "type": "ended", "timeout_sec": 5})", ctx);
+			std::string res =
+			    registry.execute_tool("agent_wait_for_app", R"({"run_id": 42, "type": "ended", "timeout_sec": 5})", ctx);
 			assert(res.find("ended") != std::string::npos);
 			assert(res.find("CRASHED WITH SIGSEGV") != std::string::npos);
 		}
@@ -109,6 +126,23 @@ int main()
 			assert(res.find("Performance profile data is available") != std::string::npos);
 
 			turbostar::perf_manager::get_instance().clear_active_profile();
+		}
+
+		// 8. Execution case: alias and omitted run_id
+		{
+			dummy_doc_provider_wait dummy;
+			ctx.doc_provider = &dummy;
+			ctx.run_registry->clear();
+			ctx.run_registry->register_app_run(42, "test_binary");
+
+			// Test alias "app"
+			std::string res_alias =
+			    registry.execute_tool("agent_wait_for_app", R"({"run_id": "app", "type": "settled", "timeout_sec": 5})", ctx);
+			assert(res_alias.find("settled") != std::string::npos);
+
+			// Test omitted run_id
+			std::string res_omit = registry.execute_tool("agent_wait_for_app", R"({"type": "settled", "timeout_sec": 5})", ctx);
+			assert(res_omit.find("settled") != std::string::npos);
 		}
 
 		std::cout << "agent_wait_for_app tool verified successfully!" << std::endl;

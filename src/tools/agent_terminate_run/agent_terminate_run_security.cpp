@@ -1,8 +1,9 @@
 #include <memory>
 #include <nlohmann/json.hpp>
-#include "../../agentlib/tool_registry.h"
-#include "../../agentlib/tool_validator.h"
-#include "agent_terminate_run.h"
+#include "agentlib/agent_run_registry.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/tool_validator.h"
+#include "tools/agent_terminate_run/agent_terminate_run.h"
 
 namespace tools
 {
@@ -31,24 +32,37 @@ class agent_terminate_run_validator : public agentlib::tool_validator
 
 	nlohmann::json get_parameters_schema() const override
 	{
-		return {
-		    {"type", "object"},
-		    {"properties",
-		     {{"run_id", {{"type", "integer"}, {"description", "The unique execution ID returned by run_executable."}}}}},
-		    {"required", nlohmann::json::array({"run_id"})}};
+		return {{"type", "object"},
+			{"properties",
+			 {{"run_id",
+			   {{"type", nlohmann::json::array({"integer", "string"})},
+			    {"description", "Optional execution run ID (e.g. 1010, '1010', 'run_1010') or alias: 'app', 'gdb', or "
+					    "'latest'. If omitted, automatically defaults to the most recent active run."}}}}},
+			{"required", nlohmann::json::array()}};
 	}
 
       protected:
-	bool validate_args_impl(const nlohmann::json &args_json, const agentlib::tool_context & /*ctx*/,
-				std::string &out_error) const override
+	bool validate_args_impl(const nlohmann::json &args_json, const agentlib::tool_context &ctx, std::string &out_error) const override
 	{
 		try {
-			agent_terminate_run_raw_args raw = args_json.get<agent_terminate_run_raw_args>();
-			if (raw.run_id < 0) {
-				out_error = "Invalid run_id specified.";
-				return false;
+			int resolved_run_id = -1;
+			if (ctx.run_registry) {
+				if (!ctx.run_registry->resolve_from_json(args_json, agentlib::run_target_kind::app, resolved_run_id,
+									 out_error)) {
+					return false;
+				}
+			} else {
+				if (!args_json.contains("run_id") || !args_json["run_id"].is_number_integer()) {
+					out_error = "Missing required integer field 'run_id'.";
+					return false;
+				}
+				resolved_run_id = args_json["run_id"].get<int>();
+				if (resolved_run_id < 0) {
+					out_error = "Invalid run_id specified.";
+					return false;
+				}
 			}
-			args_.run_id = raw.run_id;
+			args_.run_id = resolved_run_id;
 			return true;
 		} catch (const std::exception &e) {
 			out_error = "Argument parsing error: " + std::string(e.what());

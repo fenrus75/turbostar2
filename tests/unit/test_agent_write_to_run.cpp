@@ -1,24 +1,38 @@
 // Tested source file: src/tools/agent_write_to_run/agent_write_to_run_entry.cpp
-#include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <string>
-#include "../../src/agentlib/ai_agent.h"
-#include "../../src/agentlib/tool_registry.h"
-#include "../../src/project_manager.h"
-#include "../../src/fs_utils.h"
+#include "agentlib/agent_run_registry.h"
+#include "agentlib/ai_agent.h"
+#include "agentlib/tool_registry.h"
 #include "event_queue.h"
+#include "fs_utils.h"
+#include "project_manager.h"
+#include "test_watchdog.h"
 
 using namespace agentlib;
 
-class mock_doc_provider : public document_provider {
-public:
-	std::vector<std::string> get_open_document_paths() const override { return {}; }
-	std::unique_ptr<document_snapshot> get_open_document(std::string_view) const override { return nullptr; }
-	bool apply_live_edits(std::string_view, std::string_view) override { return false; }
-	void save_all_documents() override {}
+class mock_doc_provider : public document_provider
+{
+      public:
+	std::vector<std::string> get_open_document_paths() const override
+	{
+		return {};
+	}
+	std::unique_ptr<document_snapshot> get_open_document(std::string_view) const override
+	{
+		return nullptr;
+	}
+	bool apply_live_edits(std::string_view, std::string_view) override
+	{
+		return false;
+	}
+	void save_all_documents() override
+	{
+	}
 
-	bool write_to_run(int run_id, std::string_view data) override {
+	bool write_to_run(int run_id, std::string_view data) override
+	{
 		if (run_id == 123) {
 			last_written_data = std::string(data);
 			return true;
@@ -26,15 +40,18 @@ public:
 		return false;
 	}
 
-	int64_t get_run_last_modified_age(int) override {
+	int64_t get_run_last_modified_age(int) override
+	{
 		return 500; // Simulated age of 500ms (already settled)
 	}
 
-	void set_run_recording(int, bool recording) override {
+	void set_run_recording(int, bool recording) override
+	{
 		is_recording = recording;
 	}
 
-	std::vector<std::string> get_run_recorded_data(int) override {
+	std::vector<std::string> get_run_recorded_data(int) override
+	{
 		return {"simulated", " recorded", " output"};
 	}
 
@@ -66,7 +83,8 @@ int main()
 
 		// 1. Success case: write data to valid run_id with output=false
 		{
-			std::string res = registry.execute_tool("agent_write_to_run", R"({"run_id": 123, "data": "echo hello\n", "output": false})", ctx);
+			std::string res =
+			    registry.execute_tool("agent_write_to_run", R"({"run_id": 123, "data": "echo hello\n", "output": false})", ctx);
 			std::cout << "Success path result: " << res << std::endl;
 			assert(res.find("Successfully wrote") != std::string::npos);
 			assert(mock.last_written_data == "echo hello\n");
@@ -97,7 +115,8 @@ int main()
 
 		// 5. Stage 1 validation failure: reject unexpected arguments
 		{
-			auto prep = registry.prepare_tool("agent_write_to_run", R"({"run_id": 123, "data": "test", "unexpected_field": 123})", ctx);
+			auto prep =
+			    registry.prepare_tool("agent_write_to_run", R"({"run_id": 123, "data": "test", "unexpected_field": 123})", ctx);
 			assert(prep.tool == nullptr); // This will fail initially as expected
 			assert(!prep.error_message.empty());
 		}
@@ -114,29 +133,64 @@ int main()
 		// 7. Success case with output=true
 		{
 			ctx.doc_provider = &mock;
-			std::string res = registry.execute_tool("agent_write_to_run", R"({"run_id": 123, "data": "test", "output": true})", ctx);
+			std::string res =
+			    registry.execute_tool("agent_write_to_run", R"({"run_id": 123, "data": "test", "output": true})", ctx);
 			std::cout << "Success with output path result: " << res << std::endl;
 			assert(fs_utils::unwrap_prompt_untrusted_data_tag(res) == "simulated recorded output");
 			assert(mock.is_recording == false);
 		}
 
-	// 8. Success case with output=true and split ANSI chunks
-	{
-		class mock_split_ansi_provider : public mock_doc_provider {
-		public:
-			std::vector<std::string> get_run_recorded_data(int) override {
-				// Simulate split across chunks: ESC [ in chunk 1, 31m in chunk 2
-				return {"(gdb) ", "\x1b[", "31mError\x1b[0m line\n"};
-			}
-		};
-		mock_split_ansi_provider split_mock;
-		ctx.doc_provider = &split_mock;
-		std::string res = registry.execute_tool("agent_write_to_run", R"({"run_id": 123, "data": "test", "output": true})", ctx);
-		std::cout << "Split ANSI chunks result: " << res << std::endl;
-		assert(fs_utils::unwrap_prompt_untrusted_data_tag(res) == "(gdb) Error line");
-	}
+		// 8. Success case with output=true and split ANSI chunks
+		{
+			class mock_split_ansi_provider : public mock_doc_provider
+			{
+			      public:
+				std::vector<std::string> get_run_recorded_data(int) override
+				{
+					// Simulate split across chunks: ESC [ in chunk 1, 31m in chunk 2
+					return {"(gdb) ", "\x1b[", "31mError\x1b[0m line\n"};
+				}
+			};
+			mock_split_ansi_provider split_mock;
+			ctx.doc_provider = &split_mock;
+			std::string res =
+			    registry.execute_tool("agent_write_to_run", R"({"run_id": 123, "data": "test", "output": true})", ctx);
+			std::cout << "Split ANSI chunks result: " << res << std::endl;
+			assert(fs_utils::unwrap_prompt_untrusted_data_tag(res) == "(gdb) Error line");
+		}
 
-	std::cout << "agent_write_to_run tool verified successfully!" << std::endl;
+		// 9. Success case with string run_id "123" and "run_123"
+		{
+			ctx.doc_provider = &mock;
+			std::string res = registry.execute_tool("agent_write_to_run", R"({"run_id": "123", "data": "str_id"})", ctx);
+			assert(res.find("Successfully wrote input") != std::string::npos);
+			assert(mock.last_written_data == "str_id");
+
+			std::string res2 =
+			    registry.execute_tool("agent_write_to_run", R"({"run_id": "run_123", "data": "prefix_id"})", ctx);
+			assert(res2.find("Successfully wrote input") != std::string::npos);
+			assert(mock.last_written_data == "prefix_id");
+		}
+
+		// 10. Success case with alias "gdb" and omitted run_id defaulting to gdb
+		{
+			ctx.doc_provider = &mock;
+			ctx.run_registry->clear();
+			ctx.run_registry->register_app_run(100, "app", 123);
+			ctx.run_registry->register_gdb_run(123, 100);
+
+			// With explicit alias "gdb"
+			std::string res = registry.execute_tool("agent_write_to_run", R"({"run_id": "gdb", "data": "alias_gdb"})", ctx);
+			assert(res.find("Successfully wrote input") != std::string::npos);
+			assert(mock.last_written_data == "alias_gdb");
+
+			// With omitted run_id
+			std::string res_omit = registry.execute_tool("agent_write_to_run", R"({"data": "omit_run_id"})", ctx);
+			assert(res_omit.find("Successfully wrote input") != std::string::npos);
+			assert(mock.last_written_data == "omit_run_id");
+		}
+
+		std::cout << "agent_write_to_run tool verified successfully!" << std::endl;
 	}
 
 	return 0;

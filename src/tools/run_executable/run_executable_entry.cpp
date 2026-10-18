@@ -1,10 +1,10 @@
-#include "run_executable.h"
+#include <format>
+#include <nlohmann/json.hpp>
+#include <numeric>
 #include "fs_utils.h"
 #include "perf_manager.h"
+#include "run_executable.h"
 #include "utf8.h"
-#include <format>
-#include <numeric>
-#include <nlohmann/json.hpp>
 
 namespace tools
 {
@@ -38,19 +38,26 @@ std::string run_executable_tool::execute(agentlib::tool_context &ctx)
 		return "Error: Internal engine type mismatch.";
 	}
 
-	agentlib::start_app_result res = ctx.doc_provider->start_app(args_.args, args_.debugger, false, args_.collect_performance, args_.binary);
+	agentlib::start_app_result res =
+	    ctx.doc_provider->start_app(args_.args, args_.debugger, false, args_.collect_performance, args_.binary);
 	if (res.app_run_id < 0) {
 		set_failure(ctx, "Failed to start application.");
 		return "Error: Failed to start application process.";
+	}
+
+	if (ctx.run_registry) {
+		ctx.run_registry->register_app_run(res.app_run_id, args_.binary, res.gdb_run_id);
+		if (res.gdb_run_id >= 0) {
+			ctx.run_registry->register_gdb_run(res.gdb_run_id, res.app_run_id);
+		}
 	}
 
 	if (args_.output) {
 		ctx.doc_provider->set_run_recording(res.app_run_id, true);
 	}
 
-	nlohmann::json output = {
-	    {"app_run_id", res.app_run_id},
-	    {"gdb_run_id", res.gdb_run_id >= 0 ? nlohmann::json(res.gdb_run_id) : nlohmann::json(nullptr)}};
+	nlohmann::json output = {{"app_run_id", res.app_run_id},
+				 {"gdb_run_id", res.gdb_run_id >= 0 ? nlohmann::json(res.gdb_run_id) : nlohmann::json(nullptr)}};
 
 	int wait_time = args_.wait_for_time;
 	if (args_.output && wait_time <= 0) {
@@ -89,9 +96,9 @@ std::string run_executable_tool::execute(agentlib::tool_context &ctx)
 		report = turbostar::perf_manager::get_instance().parse_and_resolve(perf_dir, 0, run_id_str, true);
 	}
 	if (report.total_samples > 0) {
-		output["profile_notification"] = std::format(
-		    "Performance profile data is available ({} samples collected). Call agent_get_profile_summary(run_id=\"{}\") to view top bottleneck functions.",
-		    report.total_samples, run_id_str);
+		output["profile_notification"] = std::format("Performance profile data is available ({} samples collected). Call "
+							     "agent_get_profile_summary(run_id=\"{}\") to view top bottleneck functions.",
+							     report.total_samples, run_id_str);
 	}
 
 	return fs_utils::wrap_prompt_untrusted_data_tag("run_executable_result", output.dump(2));

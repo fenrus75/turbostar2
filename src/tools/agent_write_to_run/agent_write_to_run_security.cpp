@@ -1,9 +1,10 @@
 #include <memory>
 #include <nlohmann/json.hpp>
+#include "agentlib/agent_run_registry.h"
 #include "agentlib/tool_registry.h"
 #include "agentlib/tool_validator.h"
 #include "fs_utils.h"
-#include "agent_write_to_run.h"
+#include "tools/agent_write_to_run/agent_write_to_run.h"
 
 namespace tools
 {
@@ -29,49 +30,76 @@ class agent_write_to_run_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Writes/injects keyboard input sequences into the application or debugger PTY master stream (e.g. sending commands to GDB).";;
+		return "Writes/injects keyboard input sequences into the application or debugger PTY master stream (e.g. sending commands "
+		       "to GDB).";
+		;
 	}
 
 	std::vector<agentlib::tool_example> get_examples() const override
 	{
-		return {
-			{
-				"Send backtrace command to a coredump session",
-				nlohmann::json{{"run_id", 2001}, {"data", "bt\n"}, {"output", true}},
-				"After agent_debug_coredump returns gdb_run_id 2001, sends 'bt\\n' to get the full stack trace, then 'frame <N>\\ninfo locals\\n' to inspect variables."
-			}
-		};
+		return {{"Send backtrace command to a coredump session",
+			 nlohmann::json{{"run_id", 2001}, {"data", "bt\n"}, {"output", true}},
+			 "After agent_debug_coredump returns gdb_run_id 2001, sends 'bt\\n' to get the full stack trace, then 'frame "
+			 "<N>\\ninfo locals\\n' to inspect variables."}};
 	}
-
 
 	nlohmann::json get_parameters_schema() const override
 	{
-		return {
-		    {"type", "object"},
-		    {"properties",
-		     {{"run_id", {{"type", "integer"}, {"description", "The unique execution ID returned by run_executable."}}},
-		      {"data", {{"type", "string"}, {"description", "The raw string data or escape sequence to inject."}}},
-		      {"output", {{"type", "boolean"}, {"description", "Optional. If true, returns the new application output that results from this command. Highly recommended for gdb session."}}}}},
-		    {"required", nlohmann::json::array({"run_id", "data"})}};
+		return {{"type", "object"},
+			{"properties",
+			 {{"run_id",
+			   {{"type", nlohmann::json::array({"integer", "string"})},
+			    {"description", "Optional execution run ID (e.g. 1010, '1010', 'run_1010') or alias: 'gdb' (latest debugger "
+					    "session), 'app' (latest application run), or 'latest'. If omitted, automatically defaults to "
+					    "the active debugger session (if present) or the most recent run."}}},
+			  {"data", {{"type", "string"}, {"description", "The raw string data or escape sequence to inject."}}},
+			  {"output",
+			   {{"type", "boolean"},
+			    {"description", "Optional. If true, returns the new application output that results from this command. Highly "
+					    "recommended for gdb session."}}}}},
+			{"required", nlohmann::json::array({"data"})}};
 	}
 
       protected:
-	bool validate_args_impl(const nlohmann::json &args_json, const agentlib::tool_context & /*ctx*/,
-				std::string &out_error) const override
+	bool validate_args_impl(const nlohmann::json &args_json, const agentlib::tool_context &ctx, std::string &out_error) const override
 	{
 		try {
-			agent_write_to_run_raw_args raw = args_json.get<agent_write_to_run_raw_args>();
-			if (raw.run_id < 0) {
-				out_error = "Invalid run_id specified.";
+			if (!args_json.contains("data") || !args_json["data"].is_string()) {
+				out_error = "Missing required string field 'data'.";
 				return false;
 			}
-			if (raw.data.length() > 4096) {
+			std::string raw_data = args_json["data"].get<std::string>();
+			if (raw_data.length() > 4096) {
 				out_error = "Payload size exceeds 4096 bytes limit.";
 				return false;
 			}
-			args_.run_id = raw.run_id;
-			args_.data = fs_utils::unescape_string(raw.data);
-			args_.output = raw.output;
+
+			int resolved_run_id = -1;
+			if (ctx.run_registry) {
+				if (!ctx.run_registry->resolve_from_json(args_json, agentlib::run_target_kind::debugger, resolved_run_id,
+									 out_error)) {
+					return false;
+				}
+			} else {
+				if (!args_json.contains("run_id") || !args_json["run_id"].is_number_integer()) {
+					out_error = "Missing required integer field 'run_id'.";
+					return false;
+				}
+				resolved_run_id = args_json["run_id"].get<int>();
+				if (resolved_run_id < 0) {
+					out_error = "Invalid run_id specified.";
+					return false;
+				}
+			}
+
+			bool output = false;
+			if (args_json.contains("output") && args_json["output"].is_boolean()) {
+				output = args_json["output"].get<bool>();
+			}
+
+			args_.run_id = resolved_run_id;
+			args_.data = fs_utils::unescape_string(raw_data);
+			args_.output = output;
 			return true;
 		} catch (const std::exception &e) {
 			out_error = "Argument parsing error: " + std::string(e.what());
