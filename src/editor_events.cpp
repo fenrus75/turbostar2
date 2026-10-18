@@ -40,19 +40,22 @@ bool editor::handle_q_block_key(int key)
 	auto &logger = event_logger::get_instance();
 	int c = std::tolower(key);
 
-	if (c == 'f') {
+	switch (c) {
+	case 'f': {
 		logger.log("Q-block: Find Text");
 		editor_event ev;
 		ev.type = event_type::find;
 		global_queue_.push(ev);
 		return true;
-	} else if (c == 'a') {
+	}
+	case 'a': {
 		logger.log("Q-block: Replace Text");
 		editor_event ev;
 		ev.type = event_type::replace;
 		global_queue_.push(ev);
 		return true;
-	} else if (c == 'h') {
+	}
+	case 'h': {
 		logger.log("Q-block: Undo History");
 		auto doc = get_active_doc();
 		if (doc && doc->get_undo_count() > 0) {
@@ -61,12 +64,17 @@ bool editor::handle_q_block_key(int key)
 			logger.log("No undo history available.");
 		}
 		return true;
-	} else if (c == 's' || c == 'w') {
+	}
+	case 's':
+	case 'w': {
 		logger.log("Q-block: Save As");
 		editor_event ev;
 		ev.type = event_type::save_as;
 		global_queue_.push(ev);
 		return true;
+	}
+	default:
+		break;
 	}
 	return false;
 }
@@ -75,55 +83,65 @@ bool editor::handle_p_block_key(int key)
 {
 	auto &logger = event_logger::get_instance();
 	int c = std::tolower(key);
-	logger.log("P-block handling key: " + std::to_string(key));
+	logger.log(std::format("P-block handling key: {}", key));
 
-	if (c == 'r') {
+	switch (c) {
+	case 'r': {
 		logger.log("P-block: Reformat");
 		editor_event ev;
 		ev.type = event_type::inline_agent_request;
 		ev.payload = "Reformat the code in the target range.";
 		global_queue_.push(ev);
 		return true;
-	} else if (c == 'f') {
+	}
+	case 'f': {
 		logger.log("P-block: Fix Warnings");
 		editor_event ev;
 		ev.type = event_type::inline_agent_request;
 		ev.payload = "Fix any flagged warnings or errors in the target range.";
 		global_queue_.push(ev);
 		return true;
-	} else if (c == 'c') {
+	}
+	case 'c': {
 		logger.log("P-block: Add Comments");
 		editor_event ev;
 		ev.type = event_type::inline_agent_request;
 		ev.payload = "Add descriptive comments to the code in the target range.";
 		global_queue_.push(ev);
 		return true;
-	} else if (c == 'v') {
+	}
+	case 'v': {
 		logger.log("P-block: Review");
 		editor_event ev;
 		ev.type = event_type::inline_agent_request;
 		ev.payload = "Provide a code review and flag potential issues as errors or warnings in the target range.";
 		global_queue_.push(ev);
 		return true;
-	} else if (c == 't') {
+	}
+	case 't': {
 		logger.log("P-block: Complete TODOs");
 		editor_event ev;
 		ev.type = event_type::inline_agent_request;
 		ev.payload = "Complete the function framework and any TODOs in the target range, removing completed TODO comments.";
 		global_queue_.push(ev);
 		return true;
-	} else if (c == 's') {
+	}
+	case 's': {
 		logger.log("P-block: Spell Check");
 		editor_event ev;
 		ev.type = event_type::inline_agent_request;
 		ev.payload = "Spell check the target range. For code, focus on comments and strings. For non-code, check everything.";
 		global_queue_.push(ev);
 		return true;
-	} else if (c == 'u') {
+	}
+	case 'u': {
 		logger.log("P-block: Custom Prompt");
 		active_mode_ = input_mode::inline_agent;
 		inline_agent_input_buffer_ = "";
 		return true;
+	}
+	default:
+		break;
 	}
 	return false;
 }

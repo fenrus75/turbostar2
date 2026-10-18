@@ -1052,7 +1052,7 @@ void editor::set_focus(focus_target target, std::string_view source)
 bool editor::handle_k_block_key(int key)
 {
 	auto &logger = event_logger::get_instance();
-	logger.log("K-block handling key: " + std::to_string(key));
+	logger.log(std::format("K-block handling key: {}", key));
 
 	char c = 0;
 	if (key > 0 && key <= 26) {
@@ -1067,14 +1067,16 @@ bool editor::handle_k_block_key(int key)
 	// Find active window/doc
 	std::shared_ptr<document> active_doc = get_active_doc();
 
-	if (c == 'b') {
+	switch (c) {
+	case 'b': {
 		logger.log("K-block: Set Selection Begin");
 		if (!active_doc)
 			return false;
 		active_doc->set_selection_start();
 		set_status_message("Block start set.", status_priorities::CRITICAL, std::chrono::seconds(2));
 		return true;
-	} else if (c == 'k') {
+	}
+	case 'k': {
 		logger.log("K-block: Set Selection End");
 		if (!active_doc)
 			return false;
@@ -1085,14 +1087,16 @@ bool editor::handle_k_block_key(int key)
 			set_status_message("Selection cleared.", status_priorities::CRITICAL, std::chrono::seconds(2));
 		}
 		return true;
-	} else if (c == 'h') {
+	}
+	case 'h': {
 		logger.log("K-block: Clear Selection");
 		if (!active_doc)
 			return false;
 		active_doc->clear_selection();
 		set_status_message("Selection cleared.", status_priorities::CRITICAL, std::chrono::seconds(2));
 		return true;
-	} else if (c == 'y') {
+	}
+	case 'y': {
 		logger.log("K-block: Delete Block");
 		if (!active_doc)
 			return false;
@@ -1105,7 +1109,8 @@ bool editor::handle_k_block_key(int key)
 		redraw_ev.type = event_type::redraw;
 		global_queue_.push(redraw_ev);
 		return true;
-	} else if (c == 'c') {
+	}
+	case 'c': {
 		logger.log("K-block: Copy Block");
 		if (!active_doc)
 			return false;
@@ -1118,7 +1123,8 @@ bool editor::handle_k_block_key(int key)
 		redraw_ev.type = event_type::redraw;
 		global_queue_.push(redraw_ev);
 		return true;
-	} else if (c == 'm') {
+	}
+	case 'm': {
 		logger.log("K-block: Move Block");
 		if (!active_doc)
 			return false;
@@ -1131,29 +1137,34 @@ bool editor::handle_k_block_key(int key)
 		redraw_ev.type = event_type::redraw;
 		global_queue_.push(redraw_ev);
 		return true;
-	} else if (c == 'n') {
+	}
+	case 'n': {
 		logger.log("K-block: New Window");
 		new_window("");
 		return true;
-	} else if (c == 'p') {
+	}
+	case 'p': {
 		logger.log("K-block: Compile File");
 		editor_event ev;
 		ev.type = event_type::compile_file;
 		global_queue_.push(ev);
 		return true;
-	} else if (c == 'g') {
+	}
+	case 'g': {
 		logger.log("K-block: Next Error");
 		editor_event err_ev;
 		err_ev.type = event_type::next_error;
 		global_queue_.push(err_ev);
 		return true;
-	} else if (c == 'e') {
+	}
+	case 'e': {
 		logger.log("K-block: Edit (Open File)");
 		editor_event ev;
 		ev.type = event_type::load;
 		global_queue_.push(ev);
 		return true;
-	} else if (c == 'a') {
+	}
+	case 'a': {
 		logger.log("K-block: Save All");
 		if (active_doc && active_doc->is_read_only()) {
 			logger.log("Cannot save-all read-only buffer via hotkey.");
@@ -1163,7 +1174,8 @@ bool editor::handle_k_block_key(int key)
 		ev.type = event_type::save_all;
 		global_queue_.push(ev);
 		return true;
-	} else if (c == 'r') {
+	}
+	case 'r': {
 		logger.log("K-block: Insert File");
 		if (!active_doc)
 			return false;
@@ -1171,7 +1183,8 @@ bool editor::handle_k_block_key(int key)
 		active_dialog_mode_ = dialog_mode::insert_file;
 		set_focus(focus_target::dialog, "menu_insert_file");
 		return true;
-	} else if (c == 't') {
+	}
+	case 't': {
 		logger.log("K-block: Copy Block to Clipboard");
 		if (!active_doc)
 			return false;
@@ -1185,20 +1198,24 @@ bool editor::handle_k_block_key(int key)
 		}
 		set_status_message("Block copied to clipboard.", status_priorities::CRITICAL, std::chrono::seconds(2));
 		return true;
-	} else if (c == 'j') {
+	}
+	case 'j': {
 		logger.log("K-block: Format Paragraph");
 		if (active_doc) {
 			active_doc->format_paragraph();
 		}
 		return true;
-	} else if (c == ']') {
+	}
+	case ']': {
 		logger.log("K-block: Expand Selection (LSP)");
 		if (active_doc && !active_doc->get_filename().empty()) {
-			project_manager::get_instance().lsp_request_selection_range(active_doc->get_filename(), active_doc->get_cursor_y(),
-										    active_doc->get_cursor_x());
+			project_manager::get_instance().lsp_request_selection_range(
+			    active_doc->get_filename(), active_doc->get_cursor_y(), active_doc->get_cursor_x());
 		}
 		return true;
-	} else if (c == '[' || c == '{') {
+	}
+	case '[':
+	case '{': {
 		logger.log("K-block: Select Scope");
 		if (active_doc) {
 			active_doc->select_enclosing_scope();
@@ -1207,7 +1224,9 @@ bool editor::handle_k_block_key(int key)
 			global_queue_.push(redraw_ev);
 		}
 		return true;
-	} else if (c == 'd' || c == 's') {
+	}
+	case 'd':
+	case 's': {
 		logger.log("K-block: Save File");
 		if (!active_doc || active_doc->is_read_only()) {
 			logger.log("Cannot save read-only or empty buffer via hotkey.");
@@ -1217,7 +1236,8 @@ bool editor::handle_k_block_key(int key)
 		ev.type = event_type::save;
 		global_queue_.push(ev);
 		return true;
-	} else if (c == 'w') {
+	}
+	case 'w': {
 		logger.log("K-block: Write Block");
 		if (!active_doc || active_doc->is_read_only()) {
 			logger.log("Cannot write-block read-only or empty buffer via hotkey.");
@@ -1227,41 +1247,48 @@ bool editor::handle_k_block_key(int key)
 		ev.type = event_type::write_block;
 		global_queue_.push(ev);
 		return true;
-	} else if (c == 'q') {
+	}
+	case 'q': {
 		logger.log("K-block: Quit (Abort)");
 		editor_event quit_ev;
 		quit_ev.type = event_type::quit;
 		global_queue_.push(quit_ev);
 		return true;
-	} else if (c == 'x') {
+	}
+	case 'x': {
 		logger.log("K-block: Force Exit");
 		editor_event quit_ev;
 		quit_ev.type = event_type::force_quit;
 		global_queue_.push(quit_ev);
 		return true;
-	} else if (c == 'f') {
+	}
+	case 'f': {
 		logger.log("K-block: Find (Status Bar Prompt)");
 		active_mode_ = input_mode::searching;
 		search_input_buffer_ = "";
 		return true;
-	} else if (c == 'l') {
+	}
+	case 'l': {
 		logger.log("K-block: Go to Line (Status Bar Prompt)");
 		active_mode_ = input_mode::going_to_line;
 		line_input_buffer_ = "";
 		return true;
-	} else if (c == 'u') {
+	}
+	case 'u': {
 		logger.log("K-block: Top of File");
 		if (!active_doc)
 			return false;
 		active_doc->move_to_top();
 		return true;
-	} else if (c == 'v') {
+	}
+	case 'v': {
 		logger.log("K-block: End of File");
 		if (!active_doc)
 			return false;
 		active_doc->move_to_bottom();
 		return true;
-	} else if (c == 'z') {
+	}
+	case 'z': {
 		logger.log("K-block: Zap Trailing Whitespace");
 		if (active_doc) {
 			active_doc->trim_trailing_whitespace();
@@ -1270,6 +1297,9 @@ bool editor::handle_k_block_key(int key)
 			global_queue_.push(redraw_ev);
 		}
 		return true;
+	}
+	default:
+		break;
 	}
 
 	return false;
