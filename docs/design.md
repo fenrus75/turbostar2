@@ -252,6 +252,17 @@ To provide agents with high-value architectural awareness without token bloat or
 - **Deduplication & Throttling**: Disclosed definitions are tracked per agent session in `ctx.reported_type_definitions` and capped at <= 3 definitions per tool call, excluding types defined in the read file itself or its companion header.
 - **Cache Invalidation**: Mutations via `fs_replace_lines` or `fs_replace_content` immediately invalidate cached definitions originating from the modified file.
 
+## Persistent Codemap Cache (`codemap_cache`)
+To eliminate multi-second cold-start parsing delays across editor and MCP server restarts:
+- **On-Disk Persistence**: Structured `codemap_symbol_info` trees are persisted to `~/.cache/turbostar/projects/<hash>/codemap_cache.json` using atomic temporary file creation and replacement.
+- **Universal Format Coverage**: Caches symbols from all extraction paths—`clangd`, `pylsp`, `semcode`, regex fallback heuristics (`fallback_find_symbols`), and Markdown headings (`parse_markdown_headings`).
+- **Smart Startup Validation & Eager Refresh**: On startup loading, file modification times (`mtime`) and file sizes are validated against disk via fast `stat()` checks:
+  - **Fresh Entries**: Kept in memory (<0.1ms access) and eagerly register classes, structs, and enums into `type_definition_cache`.
+  - **Stale/Modified Entries**: Immediately trigger asynchronous non-blocking prefetching (`prefetch_document_codemap_symbols`) at startup so language server ASTs are warming before the first user or agent toolcall.
+  - **Deleted Files**: Automatically pruned from the cache.
+- **LRU Eviction**: Tracks `last_used_ms` timestamps on all reads and writes; automatically prunes oldest entries when entry counts exceed limits.
+- **Dirty Buffer Bypass**: Bypasses the cache when a file has unsaved in-memory modifications in `document_provider`.
+
 ## Profiling and Debugging
 - **Memory Profiling**: To diagnose Out of Memory (OOM) errors, identify allocation bottlenecks, or track down memory leaks, use `heaptrack`. A detailed guide for agents is available at `docs/heaptrack.md`.
 - **Process Execution & Interactive Debugging Registry**: Maintained in `tool_context::run_registry` and scoped to each agent session, tracking child processes and interactive GDB sessions started via `run_executable` or `agent_debug_coredump`.

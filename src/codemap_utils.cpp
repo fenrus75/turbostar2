@@ -9,6 +9,7 @@
 #include "codemap_utils.h"
 #include "call_resolver.h"
 #include "call_token_extractor.h"
+#include "codemap_cache.h"
 #include "event_logger.h"
 #include "type_definition_cache.h"
 #include "utf8.h"
@@ -598,11 +599,28 @@ static bool is_markdown_file(const std::string_view path)
 static std::vector<codemap_symbol_info> get_document_codemap_symbols_impl(const std::string &safe_path, agentlib::tool_context *ctx,
 									  agentlib::document_provider *doc_prov, int min_lines)
 {
+	bool is_vfs = (safe_path.find("://") != std::string::npos);
+	bool is_dirty_in_doc = false;
+	if (doc_prov) {
+		auto doc_snapshot = doc_prov->get_open_document(safe_path);
+		if (doc_snapshot && doc_snapshot->is_modified()) {
+			is_dirty_in_doc = true;
+		}
+	}
+
+	// 1. Check persistent/in-memory codemap cache for disk-backed files
+	if (!is_vfs && !is_dirty_in_doc) {
+		std::vector<codemap_symbol_info> cached_symbols;
+		if (codemap_cache::get_instance().get(safe_path, min_lines, cached_symbols)) {
+			return cached_symbols;
+		}
+	}
+
 	std::vector<codemap_symbol_info> raw_symbols;
 
-	// 1. Read document content if VFS URI, open in doc_provider, else disk
+	// Read document content if VFS URI, open in doc_provider, else disk
 	std::string content;
-	if (safe_path.find("://") != std::string::npos && ctx) {
+	if (is_vfs && ctx) {
 		auto vfs = ctx->fs_security.get_vfs();
 		if (vfs) {
 			auto view_opt = vfs->read_file(safe_path);
@@ -629,9 +647,22 @@ static std::vector<codemap_symbol_info> get_document_codemap_symbols_impl(const 
 	// For Markdown, use our internal heading "mini-LSP" and skip the heavier generic
 	// LSP machinery entirely (there is typically no Markdown language server installed).
 	if (is_markdown_file(safe_path)) {
-		parse_markdown_headings(content, min_lines, raw_symbols);
+		parse_markdown_headings(content, 1, raw_symbols);
 		std::sort(raw_symbols.begin(), raw_symbols.end(),
 			  [](const codemap_symbol_info &a, const codemap_symbol_info &b) { return a.start_line < b.start_line; });
+		if (!is_vfs && !is_dirty_in_doc && !raw_symbols.empty()) {
+			codemap_cache::get_instance().put(safe_path, raw_symbols);
+		}
+		if (min_lines > 1) {
+			std::vector<codemap_symbol_info> filtered;
+			filtered.reserve(raw_symbols.size());
+			for (const auto &sym : raw_symbols) {
+				if (sym.line_count >= min_lines) {
+					filtered.push_back(sym);
+				}
+			}
+			return filtered;
+		}
 		return raw_symbols;
 	}
 
@@ -643,17 +674,33 @@ static std::vector<codemap_symbol_info> get_document_codemap_symbols_impl(const 
 
 	if (!root_symbols.empty()) {
 		for (const auto &root : root_symbols) {
-			collect_symbols_recursive(root, "", 0, min_lines, raw_symbols, safe_path);
+			collect_symbols_recursive(root, "", 0, 1, raw_symbols, safe_path);
 		}
 	} else {
-		fallback_find_symbols(safe_path, min_lines, raw_symbols);
+		fallback_find_symbols(safe_path, 1, raw_symbols);
 	}
 
 	// Sort raw symbols by start line
 	std::sort(raw_symbols.begin(), raw_symbols.end(),
 		  [](const codemap_symbol_info &a, const codemap_symbol_info &b) { return a.start_line < b.start_line; });
 
-	return structure_symbol_hierarchy(raw_symbols);
+	auto structured = structure_symbol_hierarchy(raw_symbols);
+	if (!is_vfs && !is_dirty_in_doc && !structured.empty()) {
+		codemap_cache::get_instance().put(safe_path, structured);
+	}
+
+	if (min_lines > 1) {
+		std::vector<codemap_symbol_info> filtered;
+		filtered.reserve(structured.size());
+		for (const auto &sym : structured) {
+			if (sym.line_count >= min_lines) {
+				filtered.push_back(sym);
+			}
+		}
+		return filtered;
+	}
+
+	return structured;
 }
 
 std::vector<codemap_symbol_info> get_document_codemap_symbols(const std::string &safe_path, agentlib::document_provider *doc_prov,
@@ -680,6 +727,13 @@ void prefetch_document_codemap_symbols(const std::string &safe_path, agentlib::t
 
 	if (is_markdown_file(safe_path)) {
 		return;
+	}
+
+	// Skip redundant LSP prefetch if codemap_cache already holds a valid, unchanged entry
+	if (safe_path.find("://") == std::string::npos) {
+		if (codemap_cache::get_instance().has_valid_entry(safe_path)) {
+			return;
+		}
 	}
 
 	// Read document content if VFS URI, open in doc_provider, else disk

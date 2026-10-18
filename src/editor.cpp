@@ -567,7 +567,8 @@ namespace
 class editor_document_snapshot : public agentlib::document_snapshot
 {
       public:
-	editor_document_snapshot(std::vector<std::string> lines, std::vector<diagnostic_info> diagnostics) : lines_(std::move(lines))
+	editor_document_snapshot(std::vector<std::string> lines, std::vector<diagnostic_info> diagnostics, bool is_modified = false)
+	    : lines_(std::move(lines)), is_modified_(is_modified)
 	{
 		for (const auto &d : diagnostics) {
 			agentlib::diagnostic_snapshot ds;
@@ -610,10 +611,15 @@ class editor_document_snapshot : public agentlib::document_snapshot
 	{
 		return diagnostics_;
 	}
+	bool is_modified() const override
+	{
+		return is_modified_;
+	}
 
       private:
 	std::vector<std::string> lines_;
 	std::vector<agentlib::diagnostic_snapshot> diagnostics_;
+	bool is_modified_{false};
 };
 } // namespace
 
@@ -647,13 +653,15 @@ std::unique_ptr<agentlib::document_snapshot> editor::get_open_document(std::stri
 			std::filesystem::path p(doc_path);
 			if (std::filesystem::exists(p) && std::filesystem::exists(target_p)) {
 				if (std::filesystem::equivalent(p, target_p)) {
-					return std::make_unique<editor_document_snapshot>(doc->get_all_lines(), doc->get_diagnostics());
+					return std::make_unique<editor_document_snapshot>(doc->get_all_lines(), doc->get_diagnostics(),
+											  doc->is_modified());
 				}
 			}
 
 			// Fallback for non-existent files or if equivalent fails (e.g. relative vs absolute)
 			if (std::filesystem::weakly_canonical(p).string() == std::filesystem::weakly_canonical(target_p).string()) {
-				return std::make_unique<editor_document_snapshot>(doc->get_all_lines(), doc->get_diagnostics());
+				return std::make_unique<editor_document_snapshot>(doc->get_all_lines(), doc->get_diagnostics(),
+										  doc->is_modified());
 			}
 		} catch (...) {
 			// Ignore invalid paths

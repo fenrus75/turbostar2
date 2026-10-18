@@ -13,6 +13,7 @@
 #include <regex>
 #include <set>
 #include <sstream>
+#include "codemap_cache.h"
 #include "codemap_utils.h"
 #include "codereview_manager.h"
 #include "command_runner.h"
@@ -150,6 +151,7 @@ void project_manager::initialize()
 	codereview_manager::get_instance().load_project(project_root_);
 
 	lsp_manager_ = std::make_unique<lsp_manager>();
+	tools::codemap_cache::get_instance().initialize(project_root_);
 
 	load_instructions();
 	scan_dependencies();
@@ -606,6 +608,7 @@ void project_manager::lsp_invalidate_symbol_cache(const std::string &filepath)
 {
 	if (lsp_manager_)
 		lsp_manager_->invalidate_symbol_cache(filepath);
+	tools::codemap_cache::get_instance().invalidate(filepath);
 }
 
 std::vector<lsp_manager::call_hierarchy_item> project_manager::lsp_query_call_hierarchy_outgoing(const std::string &filepath, int line,
@@ -912,6 +915,7 @@ void project_manager::shutdown()
 		lsp_manager_->stop();
 	}
 	tools::shutdown_outgoing_calls_threads();
+	tools::codemap_cache::get_instance().shutdown();
 }
 
 std::vector<std::string> project_manager::detect_executable_candidates()

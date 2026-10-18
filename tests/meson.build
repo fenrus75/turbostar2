@@ -60,6 +60,12 @@ test_semcode_indexer = executable('test_semcode_indexer',
   include_directories: inc)
 test('unit_semcode_indexer', test_semcode_indexer, suite: 'editor')
 
+test_codemap_cache = executable('test_codemap_cache',
+  ['unit/test_codemap_cache.cpp'],
+  dependencies : [core_dep, lsp_dep, nlohmann_json_dep, thread_dep],
+  include_directories: inc)
+test('unit_codemap_cache', test_codemap_cache, suite: 'editor')
+
 test_call_token_extractor = executable('test_call_token_extractor',
   ['unit/test_call_token_extractor.cpp'],
   dependencies : [core_dep],
