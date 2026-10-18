@@ -22,16 +22,14 @@ bool is_markdown_file(const std::string_view path) noexcept
 	return ext == ".md" || ext == ".markdown" || ext == ".mdown" || ext == ".mkd";
 }
 
-void parse_markdown_headings(const std::string &content, int min_lines, std::vector<codemap_symbol_info> &out)
+void fallback_find_symbols_markdown(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out)
 {
 	std::vector<codemap_symbol_info> headings;
 	std::vector<int> stack; // heading levels forming the current ancestor chain
 
-	std::istringstream ss(content);
-	std::string line_text;
-	int line_no = 0;
-	while (std::getline(ss, line_text)) {
-		++line_no;
+	for (size_t i = 0; i < lines.size(); ++i) {
+		int line_no = static_cast<int>(i + 1);
+		const std::string &line_text = lines[i];
 		size_t first = line_text.find_first_not_of(" \t");
 		if (first == std::string::npos || line_text[first] != '#') {
 			continue;
@@ -110,6 +108,22 @@ void parse_markdown_headings(const std::string &content, int min_lines, std::vec
 			}
 		}
 	}
+}
+
+void fallback_find_symbols_markdown(std::span<const std::string> lines, std::vector<codemap_symbol_info> &out)
+{
+	fallback_find_symbols_markdown(lines, 1, out);
+}
+
+void parse_markdown_headings(const std::string &content, int min_lines, std::vector<codemap_symbol_info> &out)
+{
+	std::vector<std::string> lines;
+	std::istringstream ss(content);
+	std::string line;
+	while (std::getline(ss, line)) {
+		lines.push_back(line);
+	}
+	fallback_find_symbols_markdown(lines, min_lines, out);
 }
 
 static bool is_cpp_function_specifier_word(std::string_view word)
@@ -459,7 +473,9 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 	}
 
 	std::string ext = utf8::to_lower(std::filesystem::path(safe_path).extension().string());
-	if (ext == ".py") {
+	if (is_markdown_file(safe_path)) {
+		fallback_find_symbols_markdown(lines, min_lines, out);
+	} else if (ext == ".py") {
 		fallback_find_symbols_python(lines, min_lines, out);
 	} else if (ext == ".sv" || ext == ".svh" || ext == ".v" || ext == ".vh") {
 		fallback_find_symbols_verilog(lines, min_lines, out);

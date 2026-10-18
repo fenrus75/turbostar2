@@ -8,7 +8,7 @@ The `codemap_fallbacks` module (`src/codemap_fallbacks.h`, `src/codemap_fallback
 
 ## Architecture and Constraints
 - **Sub-Millisecond Execution**: Operates purely in-memory using RE2 patterns, string scanning, and brace balance counters, achieving <1ms execution times per file.
-- **Language-Specific In-Memory Slices**: Refactored into discrete language helpers (`fallback_find_symbols_cpp`, `fallback_find_symbols_python`, `fallback_find_symbols_verilog`) operating on `std::span<const std::string>`, allowing isolated unit testing without requiring real disk files.
+- **Language-Specific In-Memory Slices**: Refactored into discrete language helpers (`fallback_find_symbols_cpp`, `fallback_find_symbols_python`, `fallback_find_symbols_verilog`, `fallback_find_symbols_markdown`) operating on `std::span<const std::string>`, allowing isolated unit testing without requiring real disk files. Top-level router `fallback_find_symbols` unifies file I/O and routes to all four helpers based on extension.
 - **Interruption Support**: Checks `project_manager::get_instance().is_exiting()` periodically (every 64 lines) during long file scans to avoid delaying application teardown.
 - **Independence from LSP**: Completely decoupled from LSP data types (`symbol_node`), JSON-RPC message framing, or process lifecycles. Emits clean `codemap_symbol_info` structures directly usable by `codemap_cache` and `codemap_utils`.
 

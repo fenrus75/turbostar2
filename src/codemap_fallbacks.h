@@ -28,6 +28,18 @@ namespace tools
 void parse_markdown_headings(const std::string &content, int min_lines, std::vector<codemap_symbol_info> &out);
 
 /**
+ * @brief Fallback symbol parser for Markdown document lines.
+ *
+ * Scans lines for ATX headings (# through ######) and maps heading levels to outline depth.
+ *
+ * @param lines Read-only sequence of document lines.
+ * @param min_lines Minimum span of lines for a section to be included (default 1).
+ * @param out Output symbol vector to append parsed headings into.
+ */
+void fallback_find_symbols_markdown(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out);
+void fallback_find_symbols_markdown(std::span<const std::string> lines, std::vector<codemap_symbol_info> &out);
+
+/**
  * @brief Fallback symbol parser for C and C++ source code lines.
  *
  * Scans lines using RE2 patterns, curly-brace stack tracking, and specifier keyword
