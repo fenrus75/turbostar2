@@ -249,6 +249,10 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # Done
 
+## 18-10-2026
+- `fs_grep_files` duration and throughput logging: instrumented `fs_grep_files_tool::execute` in `src/tools/fs_grep_files/fs_grep_files_entry.cpp` to measure search execution duration (`std::chrono::steady_clock`) and track scanned metrics (files scanned, bytes scanned, total match count, files with matches). Logged duration and throughput in MB/s to the central `event_logger` on both successful searches and search failures to provide an empirical performance baseline. Updated `src/tools/fs_grep_files/fs_grep_files.md` and added unit test verification in `tests/unit/test_fs_grep_files.cpp`. (Completed)
+- Recursive mutex deadlock fix in `codemap_utils.cpp`: released `g_outgoing_calls_cache_mutex` before invoking `refresh_outgoing_calls_async` in `get_outgoing_calls_in_range` to prevent self-deadlock when triggering background outgoing call refreshes on stale cache hits. (Completed)
+
 ## 27-09-2026
 - `fs_batch_read` multi-chunk and multi-file reading tool: implemented `fs_batch_read` in `src/tools/fs_read_lines/` supporting batched operations across multiple files or line slices (`lines`), symbol definitions (`symbol`), and class context previews (`class_context`). Extracted shared `read_file_lines` and `format_file_lines_markdown` helpers in `src/tools/fs_read_lines/fs_read_lines.{h,cpp}` to eliminate code duplication across disk, document snapshot, and VFS reads; suppressed repetitive codemaps and candidate type tables when `batch_size > 1` while preserving full codemaps when `batch_size == 1`; implemented resilient inline error notes on individual item failures (e.g. unknown symbol or file not found) without aborting the batch; added 5-minute rate-limited prompt tip in `fs_read_lines` when multiple targets are surfaced; added `fs_batch_read.md`; updated `docs/tools.md`; and added comprehensive unit test suite in `tests/unit/test_fs_batch_read.cpp`. (Completed)
 

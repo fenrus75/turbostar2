@@ -27,7 +27,6 @@
 #include "fs_utils.h"
 #include "project_manager.h"
 
-
 namespace tools
 {
 
@@ -204,7 +203,8 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 	bool is_sv = (ext == ".sv" || ext == ".svh" || ext == ".v" || ext == ".vh");
 
 	static const re2::RE2 cpp_func_head_regex(R"(^(\s*(?:[\w:<>]+[\s*&]*\s+)*[\s*&]*([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*)\s*\())");
-	static const re2::RE2 cpp_class_regex(R"(^(\s*(?:typedef\s+)?(?:class|struct)\s+(?:\[\[.*?\]\]\s+)?(?:__attribute__\s*\(\(.*?\)\)\s+)?([a-zA-Z_]\w*)))");
+	static const re2::RE2 cpp_class_regex(
+	    R"(^(\s*(?:typedef\s+)?(?:class|struct)\s+(?:\[\[.*?\]\]\s+)?(?:__attribute__\s*\(\(.*?\)\)\s+)?([a-zA-Z_]\w*)))");
 	static const re2::RE2 cpp_enum_regex(R"(^\s*(?:typedef\s+)?enum(?:\s+class|\s+struct)?\s+([a-zA-Z_]\w*))");
 	static const re2::RE2 py_func_regex(R"(^\s*def\s+([a-zA-Z_]\w*)\s*\()");
 	static const re2::RE2 py_class_regex(R"(^\s*class\s+([a-zA-Z_]\w*))");
@@ -226,7 +226,8 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 
 		if (is_py) {
 			std::string name;
-			if (re2::RE2::PartialMatch(lines[i], py_class_regex, &name) || re2::RE2::PartialMatch(lines[i], py_func_regex, &name)) {
+			if (re2::RE2::PartialMatch(lines[i], py_class_regex, &name) ||
+			    re2::RE2::PartialMatch(lines[i], py_func_regex, &name)) {
 				out.push_back({name, name, "Function", line_num, line_num, 1, 0, ""});
 			}
 			continue;
@@ -869,11 +870,9 @@ static void refresh_outgoing_calls_async(std::string safe_path, std::vector<code
 	}
 }
 
-static std::vector<outgoing_call_reference>
-extract_outgoing_calls_from_slice(const std::string &safe_path, int start_line, int end_line,
-				  const std::vector<codemap_symbol_info> &doc_symbols,
-				  std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
-				  std::chrono::steady_clock::time_point deadline)
+static std::vector<outgoing_call_reference> extract_outgoing_calls_from_slice(
+    const std::string &safe_path, int start_line, int end_line, const std::vector<codemap_symbol_info> &doc_symbols,
+    std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache, std::chrono::steady_clock::time_point deadline)
 {
 	return call_resolver::extract_calls_from_slice(safe_path, start_line, end_line, doc_symbols, symbols_cache, deadline);
 }
@@ -903,28 +902,33 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 	std::error_code ec;
 	auto current_mtime = std::filesystem::last_write_time(safe_path, ec);
 
+	bool trigger_refresh = false;
+	std::vector<outgoing_call_reference> cached_result;
 	{
 		std::lock_guard<std::mutex> lock(g_outgoing_calls_cache_mutex);
 		auto it = g_outgoing_calls_cache.find(safe_path);
 		if (!ec && it != g_outgoing_calls_cache.end() && it->second.last_mtime == current_mtime && !it->second.calls.empty()) {
-			std::vector<outgoing_call_reference> result;
 			for (const auto &call : it->second.calls) {
 				if (call.call_line >= start_line && call.call_line <= end_line) {
-					result.push_back(call);
+					cached_result.push_back(call);
 				}
 			}
 			auto now = std::chrono::steady_clock::now();
 			if (now - it->second.last_fetch_time < std::chrono::seconds(5)) {
-				return result;
+				return cached_result;
 			}
 			// Stale cache hit (>= 5s): update last_fetch_time to avoid duplicate background requests
 			// and return cached calls immediately while triggering background refresh.
 			it->second.last_fetch_time = now;
-			if (project_manager::get_instance().has_lsp_backend() && !project_manager::get_instance().is_exiting()) {
-				refresh_outgoing_calls_async(safe_path, doc_symbols);
-			}
-			return result;
+			trigger_refresh = true;
 		}
+	}
+
+	if (trigger_refresh) {
+		if (project_manager::get_instance().has_lsp_backend() && !project_manager::get_instance().is_exiting()) {
+			refresh_outgoing_calls_async(safe_path, doc_symbols);
+		}
+		return cached_result;
 	}
 
 	std::vector<codemap_symbol_info> effective_symbols = doc_symbols;

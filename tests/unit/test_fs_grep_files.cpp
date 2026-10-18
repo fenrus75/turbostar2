@@ -7,9 +7,10 @@
 #include <nlohmann/json.hpp>
 #include "agentlib/document_provider.h"
 #include "agentlib/tool_context.h"
-#include "tools/fs_grep_files/fs_grep_files.h"
+#include "event_logger.h"
 #include "fs_utils.h"
 #include "test_watchdog.h"
+#include "tools/fs_grep_files/fs_grep_files.h"
 
 namespace fs = std::filesystem;
 
@@ -587,6 +588,26 @@ int main()
 			std::string tar_res_inc = tar_tool_inc.execute(tar_ctx);
 			assert(tar_res_inc.find("ustar") != std::string::npos);
 		}
+	}
+
+	// Test 14: Central event_logger throughput and duration metrics logging
+	{
+		tools::fs_grep_files_args log_args;
+		log_args.pattern = "line 1";
+		log_args.safe_search_path = temp_dir.string();
+		log_args.search_path = temp_dir.string();
+		tools::fs_grep_files_tool log_tool(log_args);
+		std::string log_res = log_tool.execute(ctx);
+		assert(!log_res.empty());
+
+		auto msg_opt = event_logger::get_instance().get_latest_matching_message("fs_grep_files: query='line 1'");
+		assert(msg_opt.has_value());
+		const std::string &log_msg = *msg_opt;
+		assert(log_msg.find("duration=") != std::string::npos);
+		assert(log_msg.find("files_scanned=") != std::string::npos);
+		assert(log_msg.find("bytes_scanned=") != std::string::npos);
+		assert(log_msg.find("matches=") != std::string::npos);
+		assert(log_msg.find("throughput=") != std::string::npos);
 	}
 
 	std::cout << "fs_grep_files unit test passed!\n";

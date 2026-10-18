@@ -14,6 +14,7 @@
 #include "agentlib/virtual_file_system.h"
 #include "codemap_utils.h"
 #include "config_manager.h"
+#include "event_logger.h"
 #include "fs_grep_files.h"
 #include "fs_utils.h"
 #include "mime.h"
@@ -299,6 +300,11 @@ bool fs_grep_files_tool::validate_runtime(const agentlib::tool_context & /*ctx*/
 
 std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 {
+	auto start_time = std::chrono::steady_clock::now();
+	size_t files_scanned = 0;
+	size_t bytes_scanned = 0;
+	size_t total_match_count = 0;
+
 	if (!compiled_regex_->ok()) {
 		return "Error: Invalid regular expression pattern. " + compiled_regex_->error();
 	}
@@ -513,29 +519,40 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 			if (is_open_buffer && ctx.doc_provider) {
 				auto snapshot = ctx.doc_provider->get_open_document(abs_path_str);
 				if (snapshot) {
+					size_t open_bytes = 0;
 					for (size_t i = 0; i < snapshot->get_line_count(); ++i) {
-						file_lines.push_back(snapshot->get_line_text(i));
+						std::string text = snapshot->get_line_text(i);
+						open_bytes += text.size() + 1;
+						file_lines.push_back(std::move(text));
 					}
 					read_success = true;
+					files_scanned++;
+					bytes_scanned += open_bytes;
 				}
 			}
 			// 2. Fallback to direct disk read
 			else if (args_.include_binary || !fs_utils::is_binary_file(abs_path_str, /*treat_null_as_binary=*/true)) {
 				struct stat sb;
-				if (stat(abs_path_str.c_str(), &sb) == 0 && sb.st_size > 0 && sb.st_size < 50 * 1024 * 1024) {
-					std::ifstream file(abs_path_str, std::ios::binary);
-					if (file) {
-						std::string buffer(sb.st_size, ' ');
-						if (file.read(buffer.data(), sb.st_size)) {
-							std::string line;
-							std::istringstream iss(buffer);
-							while (std::getline(iss, line)) {
-								if (!line.empty() && line.back() == '\r') {
-									line.pop_back();
+				if (stat(abs_path_str.c_str(), &sb) == 0 && sb.st_size >= 0 && sb.st_size < 50 * 1024 * 1024) {
+					if (sb.st_size == 0) {
+						files_scanned++;
+					} else {
+						std::ifstream file(abs_path_str, std::ios::binary);
+						if (file) {
+							std::string buffer(sb.st_size, ' ');
+							if (file.read(buffer.data(), sb.st_size)) {
+								files_scanned++;
+								bytes_scanned += sb.st_size;
+								std::string line;
+								std::istringstream iss(buffer);
+								while (std::getline(iss, line)) {
+									if (!line.empty() && line.back() == '\r') {
+										line.pop_back();
+									}
+									file_lines.push_back(line);
 								}
-								file_lines.push_back(line);
+								read_success = true;
 							}
-							read_success = true;
 						}
 					}
 				}
@@ -550,6 +567,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				}
 
 				if (!match_lines.empty()) {
+					total_match_count += match_lines.size();
 					int tier = calculate_file_priority_tier(path, is_open_buffer);
 					raw_matches.push_back({tier, rel_path_str, std::move(match_lines), std::move(file_lines)});
 				}
@@ -597,6 +615,9 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 					continue;
 				}
 
+				files_scanned++;
+				bytes_scanned += content.size();
+
 				std::vector<std::string> file_lines;
 				std::string line;
 				std::istringstream iss(content);
@@ -615,6 +636,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				}
 
 				if (!match_lines.empty()) {
+					total_match_count += match_lines.size();
 					int tier = calculate_file_priority_tier(p, false);
 					raw_matches.push_back({tier, file_uri, std::move(match_lines), std::move(file_lines)});
 				}
@@ -703,8 +725,22 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 			}
 		}
 	} catch (const std::exception &e) {
+		auto end_time = std::chrono::steady_clock::now();
+		double duration_ms = std::chrono::duration<double, std::milli>(end_time - start_time).count();
+		event_logger::get_instance().log("fs_grep_files: query='{}' search failed after {:.2f}ms: {}", args_.pattern, duration_ms,
+						 e.what());
 		return "Error during search traversal: " + std::string(e.what());
 	}
+
+	auto end_time = std::chrono::steady_clock::now();
+	double duration_ms = std::chrono::duration<double, std::milli>(end_time - start_time).count();
+	double throughput_mb_s =
+	    (duration_ms > 0.0 && bytes_scanned > 0) ? ((bytes_scanned / (1024.0 * 1024.0)) / (duration_ms / 1000.0)) : 0.0;
+	std::string display_path = args_.search_path ? *args_.search_path : (args_.safe_search_path.empty() ? "." : args_.safe_search_path);
+	event_logger::get_instance().log("fs_grep_files: query='{}' path='{}' duration={:.2f}ms files_scanned={} bytes_scanned={} "
+					 "matches={} files_with_matches={} throughput={:.2f}MB/s",
+					 args_.pattern, display_path, duration_ms, files_scanned, bytes_scanned, total_match_count,
+					 raw_matches.size(), throughput_mb_s);
 
 	if (detailed_matches.empty() && overflow_files.empty() && lsp_section.empty()) {
 		return "No matches found.";
