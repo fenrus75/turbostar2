@@ -66,6 +66,12 @@ test_codemap_cache = executable('test_codemap_cache',
   include_directories: inc)
 test('unit_codemap_cache', test_codemap_cache, suite: 'editor')
 
+test_codemap_fallbacks = executable('test_codemap_fallbacks',
+  ['unit/test_codemap_fallbacks.cpp'],
+  dependencies : [core_dep, lsp_dep, re2_dep],
+  include_directories: inc)
+test('unit_codemap_fallbacks', test_codemap_fallbacks, suite: 'editor')
+
 test_call_token_extractor = executable('test_call_token_extractor',
   ['unit/test_call_token_extractor.cpp'],
   dependencies : [core_dep],

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <span>
 #include <string>
 #include <vector>
 #include "codemap_utils.h"
@@ -27,11 +28,48 @@ namespace tools
 void parse_markdown_headings(const std::string &content, int min_lines, std::vector<codemap_symbol_info> &out);
 
 /**
- * @brief Regex/heuristic fallback symbol parser for source code (C, C++, Python, SystemVerilog).
+ * @brief Fallback symbol parser for C and C++ source code lines.
  *
- * Invoked when Language Server Protocol (LSP) backends are unavailable, unindexed, timed out,
- * or return an empty symbol list. Scans source text using RE2 patterns and curly-brace / indentation
- * tracking to detect functions, classes, structs, enums, interfaces, modules, and tasks.
+ * Scans lines using RE2 patterns, curly-brace stack tracking, and specifier keyword
+ * inspection to detect functions, classes, structs, and enums while skipping prototypes.
+ *
+ * @param lines Read-only sequence of document lines.
+ * @param min_lines Minimum span of lines for a symbol to be included (default 1).
+ * @param out Output symbol vector to append detected symbols into.
+ */
+void fallback_find_symbols_cpp(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out);
+void fallback_find_symbols_cpp(std::span<const std::string> lines, std::vector<codemap_symbol_info> &out);
+
+/**
+ * @brief Fallback symbol parser for Python source code lines.
+ *
+ * Scans lines for `def` function and `class` definitions.
+ *
+ * @param lines Read-only sequence of document lines.
+ * @param min_lines Minimum span of lines for a symbol to be included (default 1).
+ * @param out Output symbol vector to append detected symbols into.
+ */
+void fallback_find_symbols_python(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out);
+void fallback_find_symbols_python(std::span<const std::string> lines, std::vector<codemap_symbol_info> &out);
+
+/**
+ * @brief Fallback symbol parser for Verilog and SystemVerilog source code lines.
+ *
+ * Scans lines for modules, interfaces, packages, classes, functions, and tasks,
+ * pairing each with its corresponding `end*` keyword.
+ *
+ * @param lines Read-only sequence of document lines.
+ * @param min_lines Minimum span of lines for a symbol to be included (default 1).
+ * @param out Output symbol vector to append detected symbols into.
+ */
+void fallback_find_symbols_verilog(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out);
+void fallback_find_symbols_verilog(std::span<const std::string> lines, std::vector<codemap_symbol_info> &out);
+
+/**
+ * @brief Top-level router for regex/heuristic fallback symbol parsing from a disk file.
+ *
+ * Opens the file, reads lines, identifies language family by extension, and delegates
+ * to the appropriate language-specific fallback parser.
  *
  * @param safe_path Cleaned absolute or canonical path to the source file.
  * @param min_lines Minimum line length for a symbol to be included in the output.

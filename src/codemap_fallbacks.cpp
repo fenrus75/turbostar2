@@ -123,33 +123,33 @@ static bool is_cpp_function_specifier_word(std::string_view word)
 	return keywords.contains(word);
 }
 
-void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vector<codemap_symbol_info> &out)
+void fallback_find_symbols_python(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out)
 {
-	std::string abs_path = fs_utils::safe_absolute(safe_path).string();
-	std::ifstream in(abs_path);
-	if (!in.is_open()) {
-		in.open(safe_path);
-		if (!in.is_open())
-			return;
-	}
-
-	std::vector<std::string> lines;
-	std::string l;
-	while (std::getline(in, l)) {
-		lines.push_back(l);
-	}
-
-	std::string ext = utf8::to_lower(std::filesystem::path(safe_path).extension().string());
-	bool is_py = (ext == ".py");
-	bool is_sv = (ext == ".sv" || ext == ".svh" || ext == ".v" || ext == ".vh");
-
-	static const re2::RE2 cpp_func_head_regex(R"(^(\s*(?:[\w:<>]+[\s*&]*\s+)*[\s*&]*([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*)\s*\())");
-	static const re2::RE2 cpp_class_regex(
-	    R"(^(\s*(?:typedef\s+)?(?:class|struct)\s+(?:\[\[.*?\]\]\s+)?(?:__attribute__\s*\(\(.*?\)\)\s+)?([a-zA-Z_]\w*)))");
-	static const re2::RE2 cpp_enum_regex(R"(^\s*(?:typedef\s+)?enum(?:\s+class|\s+struct)?\s+([a-zA-Z_]\w*))");
 	static const re2::RE2 py_func_regex(R"(^\s*def\s+([a-zA-Z_]\w*)\s*\()");
 	static const re2::RE2 py_class_regex(R"(^\s*class\s+([a-zA-Z_]\w*))");
 
+	for (size_t i = 0; i < lines.size(); ++i) {
+		if ((i & 63) == 0 && project_manager::get_instance().is_exiting()) {
+			return;
+		}
+		int line_num = static_cast<int>(i + 1);
+		std::string name;
+		if (re2::RE2::PartialMatch(lines[i], py_class_regex, &name) ||
+		    re2::RE2::PartialMatch(lines[i], py_func_regex, &name)) {
+			if (1 >= min_lines) {
+				out.push_back({name, name, "Function", line_num, line_num, 1, 0, ""});
+			}
+		}
+	}
+}
+
+void fallback_find_symbols_python(std::span<const std::string> lines, std::vector<codemap_symbol_info> &out)
+{
+	fallback_find_symbols_python(lines, 1, out);
+}
+
+void fallback_find_symbols_verilog(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out)
+{
 	static const re2::RE2 sv_module_regex(R"(^\s*(?:extern\s+)?module\s+([a-zA-Z_]\w*))");
 	static const re2::RE2 sv_interface_regex(R"(^\s*(?:extern\s+)?interface\s+([a-zA-Z_]\w*))");
 	static const re2::RE2 sv_package_regex(R"(^\s*package\s+([a-zA-Z_]\w*))");
@@ -164,56 +164,63 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 			return;
 		}
 		int line_num = static_cast<int>(i + 1);
+		std::string name;
+		std::string kind;
+		std::string end_kw;
 
-		if (is_py) {
-			std::string name;
-			if (re2::RE2::PartialMatch(lines[i], py_class_regex, &name) ||
-			    re2::RE2::PartialMatch(lines[i], py_func_regex, &name)) {
-				out.push_back({name, name, "Function", line_num, line_num, 1, 0, ""});
-			}
-			continue;
+		if (re2::RE2::PartialMatch(lines[i], sv_module_regex, &name)) {
+			kind = "Module";
+			end_kw = "endmodule";
+		} else if (re2::RE2::PartialMatch(lines[i], sv_interface_regex, &name)) {
+			kind = "Interface";
+			end_kw = "endinterface";
+		} else if (re2::RE2::PartialMatch(lines[i], sv_package_regex, &name)) {
+			kind = "Package";
+			end_kw = "endpackage";
+		} else if (re2::RE2::PartialMatch(lines[i], sv_class_regex, &name)) {
+			kind = "Class";
+			end_kw = "endclass";
+		} else if (re2::RE2::PartialMatch(lines[i], sv_func_regex, &name)) {
+			kind = "Function";
+			end_kw = "endfunction";
+		} else if (re2::RE2::PartialMatch(lines[i], sv_task_regex, &name)) {
+			kind = "Task";
+			end_kw = "endtask";
 		}
 
-		if (is_sv) {
-			std::string name;
-			std::string kind;
-			std::string end_kw;
-
-			if (re2::RE2::PartialMatch(lines[i], sv_module_regex, &name)) {
-				kind = "Module";
-				end_kw = "endmodule";
-			} else if (re2::RE2::PartialMatch(lines[i], sv_interface_regex, &name)) {
-				kind = "Interface";
-				end_kw = "endinterface";
-			} else if (re2::RE2::PartialMatch(lines[i], sv_package_regex, &name)) {
-				kind = "Package";
-				end_kw = "endpackage";
-			} else if (re2::RE2::PartialMatch(lines[i], sv_class_regex, &name)) {
-				kind = "Class";
-				end_kw = "endclass";
-			} else if (re2::RE2::PartialMatch(lines[i], sv_func_regex, &name)) {
-				kind = "Function";
-				end_kw = "endfunction";
-			} else if (re2::RE2::PartialMatch(lines[i], sv_task_regex, &name)) {
-				kind = "Task";
-				end_kw = "endtask";
-			}
-
-			if (!name.empty()) {
-				int end_line = line_num;
-				for (size_t j = i + 1; j < lines.size(); ++j) {
-					if (lines[j].find(end_kw) != std::string::npos) {
-						end_line = static_cast<int>(j + 1);
-						break;
-					}
-				}
-				int len = end_line - line_num + 1;
-				if (len >= min_lines) {
-					out.push_back({name, name, kind, line_num, end_line, len, 0, ""});
+		if (!name.empty()) {
+			int end_line = line_num;
+			for (size_t j = i + 1; j < lines.size(); ++j) {
+				if (lines[j].find(end_kw) != std::string::npos) {
+					end_line = static_cast<int>(j + 1);
+					break;
 				}
 			}
-			continue;
+			int len = end_line - line_num + 1;
+			if (len >= min_lines) {
+				out.push_back({name, name, kind, line_num, end_line, len, 0, ""});
+			}
 		}
+	}
+}
+
+void fallback_find_symbols_verilog(std::span<const std::string> lines, std::vector<codemap_symbol_info> &out)
+{
+	fallback_find_symbols_verilog(lines, 1, out);
+}
+
+void fallback_find_symbols_cpp(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out)
+{
+	static const re2::RE2 cpp_func_head_regex(R"(^(\s*(?:[\w:<>]+[\s*&]*\s+)*[\s*&]*([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*)\s*\())");
+	static const re2::RE2 cpp_class_regex(
+	    R"(^(\s*(?:typedef\s+)?(?:class|struct)\s+(?:\[\[.*?\]\]\s+)?(?:__attribute__\s*\(\(.*?\)\)\s+)?([a-zA-Z_]\w*)))");
+	static const re2::RE2 cpp_enum_regex(R"(^\s*(?:typedef\s+)?enum(?:\s+class|\s+struct)?\s+([a-zA-Z_]\w*))");
+
+	for (size_t i = 0; i < lines.size(); ++i) {
+		if ((i & 63) == 0 && project_manager::get_instance().is_exiting()) {
+			return;
+		}
+		int line_num = static_cast<int>(i + 1);
 
 		bool is_class_candidate = false;
 		re2::StringPiece full_class_match, class_name_sp;
@@ -427,6 +434,37 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 				}
 			}
 		}
+	}
+}
+
+void fallback_find_symbols_cpp(std::span<const std::string> lines, std::vector<codemap_symbol_info> &out)
+{
+	fallback_find_symbols_cpp(lines, 1, out);
+}
+
+void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vector<codemap_symbol_info> &out)
+{
+	std::string abs_path = fs_utils::safe_absolute(safe_path).string();
+	std::ifstream in(abs_path);
+	if (!in.is_open()) {
+		in.open(safe_path);
+		if (!in.is_open())
+			return;
+	}
+
+	std::vector<std::string> lines;
+	std::string l;
+	while (std::getline(in, l)) {
+		lines.push_back(l);
+	}
+
+	std::string ext = utf8::to_lower(std::filesystem::path(safe_path).extension().string());
+	if (ext == ".py") {
+		fallback_find_symbols_python(lines, min_lines, out);
+	} else if (ext == ".sv" || ext == ".svh" || ext == ".v" || ext == ".vh") {
+		fallback_find_symbols_verilog(lines, min_lines, out);
+	} else {
+		fallback_find_symbols_cpp(lines, min_lines, out);
 	}
 }
 
