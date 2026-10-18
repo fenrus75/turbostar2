@@ -19,7 +19,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- create many tests for the manual C/C++ file parser
+- turn docs/testcoverage.md into a file in system:// 
 
 - string_view version of line::get_text ? problem is the locking side of things, the string is a nice copy so is permanently useful
 
@@ -250,6 +250,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 # Done
 
 ## 18-10-2026
+- Expand test coverage for manual fallback parsers: added extensive unit test cases to `tests/unit/test_codemap_fallbacks.cpp` covering forward declarations, struct/class parameter boundary cases, control keyword false-positives, multi-line specifier parsing, backward token walks, Verilog packages/interfaces/classes, Markdown trailing hashes, empty input handling, and `parse_markdown_headings`. Measured test coverage via GCC `gcov` per `docs/testcoverage.md`, elevating `src/codemap_fallbacks.cpp` line coverage from 77.1% to 96.6% (288 of 298 executable lines covered). (Completed)
 - Refactor codemap fallbacks into language-specific helpers: split `fallback_find_symbols` in `src/codemap_fallbacks.{h,cpp}` into discrete language-specific parsers (`fallback_find_symbols_cpp`, `fallback_find_symbols_python`, `fallback_find_symbols_verilog`, and `fallback_find_symbols_markdown`) taking `std::span<const std::string>` to decouple syntax grammars and eliminate per-line branching, with `parse_markdown_headings` preserved as a backward-compatible wrapper. Added `tests/unit/test_codemap_fallbacks.cpp` providing comprehensive in-memory unit tests across Python, SystemVerilog, C++, and Markdown headings. (Completed)
 - Modularize codemap fallbacks & enhance LSP update synchronization: split regex/heuristic symbol parsing (C/C++, Python, SystemVerilog) and Markdown heading structure parsing from `src/codemap_utils.cpp` into dedicated `src/codemap_fallbacks.{h,cpp}` with accompanying architectural documentation in `src/codemap_fallbacks.md`. Enhanced `standard_lsp_backend::open_document` to transparently update already-open buffers via `update_document` (`didChange`) and added symbol cache invalidation across all document updates to prevent stale AST symbol retention when files are edited or overwritten. (Completed)
 - LSP save synchronization (`didChange` + `didSave`) and preemptive codemap pre-caching on edits: added `save_document` to `lsp_backend`, `standard_lsp_backend`, `lsp_manager`, and `project_manager::lsp_save_document`. Synchronized document versions (`TextDocument_DidOpen` if unopened, `TextDocument_DidChange` with incremented version, and `TextDocument_DidSave` with saved text), cleared hover/symbol/type caches, and automatically triggered asynchronous `prefetch_document_codemap_symbols` upon any file edit across `fs_replace_engine`, `fs_write_file`, `document::save_to_file`, `apply_text_filter`, and `git_restore`. Updated unit tests in `test_lsp_backend`, `test_fs_replace_content`, `test_call_resolver`, `test_fs_file_codemap`, and `test_type_definition_cache`. (Completed)
