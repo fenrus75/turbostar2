@@ -1,7 +1,7 @@
 # `fs_grep_files` Tool
 
 ## Goals
-`fs_grep_files` provides pattern and regular-expression code search across project directories and virtual file system (VFS) documents for LLM agents. Rather than dumping raw text matches, it enriches results with contextual line ranges, surrounding AST/LSP symbol hints (enclosing function, class, or method scope), and duplicate query protection.
+`fs_grep_files` provides pattern and regular-expression code search across project directories and virtual file system (VFS) documents for LLM agents. Rather than dumping raw text matches, it enriches results with contextual line ranges and surrounding AST/LSP symbol hints (enclosing function, class, or method scope).
 
 ## Architecture and Constraints
 - **Two-Stage Validation Pipeline**:
@@ -17,9 +17,8 @@
   - Files are inspected with `fs_utils::is_binary_file(path, /*treat_null_as_binary=*/true)` for disk files and `fs_utils::is_binary_buffer(content, /*treat_null_as_binary=*/true)` for VFS streams.
   - By default (`include_binary = false`), binary files (containing control characters or null bytes) are excluded from the search.
   - When `include_binary = true`, binary files are included in the search pass.
-- **Duplicate Query Guard**:
-  - Detects identical sequential queries (`g_last_search`) and alerts the agent with actionable guidance instead of redundantly flooding the context window.
 
 ## Lessons Learned
+- **Removal of Artificial Duplicate Query Blocking**: A previous duplicate query guard blocked identical sequential searches with a warning message. In practice, this caused false positives when agents re-ran identical searches to verify file edits (especially edits made via scripts, external tools, or git operations where edit events weren't intercepted). The tool now behaves statelessly like standard search tools (`rg`, `grep`), always executing the requested query faithfully.
 - **Null-Byte Binary Exclusion**: Tar archives, ELF object files, and compiled assets frequently contain null bytes without other ASCII control characters in their initial blocks. Grepping these as text results in garbled matches or token pollution. Explicitly treating null bytes as binary (`treat_null_as_binary=true`) ensures clean text search by default, while the `include_binary` parameter preserves the ability to locate strings inside binary files when intentionally desired.
 - **Markdown Escaping in Code Previews**: Line text emitted in bullet points (`* **Line N**: ...`) contains markdown metacharacters (e.g. `_`, `*`, `\``) that must be escaped to prevent UI rendering breakages and prompt context confusion.

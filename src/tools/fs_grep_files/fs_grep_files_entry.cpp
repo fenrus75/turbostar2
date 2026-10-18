@@ -1,5 +1,8 @@
+#include <algorithm>
+#include <cctype>
 #include <fcntl.h>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <map>
 #include <set>
@@ -7,17 +10,14 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include "config_manager.h"
-#include "fs_grep_files.h"
-#include "mime.h"
-#include "codemap_utils.h"
-#include "fs_utils.h"
-#include "project_manager.h"
 #include "agentlib/document_provider.h"
 #include "agentlib/virtual_file_system.h"
-#include <format>
-#include <algorithm>
-#include <cctype>
+#include "codemap_utils.h"
+#include "config_manager.h"
+#include "fs_grep_files.h"
+#include "fs_utils.h"
+#include "mime.h"
+#include "project_manager.h"
 #include "utf8.h"
 
 namespace fs = std::filesystem;
@@ -28,33 +28,60 @@ namespace tools
 static std::string symbol_kind_to_string(int kind)
 {
 	switch (kind) {
-		case 1: return "File";
-		case 2: return "Module";
-		case 3: return "Namespace";
-		case 4: return "Package";
-		case 5: return "Class";
-		case 6: return "Method";
-		case 7: return "Property";
-		case 8: return "Field";
-		case 9: return "Constructor";
-		case 10: return "Enum";
-		case 11: return "Interface";
-		case 12: return "Function";
-		case 13: return "Variable";
-		case 14: return "Constant";
-		case 15: return "String";
-		case 16: return "Number";
-		case 17: return "Boolean";
-		case 18: return "Array";
-		case 19: return "Object";
-		case 20: return "Key";
-		case 21: return "Null";
-		case 22: return "EnumMember";
-		case 23: return "Struct";
-		case 24: return "Event";
-		case 25: return "Operator";
-		case 26: return "TypeParameter";
-		default: return "Symbol";
+		case 1:
+			return "File";
+		case 2:
+			return "Module";
+		case 3:
+			return "Namespace";
+		case 4:
+			return "Package";
+		case 5:
+			return "Class";
+		case 6:
+			return "Method";
+		case 7:
+			return "Property";
+		case 8:
+			return "Field";
+		case 9:
+			return "Constructor";
+		case 10:
+			return "Enum";
+		case 11:
+			return "Interface";
+		case 12:
+			return "Function";
+		case 13:
+			return "Variable";
+		case 14:
+			return "Constant";
+		case 15:
+			return "String";
+		case 16:
+			return "Number";
+		case 17:
+			return "Boolean";
+		case 18:
+			return "Array";
+		case 19:
+			return "Object";
+		case 20:
+			return "Key";
+		case 21:
+			return "Null";
+		case 22:
+			return "EnumMember";
+		case 23:
+			return "Struct";
+		case 24:
+			return "Event";
+		case 25:
+			return "Operator";
+		case 26:
+			return "TypeParameter";
+		default:
+			return "Symbol";
 	}
 }
 
@@ -74,20 +101,18 @@ static bool is_exact_or_suffix_match(const std::string &sym_name, const std::str
 
 static bool contains_case_insensitive(const std::string &haystack, const std::string &needle)
 {
-	if (needle.empty()) return true;
-	auto it = std::search(
-		haystack.begin(), haystack.end(),
-		needle.begin(), needle.end(),
-		[](char ch1, char ch2) { return std::toupper(ch1) == std::toupper(ch2); }
-	);
+	if (needle.empty())
+		return true;
+	auto it = std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(),
+			      [](char ch1, char ch2) { return std::toupper(ch1) == std::toupper(ch2); });
 	return it != haystack.end();
 }
 
 static bool is_source_extension(std::string_view ext)
 {
-	return ext == ".cpp" || ext == ".h" || ext == ".hpp" || ext == ".c" || ext == ".cc" ||
-	       ext == ".cxx" || ext == ".py" || ext == ".js" || ext == ".ts" || ext == ".rs" ||
-	       ext == ".go" || ext == ".java" || ext == ".cs" || ext == ".rb" || ext == ".sh";
+	return ext == ".cpp" || ext == ".h" || ext == ".hpp" || ext == ".c" || ext == ".cc" || ext == ".cxx" || ext == ".py" ||
+	       ext == ".js" || ext == ".ts" || ext == ".rs" || ext == ".go" || ext == ".java" || ext == ".cs" || ext == ".rb" ||
+	       ext == ".sh";
 }
 
 static int calculate_file_priority_tier(const fs::path &path, bool is_open_buffer)
@@ -97,13 +122,13 @@ static int calculate_file_priority_tier(const fs::path &path, bool is_open_buffe
 
 	// Tier 4: Backup / Temporary Files / Swp / Tilde files
 	if (!filename.empty() && (filename.back() == '~' || filename.ends_with(".bak") || filename.ends_with(".orig") ||
-	    filename.ends_with(".swp") || filename.starts_with("#") || filename.ends_with("#"))) {
+				  filename.ends_with(".swp") || filename.starts_with("#") || filename.ends_with("#"))) {
 		return 4;
 	}
 
 	// Tier 3: Build outputs, vendor headers, log files
-	if (path_str.contains("/build/") || path_str.starts_with("build/") ||
-	    filename.ends_with(".log") || filename.ends_with(".out") || path_str.starts_with("/usr/")) {
+	if (path_str.contains("/build/") || path_str.starts_with("build/") || filename.ends_with(".log") || filename.ends_with(".out") ||
+	    path_str.starts_with("/usr/")) {
 		return 3;
 	}
 
@@ -116,31 +141,13 @@ static int calculate_file_priority_tier(const fs::path &path, bool is_open_buffe
 	return 2;
 }
 
-struct last_search_info {
-	std::string pattern;
-	std::string safe_search_path;
-	std::string include_ext;
-	std::string exclude_path;
-	std::string exclude_ext;
-	std::string exclude_pattern;
-	bool is_regex{false};
-	bool case_insensitive{false};
-	bool include_binary{false};
-};
-
-/*
- * g_last_search_mutex protects the g_last_search static state used for duplicate search detection.
- * Locking rules: Acquire g_last_search_mutex before reading or updating g_last_search.
- */
-static std::mutex g_last_search_mutex;
-static last_search_info g_last_search;
 // Extracts up to 3 lines starting at start_line (1-based) representing the definition or prototype,
 // formatted in the exact fs_read_lines convention:
 // ```<lang>
 // <line_number>: <code_text>
 // ```
-static std::string extract_symbol_snippet(const std::string &safe_path, const std::string &display_path,
-                                         int start_line, int end_line, const agentlib::tool_context &ctx)
+static std::string extract_symbol_snippet(const std::string &safe_path, const std::string &display_path, int start_line, int end_line,
+					  const agentlib::tool_context &ctx)
 {
 	if (start_line < 1) {
 		return "";
@@ -305,45 +312,6 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-	bool is_duplicate = false;
-	std::string curr_ext = args_.include_ext ? *args_.include_ext : "";
-	std::string curr_ex_path = args_.exclude_path ? *args_.exclude_path : "";
-	std::string curr_ex_ext = args_.exclude_ext ? *args_.exclude_ext : "";
-	std::string curr_ex_pat = args_.exclude_pattern ? *args_.exclude_pattern : "";
-
-	{
-		std::lock_guard<std::mutex> lock(g_last_search_mutex);
-		if (g_last_search.pattern == args_.pattern && g_last_search.safe_search_path == args_.safe_search_path &&
-		    g_last_search.include_ext == curr_ext && g_last_search.exclude_path == curr_ex_path &&
-		    g_last_search.exclude_ext == curr_ex_ext && g_last_search.exclude_pattern == curr_ex_pat &&
-		    g_last_search.is_regex == args_.is_regex && g_last_search.case_insensitive == args_.case_insensitive &&
-		    g_last_search.include_binary == args_.include_binary) {
-			is_duplicate = true;
-		}
-
-		g_last_search.pattern = args_.pattern;
-		g_last_search.safe_search_path = args_.safe_search_path;
-		g_last_search.include_ext = curr_ext;
-		g_last_search.exclude_path = curr_ex_path;
-		g_last_search.exclude_ext = curr_ex_ext;
-		g_last_search.exclude_pattern = curr_ex_pat;
-		g_last_search.is_regex = args_.is_regex;
-		g_last_search.case_insensitive = args_.case_insensitive;
-		g_last_search.include_binary = args_.include_binary;
-	}
-
-	if (is_duplicate) {
-		std::string display_path = "project root";
-		if (args_.search_path) {
-			display_path = *args_.search_path;
-		}
-		return std::format(
-			"WARNING: You have already performed this exact search query (fs_grep_files with pattern: \"{}\" in {}). "
-			"Repeating the same query yields the same results. To find what you are looking for, please refine your search "
-			"pattern, search in a different directory, or read the files containing matches directly.",
-			args_.pattern, display_path);
-	}
-
 	std::string build_dir = config_manager::get_instance().get_build_directory();
 	fs::path root_path = ctx.fs_security.get_working_directory();
 
@@ -394,7 +362,8 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 		final_symbols.insert(final_symbols.end(), exact_matches.begin(), exact_matches.end());
 		if (final_symbols.size() < 5) {
 			for (const auto &sym : other_matches) {
-				if (final_symbols.size() >= 5) break;
+				if (final_symbols.size() >= 5)
+					break;
 				final_symbols.push_back(sym);
 			}
 		}
@@ -412,7 +381,8 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				std::string safe_file_path;
 				std::string out_err;
 				fs::path full_path = abs_path.is_absolute() ? abs_path : (root_path / abs_path);
-				bool can_read = ctx.fs_security.validate_access(full_path.string(), agentlib::access_type::read, safe_file_path, out_err);
+				bool can_read = ctx.fs_security.validate_access(full_path.string(), agentlib::access_type::read,
+										safe_file_path, out_err);
 
 				if (end_line <= start_line && can_read) {
 					auto file_symbols = get_document_codemap_symbols(safe_file_path, ctx, /*min_lines=*/1);
@@ -433,19 +403,19 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 
 				if (snippet.empty()) {
 					if (end_line > start_line) {
-						lsp_ss << std::format("* **{} `{}`** is defined in `{}` at line {} to {}\n",
-							kind_str, sym.name, display_path, start_line, end_line);
+						lsp_ss << std::format("* **{} `{}`** is defined in `{}` at line {} to {}\n", kind_str,
+								      sym.name, display_path, start_line, end_line);
 					} else {
-						lsp_ss << std::format("* **{} `{}`** is defined in `{}` at line {}\n",
-							kind_str, sym.name, display_path, start_line);
+						lsp_ss << std::format("* **{} `{}`** is defined in `{}` at line {}\n", kind_str, sym.name,
+								      display_path, start_line);
 					}
 				} else {
 					if (end_line > start_line) {
-						lsp_ss << std::format("* **{} `{}`** is defined in `{}` at line {} to {}:\n{}",
-							kind_str, sym.name, display_path, start_line, end_line, snippet);
+						lsp_ss << std::format("* **{} `{}`** is defined in `{}` at line {} to {}:\n{}", kind_str,
+								      sym.name, display_path, start_line, end_line, snippet);
 					} else {
-						lsp_ss << std::format("* **{} `{}`** is defined in `{}` at line {}:\n{}",
-							kind_str, sym.name, display_path, start_line, snippet);
+						lsp_ss << std::format("* **{} `{}`** is defined in `{}` at line {}:\n{}", kind_str,
+								      sym.name, display_path, start_line, snippet);
 					}
 				}
 			}
@@ -488,11 +458,14 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 			std::string token;
 			while (std::getline(ss, token, ',')) {
 				size_t first = token.find_first_not_of(" \t");
-				if (first == std::string::npos) continue;
+				if (first == std::string::npos)
+					continue;
 				size_t last = token.find_last_not_of(" \t");
 				token = token.substr(first, last - first + 1);
-				if (token.empty()) continue;
-				if (token.front() != '.') token = std::format(".{}", token);
+				if (token.empty())
+					continue;
+				if (token.front() != '.')
+					token = std::format(".{}", token);
 				if (ext == token || filename.ends_with(token)) {
 					return true;
 				}
@@ -662,7 +635,8 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 					// Skip hidden dirs, build dirs, tmp/temp, and explicit exclude_path matches
 					if (name.front() == '.' || name == build_dir || name == "tmp" || name == "temp" ||
 					    (is_top_level && name.starts_with("build")) ||
-					    (args_.exclude_path && !args_.exclude_path->empty() && (path.string().contains(*args_.exclude_path) || rel_p.contains(*args_.exclude_path)))) {
+					    (args_.exclude_path && !args_.exclude_path->empty() &&
+					     (path.string().contains(*args_.exclude_path) || rel_p.contains(*args_.exclude_path)))) {
 						it.disable_recursion_pending();
 					}
 					continue;
@@ -704,8 +678,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				std::vector<std::pair<int, int>> merged_blocks; // start_line, end_line (1-based)
 				for (int match_line : match_lines_detailed) {
 					int block_start = std::max(1, match_line - args_.context_lines);
-					int block_end =
-					    std::min(static_cast<int>(fm.file_lines.size()), match_line + args_.context_lines);
+					int block_end = std::min(static_cast<int>(fm.file_lines.size()), match_line + args_.context_lines);
 
 					if (merged_blocks.empty()) {
 						merged_blocks.push_back({block_start, block_end});
@@ -739,7 +712,8 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 
 	std::string result_str;
 	if (detailed_matches.empty() && overflow_files.empty()) {
-		result_str = std::format("No textual matches found for '{}'.\n\n### Related Symbol Index Definitions (no textual occurrences in searched scope):\n{}",
+		result_str = std::format("No textual matches found for '{}'.\n\n### Related Symbol Index Definitions (no textual "
+					 "occurrences in searched scope):\n{}",
 					 args_.pattern, lsp_section);
 	} else {
 		std::stringstream ss;
@@ -756,7 +730,8 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 			std::vector<codemap_symbol_info> file_symbols;
 			std::string safe_file_path;
 			std::string out_err;
-			if (ctx.fs_security.validate_access((root_path / file).string(), agentlib::access_type::read, safe_file_path, out_err)) {
+			if (ctx.fs_security.validate_access((root_path / file).string(), agentlib::access_type::read, safe_file_path,
+							    out_err)) {
 				file_symbols = get_document_codemap_symbols(safe_file_path, ctx, /*min_lines=*/1);
 			}
 
@@ -772,9 +747,11 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 					const codemap_symbol_info *enc_sym = find_enclosing_symbol(file_symbols, match.first);
 					if (enc_sym) {
 						if (enc_sym->end_line > enc_sym->start_line) {
-							scope_hint = std::format(" [in {} `{}` L{}-{}]", enc_sym->kind_str, enc_sym->name, enc_sym->start_line, enc_sym->end_line);
+							scope_hint = std::format(" [in {} `{}` L{}-{}]", enc_sym->kind_str, enc_sym->name,
+										 enc_sym->start_line, enc_sym->end_line);
 						} else {
-							scope_hint = std::format(" [in {} `{}` L{}]", enc_sym->kind_str, enc_sym->name, enc_sym->start_line);
+							scope_hint = std::format(" [in {} `{}` L{}]", enc_sym->kind_str, enc_sym->name,
+										 enc_sym->start_line);
 						}
 					}
 				}
@@ -788,7 +765,8 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 					if (colon_pos != std::string::npos) {
 						single_line = single_line.substr(colon_pos + 2);
 					}
-					ss << "* **Line " << match.first << "**" << scope_hint << ": `" << escape_markdown(single_line) << "`\n";
+					ss << "* **Line " << match.first << "**" << scope_hint << ": `" << escape_markdown(single_line)
+					   << "`\n";
 				} else {
 					// New multi-line block format
 					ss << "**Match near Line " << match.first << "**" << scope_hint << ":\n";
@@ -812,7 +790,8 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 		if (!overflow_files.empty()) {
 			ss << "---\n";
 			ss << "*Note: `limit` (" << args_.limit
-			   << ") limit reached. Additional matches were found in the following files. Consider narrowing your search or specifying "
+			   << ") limit reached. Additional matches were found in the following files. Consider narrowing your search or "
+			      "specifying "
 			      "a `search_path`.*\n";
 			for (const auto &f : overflow_files) {
 				ss << "- `" << f << "`\n";

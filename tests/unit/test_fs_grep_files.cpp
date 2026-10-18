@@ -1,15 +1,15 @@
 // Tested source file: src/tools/fs_grep_files/fs_grep_files_entry.cpp
-#include "test_watchdog.h"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <memory>
 #include <nlohmann/json.hpp>
-#include "../../src/agentlib/document_provider.h"
-#include "../../src/agentlib/tool_context.h"
-#include "../../src/tools/fs_grep_files/fs_grep_files.h"
+#include "agentlib/document_provider.h"
+#include "agentlib/tool_context.h"
+#include "tools/fs_grep_files/fs_grep_files.h"
 #include "fs_utils.h"
+#include "test_watchdog.h"
 
 namespace fs = std::filesystem;
 
@@ -150,7 +150,7 @@ int main()
 	assert(res4.find("**Match near Line 3**:") == std::string::npos); // Should be merged!
 	assert(res4.find("4: line 4") != std::string::npos);
 
-	// Test 5: Duplicate query detection
+	// Test 5: Repeated identical queries should not be blocked by warning
 	{
 		// Execute tool twice with identical parameters
 		tools::fs_grep_files_args args5;
@@ -160,35 +160,38 @@ int main()
 
 		tools::fs_grep_files_tool tool5a(args5);
 		std::string res5a = tool5a.execute(ctx);
+		assert(res5a.find("WARNING:") == std::string::npos);
 
 		tools::fs_grep_files_tool tool5b(args5);
 		std::string res5b = tool5b.execute(ctx);
 
 		std::cout << "RES5B:\n" << res5b << std::endl;
-		assert(res5b.find("WARNING: You have already performed this exact search query") != std::string::npos);
+		// Second consecutive query must execute normally without being blocked by warning
+		assert(res5b.find("WARNING:") == std::string::npos);
+		assert(res5a == res5b);
 	}
 
 	// Test 6: LSP symbol lookup and formatting
 	{
 		test_fs_grep_files_tool_mocked tool6(args1);
-		
+
 		lsp_manager::symbol_info sym1;
 		sym1.name = "hello";
 		sym1.kind = 12; // Function
 		sym1.location.path = (temp_dir / "src/hello.cpp").string();
-		sym1.location.range = {.start_y=41, .start_x=0, .end_y=41, .end_x=10}; // 0-indexed line 41 -> line 42
+		sym1.location.range = {.start_y = 41, .start_x = 0, .end_y = 41, .end_x = 10}; // 0-indexed line 41 -> line 42
 
 		lsp_manager::symbol_info sym2;
 		sym2.name = "hello_world";
 		sym2.kind = 5; // Class
 		sym2.location.path = (temp_dir / "src/hello.h").string();
-		sym2.location.range = {.start_y=9, .start_x=0, .end_y=9, .end_x=5}; // 0-indexed line 9 -> line 10
+		sym2.location.range = {.start_y = 9, .start_x = 0, .end_y = 9, .end_x = 5}; // 0-indexed line 9 -> line 10
 
 		lsp_manager::symbol_info sym3;
 		sym3.name = "hello_layout";
 		sym3.kind = 6; // Method
 		sym3.location.path = (temp_dir / "src/editor.cpp").string();
-		sym3.location.range = {.start_y=268, .start_x=0, .end_y=311, .end_x=10}; // 0-indexed 268->269, 311->312
+		sym3.location.range = {.start_y = 268, .start_x = 0, .end_y = 311, .end_x = 10}; // 0-indexed 268->269, 311->312
 
 		tool6.mock_symbols = {sym1, sym2, sym3};
 
@@ -264,7 +267,7 @@ int main()
 
 		std::string res8 = tool8.execute(ctx);
 		assert(res8.find("### `target.cpp`") != std::string::npos);
-		assert(res8.find("target.cpp~") != std::string::npos); // Should be in overflow list
+		assert(res8.find("target.cpp~") != std::string::npos);	     // Should be in overflow list
 		assert(res8.find("### `target.cpp~`") == std::string::npos); // Should NOT be in detailed matches header!
 	}
 
@@ -444,7 +447,7 @@ int main()
 		sym.kind = 12; // Function
 		sym.location.path = target_file.string();
 		sym.location.range.start_y = 10; // 0-based, line 11
-		sym.location.range.end_y = 12;   // 0-based, line 13
+		sym.location.range.end_y = 12;	 // 0-based, line 13
 		stool.mock_symbols = {sym};
 
 		std::string sres = stool.execute(sctx);
@@ -549,10 +552,7 @@ int main()
 		tools::fs_grep_files_validator val;
 		std::string err;
 		nlohmann::json json_args = {
-			{"pattern", "magictargettoken12345"},
-			{"search_path", bin_dir.string()},
-			{"include_binary", true}
-		};
+		    {"pattern", "magictargettoken12345"}, {"search_path", bin_dir.string()}, {"include_binary", true}};
 		assert(val.validate_args(json_args, ctx, err));
 		auto tool_ptr = val.create_tool(json_args);
 		assert(tool_ptr != nullptr);
