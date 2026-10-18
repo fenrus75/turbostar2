@@ -488,11 +488,20 @@ int document::restore_cursor_state_unlocked(const cursor_state &state)
 
 std::string document::get_text_all_unlocked() const
 {
+	size_t estimated_bytes = 0;
+	for (const auto &l : lines_) {
+		estimated_bytes += l->length_in_bytes();
+	}
+	if (!lines_.empty()) {
+		estimated_bytes += lines_.size() - 1;
+	}
+
 	std::string full_text;
+	full_text.reserve(estimated_bytes);
 	for (size_t i = 0; i < lines_.size(); ++i) {
-		full_text += lines_[i]->get_text();
+		lines_[i]->append_to(full_text);
 		if (i < lines_.size() - 1) {
-			full_text += "\n";
+			full_text += '\n';
 		}
 	}
 	return full_text;

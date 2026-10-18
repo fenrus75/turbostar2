@@ -23,6 +23,7 @@ class line
 	line &operator=(line &&other) noexcept;
 
 	std::string get_text() const;
+	void append_to(std::string &out) const;
 	void get_content(std::string &out_text, std::vector<syntax_attribute> &out_attrs) const;
 	void set_text(std::string_view text);
 
@@ -34,6 +35,7 @@ class line
 	void merge(const line &other_line);
 
 	int length_in_chars() const;
+	size_t length_in_bytes() const;
 	size_t char_to_byte_offset(int char_pos) const;
 	int char_to_display_col(int char_pos) const;
 	int display_col_to_char_pos(int display_col) const;

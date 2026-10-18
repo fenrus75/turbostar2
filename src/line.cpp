@@ -57,6 +57,12 @@ std::string line::get_text() const
 	return text_;
 }
 
+void line::append_to(std::string &out) const
+{
+	std::shared_lock lock(mutex_);
+	out.append(text_);
+}
+
 void line::get_content(std::string &out_text, std::vector<syntax_attribute> &out_attrs) const
 {
 	std::shared_lock lock(mutex_);
@@ -81,6 +87,12 @@ int line::length_in_chars() const
 {
 	std::shared_lock lock(mutex_);
 	return utf8::length(text_);
+}
+
+size_t line::length_in_bytes() const
+{
+	std::shared_lock lock(mutex_);
+	return text_.size();
 }
 
 bool line::next_utf8_character(size_t &byte_offset, std::string &out_char) const

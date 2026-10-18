@@ -1,3 +1,4 @@
+// Tested source file: src/line.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
@@ -19,6 +20,12 @@ int main()
 	// 2: '😊' (4 bytes)
 	// 3: 'b' (1 byte)
 	assert(l.length_in_chars() == 4);
+	assert(l.length_in_bytes() == 9);
+
+	// Test append_to
+	std::string appended = "prefix: ";
+	l.append_to(appended);
+	assert(appended == "prefix: aあ😊b");
 
 	// Display column calculations
 	// Japanese 'あ' is 2 columns, Emoji '😊' is 2 columns.
