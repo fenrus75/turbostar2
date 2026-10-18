@@ -20,6 +20,7 @@
 | crashdump_window   | src/ui/crashdump_window.h                |
 | diff_window        | src/ui/diff_window.h                     |
 | hex_editor_window  | src/ui/hex_editor_window.h               |
+| terminal_window    | src/ui/terminal_window.h                  |
 
 */
 class window

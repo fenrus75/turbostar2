@@ -1102,7 +1102,8 @@ void editor::dispatch_event_key(const editor_event &ev)
 				if (windows_[i]->get_title() == "Run Output") {
 					run_idx = static_cast<int>(i);
 				}
-				if (windows_[i]->get_title() == "Debugger (GDB)") {
+				auto tw = dynamic_cast<ui::terminal_window *>(windows_[i].get());
+				if (tw && tw->is_gdb()) {
 					gdb_idx = static_cast<int>(i);
 				}
 			}

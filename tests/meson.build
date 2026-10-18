@@ -705,6 +705,12 @@ test_window_id_allocation = executable('test_window_id_allocation',
   include_directories: inc)
 test('unit_test_window_id_allocation', test_window_id_allocation, suite: 'ui')
 
+test_terminal_window = executable('test_terminal_window',
+  'unit/test_terminal_window.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_terminal_window', test_terminal_window, suite: 'ui')
+
 
 
 

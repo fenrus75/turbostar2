@@ -48,8 +48,8 @@ static int get_terminal_color_pair(uint8_t fg, uint8_t bg)
 	return pair;
 }
 
-terminal_window::terminal_window(int id, int x, int y, int width, int height, const std::string &title)
-    : ::window(id, x, y, width, height, title), emulator_(width - 2, height - 2)
+terminal_window::terminal_window(int id, int x, int y, int width, int height, const std::string &title, bool is_gdb)
+    : ::window(id, x, y, width, height, title), emulator_(width - 2, height - 2), is_gdb_(is_gdb)
 {
 	background_color_pair_ = 29; // default terminal color: white on black
 }
@@ -333,7 +333,7 @@ bool terminal_window::process_events()
 	while (auto ev = queue.pop()) {
 		if (ev->type == event_type::mouse_click || ev->type == event_type::mouse_scroll_up ||
 		    ev->type == event_type::mouse_scroll_down) {
-			if (get_title() == "Debugger (GDB)" && ev->type == event_type::mouse_click && ev->mouse_y == y_ + height_ - 1) {
+			if (is_gdb() && ev->type == event_type::mouse_click && ev->mouse_y == y_ + height_ - 1) {
 				int click_x = ev->mouse_x - x_;
 				auto buttons = get_debug_buttons();
 				for (const auto &btn : buttons) {
@@ -530,7 +530,7 @@ void terminal_window::draw_border() const
 {
 	::window::draw_border(); // Draw base frame and title
 
-	if (get_title() == "Debugger (GDB)") {
+	if (is_gdb()) {
 		auto buttons = get_debug_buttons();
 		for (const auto &btn : buttons) {
 			attrset(COLOR_PAIR(5));
@@ -549,7 +549,7 @@ void terminal_window::draw_border() const
 		status = "[Capture: OFF (Click/Enter to capture)]";
 	}
 
-	if (get_title() == "Debugger (GDB)") {
+	if (is_gdb()) {
 		if (width_ - static_cast<int>(status.length()) - 2 <= 38) {
 			status = capture_input_ ? "[^G]" : "[Click]";
 		}

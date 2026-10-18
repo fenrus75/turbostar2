@@ -297,8 +297,10 @@ void editor::update_window_layout()
 		if (win->get_title() == "Run Output") {
 			run_win = win.get();
 		}
-		if (win->get_title() == "Debugger (GDB)") {
-			gdb_win = win.get();
+		if (auto tw = dynamic_cast<ui::terminal_window *>(win.get())) {
+			if (tw->is_gdb()) {
+				gdb_win = win.get();
+			}
 		}
 	}
 
@@ -905,7 +907,7 @@ void editor::run()
 				if (tw->update_pty()) {
 					needs_render = true;
 				}
-				if (tw->get_title() == "Debugger (GDB)" && !tw->is_alive()) {
+				if (tw->is_gdb() && !tw->is_alive()) {
 					debug_exited = true;
 				}
 			}

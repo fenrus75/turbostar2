@@ -14,8 +14,17 @@ namespace ui
 class terminal_window : public ::window
 {
       public:
-	terminal_window(int id, int x, int y, int width, int height, const std::string &title);
+	terminal_window(int id, int x, int y, int width, int height, const std::string &title, bool is_gdb = false);
 	~terminal_window() override;
+
+	bool is_gdb() const noexcept
+	{
+		return is_gdb_;
+	}
+	void set_gdb(bool gdb = true) noexcept
+	{
+		is_gdb_ = gdb;
+	}
 
 
 	bool start_process(const std::string &raw_command, std::unique_ptr<build_log_parser> parser = nullptr, bool enable_network = false,
@@ -84,6 +93,7 @@ class terminal_window : public ::window
 	pid_t pid_{-1};
 	bool is_alive_{false};
 	bool capture_input_{true};
+	bool is_gdb_{false};
 
 	bool sanitize_recorded_data_{false};
 

@@ -972,8 +972,9 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 
 	// Clean up any existing terminal windows
 	for (auto it = windows_.begin(); it != windows_.end();) {
-		if ((*it)->get_title() == "Run Output" || (*it)->get_title() == "Debugger (GDB)") {
-			if (auto tw = dynamic_cast<ui::terminal_window *>(it->get())) {
+		auto tw = dynamic_cast<ui::terminal_window *>(it->get());
+		if ((*it)->get_title() == "Run Output" || (tw && tw->is_gdb())) {
+			if (tw) {
 				tw->stop_process();
 			}
 			it = windows_.erase(it);
@@ -1000,7 +1001,7 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 
 		auto app_tw = std::make_unique<ui::terminal_window>(app_id, 0, 1, cols, app_h, "Run Output");
 		app_tw->set_display_priority(10);
-		auto gdb_tw = std::make_unique<ui::terminal_window>(gdb_id, 0, 1 + app_h, cols, gdb_h, "Debugger (GDB)");
+		auto gdb_tw = std::make_unique<ui::terminal_window>(gdb_id, 0, 1 + app_h, cols, gdb_h, "Debugger (GDB)", true);
 		gdb_tw->set_display_priority(10);
 		gdb_tw->set_sanitize_recorded_data(true);
 		app_tw->link_window(gdb_tw.get());
@@ -1227,7 +1228,7 @@ bool editor::terminate_run(int run_id)
 
 	for (auto *win : to_close) {
 		if (auto tw = dynamic_cast<ui::terminal_window *>(win)) {
-			if (tw->get_title() == "Debugger (GDB)") {
+			if (tw->is_gdb()) {
 				int fd = tw->get_pty_master_fd();
 				if (fd >= 0 && tw->is_alive()) {
 					std::string quit_cmd = "quit\ny\n";
@@ -1424,10 +1425,9 @@ agentlib::start_app_result editor::start_coredump_gdb(std::string_view crash_id)
 	}
 
 	for (auto it = windows_.begin(); it != windows_.end();) {
-		if ((*it)->get_title() == "Coredump Debugger (GDB)" || (*it)->get_title() == "Debugger (GDB)") {
-			if (auto tw = dynamic_cast<ui::terminal_window *>(it->get())) {
-				tw->stop_process();
-			}
+		auto tw = dynamic_cast<ui::terminal_window *>(it->get());
+		if (tw && tw->is_gdb()) {
+			tw->stop_process();
 			it = windows_.erase(it);
 		} else {
 			++it;
@@ -1437,7 +1437,7 @@ agentlib::start_app_result editor::start_coredump_gdb(std::string_view crash_id)
 	int run_id = 2000 + static_cast<int>(windows_.size());
 	int cols = COLS > 0 ? COLS : 80;
 	int lines = LINES > 0 ? LINES : 25;
-	auto gdb_tw = std::make_unique<ui::terminal_window>(run_id, 0, 1, cols, lines - 2, "Coredump Debugger (GDB)");
+	auto gdb_tw = std::make_unique<ui::terminal_window>(run_id, 0, 1, cols, lines - 2, "Coredump Debugger (GDB)", true);
 	gdb_tw->set_display_priority(10);
 	gdb_tw->set_sanitize_recorded_data(true);
 
