@@ -166,13 +166,13 @@ test('unit_binary_plugin', test_binary_plugin_impl, suite: 'plugins')
 
 
 test_history_manager = executable('test_history_manager',
-  ['unit/test_history_manager.cpp', '../src/history_manager.cpp', '../src/event_logger.cpp', '../src/fs_utils.cpp', '../src/fs_basics.cpp', '../src/git_manager.cpp', '../src/config_manager.cpp', '../src/build_error_manager.cpp', '../src/gcc_log_parser.cpp', '../src/command_runner.cpp', '../src/event_queue.cpp', '../src/crashdump_manager.cpp', '../src/codemap_utils.cpp', '../src/address_lookup.cpp', '../src/project_manager.cpp', '../src/lsp_backend.cpp', '../src/standard_lsp_backend.cpp', '../src/semcode_backend.cpp', '../src/lsp_manager.cpp', '../src/codereview_manager.cpp', '../src/perf_manager.cpp'],
+  ['unit/test_history_manager.cpp', '../src/history_manager.cpp', '../src/event_logger.cpp', '../src/fs_utils.cpp', '../src/fs_basics.cpp', '../src/git_manager.cpp', '../src/config_manager.cpp', '../src/build_error_manager.cpp', '../src/gcc_log_parser.cpp', '../src/command_runner.cpp', '../src/event_queue.cpp', '../src/crashdump_manager.cpp', '../src/codemap_utils.cpp', '../src/codemap_fallbacks.cpp', '../src/address_lookup.cpp', '../src/project_manager.cpp', '../src/lsp_backend.cpp', '../src/standard_lsp_backend.cpp', '../src/semcode_backend.cpp', '../src/lsp_manager.cpp', '../src/codereview_manager.cpp', '../src/perf_manager.cpp'],
   dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
   include_directories: inc)
 test('unit_history_manager', test_history_manager, suite: 'editor')
 
 test_command_runner = executable('test_command_runner',
-  ['unit/test_command_runner.cpp', '../src/command_runner.cpp', '../src/config_manager.cpp', '../src/event_logger.cpp', '../src/crashdump_manager.cpp', '../src/codemap_utils.cpp', '../src/address_lookup.cpp', '../src/fs_utils.cpp', '../src/fs_basics.cpp', '../src/git_manager.cpp', '../src/build_error_manager.cpp', '../src/gcc_log_parser.cpp', '../src/event_queue.cpp', '../src/project_manager.cpp', '../src/lsp_backend.cpp', '../src/standard_lsp_backend.cpp', '../src/semcode_backend.cpp', '../src/lsp_manager.cpp', '../src/codereview_manager.cpp', '../src/perf_manager.cpp'],
+  ['unit/test_command_runner.cpp', '../src/command_runner.cpp', '../src/config_manager.cpp', '../src/event_logger.cpp', '../src/crashdump_manager.cpp', '../src/codemap_utils.cpp', '../src/codemap_fallbacks.cpp', '../src/address_lookup.cpp', '../src/fs_utils.cpp', '../src/fs_basics.cpp', '../src/git_manager.cpp', '../src/build_error_manager.cpp', '../src/gcc_log_parser.cpp', '../src/event_queue.cpp', '../src/project_manager.cpp', '../src/lsp_backend.cpp', '../src/standard_lsp_backend.cpp', '../src/semcode_backend.cpp', '../src/lsp_manager.cpp', '../src/codereview_manager.cpp', '../src/perf_manager.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_command_runner', test_command_runner, suite: 'editor')
@@ -274,6 +274,7 @@ test_tools = executable('test_tools',
    '../src/tools/apply_text_filter/apply_text_filter_entry.cpp',
    '../src/tools/apply_text_filter/apply_text_filter_security.cpp',
    '../src/codemap_utils.cpp',
+   '../src/codemap_fallbacks.cpp',
    '../src/tools/fs_read_lines/fs_read_lines_entry.cpp',
    '../src/tools/fs_read_lines/fs_read_lines_security.cpp',
    '../src/tools/fs_read_lines/fs_batch_read_entry.cpp',
@@ -529,7 +530,7 @@ test_git_branch_list = executable('test_git_branch_list',
 test('unit_test_git_branch_list', test_git_branch_list, suite: 'agent')
 
 test_git_manager = executable('test_git_manager',
-  ['unit/test_git_manager.cpp', '../src/git_manager.cpp', '../src/event_logger.cpp', '../src/fs_utils.cpp', '../src/fs_basics.cpp', '../src/command_runner.cpp', '../src/config_manager.cpp', '../src/build_error_manager.cpp', '../src/gcc_log_parser.cpp', '../src/event_queue.cpp', '../src/crashdump_manager.cpp', '../src/codemap_utils.cpp', '../src/address_lookup.cpp', '../src/project_manager.cpp', '../src/lsp_backend.cpp', '../src/standard_lsp_backend.cpp', '../src/semcode_backend.cpp', '../src/lsp_manager.cpp', '../src/codereview_manager.cpp', '../src/perf_manager.cpp'],
+  ['unit/test_git_manager.cpp', '../src/git_manager.cpp', '../src/event_logger.cpp', '../src/fs_utils.cpp', '../src/fs_basics.cpp', '../src/command_runner.cpp', '../src/config_manager.cpp', '../src/build_error_manager.cpp', '../src/gcc_log_parser.cpp', '../src/event_queue.cpp', '../src/crashdump_manager.cpp', '../src/codemap_utils.cpp', '../src/codemap_fallbacks.cpp', '../src/address_lookup.cpp', '../src/project_manager.cpp', '../src/lsp_backend.cpp', '../src/standard_lsp_backend.cpp', '../src/semcode_backend.cpp', '../src/lsp_manager.cpp', '../src/codereview_manager.cpp', '../src/perf_manager.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_manager', test_git_manager, suite: 'agent')
@@ -1040,6 +1041,7 @@ test_fs_list_dir = executable('test_fs_list_dir',
    '../src/tools/fs_list_dir/fs_list_dir_entry.cpp',
    '../src/tools/fs_list_dir/fs_list_dir_security.cpp',
    '../src/codemap_utils.cpp',
+   '../src/codemap_fallbacks.cpp',
    '../src/tools/fs_file_size/fs_file_size_entry.cpp',
    '../src/tools/fs_file_size/fs_file_size_security.cpp',
    '../src/tools/fs_grep_files/fs_grep_files_entry.cpp',
@@ -1099,8 +1101,9 @@ test_fs_batch_read = executable('test_fs_batch_read',
    '../src/tools/fs_read_lines/fs_batch_read_entry.cpp',
    '../src/tools/fs_read_lines/fs_batch_read_security.cpp',
    '../src/tools/fs_read_symbol/fs_read_symbol_entry.cpp',
-   '../src/tools/fs_read_symbol/fs_read_symbol_security.cpp',
-   '../src/codemap_utils.cpp'],
+    '../src/tools/fs_read_symbol/fs_read_symbol_security.cpp',
+    '../src/codemap_utils.cpp',
+    '../src/codemap_fallbacks.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, magic_dep],
   include_directories: inc)
 test('unit_test_fs_batch_read', test_fs_batch_read, suite: 'agent')
@@ -1172,7 +1175,7 @@ test_fs_replace_lines = executable('test_fs_replace_lines',
 test('unit_fs_replace_lines', test_fs_replace_lines, suite: 'agent')
 
 test_fs_file_codemap = executable('test_fs_file_codemap',
-  ['unit/test_fs_file_codemap.cpp', '../src/codemap_utils.cpp', '../src/tools/fs_file_codemap/fs_file_codemap_entry.cpp', '../src/tools/fs_file_codemap/fs_file_codemap_security.cpp', '../src/tools/fs_read_lines/fs_read_lines_entry.cpp', '../src/tools/fs_read_lines/fs_read_lines_security.cpp'],
+  ['unit/test_fs_file_codemap.cpp', '../src/codemap_utils.cpp', '../src/codemap_fallbacks.cpp', '../src/tools/fs_file_codemap/fs_file_codemap_entry.cpp', '../src/tools/fs_file_codemap/fs_file_codemap_security.cpp', '../src/tools/fs_read_lines/fs_read_lines_entry.cpp', '../src/tools/fs_read_lines/fs_read_lines_security.cpp'],
   dependencies : [agent_dep, core_dep, nlohmann_json_dep, httplib_dep, thread_dep, curl_dep, re2_dep, sqlite3_dep, dl_dep],
   include_directories: inc)
 test('unit_fs_file_codemap', test_fs_file_codemap, suite: 'agent')

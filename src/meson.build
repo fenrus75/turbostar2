@@ -31,6 +31,7 @@ core_sources = files(
   'build_error_manager.cpp',
   'crashdump_manager.cpp',
   'codemap_utils.cpp',
+  'codemap_fallbacks.cpp',
   'codemap_cache.cpp',
   'address_lookup.cpp',
   'perf_manager.cpp',

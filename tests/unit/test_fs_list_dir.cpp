@@ -31,7 +31,7 @@ int main()
 	{
 		// 1. Success case: list contents of allowed directory (e.g. "src")
 		{
-			std::string args = R"({"path": ")" + project_root + "/src\"}";
+			std::string args = R"({"path": ")" + project_root + R"(/src", "limit": 200})";
 			std::string res = registry.execute_tool("fs_list_dir", args, ctx);
 			std::cout << "Directory list result: " << res << std::endl;
 			assert(res.find("| -------- |") != std::string::npos);

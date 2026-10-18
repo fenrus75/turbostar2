@@ -402,9 +402,11 @@ void standard_lsp_backend::open_document(const std::string &filepath, const std:
 		return;
 
 	try {
-		std::lock_guard<std::mutex> lock(doc_mutex_);
+		std::unique_lock<std::mutex> lock(doc_mutex_);
 		auto it = doc_versions_.find(filepath);
 		if (it != doc_versions_.end()) {
+			lock.unlock();
+			update_document(filepath, text);
 			return;
 		}
 		doc_versions_[filepath] = 1;
@@ -420,6 +422,7 @@ void standard_lsp_backend::open_document(const std::string &filepath, const std:
 void standard_lsp_backend::update_document(const std::string &filepath, const std::string &text)
 {
 	invalidate_hover_cache(filepath);
+	invalidate_symbol_cache(filepath);
 
 	auto server = get_server_for_file(filepath);
 	if (!server)

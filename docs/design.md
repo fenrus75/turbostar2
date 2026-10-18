@@ -263,6 +263,7 @@ To eliminate multi-second cold-start parsing delays across editor and MCP server
 - **LRU Eviction**: Tracks `last_used_ms` timestamps on all reads and writes; automatically prunes oldest entries when entry counts exceed limits.
 - **Dirty Buffer Bypass**: Bypasses the cache when a file has unsaved in-memory modifications in `document_provider`.
 - **Preemptive Precaching on File Edits**: File modifications (via tools like `fs_replace_content`, `fs_write_file`, `git_restore`, or interactive editor save) invoke `project_manager::lsp_save_document`. This emits `textDocument/didChange` and `textDocument/didSave` to the language server, invalidates stale symbol/type caches, and immediately kicks off asynchronous `prefetch_document_codemap_symbols`, ensuring symbol and codemap caches are pre-warmed for subsequent agent toolcalls.
+- **Regex and Heuristic Fallbacks (`codemap_fallbacks`)**: Modularized in `src/codemap_fallbacks.{h,cpp}`, providing instantaneous (<1ms) heuristic scanning for source files (C, C++, Python, SystemVerilog) and structured Markdown heading outlines. Fallbacks operate strictly at the codemap layer when LSP backends are unconfigured, unindexed, timed out, or return empty symbol trees, avoiding process overhead while ensuring consistent symbol navigation across all file types.
 
 ## Profiling and Debugging
 - **Memory Profiling**: To diagnose Out of Memory (OOM) errors, identify allocation bottlenecks, or track down memory leaks, use `heaptrack`. A detailed guide for agents is available at `docs/heaptrack.md`.
