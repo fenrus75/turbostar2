@@ -133,6 +133,7 @@ class document
 	cursor_state capture_cursor_state() const;
 	int restore_cursor_state(const cursor_state &state);
 	std::string get_text_all() const;
+	std::string get_text_all_unlocked() const;
 	std::string get_word_under_cursor() const;
 	void move_cursor(int dx, int dy);
 	void set_cursor_position(int col, int line);

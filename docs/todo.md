@@ -19,6 +19,8 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- document::get_word_under_cursor_unlocked is not utf8 safe and should use our more recent utf8 helpers
+
 - turn docs/testcoverage.md into a file in system:// 
 
 - string_view version of line::get_text ? problem is the locking side of things, the string is a nice copy so is permanently useful

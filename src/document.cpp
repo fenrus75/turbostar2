@@ -209,13 +209,7 @@ bool document::save_to_file(const std::string &filename)
 		return true;
 	}
 	std::unique_lock lock(mutex_);
-	std::string text_to_save;
-	for (int i = 0; i < line_count_unlocked(); ++i) {
-		text_to_save += lines_[i]->get_text();
-		if (i < line_count_unlocked() - 1) {
-			text_to_save += "\n";
-		}
-	}
+	std::string text_to_save = get_text_all_unlocked();
 	break_undo_coalescing_unlocked();
 	lock.unlock();
 
@@ -492,9 +486,8 @@ int document::restore_cursor_state_unlocked(const cursor_state &state)
 	return delta_y;
 }
 
-std::string document::get_text_all() const
+std::string document::get_text_all_unlocked() const
 {
-	std::shared_lock lock(mutex_);
 	std::string full_text;
 	for (size_t i = 0; i < lines_.size(); ++i) {
 		full_text += lines_[i]->get_text();
@@ -503,6 +496,12 @@ std::string document::get_text_all() const
 		}
 	}
 	return full_text;
+}
+
+std::string document::get_text_all() const
+{
+	std::shared_lock lock(mutex_);
+	return get_text_all_unlocked();
 }
 
 std::string document::get_word_under_cursor_unlocked() const

@@ -765,6 +765,26 @@ int main()
 			assert(!doc.is_space_at(1, 8)); // 'L'
 		}
 
+		// Test get_text_all() and get_text_all_unlocked() consistency and saving
+		{
+			document doc(queue);
+			doc.insert_text("Line 1\nLine 2\nLine 3");
+			assert(doc.get_text_all() == "Line 1\nLine 2\nLine 3");
+			assert(doc.get_text_all_unlocked() == "Line 1\nLine 2\nLine 3");
+
+			std::string save_path = "temp_get_text_all_save.txt";
+			bool saved = doc.save_to_file(save_path);
+			assert(saved);
+			assert(std::filesystem::exists(save_path));
+
+			std::ifstream ifs(save_path);
+			std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+			assert(content == "Line 1\nLine 2\nLine 3");
+			ifs.close();
+			std::filesystem::remove(save_path);
+			std::filesystem::remove(save_path + "~");
+		}
+
 	std::cout << "document unit test passed!\n";
 	return 0;
 }
