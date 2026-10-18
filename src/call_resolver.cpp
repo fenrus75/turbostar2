@@ -37,7 +37,7 @@ bool is_matching_function_symbol(const codemap_symbol_info *sym, std::string_vie
 
 } // namespace
 
-bool call_resolver::is_project_file(std::string_view path, agentlib::tool_context * /*ctx*/)
+bool call_resolver::is_project_file(std::string_view path)
 {
 	if (path.empty()) {
 		return false;
@@ -121,8 +121,7 @@ std::unordered_set<std::string> call_resolver::extract_included_headers(const st
 
 std::optional<lsp_backend::location_info> call_resolver::disambiguate_locations(
 	std::span<const lsp_backend::location_info> locations,
-	std::string_view caller_file,
-	agentlib::tool_context *ctx)
+	std::string_view caller_file)
 {
 	if (locations.empty()) {
 		return std::nullopt;
@@ -134,7 +133,7 @@ std::optional<lsp_backend::location_info> call_resolver::disambiguate_locations(
 	// Filter down to valid project locations and exclude test files if caller is not a test
 	std::vector<lsp_backend::location_info> valid;
 	for (const auto &loc : locations) {
-		if (loc.path.empty() || !is_project_file(loc.path, ctx)) {
+		if (loc.path.empty() || !is_project_file(loc.path)) {
 			continue;
 		}
 		std::string norm_loc = fs_utils::make_relative_to_project(loc.path);
@@ -277,14 +276,13 @@ std::optional<lsp_backend::location_info> call_resolver::disambiguate_locations(
 bool call_resolver::resolve_target(
 	outgoing_call_reference &ref,
 	const lsp_manager::call_hierarchy_item &item,
-	std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
-	agentlib::tool_context *ctx)
+	std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache)
 {
 	std::string target_uri_path = fs_utils::make_relative_to_project(item.uri);
 	std::string norm_caller = fs_utils::make_relative_to_project(ref.caller_file);
 	bool caller_is_test = is_test_path(norm_caller);
 
-	if (!target_uri_path.empty() && !is_project_file(item.uri, ctx)) {
+	if (!target_uri_path.empty() && !is_project_file(item.uri)) {
 		return false;
 	}
 	if (!caller_is_test && !target_uri_path.empty() && is_test_path(target_uri_path)) {
@@ -301,7 +299,7 @@ bool call_resolver::resolve_target(
 		auto defs = project_manager::get_instance().lsp_query_definition(
 			target_uri_path, item.selection_range.start_y, item.selection_range.start_x);
 
-		auto chosen = disambiguate_locations(defs, ref.caller_file, ctx);
+		auto chosen = disambiguate_locations(defs, ref.caller_file);
 		if (chosen) {
 			def_path = fs_utils::make_relative_to_project(chosen->path);
 			def_pos_line = chosen->range.start_y + 1;
@@ -320,7 +318,7 @@ bool call_resolver::resolve_target(
 				locs.push_back(ws.location);
 			}
 		}
-		auto chosen = disambiguate_locations(locs, ref.caller_file, ctx);
+		auto chosen = disambiguate_locations(locs, ref.caller_file);
 		if (chosen) {
 			def_path = fs_utils::make_relative_to_project(chosen->path);
 			def_pos_line = chosen->range.start_y + 1;
@@ -333,7 +331,7 @@ bool call_resolver::resolve_target(
 	// 3. Fallback resolution: if target_uri_path is a header, check if matching implementation file exists
 	if (def_path.empty() && !target_uri_path.empty()) {
 		if (target_uri_path.ends_with(".h") || target_uri_path.ends_with(".hpp")) {
-			std::string impl = find_matching_impl_file(target_uri_path, ctx);
+			std::string impl = find_matching_impl_file(target_uri_path);
 			if (!impl.empty()) {
 				if (!symbols_cache.contains(impl)) {
 					std::vector<codemap_symbol_info> syms;
@@ -406,7 +404,7 @@ bool call_resolver::resolve_target(
 
 	// Check matching implementation if header: always prefer the .cpp implementation over a header declaration
 	if (def_path.ends_with(".h") || def_path.ends_with(".hpp")) {
-		std::string impl = find_matching_impl_file(def_path, ctx);
+		std::string impl = find_matching_impl_file(def_path);
 		if (!impl.empty()) {
 			if (!symbols_cache.contains(impl)) {
 				std::vector<codemap_symbol_info> syms;
@@ -458,7 +456,6 @@ std::vector<outgoing_call_reference> call_resolver::extract_calls_from_slice(
 	int end_line,
 	const std::vector<codemap_symbol_info> &doc_symbols,
 	std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
-	agentlib::tool_context *ctx,
 	std::chrono::steady_clock::time_point deadline)
 {
 	std::ifstream in(safe_path);
@@ -503,7 +500,7 @@ std::vector<outgoing_call_reference> call_resolver::extract_calls_from_slice(
 	}
 
 	std::string norm_safe_path = fs_utils::make_relative_to_project(safe_path);
-	std::string companion_header = find_matching_header_file(safe_path, ctx);
+	std::string companion_header = find_matching_header_file(safe_path);
 	std::vector<outgoing_call_reference> results;
 	std::unordered_set<std::string> seen_names;
 
@@ -527,7 +524,7 @@ std::vector<outgoing_call_reference> call_resolver::extract_calls_from_slice(
 		auto raw_defs = project_manager::get_instance().lsp_query_definition(safe_path, cand.line - 1, cand.col);
 
 		// Disambiguate multiple candidate definitions across files using caller context
-		auto chosen = disambiguate_locations(raw_defs, safe_path, ctx);
+		auto chosen = disambiguate_locations(raw_defs, safe_path);
 		if (!chosen) {
 			continue;
 		}
@@ -542,7 +539,7 @@ std::vector<outgoing_call_reference> call_resolver::extract_calls_from_slice(
 
 		// If resolved to a header, always prefer the matching .cpp implementation file if it contains the symbol
 		if (norm_def.ends_with(".h") || norm_def.ends_with(".hpp")) {
-			std::string impl = find_matching_impl_file(norm_def, ctx);
+			std::string impl = find_matching_impl_file(norm_def);
 			if (!impl.empty()) {
 				if (!symbols_cache.contains(impl)) {
 					std::vector<codemap_symbol_info> syms;

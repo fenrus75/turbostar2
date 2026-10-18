@@ -69,21 +69,34 @@ std::string format_codemap_table(const std::string &display_path, const std::vec
 
 // Resolve an outgoing call hierarchy item to its true definition file and bounds via LSP / dedicated codemap
 bool resolve_outgoing_call_target(outgoing_call_reference &ref, const lsp_manager::call_hierarchy_item &item,
+				  std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache);
+inline bool resolve_outgoing_call_target(outgoing_call_reference &ref, const lsp_manager::call_hierarchy_item &item,
 				  std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
-				  agentlib::tool_context *ctx = nullptr);
+				  agentlib::tool_context *)
+{
+	return resolve_outgoing_call_target(ref, item, symbols_cache);
+}
 
 // Find matching implementation file for a header file (e.g. .h -> .cpp, .hpp -> .cpp)
-std::string find_matching_impl_file(const std::string &header_path, agentlib::tool_context *ctx = nullptr);
-inline std::string find_matching_impl_file(const std::string &header_path, agentlib::tool_context &ctx)
+std::string find_matching_impl_file(const std::string &header_path);
+inline std::string find_matching_impl_file(const std::string &header_path, agentlib::tool_context *)
 {
-	return find_matching_impl_file(header_path, &ctx);
+	return find_matching_impl_file(header_path);
+}
+inline std::string find_matching_impl_file(const std::string &header_path, agentlib::tool_context &)
+{
+	return find_matching_impl_file(header_path);
 }
 
 // Find matching header file for an implementation file (e.g. .cpp -> .h, .cpp -> .hpp)
-std::string find_matching_header_file(const std::string &impl_path, agentlib::tool_context *ctx = nullptr);
-inline std::string find_matching_header_file(const std::string &impl_path, agentlib::tool_context &ctx)
+std::string find_matching_header_file(const std::string &impl_path);
+inline std::string find_matching_header_file(const std::string &impl_path, agentlib::tool_context *)
 {
-	return find_matching_header_file(impl_path, &ctx);
+	return find_matching_header_file(impl_path);
+}
+inline std::string find_matching_header_file(const std::string &impl_path, agentlib::tool_context &)
+{
+	return find_matching_header_file(impl_path);
 }
 
 // Extract mini class definition preview (referenced member variables and called member methods)

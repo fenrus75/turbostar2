@@ -735,9 +735,9 @@ static std::pair<int, int> get_symbol_location(const std::string &file_path, int
 	return {fallback_line, fallback_col};
 }
 
-static bool is_project_file(std::string_view path, agentlib::tool_context *ctx = nullptr)
+static bool is_project_file(std::string_view path)
 {
-	return call_resolver::is_project_file(path, ctx);
+	return call_resolver::is_project_file(path);
 }
 
 static bool is_test_file_path(std::string_view p)
@@ -746,15 +746,14 @@ static bool is_test_file_path(std::string_view p)
 }
 
 bool resolve_outgoing_call_target(outgoing_call_reference &ref, const lsp_manager::call_hierarchy_item &item,
-				  std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
-				  agentlib::tool_context *ctx)
+				  std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache)
 {
-	return call_resolver::resolve_target(ref, item, symbols_cache, ctx);
+	return call_resolver::resolve_target(ref, item, symbols_cache);
 }
 
-static void refresh_outgoing_calls_async(std::string safe_path, std::vector<codemap_symbol_info> doc_symbols, agentlib::tool_context *ctx)
+static void refresh_outgoing_calls_async(std::string safe_path, std::vector<codemap_symbol_info> doc_symbols)
 {
-	std::thread([safe_path = std::move(safe_path), doc_symbols = std::move(doc_symbols), ctx]() {
+	std::thread([safe_path = std::move(safe_path), doc_symbols = std::move(doc_symbols)]() {
 		fs_utils::set_current_thread_name("codemap_idx");
 		try {
 			std::error_code ec;
@@ -795,7 +794,7 @@ static void refresh_outgoing_calls_async(std::string safe_path, std::vector<code
 				ref.target_name = item.item.name;
 				ref.target_kind = lsp_kind_to_string(item.item.kind);
 
-				if (resolve_outgoing_call_target(ref, item.item, symbols_cache, ctx)) {
+				if (resolve_outgoing_call_target(ref, item.item, symbols_cache)) {
 					all_calls.push_back(ref);
 				}
 			}
@@ -815,9 +814,9 @@ static std::vector<outgoing_call_reference>
 extract_outgoing_calls_from_slice(const std::string &safe_path, int start_line, int end_line,
 				  const std::vector<codemap_symbol_info> &doc_symbols,
 				  std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
-				  agentlib::tool_context *ctx, std::chrono::steady_clock::time_point deadline)
+				  std::chrono::steady_clock::time_point deadline)
 {
-	return call_resolver::extract_calls_from_slice(safe_path, start_line, end_line, doc_symbols, symbols_cache, ctx, deadline);
+	return call_resolver::extract_calls_from_slice(safe_path, start_line, end_line, doc_symbols, symbols_cache, deadline);
 }
 
 std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::string &safe_path, int start_line, int end_line,
@@ -835,7 +834,7 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 
 std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::string &safe_path, int start_line, int end_line,
 								 const std::vector<codemap_symbol_info> &doc_symbols,
-								 agentlib::tool_context *ctx,
+								 agentlib::tool_context * /*ctx*/,
 								 std::chrono::steady_clock::time_point deadline)
 {
 	if (std::chrono::steady_clock::now() >= deadline) {
@@ -862,7 +861,7 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 			// Stale cache hit (>= 5s): update last_fetch_time to avoid duplicate background requests
 			// and return cached calls immediately while triggering background refresh.
 			it->second.last_fetch_time = now;
-			refresh_outgoing_calls_async(safe_path, doc_symbols, ctx);
+			refresh_outgoing_calls_async(safe_path, doc_symbols);
 			return result;
 		}
 	}
@@ -925,7 +924,7 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 			}
 			ref.is_direct_read_call = is_direct;
 
-			if (resolve_outgoing_call_target(ref, item.item, symbols_cache, ctx)) {
+			if (resolve_outgoing_call_target(ref, item.item, symbols_cache)) {
 				all_calls.push_back(ref);
 			}
 		}
@@ -937,7 +936,7 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 	} else if (all_calls.empty()) {
 		// Synchronous lookup timed out or returned empty: launch background refresh thread with 10s deadline
 		// so if clangd finishes after the synchronous deadline, the result is saved to cache for the next call!
-		refresh_outgoing_calls_async(safe_path, doc_symbols, ctx);
+		refresh_outgoing_calls_async(safe_path, doc_symbols);
 	}
 
 	std::vector<outgoing_call_reference> range_result;
@@ -959,7 +958,7 @@ std::vector<outgoing_call_reference> get_outgoing_calls_in_range(const std::stri
 	size_t slice_added_count = 0;
 	if (std::chrono::steady_clock::now() < deadline) {
 		auto slice_calls =
-		    extract_outgoing_calls_from_slice(safe_path, start_line, end_line, effective_symbols, symbols_cache, ctx, deadline);
+		    extract_outgoing_calls_from_slice(safe_path, start_line, end_line, effective_symbols, symbols_cache, deadline);
 		bool added_any = false;
 		for (auto &sc : slice_calls) {
 			bool already_present = false;
@@ -1180,7 +1179,7 @@ codemap_selection_result select_prioritized_codemap_symbols(const std::vector<co
 		if (cross_file_count >= 10)
 			break;
 
-		if (!call.target_file.empty() && call.target_start_line > 0 && is_project_file(call.target_file, &ctx)) {
+		if (!call.target_file.empty() && call.target_start_line > 0 && is_project_file(call.target_file)) {
 			std::string norm_target = fs_utils::make_relative_to_project(call.target_file);
 			if (norm_target == norm_safe_path || (!companion_header.empty() && norm_target == companion_header))
 				continue;
@@ -1309,7 +1308,7 @@ std::string format_codemap_table(const std::string &display_path, const std::vec
 	return ss.str();
 }
 
-std::string find_matching_impl_file(const std::string &header_path, agentlib::tool_context * /*ctx*/)
+std::string find_matching_impl_file(const std::string &header_path)
 {
 	std::filesystem::path hp(header_path);
 	std::string ext = utf8::to_lower(hp.extension().string());
@@ -1344,7 +1343,7 @@ std::string find_matching_impl_file(const std::string &header_path, agentlib::to
 	return "";
 }
 
-std::string find_matching_header_file(const std::string &impl_path, agentlib::tool_context * /*ctx*/)
+std::string find_matching_header_file(const std::string &impl_path)
 {
 	std::filesystem::path ip(impl_path);
 	std::string ext = utf8::to_lower(ip.extension().string());

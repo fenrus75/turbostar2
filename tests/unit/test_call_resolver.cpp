@@ -316,7 +316,7 @@ static void test_resolve_target_direct_and_cross_c()
 	ref.target_name = "tick_freeze";
 
 	std::unordered_map<std::string, std::vector<tools::codemap_symbol_info>> symbols_cache;
-	bool resolved = tools::call_resolver::resolve_target(ref, item, symbols_cache, nullptr);
+	bool resolved = tools::call_resolver::resolve_target(ref, item, symbols_cache);
 
 	assert(resolved);
 	assert(ref.target_file == "kernel/time/tick-common.c");
@@ -436,7 +436,7 @@ static void test_resolve_target_prefers_cpp_implementation_over_header()
 	ref.target_name = "apply_profile";
 
 	std::unordered_map<std::string, std::vector<tools::codemap_symbol_info>> symbols_cache;
-	bool resolved = tools::call_resolver::resolve_target(ref, item, symbols_cache, nullptr);
+	bool resolved = tools::call_resolver::resolve_target(ref, item, symbols_cache);
 
 	assert(resolved);
 	assert(ref.target_file == "src/runner.cpp");
@@ -532,7 +532,7 @@ static void test_extract_calls_from_slice_prefers_cpp_and_skips_self_definition(
 	std::unordered_map<std::string, std::vector<tools::codemap_symbol_info>> symbols_cache;
 	auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
 	auto calls = tools::call_resolver::extract_calls_from_slice(
-		caller_file, 3, 5, doc_symbols, symbols_cache, nullptr, deadline);
+		caller_file, 3, 5, doc_symbols, symbols_cache, deadline);
 
 	// 1. run_status must NOT be in calls (it's the self-definition header)
 	for (const auto &c : calls) {

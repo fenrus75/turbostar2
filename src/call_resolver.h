@@ -43,8 +43,7 @@ public:
 	 */
 	static std::optional<lsp_backend::location_info> disambiguate_locations(
 		std::span<const lsp_backend::location_info> locations,
-		std::string_view caller_file,
-		agentlib::tool_context *ctx = nullptr);
+		std::string_view caller_file);
 
 	/**
 	 * @brief Resolves an outgoing call hierarchy item to its true definition file and bounds.
@@ -52,14 +51,12 @@ public:
 	 * @param ref Reference to populate with resolved target details.
 	 * @param item Call hierarchy item (from LSP or semcode backend).
 	 * @param symbols_cache Cache of parsed codemap symbols per file to avoid redundant re-parsing.
-	 * @param ctx Optional tool context.
 	 * @return true if successfully resolved to a valid project file symbol; false otherwise.
 	 */
 	static bool resolve_target(
 		outgoing_call_reference &ref,
 		const lsp_manager::call_hierarchy_item &item,
-		std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
-		agentlib::tool_context *ctx = nullptr);
+		std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache);
 
 	/**
 	 * @brief Extracts outgoing calls from a source code slice and resolves their definitions.
@@ -72,7 +69,6 @@ public:
 	 * @param end_line 1-based end line of the slice.
 	 * @param doc_symbols Symbols already discovered in the caller document.
 	 * @param symbols_cache Cache of parsed codemap symbols per file.
-	 * @param ctx Optional tool context.
 	 * @param deadline Deadline time_point after which extraction stops.
 	 * @return Vector of resolved outgoing call references.
 	 */
@@ -82,7 +78,6 @@ public:
 		int end_line,
 		const std::vector<codemap_symbol_info> &doc_symbols,
 		std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
-		agentlib::tool_context *ctx,
 		std::chrono::steady_clock::time_point deadline);
 
 	/**
@@ -96,7 +91,7 @@ public:
 	/**
 	 * @brief Checks if a path is considered a project file.
 	 */
-	static bool is_project_file(std::string_view path, agentlib::tool_context *ctx = nullptr);
+	static bool is_project_file(std::string_view path);
 
 	/**
 	 * @brief Checks if a path belongs to test or selftest directories.
