@@ -717,6 +717,12 @@ test_editor_hotkey_len = executable('test_editor_hotkey_len',
   include_directories: inc)
 test('unit_test_editor_hotkey_len', test_editor_hotkey_len, suite: 'ui')
 
+test_editor_collect_agents = executable('test_editor_collect_agents',
+  'unit/test_editor_collect_agents.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_editor_collect_agents', test_editor_collect_agents, suite: 'ui')
+
 
 
 

@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 #include "agentlib/document_provider.h"
 #include "document.h"
@@ -124,6 +125,9 @@ class editor : public agentlib::document_provider
 	std::string get_active_status_message() const;
 	void handle_status_bar_click(int mouse_x);
 	std::vector<std::shared_ptr<agentlib::ai_agent>> get_all_active_agents() const;
+	static void collect_agents_recursive(const std::shared_ptr<agentlib::ai_agent> &agent,
+					     std::vector<std::shared_ptr<agentlib::ai_agent>> &out_agents,
+					     std::unordered_set<int> &seen_ids);
 
 	/**
 	 * @brief Routes events from the global queue to the focused component.

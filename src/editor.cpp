@@ -1869,17 +1869,21 @@ void editor::print_latency_report() const
 	}
 }
 
-static void collect_agents_recursive(const std::shared_ptr<agentlib::ai_agent> &agent,
+void editor::collect_agents_recursive(const std::shared_ptr<agentlib::ai_agent> &agent,
 				     std::vector<std::shared_ptr<agentlib::ai_agent>> &out_agents, std::unordered_set<int> &seen_ids)
 {
-	if (!agent || agent->get_status() == agentlib::agent_status::dead) {
+	if (!agent) {
 		return;
 	}
 	if (seen_ids.count(agent->get_id())) {
 		return;
 	}
 	seen_ids.insert(agent->get_id());
-	out_agents.push_back(agent);
+
+	if (agent->get_status() != agentlib::agent_status::dead) {
+		out_agents.push_back(agent);
+	}
+
 	for (const auto &subagent : agent->get_subagents()) {
 		collect_agents_recursive(subagent, out_agents, seen_ids);
 	}
