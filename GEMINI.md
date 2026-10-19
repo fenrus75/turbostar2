@@ -59,6 +59,7 @@ Top design documentation: `docs/design.md`
 - use #pragma ONCE for include guards
 - when declaring a mutex in a header file, you MUST add a comment block immediately preceding the declaration explaining: (1) what specific member data or resources the mutex protects, and (2) the general locking rules, lifecycle, or ordering guidelines associated with it.
 - prefer RE2 over std::regexp
+- the test suite takes a long time - run only the appropriate subsuite (unit or editor or agent or website) whenever possible
 - when creating a subclass, add or update the header of the parent class with a table that matches this example template:
 ```c
 /*

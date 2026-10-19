@@ -1,4 +1,4 @@
-// Tested source file: src/document.cpp, src/document_format.cpp, src/document_selection.cpp
+// Tested source file: src/document.cpp, src/document_format.cpp, src/document_selection.cpp, src/document_edit.cpp, src/document_nav.cpp
 #include "test_watchdog.h"
 
 #include <cassert>
@@ -890,6 +890,134 @@ int main()
 			doc_mid.delete_word_forward();
 			assert(doc_mid.get_line(2)->get_text() == "foobar");
 			assert(doc_mid.get_cursor_x() == 3);
+		}
+
+		// Test delete_word_backward and word navigation (move_next_word / move_prev_word)
+		{
+			document doc(queue);
+			doc.insert_text("mot«abc»\n関数（引数）;");
+
+			// Line 0: "mot«abc»"
+			// 0: 'm', 1: 'o', 2: 't', 3: '«', 4: 'a', 5: 'b', 6: 'c', 7: '»' (length 8)
+			doc.set_cursor_position(8, 0); // after '»'
+			doc.delete_word_backward();
+			assert(doc.get_line(0)->get_text() == "mot«abc");
+			assert(doc.get_cursor_x() == 7);
+
+			doc.delete_word_backward(); // after 'c'
+			assert(doc.get_line(0)->get_text() == "mot«");
+			assert(doc.get_cursor_x() == 4);
+
+			doc.delete_word_backward(); // after '«'
+			assert(doc.get_line(0)->get_text() == "mot");
+			assert(doc.get_cursor_x() == 3);
+
+			doc.delete_word_backward(); // after 't'
+			assert(doc.get_line(0)->get_text() == "");
+			assert(doc.get_cursor_x() == 0);
+
+			// Backward word deletion on CJK line
+			// Line 1: "関数（引数）;"
+			// 0: '関', 1: '数', 2: '（', 3: '引', 4: '数', 5: '）', 6: ';' (length 7)
+			doc.set_cursor_position(7, 1); // after ';'
+			doc.delete_word_backward();
+			assert(doc.get_line(1)->get_text() == "関数（引数）");
+			assert(doc.get_cursor_x() == 6);
+
+			doc.delete_word_backward(); // after '）'
+			assert(doc.get_line(1)->get_text() == "関数（引数");
+			assert(doc.get_cursor_x() == 5);
+
+			doc.delete_word_backward(); // after '数'
+			assert(doc.get_line(1)->get_text() == "関数（");
+			assert(doc.get_cursor_x() == 3);
+
+			doc.delete_word_backward(); // after '（'
+			assert(doc.get_line(1)->get_text() == "関数");
+			assert(doc.get_cursor_x() == 2);
+
+			doc.delete_word_backward(); // after '数'
+			assert(doc.get_line(1)->get_text() == "");
+			assert(doc.get_cursor_x() == 0);
+
+			// Mid-word backward deletion and whitespace consumption
+			document doc_back(queue);
+			doc_back.insert_text("foobar test\nOne Two   \nFirst\nSecond");
+
+			// Line 0: "foobar test" with cursor at 3 ('b')
+			// Deletes "foo", leaving "bar test" at cursor 0
+			doc_back.set_cursor_position(3, 0);
+			doc_back.delete_word_backward();
+			assert(doc_back.get_line(0)->get_text() == "bar test");
+			assert(doc_back.get_cursor_x() == 0);
+
+			// Line 1: "One Two   " with cursor at 10 (end)
+			// Consumes trailing spaces and deletes "Two", leaving "One "
+			doc_back.set_cursor_position(10, 1);
+			doc_back.delete_word_backward();
+			assert(doc_back.get_line(1)->get_text() == "One ");
+			assert(doc_back.get_cursor_x() == 4);
+
+			// Line 2 & 3: join lines backward when cursor_x == 0 && cursor_y > 0
+			// Line 2: "First", Line 3: "Second"
+			doc_back.set_cursor_position(0, 3);
+			doc_back.delete_word_backward();
+			assert(doc_back.line_count() == 3);
+			assert(doc_back.get_line(2)->get_text() == "FirstSecond");
+			assert(doc_back.get_cursor_y() == 2);
+			assert(doc_back.get_cursor_x() == 5);
+
+			// Line 0: cursor at (0, 0) should be a no-op
+			doc_back.set_cursor_position(0, 0);
+			doc_back.delete_word_backward();
+			assert(doc_back.get_cursor_y() == 0);
+			assert(doc_back.get_cursor_x() == 0);
+
+			// Word navigation tests (move_next_word / move_prev_word)
+			document doc_nav(queue);
+			doc_nav.insert_text("WordA WordB Line1\nmot«abc»\nThird");
+
+			// Line 0 navigation
+			doc_nav.set_cursor_position(0, 0);
+			doc_nav.move_next_word();
+			assert(doc_nav.get_cursor_x() == 6); // at 'W' of "WordB"
+			doc_nav.move_next_word();
+			assert(doc_nav.get_cursor_x() == 12); // at 'L' of "Line1"
+
+			doc_nav.move_prev_word();
+			assert(doc_nav.get_cursor_x() == 6); // back at "WordB"
+			doc_nav.move_prev_word();
+			assert(doc_nav.get_cursor_x() == 0); // back at "WordA"
+
+			// Line wrap forward
+			doc_nav.set_cursor_position(12, 0);
+			doc_nav.move_next_word(); // moves past "Line1" to next line
+			assert(doc_nav.get_cursor_y() == 1);
+			assert(doc_nav.get_cursor_x() == 0);
+
+			// Delimiter navigation on Line 1: "mot«abc»"
+			doc_nav.move_next_word();
+			assert(doc_nav.get_cursor_x() == 3); // on '«'
+			doc_nav.move_next_word();
+			assert(doc_nav.get_cursor_x() == 4); // on 'a'
+			doc_nav.move_next_word();
+			assert(doc_nav.get_cursor_x() == 7); // on '»'
+			doc_nav.move_next_word();
+			assert(doc_nav.get_cursor_y() == 2); // moved to Line 2
+			assert(doc_nav.get_cursor_x() == 0);
+
+			// Line wrap backward
+			doc_nav.move_prev_word();
+			assert(doc_nav.get_cursor_y() == 1);
+			assert(doc_nav.get_cursor_x() == 8); // end of line 1
+			doc_nav.move_prev_word();
+			assert(doc_nav.get_cursor_x() == 7); // on '»'
+			doc_nav.move_prev_word();
+			assert(doc_nav.get_cursor_x() == 4); // on 'a'
+			doc_nav.move_prev_word();
+			assert(doc_nav.get_cursor_x() == 3); // on '«'
+			doc_nav.move_prev_word();
+			assert(doc_nav.get_cursor_x() == 0); // on 'm'
 		}
 
 	std::cout << "document unit test passed!\n";

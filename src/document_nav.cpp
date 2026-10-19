@@ -155,19 +155,31 @@ void document::move_next_word()
 {
 	std::unique_lock lock(mutex_);
 	break_undo_coalescing_unlocked();
-	int line_char_len = lines_[cursor_y_]->length_in_chars();
+	auto &cur_line = *lines_[cursor_y_];
+	int line_char_len = cur_line.length_in_chars();
 	int i = cursor_x_;
 
-	while (i < line_char_len && !is_space_at_unlocked(cursor_y_, i))
+	if (cur_line.is_terminator_at(i)) {
 		i++;
-	while (i < line_char_len && is_space_at_unlocked(cursor_y_, i))
+	} else if (auto span = cur_line.get_word_span_at(i); !span.empty()) {
+		i = span.end_char_pos;
+	} else {
+		while (i < line_char_len && cur_line.is_space_at(i)) {
+			i++;
+		}
+		if (i == cursor_x_ && i < line_char_len) {
+			i++;
+		}
+	}
+	while (i < line_char_len && cur_line.is_space_at(i)) {
 		i++;
+	}
 
 	if (i >= line_char_len && cursor_y_ < line_count_unlocked() - 1) {
 		cursor_y_++;
 		cursor_x_ = 0;
 	} else {
-		cursor_x_ = i;
+		cursor_x_ = std::min(i, line_char_len);
 	}
 
 	update_target_cursor_x_unlocked();
@@ -184,16 +196,31 @@ void document::move_prev_word()
 			cursor_y_--;
 			cursor_x_ = lines_[cursor_y_]->length_in_chars();
 		}
+		update_target_cursor_x_unlocked();
 		lock.unlock();
 		notify_cursor_changed();
 		return;
 	}
 
-	int i = cursor_x_ - 1;
-	while (i > 0 && is_space_at_unlocked(cursor_y_, i))
+	auto &cur_line = *lines_[cursor_y_];
+	int i = cursor_x_;
+
+	// 1. Consume any whitespace directly preceding the cursor
+	while (i > 0 && cur_line.is_space_at(i - 1)) {
 		i--;
-	while (i > 0 && !is_space_at_unlocked(cursor_y_, i - 1))
-		i--;
+	}
+
+	// 2. If not at start of line, determine backward word boundary or single terminator
+	if (i > 0) {
+		int target_pos = i - 1;
+		if (cur_line.is_terminator_at(target_pos)) {
+			i = target_pos;
+		} else if (auto span = cur_line.get_word_span_at(target_pos); !span.empty()) {
+			i = span.start_char_pos;
+		} else {
+			i = target_pos;
+		}
+	}
 
 	cursor_x_ = i;
 	update_target_cursor_x_unlocked();

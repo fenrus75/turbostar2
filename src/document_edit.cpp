@@ -233,16 +233,53 @@ void document::delete_word_backward()
 	if (is_read_only())
 		return;
 	if (cursor_x_ == 0) {
+		if (cursor_y_ > 0) {
+			int prev_line_idx = cursor_y_ - 1;
+			int prev_line_char_len = lines_[prev_line_idx]->length_in_chars();
+
+			begin_edit_group("", undo_group_type::backspace);
+			record_action(edit_action::action_type::replace_line, prev_line_idx, lines_[prev_line_idx]);
+			record_action(edit_action::action_type::delete_line, cursor_y_, lines_[cursor_y_]);
+
+			adjust_selection_for_join(cursor_y_, cursor_x_);
+
+			lines_[prev_line_idx]->merge(*lines_[cursor_y_]);
+			mark_line_dirty(lines_[prev_line_idx]);
+			for (auto *l : listeners_) {
+				l->on_line_deleted(filename_, cursor_y_);
+			}
+			lines_.erase(lines_.begin() + cursor_y_);
+
+			cursor_y_ = prev_line_idx;
+			cursor_x_ = prev_line_char_len;
+			set_modified();
+			end_edit_group();
+		}
+		update_target_cursor_x_unlocked();
 		lock.unlock();
 		notify_cursor_changed();
 		return;
 	}
 
-	int i = cursor_x_ - 1;
-	while (i > 0 && is_space_at_unlocked(cursor_y_, i))
+	auto &cur_line = *lines_[cursor_y_];
+	int i = cursor_x_;
+
+	// 1. Consume any whitespace directly preceding the cursor
+	while (i > 0 && cur_line.is_space_at(i - 1)) {
 		i--;
-	while (i > 0 && !is_space_at_unlocked(cursor_y_, i - 1))
-		i--;
+	}
+
+	// 2. If not at start of line, determine backward word boundary or single terminator
+	if (i > 0) {
+		int target_pos = i - 1;
+		if (cur_line.is_terminator_at(target_pos)) {
+			i = target_pos;
+		} else if (auto span = cur_line.get_word_span_at(target_pos); !span.empty()) {
+			i = span.start_char_pos;
+		} else {
+			i = target_pos;
+		}
+	}
 
 	int count = cursor_x_ - i;
 	if (count > 0) {
