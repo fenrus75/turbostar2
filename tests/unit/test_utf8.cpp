@@ -1258,6 +1258,71 @@ void test_utf8_is_alnum()
 	assert(utf8::is_not_alnum_only("café\xC2", "é"));
 }
 
+void test_utf8_is_word_char()
+{
+	// 1. ASCII tests
+	std::string_view ascii_code = "foo(bar_123);";
+	// 'f', 'o', 'o'
+	assert(utf8::is_word_char_at_byte(ascii_code, 0));
+	assert(utf8::is_word_char_at_byte(ascii_code, 1));
+	assert(utf8::is_word_char_at_byte(ascii_code, 2));
+	// '(' delimiter
+	assert(!utf8::is_word_char_at_byte(ascii_code, 3));
+	// 'b', 'a', 'r', '_', '1', '2', '3'
+	assert(utf8::is_word_char_at_byte(ascii_code, 4));
+	assert(utf8::is_word_char_at_byte(ascii_code, 7)); // '_'
+	assert(utf8::is_word_char_at_byte(ascii_code, 10)); // '3'
+	// ')' and ';' delimiters
+	assert(!utf8::is_word_char_at_byte(ascii_code, 11));
+	assert(!utf8::is_word_char_at_byte(ascii_code, 12));
+	assert(!utf8::is_word_char_at_byte(ascii_code, 100)); // Out of bounds
+
+	// 2. Multi-byte Unicode word characters (accents, Greek, German, CJK)
+	std::string_view unicode_words = "café π_val groß 日本語";
+	// 'é' in café (byte offset 3)
+	assert(utf8::is_word_char_at_byte(unicode_words, 3));
+	// Space at byte offset 5
+	assert(!utf8::is_word_char_at_byte(unicode_words, 5));
+	// 'π' (byte offset 6)
+	assert(utf8::is_word_char_at_byte(unicode_words, 6));
+	// 'ß' in groß (byte offset 16)
+	assert(utf8::is_word_char_at_byte(unicode_words, 16));
+	// '日' (byte offset 19), '本' (byte offset 22), '語' (byte offset 25)
+	assert(utf8::is_word_char_at_byte(unicode_words, 19));
+	assert(utf8::is_word_char_at_byte(unicode_words, 22));
+	assert(utf8::is_word_char_at_byte(unicode_words, 25));
+
+	// 3. Unicode whitespace and delimiters
+	// NBSP (U+00A0: \xC2\xA0)
+	std::string_view nbsp_str = "a\xC2\xA0""b";
+	assert(!utf8::is_word_char_at_byte(nbsp_str, 1));
+	// Ideographic fullwidth space (U+3000: \xE3\x80\x80)
+	std::string_view cjk_space = "a\xE3\x80\x80""b";
+	assert(!utf8::is_word_char_at_byte(cjk_space, 1));
+	// Smart quotes (U+201C: \xE2\x80\x9C, U+201D: \xE2\x80\x9D)
+	std::string_view smart_quotes = "\xE2\x80\x9Cword\xE2\x80\x9D";
+	assert(!utf8::is_word_char_at_byte(smart_quotes, 0));
+	assert(utf8::is_word_char_at_byte(smart_quotes, 3)); // 'w'
+	assert(!utf8::is_word_char_at_byte(smart_quotes, 7)); // close quote
+	// Em-dash (U+2014: \xE2\x80\x94)
+	std::string_view em_dash = "word\xE2\x80\x94word";
+	assert(!utf8::is_word_char_at_byte(em_dash, 4));
+	// CJK ideographic comma (U+3001: \xE3\x80\x81) and full stop (U+3002: \xE3\x80\x82)
+	std::string_view cjk_punct = "文\xE3\x80\x81章\xE3\x80\x82";
+	assert(utf8::is_word_char_at_byte(cjk_punct, 0)); // '文'
+	assert(!utf8::is_word_char_at_byte(cjk_punct, 3)); // '、'
+	assert(utf8::is_word_char_at_byte(cjk_punct, 6)); // '章'
+	assert(!utf8::is_word_char_at_byte(cjk_punct, 9)); // '。'
+
+	// 4. Character position wrapper is_word_char_at_char
+	std::string_view mixed = "// 日本語 café()";
+	// 0: '/', 1: '/', 2: ' ', 3: '日', 4: '本', 5: '語', 6: ' ', 7: 'c', 8: 'a', 9: 'f', 10: 'é', 11: '(', 12: ')'
+	assert(utf8::is_word_char_at_char(mixed, 3)); // '日'
+	assert(utf8::is_word_char_at_char(mixed, 10)); // 'é'
+	assert(!utf8::is_word_char_at_char(mixed, 6)); // ' '
+	assert(!utf8::is_word_char_at_char(mixed, 11)); // '('
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -1276,6 +1341,7 @@ int main()
 	test_utf8_case_idempotence();
 	test_utf8_is_space();
 	test_utf8_is_alnum();
+	test_utf8_is_word_char();
 
 	std::cout << "All UTF-8 unit tests passed!" << std::endl;
 	return 0;

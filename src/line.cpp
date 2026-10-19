@@ -78,7 +78,7 @@ word_span line::get_word_span_at(int char_pos, std::string_view extra) const
 	}
 
 	size_t ref_byte = utf8::char_to_byte_offset(text_, ref_pos);
-	if (ref_byte >= text_.size() || !utf8::is_alnum_at_byte(text_, ref_byte, extra)) {
+	if (ref_byte >= text_.size() || !utf8::is_word_char_at_byte(text_, ref_byte, extra)) {
 		return {};
 	}
 
@@ -90,7 +90,7 @@ word_span line::get_word_span_at(int char_pos, std::string_view extra) const
 		while (prev_byte > 0 && (static_cast<unsigned char>(text_[prev_byte]) & 0xC0) == 0x80) {
 			prev_byte--;
 		}
-		if (!utf8::is_alnum_at_byte(text_, prev_byte, extra)) {
+		if (!utf8::is_word_char_at_byte(text_, prev_byte, extra)) {
 			break;
 		}
 		cur_byte = prev_byte;
@@ -102,7 +102,7 @@ word_span line::get_word_span_at(int char_pos, std::string_view extra) const
 	int end_char = ref_pos + 1;
 	cur_byte = ref_byte + utf8::char_len(static_cast<unsigned char>(text_[ref_byte]));
 	while (end_char < total_chars && cur_byte < text_.size()) {
-		if (!utf8::is_alnum_at_byte(text_, cur_byte, extra)) {
+		if (!utf8::is_word_char_at_byte(text_, cur_byte, extra)) {
 			break;
 		}
 		cur_byte += utf8::char_len(static_cast<unsigned char>(text_[cur_byte]));

@@ -87,6 +87,31 @@ int main()
 		assert(l_semicolon.get_word_span_at(9).empty());
 	}
 
+	// Test get_word_span_at with multi-byte characters in the middle of words
+	{
+		line l_accent("café_latte(x) + π_val * groß_handler;");
+		// 'café_latte': 'c'(0), 'a'(1), 'f'(2), 'é'(3), '_'(4), 'l'(5)... 'e'(9)
+		auto span_cafe = l_accent.get_word_span_at(3); // on 'é'
+		assert(!span_cafe.empty());
+		assert(span_cafe.word == "café_latte");
+		assert(span_cafe.start_char_pos == 0);
+		assert(span_cafe.end_char_pos == 10);
+		assert(l_accent.get_word_at(0) == "café_latte");
+		assert(l_accent.get_word_at(5) == "café_latte");
+
+		// 'π_val': 'π'(16), '_'(17), 'v'(18), 'a'(19), 'l'(20)
+		auto span_pi = l_accent.get_word_span_at(16); // on 'π'
+		assert(span_pi.word == "π_val");
+		assert(span_pi.start_char_pos == 16);
+		assert(span_pi.end_char_pos == 21);
+
+		// 'groß_handler': 'g'(24)... 'ß'(27)...
+		auto span_gross = l_accent.get_word_span_at(27); // on 'ß'
+		assert(span_gross.word == "groß_handler");
+		assert(span_gross.start_char_pos == 24);
+		assert(span_gross.end_char_pos == 36);
+	}
+
 	// Display column calculations
 	// Japanese 'あ' is 2 columns, Emoji '😊' is 2 columns.
 	// So: 'a' at col 0 (width 1), 'あ' at col 1 (width 2), '😊' at col 3 (width 2), 'b' at col 5, end at col 6

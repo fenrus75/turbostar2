@@ -226,6 +226,85 @@ bool is_alnum_at_char(std::string_view s, size_t char_pos, std::string_view extr
 	return is_alnum_at_byte(s, byte_offset, extra);
 }
 
+bool is_word_char_at_byte(std::string_view s, size_t byte_offset, std::string_view extra) noexcept
+{
+	if (byte_offset >= s.length()) {
+		return false;
+	}
+
+	unsigned char c = static_cast<unsigned char>(s[byte_offset]);
+	// Fast-path: single-byte ASCII
+	if (c < 0x80) {
+		return is_alnum(static_cast<char>(c), extra);
+	}
+
+	// Multi-byte sequence: check for continuation byte or truncated sequence
+	size_t clen = char_len(c);
+	if (clen == 1 || byte_offset + clen > s.length()) {
+		return false;
+	}
+
+	// 1. Unicode whitespace
+	if (is_space_at_byte(s, byte_offset)) {
+		return false;
+	}
+
+	// 2. Unicode punctuation & quotes
+	// U+00AB («) and U+00BB (»): \xC2\xAB, \xC2\xBB
+	if (c == 0xC2 && (static_cast<unsigned char>(s[byte_offset + 1]) == 0xAB ||
+	                  static_cast<unsigned char>(s[byte_offset + 1]) == 0xBB)) {
+		return false;
+	}
+
+	// General punctuation block (3 bytes starting with \xE2\x80 or \xE2\x81):
+	// dashes, quotes, ellipsis, guillemets
+	if (c == 0xE2 && byte_offset + 2 < s.length()) {
+		unsigned char b1 = static_cast<unsigned char>(s[byte_offset + 1]);
+		unsigned char b2 = static_cast<unsigned char>(s[byte_offset + 2]);
+		if (b1 == 0x80) {
+			// U+2010..U+2027 (dashes, quotes, ellipsis), U+2039..U+203A (guillemets)
+			if ((b2 >= 0x90 && b2 <= 0xA7) || b2 == 0xB9 || b2 == 0xBA) {
+				return false;
+			}
+		}
+	}
+
+	// CJK symbols and punctuation (3 bytes starting with \xE3\x80):
+	// U+3001 (、), U+3002 (。), U+3008..U+3011 (brackets)
+	if (c == 0xE3 && byte_offset + 2 < s.length()) {
+		unsigned char b1 = static_cast<unsigned char>(s[byte_offset + 1]);
+		unsigned char b2 = static_cast<unsigned char>(s[byte_offset + 2]);
+		if (b1 == 0x80 && (b2 == 0x81 || b2 == 0x82 || (b2 >= 0x88 && b2 <= 0x91))) {
+			return false;
+		}
+	}
+
+	// Fullwidth ASCII punctuation variants (3 bytes starting with \xEF\xBC or \xEF\xBD)
+	if (c == 0xEF && byte_offset + 2 < s.length()) {
+		unsigned char b1 = static_cast<unsigned char>(s[byte_offset + 1]);
+		unsigned char b2 = static_cast<unsigned char>(s[byte_offset + 2]);
+		// U+FF01..U+FF0F: ！＂＃＄％＆＇（）＊＋，－．／
+		// U+FF1A..U+FF20: ：；＜＝＞？＠
+		if (b1 == 0xBC && ((b2 >= 0x81 && b2 <= 0x8F) || (b2 >= 0x9A && b2 <= 0xA0))) {
+			return false;
+		}
+		// U+FF3B..U+FF40 (excluding U+FF3F fullwidth low line '_'): ［＼］＾ ｀
+		// U+FF5B..U+FF5E: ｛｜｝～
+		if (b1 == 0xBD && (((b2 >= 0x9B && b2 <= 0xA0) && b2 != 0x9F) || (b2 >= 0x9B && b2 <= 0x9E))) {
+			return false;
+		}
+	}
+
+	// All other multi-byte characters are considered word characters (letters, numbers, ideographs)
+	return true;
+}
+
+bool is_word_char_at_char(std::string_view s, size_t char_pos, std::string_view extra) noexcept
+{
+	size_t byte_offset = char_to_byte_offset(s, char_pos);
+	return is_word_char_at_byte(s, byte_offset, extra);
+}
+
 // Returns true if s is non-empty and every character in s satisfies is_alnum with extra.
 bool is_alnum_only(std::string_view s, std::string_view extra) noexcept
 {
