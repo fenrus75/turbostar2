@@ -285,12 +285,14 @@ bool is_word_char_at_byte(std::string_view s, size_t byte_offset, std::string_vi
 		unsigned char b2 = static_cast<unsigned char>(s[byte_offset + 2]);
 		// U+FF01..U+FF0F: ！＂＃＄％＆＇（）＊＋，－．／
 		// U+FF1A..U+FF20: ：；＜＝＞？＠
-		if (b1 == 0xBC && ((b2 >= 0x81 && b2 <= 0x8F) || (b2 >= 0x9A && b2 <= 0xA0))) {
+		// U+FF3B..U+FF3E: ［＼］＾
+		if (b1 == 0xBC && ((b2 >= 0x81 && b2 <= 0x8F) || (b2 >= 0x9A && b2 <= 0xA0) ||
+		                   (b2 >= 0xBB && b2 <= 0xBE))) {
 			return false;
 		}
-		// U+FF3B..U+FF40 (excluding U+FF3F fullwidth low line '_'): ［＼］＾ ｀
+		// U+FF40: ｀
 		// U+FF5B..U+FF5E: ｛｜｝～
-		if (b1 == 0xBD && (((b2 >= 0x9B && b2 <= 0xA0) && b2 != 0x9F) || (b2 >= 0x9B && b2 <= 0x9E))) {
+		if (b1 == 0xBD && (b2 == 0x80 || (b2 >= 0x9B && b2 <= 0x9E))) {
 			return false;
 		}
 	}

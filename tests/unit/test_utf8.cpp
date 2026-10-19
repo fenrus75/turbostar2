@@ -278,6 +278,8 @@ void test_utf8_wrap_string()
 	// 8. Truncated multi-byte sequence in wrapped text
 	auto lines_trunc = utf8::wrap_string("", "hello \xC2 world", 10);
 	assert(lines_trunc.size() >= 1);
+	auto lines_trunc_end = utf8::wrap_string("", "hello \xC2", 10);
+	assert(lines_trunc_end.size() >= 1);
 }
 
 void test_utf8_ascii_fastpath()
@@ -1256,6 +1258,8 @@ void test_utf8_is_alnum()
 	assert(utf8::is_not_alnum_only("café"));
 	assert(!utf8::is_not_alnum_only("café", "é"));
 	assert(utf8::is_not_alnum_only("café\xC2", "é"));
+	// is_alnum_only with non-empty extra that does not match
+	assert(!utf8::is_alnum_only("café", "xyz"));
 }
 
 void test_utf8_is_word_char()
@@ -1299,6 +1303,11 @@ void test_utf8_is_word_char()
 	// Ideographic fullwidth space (U+3000: \xE3\x80\x80)
 	std::string_view cjk_space = "a\xE3\x80\x80""b";
 	assert(!utf8::is_word_char_at_byte(cjk_space, 1));
+	// Guillemets (U+00AB: \xC2\xAB, U+00BB: \xC2\xBB)
+	std::string_view guillemets = "\xC2\xABword\xC2\xBB";
+	assert(!utf8::is_word_char_at_byte(guillemets, 0));
+	assert(utf8::is_word_char_at_byte(guillemets, 2)); // 'w'
+	assert(!utf8::is_word_char_at_byte(guillemets, 6)); // '»'
 	// Smart quotes (U+201C: \xE2\x80\x9C, U+201D: \xE2\x80\x9D)
 	std::string_view smart_quotes = "\xE2\x80\x9Cword\xE2\x80\x9D";
 	assert(!utf8::is_word_char_at_byte(smart_quotes, 0));
@@ -1313,6 +1322,21 @@ void test_utf8_is_word_char()
 	assert(!utf8::is_word_char_at_byte(cjk_punct, 3)); // '、'
 	assert(utf8::is_word_char_at_byte(cjk_punct, 6)); // '章'
 	assert(!utf8::is_word_char_at_byte(cjk_punct, 9)); // '。'
+
+	// Fullwidth ASCII punctuation variants
+	std::string_view fw_punct = "（［｛｀～！：";
+	for (size_t offset = 0; offset < fw_punct.length(); offset += 3) {
+		assert(!utf8::is_word_char_at_byte(fw_punct, offset));
+	}
+	// Fullwidth low line / underscore U+FF3F is a valid identifier character
+	std::string_view fw_underscore = "＿id";
+	assert(utf8::is_word_char_at_byte(fw_underscore, 0));
+
+	// Truncated multi-byte sequences and raw continuation bytes
+	std::string_view trunc_seq = "\xC2";
+	assert(!utf8::is_word_char_at_byte(trunc_seq, 0));
+	std::string_view cont_byte = "\x80";
+	assert(!utf8::is_word_char_at_byte(cont_byte, 0));
 
 	// 4. Character position wrapper is_word_char_at_char
 	std::string_view mixed = "// 日本語 café()";
