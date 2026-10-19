@@ -185,21 +185,30 @@ void document::delete_word_forward()
 		return;
 	}
 
-	// Determine the forward word boundary to delete.
-	// If starting exactly on a terminator (e.g. quote, semicolon, or comma),
+	// Determine the forward word boundary to delete using get_word_span_at.
+	// If starting exactly on a terminator (e.g. quote, parenthesis, or delimiter),
 	// delete only that single terminator character.
-	// Otherwise, delete consecutive characters up to the next space or terminator boundary,
+	// Otherwise, delete the word from the cursor to its end boundary,
 	// and clean up any trailing whitespace.
+	auto &cur_line = *lines_[cursor_y_];
 	int i = cursor_x_;
-	if (i < line_char_len && is_terminator_at_unlocked(cursor_y_, i)) {
+
+	if (cur_line.is_terminator_at(i)) {
 		i++;
+	} else if (auto span = cur_line.get_word_span_at(i); !span.empty()) {
+		i = span.end_char_pos;
 	} else {
-		while (i < line_char_len && !is_space_at_unlocked(cursor_y_, i) && !is_terminator_at_unlocked(cursor_y_, i)) {
+		// Contiguous whitespace or non-word characters
+		while (i < line_char_len && cur_line.is_space_at(i)) {
+			i++;
+		}
+		if (i == cursor_x_ && i < line_char_len) {
 			i++;
 		}
 	}
-	while (i < line_char_len && is_space_at_unlocked(cursor_y_, i))
+	while (i < line_char_len && cur_line.is_space_at(i)) {
 		i++;
+	}
 
 	int count = i - cursor_x_;
 	if (count > 0) {

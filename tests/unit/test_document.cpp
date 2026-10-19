@@ -867,6 +867,29 @@ int main()
 			doc.delete_word_forward(); // on ';'
 			assert(doc.get_line(1)->get_text() == "");
 			assert(doc.get_cursor_x() == 0);
+
+			// Mid-word deletion and whitespace deletion
+			document doc_mid(queue);
+			doc_mid.insert_text("foobar test\ncafé_latte   done\nfoo   bar");
+
+			// Line 0: "foobar test" with cursor at 3 ('b')
+			// Deletes "bar" plus the trailing space, leaving "footest"
+			doc_mid.set_cursor_position(3, 0);
+			doc_mid.delete_word_forward();
+			assert(doc_mid.get_line(0)->get_text() == "footest");
+			assert(doc_mid.get_cursor_x() == 3);
+
+			// Line 1: "café_latte   done" with cursor at 4 ('_')
+			doc_mid.set_cursor_position(4, 1);
+			doc_mid.delete_word_forward();
+			assert(doc_mid.get_line(1)->get_text() == "cafédone");
+			assert(doc_mid.get_cursor_x() == 4);
+
+			// Line 2: "foo   bar" with cursor at 3 (first space)
+			doc_mid.set_cursor_position(3, 2);
+			doc_mid.delete_word_forward();
+			assert(doc_mid.get_line(2)->get_text() == "foobar");
+			assert(doc_mid.get_cursor_x() == 3);
 		}
 
 	std::cout << "document unit test passed!\n";
