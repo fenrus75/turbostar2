@@ -19,6 +19,8 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- expand utf8::is_alnum / line::get_word_span_at to recognize Unicode alphanumeric codepoints (e.g. accented Latin, Greek, Cyrillic, CJK) so words with multi-byte UTF-8 letters in the middle (e.g. café_latte, π_val) are recognized as single identifiers
+
 - turn docs/testcoverage.md into a file in system:// 
 
 - string_view version of line::get_text ? problem is the locking side of things, the string is a nice copy so is permanently useful
