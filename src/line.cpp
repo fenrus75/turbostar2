@@ -63,6 +63,65 @@ void line::append_to(std::string &out) const
 	out.append(text_);
 }
 
+word_span line::get_word_span_at(int char_pos, std::string_view extra) const
+{
+	std::shared_lock lock(mutex_);
+	int total_chars = static_cast<int>(attributes_.size());
+	if (total_chars == 0 || char_pos < 0 || char_pos > total_chars) {
+		return {};
+	}
+
+	// Reference position: if parked at EOL (char_pos == total_chars), test the preceding character
+	int ref_pos = char_pos;
+	if (ref_pos == total_chars) {
+		ref_pos--;
+	}
+
+	size_t ref_byte = utf8::char_to_byte_offset(text_, ref_pos);
+	if (ref_byte >= text_.size() || !utf8::is_alnum_at_byte(text_, ref_byte, extra)) {
+		return {};
+	}
+
+	// Expand backward along UTF-8 character boundaries
+	int start_char = ref_pos;
+	size_t cur_byte = ref_byte;
+	while (start_char > 0 && cur_byte > 0) {
+		size_t prev_byte = cur_byte - 1;
+		while (prev_byte > 0 && (static_cast<unsigned char>(text_[prev_byte]) & 0xC0) == 0x80) {
+			prev_byte--;
+		}
+		if (!utf8::is_alnum_at_byte(text_, prev_byte, extra)) {
+			break;
+		}
+		cur_byte = prev_byte;
+		start_char--;
+	}
+	size_t start_byte = cur_byte;
+
+	// Expand forward along UTF-8 character boundaries
+	int end_char = ref_pos + 1;
+	cur_byte = ref_byte + utf8::char_len(static_cast<unsigned char>(text_[ref_byte]));
+	while (end_char < total_chars && cur_byte < text_.size()) {
+		if (!utf8::is_alnum_at_byte(text_, cur_byte, extra)) {
+			break;
+		}
+		cur_byte += utf8::char_len(static_cast<unsigned char>(text_[cur_byte]));
+		end_char++;
+	}
+	size_t end_byte = cur_byte;
+
+	return word_span{
+	    .word = text_.substr(start_byte, end_byte - start_byte),
+	    .start_char_pos = start_char,
+	    .end_char_pos = end_char,
+	};
+}
+
+std::string line::get_word_at(int char_pos, std::string_view extra) const
+{
+	return get_word_span_at(char_pos, extra).word;
+}
+
 void line::get_content(std::string &out_text, std::vector<syntax_attribute> &out_attrs) const
 {
 	std::shared_lock lock(mutex_);

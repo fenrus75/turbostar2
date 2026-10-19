@@ -7,6 +7,17 @@
 #include <vector>
 #include "syntax_attribute.h"
 
+struct word_span {
+	std::string word;
+	int start_char_pos{-1};
+	int end_char_pos{-1};
+
+	[[nodiscard]] bool empty() const noexcept
+	{
+		return word.empty();
+	}
+};
+
 class line
 {
       public:
@@ -24,6 +35,8 @@ class line
 
 	std::string get_text() const;
 	void append_to(std::string &out) const;
+	word_span get_word_span_at(int char_pos, std::string_view extra = "_") const;
+	std::string get_word_at(int char_pos, std::string_view extra = "_") const;
 	void get_content(std::string &out_text, std::vector<syntax_attribute> &out_attrs) const;
 	void set_text(std::string_view text);
 

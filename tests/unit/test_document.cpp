@@ -785,6 +785,22 @@ int main()
 			std::filesystem::remove(save_path + "~");
 		}
 
+		// Test get_word_under_cursor and get_word_span_under_cursor
+		{
+			document doc(queue);
+			doc.insert_text("// Café\nint calculate_total(int x);");
+			doc.set_cursor_position(4, 1); // on 'calculate_total'
+			assert(doc.get_word_under_cursor() == "calculate_total");
+			auto span = doc.get_word_span_under_cursor();
+			assert(span.word == "calculate_total");
+			assert(span.start_char_pos == 4);
+			assert(span.end_char_pos == 19);
+
+			doc.set_cursor_position(19, 1); // on '('
+			assert(doc.get_word_under_cursor().empty());
+			assert(doc.get_word_span_under_cursor().empty());
+		}
+
 	std::cout << "document unit test passed!\n";
 	return 0;
 }

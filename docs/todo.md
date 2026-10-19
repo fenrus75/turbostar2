@@ -19,8 +19,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- document::get_word_under_cursor_unlocked is not utf8 safe and should use our more recent utf8 helpers
-
 - turn docs/testcoverage.md into a file in system:// 
 
 - string_view version of line::get_text ? problem is the locking side of things, the string is a nice copy so is permanently useful
@@ -252,6 +250,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 # Done
 
 ## 18-10-2026
+- UTF-8 safe word and identifier extraction in line & document: implemented `line::get_word_span_at` and `line::get_word_at` with bidirectional UTF-8 character boundary scanning and `utf8::is_alnum_at_byte` to prevent character-vs-byte index skew when multi-byte UTF-8 glyphs precede the cursor. Replaced full-line string copy in `document::get_word_under_cursor_unlocked` with delegation to `line::get_word_span_at`, exposed `document::get_word_span_under_cursor`, and added comprehensive unit test cases in `test_line` and `test_document`. (Completed)
 - Expand test coverage for manual fallback parsers: added extensive unit test cases to `tests/unit/test_codemap_fallbacks.cpp` covering forward declarations, struct/class parameter boundary cases, control keyword false-positives, multi-line specifier parsing, backward token walks, Verilog packages/interfaces/classes, Markdown trailing hashes, empty input handling, and `parse_markdown_headings`. Measured test coverage via GCC `gcov` per `docs/testcoverage.md`, elevating `src/codemap_fallbacks.cpp` line coverage from 77.1% to 96.6% (288 of 298 executable lines covered). (Completed)
 - Refactor codemap fallbacks into language-specific helpers: split `fallback_find_symbols` in `src/codemap_fallbacks.{h,cpp}` into discrete language-specific parsers (`fallback_find_symbols_cpp`, `fallback_find_symbols_python`, `fallback_find_symbols_verilog`, and `fallback_find_symbols_markdown`) taking `std::span<const std::string>` to decouple syntax grammars and eliminate per-line branching, with `parse_markdown_headings` preserved as a backward-compatible wrapper. Added `tests/unit/test_codemap_fallbacks.cpp` providing comprehensive in-memory unit tests across Python, SystemVerilog, C++, and Markdown headings. (Completed)
 - Modularize codemap fallbacks & enhance LSP update synchronization: split regex/heuristic symbol parsing (C/C++, Python, SystemVerilog) and Markdown heading structure parsing from `src/codemap_utils.cpp` into dedicated `src/codemap_fallbacks.{h,cpp}` with accompanying architectural documentation in `src/codemap_fallbacks.md`. Enhanced `standard_lsp_backend::open_document` to transparently update already-open buffers via `update_document` (`didChange`) and added symbol cache invalidation across all document updates to prevent stale AST symbol retention when files are edited or overwritten. (Completed)

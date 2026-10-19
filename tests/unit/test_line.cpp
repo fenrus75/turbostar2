@@ -27,6 +27,66 @@ int main()
 	l.append_to(appended);
 	assert(appended == "prefix: aあ😊b");
 
+	// Test get_word_span_at and get_word_at with delimiters and identifiers
+	{
+		line l_code("foo(something) + bar_123;");
+		// 'foo' at char 0..3
+		auto span0 = l_code.get_word_span_at(0);
+		assert(!span0.empty());
+		assert(span0.word == "foo");
+		assert(span0.start_char_pos == 0);
+		assert(span0.end_char_pos == 3);
+		assert(l_code.get_word_at(1) == "foo");
+		assert(l_code.get_word_at(2) == "foo");
+
+		// '(' delimiter at char 3 -> empty
+		assert(l_code.get_word_span_at(3).empty());
+		assert(l_code.get_word_at(3).empty());
+
+		// 'something' at char 4..13
+		auto span_some = l_code.get_word_span_at(4);
+		assert(!span_some.empty());
+		assert(span_some.word == "something");
+		assert(span_some.start_char_pos == 4);
+		assert(span_some.end_char_pos == 13);
+		assert(l_code.get_word_at(12) == "something");
+
+		// ')' delimiter at char 13 -> empty
+		assert(l_code.get_word_span_at(13).empty());
+
+		// 'bar_123' at char 17..24
+		auto span_bar = l_code.get_word_span_at(17);
+		assert(!span_bar.empty());
+		assert(span_bar.word == "bar_123");
+		assert(span_bar.start_char_pos == 17);
+		assert(span_bar.end_char_pos == 24);
+	}
+
+	// Test get_word_span_at with multi-byte UTF-8 prefixes
+	{
+		line l_utf8("// 日本語 foo_bar();");
+		// 0: '/', 1: '/', 2: ' ', 3: '日', 4: '本', 5: '語', 6: ' ', 7: 'f'..14: '('
+		auto span_utf8 = l_utf8.get_word_span_at(7);
+		assert(!span_utf8.empty());
+		assert(span_utf8.word == "foo_bar");
+		assert(span_utf8.start_char_pos == 7);
+		assert(span_utf8.end_char_pos == 14);
+		assert(l_utf8.get_word_at(10) == "foo_bar");
+		assert(l_utf8.get_word_span_at(14).empty()); // '('
+	}
+
+	// Test cursor at end of line (EOL)
+	{
+		line l_eol("test_eol");
+		auto span_eol = l_eol.get_word_span_at(8);
+		assert(span_eol.word == "test_eol");
+		assert(span_eol.start_char_pos == 0);
+		assert(span_eol.end_char_pos == 8);
+
+		line l_semicolon("test_eol;");
+		assert(l_semicolon.get_word_span_at(9).empty());
+	}
+
 	// Display column calculations
 	// Japanese 'あ' is 2 columns, Emoji '😊' is 2 columns.
 	// So: 'a' at col 0 (width 1), 'あ' at col 1 (width 2), '😊' at col 3 (width 2), 'b' at col 5, end at col 6

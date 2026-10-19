@@ -513,38 +513,22 @@ std::string document::get_text_all() const
 	return get_text_all_unlocked();
 }
 
-std::string document::get_word_under_cursor_unlocked() const
+word_span document::get_word_span_under_cursor_unlocked() const
 {
 	if (cursor_y_ < 0 || cursor_y_ >= static_cast<int>(lines_.size()))
-		return "";
-	std::string text = lines_[cursor_y_]->get_text();
-	if (text.empty() || cursor_x_ < 0 || cursor_x_ > static_cast<int>(text.length()))
-		return "";
+		return {};
+	return lines_[cursor_y_]->get_word_span_at(cursor_x_);
+}
 
-	int start = cursor_x_;
-	while (start > 0) {
-		char c = text[start - 1];
-		if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
-			start--;
-		} else {
-			break;
-		}
-	}
+std::string document::get_word_under_cursor_unlocked() const
+{
+	return get_word_span_under_cursor_unlocked().word;
+}
 
-	int end = cursor_x_;
-	while (end < static_cast<int>(text.length())) {
-		char c = text[end];
-		if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
-			end++;
-		} else {
-			break;
-		}
-	}
-
-	if (start < end) {
-		return text.substr(start, end - start);
-	}
-	return "";
+word_span document::get_word_span_under_cursor() const
+{
+	std::shared_lock lock(mutex_);
+	return get_word_span_under_cursor_unlocked();
 }
 
 std::string document::get_word_under_cursor() const

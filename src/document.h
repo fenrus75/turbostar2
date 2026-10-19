@@ -135,6 +135,7 @@ class document
 	std::string get_text_all() const;
 	std::string get_text_all_unlocked() const;
 	std::string get_word_under_cursor() const;
+	word_span get_word_span_under_cursor() const;
 	void move_cursor(int dx, int dy);
 	void set_cursor_position(int col, int line);
 	void request_redraw() const;
@@ -257,6 +258,7 @@ class document
 	bool is_space_at_unlocked(int y, int x) const;
 	bool is_terminator_at_unlocked(int y, int x) const;
 	std::string get_word_under_cursor_unlocked() const;
+	word_span get_word_span_under_cursor_unlocked() const;
 
 	std::vector<std::shared_ptr<line>> lines_;
 
