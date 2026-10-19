@@ -163,16 +163,13 @@ void document::move_next_word()
 		i++;
 	} else if (auto span = cur_line.get_word_span_at(i); !span.empty()) {
 		i = span.end_char_pos;
-	} else {
-		while (i < line_char_len && cur_line.is_space_at(i)) {
-			i++;
-		}
-		if (i == cursor_x_ && i < line_char_len) {
-			i++;
-		}
-	}
-	while (i < line_char_len && cur_line.is_space_at(i)) {
+	} else if (auto ws = cur_line.get_whitespace_span_at(i); !ws.empty()) {
+		i = ws.end_char_pos;
+	} else if (i < line_char_len) {
 		i++;
+	}
+	if (auto trailing_ws = cur_line.get_whitespace_span_at(i); !trailing_ws.empty()) {
+		i = trailing_ws.end_char_pos;
 	}
 
 	if (i >= line_char_len && cursor_y_ < line_count_unlocked() - 1) {
@@ -206,8 +203,8 @@ void document::move_prev_word()
 	int i = cursor_x_;
 
 	// 1. Consume any whitespace directly preceding the cursor
-	while (i > 0 && cur_line.is_space_at(i - 1)) {
-		i--;
+	if (auto ws = cur_line.get_whitespace_span_at(i - 1); !ws.empty()) {
+		i = ws.start_char_pos;
 	}
 
 	// 2. If not at start of line, determine backward word boundary or single terminator

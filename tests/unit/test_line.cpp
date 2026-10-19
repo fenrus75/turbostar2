@@ -215,6 +215,67 @@ int main()
 		assert(l_delims.is_terminator_at(21));
 	}
 
+	// Test get_whitespace_span_at
+	{
+		line l_empty("");
+		assert(l_empty.get_whitespace_span_at(0).empty());
+		assert(l_empty.get_whitespace_span_at(-1).empty());
+
+		// "  foo\t\tbar 　 done "
+		// 0..1: "  " (spaces)
+		// 2..4: "foo"
+		// 5..6: "\t\t" (tabs)
+		// 7..9: "bar"
+		// 10: ' ' (space)
+		// 11: '　' (U+3000 ideographic space)
+		// 12: ' ' (space)
+		// 13..16: "done"
+		// 17: ' ' (space)
+		line l_ws("  foo\t\tbar 　 done ");
+
+		// Out of bounds
+		assert(l_ws.get_whitespace_span_at(-1).empty());
+		assert(l_ws.get_whitespace_span_at(18).empty());
+
+		// On non-whitespace:
+		assert(l_ws.get_whitespace_span_at(2).empty()); // 'f'
+		assert(l_ws.get_whitespace_span_at(7).empty()); // 'b'
+		assert(l_ws.get_whitespace_span_at(13).empty()); // 'd'
+
+		// Leading spaces [0, 2)
+		auto ws_lead0 = l_ws.get_whitespace_span_at(0);
+		assert(!ws_lead0.empty());
+		assert(ws_lead0.word == "  ");
+		assert(ws_lead0.start_char_pos == 0);
+		assert(ws_lead0.end_char_pos == 2);
+
+		auto ws_lead1 = l_ws.get_whitespace_span_at(1);
+		assert(ws_lead1.word == "  ");
+		assert(ws_lead1.start_char_pos == 0);
+		assert(ws_lead1.end_char_pos == 2);
+
+		// Middle tabs [5, 7)
+		auto ws_tabs = l_ws.get_whitespace_span_at(5);
+		assert(!ws_tabs.empty());
+		assert(ws_tabs.word == "\t\t");
+		assert(ws_tabs.start_char_pos == 5);
+		assert(ws_tabs.end_char_pos == 7);
+
+		// Mixed ASCII + U+3000 Unicode space [10, 13)
+		auto ws_mixed = l_ws.get_whitespace_span_at(11); // on '　'
+		assert(!ws_mixed.empty());
+		assert(ws_mixed.word == " 　 ");
+		assert(ws_mixed.start_char_pos == 10);
+		assert(ws_mixed.end_char_pos == 13);
+
+		// Trailing space [17, 18)
+		auto ws_trail = l_ws.get_whitespace_span_at(17);
+		assert(!ws_trail.empty());
+		assert(ws_trail.word == " ");
+		assert(ws_trail.start_char_pos == 17);
+		assert(ws_trail.end_char_pos == 18);
+	}
+
 	std::cout << "Testing self-merge...\n";
 	line l_merge("hello");
 	l_merge.merge(l_merge);

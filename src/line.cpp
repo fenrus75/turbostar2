@@ -122,6 +122,54 @@ std::string line::get_word_at(int char_pos, std::string_view extra) const
 	return get_word_span_at(char_pos, extra).word;
 }
 
+word_span line::get_whitespace_span_at(int char_pos) const
+{
+	std::shared_lock lock(mutex_);
+	int total_chars = static_cast<int>(attributes_.size());
+	if (char_pos < 0 || char_pos >= total_chars) {
+		return {};
+	}
+
+	size_t ref_byte = utf8::char_to_byte_offset(text_, char_pos);
+	if (ref_byte >= text_.size() || !utf8::is_space_at_byte(text_, ref_byte)) {
+		return {};
+	}
+
+	// Expand backward along UTF-8 character boundaries
+	int start_char = char_pos;
+	size_t cur_byte = ref_byte;
+	while (start_char > 0 && cur_byte > 0) {
+		size_t prev_byte = cur_byte - 1;
+		while (prev_byte > 0 && (static_cast<unsigned char>(text_[prev_byte]) & 0xC0) == 0x80) {
+			prev_byte--;
+		}
+		if (!utf8::is_space_at_byte(text_, prev_byte)) {
+			break;
+		}
+		cur_byte = prev_byte;
+		start_char--;
+	}
+	size_t start_byte = cur_byte;
+
+	// Expand forward along UTF-8 character boundaries
+	int end_char = char_pos + 1;
+	cur_byte = ref_byte + utf8::char_len(static_cast<unsigned char>(text_[ref_byte]));
+	while (end_char < total_chars && cur_byte < text_.size()) {
+		if (!utf8::is_space_at_byte(text_, cur_byte)) {
+			break;
+		}
+		cur_byte += utf8::char_len(static_cast<unsigned char>(text_[cur_byte]));
+		end_char++;
+	}
+	size_t end_byte = cur_byte;
+
+	return word_span{
+	    .word = text_.substr(start_byte, end_byte - start_byte),
+	    .start_char_pos = start_char,
+	    .end_char_pos = end_char,
+	};
+}
+
 void line::get_content(std::string &out_text, std::vector<syntax_attribute> &out_attrs) const
 {
 	std::shared_lock lock(mutex_);

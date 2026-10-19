@@ -799,6 +799,21 @@ int main()
 			doc.set_cursor_position(19, 1); // on '('
 			assert(doc.get_word_under_cursor().empty());
 			assert(doc.get_word_span_under_cursor().empty());
+
+			// Test get_whitespace_span_under_cursor and get_whitespace_span_at
+			doc.set_cursor_position(3, 1); // on ' ' after 'int'
+			assert(!doc.get_whitespace_span_under_cursor().empty());
+			assert(doc.get_whitespace_span_under_cursor().word == " ");
+			assert(doc.get_whitespace_span_under_cursor().start_char_pos == 3);
+			assert(doc.get_whitespace_span_under_cursor().end_char_pos == 4);
+
+			auto ws_at = doc.get_whitespace_span_at(1, 3);
+			assert(ws_at.word == " ");
+			assert(ws_at.start_char_pos == 3);
+			assert(ws_at.end_char_pos == 4);
+
+			assert(doc.get_whitespace_span_at(-1, 0).empty());
+			assert(doc.get_whitespace_span_at(1, 4).empty()); // on 'c'
 		}
 
 		// Test is_terminator_at, is_delimiter_at, and delete_word_forward with Unicode delimiters
