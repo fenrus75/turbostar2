@@ -190,6 +190,8 @@ class document
 	void trim_trailing_whitespace();
 
 	bool is_space_at(int y, int x) const;
+	bool is_terminator_at(int y, int x) const;
+	bool is_delimiter_at(int y, int x) const;
 	std::optional<std::pair<int, int>> find_matching_bracket(int y, int x) const;
 	void select_enclosing_scope();
 
@@ -257,6 +259,7 @@ class document
 	void refresh_highlighter();
 	bool is_space_at_unlocked(int y, int x) const;
 	bool is_terminator_at_unlocked(int y, int x) const;
+	bool is_delimiter_at_unlocked(int y, int x) const;
 	std::string get_word_under_cursor_unlocked() const;
 	word_span get_word_span_under_cursor_unlocked() const;
 

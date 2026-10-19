@@ -129,6 +129,35 @@ bool is_space_at_char(std::string_view s, size_t char_pos) noexcept;
 [[nodiscard]] bool is_word_char_at_char(std::string_view s, size_t char_pos, std::string_view extra = "_") noexcept;
 
 /**
+ * @brief Returns true if the character at byte_offset in s is a delimiter/terminator
+ * (punctuation, brackets, quotes, operators).
+ * Evaluated as: not whitespace, not a word/identifier character, not a continuation byte,
+ * and not an unprintable control character (c < 0x20).
+ */
+[[nodiscard]] bool is_delimiter_at_byte(std::string_view s, size_t byte_offset, std::string_view extra = "_") noexcept;
+
+/**
+ * @brief Returns true if the 0-indexed character at char_pos in s is a delimiter/terminator.
+ */
+[[nodiscard]] bool is_delimiter_at_char(std::string_view s, size_t char_pos, std::string_view extra = "_") noexcept;
+
+/**
+ * @brief Semantic alias for is_delimiter_at_byte.
+ */
+[[nodiscard]] inline bool is_terminator_at_byte(std::string_view s, size_t byte_offset, std::string_view extra = "_") noexcept
+{
+	return is_delimiter_at_byte(s, byte_offset, extra);
+}
+
+/**
+ * @brief Semantic alias for is_delimiter_at_char.
+ */
+[[nodiscard]] inline bool is_terminator_at_char(std::string_view s, size_t char_pos, std::string_view extra = "_") noexcept
+{
+	return is_delimiter_at_char(s, char_pos, extra);
+}
+
+/**
  * @brief Returns true if s is non-empty and every character in s satisfies is_alnum with extra.
  * Safely handles multi-byte UTF-8 character boundaries.
  */

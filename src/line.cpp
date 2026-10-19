@@ -309,6 +309,29 @@ unsigned char line::byte_at_unlocked(int offset) const noexcept
 	return 0;
 }
 
+bool line::is_space_at(int char_pos) const
+{
+	if (char_pos < 0) {
+		return false;
+	}
+	std::shared_lock lock(mutex_);
+	return utf8::is_space_at_char(text_, static_cast<size_t>(char_pos));
+}
+
+bool line::is_delimiter_at(int char_pos) const
+{
+	if (char_pos < 0) {
+		return false;
+	}
+	std::shared_lock lock(mutex_);
+	return utf8::is_delimiter_at_char(text_, static_cast<size_t>(char_pos));
+}
+
+bool line::is_terminator_at(int char_pos) const
+{
+	return is_delimiter_at(char_pos);
+}
+
 void line::set_attributes(const std::vector<syntax_attribute> &attrs)
 {
 	std::unique_lock lock(mutex_);

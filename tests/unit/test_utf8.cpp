@@ -1347,6 +1347,83 @@ void test_utf8_is_word_char()
 	assert(!utf8::is_word_char_at_char(mixed, 11)); // '('
 }
 
+void test_utf8_is_delimiter()
+{
+	// 1. ASCII delimiters
+	std::string_view ascii_code = "foo(bar_123, \"hello\"); +-*/=;:<>?[]{}";
+	assert(!utf8::is_delimiter_at_byte(ascii_code, 0)); // 'f'
+	assert(!utf8::is_delimiter_at_byte(ascii_code, 1)); // 'o'
+	assert(utf8::is_delimiter_at_byte(ascii_code, 3));  // '('
+	assert(!utf8::is_delimiter_at_byte(ascii_code, 4)); // 'b'
+	assert(!utf8::is_delimiter_at_byte(ascii_code, 7)); // '_' (extra)
+	assert(!utf8::is_delimiter_at_byte(ascii_code, 10)); // '3'
+	assert(utf8::is_delimiter_at_byte(ascii_code, 11)); // ','
+	assert(!utf8::is_delimiter_at_byte(ascii_code, 12)); // ' ' (whitespace)
+	assert(utf8::is_delimiter_at_byte(ascii_code, 13)); // '"'
+	assert(utf8::is_delimiter_at_byte(ascii_code, 19)); // '"'
+	assert(utf8::is_delimiter_at_byte(ascii_code, 20)); // ')'
+	assert(utf8::is_delimiter_at_byte(ascii_code, 21)); // ';'
+	assert(!utf8::is_delimiter_at_byte(ascii_code, 22)); // ' '
+	assert(utf8::is_delimiter_at_byte(ascii_code, 23)); // '+'
+	assert(utf8::is_delimiter_at_byte(ascii_code, 24)); // '-'
+
+	// Control chars and out of bounds
+	assert(!utf8::is_delimiter_at_byte("", 0));
+	assert(!utf8::is_delimiter_at_byte(ascii_code, 100));
+	std::string_view null_str("\0foo", 4);
+	assert(!utf8::is_delimiter_at_byte(null_str, 0)); // control char < 0x20
+
+	// 2. Unicode delimiters and punctuation
+	std::string_view unicode_delims = "«word» “quote” 文、章。 （全角） —dash";
+	// '«' (offset 0, 2 bytes)
+	assert(utf8::is_delimiter_at_byte(unicode_delims, 0));
+	assert(!utf8::is_delimiter_at_byte(unicode_delims, 2)); // 'w'
+	// '»' (offset 6, 2 bytes)
+	assert(utf8::is_delimiter_at_byte(unicode_delims, 6));
+	assert(!utf8::is_delimiter_at_byte(unicode_delims, 8)); // ' '
+	// '“' (offset 9, 3 bytes)
+	assert(utf8::is_delimiter_at_byte(unicode_delims, 9));
+	// '”' (offset 17, 3 bytes)
+	assert(utf8::is_delimiter_at_byte(unicode_delims, 17));
+	// CJK '、' (offset 24, 3 bytes) and '。' (offset 30, 3 bytes)
+	assert(!utf8::is_delimiter_at_byte(unicode_delims, 21)); // '文'
+	assert(utf8::is_delimiter_at_byte(unicode_delims, 24));  // '、'
+	assert(!utf8::is_delimiter_at_byte(unicode_delims, 27)); // '章'
+	assert(utf8::is_delimiter_at_byte(unicode_delims, 30));  // '。'
+	// Fullwidth parens '（' (offset 34, 3 bytes) and '）' (offset 43, 3 bytes)
+	assert(utf8::is_delimiter_at_byte(unicode_delims, 34)); // '（'
+	assert(!utf8::is_delimiter_at_byte(unicode_delims, 37)); // '全'
+	assert(utf8::is_delimiter_at_byte(unicode_delims, 43)); // '）'
+	// Em dash '—' (offset 47, 3 bytes)
+	assert(utf8::is_delimiter_at_byte(unicode_delims, 47)); // '—'
+
+	// Unicode whitespace and word chars are NOT delimiters
+	std::string_view nbsp_str = "a\xC2\xA0""b";
+	assert(!utf8::is_delimiter_at_byte(nbsp_str, 1)); // NBSP
+	std::string_view fw_underscore = "＿id";
+	assert(!utf8::is_delimiter_at_byte(fw_underscore, 0)); // '＿'
+
+	// Truncated / continuation bytes
+	assert(!utf8::is_delimiter_at_byte("\xC2", 0));
+	assert(!utf8::is_delimiter_at_byte("\x80", 0));
+
+	// 3. Character position wrappers and terminator aliases
+	std::string_view mixed = "// 日本語 café()";
+	// 0: '/', 1: '/', 2: ' ', 3: '日', 4: '本', 5: '語', 6: ' ', 7: 'c', 8: 'a', 9: 'f', 10: 'é', 11: '(', 12: ')'
+	assert(utf8::is_delimiter_at_char(mixed, 0)); // '/'
+	assert(utf8::is_delimiter_at_char(mixed, 1)); // '/'
+	assert(!utf8::is_delimiter_at_char(mixed, 2)); // ' '
+	assert(!utf8::is_delimiter_at_char(mixed, 3)); // '日'
+	assert(!utf8::is_delimiter_at_char(mixed, 10)); // 'é'
+	assert(utf8::is_delimiter_at_char(mixed, 11)); // '('
+	assert(utf8::is_delimiter_at_char(mixed, 12)); // ')'
+
+	// Semantic alias is_terminator_at_*
+	assert(utf8::is_terminator_at_byte(mixed, 0));
+	assert(!utf8::is_terminator_at_char(mixed, 3));
+	assert(utf8::is_terminator_at_char(mixed, 11));
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -1366,6 +1443,7 @@ int main()
 	test_utf8_is_space();
 	test_utf8_is_alnum();
 	test_utf8_is_word_char();
+	test_utf8_is_delimiter();
 
 	std::cout << "All UTF-8 unit tests passed!" << std::endl;
 	return 0;

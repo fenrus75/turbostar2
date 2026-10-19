@@ -801,6 +801,74 @@ int main()
 			assert(doc.get_word_span_under_cursor().empty());
 		}
 
+		// Test is_terminator_at, is_delimiter_at, and delete_word_forward with Unicode delimiters
+		{
+			document doc(queue);
+			doc.insert_text("mot«abc»\n関数（引数）;");
+
+			// Line 0: "mot«abc»"
+			// 0: 'm', 1: 'o', 2: 't', 3: '«', 4: 'a', 5: 'b', 6: 'c', 7: '»'
+			assert(!doc.is_terminator_at(-1, 0));
+			assert(!doc.is_terminator_at(0, -1));
+			assert(!doc.is_terminator_at(0, 100));
+
+			assert(!doc.is_terminator_at(0, 0)); // 'm'
+			assert(!doc.is_terminator_at(0, 2)); // 't'
+			assert(doc.is_terminator_at(0, 3));  // '«'
+			assert(doc.is_delimiter_at(0, 3));   // '«'
+			assert(!doc.is_terminator_at(0, 4)); // 'a'
+			assert(doc.is_terminator_at(0, 7));  // '»'
+
+			// Line 1: "関数（引数）;"
+			// 0: '関', 1: '数', 2: '（', 3: '引', 4: '数', 5: '）', 6: ';'
+			assert(!doc.is_terminator_at(1, 0)); // '関'
+			assert(!doc.is_terminator_at(1, 1)); // '数'
+			assert(doc.is_terminator_at(1, 2));  // '（'
+			assert(!doc.is_terminator_at(1, 3)); // '引'
+			assert(doc.is_terminator_at(1, 5));  // '）'
+			assert(doc.is_terminator_at(1, 6));  // ';'
+
+			// Forward word deletion respecting Unicode delimiters
+			doc.set_cursor_position(0, 0); // on 'm'
+			doc.delete_word_forward();
+			assert(doc.get_line(0)->get_text() == "«abc»");
+			assert(doc.get_cursor_x() == 0);
+
+			doc.delete_word_forward(); // on '«'
+			assert(doc.get_line(0)->get_text() == "abc»");
+			assert(doc.get_cursor_x() == 0);
+
+			doc.delete_word_forward(); // on "abc"
+			assert(doc.get_line(0)->get_text() == "»");
+			assert(doc.get_cursor_x() == 0);
+
+			doc.delete_word_forward(); // on '»'
+			assert(doc.get_line(0)->get_text() == "");
+			assert(doc.get_cursor_x() == 0);
+
+			// Forward word deletion on CJK line
+			doc.set_cursor_position(0, 1); // on '関'
+			doc.delete_word_forward();
+			assert(doc.get_line(1)->get_text() == "（引数）;");
+			assert(doc.get_cursor_x() == 0);
+
+			doc.delete_word_forward(); // on '（'
+			assert(doc.get_line(1)->get_text() == "引数）;");
+			assert(doc.get_cursor_x() == 0);
+
+			doc.delete_word_forward(); // on "引数"
+			assert(doc.get_line(1)->get_text() == "）;");
+			assert(doc.get_cursor_x() == 0);
+
+			doc.delete_word_forward(); // on '）'
+			assert(doc.get_line(1)->get_text() == ";");
+			assert(doc.get_cursor_x() == 0);
+
+			doc.delete_word_forward(); // on ';'
+			assert(doc.get_line(1)->get_text() == "");
+			assert(doc.get_cursor_x() == 0);
+		}
+
 	std::cout << "document unit test passed!\n";
 	return 0;
 }

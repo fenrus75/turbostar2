@@ -155,7 +155,6 @@ void document::move_next_word()
 {
 	std::unique_lock lock(mutex_);
 	break_undo_coalescing_unlocked();
-	std::string text = lines_[cursor_y_]->get_text();
 	int line_char_len = lines_[cursor_y_]->length_in_chars();
 	int i = cursor_x_;
 

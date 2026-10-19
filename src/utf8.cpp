@@ -307,6 +307,58 @@ bool is_word_char_at_char(std::string_view s, size_t char_pos, std::string_view 
 	return is_word_char_at_byte(s, byte_offset, extra);
 }
 
+bool is_delimiter_at_byte(std::string_view s, size_t byte_offset, std::string_view extra) noexcept
+{
+	if (byte_offset >= s.length()) {
+		return false;
+	}
+
+	unsigned char c = static_cast<unsigned char>(s[byte_offset]);
+
+	// Fast-path: ASCII
+	if (c < 0x80) {
+		// Control chars (c < 0x20) are not delimiters
+		if (c < 0x20) {
+			return false;
+		}
+		// ASCII whitespace is not a delimiter
+		if (c == ' ') {
+			return false;
+		}
+		// Word/identifier characters (alphanumeric and extra, e.g. '_') are not delimiters
+		if (is_alnum(static_cast<char>(c), extra)) {
+			return false;
+		}
+		// All remaining printable ASCII are punctuation, brackets, operators, etc.
+		return true;
+	}
+
+	// Multi-byte UTF-8 sequence
+	size_t clen = char_len(c);
+	if (clen == 1 || byte_offset + clen > s.length()) {
+		return false; // Continuation byte or truncated/invalid sequence
+	}
+
+	// Unicode whitespace is not a delimiter
+	if (is_space_at_byte(s, byte_offset)) {
+		return false;
+	}
+
+	// If it is a word character (letters, numbers, CJK ideographs, extra), it is not a delimiter
+	if (is_word_char_at_byte(s, byte_offset, extra)) {
+		return false;
+	}
+
+	// Multi-byte Unicode punctuation, brackets, quotes, dashes, etc.
+	return true;
+}
+
+bool is_delimiter_at_char(std::string_view s, size_t char_pos, std::string_view extra) noexcept
+{
+	size_t byte_offset = char_to_byte_offset(s, char_pos);
+	return is_delimiter_at_byte(s, byte_offset, extra);
+}
+
 // Returns true if s is non-empty and every character in s satisfies is_alnum with extra.
 bool is_alnum_only(std::string_view s, std::string_view extra) noexcept
 {

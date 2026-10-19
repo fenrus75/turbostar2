@@ -4,7 +4,7 @@
 #include <iostream>
 #include <atomic>
 #include <thread>
-#include "../../src/line.h"
+#include "line.h"
 
 int main()
 {
@@ -164,6 +164,56 @@ int main()
 	assert(l_tab.display_col_to_char_pos(5) == 2); // 5 is closer to 8 (diff 3) than 1 (diff 4)
 	assert(l_tab.display_col_to_char_pos(8) == 2);
 	assert(l_tab.display_col_to_char_pos(9) == 3);
+
+	// Test line::is_space_at, is_terminator_at, is_delimiter_at
+	{
+		// 0: 'f', 1: 'o', 2: 'o', 3: '(', 4: 'a', 5: 'b', 6: 'c', 7: ')', 8: ' ',
+		// 9: '«', 10: 'm', 11: 'o', 12: 't', 13: '»', 14: ';', 15: ' ', 16: '関', 17: '数',
+		// 18: '（', 19: '引', 20: '数', 21: '）'
+		line l_delims("foo(abc) «mot»; 関数（引数）");
+
+		// Out of bounds and negative checks
+		assert(!l_delims.is_space_at(-1));
+		assert(!l_delims.is_space_at(100));
+		assert(!l_delims.is_terminator_at(-1));
+		assert(!l_delims.is_terminator_at(100));
+		assert(!l_delims.is_delimiter_at(-1));
+		assert(!l_delims.is_delimiter_at(100));
+
+		// Word characters: neither space nor delimiter
+		assert(!l_delims.is_space_at(0));
+		assert(!l_delims.is_delimiter_at(0));
+		assert(!l_delims.is_terminator_at(0));
+		assert(!l_delims.is_space_at(16)); // '関'
+		assert(!l_delims.is_delimiter_at(16));
+		assert(!l_delims.is_terminator_at(16));
+
+		// ASCII delimiters: '(' at 3, ')' at 7, ';' at 14
+		assert(l_delims.is_delimiter_at(3));
+		assert(l_delims.is_terminator_at(3));
+		assert(!l_delims.is_space_at(3));
+		assert(l_delims.is_delimiter_at(7));
+		assert(l_delims.is_terminator_at(7));
+		assert(l_delims.is_delimiter_at(14));
+		assert(l_delims.is_terminator_at(14));
+
+		// Spaces: ' ' at 8 and 15
+		assert(l_delims.is_space_at(8));
+		assert(!l_delims.is_delimiter_at(8));
+		assert(!l_delims.is_terminator_at(8));
+		assert(l_delims.is_space_at(15));
+		assert(!l_delims.is_delimiter_at(15));
+
+		// Unicode delimiters: '«' at 9, '»' at 13, '（' at 18, '）' at 21
+		assert(l_delims.is_delimiter_at(9));
+		assert(l_delims.is_terminator_at(9));
+		assert(l_delims.is_delimiter_at(13));
+		assert(l_delims.is_terminator_at(13));
+		assert(l_delims.is_delimiter_at(18));
+		assert(l_delims.is_terminator_at(18));
+		assert(l_delims.is_delimiter_at(21));
+		assert(l_delims.is_terminator_at(21));
+	}
 
 	std::cout << "Testing self-merge...\n";
 	line l_merge("hello");

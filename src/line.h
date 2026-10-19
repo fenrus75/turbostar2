@@ -54,6 +54,10 @@ class line
 	int display_col_to_char_pos(int display_col) const;
 	unsigned char byte_at(int offset) const;
 
+	bool is_space_at(int char_pos) const;
+	bool is_terminator_at(int char_pos) const;
+	bool is_delimiter_at(int char_pos) const;
+
 	// Syntax highlighting
 	void set_attributes(const std::vector<syntax_attribute> &attrs);
 	syntax_attribute get_attribute(int char_pos) const;

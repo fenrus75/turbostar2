@@ -587,9 +587,7 @@ void document::notify_cursor_changed() const
 
 void document::request_redraw() const
 {
-	editor_event ev;
-	ev.type = event_type::redraw;
-	global_queue_.push(ev);
+	global_queue_.push(event_type::redraw);
 }
 
 void document::set_modified()
@@ -613,22 +611,33 @@ bool document::is_space_at_unlocked(int y, int x) const
 {
 	if (y < 0 || y >= line_count_unlocked() || x < 0)
 		return false;
-	std::string text = lines_[y]->get_text();
-	return utf8::is_space_at_char(text, static_cast<size_t>(x));
+	return lines_[y]->is_space_at(x);
+}
+
+bool document::is_terminator_at(int y, int x) const
+{
+	std::shared_lock lock(mutex_);
+	return is_terminator_at_unlocked(y, x);
 }
 
 bool document::is_terminator_at_unlocked(int y, int x) const
 {
-	if (y < 0 || y >= line_count_unlocked())
+	if (y < 0 || y >= line_count_unlocked() || x < 0)
 		return false;
-	std::string text = lines_[y]->get_text();
-	size_t offset = lines_[y]->char_to_byte_offset(x);
-	if (offset < text.length()) {
-		char ch = text[offset];
-		return ch == '"' || ch == '\'' || ch == ';' || ch == ',' || ch == '.' ||
-		       ch == '(' || ch == ')' || ch == '[' || ch == ']' || ch == '{' || ch == '}';
-	}
-	return false;
+	return lines_[y]->is_terminator_at(x);
+}
+
+bool document::is_delimiter_at(int y, int x) const
+{
+	std::shared_lock lock(mutex_);
+	return is_delimiter_at_unlocked(y, x);
+}
+
+bool document::is_delimiter_at_unlocked(int y, int x) const
+{
+	if (y < 0 || y >= line_count_unlocked() || x < 0)
+		return false;
+	return lines_[y]->is_delimiter_at(x);
 }
 
 
