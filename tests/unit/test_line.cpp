@@ -276,6 +276,146 @@ int main()
 		assert(ws_trail.end_char_pos == 18);
 	}
 
+	// Test copy and move semantics (including self-assignment)
+	{
+		line orig("hello world");
+		orig.set_attributes({syntax_attribute::keyword, syntax_attribute::normal});
+
+		// Copy construction
+		line copy_constructed(orig);
+		assert(copy_constructed.get_text() == "hello world");
+		assert(copy_constructed.get_attribute(0) == syntax_attribute::keyword);
+
+		// Copy assignment
+		line copy_assigned("placeholder");
+		copy_assigned = orig;
+		assert(copy_assigned.get_text() == "hello world");
+		assert(copy_assigned.get_attribute(0) == syntax_attribute::keyword);
+
+		// Self copy assignment
+		orig = *&orig;
+		assert(orig.get_text() == "hello world");
+
+		// Move construction
+		line move_src("move text");
+		move_src.set_attributes({syntax_attribute::string_literal});
+		line move_constructed(std::move(move_src));
+		assert(move_constructed.get_text() == "move text");
+		assert(move_constructed.get_attribute(0) == syntax_attribute::string_literal);
+
+		// Move assignment
+		line move_assigned("old text");
+		line move_source2("new moved text");
+		move_source2.set_attributes({syntax_attribute::comment});
+		move_assigned = std::move(move_source2);
+		assert(move_assigned.get_text() == "new moved text");
+		assert(move_assigned.get_attribute(0) == syntax_attribute::comment);
+
+		// Self move assignment
+		line *orig_ptr = &orig;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wself-move"
+		orig = std::move(*orig_ptr);
+#pragma GCC diagnostic pop
+		assert(orig.get_text() == "hello world");
+	}
+
+	// Test get_content and set_text
+	{
+		line l_content("sample code");
+		l_content.set_attributes({syntax_attribute::keyword, syntax_attribute::keyword});
+		std::string out_text;
+		std::vector<syntax_attribute> out_attrs;
+		l_content.get_content(out_text, out_attrs);
+		assert(out_text == "sample code");
+		assert(out_attrs.size() >= 2);
+		assert(out_attrs[0] == syntax_attribute::keyword);
+
+		l_content.set_text("replaced text");
+		assert(l_content.get_text() == "replaced text");
+		assert(l_content.length_in_chars() == 13);
+	}
+
+	// Test next_utf8_character
+	{
+		line l_utf("aあ😊");
+		size_t offset = 0;
+		std::string ch;
+		assert(l_utf.next_utf8_character(offset, ch));
+		assert(ch == "a");
+		assert(offset == 1);
+
+		assert(l_utf.next_utf8_character(offset, ch));
+		assert(ch == "あ");
+		assert(offset == 4);
+
+		assert(l_utf.next_utf8_character(offset, ch));
+		assert(ch == "😊");
+		assert(offset == 8);
+
+		assert(!l_utf.next_utf8_character(offset, ch));
+	}
+
+	// Test insert_at and split_at boundary cases
+	{
+		line l_ins("middle");
+		l_ins.insert_at(-5, "start_");
+		assert(l_ins.get_text() == "start_middle");
+
+		line l_split("abcdef");
+		line l_part1("");
+		l_split.split_at(-1, l_part1);
+		assert(l_split.get_text() == "");
+		assert(l_part1.get_text() == "abcdef");
+
+		line l_split2("hello");
+		line l_part2("");
+		l_split2.split_at(100, l_part2);
+		assert(l_split2.get_text() == "hello");
+		assert(l_part2.get_text() == "");
+	}
+
+	// Test byte_at, get_attribute bounds
+	{
+		line l_byte("abc");
+		assert(l_byte.byte_at(0) == 'a');
+		assert(l_byte.byte_at(1) == 'b');
+		assert(l_byte.byte_at(2) == 'c');
+		assert(l_byte.byte_at(-1) == 0);
+		assert(l_byte.byte_at(3) == 0);
+		assert(l_byte.byte_at(10) == 0);
+
+		l_byte.set_attributes({syntax_attribute::keyword, syntax_attribute::normal});
+		assert(l_byte.get_attribute(0) == syntax_attribute::keyword);
+		assert(l_byte.get_attribute(1) == syntax_attribute::normal);
+		assert(l_byte.get_attribute(-1) == syntax_attribute::normal);
+		assert(l_byte.get_attribute(5) == syntax_attribute::normal);
+	}
+
+	// Test display column calculation with truncated UTF-8 at EOL
+	{
+		// 0xC3 starts a 2-byte UTF-8 sequence, but has no continuation byte
+		std::string truncated_str = "ab\xC3";
+		line l_trunc(truncated_str);
+		int col = l_trunc.char_to_display_col(3);
+		assert(col >= 2);
+	}
+
+	// Test get_whitespace_span_at backward multi-byte continuation byte step
+	{
+		// Two consecutive U+3000 ideographic spaces: "\xE3\x80\x80\xE3\x80\x80"
+		line l_two_cjk("a　　b");
+		// 0: 'a'
+		// 1: '　'
+		// 2: '　'
+		// 3: 'b'
+		auto span_cjk2 = l_two_cjk.get_whitespace_span_at(2);
+		assert(!span_cjk2.empty());
+		assert(span_cjk2.start_char_pos == 1);
+		assert(span_cjk2.end_char_pos == 3);
+		assert(span_cjk2.word == "　　");
+	}
+
 	std::cout << "Testing self-merge...\n";
 	line l_merge("hello");
 	l_merge.merge(l_merge);

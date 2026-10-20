@@ -221,11 +221,7 @@ void line::insert_at(int char_pos, std::string_view utf8_char)
 
 	if (offset <= text_.length()) {
 		text_.insert(offset, utf8_char);
-		if (char_pos <= static_cast<int>(attributes_.size())) {
-			attributes_.insert(attributes_.begin() + char_pos, syntax_attribute::normal);
-		} else {
-			attributes_.push_back(syntax_attribute::normal);
-		}
+		attributes_.insert(attributes_.begin() + char_pos, syntax_attribute::normal);
 	}
 }
 
