@@ -84,19 +84,24 @@ bool document::find_next(const search_params &params, bool is_repeat)
 	int match_len = 0;
 	auto check_line = [&](int y, int x_limit, int &out_match_len) -> int {
 		std::string line_text = lines_[y]->get_text();
-		std::string original_line_text = line_text;
 
 		int best_found_char_idx = -1;
 		int best_found_char_len = 0;
-		size_t byte_limit = lines_[y]->char_to_byte_offset(x_limit);
+
+		size_t byte_limit = line_text.length();
+		if (x_limit >= 0) {
+			byte_limit = utf8::char_to_byte_offset(line_text, x_limit);
+		}
 
 		size_t line_scope_start_byte = 0;
 		size_t line_scope_end_byte = line_text.length();
 		if (params.selected_text_only) {
-			if (y == scope_sy)
-				line_scope_start_byte = lines_[y]->char_to_byte_offset(scope_sx);
-			if (y == scope_ey)
-				line_scope_end_byte = lines_[y]->char_to_byte_offset(scope_ex);
+			if (y == scope_sy) {
+				line_scope_start_byte = utf8::char_to_byte_offset(line_text, scope_sx);
+			}
+			if (y == scope_ey) {
+				line_scope_end_byte = utf8::char_to_byte_offset(line_text, scope_ex);
+			}
 		}
 
 		re2::StringPiece input(line_text);
@@ -104,21 +109,22 @@ bool document::find_next(const search_params &params, bool is_repeat)
 		size_t search_start = 0;
 		while (re.Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
 			search_start = (match.data() - input.data()) + match.size();
-			if (match.empty())
+			if (match.empty()) {
 				search_start++; // prevent infinite loop
+			}
 
 			size_t byte_pos = match.data() - line_text.data();
 
 			if (params.backward) {
 				if (byte_pos >= line_scope_start_byte && byte_pos <= byte_limit) {
-					best_found_char_idx = static_cast<int>(utf8::byte_to_char_pos(original_line_text, byte_pos));
-					size_t char_pos_end = utf8::byte_to_char_pos(original_line_text, byte_pos + match.size());
+					best_found_char_idx = static_cast<int>(utf8::byte_to_char_pos(line_text, byte_pos));
+					size_t char_pos_end = utf8::byte_to_char_pos(line_text, byte_pos + match.size());
 					best_found_char_len = static_cast<int>(char_pos_end - best_found_char_idx);
 				}
 			} else {
 				if (byte_pos >= byte_limit && byte_pos < line_scope_end_byte) {
-					int found_idx = static_cast<int>(utf8::byte_to_char_pos(original_line_text, byte_pos));
-					size_t char_pos_end = utf8::byte_to_char_pos(original_line_text, byte_pos + match.size());
+					int found_idx = static_cast<int>(utf8::byte_to_char_pos(line_text, byte_pos));
+					size_t char_pos_end = utf8::byte_to_char_pos(line_text, byte_pos + match.size());
 					out_match_len = static_cast<int>(char_pos_end - found_idx);
 					return found_idx;
 				}
@@ -132,11 +138,9 @@ bool document::find_next(const search_params &params, bool is_repeat)
 
 	if (params.backward) {
 		for (int y = start_y; y >= scope_sy; --y) {
-			int x_lim;
+			int x_lim = -1;
 			if (y == start_y) {
 				x_lim = start_x;
-			} else {
-				x_lim = lines_[y]->length_in_chars();
 			}
 			int found_x = check_line(y, x_lim, match_len);
 			if (found_x != -1) {
@@ -150,11 +154,9 @@ bool document::find_next(const search_params &params, bool is_repeat)
 		}
 	} else {
 		for (int y = start_y; y <= scope_ey; ++y) {
-			int x_lim;
+			int x_lim = 0;
 			if (y == start_y) {
 				x_lim = start_x;
-			} else {
-				x_lim = 0;
 			}
 			int found_x = check_line(y, x_lim, match_len);
 			if (found_x != -1) {
@@ -291,13 +293,13 @@ bool document::replace_current(const search_params &params)
 	if (cursor_y_ < 0 || cursor_y_ >= line_count_unlocked() || last_match_len_chars_ <= 0)
 		return false;
 
-	int line_char_len = lines_[cursor_y_]->length_in_chars();
+	std::string line_text = lines_[cursor_y_]->get_text();
+	int line_char_len = static_cast<int>(utf8::length(line_text));
 	if (cursor_x_ < 0 || cursor_x_ + last_match_len_chars_ > line_char_len)
 		return false;
 
-	std::string line_text = lines_[cursor_y_]->get_text();
-	size_t start_byte = lines_[cursor_y_]->char_to_byte_offset(cursor_x_);
-	size_t end_byte = lines_[cursor_y_]->char_to_byte_offset(cursor_x_ + last_match_len_chars_);
+	size_t start_byte = utf8::char_to_byte_offset(line_text, cursor_x_);
+	size_t end_byte = utf8::char_to_byte_offset(line_text, cursor_x_ + last_match_len_chars_);
 
 	// Build the new line content
 	std::string new_text = line_text.substr(0, start_byte) + params.replacement + line_text.substr(end_byte);
