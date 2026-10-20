@@ -406,6 +406,7 @@ int main()
 		// Select Line 2 and Line 3
 		// Selection: Line 2 start to Line 3 end
 		doc.set_selection(1, 0, 2, 6);
+		assert(doc.get_selection_text() == "Line 2\nLine 3");
 
 		std::string temp_file = "temp_selection_write.txt";
 		std::filesystem::remove(temp_file);
@@ -419,6 +420,14 @@ int main()
 		assert(content == "Line 2\nLine 3");
 
 		std::filesystem::remove(temp_file);
+
+		// Test single line partial selection
+		doc.set_selection(1, 0, 1, 4);
+		assert(doc.get_selection_text() == "Line");
+
+		// Test empty selection
+		doc.clear_selection();
+		assert(doc.get_selection_text().empty());
 	}
 
 	// Test 10b: Incomplete or inverted block selection invariants

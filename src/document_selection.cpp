@@ -482,9 +482,18 @@ bool document::write_selection_to_file(std::string_view filename)
 		return false;
 	}
 
+	size_t estimated_bytes = 0;
+	for (const auto &l : block) {
+		estimated_bytes += l.length_in_bytes();
+	}
+	if (!block.empty()) {
+		estimated_bytes += block.size() - 1;
+	}
+
 	std::string text_to_save;
+	text_to_save.reserve(estimated_bytes);
 	for (size_t i = 0; i < block.size(); ++i) {
-		text_to_save += block[i].get_text();
+		block[i].append_to(text_to_save);
 		if (i < block.size() - 1) {
 			text_to_save += "\n";
 		}
@@ -524,9 +533,18 @@ std::string document::get_selection_text() const
 	std::vector<line> block = get_selection_block();
 	lock.unlock();
 
+	size_t estimated_bytes = 0;
+	for (const auto &l : block) {
+		estimated_bytes += l.length_in_bytes();
+	}
+	if (!block.empty()) {
+		estimated_bytes += block.size() - 1;
+	}
+
 	std::string result;
+	result.reserve(estimated_bytes);
 	for (size_t i = 0; i < block.size(); ++i) {
-		result += block[i].get_text();
+		block[i].append_to(result);
 		if (i + 1 < block.size()) {
 			result += "\n";
 		}
