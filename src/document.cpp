@@ -112,8 +112,7 @@ bool document::load_from_file(const std::string &filename)
 	} else {
 		cursor_x_ = 0;
 		cursor_y_ = 0;
-		selection_start_x_ = selection_start_y_ = -1;
-		selection_end_x_ = selection_end_y_ = -1;
+		clear_selection_unlocked();
 
 		undo_stack_.clear();
 		redo_stack_.clear();
@@ -278,8 +277,7 @@ void document::clear()
 	modified_ = false;
 	cursor_x_ = 0;
 	cursor_y_ = 0;
-	selection_start_x_ = selection_start_y_ = -1;
-	selection_end_x_ = selection_end_y_ = -1;
+	clear_selection_unlocked();
 
 	undo_stack_.clear();
 	redo_stack_.clear();
@@ -434,8 +432,7 @@ int document::restore_cursor_state_unlocked(const cursor_state &state)
 		cursor_x_ = 0;
 		cursor_y_ = 0;
 		target_cursor_x_ = 0;
-		selection_start_x_ = selection_start_y_ = -1;
-		selection_end_x_ = selection_end_y_ = -1;
+		clear_selection_unlocked();
 		return 0;
 	}
 
@@ -478,9 +475,9 @@ int document::restore_cursor_state_unlocked(const cursor_state &state)
 		selection_start_x_ = std::clamp(state.selection_start_x, 0, lines_[selection_start_y_]->length_in_chars());
 		selection_end_y_ = std::clamp(state.selection_end_y + delta_y, 0, total - 1);
 		selection_end_x_ = std::clamp(state.selection_end_x, 0, lines_[selection_end_y_]->length_in_chars());
+		sanitize_selection_unlocked();
 	} else {
-		selection_start_x_ = selection_start_y_ = -1;
-		selection_end_x_ = selection_end_y_ = -1;
+		clear_selection_unlocked();
 	}
 
 	return delta_y;

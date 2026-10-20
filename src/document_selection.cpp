@@ -14,19 +14,31 @@
 
 namespace fs = std::filesystem;
 
+void document::clear_selection_unlocked() noexcept
+{
+	selection_start_x_ = -1;
+	selection_start_y_ = -1;
+	selection_end_x_ = -1;
+	selection_end_y_ = -1;
+}
+
+void document::sanitize_selection_unlocked() noexcept
+{
+	if (selection_start_y_ != -1 && selection_end_y_ != -1) {
+		if (selection_end_y_ < selection_start_y_ ||
+		    (selection_end_y_ == selection_start_y_ && selection_end_x_ <= selection_start_x_)) {
+			clear_selection_unlocked();
+		}
+	}
+}
+
 void document::set_selection_start()
 {
 	std::unique_lock lock(mutex_);
 	break_undo_coalescing_unlocked();
 	selection_start_x_ = cursor_x_;
 	selection_start_y_ = cursor_y_;
-	if (selection_end_y_ != -1) {
-		if (selection_end_y_ < selection_start_y_ ||
-		    (selection_end_y_ == selection_start_y_ && selection_end_x_ <= selection_start_x_)) {
-			selection_start_x_ = selection_start_y_ = -1;
-			selection_end_x_ = selection_end_y_ = -1;
-		}
-	}
+	sanitize_selection_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -37,13 +49,7 @@ void document::set_selection_end()
 	break_undo_coalescing_unlocked();
 	selection_end_x_ = cursor_x_;
 	selection_end_y_ = cursor_y_;
-	if (selection_start_y_ != -1) {
-		if (selection_end_y_ < selection_start_y_ ||
-		    (selection_end_y_ == selection_start_y_ && selection_end_x_ <= selection_start_x_)) {
-			selection_start_x_ = selection_start_y_ = -1;
-			selection_end_x_ = selection_end_y_ = -1;
-		}
-	}
+	sanitize_selection_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -53,8 +59,7 @@ void document::set_selection(int start_y, int start_x, int end_y, int end_x)
 	std::unique_lock lock(mutex_);
 	break_undo_coalescing_unlocked();
 	if (start_y == -1 || end_y == -1 || end_y < start_y || (end_y == start_y && end_x <= start_x)) {
-		selection_start_x_ = selection_start_y_ = -1;
-		selection_end_x_ = selection_end_y_ = -1;
+		clear_selection_unlocked();
 	} else {
 		selection_start_y_ = start_y;
 		selection_start_x_ = start_x;
@@ -69,8 +74,7 @@ void document::clear_selection()
 {
 	std::unique_lock lock(mutex_);
 	break_undo_coalescing_unlocked();
-	selection_start_x_ = selection_start_y_ = -1;
-	selection_end_x_ = selection_end_y_ = -1;
+	clear_selection_unlocked();
 	lock.unlock();
 	notify_cursor_changed();
 }
@@ -160,8 +164,7 @@ void document::delete_selection_unlocked()
 	if (cursor_y_ >= (int)lines_.size()) {
 		cursor_y_ = (int)lines_.size() - 1;
 	}
-	selection_start_x_ = selection_start_y_ = -1;
-	selection_end_x_ = selection_end_y_ = -1;
+	clear_selection_unlocked();
 	set_modified();
 	update_target_cursor_x_unlocked();
 }
@@ -391,13 +394,7 @@ void document::adjust_selection_for_insert(int y, int x, int count)
 	};
 	adjust(selection_start_x_, selection_start_y_);
 	adjust(selection_end_x_, selection_end_y_);
-	if (selection_start_y_ != -1 && selection_end_y_ != -1) {
-		if (selection_end_y_ < selection_start_y_ ||
-		    (selection_end_y_ == selection_start_y_ && selection_end_x_ <= selection_start_x_)) {
-			selection_start_x_ = selection_start_y_ = -1;
-			selection_end_x_ = selection_end_y_ = -1;
-		}
-	}
+	sanitize_selection_unlocked();
 }
 
 void document::adjust_selection_for_delete(int y, int x, int count)
@@ -412,13 +409,7 @@ void document::adjust_selection_for_delete(int y, int x, int count)
 	};
 	adjust(selection_start_x_, selection_start_y_);
 	adjust(selection_end_x_, selection_end_y_);
-	if (selection_start_y_ != -1 && selection_end_y_ != -1) {
-		if (selection_end_y_ < selection_start_y_ ||
-		    (selection_end_y_ == selection_start_y_ && selection_end_x_ <= selection_start_x_)) {
-			selection_start_x_ = selection_start_y_ = -1;
-			selection_end_x_ = selection_end_y_ = -1;
-		}
-	}
+	sanitize_selection_unlocked();
 }
 
 void document::adjust_selection_for_split(int y, int x)
@@ -433,13 +424,7 @@ void document::adjust_selection_for_split(int y, int x)
 	};
 	adjust(selection_start_x_, selection_start_y_);
 	adjust(selection_end_x_, selection_end_y_);
-	if (selection_start_y_ != -1 && selection_end_y_ != -1) {
-		if (selection_end_y_ < selection_start_y_ ||
-		    (selection_end_y_ == selection_start_y_ && selection_end_x_ <= selection_start_x_)) {
-			selection_start_x_ = selection_start_y_ = -1;
-			selection_end_x_ = selection_end_y_ = -1;
-		}
-	}
+	sanitize_selection_unlocked();
 }
 
 void document::adjust_selection_for_join(int y, int x)
@@ -456,13 +441,7 @@ void document::adjust_selection_for_join(int y, int x)
 	};
 	adjust(selection_start_x_, selection_start_y_);
 	adjust(selection_end_x_, selection_end_y_);
-	if (selection_start_y_ != -1 && selection_end_y_ != -1) {
-		if (selection_end_y_ < selection_start_y_ ||
-		    (selection_end_y_ == selection_start_y_ && selection_end_x_ <= selection_start_x_)) {
-			selection_start_x_ = selection_start_y_ = -1;
-			selection_end_x_ = selection_end_y_ = -1;
-		}
-	}
+	sanitize_selection_unlocked();
 }
 
 void document::adjust_selection_for_line_delete(int y)
@@ -485,19 +464,10 @@ void document::adjust_selection_for_line_delete(int y)
 	};
 	adjust(selection_start_x_, selection_start_y_);
 	adjust(selection_end_x_, selection_end_y_);
-	if (selection_start_y_ < 0) {
-		selection_start_x_ = selection_start_y_ = -1;
+	if (selection_start_y_ < 0 || selection_end_y_ < 0) {
+		clear_selection_unlocked();
 	}
-	if (selection_end_y_ < 0) {
-		selection_end_x_ = selection_end_y_ = -1;
-	}
-	if (selection_start_y_ != -1 && selection_end_y_ != -1) {
-		if (selection_end_y_ < selection_start_y_ ||
-		    (selection_end_y_ == selection_start_y_ && selection_end_x_ <= selection_start_x_)) {
-			selection_start_x_ = selection_start_y_ = -1;
-			selection_end_x_ = selection_end_y_ = -1;
-		}
-	}
+	sanitize_selection_unlocked();
 }
 
 bool document::write_selection_to_file(std::string_view filename)

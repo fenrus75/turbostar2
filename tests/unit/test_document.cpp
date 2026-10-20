@@ -464,6 +464,21 @@ int main()
 		doc.set_cursor_position(3, 1);
 		doc.set_selection_end();
 		assert(doc.has_selection());
+
+		// Test clear_selection and clear_selection_unlocked
+		doc.clear_selection();
+		assert(!doc.has_selection());
+		doc.get_selection_range(sx, sy, ex, ey);
+		assert(sx == -1 && sy == -1 && ex == -1 && ey == -1);
+
+		doc.set_selection(0, 0, 1, 5);
+		assert(doc.has_selection());
+		doc.clear_selection_unlocked();
+		assert(!doc.has_selection());
+
+		// Test sanitize_selection_unlocked clears inverted selection
+		doc.set_selection(1, 5, 0, 0); // invalid / inverted
+		assert(!doc.has_selection());
 	}
 
 	// Test 11: delete_word_forward respects terminators (quote, semicolon, comma)

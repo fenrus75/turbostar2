@@ -179,6 +179,8 @@ class document
 	void get_selection_range(int &start_x, int &start_y, int &end_x, int &end_y) const;
 	void get_selection_range_unlocked(int &start_x, int &start_y, int &end_x, int &end_y) const;
 	bool has_selection_unlocked() const noexcept;
+	void clear_selection_unlocked() noexcept;
+	void sanitize_selection_unlocked() noexcept;
 	void delete_selection_unlocked();
 
 	void notify_cursor_changed() const;

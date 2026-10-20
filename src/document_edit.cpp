@@ -403,8 +403,7 @@ void document::delete_line()
 		record_action(edit_action::action_type::replace_line, 0, lines_[0]);
 		lines_[0]->set_text("");
 		mark_line_dirty(lines_[0]);
-		selection_start_x_ = selection_start_y_ = -1;
-		selection_end_x_ = selection_end_y_ = -1;
+		clear_selection_unlocked();
 		cursor_x_ = 0;
 		cursor_y_ = 0;
 		set_modified();
