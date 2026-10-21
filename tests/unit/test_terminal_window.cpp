@@ -3,12 +3,16 @@
 #include <iostream>
 #include <ncurses.h>
 #include <string>
+#include "build_error_manager.h"
 #include "config_manager.h"
 #include "editor.h"
 #include "fs_utils.h"
+#include "gcc_log_parser.h"
 #include "project_manager.h"
 #include "test_watchdog.h"
 #include "ui/terminal_window.h"
+#include <chrono>
+#include <thread>
 
 int main()
 {
@@ -70,6 +74,32 @@ int main()
 			ed.terminate_run(res.app_run_id);
 			ed.terminate_run(res.gdb_run_id);
 		}
+	}
+
+	// Test 6: Verify ANSI escape codes are stripped when parsing compiler output via update_pty
+	{
+		build_error_manager::get_instance().clear();
+		ui::terminal_window tw_build(4, 0, 0, 80, 24, "Compile Output");
+		auto parser = std::make_unique<gcc_log_parser>();
+		// Echo a GCC error line surrounded by ANSI CSI and OSC color codes
+		std::string abs_main = fs_utils::safe_absolute("src/main.cpp").string();
+		std::string test_cmd = std::format("printf '\\033]0;title\\007\\033[1;31m{}:42:10: \\033[31;1merror: \\033[0mexpected \";\"\\n'", abs_main);
+		bool started = tw_build.start_process(test_cmd, std::move(parser), false, false, false, false);
+		assert(started);
+
+		int tries = 0;
+		while (tw_build.is_alive() && tries++ < 50) {
+			tw_build.update_pty();
+			std::this_thread::sleep_for(std::chrono::milliseconds(20));
+		}
+		tw_build.update_pty();
+
+		// GCC log parser should successfully parse the error without ANSI color artifacts
+		auto err = build_error_manager::get_instance().find_error_at(abs_main, 41);
+		assert(err.has_value());
+		assert(err->line == 41);
+		assert(err->column == 9);
+		assert(!err->is_warning);
 	}
 
 	std::cout << "test_terminal_window passed successfully!" << std::endl;

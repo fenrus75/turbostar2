@@ -216,7 +216,7 @@ bool terminal_window::update_pty()
 	if (pty_master_ < 0)
 		return false;
 
-	char buf[1024];
+	char buf[65536];
 	bool new_data = false;
 	while (is_alive_) {
 		ssize_t bytes = read(pty_master_, buf, sizeof(buf));
@@ -234,23 +234,7 @@ bool terminal_window::update_pty()
 					}
 
 					// Strip ANSI escape codes so GCC log parser isn't confused by colors
-					std::string stripped_line;
-					for (size_t i = 0; i < line.length(); ++i) {
-						if (line[i] == '\x1b') {
-							if (i + 1 < line.length() && line[i + 1] == '[') {
-								size_t j = i + 2;
-								while (j < line.length() && !((line[j] >= 'a' && line[j] <= 'z') ||
-											      (line[j] >= 'A' && line[j] <= 'Z'))) {
-									j++;
-								}
-								if (j < line.length()) {
-									i = j;
-									continue;
-								}
-							}
-						}
-						stripped_line += line[i];
-					}
+					std::string stripped_line = utf8::sanitize_terminal_output(line);
 
 					std::vector<build_error> errs;
 					parser_->parse_line(stripped_line, line_count_++, errs);
@@ -310,6 +294,20 @@ bool terminal_window::update_pty()
 		int status;
 		if (waitpid(pid_, &status, WNOHANG) > 0) {
 			pid_ = -1;
+		}
+	}
+
+	if (!is_alive_ && parser_ && !line_buffer_.empty()) {
+		std::string line = std::move(line_buffer_);
+		line_buffer_.clear();
+		if (!line.empty() && line.back() == '\r') {
+			line.pop_back();
+		}
+		std::string stripped_line = utf8::sanitize_terminal_output(line);
+		std::vector<build_error> errs;
+		parser_->parse_line(stripped_line, line_count_++, errs);
+		for (const auto &e : errs) {
+			build_error_manager::get_instance().add_error(e);
 		}
 	}
 
