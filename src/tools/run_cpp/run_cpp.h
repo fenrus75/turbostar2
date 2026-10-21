@@ -15,6 +15,7 @@ struct run_cpp_args {
 	std::vector<std::string> cflags;
 	std::vector<std::string> ldflags;
 	std::vector<std::string> sources;
+	std::vector<std::string> packages;
 	int timeout{10};
 };
 

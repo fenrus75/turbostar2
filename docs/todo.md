@@ -251,6 +251,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 # Done
 
 ## 21-10-2026
+- `run_cpp` `packages` / `pkg-config` integration: added `packages` parameter (with aliases `pkg_config`, `pkgconfig`, `pkgs`, `PACKAGES`) to `run_cpp` allowing automatic dependency resolution via `pkg-config --cflags --libs`. Enforced shell injection safety via `fs_utils::is_shell_safe()`, partitioned flags into compiler and linker options, updated `docs/tools.md` and MCP schema, and added unit tests in `tests/unit/test_run_cpp.cpp`. (Completed)
 - `run_cpp` `cflags`, `ldflags`, and `sources` parameters: replaced wrapper parameters (`defines`, `includes`, `libraries`, `std`) with standard `cflags`, `ldflags`, and `sources` in `src/tools/run_cpp/`. Added automatic language standard inheritance from project configuration (`config_manager::get_primary_language_version()`) and auto-detection of C source files (`-std=c17`). Implemented transparent VFS directory resolution for `-I` paths (`include://` and `tmp://`) without file copying. Retained backward-compatible parsing for legacy and case-variant arguments (`CFLAGS`, `LDFLAGS`, `SOURCES`, `defines`, `includes`, `libraries`, `std`). Created `src/tools/run_cpp/run_cpp.md`, updated `docs/tools.md`, and added comprehensive unit test coverage in `tests/unit/test_run_cpp.cpp`. (Completed)
 
 ## 20-10-2026

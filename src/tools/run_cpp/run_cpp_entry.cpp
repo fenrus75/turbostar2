@@ -10,6 +10,7 @@
 #include <fstream>
 #include <format>
 #include <random>
+#include <sstream>
 
 namespace tools
 {
@@ -136,6 +137,42 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 						return std::format("<cpp_execution_output>\n[Error: Failed to read source file from VFS: {}]\n</cpp_execution_output>", raw_path);
 					}
 				}
+			}
+		}
+	}
+
+	// Resolve any pkg-config packages requested
+	if (!args_.packages.empty()) {
+		std::string pkg_cmd = "pkg-config --cflags --libs";
+		for (const auto &pkg : args_.packages) {
+			if (!fs_utils::is_shell_safe(pkg)) {
+				if (is_temp_src) std::filesystem::remove(src_path);
+				return std::format("<cpp_execution_output>\n[pkg-config: Error: Unsafe package name '{}']\n</cpp_execution_output>",
+					fs_utils::wrap_prompt_untrusted_data_tag("package", pkg));
+			}
+			pkg_cmd += std::format(" {}", fs_utils::escape_shell_arg(pkg));
+		}
+
+		sync_command_runner pkg_runner;
+		pkg_runner.apply_build_profile();
+		pkg_runner.set_project_dir(ctx.fs_security.get_working_directory().string());
+		pkg_runner.set_timeout(10);
+
+		std::string pkg_output = pkg_runner.execute_and_get_output(pkg_cmd);
+		int pkg_exit = pkg_runner.get_exit_code();
+		if (pkg_exit != 0) {
+			if (is_temp_src) std::filesystem::remove(src_path);
+			return std::format("<cpp_execution_output>\n[pkg-config: FAILED]\n{}\n</cpp_execution_output>",
+				fs_utils::wrap_prompt_untrusted_data_tag("pkg_config_output", pkg_output));
+		}
+
+		std::istringstream iss(pkg_output);
+		std::string token;
+		while (iss >> token) {
+			if (token.starts_with("-l") || token.starts_with("-L") || token.starts_with("-Wl,")) {
+				args_.ldflags.push_back(token);
+			} else {
+				args_.cflags.push_back(token);
 			}
 		}
 	}

@@ -2,6 +2,8 @@
 #include "config_manager.h"
 #include "agentlib/file_security_manager.h"
 #include "agentlib/tool_registry.h"
+#include "fs_basics.h"
+#include "fs_utils.h"
 #include <set>
 
 namespace tools
@@ -9,7 +11,7 @@ namespace tools
 
 std::string run_cpp_validator::get_description() const
 {
-	std::string desc = "Compiles and executes C/C++ source code snippets or standalone probe files in a sandboxed environment. Use this to test C/C++ logic, verify API behavior, or run isolated probes without modifying codebase files. Supports compiler flags (cflags), linker flags (ldflags), extra translation units (sources), and custom VFS paths (tmp://, include://).";
+	std::string desc = "Compiles and executes C/C++ source code snippets or standalone probe files in a sandboxed environment. Use this to test C/C++ logic, verify API behavior, or run isolated probes without modifying codebase files. Supports compiler flags (cflags), linker flags (ldflags), pkg-config packages (packages), extra translation units (sources), and custom VFS paths (tmp://, include://).";
 	if (config_manager::get_instance().is_allow_code_execution_network()) {
 		desc += " Code execution has network access enabled.";
 	} else {
@@ -27,6 +29,7 @@ nlohmann::json run_cpp_validator::get_parameters_schema() const
 			{"path", {{"type", "string"}, {"description", "Optional relative workspace path or VFS URI to a .cpp or .c source file (e.g. 'src/main.cpp', 'tmp://probe.c'). Fully resolves VFS URIs (tmp://, include://, skills://)."}}},
 			{"cflags", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Optional array of compiler flags (e.g. ['-O2', '-Wall', '-DDEBUG=1', '-Iinclude']). Supports VFS URI include paths (e.g. '-Itmp://', '-Iinclude://'). Defaults to the project's configured language standard (e.g. '-std=c++23'), or '-std=c17' for C source files."}}},
 			{"ldflags", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Optional array of linker library flags (e.g. ['-lncursesw', '-lsqlite3', '-L/usr/lib']) appended after source files on the compiler command line."}}},
+			{"packages", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Optional array of pkg-config package names (e.g. ['libpng', 'zlib', 'sqlite3']). Automatically queries 'pkg-config --cflags --libs' and appends the necessary include directories, preprocessor definitions, and linker flags."}}},
 			{"sources", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Optional array of extra translation unit source files (e.g. ['src/fs_utils.cpp', 'tmp://helper.cpp']) to compile and link into the probe binary."}}},
 			{"timeout", {{"type", "integer"}, {"default", 10}, {"description", "Maximum execution runtime in seconds (1 to 60). Defaults to 10."}}}
 		}}
@@ -42,9 +45,9 @@ std::vector<agentlib::tool_example> run_cpp_validator::get_examples() const
 			"Compiles and executes an inline C++ snippet using project language standard."
 		},
 		{
-			"C11 API Probe with Library Flags",
-			nlohmann::json{{"code", "printf(\"SQLite: %s\\n\", sqlite3_libversion());"}, {"cflags", nlohmann::json::array({"-std=c17"})}, {"ldflags", nlohmann::json::array({"-lsqlite3"})}},
-			"Compiles and executes a C11 snippet linked against libsqlite3."
+			"Package Probe using pkg-config",
+			nlohmann::json{{"code", "printf(\"SQLite: %s\\n\", sqlite3_libversion());"}, {"packages", nlohmann::json::array({"sqlite3"})}},
+			"Compiles and executes a C snippet using pkg-config to resolve SQLite flags."
 		},
 		{
 			"VFS Source Probe with Custom Flags & Extra Translation Unit",
@@ -65,6 +68,12 @@ std::unordered_map<std::string, std::string> run_cpp_validator::get_custom_param
 		{"ldflag", "ldflags"},
 		{"link_flags", "ldflags"},
 		{"linker_flags", "ldflags"},
+		{"pkg_config", "packages"},
+		{"pkgconfig", "packages"},
+		{"pkg", "packages"},
+		{"pkgs", "packages"},
+		{"PACKAGES", "packages"},
+		{"PKG_CONFIG", "packages"},
 		{"SOURCES", "sources"},
 		{"source", "sources"},
 		{"source_files", "sources"},
@@ -138,6 +147,15 @@ bool run_cpp_validator::validate_args_impl(const nlohmann::json &args, const age
 			return false;
 		}
 		parsed_args_.sources.push_back(safe_src.empty() ? src_path : safe_src);
+		return true;
+	})) return false;
+
+	if (!parse_array({"packages", "Packages", "PACKAGES", "pkg_config", "pkgconfig", "pkgs"}, [&](const std::string &pkg) {
+		if (!fs_utils::is_shell_safe(pkg)) {
+			out_error = "Package name contains invalid or unsafe characters: " + pkg;
+			return false;
+		}
+		parsed_args_.packages.push_back(pkg);
 		return true;
 	})) return false;
 

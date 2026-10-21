@@ -147,6 +147,56 @@ int main()
 		assert(result.find("[Execution: SUCCESS]") != std::string::npos);
 	}
 
+	// 10. Success case: pkg-config packages resolution (zlib)
+	{
+		nlohmann::json args = {
+			{"code", "#include <iostream>\n#include <zlib.h>\nint main() { std::cout << \"Zlib ver: \" << zlibVersion() << std::endl; return 0; }"},
+			{"packages", nlohmann::json::array({"zlib"})}
+		};
+
+		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
+		std::cout << "Result 10: " << result << std::endl;
+		assert(result.find("Zlib ver: ") != std::string::npos);
+		assert(result.find("[Execution: SUCCESS]") != std::string::npos);
+	}
+
+	// 11. Success case: pkg_config alias resolution (sqlite3)
+	{
+		nlohmann::json args = {
+			{"code", "#include <iostream>\n#include <sqlite3.h>\nint main() { std::cout << \"SQLite ver: \" << sqlite3_libversion() << std::endl; return 0; }"},
+			{"pkg_config", nlohmann::json::array({"sqlite3"})}
+		};
+
+		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
+		std::cout << "Result 11: " << result << std::endl;
+		assert(result.find("SQLite ver: 3.") != std::string::npos);
+		assert(result.find("[Execution: SUCCESS]") != std::string::npos);
+	}
+
+	// 12. Security rejection: unsafe package name
+	{
+		nlohmann::json args = {
+			{"code", "int main() { return 0; }"},
+			{"packages", nlohmann::json::array({"zlib; rm -rf /"})}
+		};
+
+		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
+		std::cout << "Result 12: " << result << std::endl;
+		assert(result.find("Package name contains invalid or unsafe characters") != std::string::npos);
+	}
+
+	// 13. Failure case: nonexistent package
+	{
+		nlohmann::json args = {
+			{"code", "int main() { return 0; }"},
+			{"packages", nlohmann::json::array({"nonexistent_pkg_xyz_999"})}
+		};
+
+		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
+		std::cout << "Result 13: " << result << std::endl;
+		assert(result.find("[pkg-config: FAILED]") != std::string::npos);
+	}
+
 	std::cout << "run_cpp tests passed successfully.\n";
 	return 0;
 }
