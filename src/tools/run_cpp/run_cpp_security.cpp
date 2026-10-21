@@ -54,6 +54,24 @@ std::vector<agentlib::tool_example> run_cpp_validator::get_examples() const
 	};
 }
 
+std::unordered_map<std::string, std::string> run_cpp_validator::get_custom_parameter_aliases() const
+{
+	return {
+		{"CFLAGS", "cflags"},
+		{"cflag", "cflags"},
+		{"compile_flags", "cflags"},
+		{"flags", "cflags"},
+		{"LDFLAGS", "ldflags"},
+		{"ldflag", "ldflags"},
+		{"link_flags", "ldflags"},
+		{"linker_flags", "ldflags"},
+		{"SOURCES", "sources"},
+		{"source", "sources"},
+		{"source_files", "sources"},
+		{"extra_sources", "sources"}
+	};
+}
+
 
 bool run_cpp_validator::validate_args_impl(const nlohmann::json &args, const agentlib::tool_context &ctx, std::string &out_error) const
 

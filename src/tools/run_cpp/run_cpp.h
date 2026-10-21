@@ -42,10 +42,11 @@ class run_cpp_validator : public agentlib::tool_validator
 	nlohmann::json get_parameters_schema() const override;
 	std::vector<agentlib::tool_example> get_examples() const override;
 	bool is_pure() const override
-
 	{
 		return true;
 	}
+
+	std::unordered_map<std::string, std::string> get_custom_parameter_aliases() const override;
 
       protected:
 	bool validate_args_impl(const nlohmann::json &args, const agentlib::tool_context &ctx, std::string &out_error) const override;
