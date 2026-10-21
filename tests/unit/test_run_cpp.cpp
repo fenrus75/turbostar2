@@ -27,11 +27,10 @@ int main()
 
 	std::cout << "Testing run_cpp tool..." << std::endl;
 
-	// 1. Success case: inline C++ code execution
+	// 1. Success case: inline C++ code execution (auto-defaults to project C++ standard)
 	{
 		nlohmann::json args = {
-			{"code", "std::cout << \"Hello TurboStar run_cpp: \" << (20 + 22) << std::endl;"},
-			{"std", "c++23"}
+			{"code", "std::cout << \"Hello TurboStar run_cpp: \" << (20 + 22) << std::endl;"}
 		};
 		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
 		std::cout << "Result 1: " << result << std::endl;
@@ -62,13 +61,11 @@ int main()
 		std::cout << "Original binary preserved on disk for crash_id: " << dumps.back().crash_id << std::endl;
 	}
 
-
-
-	// 4. Success case: inline C11 code execution using gcc
+	// 4. Success case: inline C11 code execution using custom cflags
 	{
 		nlohmann::json args = {
 			{"code", R"(printf("Hello TurboStar C11: %d\n", 11);)"},
-			{"std", "c11"}
+			{"cflags", nlohmann::json::array({"-std=c11"})}
 		};
 		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
 		std::cout << "Result 4: " << result << std::endl;
@@ -76,16 +73,11 @@ int main()
 		assert(result.find("[Execution: SUCCESS]") != std::string::npos);
 	}
 
-	// 5. Success case: tmp:// file path C execution
+	// 5. Success case: tmp:// file path C execution (auto-detects C language)
 	{
 		auto vfs = std::make_shared<virtual_file_system>();
 		vfs->mount_buffer("tmp://probe_test.c", "#include <stdio.h>\nint main() { printf(\"Hello tmp VFS C: %d\\n\", 100); return 0; }\n");
 		ctx.fs_security.set_vfs(vfs.get());
-
-
-
-
-
 
 		nlohmann::json args = {
 			{"path", "tmp://probe_test.c"}
@@ -96,7 +88,7 @@ int main()
 		assert(result.find("[Execution: SUCCESS]") != std::string::npos);
 	}
 
-	// 6. Success case: tmp:// VFS include directory
+	// 6. Success case: tmp:// VFS include directory via cflags -I
 	{
 		auto vfs = std::make_shared<virtual_file_system>();
 		vfs->mount_buffer("tmp://my_header.h", "#define TMP_VFS_MAGIC 777\n");
@@ -104,8 +96,7 @@ int main()
 
 		nlohmann::json args = {
 			{"code", "#include \"my_header.h\"\nstd::cout << \"TMP Include Magic: \" << TMP_VFS_MAGIC << std::endl;"},
-			{"includes", nlohmann::json::array({"tmp://"})},
-			{"std", "c++23"}
+			{"cflags", nlohmann::json::array({"-Itmp://"})},
 		};
 		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
 		std::cout << "Result 6: " << result << std::endl;
@@ -113,7 +104,7 @@ int main()
 		assert(result.find("[Execution: SUCCESS]") != std::string::npos);
 	}
 
-	// 7. Success case: tmp:// VFS library/translation unit
+	// 7. Success case: tmp:// VFS extra translation unit via sources
 	{
 		auto vfs = std::make_shared<virtual_file_system>();
 		vfs->mount_buffer("tmp://helper.cpp", "int compute_vfs_val() { return 888; }\n");
@@ -121,13 +112,38 @@ int main()
 
 		nlohmann::json args = {
 			{"code", "#include <iostream>\nint compute_vfs_val(); int main() { std::cout << \"VFS Lib Val: \" << compute_vfs_val() << std::endl; return 0; }"},
-			{"libraries", nlohmann::json::array({"tmp://helper.cpp"})},
-			{"std", "c++23"}
+			{"sources", nlohmann::json::array({"tmp://helper.cpp"})}
 		};
 
 		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
 		std::cout << "Result 7: " << result << std::endl;
 		assert(result.find("VFS Lib Val: 888") != std::string::npos);
+		assert(result.find("[Execution: SUCCESS]") != std::string::npos);
+	}
+
+	// 8. Success case: custom cflags with macros and optimization
+	{
+		nlohmann::json args = {
+			{"code", "#include <iostream>\nint main() { std::cout << \"Macro val: \" << CUSTOM_MACRO << std::endl; return 0; }"},
+			{"cflags", nlohmann::json::array({"-DCUSTOM_MACRO=1234", "-O2"})}
+		};
+
+		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
+		std::cout << "Result 8: " << result << std::endl;
+		assert(result.find("Macro val: 1234") != std::string::npos);
+		assert(result.find("[Execution: SUCCESS]") != std::string::npos);
+	}
+
+	// 9. Success case: custom ldflags linking math library
+	{
+		nlohmann::json args = {
+			{"code", "#include <iostream>\n#include <cmath>\nint main() { std::cout << \"Sqrt(16): \" << sqrt(16.0) << std::endl; return 0; }"},
+			{"ldflags", nlohmann::json::array({"-lm"})}
+		};
+
+		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
+		std::cout << "Result 9: " << result << std::endl;
+		assert(result.find("Sqrt(16): 4") != std::string::npos);
 		assert(result.find("[Execution: SUCCESS]") != std::string::npos);
 	}
 

@@ -335,14 +335,13 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
     *   `venv` *(string, optional)*: Path to a Python virtual environment directory (e.g. '.venv'). Its interpreter (`<venv>/bin/python`) is used to run the script, and any `dependencies` are installed into it. Resolved relative to the project root.
 
 ### `run_cpp`
-*   **Description:** Compiles and executes C/C++ source code snippets or standalone probe files in a sandboxed environment. Use this to test C/C++ logic, verify API behavior, or run isolated probes without modifying codebase files. Supports modern C++ and C standards, custom VFS paths (tmp://, include://), preprocessor defines, include directories, extra translation units, and linker flags. Dynamically indicates whether code execution is strictly offline or has network access enabled.
+*   **Description:** Compiles and executes C/C++ source code snippets or standalone probe files in a sandboxed environment. Use this to test C/C++ logic, verify API behavior, or run isolated probes without modifying codebase files. Supports compiler flags (`cflags`), linker flags (`ldflags`), extra translation units (`sources`), and custom VFS paths (`tmp://`, `include://`). Dynamically indicates whether code execution is strictly offline or has network access enabled.
 *   **Arguments:**
     *   `code` *(string, optional)*: Inline C/C++ source code string to compile and run. Omitting `main()` relies on automatic entry point wrapping, which is for trivial cases only; for non-trivial code (headers, functions, structs), provide complete source including `main()`. Either `code` or `path` must be provided.
     *   `path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g. `tmp://probe.c`, `src/main.cpp`) to a source file to compile and execute. Resolves disk paths and VFS URIs (`tmp://`, `include://`, `skills://`).
-    *   `std` *(string, optional)*: C/C++ language standard version (`c++23`, `c++20`, `c++17`, `c++14`, `c++11`, `c17`, `c11`, `c99`, `c89`, `gnu17`, `gnu11`). Defaults to `c++23` for C++ sources/code, and auto-detects `c17` for `.c` files.
-    *   `includes` *(array of strings, optional)*: Array of include directory paths appended via `-I` (e.g. `["src/", "tmp://", "/usr/include/"]`). Evaluated in array order; supports relative workspace paths and VFS URIs.
-    *   `defines` *(array of strings, optional)*: Array of preprocessor macro definitions appended via `-D` (e.g. `["DEBUG=1", "USE_SSL"]`). Accepts `NAME` or `NAME=value` strings; leading `-D` prefixes are stripped if provided.
-    *   `libraries` *(array of strings, optional)*: Array of linker library flags (e.g. `["-lsqlite3", "-lssl"]`) or extra translation unit source files (e.g. `["src/fs_utils.cpp"]`) appended to the compiler command line.
+    *   `cflags` *(array of strings, optional)*: Array of compiler flags (e.g. `["-O2", "-Wall", "-DDEBUG=1", "-Iinclude"]`). Supports VFS URI include paths (e.g. `"-Itmp://"`, `"-Iinclude://"`). Defaults to the project's configured language standard (e.g. `"-std=c++23"`), or `"-std=c17"` for C source files.
+    *   `ldflags` *(array of strings, optional)*: Array of linker library flags (e.g. `["-lncursesw", "-lsqlite3", "-L/usr/lib"]`) appended after source files on the compiler command line.
+    *   `sources` *(array of strings, optional)*: Array of extra translation unit source files or VFS URIs (e.g. `["src/fs_utils.cpp", "tmp://helper.cpp"]`) to compile and link into the probe binary.
     *   `timeout` *(integer, optional)*: Maximum execution runtime in seconds (1 to 60). Defaults to `10`.
 
 

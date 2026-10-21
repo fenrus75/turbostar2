@@ -19,7 +19,8 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- `run_cpp` general `cflags` parameter: add an optional `cflags` array parameter (e.g. `["-O2", "-Wall", "-fsanitize=address", "-fopenmp"]`) to allow testing compiler optimization levels, diagnostics/warnings, sanitizers, and dialect flags during isolated C/C++ probe execution. Ensure arguments are safely validated and escaped to prevent command injection.
+- run_cpp: on link failure remind the LLM of the ldflags option?
+	- maybe even detect some common missing libraries
 
 - turn docs/testcoverage.md into a file in system:// 
 
@@ -248,6 +249,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # Done
+
+## 21-10-2026
+- `run_cpp` `cflags`, `ldflags`, and `sources` parameters: replaced wrapper parameters (`defines`, `includes`, `libraries`, `std`) with standard `cflags`, `ldflags`, and `sources` in `src/tools/run_cpp/`. Added automatic language standard inheritance from project configuration (`config_manager::get_primary_language_version()`) and auto-detection of C source files (`-std=c17`). Implemented transparent VFS directory resolution for `-I` paths (`include://` and `tmp://`) without file copying. Retained backward-compatible parsing for legacy and case-variant arguments (`CFLAGS`, `LDFLAGS`, `SOURCES`, `defines`, `includes`, `libraries`, `std`). Created `src/tools/run_cpp/run_cpp.md`, updated `docs/tools.md`, and added comprehensive unit test coverage in `tests/unit/test_run_cpp.cpp`. (Completed)
 
 ## 20-10-2026
 - Ctrl+Left and Ctrl+Right word navigation: mapped `KEY_CLEFT` (545) and `KEY_CRIGHT` (546) across the editor, dialog components, and terminal windows. Defined key escape sequences with `define_key` (`\033[1;5D`, `\033[1;5C`, `\033[5D`, `\033[5C`, `\033Od`, `\033Oc`), added fallback CSI sequence handling in `editor.cpp`, bound cursor word jumps in `window.cpp` and `ui_multiline_edit.cpp` (preserving cut selection on Ctrl-X), and passed through sequences to PTYs in `terminal_window.cpp`. Created `src/ui/components/ui_multiline_edit.md`, updated `docs/keybindings.md`, and added unit tests in `test_multiline_edit.cpp` and `test_window_scroll.cpp`. (Completed)

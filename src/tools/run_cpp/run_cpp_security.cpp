@@ -9,7 +9,7 @@ namespace tools
 
 std::string run_cpp_validator::get_description() const
 {
-	std::string desc = "Compiles and executes C/C++ source code snippets or standalone probe files in a sandboxed environment. Use this to test C/C++ logic, verify API behavior, or run isolated probes without modifying codebase files. Supports modern C++ and C standards, custom VFS paths (tmp://, include://), preprocessor defines, include directories, extra translation units, and linker flags.";
+	std::string desc = "Compiles and executes C/C++ source code snippets or standalone probe files in a sandboxed environment. Use this to test C/C++ logic, verify API behavior, or run isolated probes without modifying codebase files. Supports compiler flags (cflags), linker flags (ldflags), extra translation units (sources), and custom VFS paths (tmp://, include://).";
 	if (config_manager::get_instance().is_allow_code_execution_network()) {
 		desc += " Code execution has network access enabled.";
 	} else {
@@ -25,10 +25,9 @@ nlohmann::json run_cpp_validator::get_parameters_schema() const
 		{"properties", {
 			{"code", {{"type", "string"}, {"description", "Inline C/C++ source code to compile and run. Omitting main() relies on automatic entry point wrapping, which is for trivial cases only; for non-trivial code (headers, functions, structs), provide complete source including main()."}}},
 			{"path", {{"type", "string"}, {"description", "Optional relative workspace path or VFS URI to a .cpp or .c source file (e.g. 'src/main.cpp', 'tmp://probe.c'). Fully resolves VFS URIs (tmp://, include://, skills://)."}}},
-			{"std", {{"type", "string"}, {"enum", nlohmann::json::array({"c++23", "c++20", "c++17", "c++14", "c++11", "c17", "c11", "c99", "c89", "gnu17", "gnu11"})}, {"default", "c++23"}, {"description", "C/C++ language standard to compile against. Defaults to 'c++23' for C++ sources/code, and auto-detects 'c17' for .c files."}}},
-			{"includes", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Optional array of include directory paths, appended via -I (e.g. ['src/', 'tmp://', '/usr/include/']). Supports relative paths and VFS URIs. Note: -I flags are evaluated in array order."}}},
-			{"defines", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Optional array of preprocessor macro definitions, appended via -D (e.g. ['DEBUG=1', 'USE_SSL']). Accepts 'NAME' or 'NAME=value' strings; the '-D' prefix is optional."}}},
-			{"libraries", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Optional array of linker library flags (e.g. ['-lsqlite3', '-lssl']) or extra translation unit source files (e.g. ['src/fs_utils.cpp']) appended to the compiler command line."}}},
+			{"cflags", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Optional array of compiler flags (e.g. ['-O2', '-Wall', '-DDEBUG=1', '-Iinclude']). Supports VFS URI include paths (e.g. '-Itmp://', '-Iinclude://'). Defaults to the project's configured language standard (e.g. '-std=c++23'), or '-std=c17' for C source files."}}},
+			{"ldflags", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Optional array of linker library flags (e.g. ['-lncursesw', '-lsqlite3', '-L/usr/lib']) appended after source files on the compiler command line."}}},
+			{"sources", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "Optional array of extra translation unit source files (e.g. ['src/fs_utils.cpp', 'tmp://helper.cpp']) to compile and link into the probe binary."}}},
 			{"timeout", {{"type", "integer"}, {"default", 10}, {"description", "Maximum execution runtime in seconds (1 to 60). Defaults to 10."}}}
 		}}
 	};
@@ -38,19 +37,19 @@ std::vector<agentlib::tool_example> run_cpp_validator::get_examples() const
 {
 	return {
 		{
-			"Inline C++23 Modern STL Probe",
-			nlohmann::json{{"code", "std::cout << \"Sum: \" << (20 + 22) << std::endl;"}, {"std", "c++23"}},
-			"Compiles and executes an inline C++23 snippet."
+			"Inline Modern C++ Probe",
+			nlohmann::json{{"code", "std::cout << \"Sum: \" << (20 + 22) << std::endl;"}},
+			"Compiles and executes an inline C++ snippet using project language standard."
 		},
 		{
 			"C11 API Probe with Library Flags",
-			nlohmann::json{{"code", "printf(\"SQLite: %s\\n\", sqlite3_libversion());"}, {"std", "c11"}, {"libraries", nlohmann::json::array({"-lsqlite3"})}},
+			nlohmann::json{{"code", "printf(\"SQLite: %s\\n\", sqlite3_libversion());"}, {"cflags", nlohmann::json::array({"-std=c17"})}, {"ldflags", nlohmann::json::array({"-lsqlite3"})}},
 			"Compiles and executes a C11 snippet linked against libsqlite3."
 		},
 		{
-			"VFS Source Probe with Macro Defines & Extra Files",
-			nlohmann::json{{"path", "tmp://probe.c"}, {"defines", nlohmann::json::array({"DEBUG=1", "-DVERBOSE"})}, {"includes", nlohmann::json::array({"src/"})}, {"libraries", nlohmann::json::array({"src/fs_utils.cpp"})}},
-			"Compiles and executes a VFS C source file with custom macro definitions, include paths, and extra translation units."
+			"VFS Source Probe with Custom Flags & Extra Translation Unit",
+			nlohmann::json{{"path", "tmp://probe.c"}, {"cflags", nlohmann::json::array({"-DDEBUG=1", "-Itmp://"})}, {"sources", nlohmann::json::array({"tmp://helper.c"})}},
+			"Compiles and executes a VFS C source file with custom macro definitions, VFS include paths, and an extra translation unit."
 		}
 	};
 }
@@ -79,43 +78,119 @@ bool run_cpp_validator::validate_args_impl(const nlohmann::json &args, const age
 		}
 	}
 
-	if (args.contains("std") && args["std"].is_string()) {
-		parsed_args_.std_ver = args["std"].get<std::string>();
-		static const std::set<std::string> valid_stds = {
-			"c++23", "c++20", "c++17", "c++14", "c++11",
-			"c17", "c11", "c99", "c89", "gnu17", "gnu11"
-		};
-		if (!valid_stds.contains(parsed_args_.std_ver)) {
-			out_error = "Unsupported C/C++ standard version: " + parsed_args_.std_ver;
+	auto parse_array = [&](std::initializer_list<const char *> names, auto handler) {
+		const nlohmann::json *arr = nullptr;
+		for (const char *name : names) {
+			if (args.contains(name) && args[name].is_array()) {
+				arr = &args[name];
+				break;
+			}
+		}
+		if (arr) {
+			for (const auto &item : *arr) {
+				if (item.is_string()) {
+					if (!handler(item.get<std::string>())) return false;
+				}
+			}
+		}
+		return true;
+	};
+
+	if (!parse_array({"cflags", "Cflags", "CFLAGS"}, [&](const std::string &flag) {
+		if (flag.starts_with("-specs=") || flag.starts_with("@")) {
+			out_error = "Disallowed compiler flag: " + flag;
 			return false;
 		}
-	} else if (!parsed_args_.path.empty() && (parsed_args_.path.ends_with(".c") || parsed_args_.path.ends_with(".C"))) {
-		parsed_args_.std_ver = "c17";
+		parsed_args_.cflags.push_back(flag);
+		return true;
+	})) return false;
+
+	if (!parse_array({"ldflags", "Ldflags", "LDFLAGS"}, [&](const std::string &flag) {
+		if (flag.starts_with("-specs=") || flag.starts_with("@")) {
+			out_error = "Disallowed linker flag: " + flag;
+			return false;
+		}
+		parsed_args_.ldflags.push_back(flag);
+		return true;
+	})) return false;
+
+	if (!parse_array({"sources", "Sources", "SOURCES"}, [&](const std::string &src_path) {
+		std::string safe_src;
+		if (!ctx.fs_security.validate_access(src_path, agentlib::access_type::read, safe_src, out_error)) {
+			return false;
+		}
+		parsed_args_.sources.push_back(safe_src.empty() ? src_path : safe_src);
+		return true;
+	})) return false;
+
+	// Backward-compatible fallback for defines -> cflags
+	parse_array({"defines", "Defines", "DEFINES"}, [&](const std::string &def) {
+		std::string flag = def.starts_with("-D") ? def : ("-D" + def);
+		parsed_args_.cflags.push_back(flag);
+		return true;
+	});
+
+	// Backward-compatible fallback for includes -> cflags
+	parse_array({"includes", "Includes", "INCLUDES"}, [&](const std::string &inc) {
+		parsed_args_.cflags.push_back("-I" + inc);
+		return true;
+	});
+
+	// Backward-compatible fallback for libraries -> ldflags / sources
+	parse_array({"libraries", "Libraries", "LIBRARIES"}, [&](const std::string &lib) {
+		if (lib.starts_with("-")) {
+			parsed_args_.ldflags.push_back(lib);
+		} else {
+			std::string safe_src;
+			if (!ctx.fs_security.validate_access(lib, agentlib::access_type::read, safe_src, out_error)) {
+				return false;
+			}
+			parsed_args_.sources.push_back(safe_src.empty() ? lib : safe_src);
+		}
+		return true;
+	});
+
+	// Backward-compatible fallback for std -> cflags
+	std::string std_arg;
+	if (args.contains("std") && args["std"].is_string()) std_arg = args["std"].get<std::string>();
+	else if (args.contains("Std") && args["Std"].is_string()) std_arg = args["Std"].get<std::string>();
+	if (!std_arg.empty()) {
+		parsed_args_.cflags.push_back("-std=" + std_arg);
 	}
 
-
-
-	if (args.contains("includes") && args["includes"].is_array()) {
-		for (const auto &item : args["includes"]) {
-			if (item.is_string()) {
-				parsed_args_.includes.push_back(item.get<std::string>());
-			}
+	// Auto-detect / resolve language standard if not explicitly supplied in cflags
+	bool has_std = false;
+	for (const auto &flag : parsed_args_.cflags) {
+		if (flag.starts_with("-std=")) {
+			has_std = true;
+			break;
 		}
 	}
 
-	if (args.contains("defines") && args["defines"].is_array()) {
-		for (const auto &item : args["defines"]) {
-			if (item.is_string()) {
-				parsed_args_.defines.push_back(item.get<std::string>());
+	if (!has_std) {
+		bool is_c = !parsed_args_.path.empty() &&
+			    (parsed_args_.path.ends_with(".c") || parsed_args_.path.ends_with(".C"));
+		if (is_c) {
+			parsed_args_.cflags.insert(parsed_args_.cflags.begin(), "-std=c17");
+		} else {
+			std::string proj_ver = config_manager::get_instance().get_primary_language_version();
+			std::string std_flag = "-std=c++23";
+			if (!proj_ver.empty()) {
+				std::string norm;
+				for (char ch : proj_ver) {
+					if (!std::isspace(static_cast<unsigned char>(ch))) {
+						norm += static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+					}
+				}
+				if (!norm.empty()) {
+					if (norm.starts_with("-std=")) {
+						std_flag = norm;
+					} else {
+						std_flag = "-std=" + norm;
+					}
+				}
 			}
-		}
-	}
-
-	if (args.contains("libraries") && args["libraries"].is_array()) {
-		for (const auto &item : args["libraries"]) {
-			if (item.is_string()) {
-				parsed_args_.libraries.push_back(item.get<std::string>());
-			}
+			parsed_args_.cflags.insert(parsed_args_.cflags.begin(), std_flag);
 		}
 	}
 

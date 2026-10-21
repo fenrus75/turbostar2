@@ -12,10 +12,9 @@ struct run_cpp_args {
 	std::string code;
 	std::string path;
 	std::string safe_path;
-	std::string std_ver{"c++23"};
-	std::vector<std::string> includes;
-	std::vector<std::string> defines;
-	std::vector<std::string> libraries;
+	std::vector<std::string> cflags;
+	std::vector<std::string> ldflags;
+	std::vector<std::string> sources;
 	int timeout{10};
 };
 

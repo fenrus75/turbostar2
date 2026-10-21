@@ -48,7 +48,20 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 	std::filesystem::create_directories(tmp_dir);
 
 
-	bool is_c_mode = (!args_.std_ver.starts_with("c++") && (args_.std_ver.starts_with("c") || args_.std_ver.starts_with("gnu")));
+	bool is_c_mode = false;
+	if (!args_.path.empty() && (args_.path.ends_with(".c") || args_.path.ends_with(".C"))) {
+		is_c_mode = true;
+	} else {
+		for (const auto &flag : args_.cflags) {
+			if (flag.starts_with("-std=")) {
+				std::string ver = flag.substr(5);
+				if (!ver.starts_with("c++") && (ver.starts_with("c") || ver.starts_with("gnu"))) {
+					is_c_mode = true;
+				}
+				break;
+			}
+		}
+	}
 	std::string compiler_bin = is_c_mode ? "gcc" : "g++";
 	std::string src_ext = is_c_mode ? ".c" : ".cpp";
 
@@ -129,95 +142,129 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 
 	std::string bin_path = (std::filesystem::path(tmp_dir) / std::format("probe_{}.bin", rand_id)).string();
 
-	std::string compile_cmd = std::format("{} -std={} -O0 -g -rdynamic", compiler_bin, args_.std_ver);
+	// Check if an optimization flag is already provided in cflags
+	bool has_opt = false;
+	for (const auto &flag : args_.cflags) {
+		if (flag.starts_with("-O")) {
+			has_opt = true;
+			break;
+		}
+	}
 
-
-
+	std::string compile_cmd = std::format("{} -g -rdynamic", compiler_bin);
+	if (!has_opt) {
+		compile_cmd += " -O0";
+	}
 
 	std::string src_dir = (std::filesystem::path(project_root) / "src").string();
 	if (std::filesystem::is_directory(src_dir)) {
 		compile_cmd += std::format(" -I{}", fs_utils::escape_shell_arg(src_dir));
 	}
 
-	for (const auto &inc : args_.includes) {
-		std::string clean_inc = inc;
-		if (clean_inc.find("://") != std::string::npos || clean_inc.starts_with("include:") || clean_inc.starts_with("tmp:")) {
-			auto vfs = ctx.fs_security.get_vfs();
-			if (vfs) {
-				if (vfs->is_local_path_available(clean_inc)) {
-					std::string local_dir = vfs->get_local_path(clean_inc);
-					if (!local_dir.empty()) {
-						std::filesystem::create_directories(local_dir);
-						clean_inc = local_dir;
-					}
-				} else if (clean_inc.starts_with("include://")) {
-					clean_inc = "/usr/include/" + clean_inc.substr(10);
-				}
+	std::vector<std::string> temp_staged_files;
 
-				auto file_list = vfs->list_directory(inc);
-				for (const auto &vf : file_list) {
-					if (vf.type == 'F' || vf.type == 'f') {
-						auto handle = vfs->read_file(vf.uri);
-						if (handle.has_value()) {
-							std::filesystem::path rel_sub = std::filesystem::path(vf.uri).filename();
-							std::filesystem::path target_header = std::filesystem::path(tmp_dir) / rel_sub;
-							std::ofstream h_ofs(target_header, std::ios::binary);
-							if (h_ofs) {
-								std::string_view h_code = (*handle)->view();
-								h_ofs.write(h_code.data(), h_code.size());
-								h_ofs.close();
+	// Process cflags (with transparent VFS resolution for -I paths)
+	for (const auto &flag : args_.cflags) {
+		std::string clean_flag = flag;
+		if (clean_flag.starts_with("-I")) {
+			std::string inc_path = clean_flag.substr(2);
+			while (!inc_path.empty() && std::isspace(static_cast<unsigned char>(inc_path.front()))) {
+				inc_path.erase(0, 1);
+			}
+
+			if (inc_path.starts_with("include://") || inc_path.starts_with("include:/") || inc_path.starts_with("include:")) {
+				auto vfs = ctx.fs_security.get_vfs();
+				std::string local_path;
+				if (vfs && vfs->is_local_path_available(inc_path)) {
+					local_path = vfs->get_local_path(inc_path);
+				}
+				if (local_path.empty()) {
+					// Direct fallback to /usr/include/...
+					std::string sub = inc_path;
+					if (sub.starts_with("include://")) sub = sub.substr(10);
+					else if (sub.starts_with("include:/")) sub = sub.substr(9);
+					else if (sub.starts_with("include:")) sub = sub.substr(8);
+					while (!sub.empty() && sub.front() == '/') sub.erase(0, 1);
+					local_path = sub.empty() ? "/usr/include" : ("/usr/include/" + sub);
+				}
+				clean_flag = std::format("-I{}", local_path);
+			} else if (inc_path.starts_with("tmp://") || inc_path.starts_with("tmp:/") || inc_path.starts_with("tmp:")) {
+				auto vfs = ctx.fs_security.get_vfs();
+				std::string local_path;
+				if (vfs && vfs->is_local_path_available(inc_path)) {
+					local_path = vfs->get_local_path(inc_path);
+				}
+				if (!local_path.empty() && std::filesystem::is_directory(local_path)) {
+					clean_flag = std::format("-I{}", local_path);
+				} else if (vfs) {
+					// Virtual in-memory files under tmp:// - stage files to tmp_dir
+					auto file_list = vfs->list_directory(inc_path);
+					for (const auto &vf : file_list) {
+						if (vf.type == 'F' || vf.type == 'f') {
+							auto handle = vfs->read_file(vf.uri);
+							if (handle.has_value()) {
+								std::filesystem::path rel_sub = std::filesystem::path(vf.uri).filename();
+								std::filesystem::path target_header = std::filesystem::path(tmp_dir) / rel_sub;
+								std::ofstream h_ofs(target_header, std::ios::binary);
+								if (h_ofs) {
+									std::string_view h_code = (*handle)->view();
+									h_ofs.write(h_code.data(), h_code.size());
+									h_ofs.close();
+									temp_staged_files.push_back(target_header.string());
+								}
 							}
 						}
 					}
+					clean_flag = std::format("-I{}", tmp_dir);
 				}
 			}
 		}
-		compile_cmd += std::format(" -I{}", fs_utils::escape_shell_arg(clean_inc));
+		compile_cmd += std::format(" {}", fs_utils::escape_shell_arg(clean_flag));
 	}
 	compile_cmd += std::format(" -I{}", fs_utils::escape_shell_arg(tmp_dir));
 
+	// Primary source file
+	compile_cmd += std::format(" {}", fs_utils::escape_shell_arg(src_path));
 
-	for (const auto &def : args_.defines) {
-		std::string clean_def = def;
-		if (clean_def.starts_with("-D")) {
-			clean_def = clean_def.substr(2);
-		}
-		compile_cmd += std::format(" -D{}", fs_utils::escape_shell_arg(clean_def));
-	}
-
-	compile_cmd += std::format(" {} -o {}", fs_utils::escape_shell_arg(src_path), fs_utils::escape_shell_arg(bin_path));
-
-	std::vector<std::string> temp_lib_files;
-	for (const auto &lib : args_.libraries) {
-		std::string clean_lib = lib;
-		if (!clean_lib.starts_with("-") && (clean_lib.find("://") != std::string::npos || clean_lib.starts_with("tmp:"))) {
+	// Extra translation units (sources)
+	for (const auto &src : args_.sources) {
+		std::string clean_src = src;
+		if (clean_src.find("://") != std::string::npos || clean_src.starts_with("tmp:")) {
 			auto vfs = ctx.fs_security.get_vfs();
 			if (vfs) {
-				if (vfs->is_local_path_available(clean_lib)) {
-					std::string local_p = vfs->get_local_path(clean_lib);
+				if (vfs->is_local_path_available(clean_src)) {
+					std::string local_p = vfs->get_local_path(clean_src);
 					if (!local_p.empty() && std::filesystem::exists(local_p)) {
-						clean_lib = local_p;
+						clean_src = local_p;
 					}
 				}
-				if (clean_lib == lib || clean_lib.find("://") != std::string::npos) {
-					auto handle = vfs->read_file(lib);
+				if (clean_src == src || clean_src.find("://") != std::string::npos) {
+					auto handle = vfs->read_file(src);
 					if (handle.has_value()) {
-						std::string_view lib_code = (*handle)->view();
-						std::filesystem::path filename = std::filesystem::path(lib).filename();
-						std::string lib_temp_path = (std::filesystem::path(tmp_dir) / std::format("vfs_lib_{}_{}", rand_id, filename.string())).string();
+						std::string_view src_code = (*handle)->view();
+						std::filesystem::path filename = std::filesystem::path(src).filename();
+						std::string src_temp_path = (std::filesystem::path(tmp_dir) / std::format("vfs_src_{}_{}", rand_id, filename.string())).string();
 
-						std::ofstream l_ofs(lib_temp_path, std::ios::binary);
-						if (l_ofs) {
-							l_ofs.write(lib_code.data(), lib_code.size());
-							l_ofs.close();
-							clean_lib = lib_temp_path;
-							temp_lib_files.push_back(lib_temp_path);
+						std::ofstream s_ofs(src_temp_path, std::ios::binary);
+						if (s_ofs) {
+							s_ofs.write(src_code.data(), src_code.size());
+							s_ofs.close();
+							clean_src = src_temp_path;
+							temp_staged_files.push_back(src_temp_path);
 						}
 					}
 				}
 			}
 		}
-		compile_cmd += std::format(" {}", fs_utils::escape_shell_arg(clean_lib));
+		compile_cmd += std::format(" {}", fs_utils::escape_shell_arg(clean_src));
+	}
+
+	// Output binary
+	compile_cmd += std::format(" -o {}", fs_utils::escape_shell_arg(bin_path));
+
+	// Linker flags (placed after sources)
+	for (const auto &ld : args_.ldflags) {
+		compile_cmd += std::format(" {}", fs_utils::escape_shell_arg(ld));
 	}
 
 	sync_command_runner compile_runner;
@@ -230,7 +277,7 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 
 	if (compile_exit != 0) {
 		if (is_temp_src) std::filesystem::remove(src_path);
-		for (const auto &tf : temp_lib_files) std::filesystem::remove(tf);
+		for (const auto &tf : temp_staged_files) std::filesystem::remove(tf);
 		return std::format("<cpp_execution_output>\n[Compilation: FAILED]\n{}\n</cpp_execution_output>", fs_utils::wrap_prompt_untrusted_data_tag("compiler_output", compile_output));
 	}
 
@@ -251,7 +298,7 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 	// Clean up temp files
 	if (crash_dumps.empty()) {
 		if (is_temp_src) std::filesystem::remove(src_path);
-		for (const auto &tf : temp_lib_files) std::filesystem::remove(tf);
+		for (const auto &tf : temp_staged_files) std::filesystem::remove(tf);
 		if (exec_exit == 0) {
 			std::filesystem::remove(bin_path);
 		}
