@@ -19,6 +19,8 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- `run_cpp` general `cflags` parameter: add an optional `cflags` array parameter (e.g. `["-O2", "-Wall", "-fsanitize=address", "-fopenmp"]`) to allow testing compiler optimization levels, diagnostics/warnings, sanitizers, and dialect flags during isolated C/C++ probe execution. Ensure arguments are safely validated and escaped to prevent command injection.
+
 - turn docs/testcoverage.md into a file in system:// 
 
 - `fs_run_tests` suite filter (`suite: "unit"` / `"e2e"`): allow running only fast local unit tests without invoking slower external/e2e test suites to prevent 3-minute MCP timeouts when building and running tests.
