@@ -22,6 +22,7 @@ public:
 
     void set_buffer(const std::string& text);
     std::string get_buffer() const { return buffer_; }
+    size_t get_cursor_pos() const { return cursor_pos_; }
     void set_on_change(std::function<void(const std::string&)> cb) { on_change_ = std::move(cb); }
     void set_on_external_edit(std::function<void()> cb) { on_external_edit_ = std::move(cb); }
     void link_document(std::shared_ptr<document> doc);

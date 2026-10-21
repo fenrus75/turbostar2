@@ -213,10 +213,12 @@ bool window::process_events()
 					invalidate();
 					break;
 				case 24: // Ctrl-X
+				case KEY_CRIGHT:
 					doc_->move_next_word();
 					invalidate();
 					break;
 				case 26: // Ctrl-Z
+				case KEY_CLEFT:
 					doc_->move_prev_word();
 					invalidate();
 					break;

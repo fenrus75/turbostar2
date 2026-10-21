@@ -418,6 +418,14 @@ int main(int argc, char **argv)
 	noecho();
 	keypad(stdscr, TRUE);
 
+	// Register extended terminal key sequences for Ctrl+Left and Ctrl+Right arrow keys
+	define_key("\033[1;5D", KEY_CLEFT);
+	define_key("\033[1;5C", KEY_CRIGHT);
+	define_key("\033[5D", KEY_CLEFT);
+	define_key("\033[5C", KEY_CRIGHT);
+	define_key("\033Od", KEY_CLEFT);
+	define_key("\033Oc", KEY_CRIGHT);
+
 	// Enable mouse tracking for clicks
 	mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
 	mouseinterval(0);

@@ -429,6 +429,10 @@ bool ui_multiline_edit::handle_event(const editor_event &ev, int abs_x, int abs_
 				is_nav = true; shift = false; action = nav_action::end;
 			} else if (key == KEY_SEND) {
 				is_nav = true; shift = true; action = nav_action::end;
+			} else if (key == KEY_CRIGHT) {
+				is_nav = true; shift = false; action = nav_action::next_word;
+			} else if (key == KEY_CLEFT) {
+				is_nav = true; shift = false; action = nav_action::prev_word;
 			} else if (key == 24) { // Ctrl-X
 				if (selection_start_ != -1 && selection_end_ != -1 && selection_start_ != selection_end_) {
 					cut_selection();

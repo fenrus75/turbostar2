@@ -66,8 +66,8 @@ Active when an editor window has focus.
 | `Ctrl+E` | End of Line | |
 | `Ctrl+U` | Page Up | Moves cursor up by one page. |
 | `Ctrl+V` | Page Down | Moves cursor down by one page. |
-| `Ctrl+X` | Next Word | Moves cursor to the start of the next word. |
-| `Ctrl+Z` | Previous Word | Moves cursor to the start of the previous word. |
+| `Ctrl+Right` / `Ctrl+X` | Next Word | Moves cursor to the start of the next word. |
+| `Ctrl+Left` / `Ctrl+Z` | Previous Word | Moves cursor to the start of the previous word. |
 | `Ctrl+G` | Matching Bracket | Jumps between matching `()`, `[]`, or `{}`. |
 
 ## Editor Editing

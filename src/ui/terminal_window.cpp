@@ -420,6 +420,12 @@ bool terminal_window::process_events()
 						case KEY_LEFT:
 							seq = "\x1b[D";
 							break;
+						case KEY_CRIGHT:
+							seq = "\x1b[1;5C";
+							break;
+						case KEY_CLEFT:
+							seq = "\x1b[1;5D";
+							break;
 						case KEY_HOME:
 							seq = "\x1b[H";
 							break;

@@ -144,6 +144,36 @@ int main()
 		assert(win.get_scroll_top_line() > prev_top);
 	}
 
+	// Test 5: Word navigation with KEY_CRIGHT and KEY_CLEFT
+	{
+		doc->clear();
+		doc->append_line("hello world test");
+		doc->move_cursor(-doc->get_cursor_x(), -doc->get_cursor_y());
+		assert(doc->get_cursor_x() == 0);
+
+		editor_event ev_cright;
+		ev_cright.type = event_type::key_press;
+		ev_cright.key_code = KEY_CRIGHT;
+		win.get_window_queue().push(ev_cright);
+		win.process_events();
+		assert(doc->get_cursor_x() == 6); // start of "world"
+
+		win.get_window_queue().push(ev_cright);
+		win.process_events();
+		assert(doc->get_cursor_x() == 12); // start of "test"
+
+		editor_event ev_cleft;
+		ev_cleft.type = event_type::key_press;
+		ev_cleft.key_code = KEY_CLEFT;
+		win.get_window_queue().push(ev_cleft);
+		win.process_events();
+		assert(doc->get_cursor_x() == 6); // back to start of "world"
+
+		win.get_window_queue().push(ev_cleft);
+		win.process_events();
+		assert(doc->get_cursor_x() == 0); // back to start of "hello"
+	}
+
 	std::cout << "Test window scrollbar click passed!\n";
 	return 0;
 }

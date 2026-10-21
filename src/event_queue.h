@@ -11,6 +11,15 @@ class ui_multiline_edit;
 #include <string_view>
 #include <vector>
 
+// Extended key codes not defined in standard ncurses (above standard KEY_MAX = 511)
+#ifndef KEY_CLEFT
+constexpr int KEY_CLEFT = 545;
+#endif
+#ifndef KEY_CRIGHT
+constexpr int KEY_CRIGHT = 546;
+#endif
+
+
 /**
  * @brief Event types supported by the editor.
  *

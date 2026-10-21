@@ -232,6 +232,37 @@ int main()
 	edit.handle_event(ev_paste_wrapped, 0, 0);
 	assert(edit.get_buffer() == "```\nhello\nworld\n```");
 
+	// 10. Ctrl+Right and Ctrl+Left Word Navigation
+	{
+		ui_multiline_edit nav_edit("nav_edit", 0, 0, 40, 5, nullptr);
+		nav_edit.set_focus(true);
+		nav_edit.set_buffer("first second third");
+
+		editor_event ev_nav_home;
+		ev_nav_home.type = event_type::key_press;
+		ev_nav_home.key_code = KEY_HOME;
+		nav_edit.handle_event(ev_nav_home, 0, 0);
+		assert(nav_edit.get_cursor_pos() == 0);
+
+		editor_event ev_cright;
+		ev_cright.type = event_type::key_press;
+		ev_cright.key_code = KEY_CRIGHT;
+		nav_edit.handle_event(ev_cright, 0, 0);
+		assert(nav_edit.get_cursor_pos() == 6); // start of "second"
+
+		nav_edit.handle_event(ev_cright, 0, 0);
+		assert(nav_edit.get_cursor_pos() == 13); // start of "third"
+
+		editor_event ev_cleft;
+		ev_cleft.type = event_type::key_press;
+		ev_cleft.key_code = KEY_CLEFT;
+		nav_edit.handle_event(ev_cleft, 0, 0);
+		assert(nav_edit.get_cursor_pos() == 6); // back to start of "second"
+
+		nav_edit.handle_event(ev_cleft, 0, 0);
+		assert(nav_edit.get_cursor_pos() == 0); // back to start of "first"
+	}
+
 	std::cout << "ui_multiline_edit unit tests passed!\n";
 	return 0;
 }

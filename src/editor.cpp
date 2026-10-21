@@ -855,6 +855,14 @@ void editor::run()
 									key = KEY_RIGHT;
 								else if (seq == "D")
 									key = KEY_LEFT;
+								else if (seq == "1;5C" || seq == "5C" || seq == "Oc")
+									key = KEY_CRIGHT;
+								else if (seq == "1;5D" || seq == "5D" || seq == "Od")
+									key = KEY_CLEFT;
+								else if (seq == "1;2C")
+									key = KEY_SRIGHT;
+								else if (seq == "1;2D")
+									key = KEY_SLEFT;
 
 								if (key != 0) {
 									ev.type = event_type::key_press;
