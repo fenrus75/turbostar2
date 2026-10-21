@@ -116,6 +116,7 @@ void standard_lsp_backend::start_server(const std::string &name, const std::vect
 			    if (q) {
 				    editor_event ev;
 				    ev.type = event_type::lsp_diagnostics_result;
+				    ev.payload = path_str;
 				    ev.diagnostics = diagnostics;
 				    q->push(ev);
 			    }
@@ -592,12 +593,13 @@ void standard_lsp_backend::request_document_highlight(const std::string &filepat
 
 		server->message_handler->sendRequest<lsp::requests::TextDocument_DocumentHighlight>(
 		    std::move(highlightParams),
-		    [this](const lsp::requests::TextDocument_DocumentHighlight::Result &result) {
+		    [this, filepath](const lsp::requests::TextDocument_DocumentHighlight::Result &result) {
 			    auto *q = global_queue_.load();
 			    if (!result.isNull()) {
 				    if (q) {
 					    editor_event ev;
 					    ev.type = event_type::lsp_highlight_result;
+					    ev.payload = filepath;
 					    for (const auto &hl : result.value()) {
 						    ev.highlight_ranges.push_back(
 							{static_cast<int>(hl.range.start.line), static_cast<int>(hl.range.start.character),
@@ -609,6 +611,7 @@ void standard_lsp_backend::request_document_highlight(const std::string &filepat
 				    if (q) {
 					    editor_event ev;
 					    ev.type = event_type::lsp_highlight_result;
+					    ev.payload = filepath;
 					    q->push(ev);
 				    }
 			    }

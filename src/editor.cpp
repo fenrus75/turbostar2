@@ -236,6 +236,13 @@ void editor::open_file_as_text(std::string_view filename)
 	auto win = std::make_unique<window>(get_new_window_id(), 0, 1, COLS, LINES - 2, fname);
 	win->attach_document(doc);
 
+	if (!doc->get_safe_filename().empty()) {
+		auto diags = project_manager::get_instance().lsp_query_file_diagnostics(doc->get_safe_filename());
+		if (diags && !diags->empty()) {
+			doc->set_lsp_diagnostics(*diags);
+		}
+	}
+
 	documents_.push_back(doc);
 	windows_.push_back(std::move(win));
 	activate_window(windows_.size() - 1);

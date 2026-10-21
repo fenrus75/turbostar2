@@ -31,6 +31,13 @@ void editor::dispatch_event_lsp(const editor_event &ev)
 	if (ev.type == event_type::lsp_highlight_result) {
 		std::shared_ptr<document> active_doc = get_active_doc();
 		if (active_doc) {
+			if (!ev.payload.empty()) {
+				std::string safe_name = active_doc->get_safe_filename();
+				std::string name = active_doc->get_filename();
+				if (safe_name != ev.payload && name != ev.payload) {
+					return;
+				}
+			}
 			active_doc->set_lsp_highlights(ev.highlight_ranges);
 		}
 		return;
@@ -95,9 +102,52 @@ void editor::dispatch_event_lsp(const editor_event &ev)
 	}
 
 	if (ev.type == event_type::lsp_diagnostics_result) {
-		std::shared_ptr<document> active_doc = get_active_doc();
-		if (active_doc) {
-			active_doc->set_lsp_diagnostics(ev.diagnostics);
+		const std::string &target_file = ev.payload;
+		if (target_file.empty()) {
+			return;
+		}
+
+		std::filesystem::path target_p(target_file);
+		bool matched_any = false;
+		for (auto &doc : documents_) {
+			if (!doc) {
+				continue;
+			}
+			std::string doc_path = doc->get_filename();
+			std::string safe_doc_path = doc->get_safe_filename();
+			if (doc_path.empty() && safe_doc_path.empty()) {
+				continue;
+			}
+
+			bool matches = false;
+			if (!safe_doc_path.empty() && safe_doc_path == target_file) {
+				matches = true;
+			} else if (!doc_path.empty() && doc_path == target_file) {
+				matches = true;
+			} else {
+				try {
+					std::filesystem::path p(!safe_doc_path.empty() ? safe_doc_path : doc_path);
+					if (std::filesystem::exists(p) && std::filesystem::exists(target_p)) {
+						if (std::filesystem::equivalent(p, target_p)) {
+							matches = true;
+						}
+					}
+					if (!matches && std::filesystem::weakly_canonical(p).string() ==
+							    std::filesystem::weakly_canonical(target_p).string()) {
+						matches = true;
+					}
+				} catch (...) {
+					// Ignore invalid paths
+				}
+			}
+
+			if (matches) {
+				doc->set_lsp_diagnostics(ev.diagnostics);
+				matched_any = true;
+			}
+		}
+
+		if (matched_any) {
 			global_queue_.push(event_type::redraw);
 		}
 		return;
