@@ -140,8 +140,8 @@ class document
 	word_span get_whitespace_span_at(int y, int char_x) const;
 	word_span get_delimiter_span_under_cursor() const;
 	word_span get_delimiter_span_at(int y, int char_x) const;
-	word_span get_element_span_under_cursor() const;
-	word_span get_element_span_at(int y, int char_x) const;
+	word_span get_element_span_under_cursor(std::string_view extra = "_", std::string_view scope_delimiter = "") const;
+	word_span get_element_span_at(int y, int char_x, std::string_view extra = "_", std::string_view scope_delimiter = "") const;
 	void move_cursor(int dx, int dy);
 	void set_cursor_position(int col, int line);
 	void request_redraw() const;
@@ -274,8 +274,8 @@ class document
 	word_span get_whitespace_span_at_unlocked(int y, int char_x) const;
 	word_span get_delimiter_span_under_cursor_unlocked() const;
 	word_span get_delimiter_span_at_unlocked(int y, int char_x) const;
-	word_span get_element_span_under_cursor_unlocked() const;
-	word_span get_element_span_at_unlocked(int y, int char_x) const;
+	word_span get_element_span_under_cursor_unlocked(std::string_view extra = "_", std::string_view scope_delimiter = "") const;
+	word_span get_element_span_at_unlocked(int y, int char_x, std::string_view extra = "_", std::string_view scope_delimiter = "") const;
 
 	std::vector<std::shared_ptr<line>> lines_;
 

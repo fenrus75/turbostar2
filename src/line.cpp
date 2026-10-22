@@ -252,7 +252,7 @@ std::string line::get_delimiter_at(int char_pos) const
 	return get_delimiter_span_at(char_pos).word;
 }
 
-word_span line::get_element_span_at_unlocked(int char_pos, std::string_view extra) const
+word_span line::get_element_span_at_unlocked(int char_pos, std::string_view extra, std::string_view scope_delimiter) const
 {
 	int total_chars = static_cast<int>(attributes_.size());
 	if (total_chars == 0 || char_pos < 0 || char_pos > total_chars) {
@@ -265,24 +265,106 @@ word_span line::get_element_span_at_unlocked(int char_pos, std::string_view extr
 	}
 
 	size_t ref_byte = utf8::char_to_byte_offset(text_, ref_pos);
+	word_span base_span;
 	if (utf8::is_space_at_byte(text_, ref_byte)) {
-		return get_whitespace_span_at_unlocked(char_pos);
+		base_span = get_whitespace_span_at_unlocked(char_pos);
+	} else if (utf8::is_word_char_at_byte(text_, ref_byte, extra)) {
+		base_span = get_word_span_at_unlocked(char_pos, extra);
+	} else {
+		base_span = get_delimiter_span_at_unlocked(char_pos);
 	}
-	if (utf8::is_word_char_at_byte(text_, ref_byte, extra)) {
-		return get_word_span_at_unlocked(char_pos, extra);
+
+	if (scope_delimiter.empty() || base_span.empty() || base_span.kind == span_kind::whitespace) {
+		return base_span;
 	}
-	return get_delimiter_span_at_unlocked(char_pos);
+
+	if (base_span.kind == span_kind::delimiter && base_span.word != scope_delimiter) {
+		return base_span;
+	}
+
+	int current_start_char = base_span.start_char_pos;
+	int current_end_char = base_span.end_char_pos;
+
+	// If starting on the scope delimiter itself, incorporate adjacent words first
+	if (base_span.kind == span_kind::delimiter) {
+		if (current_start_char > 0) {
+			auto prev_word = get_word_span_at_unlocked(current_start_char - 1, extra);
+			if (!prev_word.empty() && prev_word.end_char_pos == current_start_char) {
+				current_start_char = prev_word.start_char_pos;
+			}
+		}
+		if (current_end_char < total_chars) {
+			auto next_word = get_word_span_at_unlocked(current_end_char, extra);
+			if (!next_word.empty() && next_word.start_char_pos == current_end_char) {
+				current_end_char = next_word.end_char_pos;
+			}
+		}
+	}
+
+	// Backward expansion across alternating scope_delimiter and words
+	while (current_start_char > 0) {
+		int prev_pos = current_start_char - 1;
+		auto delim_span = get_delimiter_span_at_unlocked(prev_pos);
+		if (delim_span.empty() || delim_span.word != scope_delimiter || delim_span.end_char_pos != current_start_char) {
+			break;
+		}
+
+		current_start_char = delim_span.start_char_pos;
+		if (current_start_char == 0) {
+			break;
+		}
+
+		auto prev_word = get_word_span_at_unlocked(current_start_char - 1, extra);
+		if (prev_word.empty() || prev_word.end_char_pos != current_start_char) {
+			break;
+		}
+		current_start_char = prev_word.start_char_pos;
+	}
+
+	// Forward expansion across alternating scope_delimiter and words
+	while (current_end_char < total_chars) {
+		auto delim_span = get_delimiter_span_at_unlocked(current_end_char);
+		if (delim_span.empty() || delim_span.word != scope_delimiter || delim_span.start_char_pos != current_end_char) {
+			break;
+		}
+
+		current_end_char = delim_span.end_char_pos;
+		if (current_end_char >= total_chars) {
+			break;
+		}
+
+		auto next_word = get_word_span_at_unlocked(current_end_char, extra);
+		if (!next_word.empty() && next_word.start_char_pos == current_end_char) {
+			current_end_char = next_word.end_char_pos;
+		} else {
+			break;
+		}
+	}
+
+	if (current_start_char == base_span.start_char_pos && current_end_char == base_span.end_char_pos) {
+		return base_span;
+	}
+
+	size_t start_byte = utf8::char_to_byte_offset(text_, current_start_char);
+	size_t end_byte = (current_end_char >= total_chars) ? text_.size() : utf8::char_to_byte_offset(text_, current_end_char);
+
+	return word_span{
+	    .word = text_.substr(start_byte, end_byte - start_byte),
+	    .start_char_pos = current_start_char,
+	    .end_char_pos = current_end_char,
+	    .kind = span_kind::word,
+	};
 }
 
-word_span line::get_element_span_at(int char_pos, std::string_view extra) const
+word_span line::get_element_span_at(int char_pos, std::string_view extra, std::string_view scope_delimiter) const
 {
 	std::shared_lock lock(mutex_);
-	return get_element_span_at_unlocked(char_pos, extra);
+	return get_element_span_at_unlocked(char_pos, extra, scope_delimiter);
 }
 
-std::string line::get_element_at(int char_pos, std::string_view extra) const
+std::string line::get_element_at(int char_pos, std::string_view extra, std::string_view scope_delimiter) const
 {
-	return get_element_span_at(char_pos, extra).word;
+	return get_element_span_at(char_pos, extra, scope_delimiter).word;
 }
 
 void line::get_content(std::string &out_text, std::vector<syntax_attribute> &out_attrs) const

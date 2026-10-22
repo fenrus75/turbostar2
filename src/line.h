@@ -48,8 +48,8 @@ class line
 	word_span get_whitespace_span_at(int char_pos) const;
 	word_span get_delimiter_span_at(int char_pos) const;
 	std::string get_delimiter_at(int char_pos) const;
-	word_span get_element_span_at(int char_pos, std::string_view extra = "_") const;
-	std::string get_element_at(int char_pos, std::string_view extra = "_") const;
+	word_span get_element_span_at(int char_pos, std::string_view extra = "_", std::string_view scope_delimiter = "") const;
+	std::string get_element_at(int char_pos, std::string_view extra = "_", std::string_view scope_delimiter = "") const;
 	void get_content(std::string &out_text, std::vector<syntax_attribute> &out_attrs) const;
 	void set_text(std::string_view text);
 
@@ -79,7 +79,7 @@ class line
 	word_span get_word_span_at_unlocked(int char_pos, std::string_view extra = "_") const;
 	word_span get_whitespace_span_at_unlocked(int char_pos) const;
 	word_span get_delimiter_span_at_unlocked(int char_pos) const;
-	word_span get_element_span_at_unlocked(int char_pos, std::string_view extra = "_") const;
+	word_span get_element_span_at_unlocked(int char_pos, std::string_view extra = "_", std::string_view scope_delimiter = "") const;
 	int char_to_display_col_unlocked(int char_pos) const;
 	unsigned char byte_at_unlocked(int offset) const noexcept;
 

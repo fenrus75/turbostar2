@@ -541,6 +541,68 @@ int main()
 		line l_empty("");
 		assert(l_empty.get_element_span_at(0).empty());
 		assert(l_empty.get_element_span_at(0).kind == span_kind::none);
+
+		// 7. Scope delimiter expansion (Option 2 compound scoping)
+		line l_scoped("std::string");
+		// On "std"
+		auto sp_scope1 = l_scoped.get_element_span_at(1, "_", "::");
+		assert(sp_scope1.word == "std::string");
+		assert(sp_scope1.start_char_pos == 0);
+		assert(sp_scope1.end_char_pos == 11);
+		assert(sp_scope1.kind == span_kind::word);
+		assert(l_scoped.get_element_at(1, "_", "::") == "std::string");
+
+		// On "::"
+		auto sp_scope2 = l_scoped.get_element_span_at(3, "_", "::");
+		assert(sp_scope2.word == "std::string");
+		assert(sp_scope2.start_char_pos == 0);
+		assert(sp_scope2.end_char_pos == 11);
+
+		// On "string"
+		auto sp_scope3 = l_scoped.get_element_span_at(8, "_", "::");
+		assert(sp_scope3.word == "std::string");
+		assert(sp_scope3.start_char_pos == 0);
+		assert(sp_scope3.end_char_pos == 11);
+
+		// 8. Multi-level scoping: "a::b::c::d"
+		line l_multi("a::b::c::d");
+		assert(l_multi.get_element_at(0, "_", "::") == "a::b::c::d");
+		assert(l_multi.get_element_at(3, "_", "::") == "a::b::c::d");
+		assert(l_multi.get_element_at(5, "_", "::") == "a::b::c::d");
+		assert(l_multi.get_element_at(8, "_", "::") == "a::b::c::d");
+		assert(l_multi.get_element_at(9, "_", "::") == "a::b::c::d");
+
+		// 9. Leading and trailing scope
+		line l_leading("::abort()");
+		assert(l_leading.get_element_at(0, "_", "::") == "::abort");
+		assert(l_leading.get_element_at(4, "_", "::") == "::abort");
+		assert(l_leading.get_element_at(7, "_", "::") == "(");
+
+		line l_trailing("foo::");
+		assert(l_trailing.get_element_at(1, "_", "::") == "foo::");
+		assert(l_trailing.get_element_at(4, "_", "::") == "foo::");
+
+		line l_nonword_prev("=::foo");
+		assert(l_nonword_prev.get_element_at(4, "_", "::") == "::foo");
+
+		line l_nonword_next("foo::=");
+		assert(l_nonword_next.get_element_at(1, "_", "::") == "foo::");
+
+		// 10. Spaces around scope delimiter prevent cross-space expansion
+		line l_spaces("std :: string");
+		assert(l_spaces.get_element_at(1, "_", "::") == "std");
+		assert(l_spaces.get_element_at(5, "_", "::") == "::");
+		assert(l_spaces.get_element_at(9, "_", "::") == "string");
+
+		// 11. Custom delimiter (e.g. "." in Python/Java)
+		line l_dot("os.path.join()");
+		assert(l_dot.get_element_at(4, "_", ".") == "os.path.join");
+
+		// 12. Standalone scope delimiter without adjacent words
+		line l_isolated(" :: ");
+		auto sp_isolated = l_isolated.get_element_span_at(2, "_", "::");
+		assert(sp_isolated.word == "::");
+		assert(sp_isolated.kind == span_kind::delimiter);
 	}
 
 	std::cout << "Testing self-merge...\n";

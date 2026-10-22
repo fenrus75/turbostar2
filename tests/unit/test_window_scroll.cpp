@@ -226,6 +226,23 @@ int main()
 		// 6. Double click on "::" delimiter in foo::bar
 		click_and_assert(27, "::");
 
+		// 6b. Triple click on foo::bar expands to full scoped identifier "foo::bar"
+		auto triple_click_and_assert = [&](int char_pos, const std::string &expected) {
+			editor_event ev_tri;
+			ev_tri.type = event_type::mouse_triple_click;
+			ev_tri.mouse_y = 1; // row 0
+			int col = doc6->get_line(0)->char_to_display_col(char_pos);
+			ev_tri.mouse_x = 1 + col;
+			win6.get_window_queue().push(ev_tri);
+			win6.process_events();
+
+			assert(win6.has_mouse_selection());
+			assert(win6.get_mouse_selected_text() == expected);
+		};
+		triple_click_and_assert(25, "foo::bar");
+		triple_click_and_assert(27, "foo::bar");
+		triple_click_and_assert(29, "foo::bar");
+
 		// 7. Double click on "==="
 		click_and_assert(34, "===");
 

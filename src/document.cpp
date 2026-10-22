@@ -586,30 +586,30 @@ word_span document::get_delimiter_span_at(int y, int char_x) const
 	return get_delimiter_span_at_unlocked(y, char_x);
 }
 
-word_span document::get_element_span_under_cursor_unlocked() const
+word_span document::get_element_span_under_cursor_unlocked(std::string_view extra, std::string_view scope_delimiter) const
 {
 	if (cursor_y_ < 0 || cursor_y_ >= static_cast<int>(lines_.size()))
 		return {};
-	return lines_[cursor_y_]->get_element_span_at(cursor_x_);
+	return lines_[cursor_y_]->get_element_span_at(cursor_x_, extra, scope_delimiter);
 }
 
-word_span document::get_element_span_under_cursor() const
+word_span document::get_element_span_under_cursor(std::string_view extra, std::string_view scope_delimiter) const
 {
 	std::shared_lock lock(mutex_);
-	return get_element_span_under_cursor_unlocked();
+	return get_element_span_under_cursor_unlocked(extra, scope_delimiter);
 }
 
-word_span document::get_element_span_at_unlocked(int y, int char_x) const
+word_span document::get_element_span_at_unlocked(int y, int char_x, std::string_view extra, std::string_view scope_delimiter) const
 {
 	if (y < 0 || y >= static_cast<int>(lines_.size()) || char_x < 0)
 		return {};
-	return lines_[y]->get_element_span_at(char_x);
+	return lines_[y]->get_element_span_at(char_x, extra, scope_delimiter);
 }
 
-word_span document::get_element_span_at(int y, int char_x) const
+word_span document::get_element_span_at(int y, int char_x, std::string_view extra, std::string_view scope_delimiter) const
 {
 	std::shared_lock lock(mutex_);
-	return get_element_span_at_unlocked(y, char_x);
+	return get_element_span_at_unlocked(y, char_x, extra, scope_delimiter);
 }
 
 void document::notify_cursor_changed() const
