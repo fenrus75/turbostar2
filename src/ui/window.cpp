@@ -350,14 +350,7 @@ bool window::process_events()
 
 				int line_chars = l->length_in_chars();
 				if (click_char >= 0 && click_char < line_chars) {
-					word_span span = l->get_word_span_at(click_char);
-					if (span.empty()) {
-						span = l->get_whitespace_span_at(click_char);
-					}
-					if (span.empty()) {
-						span = l->get_delimiter_span_at(click_char);
-					}
-
+					word_span span = l->get_element_span_at(click_char);
 					if (!span.empty()) {
 						is_mouse_selecting_ = true;
 						mouse_sel_start_char_ = span.start_char_pos;

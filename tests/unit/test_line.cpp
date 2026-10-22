@@ -488,6 +488,61 @@ int main()
 		assert(l_empty.get_delimiter_span_at(0).empty());
 	}
 
+	// Test get_element_span_at and get_element_at with span_kind
+	{
+		line l_elem("hello   world ===");
+		// 0..4: "hello" (word)
+		// 5..7: "   " (whitespace)
+		// 8..12: "world" (word)
+		// 13: ' ' (whitespace)
+		// 14..16: "===" (delimiter)
+
+		// 1. On word "hello"
+		auto sp_word = l_elem.get_element_span_at(2);
+		assert(!sp_word.empty());
+		assert(sp_word.word == "hello");
+		assert(sp_word.start_char_pos == 0);
+		assert(sp_word.end_char_pos == 5);
+		assert(sp_word.kind == span_kind::word);
+		assert(l_elem.get_element_at(2) == "hello");
+
+		// 2. On whitespace "   "
+		auto sp_ws = l_elem.get_element_span_at(6);
+		assert(!sp_ws.empty());
+		assert(sp_ws.word == "   ");
+		assert(sp_ws.start_char_pos == 5);
+		assert(sp_ws.end_char_pos == 8);
+		assert(sp_ws.kind == span_kind::whitespace);
+		assert(l_elem.get_element_at(6) == "   ");
+
+		// 3. On delimiter "==="
+		auto sp_delim = l_elem.get_element_span_at(15);
+		assert(!sp_delim.empty());
+		assert(sp_delim.word == "===");
+		assert(sp_delim.start_char_pos == 14);
+		assert(sp_delim.end_char_pos == 17);
+		assert(sp_delim.kind == span_kind::delimiter);
+		assert(l_elem.get_element_at(15) == "===");
+
+		// 4. At EOL
+		auto sp_eol = l_elem.get_element_span_at(17);
+		assert(!sp_eol.empty());
+		assert(sp_eol.word == "===");
+		assert(sp_eol.start_char_pos == 14);
+		assert(sp_eol.end_char_pos == 17);
+		assert(sp_eol.kind == span_kind::delimiter);
+
+		// 5. Out of bounds
+		assert(l_elem.get_element_span_at(-1).empty());
+		assert(l_elem.get_element_span_at(100).empty());
+		assert(l_elem.get_element_span_at(-1).kind == span_kind::none);
+
+		// 6. Empty line
+		line l_empty("");
+		assert(l_empty.get_element_span_at(0).empty());
+		assert(l_empty.get_element_span_at(0).kind == span_kind::none);
+	}
+
 	std::cout << "Testing self-merge...\n";
 	line l_merge("hello");
 	l_merge.merge(l_merge);

@@ -586,6 +586,32 @@ word_span document::get_delimiter_span_at(int y, int char_x) const
 	return get_delimiter_span_at_unlocked(y, char_x);
 }
 
+word_span document::get_element_span_under_cursor_unlocked() const
+{
+	if (cursor_y_ < 0 || cursor_y_ >= static_cast<int>(lines_.size()))
+		return {};
+	return lines_[cursor_y_]->get_element_span_at(cursor_x_);
+}
+
+word_span document::get_element_span_under_cursor() const
+{
+	std::shared_lock lock(mutex_);
+	return get_element_span_under_cursor_unlocked();
+}
+
+word_span document::get_element_span_at_unlocked(int y, int char_x) const
+{
+	if (y < 0 || y >= static_cast<int>(lines_.size()) || char_x < 0)
+		return {};
+	return lines_[y]->get_element_span_at(char_x);
+}
+
+word_span document::get_element_span_at(int y, int char_x) const
+{
+	std::shared_lock lock(mutex_);
+	return get_element_span_at_unlocked(y, char_x);
+}
+
 void document::notify_cursor_changed() const
 {
 	std::string word;

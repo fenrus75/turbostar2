@@ -63,9 +63,8 @@ void line::append_to(std::string &out) const
 	out.append(text_);
 }
 
-word_span line::get_word_span_at(int char_pos, std::string_view extra) const
+word_span line::get_word_span_at_unlocked(int char_pos, std::string_view extra) const
 {
-	std::shared_lock lock(mutex_);
 	int total_chars = static_cast<int>(attributes_.size());
 	if (total_chars == 0 || char_pos < 0 || char_pos > total_chars) {
 		return {};
@@ -114,7 +113,14 @@ word_span line::get_word_span_at(int char_pos, std::string_view extra) const
 	    .word = text_.substr(start_byte, end_byte - start_byte),
 	    .start_char_pos = start_char,
 	    .end_char_pos = end_char,
+	    .kind = span_kind::word,
 	};
+}
+
+word_span line::get_word_span_at(int char_pos, std::string_view extra) const
+{
+	std::shared_lock lock(mutex_);
+	return get_word_span_at_unlocked(char_pos, extra);
 }
 
 std::string line::get_word_at(int char_pos, std::string_view extra) const
@@ -122,9 +128,8 @@ std::string line::get_word_at(int char_pos, std::string_view extra) const
 	return get_word_span_at(char_pos, extra).word;
 }
 
-word_span line::get_whitespace_span_at(int char_pos) const
+word_span line::get_whitespace_span_at_unlocked(int char_pos) const
 {
-	std::shared_lock lock(mutex_);
 	int total_chars = static_cast<int>(attributes_.size());
 	if (char_pos < 0 || char_pos >= total_chars) {
 		return {};
@@ -167,12 +172,18 @@ word_span line::get_whitespace_span_at(int char_pos) const
 	    .word = text_.substr(start_byte, end_byte - start_byte),
 	    .start_char_pos = start_char,
 	    .end_char_pos = end_char,
+	    .kind = span_kind::whitespace,
 	};
 }
 
-word_span line::get_delimiter_span_at(int char_pos) const
+word_span line::get_whitespace_span_at(int char_pos) const
 {
 	std::shared_lock lock(mutex_);
+	return get_whitespace_span_at_unlocked(char_pos);
+}
+
+word_span line::get_delimiter_span_at_unlocked(int char_pos) const
+{
 	int total_chars = static_cast<int>(attributes_.size());
 	if (total_chars == 0 || char_pos < 0 || char_pos > total_chars) {
 		return {};
@@ -231,12 +242,56 @@ word_span line::get_delimiter_span_at(int char_pos) const
 	    .word = text_.substr(start_byte, end_byte - start_byte),
 	    .start_char_pos = start_char,
 	    .end_char_pos = end_char,
+	    .kind = span_kind::delimiter,
 	};
+}
+
+word_span line::get_delimiter_span_at(int char_pos) const
+{
+	std::shared_lock lock(mutex_);
+	return get_delimiter_span_at_unlocked(char_pos);
 }
 
 std::string line::get_delimiter_at(int char_pos) const
 {
 	return get_delimiter_span_at(char_pos).word;
+}
+
+word_span line::get_element_span_at_unlocked(int char_pos, std::string_view extra) const
+{
+	int total_chars = static_cast<int>(attributes_.size());
+	if (total_chars == 0 || char_pos < 0 || char_pos > total_chars) {
+		return {};
+	}
+
+	int ref_pos = char_pos;
+	if (ref_pos == total_chars) {
+		ref_pos--;
+	}
+
+	size_t ref_byte = utf8::char_to_byte_offset(text_, ref_pos);
+	if (ref_byte >= text_.size()) {
+		return {};
+	}
+
+	if (utf8::is_space_at_byte(text_, ref_byte)) {
+		return get_whitespace_span_at_unlocked(char_pos);
+	}
+	if (utf8::is_word_char_at_byte(text_, ref_byte, extra)) {
+		return get_word_span_at_unlocked(char_pos, extra);
+	}
+	return get_delimiter_span_at_unlocked(char_pos);
+}
+
+word_span line::get_element_span_at(int char_pos, std::string_view extra) const
+{
+	std::shared_lock lock(mutex_);
+	return get_element_span_at_unlocked(char_pos, extra);
+}
+
+std::string line::get_element_at(int char_pos, std::string_view extra) const
+{
+	return get_element_span_at(char_pos, extra).word;
 }
 
 void line::get_content(std::string &out_text, std::vector<syntax_attribute> &out_attrs) const
