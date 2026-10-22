@@ -1045,6 +1045,40 @@ int main()
 			assert(doc_nav.get_cursor_y() == 2); // moved to Line 2
 			assert(doc_nav.get_cursor_x() == 0);
 
+			// Multi-char delimiter navigation (e.g. std::string)
+			document doc_delim(queue);
+			doc_delim.insert_text("std::string");
+			doc_delim.set_cursor_position(0, 0);
+			doc_delim.move_next_word();
+			assert(doc_delim.get_cursor_x() == 3); // on first ':'
+			doc_delim.move_next_word();
+			assert(doc_delim.get_cursor_x() == 5); // on 's' in "string", jumping over "::"
+			doc_delim.move_next_word();
+			assert(doc_delim.get_cursor_x() == 11); // end of line
+
+			// Multi-char delimiter backward navigation
+			doc_delim.move_prev_word();
+			assert(doc_delim.get_cursor_x() == 5); // back to 's' in "string"
+			doc_delim.move_prev_word();
+			assert(doc_delim.get_cursor_x() == 3); // back to first ':' of "::"
+			doc_delim.move_prev_word();
+			assert(doc_delim.get_cursor_x() == 0); // back to "std"
+
+			// Multi-char delimiter deletion (delete_word_forward / delete_word_backward)
+			document doc_del_fwd(queue);
+			doc_del_fwd.insert_text("std::string");
+			doc_del_fwd.set_cursor_position(3, 0); // at first ':'
+			doc_del_fwd.delete_word_forward();
+			assert(doc_del_fwd.get_line(0)->get_text() == "stdstring");
+			assert(doc_del_fwd.get_cursor_x() == 3);
+
+			document doc_del_bwd(queue);
+			doc_del_bwd.insert_text("std::string");
+			doc_del_bwd.set_cursor_position(5, 0); // at 's' of "string"
+			doc_del_bwd.delete_word_backward();
+			assert(doc_del_bwd.get_line(0)->get_text() == "stdstring");
+			assert(doc_del_bwd.get_cursor_x() == 3);
+
 			// Line wrap backward
 			doc_nav.move_prev_word();
 			assert(doc_nav.get_cursor_y() == 1);

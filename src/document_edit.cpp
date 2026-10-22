@@ -185,20 +185,14 @@ void document::delete_word_forward()
 		return;
 	}
 
-	// Determine the forward word boundary to delete using get_word_span_at.
-	// If starting exactly on a terminator (e.g. quote, parenthesis, or delimiter),
-	// delete only that single terminator character.
-	// Otherwise, delete the word from the cursor to its end boundary,
+	// Determine the forward element boundary to delete using get_element_span_at.
+	// Delete the element (word, whitespace, or delimiter run) from the cursor to its end boundary,
 	// and clean up any trailing whitespace.
 	auto &cur_line = *lines_[cursor_y_];
 	int i = cursor_x_;
 
-	if (cur_line.is_terminator_at(i)) {
-		i++;
-	} else if (auto span = cur_line.get_word_span_at(i); !span.empty()) {
+	if (auto span = cur_line.get_element_span_at(i); !span.empty()) {
 		i = span.end_char_pos;
-	} else if (auto ws = cur_line.get_whitespace_span_at(i); !ws.empty()) {
-		i = ws.end_char_pos;
 	} else if (i < line_char_len) {
 		i++;
 	}
@@ -265,12 +259,10 @@ void document::delete_word_backward()
 		i = ws.start_char_pos;
 	}
 
-	// 2. If not at start of line, determine backward word boundary or single terminator
+	// 2. If not at start of line, determine backward element boundary using get_element_span_at
 	if (i > 0) {
 		int target_pos = i - 1;
-		if (cur_line.is_terminator_at(target_pos)) {
-			i = target_pos;
-		} else if (auto span = cur_line.get_word_span_at(target_pos); !span.empty()) {
+		if (auto span = cur_line.get_element_span_at(target_pos); !span.empty()) {
 			i = span.start_char_pos;
 		} else {
 			i = target_pos;

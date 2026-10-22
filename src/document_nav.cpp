@@ -159,12 +159,8 @@ void document::move_next_word()
 	int line_char_len = cur_line.length_in_chars();
 	int i = cursor_x_;
 
-	if (cur_line.is_terminator_at(i)) {
-		i++;
-	} else if (auto span = cur_line.get_word_span_at(i); !span.empty()) {
+	if (auto span = cur_line.get_element_span_at(i); !span.empty()) {
 		i = span.end_char_pos;
-	} else if (auto ws = cur_line.get_whitespace_span_at(i); !ws.empty()) {
-		i = ws.end_char_pos;
 	} else if (i < line_char_len) {
 		i++;
 	}
@@ -207,12 +203,10 @@ void document::move_prev_word()
 		i = ws.start_char_pos;
 	}
 
-	// 2. If not at start of line, determine backward word boundary or single terminator
+	// 2. If not at start of line, determine backward element boundary
 	if (i > 0) {
 		int target_pos = i - 1;
-		if (cur_line.is_terminator_at(target_pos)) {
-			i = target_pos;
-		} else if (auto span = cur_line.get_word_span_at(target_pos); !span.empty()) {
+		if (auto span = cur_line.get_element_span_at(target_pos); !span.empty()) {
 			i = span.start_char_pos;
 		} else {
 			i = target_pos;
