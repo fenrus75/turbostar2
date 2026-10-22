@@ -355,56 +355,22 @@ bool window::process_events()
 						span = l->get_whitespace_span_at(click_char);
 					}
 					if (span.empty()) {
-						// Delimiter / punctuation: expand contiguous identical characters
-						int start_pos = click_char;
-						int end_pos = click_char + 1;
-						std::string text = l->get_text();
-						size_t byte_pos = l->char_to_byte_offset(click_char);
-						if (byte_pos < text.size()) {
-							size_t ch_len = utf8::char_len(static_cast<unsigned char>(text[byte_pos]));
-							std::string_view target_ch = std::string_view(text).substr(byte_pos, ch_len);
+						span = l->get_delimiter_span_at(click_char);
+					}
 
-							// Expand backward
-							size_t prev_byte = byte_pos;
-							while (start_pos > 0 && prev_byte > 0) {
-								size_t b = prev_byte - 1;
-								while (b > 0 && (static_cast<unsigned char>(text[b]) & 0xC0) == 0x80) {
-									b--;
-								}
-								size_t prev_len = utf8::char_len(static_cast<unsigned char>(text[b]));
-								if (std::string_view(text).substr(b, prev_len) != target_ch) {
-									break;
-								}
-								prev_byte = b;
-								start_pos--;
-							}
+					if (!span.empty()) {
+						is_mouse_selecting_ = true;
+						mouse_sel_start_char_ = span.start_char_pos;
+						mouse_sel_start_line_ = click_row;
+						mouse_sel_end_char_ = span.end_char_pos;
+						mouse_sel_end_line_ = click_row;
 
-							// Expand forward
-							size_t next_byte = byte_pos + ch_len;
-							while (end_pos < line_chars && next_byte < text.size()) {
-								size_t next_len = utf8::char_len(static_cast<unsigned char>(text[next_byte]));
-								if (std::string_view(text).substr(next_byte, next_len) != target_ch) {
-									break;
-								}
-								next_byte += next_len;
-								end_pos++;
-							}
+						std::string selected_text = get_mouse_selected_text();
+						if (!selected_text.empty()) {
+							ansi::copy_to_clipboard(selected_text);
 						}
-						span.start_char_pos = start_pos;
-						span.end_char_pos = end_pos;
+						invalidate();
 					}
-
-					is_mouse_selecting_ = true;
-					mouse_sel_start_char_ = span.start_char_pos;
-					mouse_sel_start_line_ = click_row;
-					mouse_sel_end_char_ = span.end_char_pos;
-					mouse_sel_end_line_ = click_row;
-
-					std::string selected_text = get_mouse_selected_text();
-					if (!selected_text.empty()) {
-						ansi::copy_to_clipboard(selected_text);
-					}
-					invalidate();
 				}
 			}
 		} else if (ev->type == event_type::mouse_triple_click && doc_) {

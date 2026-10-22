@@ -170,6 +170,75 @@ word_span line::get_whitespace_span_at(int char_pos) const
 	};
 }
 
+word_span line::get_delimiter_span_at(int char_pos) const
+{
+	std::shared_lock lock(mutex_);
+	int total_chars = static_cast<int>(attributes_.size());
+	if (total_chars == 0 || char_pos < 0 || char_pos > total_chars) {
+		return {};
+	}
+
+	// Reference position: if parked at EOL (char_pos == total_chars), test the preceding character
+	int ref_pos = char_pos;
+	if (ref_pos == total_chars) {
+		ref_pos--;
+	}
+
+	size_t ref_byte = utf8::char_to_byte_offset(text_, ref_pos);
+	if (ref_byte >= text_.size()) {
+		return {};
+	}
+
+	// Must not be a word char and must not be whitespace
+	if (utf8::is_word_char_at_byte(text_, ref_byte) || utf8::is_space_at_byte(text_, ref_byte)) {
+		return {};
+	}
+
+	size_t ref_len = utf8::char_len(static_cast<unsigned char>(text_[ref_byte]));
+	std::string_view target_ch = std::string_view(text_).substr(ref_byte, ref_len);
+
+	// Expand backward along UTF-8 character boundaries matching identical delimiter character
+	int start_char = ref_pos;
+	size_t cur_byte = ref_byte;
+	while (start_char > 0 && cur_byte > 0) {
+		size_t prev_byte = cur_byte - 1;
+		while (prev_byte > 0 && (static_cast<unsigned char>(text_[prev_byte]) & 0xC0) == 0x80) {
+			prev_byte--;
+		}
+		size_t prev_len = utf8::char_len(static_cast<unsigned char>(text_[prev_byte]));
+		if (std::string_view(text_).substr(prev_byte, prev_len) != target_ch) {
+			break;
+		}
+		cur_byte = prev_byte;
+		start_char--;
+	}
+	size_t start_byte = cur_byte;
+
+	// Expand forward along UTF-8 character boundaries matching identical delimiter character
+	int end_char = ref_pos + 1;
+	cur_byte = ref_byte + ref_len;
+	while (end_char < total_chars && cur_byte < text_.size()) {
+		size_t next_len = utf8::char_len(static_cast<unsigned char>(text_[cur_byte]));
+		if (std::string_view(text_).substr(cur_byte, next_len) != target_ch) {
+			break;
+		}
+		cur_byte += next_len;
+		end_char++;
+	}
+	size_t end_byte = cur_byte;
+
+	return word_span{
+	    .word = text_.substr(start_byte, end_byte - start_byte),
+	    .start_char_pos = start_char,
+	    .end_char_pos = end_char,
+	};
+}
+
+std::string line::get_delimiter_at(int char_pos) const
+{
+	return get_delimiter_span_at(char_pos).word;
+}
+
 void line::get_content(std::string &out_text, std::vector<syntax_attribute> &out_attrs) const
 {
 	std::shared_lock lock(mutex_);

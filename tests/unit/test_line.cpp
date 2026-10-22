@@ -416,6 +416,78 @@ int main()
 		assert(span_cjk2.word == "　　");
 	}
 
+	// Test get_delimiter_span_at and get_delimiter_at
+	{
+		line l_delims("foo(bar) == baz «test» ;;;");
+		// 0..2: "foo"
+		// 3: '('
+		// 4..6: "bar"
+		// 7: ')'
+		// 8: ' '
+		// 9..10: "=="
+		// 11: ' '
+		// 12..14: "baz"
+		// 15: ' '
+		// 16: '«'
+		// 17..20: "test"
+		// 21: '»'
+		// 22: ' '
+		// 23..25: ";;;"
+
+		// On word char -> empty
+		assert(l_delims.get_delimiter_span_at(0).empty());
+		assert(l_delims.get_delimiter_at(0).empty());
+
+		// On whitespace -> empty
+		assert(l_delims.get_delimiter_span_at(8).empty());
+		assert(l_delims.get_delimiter_at(8).empty());
+
+		// On '(' single delimiter
+		auto span_paren = l_delims.get_delimiter_span_at(3);
+		assert(!span_paren.empty());
+		assert(span_paren.word == "(");
+		assert(span_paren.start_char_pos == 3);
+		assert(span_paren.end_char_pos == 4);
+		assert(l_delims.get_delimiter_at(3) == "(");
+
+		// On '==' contiguous delimiters
+		auto span_eq = l_delims.get_delimiter_span_at(9);
+		assert(!span_eq.empty());
+		assert(span_eq.word == "==");
+		assert(span_eq.start_char_pos == 9);
+		assert(span_eq.end_char_pos == 11);
+		assert(l_delims.get_delimiter_at(10) == "==");
+
+		// On '«' Unicode delimiter
+		auto span_guillemet = l_delims.get_delimiter_span_at(16);
+		assert(!span_guillemet.empty());
+		assert(span_guillemet.word == "«");
+		assert(span_guillemet.start_char_pos == 16);
+		assert(span_guillemet.end_char_pos == 17);
+
+		// On ';;;' at end of line
+		auto span_semi = l_delims.get_delimiter_span_at(24);
+		assert(!span_semi.empty());
+		assert(span_semi.word == ";;;");
+		assert(span_semi.start_char_pos == 23);
+		assert(span_semi.end_char_pos == 26);
+
+		// Parked at EOL (char_pos == total_chars) tests preceding char
+		auto span_eol = l_delims.get_delimiter_span_at(26);
+		assert(!span_eol.empty());
+		assert(span_eol.word == ";;;");
+		assert(span_eol.start_char_pos == 23);
+		assert(span_eol.end_char_pos == 26);
+
+		// Out of bounds / negative
+		assert(l_delims.get_delimiter_span_at(-1).empty());
+		assert(l_delims.get_delimiter_span_at(100).empty());
+
+		// Empty line
+		line l_empty("");
+		assert(l_empty.get_delimiter_span_at(0).empty());
+	}
+
 	std::cout << "Testing self-merge...\n";
 	line l_merge("hello");
 	l_merge.merge(l_merge);
