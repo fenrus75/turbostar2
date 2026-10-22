@@ -197,6 +197,56 @@ int main()
 		assert(result.find("[pkg-config: FAILED]") != std::string::npos);
 	}
 
+	// 14. Linker error diagnostic hint: known library symbol (sqlite3)
+	{
+		nlohmann::json args = {
+			{"code", "extern \"C\" const char* sqlite3_libversion(); int main() { sqlite3_libversion(); return 0; }"}
+		};
+
+		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
+		std::cout << "Result 14: " << result << std::endl;
+		assert(result.find("[Compilation: FAILED]") != std::string::npos);
+		assert(result.find("[Tip: Link failure for symbol(s) 'sqlite3_libversion'. Recommended fix: add packages: [\"sqlite3\"] or ldflags: [\"-lsqlite3\"].]") != std::string::npos);
+	}
+
+	// 15. Linker error diagnostic hint: known library symbol (zlib)
+	{
+		nlohmann::json args = {
+			{"code", "extern \"C\" int deflate(void*, int); int main() { deflate(nullptr, 0); return 0; }"}
+		};
+
+		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
+		std::cout << "Result 15: " << result << std::endl;
+		assert(result.find("[Compilation: FAILED]") != std::string::npos);
+		assert(result.find("[Tip: Link failure for symbol(s) 'deflate'. Recommended fix: add packages: [\"zlib\"] or ldflags: [\"-lz\"].]") != std::string::npos);
+	}
+
+	// 16. Linker error diagnostic hint: unknown symbol (general reminder with sources)
+	{
+		nlohmann::json args = {
+			{"code", "void custom_missing_probe_fn_123(); int main() { custom_missing_probe_fn_123(); return 0; }"}
+		};
+
+		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
+		std::cout << "Result 16: " << result << std::endl;
+		assert(result.find("[Compilation: FAILED]") != std::string::npos);
+		assert(result.find("custom_missing_probe_fn_123") != std::string::npos);
+		assert(result.find("sources: [\"path/to/file.cpp\"]") != std::string::npos);
+	}
+
+	// 17. Linker error diagnostic hint: missing library (-l...)
+	{
+		nlohmann::json args = {
+			{"code", "int main() { return 0; }"},
+			{"ldflags", nlohmann::json::array({"-lmissing_probe_lib_999"})}
+		};
+
+		std::string result = registry.execute_tool("run_cpp", args.dump(), ctx);
+		std::cout << "Result 17: " << result << std::endl;
+		assert(result.find("[Compilation: FAILED]") != std::string::npos);
+		assert(result.find("Linker could not find '-lmissing_probe_lib_999'") != std::string::npos);
+	}
+
 	std::cout << "run_cpp tests passed successfully.\n";
 	return 0;
 }

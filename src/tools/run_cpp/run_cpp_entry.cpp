@@ -10,10 +10,151 @@
 #include <fstream>
 #include <format>
 #include <random>
+#include <set>
 #include <sstream>
+#include <string_view>
+#include <re2/re2.h>
 
 namespace tools
 {
+
+namespace
+{
+
+struct lib_hint {
+	std::vector<std::string_view> prefixes;
+	std::vector<std::string_view> exact_symbols;
+	std::string_view package;
+	std::string_view ldflag;
+};
+
+static const std::vector<lib_hint> KNOWN_HINTS = {
+	{{"sqlite3_"}, {}, "sqlite3", "-lsqlite3"},
+	{{"deflate", "inflate", "zlib_"}, {"crc32", "adler32", "zlibVersion"}, "zlib", "-lz"},
+	{{"png_"}, {}, "libpng", "-lpng"},
+	{{"curl_"}, {}, "libcurl", "-lcurl"},
+	{{"SSL_", "TLS_", "EVP_", "SHA256_", "SHA512_", "MD5_", "BIO_", "CRYPTO_"}, {"OpenSSL_version"}, "openssl", "-lssl -lcrypto"},
+	{{}, {"initscr", "endwin", "wrefresh", "mvwprintw", "waddch", "nodelay", "keypad", "cbreak", "raw", "noraw", "echo", "noecho"}, "ncursesw", "-lncursesw"},
+	{{"pthread_"}, {"sem_init", "sem_wait", "sem_post", "sem_destroy"}, "", "-pthread"},
+	{{}, {"cos", "sin", "tan", "acos", "asin", "atan", "atan2", "cosh", "sinh", "tanh", "exp", "log", "log10", "pow", "sqrt", "ceil", "floor", "fmod", "hypot", "round", "fabs"}, "", "-lm"},
+	{{}, {"dlopen", "dlclose", "dlsym", "dlerror"}, "", "-ldl"},
+	{{"pcre2_"}, {}, "libpcre2-8", "-lpcre2-8"},
+	{{"git_"}, {}, "libgit2", "-lgit2"},
+};
+
+std::string generate_linker_diagnostic_tip(/* untrusted */ std::string_view untrusted_output)
+{
+	bool is_link_failure = (untrusted_output.find("collect2: error: ld returned") != std::string_view::npos ||
+				untrusted_output.find("linker command failed") != std::string_view::npos ||
+				untrusted_output.find("/bin/ld:") != std::string_view::npos ||
+				untrusted_output.find("undefined reference to") != std::string_view::npos ||
+				untrusted_output.find("undefined symbol:") != std::string_view::npos);
+	if (!is_link_failure) {
+		return "";
+	}
+
+	std::vector<std::string> cannot_find_libs;
+	static const re2::RE2 re_cannot_find(R"(cannot find -l([^:\s]+))");
+	re2::StringPiece input(untrusted_output.data(), untrusted_output.size());
+	std::string untrusted_lib;
+	while (re2::RE2::FindAndConsume(&input, re_cannot_find, &untrusted_lib)) {
+		if (fs_utils::is_safe_for_ui(untrusted_lib)) {
+			cannot_find_libs.push_back(untrusted_lib);
+		}
+	}
+	if (!cannot_find_libs.empty()) {
+		std::string libs_str;
+		for (size_t i = 0; i < cannot_find_libs.size(); ++i) {
+			if (i > 0) libs_str += ", ";
+			libs_str += std::format("'-l{}'", cannot_find_libs[i]);
+		}
+		return std::format("\n[Tip: Linker could not find {}. Verify that the library is installed, check library search paths via 'ldflags: [\"-L...\"]', or resolve via 'packages: [\"...\"]'.]", libs_str);
+	}
+
+	std::vector<std::string> undef_symbols;
+	std::set<std::string> seen_symbols;
+	static const re2::RE2 re_undef(R"((?:undefined reference to [`'\"‘]([^`'\"’\n]+)[`'\"’]|undefined symbol: ([a-zA-Z0-9_:]+)))");
+	input = re2::StringPiece(untrusted_output.data(), untrusted_output.size());
+	std::string untrusted_sym1;
+	std::string untrusted_sym2;
+	while (re2::RE2::FindAndConsume(&input, re_undef, &untrusted_sym1, &untrusted_sym2)) {
+		std::string untrusted_sym = !untrusted_sym1.empty() ? untrusted_sym1 : untrusted_sym2;
+		if (fs_utils::is_safe_for_ui(untrusted_sym) && !seen_symbols.contains(untrusted_sym)) {
+			seen_symbols.insert(untrusted_sym);
+			undef_symbols.push_back(untrusted_sym);
+			if (undef_symbols.size() >= 5) break;
+		}
+	}
+
+	if (undef_symbols.empty()) {
+		return "\n[Tip: Link failure detected. You can link dependencies via 'packages: [\"...\"]' (e.g. packages: [\"sqlite3\"]) or 'ldflags: [\"-l...\"]', or supply additional translation units via 'sources: [\"path/to/file.cpp\"]'.]";
+	}
+
+	std::vector<std::string> matched_pkgs;
+	std::vector<std::string> matched_ldflags;
+	std::set<std::string> seen_pkgs;
+	std::set<std::string> seen_ldflags;
+	std::vector<std::string> matched_syms;
+
+	for (const auto &sym : undef_symbols) {
+		for (const auto &hint : KNOWN_HINTS) {
+			bool matched = false;
+			for (const auto &p : hint.prefixes) {
+				if (sym.starts_with(p)) { matched = true; break; }
+			}
+			if (!matched) {
+				for (const auto &e : hint.exact_symbols) {
+					if (sym == e) { matched = true; break; }
+				}
+			}
+			if (matched) {
+				matched_syms.push_back(sym);
+				if (!hint.package.empty() && !seen_pkgs.contains(std::string(hint.package))) {
+					seen_pkgs.insert(std::string(hint.package));
+					matched_pkgs.push_back(std::string(hint.package));
+				}
+				if (!hint.ldflag.empty() && !seen_ldflags.contains(std::string(hint.ldflag))) {
+					seen_ldflags.insert(std::string(hint.ldflag));
+					matched_ldflags.push_back(std::string(hint.ldflag));
+				}
+				break;
+			}
+		}
+	}
+
+	if (!matched_pkgs.empty() || !matched_ldflags.empty()) {
+		std::string syms_str;
+		for (size_t i = 0; i < matched_syms.size(); ++i) {
+			if (i > 0) syms_str += ", ";
+			syms_str += std::format("'{}'", matched_syms[i]);
+		}
+		std::string rec;
+		if (!matched_pkgs.empty()) {
+			std::string pkgs_json = "[";
+			for (size_t i = 0; i < matched_pkgs.size(); ++i) {
+				if (i > 0) pkgs_json += ", ";
+				pkgs_json += std::format("\"{}\"", matched_pkgs[i]);
+			}
+			pkgs_json += "]";
+			rec += std::format("packages: {}", pkgs_json);
+		}
+		if (!matched_ldflags.empty()) {
+			if (!rec.empty()) rec += " or ";
+			std::string ld_json = "[";
+			for (size_t i = 0; i < matched_ldflags.size(); ++i) {
+				if (i > 0) ld_json += ", ";
+				ld_json += std::format("\"{}\"", matched_ldflags[i]);
+			}
+			ld_json += "]";
+			rec += std::format("ldflags: {}", ld_json);
+		}
+		return std::format("\n[Tip: Link failure for symbol(s) {}. Recommended fix: add {}.]", syms_str, rec);
+	}
+
+	return std::format("\n[Tip: Link failure for symbol '{}' (undefined reference). You can link dependencies via 'packages: [\"...\"]' (e.g. packages: [\"sqlite3\"]) or 'ldflags: [\"-l...\"]', or supply additional translation units via 'sources: [\"path/to/file.cpp\"]'.]", undef_symbols.front());
+}
+
+} // namespace
 
 run_cpp_tool::run_cpp_tool(run_cpp_args args)
 	: args_(std::move(args))
@@ -309,13 +450,16 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 	compile_runner.set_project_dir(ctx.fs_security.get_working_directory().string());
 	compile_runner.set_timeout(30);
 
-	std::string compile_output = compile_runner.execute_and_get_output(compile_cmd);
+	std::string untrusted_compile_output = compile_runner.execute_and_get_output(compile_cmd);
 	int compile_exit = compile_runner.get_exit_code();
 
 	if (compile_exit != 0) {
 		if (is_temp_src) std::filesystem::remove(src_path);
 		for (const auto &tf : temp_staged_files) std::filesystem::remove(tf);
-		return std::format("<cpp_execution_output>\n[Compilation: FAILED]\n{}\n</cpp_execution_output>", fs_utils::wrap_prompt_untrusted_data_tag("compiler_output", compile_output));
+		std::string linker_tip = generate_linker_diagnostic_tip(untrusted_compile_output);
+		return std::format("<cpp_execution_output>\n[Compilation: FAILED]\n{}{}\n</cpp_execution_output>",
+			fs_utils::wrap_prompt_untrusted_data_tag("compiler_output", untrusted_compile_output),
+			linker_tip);
 	}
 
 	// Prepare execution command with LD_PRELOAD libturbocatch.so
