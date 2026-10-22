@@ -221,58 +221,92 @@ bool code_review_window::process_events()
 		if (ev->type == event_type::key_press && is_active()) {
 			int key = ev->key_code;
 
-			if (key == 21) { // Ctrl-U (Page up)
+			switch (key) {
+			case 21: // Ctrl-U (Page up)
 				detail_scroll_offset_ -= 10;
-				if (detail_scroll_offset_ < 0)
+				if (detail_scroll_offset_ < 0) {
 					detail_scroll_offset_ = 0;
+				}
 				needs_render = true;
-			} else if (key == 22) { // Ctrl-V (Page down)
+				break;
+			case 22: // Ctrl-V (Page down)
 				detail_scroll_offset_ += 10;
 				needs_render = true;
-			} else if (key == 'g' || key == 'G' || key == 10) { // Enter or G
+				break;
+			case 10: // Enter
+			case 'g':
+			case 'G':
 				go_to_source();
 				needs_render = true;
-			} else if (key == 'c' || key == 'C') {
+				break;
+			case 'c':
+			case 'C':
 				confirm_item();
 				needs_render = true;
-			} else if (key == 'd' || key == 'D') {
+				break;
+			case 'd':
+			case 'D':
 				dispute_item();
 				needs_render = true;
-			} else if (key == 'i' || key == 'I') {
+				break;
+			case 'i':
+			case 'I':
 				invalidate_item();
 				needs_render = true;
-			} else if (key == 'r' || key == 'R') {
+				break;
+			case 'r':
+			case 'R':
 				resolve_item();
 				needs_render = true;
-			} else if (key == 'v' || key == 'V') {
+				break;
+			case 'v':
+			case 'V':
 				verify_item();
 				needs_render = true;
-			} else if (key == 'e' || key == 'E') {
+				break;
+			case 'e':
+			case 'E':
 				edit_item();
 				needs_render = true;
-			} else if (key == 'a' || key == 'A') {
+				break;
+			case 'a':
+			case 'A':
 				add_comment();
 				needs_render = true;
-			} else if (key == 'p' || key == 'P') {
+				break;
+			case 'p':
+			case 'P':
 				reprocess_item();
 				needs_render = true;
-			} else if (key == 'x' || key == 'X') {
+				break;
+			case 'x':
+			case 'X':
 				global_queue_.push(event_type::codereview_action, -1, "clear_all");
 				needs_render = true;
-			} else if (key == 's' || key == 'S') {
+				break;
+			case 's':
+			case 'S': {
 				int selected_idx = listbox_ ? listbox_->get_selected_index() : -1;
-				if (selected_idx >= 0 && selected_idx < (int)current_items_.size()) {
+				if (selected_idx >= 0 && selected_idx < static_cast<int>(current_items_.size())) {
 					global_queue_.push(event_type::codereview_action, current_items_[selected_idx].id, "state");
 				}
 				needs_render = true;
-			} else if (key == 'y' || key == 'Y') {
+				break;
+			}
+			case 'y':
+			case 'Y': {
 				int selected_idx = listbox_ ? listbox_->get_selected_index() : -1;
-				if (selected_idx >= 0 && selected_idx < (int)current_items_.size()) {
+				if (selected_idx >= 0 && selected_idx < static_cast<int>(current_items_.size())) {
 					global_queue_.push(event_type::codereview_action, current_items_[selected_idx].id, "severity");
 				}
 				needs_render = true;
-			} else if (listbox_ && listbox_->handle_event(*ev, 0, 0)) {
-				needs_render = true;
+				break;
+			}
+			default:
+				if (listbox_ && listbox_->handle_event(*ev, 0, 0)) {
+					needs_render = true;
+				}
+				break;
 			}
 		} else if (ev->type == event_type::mouse_click || ev->type == event_type::mouse_scroll_up ||
 			   ev->type == event_type::mouse_scroll_down) {
