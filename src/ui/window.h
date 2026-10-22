@@ -193,6 +193,7 @@ class window
 		return mouse_sel_start_line_ != -1 && mouse_sel_end_line_ != -1 &&
 		       (mouse_sel_start_line_ != mouse_sel_end_line_ || mouse_sel_start_char_ != mouse_sel_end_char_);
 	}
+	virtual std::string get_mouse_selected_text() const;
 
       protected:
 	int x_, y_, width_, height_;
@@ -235,7 +236,6 @@ class window
 	int mouse_sel_start_line_{-1};
 	int mouse_sel_end_char_{-1};
 	int mouse_sel_end_line_{-1};
-	virtual std::string get_mouse_selected_text() const;
 
       private:
 	event_queue window_queue_;

@@ -174,6 +174,70 @@ int main()
 		assert(doc->get_cursor_x() == 0); // back to start of "hello"
 	}
 
+	// Test 6: Mouse double click word, whitespace, and delimiter selection
+	{
+		auto doc6 = std::make_shared<document>(global_queue);
+		doc6->append_line("hello   world «bonjour» foo::bar ===");
+		// 0..4: "hello"
+		// 5..7: "   "
+		// 8..12: "world"
+		// 13: ' '
+		// 14: '«'
+		// 15..21: "bonjour"
+		// 22: '»'
+		// 23: ' '
+		// 24..26: "foo"
+		// 27..28: "::"
+		// 29..31: "bar"
+		// 32: ' '
+		// 33..35: "==="
+
+		window win6(2, 0, 0, 80, 24, "Double Click Window");
+		win6.attach_document(doc6);
+
+		auto click_and_assert = [&](int char_pos, const std::string &expected) {
+			editor_event ev_dbl;
+			ev_dbl.type = event_type::mouse_double_click;
+			ev_dbl.mouse_y = 1; // row 0
+			int col = doc6->get_line(0)->char_to_display_col(char_pos);
+			ev_dbl.mouse_x = 1 + col;
+			win6.get_window_queue().push(ev_dbl);
+			win6.process_events();
+
+			assert(win6.has_mouse_selection());
+			assert(win6.get_mouse_selected_text() == expected);
+		};
+
+		// 1. Double click on "hello"
+		click_and_assert(2, "hello");
+
+		// 2. Double click on whitespace "   "
+		click_and_assert(6, "   ");
+
+		// 3. Double click on "world"
+		click_and_assert(10, "world");
+
+		// 4. Double click on "bonjour" inside «bonjour»
+		click_and_assert(16, "bonjour");
+
+		// 5. Double click on "foo" in foo::bar
+		click_and_assert(25, "foo");
+
+		// 6. Double click on "::" delimiter in foo::bar
+		click_and_assert(27, "::");
+
+		// 7. Double click on "==="
+		click_and_assert(34, "===");
+
+		// 8. Double click on CJK word and fullwidth space "日本語　テスト"
+		doc6->clear();
+		doc6->append_line("日本語　テスト");
+		// 0: '日', 1: '本', 2: '語', 3: '　', 4: 'テ', 5: 'ス', 6: 'ト'
+		click_and_assert(1, "日本語");
+		click_and_assert(3, "　");
+		click_and_assert(5, "テスト");
+	}
+
 	std::cout << "Test window scrollbar click passed!\n";
 	return 0;
 }

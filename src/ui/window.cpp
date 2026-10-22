@@ -348,73 +348,56 @@ bool window::process_events()
 				int click_char = l->display_col_to_char_pos(click_col_display);
 				doc_->move_cursor(click_char - doc_->get_cursor_x(), click_row - doc_->get_cursor_y());
 
-				// Get all UTF-8 characters of this line
-				std::vector<std::string> chars;
-				size_t offset = 0;
-				std::string uc;
-				while (l->next_utf8_character(offset, uc)) {
-					chars.push_back(uc);
-				}
-
-				if (click_char >= 0 && click_char < static_cast<int>(chars.size())) {
-					auto is_word_char = [](std::string_view u) -> bool {
-						if (u.empty()) return false;
-						if (utf8::is_space_at_byte(u, 0)) return false;
-						if (u.length() > 1) return true; // UTF-8 multibyte non-space characters
-						char c = u[0];
-						if (c == '"' || c == '\'' || c == ';' || c == ',' || c == '.' ||
-						    c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}' ||
-						    c == '=' || c == '+' || c == '-' || c == '*' || c == '/' || c == '&' ||
-						    c == '|' || c == '^' || c == '%' || c == '<' || c == '>' || c == '!' || c == '?') {
-							return false;
-						}
-						return true;
-					};
-
-					const std::string &click_uc = chars[click_char];
-					bool is_click_word = is_word_char(click_uc);
-					bool is_click_space = utf8::is_space_at_byte(click_uc, 0);
-
-					int start_pos = click_char;
-					int end_pos = click_char;
-
-					// Expand left
-					while (start_pos > 0) {
-						const std::string &prev_uc = chars[start_pos - 1];
-						bool is_prev_word = is_word_char(prev_uc);
-						bool is_prev_space = utf8::is_space_at_byte(prev_uc, 0);
-
-						if (is_click_word && is_prev_word) {
-							start_pos--;
-						} else if (is_click_space && is_prev_space) {
-							start_pos--;
-						} else if (!is_click_word && !is_click_space && prev_uc == click_uc) {
-							start_pos--;
-						} else {
-							break;
-						}
+				int line_chars = l->length_in_chars();
+				if (click_char >= 0 && click_char < line_chars) {
+					word_span span = l->get_word_span_at(click_char);
+					if (span.empty()) {
+						span = l->get_whitespace_span_at(click_char);
 					}
-					// Expand right
-					while (end_pos + 1 < static_cast<int>(chars.size())) {
-						const std::string &next_uc = chars[end_pos + 1];
-						bool is_next_word = is_word_char(next_uc);
-						bool is_next_space = utf8::is_space_at_byte(next_uc, 0);
+					if (span.empty()) {
+						// Delimiter / punctuation: expand contiguous identical characters
+						int start_pos = click_char;
+						int end_pos = click_char + 1;
+						std::string text = l->get_text();
+						size_t byte_pos = l->char_to_byte_offset(click_char);
+						if (byte_pos < text.size()) {
+							size_t ch_len = utf8::char_len(static_cast<unsigned char>(text[byte_pos]));
+							std::string_view target_ch = std::string_view(text).substr(byte_pos, ch_len);
 
-						if (is_click_word && is_next_word) {
-							end_pos++;
-						} else if (is_click_space && is_next_space) {
-							end_pos++;
-						} else if (!is_click_word && !is_click_space && next_uc == click_uc) {
-							end_pos++;
-						} else {
-							break;
+							// Expand backward
+							size_t prev_byte = byte_pos;
+							while (start_pos > 0 && prev_byte > 0) {
+								size_t b = prev_byte - 1;
+								while (b > 0 && (static_cast<unsigned char>(text[b]) & 0xC0) == 0x80) {
+									b--;
+								}
+								size_t prev_len = utf8::char_len(static_cast<unsigned char>(text[b]));
+								if (std::string_view(text).substr(b, prev_len) != target_ch) {
+									break;
+								}
+								prev_byte = b;
+								start_pos--;
+							}
+
+							// Expand forward
+							size_t next_byte = byte_pos + ch_len;
+							while (end_pos < line_chars && next_byte < text.size()) {
+								size_t next_len = utf8::char_len(static_cast<unsigned char>(text[next_byte]));
+								if (std::string_view(text).substr(next_byte, next_len) != target_ch) {
+									break;
+								}
+								next_byte += next_len;
+								end_pos++;
+							}
 						}
+						span.start_char_pos = start_pos;
+						span.end_char_pos = end_pos;
 					}
 
 					is_mouse_selecting_ = true;
-					mouse_sel_start_char_ = start_pos;
+					mouse_sel_start_char_ = span.start_char_pos;
 					mouse_sel_start_line_ = click_row;
-					mouse_sel_end_char_ = end_pos + 1;
+					mouse_sel_end_char_ = span.end_char_pos;
 					mouse_sel_end_line_ = click_row;
 
 					std::string selected_text = get_mouse_selected_text();
