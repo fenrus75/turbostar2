@@ -196,12 +196,7 @@ word_span line::get_delimiter_span_at_unlocked(int char_pos) const
 	}
 
 	size_t ref_byte = utf8::char_to_byte_offset(text_, ref_pos);
-	if (ref_byte >= text_.size()) {
-		return {};
-	}
-
-	// Must not be a word char and must not be whitespace
-	if (utf8::is_word_char_at_byte(text_, ref_byte) || utf8::is_space_at_byte(text_, ref_byte)) {
+	if (ref_byte >= text_.size() || utf8::is_word_char_at_byte(text_, ref_byte) || utf8::is_space_at_byte(text_, ref_byte)) {
 		return {};
 	}
 
@@ -270,10 +265,6 @@ word_span line::get_element_span_at_unlocked(int char_pos, std::string_view extr
 	}
 
 	size_t ref_byte = utf8::char_to_byte_offset(text_, ref_pos);
-	if (ref_byte >= text_.size()) {
-		return {};
-	}
-
 	if (utf8::is_space_at_byte(text_, ref_byte)) {
 		return get_whitespace_span_at_unlocked(char_pos);
 	}
