@@ -67,13 +67,8 @@ bool diff_window::process_events()
 					}
 					break;
 				case 27: // ESC
-				{
-					editor_event close_ev;
-					close_ev.type = event_type::close_window;
-					close_ev.key_code = id_;
-					global_queue_.push(close_ev);
+					global_queue_.push(event_type::close_window, id_);
 					break;
-				}
 			}
 		}
 
@@ -177,10 +172,7 @@ void diff_window::restore_state()
 		doc_->undo();
 	}
 
-	editor_event ev;
-	ev.type = event_type::close_window;
-	ev.key_code = id_;
-	global_queue_.push(ev);
+	global_queue_.push(event_type::close_window, id_);
 }
 
 void diff_window::set_cursor_position() const

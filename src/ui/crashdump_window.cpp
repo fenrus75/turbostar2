@@ -283,10 +283,7 @@ void crashdump_window::go_to_source()
 		const auto &dump = current_dumps_[selected_idx];
 		auto loc = get_crash_location(dump);
 		if (loc) {
-			editor_event open_ev;
-			open_ev.type = event_type::open_file;
-			open_ev.payload = loc->first + ":" + std::to_string(loc->second);
-			global_queue_.push(open_ev);
+			global_queue_.push(event_type::open_file, std::format("{}:{}", loc->first, loc->second));
 		}
 	}
 }
@@ -424,10 +421,7 @@ void crashdump_window::debug_coredump()
 	if (selected_idx >= 0 && selected_idx < (int)current_dumps_.size()) {
 		const auto &dump = current_dumps_[selected_idx];
 		if (has_coredump(dump.crash_id)) {
-			editor_event debug_ev;
-			debug_ev.type = event_type::agent_start_coredump_gdb;
-			debug_ev.payload = dump.crash_id;
-			global_queue_.push(debug_ev);
+			global_queue_.push(event_type::agent_start_coredump_gdb, dump.crash_id);
 		}
 	}
 }

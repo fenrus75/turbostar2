@@ -164,7 +164,7 @@ void code_review_window::draw_content(bool /*cursor_only*/) const
 			lines.push_back(std::format("Resolved in Commit: {}", item.resolved_in_commit));
 		}
 		lines.push_back("------------------------------------------------------------------");
-		lines.push_back("Summary: " + item.summary);
+		lines.push_back(std::format("Summary: {}", item.summary));
 		lines.push_back("------------------------------------------------------------------");
 		lines.push_back("Description:");
 
@@ -257,30 +257,18 @@ bool code_review_window::process_events()
 				reprocess_item();
 				needs_render = true;
 			} else if (key == 'x' || key == 'X') {
-				editor_event action_ev;
-				action_ev.type = event_type::codereview_action;
-				action_ev.key_code = -1;
-				action_ev.payload = "clear_all";
-				global_queue_.push(action_ev);
+				global_queue_.push(event_type::codereview_action, -1, "clear_all");
 				needs_render = true;
 			} else if (key == 's' || key == 'S') {
 				int selected_idx = listbox_ ? listbox_->get_selected_index() : -1;
 				if (selected_idx >= 0 && selected_idx < (int)current_items_.size()) {
-					editor_event action_ev;
-					action_ev.type = event_type::codereview_action;
-					action_ev.key_code = current_items_[selected_idx].id;
-					action_ev.payload = "state";
-					global_queue_.push(action_ev);
+					global_queue_.push(event_type::codereview_action, current_items_[selected_idx].id, "state");
 				}
 				needs_render = true;
 			} else if (key == 'y' || key == 'Y') {
 				int selected_idx = listbox_ ? listbox_->get_selected_index() : -1;
 				if (selected_idx >= 0 && selected_idx < (int)current_items_.size()) {
-					editor_event action_ev;
-					action_ev.type = event_type::codereview_action;
-					action_ev.key_code = current_items_[selected_idx].id;
-					action_ev.payload = "severity";
-					global_queue_.push(action_ev);
+					global_queue_.push(event_type::codereview_action, current_items_[selected_idx].id, "severity");
 				}
 				needs_render = true;
 			} else if (listbox_ && listbox_->handle_event(*ev, 0, 0)) {
@@ -292,11 +280,7 @@ bool code_review_window::process_events()
 				int click_x = ev->mouse_x - x_;
 				int selected_idx = listbox_ ? listbox_->get_selected_index() : -1;
 				if (click_x >= 125) {
-					editor_event action_ev;
-					action_ev.type = event_type::codereview_action;
-					action_ev.key_code = -1;
-					action_ev.payload = "clear_all";
-					global_queue_.push(action_ev);
+					global_queue_.push(event_type::codereview_action, -1, "clear_all");
 					needs_render = true;
 				} else if (selected_idx >= 0 && selected_idx < (int)current_items_.size()) {
 					// Check click coordinates relative to actions list on bottom border
@@ -359,10 +343,7 @@ void code_review_window::go_to_source()
 				p = std::filesystem::path(proj_root) / p;
 			}
 			std::string abs_file = p.lexically_normal().string();
-			editor_event open_ev;
-			open_ev.type = event_type::open_file;
-			open_ev.payload = abs_file + ":" + std::to_string(std::max(1, item.line_number));
-			global_queue_.push(open_ev);
+			global_queue_.push(event_type::open_file, std::format("{}:{}", abs_file, std::max(1, item.line_number)));
 		}
 	}
 }
@@ -374,10 +355,7 @@ void code_review_window::confirm_item()
 		int id = current_items_[selected_idx].id;
 		if (codereview_manager::get_instance().confirm_code_review_item(id)) {
 			codereview_manager::get_instance().save_project();
-			editor_event update_ev;
-			update_ev.type = event_type::codereview_updated;
-			update_ev.key_code = id;
-			global_queue_.push(update_ev);
+			global_queue_.push(event_type::codereview_updated, id);
 		}
 	}
 }
@@ -389,10 +367,7 @@ void code_review_window::dispute_item()
 		int id = current_items_[selected_idx].id;
 		if (codereview_manager::get_instance().update_code_review_item(id, "disputed", std::nullopt, std::nullopt, std::nullopt)) {
 			codereview_manager::get_instance().save_project();
-			editor_event update_ev;
-			update_ev.type = event_type::codereview_updated;
-			update_ev.key_code = id;
-			global_queue_.push(update_ev);
+			global_queue_.push(event_type::codereview_updated, id);
 		}
 	}
 }
@@ -404,10 +379,7 @@ void code_review_window::invalidate_item()
 		int id = current_items_[selected_idx].id;
 		if (codereview_manager::get_instance().update_code_review_item(id, "invalid", std::nullopt, std::nullopt, std::nullopt)) {
 			codereview_manager::get_instance().save_project();
-			editor_event update_ev;
-			update_ev.type = event_type::codereview_updated;
-			update_ev.key_code = id;
-			global_queue_.push(update_ev);
+			global_queue_.push(event_type::codereview_updated, id);
 		}
 	}
 }
@@ -419,10 +391,7 @@ void code_review_window::resolve_item()
 		int id = current_items_[selected_idx].id;
 		if (codereview_manager::get_instance().resolve_code_review_item(id, "")) {
 			codereview_manager::get_instance().save_project();
-			editor_event update_ev;
-			update_ev.type = event_type::codereview_updated;
-			update_ev.key_code = id;
-			global_queue_.push(update_ev);
+			global_queue_.push(event_type::codereview_updated, id);
 		}
 	}
 }
@@ -434,10 +403,7 @@ void code_review_window::verify_item()
 		int id = current_items_[selected_idx].id;
 		if (codereview_manager::get_instance().update_code_review_item(id, "verified-fixed", std::nullopt, std::nullopt, std::nullopt)) {
 			codereview_manager::get_instance().save_project();
-			editor_event update_ev;
-			update_ev.type = event_type::codereview_updated;
-			update_ev.key_code = id;
-			global_queue_.push(update_ev);
+			global_queue_.push(event_type::codereview_updated, id);
 		}
 	}
 }
@@ -447,11 +413,7 @@ void code_review_window::edit_item()
 	int selected_idx = listbox_ ? listbox_->get_selected_index() : -1;
 	if (selected_idx >= 0 && selected_idx < (int)current_items_.size()) {
 		int id = current_items_[selected_idx].id;
-		editor_event action_ev;
-		action_ev.type = event_type::codereview_action;
-		action_ev.key_code = id;
-		action_ev.payload = "edit";
-		global_queue_.push(action_ev);
+		global_queue_.push(event_type::codereview_action, id, "edit");
 	}
 }
 
@@ -460,11 +422,7 @@ void code_review_window::add_comment()
 	int selected_idx = listbox_ ? listbox_->get_selected_index() : -1;
 	if (selected_idx >= 0 && selected_idx < (int)current_items_.size()) {
 		int id = current_items_[selected_idx].id;
-		editor_event action_ev;
-		action_ev.type = event_type::codereview_action;
-		action_ev.key_code = id;
-		action_ev.payload = "comment";
-		global_queue_.push(action_ev);
+		global_queue_.push(event_type::codereview_action, id, "comment");
 	}
 }
 
@@ -513,10 +471,6 @@ void code_review_window::reprocess_item()
 	int selected_idx = listbox_ ? listbox_->get_selected_index() : -1;
 	if (selected_idx >= 0 && selected_idx < (int)current_items_.size()) {
 		int id = current_items_[selected_idx].id;
-		editor_event action_ev;
-		action_ev.type = event_type::codereview_action;
-		action_ev.key_code = id;
-		action_ev.payload = "reprocess";
-		global_queue_.push(action_ev);
+		global_queue_.push(event_type::codereview_action, id, "reprocess");
 	}
 }
