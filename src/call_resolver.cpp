@@ -482,7 +482,7 @@ std::vector<outgoing_call_reference> call_resolver::extract_calls_from_slice(
 		return {};
 	}
 
-	auto candidates = call_token_extractor::extract_candidates(slice_lines, start_line);
+	auto candidates = call_token_extractor::extract_candidates(safe_path, slice_lines, start_line);
 	if (candidates.empty()) {
 		return {};
 	}

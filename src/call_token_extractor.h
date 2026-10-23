@@ -1,17 +1,17 @@
 #pragma once
 
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
+#include "languages/cpp/call_token_extractor.h"
+#include "languages/source_token.h"
 
 namespace tools
 {
 
-struct candidate_call_token {
-	std::string name;
-	int line{0}; // 1-based line number in file
-	int col{0};  // 0-based character column offset in line
-};
+using source_token = languages::source_token;
+using candidate_call_token = languages::source_token;
 
 /**
  * @brief Heuristic scanner to extract candidate function call tokens from code lines.
@@ -23,17 +23,21 @@ class call_token_extractor
 {
 public:
 	/**
-	 * @brief Extract candidate call tokens from a list of code lines.
-	 * @param lines Vector of line strings.
-	 * @param start_line 1-based start line of the lines vector in the file.
+	 * @brief Extract candidate call tokens from a sequence of code lines.
+	 * @param lines Read-only sequence of line strings.
+	 * @param start_line 1-based start line of the lines sequence in the file.
 	 * @return List of candidate tokens with line and column positions.
 	 */
-	static std::vector<candidate_call_token> extract_candidates(const std::vector<std::string> &lines, int start_line);
+	static std::vector<source_token> extract_candidates(std::span<const std::string> lines, int start_line);
 
 	/**
-	 * @brief Returns true if an identifier is a known control-flow keyword or language primitive.
+	 * @brief Extract candidate call tokens when the file type is supported.
+	 * @param path File path used to determine language support.
+	 * @param lines Read-only sequence of line strings.
+	 * @param start_line 1-based start line of the lines sequence in the file.
+	 * @return List of candidate tokens, or empty vector if the file language is unsupported.
 	 */
-	static bool is_denylisted(std::string_view identifier);
+	static std::vector<source_token> extract_candidates(std::string_view path, std::span<const std::string> lines, int start_line);
 };
 
 } // namespace tools

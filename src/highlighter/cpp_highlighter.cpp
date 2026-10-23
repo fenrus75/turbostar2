@@ -1,20 +1,16 @@
 #include "highlighter/cpp_highlighter.h"
-#include <filesystem>
 #include <vector>
+#include "languages/cpp/language.h"
 #include "utf8.h"
 
 bool cpp_highlighter::supports_file(const std::string &filename) const
 {
-	if (filename.empty())
-		return false;
-	std::filesystem::path p(filename);
-	std::string ext = p.extension().string();
-	return ext == ".cpp" || ext == ".h" || ext == ".hpp" || ext == ".c" || ext == ".cc" || ext == ".cxx";
+	return languages::cpp::supports_file(filename);
 }
 
 bool cpp_highlighter::supports_language(const std::string &lang) const
 {
-	return lang == "c" || lang == "cpp" || lang == "c++" || lang == "cc" || lang == "h" || lang == "hpp" || lang == "cxx";
+	return languages::cpp::supports_language(lang);
 }
 
 void cpp_highlighter::highlight(std::shared_ptr<line> l)

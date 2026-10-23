@@ -600,9 +600,9 @@ int main()
 		assert(read_out.find("target_cursor_x_") != std::string::npos);
 	}
 
-	// 15. Test extract_class_context_preview on document.cpp lines 410 to 418
+	// 15. Test extract_class_context_preview on document.cpp lines 403 to 411 (document::restore_cursor_state)
 	{
-		nlohmann::json read_args = {{"path", "src/document.cpp"}, {"start_line", 410}, {"end_line", 418}};
+		nlohmann::json read_args = {{"path", "src/document.cpp"}, {"start_line", 403}, {"end_line", 411}};
 		std::string read_out = registry.execute_tool("fs_read_lines", read_args.dump(), ctx);
 		std::cout << "fs_read_lines document.cpp 410-418 class context output:\n" << read_out << "\n";
 		size_t ctx_pos = read_out.find("### Class Context: `document`");

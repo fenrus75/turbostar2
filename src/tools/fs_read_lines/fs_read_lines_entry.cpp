@@ -518,9 +518,9 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 	int adjusted_end = args_.end_line;
 
 	// Early harvest: extract candidate type tokens from read range and dispatch async LSP queries
-	std::vector<candidate_type_token> candidate_types;
+	std::vector<source_token> candidate_types;
 	if (read_res.success && !read_res.lines.empty()) {
-		candidate_types = type_token_extractor::extract_candidates(read_res.lines, start);
+		candidate_types = type_token_extractor::extract_candidates(args_.safe_path, read_res.lines, start);
 		std::string cand_names;
 		for (const auto &cand : candidate_types) {
 			if (!cand_names.empty()) {

@@ -63,6 +63,10 @@ core_sources = files(
   'type_definition_cache.cpp',
   'type_token_extractor.cpp',
   'call_token_extractor.cpp',
+  'languages/cpp/language.cpp',
+  'languages/cpp/type_token_extractor.cpp',
+  'languages/cpp/call_token_extractor.cpp',
+  'languages/cpp/symbol_extractor.cpp',
   'call_resolver.cpp',
   'semcode_indexer.cpp'
 )

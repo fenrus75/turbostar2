@@ -10,19 +10,6 @@ int main()
 {
 	test_watchdog::setup_watchdog();
 
-	std::cout << "Testing call_token_extractor denylist..." << std::endl;
-	assert(tools::call_token_extractor::is_denylisted("if"));
-	assert(tools::call_token_extractor::is_denylisted("while"));
-	assert(tools::call_token_extractor::is_denylisted("for"));
-	assert(tools::call_token_extractor::is_denylisted("sizeof"));
-	assert(tools::call_token_extractor::is_denylisted("static_cast"));
-	assert(tools::call_token_extractor::is_denylisted("return"));
-	assert(tools::call_token_extractor::is_denylisted("a")); // single char
-
-	assert(!tools::call_token_extractor::is_denylisted("callee_sub"));
-	assert(!tools::call_token_extractor::is_denylisted("do_work"));
-	assert(!tools::call_token_extractor::is_denylisted("render_preview"));
-
 	std::cout << "Testing call_token_extractor extraction..." << std::endl;
 	std::vector<std::string> lines = {
 		"// Comment: ignore_this(123)",
@@ -34,16 +21,21 @@ int main()
 		"    while (retry()) {",
 		"        callee_sub(456); // duplicate name, should be deduped",
 		"    }",
+		"    for (int i = 0; i < 10; ++i) {",
+		"        sizeof(int);",
+		"        static_cast<int>(val);",
+		"        return a(1);",
+		"    }",
 		"}"
 	};
 
-	auto candidates = tools::call_token_extractor::extract_candidates(lines, 10);
+	auto candidates = tools::call_token_extractor::extract_candidates("test.cpp", lines, 10);
 	// Expected extracted names in order of first appearance:
 	// 1. callee_sub (line 13)
 	// 2. process_item (line 14)
 	// 3. update_state (line 15)
 	// 4. retry (line 16)
-	// Notice 'if' (L12) and 'while' (L16) are excluded because of denylist.
+	// Notice 'if', 'while', 'for', 'sizeof', 'static_cast', 'return', 'a' are excluded.
 	// Notice 'ignore_this' (L10) is excluded because it's in a comment.
 	// Notice second 'callee_sub' (L17) is excluded because it is a duplicate.
 	assert(candidates.size() == 4);
@@ -60,6 +52,10 @@ int main()
 
 	assert(candidates[3].name == "retry");
 	assert(candidates[3].line == 16);
+
+	// Non-C++ file path should return empty
+	auto non_cpp_candidates = tools::call_token_extractor::extract_candidates("test.txt", lines, 10);
+	assert(non_cpp_candidates.empty());
 
 	std::cout << "All call_token_extractor tests passed successfully!" << std::endl;
 	return 0;

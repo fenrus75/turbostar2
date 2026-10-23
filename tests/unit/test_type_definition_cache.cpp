@@ -24,39 +24,69 @@ int main()
 	test_watchdog::setup_watchdog(30);
 
 	// ==========================================
-	// Test 1: type_token_extractor Denylist & Rules
+	// Test 1: type_token_extractor Filtering & Rules
 	// ==========================================
 	{
-		// C/C++ keywords
-		assert(type_token_extractor::is_denylisted("int"));
-		assert(type_token_extractor::is_denylisted("void"));
-		assert(type_token_extractor::is_denylisted("class"));
-		assert(type_token_extractor::is_denylisted("struct"));
-		assert(type_token_extractor::is_denylisted("return"));
-		assert(type_token_extractor::is_denylisted("const"));
-		assert(type_token_extractor::is_denylisted("auto"));
+		std::vector<std::string> test_lines = {
+			"int x = 0;",
+			"void run();",
+			"class Widget {",
+			"    struct Inner {",
+			"        return val;",
+			"        const auto flag = false;",
+			"        std::string str;",
+			"        std::string_view sv;",
+			"        std::vector<int> nums;",
+			"        std::map<int, int> m;",
+			"        std::unique_ptr<T> p1;",
+			"        std::shared_ptr<U> p2;",
+			"        std::optional<MAX_BUFFER_SIZE> opt;",
+			"        ENABLE_FEATURE flag2;",
+			"        type_definition_cache *cache;",
+			"        tool_context &ctx;",
+			"        AgentProfile profile;",
+			"        WidgetController controller;",
+			"        token_entry_t entry;",
+			"    };",
+			"};"
+		};
 
-		// Standard library types & containers
-		assert(type_token_extractor::is_denylisted("string"));
-		assert(type_token_extractor::is_denylisted("string_view"));
-		assert(type_token_extractor::is_denylisted("vector"));
-		assert(type_token_extractor::is_denylisted("map"));
-		assert(type_token_extractor::is_denylisted("unique_ptr"));
-		assert(type_token_extractor::is_denylisted("shared_ptr"));
-		assert(type_token_extractor::is_denylisted("optional"));
+		auto candidates = type_token_extractor::extract_candidates("test.cpp", test_lines, 1);
+		std::set<std::string> candidate_names;
+		for (const auto &c : candidates) {
+			candidate_names.insert(c.name);
+		}
 
-		// Macros and single character identifiers
-		assert(type_token_extractor::is_denylisted("T"));
-		assert(type_token_extractor::is_denylisted("U"));
-		assert(type_token_extractor::is_denylisted("MAX_BUFFER_SIZE"));
-		assert(type_token_extractor::is_denylisted("ENABLE_FEATURE"));
+		// Keywords, primitives, std containers, single chars, ALL_CAPS macros should NOT be extracted
+		assert(!candidate_names.contains("int"));
+		assert(!candidate_names.contains("void"));
+		assert(!candidate_names.contains("return"));
+		assert(!candidate_names.contains("const"));
+		assert(!candidate_names.contains("auto"));
+		assert(!candidate_names.contains("string"));
+		assert(!candidate_names.contains("string_view"));
+		assert(!candidate_names.contains("vector"));
+		assert(!candidate_names.contains("map"));
+		assert(!candidate_names.contains("unique_ptr"));
+		assert(!candidate_names.contains("shared_ptr"));
+		assert(!candidate_names.contains("optional"));
+		assert(!candidate_names.contains("T"));
+		assert(!candidate_names.contains("U"));
+		assert(!candidate_names.contains("MAX_BUFFER_SIZE"));
+		assert(!candidate_names.contains("ENABLE_FEATURE"));
 
-		// Valid user-defined types (should NOT be denylisted)
-		assert(!type_token_extractor::is_denylisted("type_definition_cache"));
-		assert(!type_token_extractor::is_denylisted("tool_context"));
-		assert(!type_token_extractor::is_denylisted("AgentProfile"));
-		assert(!type_token_extractor::is_denylisted("WidgetController"));
-		assert(!type_token_extractor::is_denylisted("token_entry_t"));
+		// User types MUST be extracted
+		assert(candidate_names.contains("Widget"));
+		assert(candidate_names.contains("Inner"));
+		assert(candidate_names.contains("type_definition_cache"));
+		assert(candidate_names.contains("tool_context"));
+		assert(candidate_names.contains("AgentProfile"));
+		assert(candidate_names.contains("WidgetController"));
+		assert(candidate_names.contains("token_entry_t"));
+
+		// Non-C++ file path should return empty
+		auto non_cpp_candidates = type_token_extractor::extract_candidates("test.txt", test_lines, 1);
+		assert(non_cpp_candidates.empty());
 	}
 
 	// ==========================================
