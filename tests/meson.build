@@ -102,6 +102,12 @@ test_cpp_include_extractor = executable('test_cpp_include_extractor',
   include_directories: inc)
 test('unit_cpp_include_extractor', test_cpp_include_extractor, suite: 'editor')
 
+test_cpp_lexer = executable('test_cpp_lexer',
+  ['unit/test_cpp_lexer.cpp'],
+  dependencies : [core_dep],
+  include_directories: inc)
+test('unit_cpp_lexer', test_cpp_lexer, suite: 'editor')
+
 test_call_resolver = executable('test_call_resolver',
   ['unit/test_call_resolver.cpp'],
   dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep],
