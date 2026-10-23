@@ -276,6 +276,49 @@ int main()
 		assert(diff_syms[0].name == "calculate_diff");
 		assert(diff_syms[0].start_line == 1);
 		assert(diff_syms[0].end_line == 5);
+
+		// Test destructor detection
+		std::vector<std::string> dtor_lines = {
+			"Widget::~Widget()",
+			"{",
+			"    cleanup();",
+			"}"
+		};
+		std::vector<tools::codemap_symbol_info> dtor_syms;
+		tools::fallback_find_symbols_cpp(dtor_lines, dtor_syms);
+		assert(dtor_syms.size() == 1);
+		assert(dtor_syms[0].name == "Widget::~Widget");
+		assert(dtor_syms[0].start_line == 1);
+		assert(dtor_syms[0].end_line == 4);
+
+		// Test operator overload detection
+		std::vector<std::string> op_lines = {
+			"bool Widget::operator==(const Widget &other) const",
+			"{",
+			"    return id == other.id;",
+			"}"
+		};
+		std::vector<tools::codemap_symbol_info> op_syms;
+		tools::fallback_find_symbols_cpp(op_lines, op_syms);
+		assert(op_syms.size() == 1);
+		assert(op_syms[0].name == "Widget::operator==");
+		assert(op_syms[0].start_line == 1);
+		assert(op_syms[0].end_line == 4);
+
+		// Test template function multi-line start detection
+		std::vector<std::string> tmpl_lines = {
+			"template <typename T>",
+			"void print_item(T val)",
+			"{",
+			"    std::cout << val;",
+			"}"
+		};
+		std::vector<tools::codemap_symbol_info> tmpl_syms;
+		tools::fallback_find_symbols_cpp(tmpl_lines, tmpl_syms);
+		assert(tmpl_syms.size() == 1);
+		assert(tmpl_syms[0].name == "print_item");
+		assert(tmpl_syms[0].start_line == 1);
+		assert(tmpl_syms[0].end_line == 5);
 	}
 
 	// 4. Test Markdown headings parser (both span lines and string wrapper)

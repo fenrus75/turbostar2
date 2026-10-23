@@ -47,6 +47,10 @@ int main()
 	assert(keywords::is_function_specifier("void"));
 	assert(keywords::is_function_specifier("ptrdiff_t"));
 	assert(keywords::is_function_specifier("char32_t"));
+	assert(keywords::is_function_specifier("template"));
+	assert(keywords::is_function_specifier("typename"));
+	assert(keywords::is_function_specifier("concept"));
+	assert(keywords::is_function_specifier("requires"));
 	assert(keywords::is_function_specifier("__always_inline"));
 	assert(!keywords::is_function_specifier("MyFunction"));
 	assert(!keywords::is_function_specifier("while"));

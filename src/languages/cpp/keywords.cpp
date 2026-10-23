@@ -66,9 +66,10 @@ const std::unordered_set<std::string_view> &get_primitive_types_set()
 const std::unordered_set<std::string_view> &get_function_specifiers_set()
 {
 	static const std::unordered_set<std::string_view> specifiers = {
-	    // Storage, linkage & evaluation specifiers
+	    // Storage, linkage, template & evaluation specifiers
 	    "static", "inline", "virtual", "explicit", "extern", "constexpr", "consteval", "constinit",
 	    "noexcept", "volatile", "mutable", "const", "unsigned", "signed",
+	    "template", "typename", "concept", "requires",
 
 	    // Kernel & compiler annotations
 	    "noinstr", "__always_inline", "__init", "__exit", "asmlinkage", "__sched", "__attribute__",

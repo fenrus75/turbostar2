@@ -20,7 +20,8 @@ bool symbol_extractor::is_function_specifier_word(std::string_view word)
 
 void symbol_extractor::extract_symbols(std::span<const std::string> lines, int min_lines, std::vector<tools::codemap_symbol_info> &out)
 {
-	static const re2::RE2 cpp_func_head_regex(R"(^(\s*(?:[\w:<>]+[\s*&]*\s+)*[\s*&]*([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*)\s*\())");
+	static const re2::RE2 cpp_func_head_regex(
+	    R"(^(\s*(?:[\w:<>]+[\s*&]*\s+)*[\s*&]*((?:[a-zA-Z_]\w*::)*(?:~[a-zA-Z_]\w*|operator\s*(?:[+\-*/%^&|~!=<>]+|\[\]|\(\)|->\*|->|,|new\[\]|delete\[\]|new|delete)|[a-zA-Z_]\w*))\s*\())");
 	static const re2::RE2 cpp_class_regex(
 	    R"(^(\s*(?:typedef\s+)?(?:class|struct)\s+(?:\[\[.*?\]\]\s+)?(?:__attribute__\s*\(\(.*?\)\)\s+)?([a-zA-Z_]\w*)))");
 	static const re2::RE2 cpp_enum_regex(R"(^\s*(?:typedef\s+)?enum(?:\s+class|\s+struct)?\s+([a-zA-Z_]\w*))");
