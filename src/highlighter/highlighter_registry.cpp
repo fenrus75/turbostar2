@@ -1,10 +1,10 @@
 #include "highlighter/highlighter_registry.h"
-#include "highlighter/cpp_highlighter.h"
+#include "highlighter/html_highlighter.h"
+#include "highlighter/json_highlighter.h"
 #include "highlighter/markdown_highlighter.h"
 #include "highlighter/python_highlighter.h"
 #include "highlighter/verilog_highlighter.h"
-#include "highlighter/html_highlighter.h"
-#include "highlighter/json_highlighter.h"
+#include "languages/cpp/highlighter.h"
 
 // A default highlighter that does nothing
 class default_highlighter : public syntax_highlighter
@@ -30,7 +30,7 @@ highlighter_registry &highlighter_registry::get_instance()
 highlighter_registry::highlighter_registry()
 {
 	// Order matters: first match wins
-	highlighters_.push_back(std::make_shared<cpp_highlighter>());
+	highlighters_.push_back(std::make_shared<languages::cpp::highlighter>());
 	highlighters_.push_back(std::make_shared<markdown_highlighter>());
 	highlighters_.push_back(std::make_shared<python_highlighter>());
 	highlighters_.push_back(std::make_shared<verilog_highlighter>());

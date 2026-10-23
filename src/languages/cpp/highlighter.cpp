@@ -1,19 +1,26 @@
-#include "highlighter/cpp_highlighter.h"
+#include "languages/cpp/highlighter.h"
+#include <memory>
+#include <re2/re2.h>
+#include <re2/stringpiece.h>
 #include <vector>
+#include "languages/cpp/keywords.h"
 #include "languages/cpp/language.h"
 #include "utf8.h"
 
-bool cpp_highlighter::supports_file(const std::string &filename) const
+namespace languages::cpp
+{
+
+bool highlighter::supports_file(const std::string &filename) const
 {
 	return languages::cpp::supports_file(filename);
 }
 
-bool cpp_highlighter::supports_language(const std::string &lang) const
+bool highlighter::supports_language(const std::string &lang) const
 {
 	return languages::cpp::supports_language(lang);
 }
 
-void cpp_highlighter::highlight(std::shared_ptr<line> l)
+void highlighter::highlight(std::shared_ptr<line> l)
 {
 	std::string text = l->get_text();
 	size_t char_count = l->length_in_chars();
@@ -46,7 +53,7 @@ void cpp_highlighter::highlight(std::shared_ptr<line> l)
 
 	// 2. Double-quoted Strings
 	static const std::unique_ptr<re2::RE2> str_regex =
-		std::make_unique<re2::RE2>("(\"[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*\")");
+	    std::make_unique<re2::RE2>("(\"[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*\")");
 	search_start = 0;
 	while (str_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
 		search_start = (match.data() - input.data()) + match.size();
@@ -62,7 +69,7 @@ void cpp_highlighter::highlight(std::shared_ptr<line> l)
 
 	// 3. Single-quoted Characters
 	static const std::unique_ptr<re2::RE2> char_regex =
-		std::make_unique<re2::RE2>("('[^'\\\\]*(?:\\\\.[^'\\\\]*)*')");
+	    std::make_unique<re2::RE2>("('[^'\\\\]*(?:\\\\.[^'\\\\]*)*')");
 	search_start = 0;
 	while (char_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
 		search_start = (match.data() - input.data()) + match.size();
@@ -78,7 +85,7 @@ void cpp_highlighter::highlight(std::shared_ptr<line> l)
 
 	// 4. Block Comments (single line only: /* ... */)
 	static const std::unique_ptr<re2::RE2> block_comment_regex =
-		std::make_unique<re2::RE2>("(/\\*.*?\\*/)");
+	    std::make_unique<re2::RE2>("(/\\*.*?\\*/)");
 	search_start = 0;
 	while (block_comment_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
 		search_start = (match.data() - input.data()) + match.size();
@@ -99,7 +106,7 @@ void cpp_highlighter::highlight(std::shared_ptr<line> l)
 		int char_comment_pos = byte_to_char(comment_pos);
 		if (char_comment_pos >= 0 && char_comment_pos < static_cast<int>(attrs.size())) {
 			if (attrs[char_comment_pos] != syntax_attribute::string_literal &&
-				attrs[char_comment_pos] != syntax_attribute::comment) {
+			    attrs[char_comment_pos] != syntax_attribute::comment) {
 				for (size_t i = static_cast<size_t>(char_comment_pos); i < attrs.size(); ++i) {
 					attrs[i] = syntax_attribute::comment;
 				}
@@ -110,26 +117,21 @@ void cpp_highlighter::highlight(std::shared_ptr<line> l)
 	}
 
 	// 6. Keywords (only where attributes are currently 'normal')
-	static const std::unique_ptr<re2::RE2> kw_regex = std::make_unique<re2::RE2>(
-		"\\b("
-		"int|char|bool|float|double|void|auto|size_t|ssize_t|wchar_t|char8_t|char16_t|char32_t|"
-		"int8_t|int16_t|int32_t|int64_t|uint8_t|uint16_t|uint32_t|uint64_t|"
-		"std|string|string_view|vector|map|unordered_map|set|unordered_set|optional|variant|any|tuple|pair|unique_ptr|shared_ptr|weak_ptr|"
-		"const|constexpr|consteval|constinit|volatile|mutable|static|extern|inline|virtual|override|final|explicit|friend|"
-		"public|protected|private|signed|unsigned|short|long|"
-		"if|else|switch|case|default|for|while|do|break|continue|return|goto|try|catch|throw|noexcept|"
-		"class|struct|union|enum|namespace|template|typename|concept|requires|typedef|using|"
-		"new|delete|sizeof|decltype|alignof|alignas|typeid|and|and_eq|bitand|bitor|compl|not|not_eq|or|or_eq|xor|xor_eq|"
-		"this|true|false|nullptr|static_assert|static_cast|dynamic_cast|const_cast|reinterpret_cast|"
-		"import|module|export|co_await|co_return|co_yield"
-		")\\b");
-
+	// Matches word tokens and verifies membership against centralized languages::cpp::keywords
+	static const std::unique_ptr<re2::RE2> word_regex = std::make_unique<re2::RE2>("\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b");
 	search_start = 0;
-	while (kw_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
+	while (word_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
 		search_start = (match.data() - input.data()) + match.size();
 		if (match.empty()) {
 			search_start++;
 		}
+		std::string_view word(match.data(), match.size());
+		if (!languages::cpp::keywords::is_keyword(word) &&
+		    !languages::cpp::keywords::is_primitive_type(word) &&
+		    !languages::cpp::keywords::is_std_type_or_container(word)) {
+			continue;
+		}
+
 		int char_pos = byte_to_char(match.data() - text.data());
 		int char_end = byte_to_char(match.data() - text.data() + match.size());
 
@@ -153,3 +155,5 @@ void cpp_highlighter::highlight(std::shared_ptr<line> l)
 
 	l->set_attributes(attrs);
 }
+
+} // namespace languages::cpp

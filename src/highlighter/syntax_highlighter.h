@@ -8,14 +8,14 @@
 
 # subclasses of syntax_highlighter
 
-| subclass             | filename                    |
-| -------------------- | --------------------------- | 
-| cpp_highlighter      | src/cpp_highlighter.h       |
-| markdown_highlighter | src/markdown_highlighter.h  |
-| python_highlighter   | src/python_highlighter.h    |
-| verilog_highlighter  | src/verilog_highlighter.h   |
-| html_highlighter     | src/html_highlighter.h      |
-| json_highlighter     | src/highlighter/json_highlighter.h |
+| subclass                    | filename                           |
+| --------------------------- | ---------------------------------- | 
+| languages::cpp::highlighter | src/languages/cpp/highlighter.h    |
+| markdown_highlighter        | src/markdown_highlighter.h         |
+| python_highlighter          | src/python_highlighter.h           |
+| verilog_highlighter         | src/verilog_highlighter.h          |
+| html_highlighter            | src/html_highlighter.h             |
+| json_highlighter            | src/highlighter/json_highlighter.h |
 
 */
 

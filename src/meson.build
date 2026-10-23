@@ -39,7 +39,7 @@ core_sources = files(
   'markdown_utils.cpp',
   'command_runner.cpp',
   'syntax_color_manager.cpp',
-  'highlighter/cpp_highlighter.cpp',
+  'languages/cpp/highlighter.cpp',
   'highlighter/python_highlighter.cpp',
   'highlighter/markdown_highlighter.cpp',
   'highlighter/verilog_highlighter.cpp',

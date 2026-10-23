@@ -1,11 +1,13 @@
-// Tested source file: src/highlighter/cpp_highlighter.cpp
+// Tested source file: src/languages/cpp/highlighter.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <memory>
 #include <vector>
+#include "languages/cpp/highlighter.h"
 #include "line.h"
-#include "highlighter/cpp_highlighter.h"
+
+using cpp_highlighter = languages::cpp::highlighter;
 
 void test_cpp_file_support()
 {
@@ -36,6 +38,14 @@ void test_cpp_keywords()
 	// "return" keyword (pos 20-25)
 	assert(l->get_attribute(20) == syntax_attribute::keyword);
 	assert(l->get_attribute(25) == syntax_attribute::keyword);
+
+	// Modern and fixed-width types: ptrdiff_t, span
+	auto l2 = std::make_shared<line>("ptrdiff_t diff = 10; std::span<int> s;");
+	hl.highlight(l2);
+	assert(l2->get_attribute(0) == syntax_attribute::keyword);  // 'p' of ptrdiff_t
+	assert(l2->get_attribute(8) == syntax_attribute::keyword);  // 't' of ptrdiff_t
+	assert(l2->get_attribute(28) == syntax_attribute::keyword); // 's' of span
+	assert(l2->get_attribute(31) == syntax_attribute::keyword); // 'n' of span
 }
 
 void test_cpp_preprocessor()

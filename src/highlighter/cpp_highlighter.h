@@ -1,17 +1,6 @@
 #pragma once
 
-#include "highlighter/syntax_highlighter.h"
-#include <re2/re2.h>
-#include <re2/stringpiece.h>
-#include <memory>
+#include "languages/cpp/highlighter.h"
 
-class cpp_highlighter : public syntax_highlighter
-{
-      public:
-	cpp_highlighter() = default;
-	~cpp_highlighter() override = default;
+using cpp_highlighter = languages::cpp::highlighter;
 
-	bool supports_file(const std::string &filename) const override;
-	bool supports_language(const std::string &lang) const override;
-	void highlight(std::shared_ptr<line> l) override;
-};
