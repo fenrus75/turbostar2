@@ -3,6 +3,7 @@
 #include <cctype>
 #include <re2/re2.h>
 #include <unordered_set>
+#include "languages/cpp/source_masker.h"
 
 namespace languages::cpp
 {
@@ -72,17 +73,18 @@ std::vector<source_token> type_token_extractor::extract_candidates(std::span<con
 	    R"(\b([A-Za-z_][A-Za-z0-9_]*)\s+(?:const\s+)?(?:\*|&)+\s*[A-Za-z_]|)"
 	    R"(\b(?:const\s+)?([A-Za-z_][A-Za-z0-9_]*)\s+(?:\*|&)*\s*[A-Za-z_][A-Za-z0-9_]*\s*[\(\)\{\;\,])");
 
-	for (size_t i = 0; i < lines.size(); ++i) {
-		const std::string &line = lines[i];
+	std::vector<std::string> masked_lines = source_masker::mask_lines(lines);
+
+	for (size_t i = 0; i < masked_lines.size(); ++i) {
+		const std::string &line = masked_lines[i];
 		int line_num = start_line + static_cast<int>(i);
 
-		// Skip comments and preprocessor lines
+		// Skip comments (already masked to spaces) and preprocessor lines
 		size_t first_non_ws = line.find_first_not_of(" \t");
 		if (first_non_ws == std::string::npos) {
 			continue;
 		}
-		if (line[first_non_ws] == '#' || (line[first_non_ws] == '/' && first_non_ws + 1 < line.size() &&
-						  (line[first_non_ws + 1] == '/' || line[first_non_ws + 1] == '*'))) {
+		if (line[first_non_ws] == '#') {
 			continue;
 		}
 

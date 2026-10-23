@@ -13,3 +13,4 @@ The `languages::cpp::call_token_extractor` class (`src/languages/cpp/call_token_
 
 ## Lessons Learned
 - **Centralizing C++ Analysis**: Moving C++-specific function call regexes and denylists into `src/languages/cpp/` provides a unified home for language analysis routines, allowing `src/call_token_extractor.cpp` to act as a language router.
+- **Comment and Literal Masking**: Previously, calls in trailing comments (`// call()`) or string literals (`"call()"`) were falsely extracted as candidates. Hooking up `languages::cpp::source_masker` replaces comments and literals with column-preserving whitespace, eliminating false calls while preserving 100% exact identifier column coordinates.

@@ -13,3 +13,4 @@ The `languages::cpp::symbol_extractor` class (`src/languages/cpp/symbol_extracto
 
 ## Lessons Learned
 - **Centralizing C++ Analysis**: Moving C++ symbol outline extraction from `src/codemap_fallbacks.cpp` into `src/languages/cpp/` localizes C++ parsing heuristics to prepare for unified lexing and robust comment/string handling.
+- **Comment and Literal Masking**: Unbalanced braces `{` or `}` inside string literals or comments corrupted AST brace depth tracking and caused false symbol outlines (e.g. `class FakeClass` inside a comment). Pre-masking with `languages::cpp::source_masker` blanks comments and literals with byte- and character-invariant whitespace, preventing syntax pollution and ensuring reliable `[start_line, end_line]` intervals.

@@ -6,6 +6,7 @@
 #include <string_view>
 #include <unordered_set>
 #include <vector>
+#include "languages/cpp/source_masker.h"
 #include "project_manager.h"
 #include "utf8.h"
 
@@ -30,7 +31,9 @@ void symbol_extractor::extract_symbols(std::span<const std::string> lines, int m
 	    R"(^(\s*(?:typedef\s+)?(?:class|struct)\s+(?:\[\[.*?\]\]\s+)?(?:__attribute__\s*\(\(.*?\)\)\s+)?([a-zA-Z_]\w*)))");
 	static const re2::RE2 cpp_enum_regex(R"(^\s*(?:typedef\s+)?enum(?:\s+class|\s+struct)?\s+([a-zA-Z_]\w*))");
 
-	for (size_t i = 0; i < lines.size(); ++i) {
+	std::vector<std::string> masked_lines = source_masker::mask_lines(lines);
+
+	for (size_t i = 0; i < masked_lines.size(); ++i) {
 		if ((i & 63) == 0 && project_manager::get_instance().is_exiting()) {
 			return;
 		}
@@ -38,10 +41,10 @@ void symbol_extractor::extract_symbols(std::span<const std::string> lines, int m
 
 		bool is_class_candidate = false;
 		re2::StringPiece full_class_match, class_name_sp;
-		if (re2::RE2::PartialMatch(lines[i], cpp_class_regex, &full_class_match, &class_name_sp)) {
+		if (re2::RE2::PartialMatch(masked_lines[i], cpp_class_regex, &full_class_match, &class_name_sp)) {
 			is_class_candidate = true;
 			// Filter out parameter usages such as 'struct cpuidle_device *dev, int index)'
-			std::string_view line_v = lines[i];
+			std::string_view line_v = masked_lines[i];
 			size_t match_end = static_cast<size_t>(full_class_match.data() - line_v.data()) + full_class_match.size();
 			std::string_view suffix = (match_end <= line_v.size()) ? line_v.substr(match_end) : std::string_view{};
 			size_t first_non_ws = suffix.find_first_not_of(" \t\r\n");
@@ -61,7 +64,7 @@ void symbol_extractor::extract_symbols(std::span<const std::string> lines, int m
 		re2::StringPiece full_func_match, func_name_sp;
 		std::string enum_name;
 		if (is_class_candidate) {
-			std::string_view trimmed_line = lines[i];
+			std::string_view trimmed_line = masked_lines[i];
 			size_t last_non_ws = trimmed_line.find_last_not_of(" \t\r\n");
 			if (last_non_ws != std::string_view::npos && trimmed_line[last_non_ws] == ';') {
 				continue;
@@ -70,8 +73,8 @@ void symbol_extractor::extract_symbols(std::span<const std::string> lines, int m
 			int end_line = line_num;
 			int depth = 0;
 			bool started = false;
-			for (size_t j = i; j < lines.size(); ++j) {
-				for (char c : lines[j]) {
+			for (size_t j = i; j < masked_lines.size(); ++j) {
+				for (char c : masked_lines[j]) {
 					if (c == '{') {
 						depth++;
 						started = true;
@@ -87,13 +90,13 @@ void symbol_extractor::extract_symbols(std::span<const std::string> lines, int m
 			if (started) {
 				int len = end_line - line_num + 1;
 				if (len >= min_lines) {
-					std::string kind_val = (lines[i].find("struct") != std::string::npos) ? "Struct" : "Class";
+					std::string kind_val = (masked_lines[i].find("struct") != std::string::npos) ? "Struct" : "Class";
 					std::string class_name(class_name_sp);
 					out.push_back({class_name, class_name, kind_val, line_num, end_line, len, 0, ""});
 				}
 			}
-		} else if (re2::RE2::PartialMatch(lines[i], cpp_enum_regex, &enum_name)) {
-			std::string_view trimmed_line = lines[i];
+		} else if (re2::RE2::PartialMatch(masked_lines[i], cpp_enum_regex, &enum_name)) {
+			std::string_view trimmed_line = masked_lines[i];
 			size_t last_non_ws = trimmed_line.find_last_not_of(" \t\r\n");
 			if (last_non_ws != std::string_view::npos && trimmed_line[last_non_ws] == ';') {
 				continue;
@@ -102,8 +105,8 @@ void symbol_extractor::extract_symbols(std::span<const std::string> lines, int m
 			int end_line = line_num;
 			int depth = 0;
 			bool started = false;
-			for (size_t j = i; j < lines.size(); ++j) {
-				for (char c : lines[j]) {
+			for (size_t j = i; j < masked_lines.size(); ++j) {
+				for (char c : masked_lines[j]) {
 					if (c == '{') {
 						depth++;
 						started = true;
@@ -122,7 +125,7 @@ void symbol_extractor::extract_symbols(std::span<const std::string> lines, int m
 					out.push_back({enum_name, enum_name, "Enum", line_num, end_line, len, 0, ""});
 				}
 			}
-		} else if (re2::RE2::PartialMatch(lines[i], cpp_func_head_regex, &full_func_match, &func_name_sp)) {
+		} else if (re2::RE2::PartialMatch(masked_lines[i], cpp_func_head_regex, &full_func_match, &func_name_sp)) {
 			std::string name(func_name_sp);
 			if (name != "if" && name != "for" && name != "while" && name != "switch" && name != "catch" &&
 			    name != "__attribute__" && !name.starts_with("__builtin_")) {
@@ -131,10 +134,10 @@ void symbol_extractor::extract_symbols(std::span<const std::string> lines, int m
 				bool found_brace = false;
 				size_t brace_line_idx = i;
 				bool is_prototype = false;
-				size_t func_head_pos = static_cast<size_t>(full_func_match.data() - lines[i].data());
+				size_t func_head_pos = static_cast<size_t>(full_func_match.data() - masked_lines[i].data());
 
-				for (size_t j = i; j < std::min(lines.size(), i + 40); ++j) {
-					std::string_view scan_line = lines[j];
+				for (size_t j = i; j < std::min(masked_lines.size(), i + 40); ++j) {
+					std::string_view scan_line = masked_lines[j];
 					size_t comment_pos = scan_line.find("//");
 					if (comment_pos != std::string_view::npos) {
 						scan_line = scan_line.substr(0, comment_pos);
@@ -167,7 +170,7 @@ void symbol_extractor::extract_symbols(std::span<const std::string> lines, int m
 				// Find upper bound by searching backwards from line i for previous '}'
 				int upper_bound_idx = -1;
 				for (int k = static_cast<int>(i) - 1; k >= 0; --k) {
-					std::string_view rev_line = lines[k];
+					std::string_view rev_line = masked_lines[k];
 					size_t comment_pos = rev_line.find("//");
 					if (comment_pos != std::string_view::npos) {
 						rev_line = rev_line.substr(0, comment_pos);
@@ -181,7 +184,7 @@ void symbol_extractor::extract_symbols(std::span<const std::string> lines, int m
 				// Walk backwards from line i to find the true function start line
 				int func_start = static_cast<int>(i + 1);
 				for (int k = static_cast<int>(i) - 1; k > upper_bound_idx; --k) {
-					std::string_view l_view = lines[k];
+					std::string_view l_view = masked_lines[k];
 					size_t c_pos = l_view.find("//");
 					if (c_pos != std::string_view::npos) {
 						l_view = l_view.substr(0, c_pos);
@@ -225,8 +228,8 @@ void symbol_extractor::extract_symbols(std::span<const std::string> lines, int m
 				int end_line = func_start;
 				int depth = 0;
 				bool started = false;
-				for (size_t j = brace_line_idx; j < lines.size(); ++j) {
-					for (char c : lines[j]) {
+				for (size_t j = brace_line_idx; j < masked_lines.size(); ++j) {
+					for (char c : masked_lines[j]) {
 						if (c == '{') {
 							depth++;
 							started = true;

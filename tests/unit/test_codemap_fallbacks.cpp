@@ -236,6 +236,31 @@ int main()
 		assert(cpp_filtered.size() == 2);
 		assert(cpp_filtered[0].name == "control_flow_func");
 		assert(cpp_filtered[1].name == "multi_spec_func");
+
+		// Test that comments and string literals are masked and do not produce false symbols
+		// or corrupt brace depth tracking
+		std::vector<std::string> comment_string_lines = {
+			"/*",
+			"class FakeCommentClass {",
+			"    void fake_method() {}",
+			"};",
+			"*/",
+			"// struct FakeCommentStruct { int a; };",
+			"const char *code = R\"(class FakeStringClass { int x; };)\";",
+			"void real_function()",
+			"{",
+			"    char open_brace = '{';",
+			"    // } fake closing brace in comment",
+			"    std::string s = \"{\";",
+			"    int val = 42;",
+			"}"
+		};
+		std::vector<tools::codemap_symbol_info> masked_syms;
+		tools::fallback_find_symbols_cpp(comment_string_lines, masked_syms);
+		assert(masked_syms.size() == 1);
+		assert(masked_syms[0].name == "real_function");
+		assert(masked_syms[0].start_line == 8);
+		assert(masked_syms[0].end_line == 14);
 	}
 
 	// 4. Test Markdown headings parser (both span lines and string wrapper)

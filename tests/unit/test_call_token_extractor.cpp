@@ -57,6 +57,22 @@ int main()
 	auto non_cpp_candidates = tools::call_token_extractor::extract_candidates("test.txt", lines, 10);
 	assert(non_cpp_candidates.empty());
 
+	// Verify calls inside comments and string literals are ignored
+	{
+		std::vector<std::string> comment_and_string_lines = {
+			"    real_call(1); // trailing_fake(2)",
+			"    std::string s = \"string_fake(3)\";",
+			"    /* multi-line comment",
+			"       block_fake(4)",
+			"    */",
+			"    another_real_call(5);"
+		};
+		auto result = tools::call_token_extractor::extract_candidates("test.cpp", comment_and_string_lines, 1);
+		assert(result.size() == 2);
+		assert(result[0].name == "real_call");
+		assert(result[1].name == "another_real_call");
+	}
+
 	std::cout << "All call_token_extractor tests passed successfully!" << std::endl;
 	return 0;
 }

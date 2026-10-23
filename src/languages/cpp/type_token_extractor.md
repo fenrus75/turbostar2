@@ -13,3 +13,4 @@ The `languages::cpp::type_token_extractor` class (`src/languages/cpp/type_token_
 
 ## Lessons Learned
 - **Centralizing C++ Analysis**: Moving C++-specific type candidate regexes and denylists into `src/languages/cpp/` provides a unified home for language analysis routines, allowing `src/type_token_extractor.cpp` to act as a language router.
+- **Comment and Literal Masking**: Previously, types in trailing comments (`// struct Type`) or string literals (`"class Type"`) were falsely extracted. Integrating `languages::cpp::source_masker` replaces comments and literals with column-preserving whitespace, eliminating false type tokens while keeping exact line and column locations intact.
