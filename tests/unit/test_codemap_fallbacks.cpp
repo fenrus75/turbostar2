@@ -319,6 +319,104 @@ int main()
 		assert(tmpl_syms[0].name == "print_item");
 		assert(tmpl_syms[0].start_line == 1);
 		assert(tmpl_syms[0].end_line == 5);
+
+		// Test C++ namespace detection and symbol scoping
+		std::vector<std::string> ns_lines = {
+			"namespace app::core",
+			"{",
+			"",
+			"void init_system()",
+			"{",
+			"}",
+			"",
+			"class Engine",
+			"{",
+			"    void start()",
+			"    {",
+			"    }",
+			"};",
+			"",
+			"enum Mode {",
+			"    Fast,",
+			"    Safe",
+			"};",
+			"",
+			"}", // namespace app::core
+			"",
+			"// Sibling anonymous namespace",
+			"namespace {",
+			"void local_helper()",
+			"{",
+			"}",
+			"}",
+			"",
+			"// Namespace alias and using directive should not produce symbols",
+			"namespace fs = std::filesystem;",
+			"using namespace std;",
+		};
+		std::vector<tools::codemap_symbol_info> ns_syms;
+		tools::fallback_find_symbols_cpp(ns_lines, ns_syms);
+
+		assert(ns_syms.size() == 7);
+		assert(ns_syms[0].name == "app::core");
+		assert(ns_syms[0].kind_str == "Namespace");
+		assert(ns_syms[0].start_line == 1);
+		assert(ns_syms[0].end_line == 20);
+
+		assert(ns_syms[1].name == "app::core::init_system");
+		assert(ns_syms[1].kind_str == "Function");
+		assert(ns_syms[1].start_line == 4);
+		assert(ns_syms[1].end_line == 6);
+
+		assert(ns_syms[2].name == "app::core::Engine");
+		assert(ns_syms[2].kind_str == "Class");
+		assert(ns_syms[2].start_line == 8);
+		assert(ns_syms[2].end_line == 13);
+
+		assert(ns_syms[3].name == "app::core::Engine::start");
+		assert(ns_syms[3].kind_str == "Function");
+		assert(ns_syms[3].start_line == 10);
+		assert(ns_syms[3].end_line == 12);
+
+		assert(ns_syms[4].name == "app::core::Mode");
+		assert(ns_syms[4].kind_str == "Enum");
+		assert(ns_syms[4].start_line == 15);
+		assert(ns_syms[4].end_line == 18);
+
+		assert(ns_syms[5].name == "(anonymous namespace)");
+		assert(ns_syms[5].kind_str == "Namespace");
+		assert(ns_syms[5].start_line == 23);
+		assert(ns_syms[5].end_line == 27);
+
+		assert(ns_syms[6].name == "(anonymous namespace)::local_helper");
+		assert(ns_syms[6].kind_str == "Function");
+		assert(ns_syms[6].start_line == 24);
+		assert(ns_syms[6].end_line == 26);
+
+		// Test nested namespaces
+		std::vector<std::string> nested_ns_lines = {
+			"namespace outer {",
+			"namespace inner {",
+			"void run() {}",
+			"}",
+			"}"
+		};
+		std::vector<tools::codemap_symbol_info> nested_syms;
+		tools::fallback_find_symbols_cpp(nested_ns_lines, nested_syms);
+		assert(nested_syms.size() == 3);
+		assert(nested_syms[0].name == "outer");
+		assert(nested_syms[0].kind_str == "Namespace");
+		assert(nested_syms[0].start_line == 1);
+		assert(nested_syms[0].end_line == 5);
+
+		assert(nested_syms[1].name == "outer::inner");
+		assert(nested_syms[1].kind_str == "Namespace");
+		assert(nested_syms[1].start_line == 2);
+		assert(nested_syms[1].end_line == 4);
+
+		assert(nested_syms[2].name == "outer::inner::run");
+		assert(nested_syms[2].kind_str == "Function");
+		assert(nested_syms[2].start_line == 3);
 	}
 
 	// 4. Test Markdown headings parser (both span lines and string wrapper)
