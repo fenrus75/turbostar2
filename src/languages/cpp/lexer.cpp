@@ -74,7 +74,7 @@ std::vector<token> lexer::tokenize(std::string_view source)
 	int brace_depth = 0;
 	int paren_depth = 0;
 	int bracket_depth = 0;
-	bool at_line_start = true;
+	bool line_has_code = false;
 
 	while (pos < source.size()) {
 		char c = source[pos];
@@ -89,12 +89,12 @@ std::vector<token> lexer::tokenize(std::string_view source)
 			++pos;
 			++line;
 			col = 1;
-			at_line_start = true;
+			line_has_code = false;
 			continue;
 		}
 
-		// 2. Preprocessor directive (# at start of line)
-		if (at_line_start && c == '#') {
+		// 2. Preprocessor directive (# at start of line or after comments/whitespace)
+		if (!line_has_code && c == '#') {
 			size_t start_pos = pos;
 			int start_col = col;
 			int start_line = line;
@@ -113,11 +113,9 @@ std::vector<token> lexer::tokenize(std::string_view source)
 			}
 			tokens.push_back({token_kind::preprocessor, source.substr(start_pos, pos - start_pos),
 					  start_line, start_col, brace_depth, paren_depth, bracket_depth});
-			at_line_start = false;
+			line_has_code = true;
 			continue;
 		}
-
-		at_line_start = false;
 
 		// 3. Comments
 		if (c == '/' && pos + 1 < source.size()) {
@@ -154,6 +152,7 @@ std::vector<token> lexer::tokenize(std::string_view source)
 						++pos;
 						++line;
 						col = 1;
+						line_has_code = false;
 					} else {
 						++pos;
 						++col;
@@ -167,6 +166,8 @@ std::vector<token> lexer::tokenize(std::string_view source)
 				continue;
 			}
 		}
+
+		line_has_code = true;
 
 		// 4. Raw string literal: R"delim(...)delim"
 		if (c == 'R' && pos + 1 < source.size() && source[pos + 1] == '"') {
