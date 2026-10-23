@@ -9,6 +9,7 @@
 #include "call_token_extractor.h"
 #include "event_logger.h"
 #include "fs_utils.h"
+#include "languages/cpp/include_extractor.h"
 #include "project_manager.h"
 
 namespace tools
@@ -96,25 +97,7 @@ bool call_resolver::is_test_path(std::string_view p)
 
 std::unordered_set<std::string> call_resolver::extract_included_headers(const std::string &filepath)
 {
-	std::unordered_set<std::string> includes;
-	std::ifstream file(filepath);
-	if (!file.is_open()) {
-		return includes;
-	}
-
-	static const re2::RE2 inc_regex(R"(^\s*#\s*include\s*[<"]([^>"]+)[>"])");
-	std::string line;
-	int line_count = 0;
-
-	while (std::getline(file, line) && line_count < 1000) {
-		line_count++;
-		std::string inc_path;
-		if (re2::RE2::PartialMatch(line, inc_regex, &inc_path)) {
-			includes.insert(inc_path);
-		}
-	}
-
-	return includes;
+	return languages::cpp::include_extractor::extract_header_names_from_file(filepath);
 }
 
 std::optional<lsp_backend::location_info> call_resolver::disambiguate_locations(

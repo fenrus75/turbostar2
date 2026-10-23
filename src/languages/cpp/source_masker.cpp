@@ -88,6 +88,19 @@ std::string source_masker::mask_line(std::string_view line, mask_state &state)
 	const size_t len = line.size();
 	size_t i = 0;
 
+	// Detect if line is an active #include directive (header-name in quotes must be preserved)
+	bool is_include_line = false;
+	if (!state.in_block_comment && !state.in_raw_string) {
+		size_t first_non = line.find_first_not_of(" \t");
+		if (first_non != std::string_view::npos && line[first_non] == '#') {
+			std::string_view rest = line.substr(first_non + 1);
+			size_t inc_pos = rest.find_first_not_of(" \t");
+			if (inc_pos != std::string_view::npos && rest.substr(inc_pos).starts_with("include")) {
+				is_include_line = true;
+			}
+		}
+	}
+
 	// Resume multi-line block comment
 	if (state.in_block_comment) {
 		size_t close_pos = line.find("*/");
@@ -198,7 +211,9 @@ std::string source_masker::mask_line(std::string_view line, mask_state &state)
 					++i;
 				}
 			}
-			mask_range(out, str_start, i);
+			if (!is_include_line) {
+				mask_range(out, str_start, i);
+			}
 			continue;
 		}
 

@@ -566,6 +566,34 @@ static void test_extract_calls_from_slice_prefers_cpp_and_skips_self_definition(
 	std::cout << "  Passed!" << std::endl;
 }
 
+void test_extract_included_headers_masks_comments()
+{
+	std::cout << "Testing extract_included_headers ignores commented includes..." << std::endl;
+	fs::path tmp_dir = fs::path(fs_utils::get_project_tmp_dir()) / "test_inc_mask";
+	fs::create_directories(tmp_dir);
+	fs::path file_p = tmp_dir / "sample.cpp";
+
+	std::ofstream out(file_p);
+	out << "// #include <commented_header.h>\n"
+	    << "/*\n"
+	    << "#include <block_commented.h>\n"
+	    << "*/\n"
+	    << "const char *code = R\"(\n"
+	    << "#include <raw_string_inc.h>\n"
+	    << ")\";\n"
+	    << "#include \"real_local.h\"\n"
+	    << "#include <vector>\n";
+	out.close();
+
+	auto incs = tools::call_resolver::extract_included_headers(file_p.string());
+	fs::remove_all(tmp_dir);
+
+	assert(incs.size() == 2);
+	assert(incs.count("real_local.h") == 1);
+	assert(incs.count("vector") == 1);
+	std::cout << "  Passed!" << std::endl;
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -578,6 +606,7 @@ int main()
 	test_outgoing_calls_not_pruned_when_reading_inside_function();
 	test_resolve_target_prefers_cpp_implementation_over_header();
 	test_extract_calls_from_slice_prefers_cpp_and_skips_self_definition();
+	test_extract_included_headers_masks_comments();
 
 	std::cout << "All call_resolver tests passed successfully!" << std::endl;
 	return 0;
