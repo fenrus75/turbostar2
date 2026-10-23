@@ -261,6 +261,21 @@ int main()
 		assert(masked_syms[0].name == "real_function");
 		assert(masked_syms[0].start_line == 8);
 		assert(masked_syms[0].end_line == 14);
+
+		// Test function specifier backward walk with standard types like ptrdiff_t and char32_t
+		std::vector<std::string> spec_lines = {
+			"ptrdiff_t",
+			"calculate_diff(int x, int y)",
+			"{",
+			"    return x - y;",
+			"}"
+		};
+		std::vector<tools::codemap_symbol_info> diff_syms;
+		tools::fallback_find_symbols_cpp(spec_lines, diff_syms);
+		assert(diff_syms.size() == 1);
+		assert(diff_syms[0].name == "calculate_diff");
+		assert(diff_syms[0].start_line == 1);
+		assert(diff_syms[0].end_line == 5);
 	}
 
 	// 4. Test Markdown headings parser (both span lines and string wrapper)

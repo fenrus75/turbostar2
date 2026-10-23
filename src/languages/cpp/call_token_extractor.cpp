@@ -1,48 +1,12 @@
 #include "languages/cpp/call_token_extractor.h"
 #include <algorithm>
-#include <cctype>
 #include <re2/re2.h>
 #include <unordered_set>
+#include "languages/cpp/keywords.h"
 #include "languages/cpp/source_masker.h"
 
 namespace languages::cpp
 {
-
-namespace
-{
-
-bool is_denylisted(std::string_view identifier)
-{
-	static const std::unordered_set<std::string_view> denylist = {
-	    // C/C++ control flow keywords
-	    "if", "else", "while", "for", "do", "switch", "case", "default", "return", "goto",
-	    "break", "continue", "try", "catch", "throw",
-
-	    // Operators, casts & type queries
-	    "sizeof", "typeof", "__typeof__", "__typeof", "alignof", "decltype", "static_assert",
-	    "static_cast", "dynamic_cast", "const_cast", "reinterpret_cast", "typeid", "alignas",
-	    "new", "delete", "defined", "__attribute__", "__builtin_expect",
-
-	    // Common non-call macro annotations
-	    "likely", "unlikely", "offsetof", "container_of",
-
-	    // Common keywords
-	    "auto", "bool", "char", "int", "short", "long", "float", "double", "void", "unsigned",
-	    "signed", "class", "struct", "enum", "union", "namespace", "typename", "template",
-	    "public", "protected", "private", "typedef", "using", "friend", "operator", "const",
-	    "constexpr", "consteval", "static", "inline", "extern", "virtual", "override", "final",
-	    "explicit", "mutable", "register", "volatile", "noexcept", "nullptr", "true", "false",
-	    "this"
-	};
-
-	if (identifier.length() < 2) {
-		return true;
-	}
-
-	return denylist.find(identifier) != denylist.end();
-}
-
-} // anonymous namespace
 
 std::vector<source_token> call_token_extractor::extract_candidates(std::span<const std::string> lines, int start_line)
 {
@@ -75,7 +39,7 @@ std::vector<source_token> call_token_extractor::extract_candidates(std::span<con
 			std::string candidate(submatches[1].data(), submatches[1].size());
 			int col = static_cast<int>(submatches[1].data() - line.data());
 			pos = static_cast<size_t>(submatches[0].data() - line.data()) + submatches[0].size();
-			if (!is_denylisted(candidate) && seen.find(candidate) == seen.end()) {
+			if (!keywords::is_call_candidate_denylisted(candidate) && seen.find(candidate) == seen.end()) {
 				seen.insert(candidate);
 				result.push_back({std::move(candidate), line_num, col});
 				if (result.size() >= 20) {

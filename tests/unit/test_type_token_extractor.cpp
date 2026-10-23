@@ -20,6 +20,8 @@ int main()
 		"    std::vector<ItemData> items;",
 		"    std::string fake = \"struct FakeStructInString { int x; };\";",
 		"    int count; // struct FakeTrailingComment",
+		"    ptrdiff_t offset;",
+		"    uintptr_t raw_addr;",
 		"    /* multi-line comment",
 		"       class FakeInBlockComment",
 		"    */",

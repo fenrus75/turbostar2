@@ -71,6 +71,17 @@ int main()
 		assert(result.size() == 2);
 		assert(result[0].name == "real_call");
 		assert(result[1].name == "another_real_call");
+
+		// Coroutine and modern C++ keywords must not be treated as calls
+		std::vector<std::string> kw_call_lines = {
+			"    co_await(fetch_data());",
+			"    alignas(64) int buffer[16];",
+			"    real_task(100);"
+		};
+		auto kw_result = tools::call_token_extractor::extract_candidates("test.cpp", kw_call_lines, 1);
+		assert(kw_result.size() == 2);
+		assert(kw_result[0].name == "fetch_data");
+		assert(kw_result[1].name == "real_task");
 	}
 
 	std::cout << "All call_token_extractor tests passed successfully!" << std::endl;

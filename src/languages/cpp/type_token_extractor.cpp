@@ -1,60 +1,12 @@
 #include "languages/cpp/type_token_extractor.h"
 #include <algorithm>
-#include <cctype>
 #include <re2/re2.h>
 #include <unordered_set>
+#include "languages/cpp/keywords.h"
 #include "languages/cpp/source_masker.h"
 
 namespace languages::cpp
 {
-
-namespace
-{
-
-bool is_denylisted(std::string_view identifier)
-{
-	static const std::unordered_set<std::string_view> denylist = {
-	    // C/C++ primitives & keywords
-	    "auto", "bool", "char", "char8_t", "char16_t", "char32_t", "wchar_t", "int", "short", "long", "float", "double", "void",
-	    "size_t", "ssize_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t", "int8_t", "int16_t", "int32_t", "int64_t", "const",
-	    "constexpr", "consteval", "static", "inline", "extern", "virtual", "override", "final", "explicit", "mutable", "register",
-	    "volatile", "unsigned", "signed", "class", "struct", "enum", "union", "namespace", "typename", "template", "public",
-	    "protected", "private", "typedef", "using", "friend", "operator", "return", "if", "else", "for", "while", "do", "switch",
-	    "case", "default", "break", "continue", "goto", "try", "catch", "throw", "noexcept", "nullptr", "true", "false", "sizeof",
-	    "alignof", "decltype", "static_assert", "typeid", "std", "this",
-
-	    // Standard library containers & utilities
-	    "string", "string_view", "vector", "list", "deque", "array", "set", "unordered_set", "multiset", "unordered_multiset", "map",
-	    "unordered_map", "multimap", "unordered_multimap", "pair", "tuple", "optional", "variant", "any", "unique_ptr", "shared_ptr",
-	    "weak_ptr", "span", "function", "atomic", "mutex", "shared_mutex", "lock_guard", "unique_lock", "shared_lock", "scoped_lock",
-	    "thread", "jthread", "condition_variable", "filesystem", "path", "ifstream", "ofstream", "fstream", "stringstream",
-	    "istringstream", "ostringstream", "iostream", "istream", "ostream", "cin", "cout", "cerr", "endl", "format", "format_to",
-	    "regex", "smatch", "sregex_iterator", "chrono", "steady_clock", "system_clock", "time_point", "duration", "milliseconds",
-	    "seconds", "nanoseconds", "microsecond",
-
-	    // Common third-party / external namespaces
-	    "nlohmann", "json", "basic_json", "fmt", "re2", "RE2", "sqlite3", "sqlite3_stmt"};
-
-	if (identifier.length() < 3) {
-		return true;
-	}
-
-	// Filter out ALL_CAPS macros
-	bool all_upper = true;
-	for (char c : identifier) {
-		if (std::islower(static_cast<unsigned char>(c))) {
-			all_upper = false;
-			break;
-		}
-	}
-	if (all_upper) {
-		return true;
-	}
-
-	return denylist.find(identifier) != denylist.end();
-}
-
-} // anonymous namespace
 
 std::vector<source_token> type_token_extractor::extract_candidates(std::span<const std::string> lines, int start_line)
 {
@@ -95,7 +47,7 @@ std::vector<source_token> type_token_extractor::extract_candidates(std::span<con
 			for (size_t g = 1; g < 6; ++g) {
 				if (submatches[g].data() != nullptr) {
 					std::string candidate(submatches[g].data(), submatches[g].size());
-					if (!is_denylisted(candidate) && seen.find(candidate) == seen.end()) {
+					if (!keywords::is_type_candidate_denylisted(candidate) && seen.find(candidate) == seen.end()) {
 						seen.insert(candidate);
 						int col = static_cast<int>(submatches[g].data() - line.data());
 						result.push_back({candidate, line_num, col});

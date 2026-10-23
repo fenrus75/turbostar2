@@ -4,8 +4,8 @@
 #include <re2/re2.h>
 #include <string>
 #include <string_view>
-#include <unordered_set>
 #include <vector>
+#include "languages/cpp/keywords.h"
 #include "languages/cpp/source_masker.h"
 #include "project_manager.h"
 #include "utf8.h"
@@ -15,13 +15,7 @@ namespace languages::cpp
 
 bool symbol_extractor::is_function_specifier_word(std::string_view word)
 {
-	static const std::unordered_set<std::string_view> keywords = {
-	    "static",	"inline",  "virtual",	 "explicit", "extern",	"constexpr", "consteval", "noexcept", "noinstr", "__always_inline",
-	    "__init",	"__exit",  "asmlinkage", "__sched",  "void",	"int",	     "bool",	  "char",     "long",	 "short",
-	    "unsigned", "signed",  "size_t",	 "ssize_t",  "uint8_t", "uint16_t",  "uint32_t",  "uint64_t", "int8_t",	 "int16_t",
-	    "int32_t",	"int64_t", "u8",	 "u16",	     "u32",	"u64",	     "s8",	  "s16",      "s32",	 "s64",
-	    "ktime_t",	"auto",	   "double",	 "float",    "const"};
-	return keywords.contains(word);
+	return keywords::is_function_specifier(word);
 }
 
 void symbol_extractor::extract_symbols(std::span<const std::string> lines, int min_lines, std::vector<tools::codemap_symbol_info> &out)
