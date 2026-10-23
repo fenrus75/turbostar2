@@ -37,13 +37,13 @@ void document::highlighter_thread_loop(std::stop_token stop_token)
 			process_line_highlight(l);
 
 			// If no more lines in queue, request a redraw
+			bool should_redraw = false;
 			{
 				std::lock_guard<std::mutex> lock(dirty_mutex_);
-				if (dirty_lines_.empty()) {
-					editor_event ev;
-					ev.type = event_type::redraw;
-					global_queue_.push(ev);
-				}
+				should_redraw = dirty_lines_.empty();
+			}
+			if (should_redraw) {
+				request_redraw();
 			}
 		}
 	}
