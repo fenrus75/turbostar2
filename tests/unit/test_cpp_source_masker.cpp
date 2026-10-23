@@ -5,6 +5,7 @@
 #include <vector>
 #include "languages/cpp/source_masker.h"
 #include "test_watchdog.h"
+#include "utf8.h"
 
 using namespace languages::cpp;
 
@@ -214,18 +215,35 @@ int main()
 	}
 
 	// ==========================================
-	// Test 9: Multi-byte UTF-8 in comments & literals (byte invariance)
+	// Test 9: Multi-byte UTF-8 in comments & literals (UTF-8 whitespace detection)
 	// ==========================================
 	{
 		mask_state state;
-		// 4-byte emoji (🎉) and 2-byte char (ä) inside comment and string
-		std::string line = "int x = 1; /* 🎉 emoji */ int y = 2; // ä accent";
+		// 4-byte emoji (🎉), 3-byte Kanji (漢), and 2-byte char (ä) inside comments
+		std::string line = "int x = 1; /* 🎉 漢 ä */ int y = 2; // ä accent";
 		std::string masked = source_masker::mask_line(line, state);
 		// Exact byte length invariant
 		assert(masked.size() == line.size());
 		// Byte offset of downstream identifier 'y' is 100% preserved
 		assert(masked.find("int y = 2;") == line.find("int y = 2;"));
 		assert(masked.substr(0, 11) == "int x = 1; ");
+
+		// Verify every character inside the masked block comment satisfies utf8::is_space_at_byte
+		size_t comment_start = line.find("/*");
+		size_t comment_end = line.find("*/") + 2;
+		size_t offset = comment_start;
+		while (offset < comment_end) {
+			assert(utf8::is_space_at_byte(masked, offset));
+			offset += utf8::char_len(static_cast<unsigned char>(masked[offset]));
+		}
+
+		// Verify trailing comment also satisfies utf8::is_space_at_byte
+		size_t trail_start = line.find("//");
+		offset = trail_start;
+		while (offset < masked.size()) {
+			assert(utf8::is_space_at_byte(masked, offset));
+			offset += utf8::char_len(static_cast<unsigned char>(masked[offset]));
+		}
 	}
 
 	std::cout << "All source_masker unit tests passed successfully!" << std::endl;

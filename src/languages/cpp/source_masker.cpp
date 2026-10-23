@@ -22,6 +22,63 @@ bool is_valid_raw_string_delim(std::string_view delim)
 	return true;
 }
 
+void mask_utf8_char(std::string &out, size_t &idx, size_t max_end)
+{
+	if (idx >= max_end || idx >= out.size()) {
+		return;
+	}
+
+	unsigned char lead = static_cast<unsigned char>(out[idx]);
+	size_t clen = utf8::char_len(lead);
+
+	// If sequence exceeds our masking boundary or the string length, fill single byte
+	if (idx + clen > max_end || idx + clen > out.size()) {
+		out[idx] = ' ';
+		idx += 1;
+		return;
+	}
+
+	switch (clen) {
+	case 1:
+		out[idx] = ' ';
+		idx += 1;
+		break;
+	case 2:
+		// U+00A0: No-Break Space (\xC2\xA0), recognized by utf8::is_space_at_byte
+		out[idx] = '\xC2';
+		out[idx + 1] = '\xA0';
+		idx += 2;
+		break;
+	case 3:
+		// U+2000: En Quad (\xE2\x80\x80), recognized by utf8::is_space_at_byte
+		out[idx] = '\xE2';
+		out[idx + 1] = '\x80';
+		out[idx + 2] = '\x80';
+		idx += 3;
+		break;
+	case 4:
+		// Two U+00A0 No-Break Spaces (\xC2\xA0\xC2\xA0) matching 4 bytes and 2 UTF-16 code units
+		out[idx] = '\xC2';
+		out[idx + 1] = '\xA0';
+		out[idx + 2] = '\xC2';
+		out[idx + 3] = '\xA0';
+		idx += 4;
+		break;
+	default:
+		out[idx] = ' ';
+		idx += 1;
+		break;
+	}
+}
+
+void mask_range(std::string &out, size_t start, size_t end)
+{
+	size_t i = start;
+	while (i < end && i < out.size()) {
+		mask_utf8_char(out, i, end);
+	}
+}
+
 } // anonymous namespace
 
 std::string source_masker::mask_line(std::string_view line, mask_state &state)
@@ -34,11 +91,11 @@ std::string source_masker::mask_line(std::string_view line, mask_state &state)
 	if (state.in_block_comment) {
 		size_t close_pos = line.find("*/");
 		if (close_pos != std::string_view::npos) {
-			std::fill(out.begin(), out.begin() + close_pos + 2, ' ');
+			mask_range(out, 0, close_pos + 2);
 			state.in_block_comment = false;
 			i = close_pos + 2;
 		} else {
-			std::fill(out.begin(), out.end(), ' ');
+			mask_range(out, 0, out.size());
 			return out;
 		}
 	}
@@ -49,12 +106,12 @@ std::string source_masker::mask_line(std::string_view line, mask_state &state)
 		size_t close_pos = line.find(close_pat);
 		if (close_pos != std::string_view::npos) {
 			size_t close_end = close_pos + close_pat.size();
-			std::fill(out.begin(), out.begin() + close_end, ' ');
+			mask_range(out, 0, close_end);
 			state.in_raw_string = false;
 			state.raw_string_delim.clear();
 			i = close_end;
 		} else {
-			std::fill(out.begin(), out.end(), ' ');
+			mask_range(out, 0, out.size());
 			return out;
 		}
 	}
@@ -62,7 +119,7 @@ std::string source_masker::mask_line(std::string_view line, mask_state &state)
 	while (i < len) {
 		// 1. Line comment: //
 		if (line[i] == '/' && i + 1 < len && line[i + 1] == '/') {
-			std::fill(out.begin() + i, out.end(), ' ');
+			mask_range(out, i, len);
 			break;
 		}
 
@@ -70,10 +127,10 @@ std::string source_masker::mask_line(std::string_view line, mask_state &state)
 		if (line[i] == '/' && i + 1 < len && line[i + 1] == '*') {
 			size_t close_pos = line.find("*/", i + 2);
 			if (close_pos != std::string_view::npos) {
-				std::fill(out.begin() + i, out.begin() + close_pos + 2, ' ');
+				mask_range(out, i, close_pos + 2);
 				i = close_pos + 2;
 			} else {
-				std::fill(out.begin() + i, out.end(), ' ');
+				mask_range(out, i, len);
 				state.in_block_comment = true;
 				break;
 			}
@@ -103,10 +160,10 @@ std::string source_masker::mask_line(std::string_view line, mask_state &state)
 						size_t close_pos = line.find(close_pat, open_paren + 1);
 						if (close_pos != std::string_view::npos) {
 							size_t close_end = close_pos + close_pat.size();
-							std::fill(out.begin() + prefix_start, out.begin() + close_end, ' ');
+							mask_range(out, prefix_start, close_end);
 							i = close_end;
 						} else {
-							std::fill(out.begin() + prefix_start, out.end(), ' ');
+							mask_range(out, prefix_start, len);
 							state.in_raw_string = true;
 							state.raw_string_delim = std::string(delim);
 							break;
@@ -129,23 +186,18 @@ std::string source_masker::mask_line(std::string_view line, mask_state &state)
 				str_start = i - 1;
 			}
 
-			out[i] = ' ';
 			++i;
 			while (i < len) {
 				if (line[i] == '\\' && i + 1 < len) {
-					out[i] = ' ';
-					out[i + 1] = ' ';
 					i += 2;
 				} else if (line[i] == '"') {
-					out[i] = ' ';
 					++i;
 					break;
 				} else {
-					out[i] = ' ';
 					++i;
 				}
 			}
-			std::fill(out.begin() + str_start, out.begin() + (str_start < i ? str_start : i), ' ');
+			mask_range(out, str_start, i);
 			continue;
 		}
 
@@ -156,23 +208,18 @@ std::string source_masker::mask_line(std::string_view line, mask_state &state)
 			    (i == 1 || !utf8::is_alnum(line[i - 2], "_"))) {
 				char_start = i - 1;
 			}
-			out[i] = ' ';
 			++i;
 			while (i < len) {
 				if (line[i] == '\\' && i + 1 < len) {
-					out[i] = ' ';
-					out[i + 1] = ' ';
 					i += 2;
 				} else if (line[i] == '\'') {
-					out[i] = ' ';
 					++i;
 					break;
 				} else {
-					out[i] = ' ';
 					++i;
 				}
 			}
-			std::fill(out.begin() + char_start, out.begin() + (char_start < i ? char_start : i), ' ');
+			mask_range(out, char_start, i);
 			continue;
 		}
 
