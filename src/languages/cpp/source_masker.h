@@ -19,15 +19,16 @@ struct mask_state {
  *
  * Replaces line and block comments and literals ("...", '...', R"(...)") with ASCII spaces (' ').
  *
- * Important offset invariant:
- * - Operates at the byte level: each byte within a comment or literal is replaced by a single ' ' byte.
- * - This guarantees that the line's byte length and the byte offsets of all active code identifiers
- *   remain 100% exact for RE2 matchers and pointer-arithmetic token extractors.
- * - Multi-byte UTF-8 notes: Multi-byte characters (e.g. multi-byte emojis or non-ASCII characters)
- *   inside comments or string literals are replaced by an equivalent number of 1-byte ASCII space bytes.
- *   This preserves exact byte positions rather than Unicode code point counts or visual terminal display widths.
- *   If Unicode character count invariance is ever required in the future, multi-byte UTF-8 characters
- *   can be replaced with multi-byte whitespace sequences of the exact same byte length.
+ * Important offset & character invariants:
+ * - Replaces characters inside comments and literals with valid UTF-8 whitespace of the exact same byte length:
+ *   - 1-byte: ASCII space (' ', 0x20)
+ *   - 2-byte: U+00A0 No-Break Space (\xC2\xA0)
+ *   - 3-byte: U+2000 En Quad (\xE2\x80\x80)
+ *   - 4-byte: U+F0020 Plane 15 Private Use Area whitespace (\xF3\xB0\x80\xA0)
+ * - This guarantees both exact byte-for-byte length and 1:1 character count invariance.
+ * - Byte offsets and character positions of all active code identifiers remain 100% stable for RE2 matchers,
+ *   pointer-arithmetic token extractors, and utf8::byte_to_char_pos conversions.
+ * - Every masked position is recognized as whitespace by utf8::is_space_at_byte.
  */
 class source_masker
 {

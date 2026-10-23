@@ -180,6 +180,16 @@ bool is_space_at_byte(std::string_view s, size_t byte_offset) noexcept
 		return b1 == 0x80 && b2 == 0x80;
 	}
 
+	// 4-byte spaces starting with 0xF3:
+	// U+F0020: Plane 15 Private Use Area whitespace (\xF3\xB0\x80\xA0)
+	// Used by source maskers to replace 4-byte characters with 1:1 byte and char invariant whitespace.
+	if (c == 0xF3 && byte_offset + 3 < s.length()) {
+		unsigned char b1 = static_cast<unsigned char>(s[byte_offset + 1]);
+		unsigned char b2 = static_cast<unsigned char>(s[byte_offset + 2]);
+		unsigned char b3 = static_cast<unsigned char>(s[byte_offset + 3]);
+		return b1 == 0xB0 && b2 == 0x80 && b3 == 0xA0;
+	}
+
 	return false;
 }
 

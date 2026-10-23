@@ -1049,6 +1049,13 @@ void test_utf8_is_space()
 	assert(!utf8::is_space_at_byte("\xE3\x80\x80", 1));
 	assert(!utf8::is_space_at_byte("\xE3\x80\x80", 2));
 
+	// U+F0020 (Plane 15 PUA 4-byte space: \xF3\xB0\x80\xA0)
+	assert(utf8::is_space_at_char("\xF3\xB0\x80\xA0", 0));
+	assert(utf8::is_space_at_byte("\xF3\xB0\x80\xA0", 0));
+	assert(!utf8::is_space_at_byte("\xF3\xB0\x80\xA0", 1));
+	assert(!utf8::is_space_at_byte("\xF3\xB0\x80\xA0", 2));
+	assert(!utf8::is_space_at_byte("\xF3\xB0\x80\xA0", 3));
+
 	// 3. Unicode non-spaces (adjacent or similar lead bytes to test against false positives)
 	assert(!utf8::is_space_at_char("\xC2\x9F", 0));
 	assert(!utf8::is_space_at_byte("\xC2\x9F", 0));
@@ -1072,6 +1079,8 @@ void test_utf8_is_space()
 	assert(!utf8::is_space_at_byte("é", 0));
 	assert(!utf8::is_space_at_char("🚀", 0));
 	assert(!utf8::is_space_at_byte("🚀", 0));
+	assert(!utf8::is_space_at_char("\xF3\xB0\x80\xA1", 0)); // Adjacent 4-byte non-space
+	assert(!utf8::is_space_at_byte("\xF3\xB0\x80\xA1", 0));
 
 	// 4. Boundary and error conditions
 	// Empty string
@@ -1091,6 +1100,8 @@ void test_utf8_is_space()
 	assert(!utf8::is_space_at_byte("\xE2\x80", 0));
 	assert(!utf8::is_space_at_char("\xE3\x80", 0));
 	assert(!utf8::is_space_at_byte("\xE3\x80", 0));
+	assert(!utf8::is_space_at_char("\xF3\xB0\x80", 0));
+	assert(!utf8::is_space_at_byte("\xF3\xB0\x80", 0));
 
 	// Invalid UTF-8 lead and continuation bytes
 	assert(!utf8::is_space_at_char("\xFF", 0));
@@ -1106,6 +1117,7 @@ void test_utf8_is_space()
 	const std::string thin_space = "\xE2\x80\x89";
 	const std::string hair_space = "\xE2\x80\x8A";
 	const std::string cjk_space = "\xE3\x80\x80";
+	const std::string pua_space = "\xF3\xB0\x80\xA0";
 
 	std::string mixed1 = "Hello World";
 	assert(!utf8::is_space_at_char(mixed1, 4));
@@ -1140,6 +1152,8 @@ void test_utf8_is_space()
 		mixed_nbsp,
 		cjk_space,
 		mixed_cjk,
+		pua_space,
+		"Test" + pua_space + "Case",
 		ogham + "ogham" + ogham + "space",
 		quad + "quad" + em_space + "em" + thin_space + "thin" + hair_space + "hair",
 		"Mixed \t" + nbsp + ogham + em_space + cjk_space + "spaces",

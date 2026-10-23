@@ -57,10 +57,11 @@ void mask_utf8_char(std::string &out, size_t &idx, size_t max_end)
 		idx += 3;
 		break;
 	case 4:
-		// Two U+00A0 No-Break Spaces (\xC2\xA0\xC2\xA0) matching 4 bytes and 2 UTF-16 code units
-		out[idx] = '\xC2';
-		out[idx + 1] = '\xA0';
-		out[idx + 2] = '\xC2';
+		// U+F0020: Plane 15 Private Use Area whitespace (\xF3\xB0\x80\xA0)
+		// Preserves exact 4 bytes and 1:1 character count invariant, recognized by utf8::is_space_at_byte
+		out[idx] = '\xF3';
+		out[idx + 1] = '\xB0';
+		out[idx + 2] = '\x80';
 		out[idx + 3] = '\xA0';
 		idx += 4;
 		break;

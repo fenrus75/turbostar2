@@ -224,8 +224,13 @@ int main()
 		std::string masked = source_masker::mask_line(line, state);
 		// Exact byte length invariant
 		assert(masked.size() == line.size());
+		// Exact Unicode character count invariant (1:1 replacement across all UTF-8 byte lengths)
+		assert(utf8::length(masked) == utf8::length(line));
 		// Byte offset of downstream identifier 'y' is 100% preserved
-		assert(masked.find("int y = 2;") == line.find("int y = 2;"));
+		size_t id_byte = line.find("int y = 2;");
+		assert(masked.find("int y = 2;") == id_byte);
+		// Character position of downstream identifier 'y' is also 100% preserved
+		assert(utf8::byte_to_char_pos(masked, id_byte) == utf8::byte_to_char_pos(line, id_byte));
 		assert(masked.substr(0, 11) == "int x = 1; ");
 
 		// Verify every character inside the masked block comment satisfies utf8::is_space_at_byte
