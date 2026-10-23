@@ -64,6 +64,7 @@ core_sources = files(
   'type_token_extractor.cpp',
   'call_token_extractor.cpp',
   'languages/cpp/language.cpp',
+  'languages/cpp/source_masker.cpp',
   'languages/cpp/type_token_extractor.cpp',
   'languages/cpp/call_token_extractor.cpp',
   'languages/cpp/symbol_extractor.cpp',

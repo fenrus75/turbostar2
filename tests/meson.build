@@ -78,6 +78,12 @@ test_call_token_extractor = executable('test_call_token_extractor',
   include_directories: inc)
 test('unit_call_token_extractor', test_call_token_extractor, suite: 'editor')
 
+test_cpp_source_masker = executable('test_cpp_source_masker',
+  ['unit/test_cpp_source_masker.cpp'],
+  dependencies : [core_dep],
+  include_directories: inc)
+test('unit_cpp_source_masker', test_cpp_source_masker, suite: 'editor')
+
 test_call_resolver = executable('test_call_resolver',
   ['unit/test_call_resolver.cpp'],
   dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep],
