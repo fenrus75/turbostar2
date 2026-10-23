@@ -213,6 +213,21 @@ int main()
 		assert(masked_doc[5].find('}') != std::string::npos);
 	}
 
+	// ==========================================
+	// Test 9: Multi-byte UTF-8 in comments & literals (byte invariance)
+	// ==========================================
+	{
+		mask_state state;
+		// 4-byte emoji (🎉) and 2-byte char (ä) inside comment and string
+		std::string line = "int x = 1; /* 🎉 emoji */ int y = 2; // ä accent";
+		std::string masked = source_masker::mask_line(line, state);
+		// Exact byte length invariant
+		assert(masked.size() == line.size());
+		// Byte offset of downstream identifier 'y' is 100% preserved
+		assert(masked.find("int y = 2;") == line.find("int y = 2;"));
+		assert(masked.substr(0, 11) == "int x = 1; ");
+	}
+
 	std::cout << "All source_masker unit tests passed successfully!" << std::endl;
 	return 0;
 }

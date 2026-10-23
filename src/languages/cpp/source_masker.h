@@ -17,8 +17,17 @@ struct mask_state {
 /**
  * @brief Masks comments, string literals, and character literals in C/C++ source lines.
  *
- * Replaces line and block comments and literals ("...", '...', R"(...)") with spaces,
- * preserving exact line lengths, newline structure, and column offsets.
+ * Replaces line and block comments and literals ("...", '...', R"(...)") with ASCII spaces (' ').
+ *
+ * Important offset invariant:
+ * - Operates at the byte level: each byte within a comment or literal is replaced by a single ' ' byte.
+ * - This guarantees that the line's byte length and the byte offsets of all active code identifiers
+ *   remain 100% exact for RE2 matchers and pointer-arithmetic token extractors.
+ * - Multi-byte UTF-8 notes: Multi-byte characters (e.g. multi-byte emojis or non-ASCII characters)
+ *   inside comments or string literals are replaced by an equivalent number of 1-byte ASCII space bytes.
+ *   This preserves exact byte positions rather than Unicode code point counts or visual terminal display widths.
+ *   If Unicode character count invariance is ever required in the future, multi-byte UTF-8 characters
+ *   can be replaced with multi-byte whitespace sequences of the exact same byte length.
  */
 class source_masker
 {
