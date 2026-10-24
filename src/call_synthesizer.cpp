@@ -11,6 +11,8 @@
 #include "agentlib/httplib_transport.h"
 #include "agentlib/llm_client.h"
 #include "event_logger.h"
+#include "languages/cpp/keywords.h"
+#include "codemap_utils.h"
 #include "lsp_manager.h"
 #include "project_manager.h"
 
@@ -297,6 +299,91 @@ std::vector<call_suggestion> call_synthesizer::generate_argument_suggestions(
 		return suggestions;
 	}
 
+	// Special handling for formatting functions: printf, fprintf, sprintf, snprintf
+	if (sig.function_name == "printf" || sig.function_name == "fprintf" ||
+	    sig.function_name == "sprintf" || sig.function_name == "snprintf") {
+		std::vector<std::string> str_vars;
+		std::vector<std::string> int_vars;
+		std::vector<std::string> ptr_vars;
+
+		for (const auto &v : locals) {
+			std::string t = normalize_type(v.type);
+			if (t.find("string") != std::string::npos || t.find("char*") != std::string::npos || t.find("char *") != std::string::npos) {
+				str_vars.push_back(v.name);
+			} else if (t == "int" || t == "size_t" || t == "int64_t" || t == "uint32_t" || t == "long" || t == "short") {
+				int_vars.push_back(v.name);
+			} else if (t.find('*') != std::string::npos) {
+				ptr_vars.push_back(v.name);
+			}
+		}
+
+		std::string prefix;
+		if (sig.function_name == "fprintf") {
+			prefix = "stderr, ";
+		} else if (sig.function_name == "sprintf") {
+			prefix = (!ptr_vars.empty() ? ptr_vars[0] : (!str_vars.empty() ? str_vars[0] : "buf")) + ", ";
+		} else if (sig.function_name == "snprintf") {
+			std::string b = (!ptr_vars.empty() ? ptr_vars[0] : (!str_vars.empty() ? str_vars[0] : "buf"));
+			prefix = b + ", sizeof(" + b + "), ";
+		}
+
+		std::string trimmed_existing = trim_string(existing_args);
+		if (!trimmed_existing.empty()) {
+			if (trimmed_existing.ends_with(',')) {
+				if (!int_vars.empty()) {
+					std::string s = "(" + trimmed_existing + " " + int_vars[0] + ")";
+					suggestions.push_back({s, s, 95, false});
+				}
+				if (!str_vars.empty()) {
+					std::string s = "(" + trimmed_existing + " " + str_vars[0] + ")";
+					suggestions.push_back({s, s, 90, false});
+				}
+			} else {
+				suggestions.push_back({"(" + trimmed_existing + ")", "(" + trimmed_existing + ")", 100, false});
+				if (!trimmed_existing.contains("\\n") && trimmed_existing.ends_with('"')) {
+					std::string with_nl = trimmed_existing.substr(0, trimmed_existing.size() - 1) + "\\n\"";
+					suggestions.push_back({"(" + with_nl + ")", "(" + with_nl + ")", 95, false});
+				}
+				if (trimmed_existing.ends_with('"')) {
+					if (!int_vars.empty()) {
+						std::string s = "(" + trimmed_existing + ", " + int_vars[0] + ")";
+						suggestions.push_back({s, s, 90, false});
+					}
+					if (!str_vars.empty()) {
+						std::string s = "(" + trimmed_existing + ", " + str_vars[0] + ")";
+						suggestions.push_back({s, s, 85, false});
+					}
+				}
+			}
+		} else {
+			if (!str_vars.empty() && !int_vars.empty()) {
+				std::string s1 = std::format("({}\"%s: %d\\n\", {}, {})", prefix, str_vars[0], int_vars[0]);
+				std::string s2 = std::format("({}\"%s\\n\", {})", prefix, str_vars[0]);
+				suggestions.push_back({s1, s1, 95, false});
+				suggestions.push_back({s2, s2, 90, false});
+			} else if (!str_vars.empty()) {
+				std::string s1 = std::format("({}\"%s\\n\", {})", prefix, str_vars[0]);
+				std::string s2 = std::format("({}\"Hello, world!\\n\")", prefix);
+				suggestions.push_back({s1, s1, 95, false});
+				suggestions.push_back({s2, s2, 85, false});
+			} else if (!int_vars.empty()) {
+				std::string s1 = std::format("({}\"%d\\n\", {})", prefix, int_vars[0]);
+				std::string s2 = std::format("({}\"count = %d\\n\", {})", prefix, int_vars[0]);
+				suggestions.push_back({s1, s1, 95, false});
+				suggestions.push_back({s2, s2, 90, false});
+			} else {
+				std::string s1 = std::format("({}\"\\n\")", prefix);
+				std::string s2 = std::format("({}\"Hello, world!\\n\")", prefix);
+				suggestions.push_back({s1, s1, 80, false});
+				suggestions.push_back({s2, s2, 75, false});
+			}
+		}
+
+		if (!suggestions.empty()) {
+			return suggestions;
+		}
+	}
+
 	// Parse any already-provided arguments to bias suggestions
 	std::vector<std::string> existing_tokens;
 	if (!existing_args.empty()) {
@@ -436,63 +523,133 @@ context_menu_data call_synthesizer::analyze_context_at(document &doc, int doc_y,
 		return data;
 	}
 
-	// 1. Extract token boundaries under doc_x
-	int start_x = doc_x;
-	while (start_x > 0 && (std::isalnum(static_cast<unsigned char>(line_text[start_x - 1])) || line_text[start_x - 1] == '_')) {
+	// 1. Identify token under cursor or enclosing call site
+	int start_x = std::min(doc_x, static_cast<int>(line_text.size()));
+	int end_x = start_x;
+
+	bool on_ident = (start_x < static_cast<int>(line_text.size()) &&
+			 (std::isalnum(static_cast<unsigned char>(line_text[start_x])) || line_text[start_x] == '_'));
+
+	if (!on_ident && start_x > 0 &&
+	    (std::isalnum(static_cast<unsigned char>(line_text[start_x - 1])) || line_text[start_x - 1] == '_')) {
+		// Cursor right after an identifier (e.g. "printf|")
 		start_x--;
-	}
-	int end_x = doc_x;
-	while (end_x < static_cast<int>(line_text.size()) &&
-	       (std::isalnum(static_cast<unsigned char>(line_text[end_x])) || line_text[end_x] == '_')) {
-		end_x++;
+		on_ident = true;
 	}
 
-	if (end_x <= start_x) {
-		return data;
-	}
-
-	data.token = line_text.substr(start_x, end_x - start_x);
-	data.token_start_col = start_x;
-	data.token_end_col = end_x;
-
-	// 2. Check if followed by parentheses on the same line
-	size_t open_paren = line_text.find('(', end_x);
-	if (open_paren != std::string::npos && open_paren <= static_cast<size_t>(end_x + 3)) {
-		data.has_existing_parens = true;
-		data.existing_args_start_col = static_cast<int>(open_paren);
-		size_t close_paren = line_text.find(')', open_paren);
-		if (close_paren != std::string::npos) {
-			data.existing_args_end_col = static_cast<int>(close_paren);
+	if (on_ident) {
+		while (start_x > 0 &&
+		       (std::isalnum(static_cast<unsigned char>(line_text[start_x - 1])) || line_text[start_x - 1] == '_')) {
+			start_x--;
 		}
-	}
-
-	// 3. Resolve signature via LSP definition query or fallback
-	std::string sig_str;
-	auto defs = project_manager::get_instance().lsp_query_definition(doc.get_filename(), doc_y, start_x);
-	if (!defs.empty()) {
-		data.declaration_location = std::format("{}:{}", defs[0].path, defs[0].range.start_y + 1);
-			std::ifstream f(defs[0].path);
-			if (f.is_open()) {
-				std::string line;
-				int cur_l = 0;
-				while (std::getline(f, line)) {
-					if (cur_l >= defs[0].range.start_y && cur_l <= defs[0].range.start_y + 3) {
-						sig_str += " " + line;
-						if (sig_str.find(')') != std::string::npos) {
-							break;
-						}
-					}
-					cur_l++;
-					if (cur_l > defs[0].range.start_y + 3)
-						break;
+		end_x = start_x;
+		while (end_x < static_cast<int>(line_text.size()) &&
+		       (std::isalnum(static_cast<unsigned char>(line_text[end_x])) || line_text[end_x] == '_')) {
+			end_x++;
+		}
+		data.token = line_text.substr(start_x, end_x - start_x);
+		data.token_start_col = start_x;
+		data.token_end_col = end_x;
+	} else {
+		// Cursor is not on an identifier. It might be on '(' or inside parens: e.g. "printf(|)"
+		int scan_p = std::min(doc_x, static_cast<int>(line_text.size()) - 1);
+		int open_p = -1;
+		int depth = 0;
+		for (int i = scan_p; i >= 0; --i) {
+			if (line_text[i] == ')') {
+				depth++;
+			} else if (line_text[i] == '(') {
+				if (depth > 0) {
+					depth--;
+				} else {
+					open_p = i;
+					break;
 				}
 			}
 		}
+		if (open_p != -1) {
+			int fn_end = open_p;
+			while (fn_end > 0 && std::isspace(static_cast<unsigned char>(line_text[fn_end - 1]))) {
+				fn_end--;
+			}
+			int fn_start = fn_end;
+			while (fn_start > 0 &&
+			       (std::isalnum(static_cast<unsigned char>(line_text[fn_start - 1])) || line_text[fn_start - 1] == '_')) {
+				fn_start--;
+			}
+			if (fn_end > fn_start) {
+				data.token = line_text.substr(fn_start, fn_end - fn_start);
+				data.token_start_col = fn_start;
+				data.token_end_col = fn_end;
+			}
+		}
+	}
+
+	if (data.token.empty()) {
+		return data;
+	}
+
+	// 2. Check for parentheses following data.token
+	size_t check_p = data.token_end_col;
+	while (check_p < line_text.size() && std::isspace(static_cast<unsigned char>(line_text[check_p]))) {
+		check_p++;
+	}
+
+	int open_paren = -1;
+	int close_paren = -1;
+	if (check_p < line_text.size() && line_text[check_p] == '(') {
+		open_paren = static_cast<int>(check_p);
+		data.has_existing_parens = true;
+		data.existing_args_start_col = open_paren;
+
+		int depth = 1;
+		for (size_t i = open_paren + 1; i < line_text.size(); ++i) {
+			if (line_text[i] == '(') {
+				depth++;
+			} else if (line_text[i] == ')') {
+				depth--;
+				if (depth == 0) {
+					close_paren = static_cast<int>(i);
+					break;
+				}
+			} else if (line_text[i] == ';' && depth > 0) {
+				break;
+			}
+		}
+		data.existing_args_end_col = close_paren;
+
+		if (close_paren != -1) {
+			data.call_case = call_site_case::full_call;
+			if (close_paren > open_paren + 1) {
+				data.existing_args = line_text.substr(open_paren + 1, close_paren - open_paren - 1);
+			}
+		} else {
+			data.call_case = call_site_case::half_call;
+			size_t end_arg = line_text.size();
+			size_t semi = line_text.find(';', open_paren);
+			if (semi != std::string::npos) {
+				end_arg = semi;
+			}
+			if (end_arg > static_cast<size_t>(open_paren + 1)) {
+				data.existing_args = line_text.substr(open_paren + 1, end_arg - (open_paren + 1));
+			}
+		}
+	} else {
+		data.call_case = call_site_case::naked_identifier;
+	}
+
+	// 3. Resolve signature using codemap_utils (cache, builtins, LSP definition/workspace symbol)
+	std::string sig_str;
+	auto sig_res = tools::resolve_function_signature(doc.get_filename(), doc_y, data.token_start_col, data.token);
+	if (sig_res) {
+		sig_str = sig_res->raw_signature;
+		data.declaration_location = sig_res->declaration_location;
+		data.type_synopsis = sig_res->raw_signature;
+	}
 
 	// Fallback signature heuristic if LSP is offline or hover unpopulated
 	if (sig_str.empty()) {
-		// If token is preceded or followed by parens or looks like a function call
-		if (data.has_existing_parens || (end_x < static_cast<int>(line_text.size()) && line_text[end_x] == '(')) {
+		if (data.has_existing_parens) {
 			sig_str = "void " + data.token + "()";
 		}
 	}
@@ -501,19 +658,24 @@ context_menu_data call_synthesizer::analyze_context_at(document &doc, int doc_y,
 	if (parsed_sig) {
 		data.kind = symbol_kind_context::function_call;
 		auto locals = extract_in_scope_variables(doc, doc_y);
-		std::string existing_args;
-		if (data.has_existing_parens && data.existing_args_end_col > data.existing_args_start_col + 1) {
-			existing_args = line_text.substr(data.existing_args_start_col + 1, data.existing_args_end_col - data.existing_args_start_col - 1);
-		}
-		data.suggestions = generate_argument_suggestions(*parsed_sig, locals, existing_args);
-	} else if (!defs.empty() && (defs[0].kind == "class" || defs[0].kind == "struct" || defs[0].kind == "enum" ||
-				    defs[0].kind == "interface" || defs[0].kind == "type")) {
-		data.kind = symbol_kind_context::type_definition;
-		if (!defs[0].underlying_type.empty()) {
-			data.type_synopsis = defs[0].underlying_type;
-		}
+		data.suggestions = generate_argument_suggestions(*parsed_sig, locals, data.existing_args);
 	} else {
-		data.kind = symbol_kind_context::variable;
+		auto defs = project_manager::get_instance().lsp_query_definition(doc.get_filename(), doc_y, data.token_start_col);
+		if (!defs.empty() && (defs[0].kind == "class" || defs[0].kind == "struct" || defs[0].kind == "enum" ||
+				      defs[0].kind == "interface" || defs[0].kind == "type")) {
+			data.kind = symbol_kind_context::type_definition;
+			if (!defs[0].underlying_type.empty()) {
+				data.type_synopsis = defs[0].underlying_type;
+			}
+			if (!defs[0].path.empty()) {
+				data.declaration_location = std::format("{}:{}", defs[0].path, defs[0].range.start_y + 1);
+			}
+		} else {
+			data.kind = symbol_kind_context::variable;
+			if (!defs.empty() && !defs[0].path.empty()) {
+				data.declaration_location = std::format("{}:{}", defs[0].path, defs[0].range.start_y + 1);
+			}
+		}
 	}
 
 	return data;

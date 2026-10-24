@@ -166,30 +166,53 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 			std::vector<popup_menu_item> items;
 
 			if (ctx.kind == turbostar::symbol_kind_context::function_call) {
+				auto apply_call_mutation = [ctx](document &d, std::string_view call_text) {
+					if (ctx.call_case == turbostar::call_site_case::full_call ||
+					    (ctx.has_existing_parens && ctx.existing_args_end_col != -1)) {
+						d.set_selection(ctx.target_line, ctx.existing_args_start_col,
+								ctx.target_line, ctx.existing_args_end_col + 1);
+						d.delete_selection();
+						d.insert_text(std::string(call_text));
+					} else if (ctx.call_case == turbostar::call_site_case::half_call ||
+						   (ctx.has_existing_parens && ctx.existing_args_end_col == -1)) {
+						auto l_obj = d.get_line(ctx.target_line);
+						int len = l_obj ? l_obj->length_in_chars() : ctx.existing_args_start_col + 1;
+						if (l_obj) {
+							std::string lt = l_obj->get_text();
+							size_t semi = lt.find(';', ctx.existing_args_start_col);
+							if (semi != std::string::npos) {
+								len = static_cast<int>(semi);
+							}
+						}
+						d.set_selection(ctx.target_line, ctx.existing_args_start_col, ctx.target_line, len);
+						d.delete_selection();
+						d.insert_text(std::string(call_text));
+					} else {
+						// Naked identifier (Case 1)
+						d.move_cursor(ctx.token_end_col - d.get_cursor_x(), ctx.target_line - d.get_cursor_y());
+						d.insert_text(std::string(call_text));
+					}
+				};
+
+				if (!ctx.type_synopsis.empty()) {
+					std::string syn = ctx.type_synopsis;
+					if (syn.length() > 44) {
+						syn = syn.substr(0, 41) + "...";
+					}
+					items.push_back({0, syn, 0, false});
+					items.push_back({0, "", 0, true});
+				}
+
 				// 1. Native Suggestions (Slots 1 and 2)
 				for (size_t s_idx = 0; s_idx < std::min<size_t>(ctx.suggestions.size(), 2); ++s_idx) {
 					const auto &s = ctx.suggestions[s_idx];
-					char hotkey = static_cast<char>('1' + items.size());
+					char hotkey = static_cast<char>('1' + s_idx);
 					std::string label = std::format("{}. {}", hotkey, s.call_text);
 					popup_menu_item item{0, label, hotkey, false};
-					item.on_select = [this, w_ptr = w, ctx, call_text = s.call_text]() {
+					item.on_select = [this, w_ptr = w, apply_call_mutation, call_text = s.call_text]() {
 						auto d = w_ptr->get_document();
 						if (!d) return;
-						if (ctx.has_existing_parens && ctx.existing_args_end_col != -1) {
-							d->set_selection(ctx.target_line, ctx.existing_args_start_col,
-									 ctx.target_line, ctx.existing_args_end_col + 1);
-							d->delete_selection();
-							d->insert_text(call_text);
-						} else if (ctx.has_existing_parens && ctx.existing_args_end_col == -1) {
-							auto l_obj = d->get_line(ctx.target_line);
-							int len = l_obj ? l_obj->length_in_chars() : ctx.existing_args_start_col + 1;
-							d->set_selection(ctx.target_line, ctx.existing_args_start_col, ctx.target_line, len);
-							d->delete_selection();
-							d->insert_text(call_text);
-						} else {
-							d->move_cursor(ctx.token_end_col - d->get_cursor_x(), ctx.target_line - d->get_cursor_y());
-							d->insert_text(call_text);
-						}
+						apply_call_mutation(*d, call_text);
 						global_queue_.push(event_type::redraw);
 					};
 					items.push_back(item);
@@ -213,20 +236,10 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 						}
 					}
 					auto locals = turbostar::call_synthesizer::extract_in_scope_variables(*doc, doc_y);
-					std::string sig_str = ctx.token;
-					std::string existing_args;
-					if (ctx.has_existing_parens && ctx.existing_args_end_col > ctx.existing_args_start_col + 1) {
-						auto cur_l = doc->get_line(doc_y);
-						if (cur_l) {
-							std::string lt = cur_l->get_text();
-							if (ctx.existing_args_end_col <= static_cast<int>(lt.size())) {
-								existing_args = lt.substr(ctx.existing_args_start_col + 1,
-											  ctx.existing_args_end_col - ctx.existing_args_start_col - 1);
-							}
-						}
-					}
+					std::string sig_str = !ctx.type_synopsis.empty() ? ctx.type_synopsis : ctx.token;
+					std::string existing_args = ctx.existing_args;
 
-					std::thread([this, current_generation, ai_item_index, w_ptr = w, ctx,
+					std::thread([this, current_generation, ai_item_index, w_ptr = w, apply_call_mutation,
 						     enclosing_func = std::move(enclosing_func), sig_str = std::move(sig_str),
 						     locals = std::move(locals), existing_args = std::move(existing_args)]() {
 						auto ai_res = turbostar::call_synthesizer::query_ai_call_suggestion(
@@ -234,29 +247,15 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 						if (!ai_res.has_value() || ai_res->empty()) {
 							return;
 						}
-						post_to_main_thread([this, current_generation, ai_item_index, w_ptr, ctx, call_text = *ai_res]() {
+						post_to_main_thread([this, current_generation, ai_item_index, w_ptr, apply_call_mutation, call_text = *ai_res]() {
 							if (rmb_menu_generation_ != current_generation || !active_popup_) {
 								return;
 							}
 							std::string label = "3. [AI] " + call_text;
-							active_popup_->update_item(ai_item_index, label, '3', [this, w_ptr, ctx, call_text]() {
+							active_popup_->update_item(ai_item_index, label, '3', [this, w_ptr, apply_call_mutation, call_text]() {
 								auto d = w_ptr->get_document();
 								if (!d) return;
-								if (ctx.has_existing_parens && ctx.existing_args_end_col != -1) {
-									d->set_selection(ctx.target_line, ctx.existing_args_start_col,
-											 ctx.target_line, ctx.existing_args_end_col + 1);
-									d->delete_selection();
-									d->insert_text(call_text);
-								} else if (ctx.has_existing_parens && ctx.existing_args_end_col == -1) {
-									auto l_obj = d->get_line(ctx.target_line);
-									int len = l_obj ? l_obj->length_in_chars() : ctx.existing_args_start_col + 1;
-									d->set_selection(ctx.target_line, ctx.existing_args_start_col, ctx.target_line, len);
-									d->delete_selection();
-									d->insert_text(call_text);
-								} else {
-									d->move_cursor(ctx.token_end_col - d->get_cursor_x(), ctx.target_line - d->get_cursor_y());
-									d->insert_text(call_text);
-								}
+								apply_call_mutation(*d, call_text);
 								global_queue_.push(event_type::redraw);
 							});
 							global_queue_.push(event_type::redraw);

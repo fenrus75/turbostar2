@@ -44,11 +44,20 @@ enum class symbol_kind_context {
 	unknown
 };
 
+enum class call_site_case {
+	none,
+	naked_identifier, // Case 1: func
+	half_call,        // Case 2: func( or func(a,
+	full_call         // Case 3: func(a, b)
+};
+
 struct context_menu_data {
 	symbol_kind_context kind{symbol_kind_context::unknown};
+	call_site_case call_case{call_site_case::none};
 	std::string token;
 	std::string type_synopsis;
 	std::string declaration_location;
+	std::string existing_args;
 	std::vector<call_suggestion> suggestions;
 	int token_start_col{-1};
 	int token_end_col{-1};

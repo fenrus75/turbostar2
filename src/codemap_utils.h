@@ -123,6 +123,21 @@ std::string augment_compiler_output_with_codemap(const std::string &output, agen
 bool expand_range_to_symbol_bounds(const std::string &file_path, std::string_view symbol_name, int &start_line, int &end_line,
 				   std::string &kind);
 
+struct function_signature_query_result {
+	std::string function_name;
+	std::string raw_signature;
+	std::string declaration_location;
+	bool from_cache{false};
+};
+
+// Resolves the function signature for a call site token using builtins, LSP definition/workspace symbols,
+// and in-memory caching.
+std::optional<function_signature_query_result> resolve_function_signature(
+    const std::string &safe_path, int line, int col, std::string_view token);
+
+// Clears the function signature cache.
+void clear_function_signature_cache();
+
 // Joins and stops all background outgoing calls indexing worker threads during shutdown.
 void shutdown_outgoing_calls_threads();
 

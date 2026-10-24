@@ -60,7 +60,12 @@ After making a change, create a git commit for the change. Before committing, en
     2. **Transient Mouse Selection**: Window-scoped click-and-drag range that supports vertical auto-scrolling across screens, auto-copies to system clipboard via OSC 52 on mouse release, overrides block highlighting visually during interaction, and is cleared by any subsequent keypress or click.
 - **Right Mouse Button Context Intelligence & Call Synthesizer**:
   - Turbostar replaces generic edit context menus with an intelligent call synthesizer (`src/call_synthesizer.{h,cpp}`).
-  - Right-clicking a function call site parses signature parameters and local in-scope variables to deliver 1–2 instant native C++ call recommendations (~5ms) with existing-arguments biasing.
+  - Supports three distinct call site cases:
+    1. **Naked identifier** (`func`): Identifies candidate functions via `codemap_utils` (built-in C/C++ standard signatures, LSP definitions, and in-memory cache), synthesizes full calls, and appends `(args...)` at the end of the identifier.
+    2. **Half call** (`func(` or `func(prefix, `): Resolves the unclosed opening `(`, biases remaining argument synthesis with already-typed prefix arguments, and replaces from `(` through the unclosed call boundary.
+    3. **Full call** (`func(args)`): Recognizes existing balanced calls, extracts current arguments, synthesizes alternative parameter assignments, and replaces the balanced argument list in place.
+  - Queries `codemap_utils::resolve_function_signature` with an in-memory thread-safe signature cache and `languages::cpp::builtin_signatures` database for microsecond repeat lookups.
+  - Delivers 1–2 instant native C++ call recommendations (~5ms) using in-scope locals, member variables, and parameters.
   - Slot 3 is reserved for an asynchronous background AI LLM completion (`3. [ ⌛ AI analyzing... ]`) that populates in place without layout shifts or cursor hopping.
   - For types and symbols, it displays synopsis information, Jump to Definition (`D`), and Find References (`R`).
   - For plain buffer regions, it provides fast block operations (Cut, Copy, Paste, Format Code).

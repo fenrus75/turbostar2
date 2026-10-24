@@ -4,6 +4,7 @@
 #include <iostream>
 #include <memory>
 #include "call_synthesizer.h"
+#include "codemap_utils.h"
 #include "document.h"
 #include "event_queue.h"
 
@@ -128,6 +129,92 @@ void window::render()
 		}
 		assert(found_x);
 		assert(found_title);
+	}
+
+	// 8. Test Case 1: "Naked" function identifier without parens (e.g. printf)
+	{
+		event_queue q;
+		document doc(q);
+		doc.insert_text(R"(
+void test_func()
+{
+	std::string msg = "Hello";
+	int count = 42;
+	printf
+}
+)");
+		// Line 5 has "	printf"
+		auto ctx = call_synthesizer::analyze_context_at(doc, 5, 3);
+		assert(ctx.token == "printf");
+		assert(ctx.call_case == call_site_case::naked_identifier);
+		assert(ctx.kind == symbol_kind_context::function_call);
+		assert(!ctx.has_existing_parens);
+		assert(ctx.existing_args_start_col == -1);
+		assert(ctx.existing_args_end_col == -1);
+		assert(!ctx.suggestions.empty());
+		assert(ctx.type_synopsis.find("printf") != std::string::npos);
+	}
+
+	// 9. Test Case 2: "Half" function call with unclosed '(' (e.g. printf( or printf("val = %d", )
+	{
+		event_queue q;
+		document doc(q);
+		doc.insert_text(R"(
+void test_func()
+{
+	int count = 42;
+	printf(
+}
+)");
+		// Line 4 has "	printf("
+		auto ctx = call_synthesizer::analyze_context_at(doc, 4, 3);
+		assert(ctx.token == "printf");
+		assert(ctx.call_case == call_site_case::half_call);
+		assert(ctx.kind == symbol_kind_context::function_call);
+		assert(ctx.has_existing_parens);
+		assert(ctx.existing_args_start_col != -1);
+		assert(ctx.existing_args_end_col == -1);
+		assert(!ctx.suggestions.empty());
+	}
+
+	// 10. Test Case 3: "Full" function call with existing balanced parens (e.g. printf("hello");)
+	{
+		event_queue q;
+		document doc(q);
+		doc.insert_text(R"(
+void test_func()
+{
+	std::string msg = "world";
+	printf("hello");
+}
+)");
+		// Line 4 has "	printf("hello");"
+		auto ctx = call_synthesizer::analyze_context_at(doc, 4, 3);
+		assert(ctx.token == "printf");
+		assert(ctx.call_case == call_site_case::full_call);
+		assert(ctx.kind == symbol_kind_context::function_call);
+		assert(ctx.has_existing_parens);
+		assert(ctx.existing_args_start_col != -1);
+		assert(ctx.existing_args_end_col != -1);
+		assert(ctx.existing_args == "\"hello\"");
+		assert(!ctx.suggestions.empty());
+	}
+
+	// 11. Test codemap_utils builtin resolution and caching
+	{
+		tools::clear_function_signature_cache();
+		auto sig1 = tools::resolve_function_signature("dummy.cpp", 10, 5, "printf");
+		assert(sig1.has_value());
+		assert(sig1->function_name == "printf");
+		assert(sig1->declaration_location == "<built-in>");
+
+		auto sig_format = tools::resolve_function_signature("dummy.cpp", 12, 5, "std::format");
+		assert(sig_format.has_value());
+		assert(sig_format->raw_signature.find("format") != std::string::npos);
+
+		auto sig_snprintf = tools::resolve_function_signature("dummy.cpp", 15, 5, "snprintf");
+		assert(sig_snprintf.has_value());
+		assert(sig_snprintf->raw_signature.find("snprintf") != std::string::npos);
 	}
 
 	std::cout << "All test_call_synthesizer assertions passed!" << std::endl;

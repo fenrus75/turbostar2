@@ -18,6 +18,7 @@
 #include "event_logger.h"
 #include "type_definition_cache.h"
 #include "utf8.h"
+#include "languages/cpp/builtin_signatures.h"
 
 #include <algorithm>
 #include <cctype>
@@ -1742,6 +1743,141 @@ bool expand_range_to_symbol_bounds(const std::string &file_path, std::string_vie
 	}
 
 	return false;
+}
+
+// Mutex protecting g_signature_cache.
+// Resource: in-memory cache mapping "safe_path:line:col:token" and "token" to function_signature_query_result.
+// Locking rules: Short-lived critical sections; never acquires any other mutex or performs I/O while locked.
+static std::mutex g_signature_cache_mutex;
+static std::unordered_map<std::string, function_signature_query_result> g_signature_cache;
+
+void clear_function_signature_cache()
+{
+	std::lock_guard<std::mutex> lock(g_signature_cache_mutex);
+	g_signature_cache.clear();
+}
+
+std::optional<function_signature_query_result> resolve_function_signature(
+    const std::string &safe_path, int line, int col, std::string_view token)
+{
+	if (token.empty()) {
+		return std::nullopt;
+	}
+
+	// 1. Check C/C++ standard library builtin signatures first
+	auto builtin_sig = languages::cpp::get_builtin_signature(token);
+	if (builtin_sig) {
+		return function_signature_query_result{
+		    .function_name = std::string(token),
+		    .raw_signature = std::string(*builtin_sig),
+		    .declaration_location = "<built-in>",
+		    .from_cache = false};
+	}
+
+	// 2. Check in-memory signature cache for fast repeat hits
+	std::string loc_key = std::format("{}:{}:{}:{}", safe_path, line, col, token);
+	{
+		std::lock_guard<std::mutex> lock(g_signature_cache_mutex);
+		auto it = g_signature_cache.find(loc_key);
+		if (it != g_signature_cache.end()) {
+			auto res = it->second;
+			res.from_cache = true;
+			return res;
+		}
+		auto it_sym = g_signature_cache.find(std::string(token));
+		if (it_sym != g_signature_cache.end()) {
+			auto res = it_sym->second;
+			res.from_cache = true;
+			return res;
+		}
+	}
+
+	// 3. Query LSP definition at call site location
+	std::string decl_loc;
+	std::string sig_str;
+	auto defs = project_manager::get_instance().lsp_query_definition(safe_path, line, col);
+	if (!defs.empty()) {
+		decl_loc = std::format("{}:{}", defs[0].path, defs[0].range.start_y + 1);
+		std::ifstream f(defs[0].path);
+		if (f.is_open()) {
+			std::string l;
+			int cur_l = 0;
+			while (std::getline(f, l)) {
+				if (cur_l >= defs[0].range.start_y && cur_l <= defs[0].range.start_y + 4) {
+					if (!sig_str.empty())
+						sig_str += " ";
+					sig_str += utf8::trim(l);
+					if (sig_str.find(')') != std::string::npos || sig_str.find('{') != std::string::npos ||
+					    sig_str.find(';') != std::string::npos) {
+						break;
+					}
+				}
+				cur_l++;
+				if (cur_l > defs[0].range.start_y + 4)
+					break;
+			}
+		}
+	}
+
+	// 4. Fallback: Query LSP workspace symbols if definition query returned no signature
+	if (sig_str.empty()) {
+		auto ws_symbols = project_manager::get_instance().lsp_query_workspace_symbols(std::string(token));
+		for (const auto &sym : ws_symbols) {
+			if (sym.name == token && (sym.kind == 11 || sym.kind == 12 || sym.kind == 6 || sym.kind == 9)) {
+				decl_loc = std::format("{}:{}", sym.location.path, sym.location.range.start_y + 1);
+				std::ifstream f(sym.location.path);
+				if (f.is_open()) {
+					std::string l;
+					int cur_l = 0;
+					while (std::getline(f, l)) {
+						if (cur_l >= sym.location.range.start_y && cur_l <= sym.location.range.start_y + 4) {
+							if (!sig_str.empty())
+								sig_str += " ";
+							sig_str += utf8::trim(l);
+							if (sig_str.find(')') != std::string::npos || sig_str.find('{') != std::string::npos ||
+							    sig_str.find(';') != std::string::npos) {
+								break;
+							}
+						}
+						cur_l++;
+						if (cur_l > sym.location.range.start_y + 4)
+							break;
+					}
+				}
+				if (!sig_str.empty())
+					break;
+			}
+		}
+	}
+
+	if (sig_str.empty()) {
+		return std::nullopt;
+	}
+
+	// Clean trailing '{' or ';'
+	size_t brace_pos = sig_str.find('{');
+	if (brace_pos != std::string::npos) {
+		sig_str = sig_str.substr(0, brace_pos);
+	}
+	size_t semi_pos = sig_str.find(';');
+	if (semi_pos != std::string::npos) {
+		sig_str = sig_str.substr(0, semi_pos);
+	}
+	sig_str = utf8::trim(sig_str);
+
+	function_signature_query_result result{
+	    .function_name = std::string(token),
+	    .raw_signature = sig_str,
+	    .declaration_location = decl_loc,
+	    .from_cache = false};
+
+	{
+		std::lock_guard<std::mutex> lock(g_signature_cache_mutex);
+		g_signature_cache[loc_key] = result;
+		g_signature_cache[std::string(token)] = result;
+	}
+
+	return result;
 }
 
 } // namespace tools
