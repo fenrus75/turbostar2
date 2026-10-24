@@ -16,7 +16,8 @@ def embed_text(input_file: str, output_file: str, var_name: str) -> None:
         f.write('#pragma once\n\n')
         f.write(f'static const char {var_name}[] = {{\n')
         for i, byte in enumerate(data):
-            f.write(f'0x{byte:02x},')
+            val = f'char(0x{byte:02x})' if byte >= 0x80 else f'0x{byte:02x}'
+            f.write(f'{val},')
             if (i + 1) % 16 == 0:
                 f.write('\n')
         f.write('0x00\n};\n')
