@@ -362,3 +362,5 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - Performance profiling Markdown formatting: format `agent_get_profile_summary` and `agent_get_profile_details` output as Markdown tables by default (`format="markdown"`), while supporting optional `format="json"` for machine-parsable JSON automation. (Completed)
 
 - Single-file compile after edit: centralized `-fsyntax-only` single-file compile helper in `fs_utils` (`get_compile_command_for_file`), stripping object `-o` targets and dependency flags (`-MF`, `-MD`). Integrated into `update_file_health_state` across all file edit tools (`fs_replace_content`, `fs_replace_lines`, `fs_multi_replace_content`, `fs_write_file`) for deterministic compiler-driven failure attribution per `Edit ID #N`. (Completed)
+
+- Verified `git_add` and `git_unstage` promote single strings to arrays (e.g. `Files: "file.ext"` or singular `File: "file.ext"`), handled by generic array promotion in `tool_validator`. (Completed)
