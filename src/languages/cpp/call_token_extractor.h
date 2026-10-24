@@ -27,6 +27,14 @@ class call_token_extractor
 	 * @return List of candidate tokens with line and column positions.
 	 */
 	static std::vector<source_token> extract_candidates(std::span<const std::string> lines, int start_line);
+
+	/**
+	 * @brief Extract candidate call tokens from contiguous C/C++ source text.
+	 * @param source Contiguous string view into source buffer.
+	 * @param start_line 1-based start line of the source text in the file.
+	 * @return List of candidate tokens with line and column positions.
+	 */
+	static std::vector<source_token> extract_candidates_from_source(std::string_view source, int start_line);
 };
 
 } // namespace languages::cpp

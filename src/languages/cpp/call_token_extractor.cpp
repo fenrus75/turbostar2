@@ -1,46 +1,41 @@
 #include "languages/cpp/call_token_extractor.h"
 #include <algorithm>
-#include <re2/re2.h>
 #include <unordered_set>
 #include "languages/cpp/keywords.h"
-#include "languages/cpp/source_masker.h"
+#include "languages/cpp/lexer.h"
 
 namespace languages::cpp
 {
 
-std::vector<source_token> call_token_extractor::extract_candidates(std::span<const std::string> lines, int start_line)
+std::vector<source_token> call_token_extractor::extract_candidates_from_source(std::string_view source, int start_line)
 {
 	std::vector<source_token> result;
 	std::unordered_set<std::string> seen;
 
-	// Pattern to match identifier directly followed by opening parenthesis:
-	// Matches `ident(` with optional whitespace before `(`.
-	// Also matches member / scoped calls like `obj.ident(`, `obj->ident(`, `ns::ident(`.
-	static const re2::RE2 call_pattern(R"(\b([A-Za-z_][A-Za-z0-9_]*)\s*\()");
+	auto tokens = lexer::tokenize(source);
+	for (size_t i = 0; i < tokens.size(); ++i) {
+		if (tokens[i].kind == token_kind::identifier) {
+			std::string candidate(tokens[i].text);
+			if (keywords::is_call_candidate_denylisted(candidate) || seen.find(candidate) != seen.end()) {
+				continue;
+			}
 
-	std::vector<std::string> masked_lines = source_masker::mask_lines(lines);
+			// Look ahead for '(' skipping comments
+			bool is_call = false;
+			for (size_t j = i + 1; j < tokens.size(); ++j) {
+				if (tokens[j].kind == token_kind::comment) {
+					continue;
+				}
+				if (tokens[j].kind == token_kind::l_paren) {
+					is_call = true;
+				}
+				break;
+			}
 
-	for (size_t i = 0; i < masked_lines.size(); ++i) {
-		const std::string &line = masked_lines[i];
-		int line_num = start_line + static_cast<int>(i);
-
-		// Skip comments (already masked to spaces) and preprocessor lines
-		size_t first_non_ws = line.find_first_not_of(" \t");
-		if (first_non_ws == std::string::npos) {
-			continue;
-		}
-		if (line[first_non_ws] == '#') {
-			continue;
-		}
-
-		size_t pos = 0;
-		re2::StringPiece submatches[2];
-		while (pos < line.size() && call_pattern.Match(line, pos, line.size(), re2::RE2::UNANCHORED, submatches, 2)) {
-			std::string candidate(submatches[1].data(), submatches[1].size());
-			int col = static_cast<int>(submatches[1].data() - line.data());
-			pos = static_cast<size_t>(submatches[0].data() - line.data()) + submatches[0].size();
-			if (!keywords::is_call_candidate_denylisted(candidate) && seen.find(candidate) == seen.end()) {
+			if (is_call) {
 				seen.insert(candidate);
+				int line_num = start_line + tokens[i].line - 1;
+				int col = std::max(0, tokens[i].col - 1);
 				result.push_back({std::move(candidate), line_num, col});
 				if (result.size() >= 20) {
 					return result;
@@ -50,6 +45,21 @@ std::vector<source_token> call_token_extractor::extract_candidates(std::span<con
 	}
 
 	return result;
+}
+
+std::vector<source_token> call_token_extractor::extract_candidates(std::span<const std::string> lines, int start_line)
+{
+	std::string source;
+	size_t total_size = 0;
+	for (const auto &l : lines) {
+		total_size += l.size() + 1;
+	}
+	source.reserve(total_size);
+	for (const auto &l : lines) {
+		source += l;
+		source += '\n';
+	}
+	return extract_candidates_from_source(source, start_line);
 }
 
 } // namespace languages::cpp

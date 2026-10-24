@@ -82,6 +82,19 @@ int main()
 		assert(kw_result.size() == 2);
 		assert(kw_result[0].name == "fetch_data");
 		assert(kw_result[1].name == "real_task");
+
+		// Test multi-line call and comment-separated call
+		std::vector<std::string> multiline_call_lines = {
+			"    multiline_func",
+			"        (arg1, arg2);",
+			"    comment_separated /* inline */ (123);"
+		};
+		auto multi_result = tools::call_token_extractor::extract_candidates("test.cpp", multiline_call_lines, 1);
+		assert(multi_result.size() == 2);
+		assert(multi_result[0].name == "multiline_func");
+		assert(multi_result[0].line == 1);
+		assert(multi_result[1].name == "comment_separated");
+		assert(multi_result[1].line == 3);
 	}
 
 	std::cout << "All call_token_extractor tests passed successfully!" << std::endl;
