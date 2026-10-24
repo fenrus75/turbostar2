@@ -1,57 +1,114 @@
 #include "languages/cpp/type_token_extractor.h"
 #include <algorithm>
-#include <re2/re2.h>
 #include <unordered_set>
 #include "languages/cpp/keywords.h"
-#include "languages/cpp/source_masker.h"
+#include "languages/cpp/lexer.h"
 
 namespace languages::cpp
 {
 
-std::vector<source_token> type_token_extractor::extract_candidates(std::span<const std::string> lines, int start_line)
+std::vector<source_token> type_token_extractor::extract_candidates_from_source(std::string_view source, int start_line)
 {
 	std::vector<source_token> result;
 	std::unordered_set<std::string> seen;
 
-	// Regex to match potential type indicators:
-	// 1. Qualified prefix or type followed by :: (e.g. MyClass::method, MyStruct::field)
-	// 2. Type in pointer/reference param (e.g. MyType *ptr, const MyType &ref)
-	// 3. Template argument (e.g. <MyType>)
-	// 4. Type followed by identifier (e.g. MyContext ctx, Widget widget)
-	static const re2::RE2 type_patterns(
-	    R"((?:class|struct|enum)\s+([A-Za-z_][A-Za-z0-9_]*)|)"
-	    R"(\b([A-Za-z_][A-Za-z0-9_]*)::|)"
-	    R"(<\s*(?:const\s+)?([A-Za-z_][A-Za-z0-9_]*)(?:\s*[*&])?\s*>|)"
-	    R"(\b([A-Za-z_][A-Za-z0-9_]*)\s+(?:const\s+)?(?:\*|&)+\s*[A-Za-z_]|)"
-	    R"(\b(?:const\s+)?([A-Za-z_][A-Za-z0-9_]*)\s+(?:\*|&)*\s*[A-Za-z_][A-Za-z0-9_]*\s*[\(\)\{\;\,])");
+	auto tokens = lexer::tokenize(source);
+	auto check_and_add = [&](std::string_view candidate, int line, int col) {
+		std::string cand_str(candidate);
+		if (!keywords::is_type_candidate_denylisted(cand_str) && seen.find(cand_str) == seen.end()) {
+			seen.insert(cand_str);
+			int line_num = start_line + line - 1;
+			int col_num = std::max(0, col - 1);
+			result.push_back({std::move(cand_str), line_num, col_num});
+			return result.size() >= 15;
+		}
+		return false;
+	};
 
-	std::vector<std::string> masked_lines = source_masker::mask_lines(lines);
+	for (size_t i = 0; i < tokens.size(); ++i) {
+		const auto &tok = tokens[i];
 
-	for (size_t i = 0; i < masked_lines.size(); ++i) {
-		const std::string &line = masked_lines[i];
-		int line_num = start_line + static_cast<int>(i);
-
-		// Skip comments (already masked to spaces) and preprocessor lines
-		size_t first_non_ws = line.find_first_not_of(" \t");
-		if (first_non_ws == std::string::npos) {
+		// Pattern 1: (class|struct|enum) Identifier
+		if (tok.kind == token_kind::keyword && (tok.text == "class" || tok.text == "struct" || tok.text == "enum")) {
+			if (i + 1 < tokens.size() && tokens[i + 1].kind == token_kind::identifier) {
+				if (check_and_add(tokens[i + 1].text, tokens[i + 1].line, tokens[i + 1].col)) {
+					return result;
+				}
+			}
 			continue;
 		}
-		if (line[first_non_ws] == '#') {
+
+		// Pattern 2: Identifier::
+		if (tok.kind == token_kind::identifier && i + 1 < tokens.size() && tokens[i + 1].kind == token_kind::double_colon) {
+			if (check_and_add(tok.text, tok.line, tok.col)) {
+				return result;
+			}
 			continue;
 		}
 
-		size_t pos = 0;
-		re2::StringPiece submatches[6];
-		while (pos < line.size() && type_patterns.Match(line, pos, line.size(), re2::RE2::UNANCHORED, submatches, 6)) {
-			pos = static_cast<size_t>(submatches[0].data() - line.data()) + std::max<size_t>(1, submatches[0].size());
-			for (size_t g = 1; g < 6; ++g) {
-				if (submatches[g].data() != nullptr) {
-					std::string candidate(submatches[g].data(), submatches[g].size());
-					if (!keywords::is_type_candidate_denylisted(candidate) && seen.find(candidate) == seen.end()) {
-						seen.insert(candidate);
-						int col = static_cast<int>(submatches[g].data() - line.data());
-						result.push_back({candidate, line_num, col});
-						if (result.size() >= 15) {
+		// Pattern 3: < [const] Identifier [*|&] >
+		if (tok.kind == token_kind::operator_sym && tok.text == "<") {
+			size_t j = i + 1;
+			if (j < tokens.size() && tokens[j].kind == token_kind::keyword && tokens[j].text == "const") {
+				++j;
+			}
+			if (j < tokens.size() && tokens[j].kind == token_kind::identifier) {
+				size_t id_idx = j;
+				++j;
+				if (j < tokens.size() && tokens[j].kind == token_kind::operator_sym &&
+				    (tokens[j].text == "*" || tokens[j].text == "&")) {
+					++j;
+				}
+				if (j < tokens.size() && tokens[j].kind == token_kind::operator_sym && tokens[j].text == ">") {
+					if (check_and_add(tokens[id_idx].text, tokens[id_idx].line, tokens[id_idx].col)) {
+						return result;
+					}
+				}
+			}
+			continue;
+		}
+
+		// Pattern 4: Identifier [const] [*|&]+ Identifier
+		if (tok.kind == token_kind::identifier && i + 2 < tokens.size()) {
+			size_t j = i + 1;
+			if (j < tokens.size() && tokens[j].kind == token_kind::keyword && tokens[j].text == "const") {
+				++j;
+			}
+			bool has_ptr_or_ref = false;
+			while (j < tokens.size() && tokens[j].kind == token_kind::operator_sym &&
+			       (tokens[j].text == "*" || tokens[j].text == "&")) {
+				has_ptr_or_ref = true;
+				++j;
+			}
+			if (has_ptr_or_ref && j < tokens.size() && tokens[j].kind == token_kind::identifier) {
+				if (check_and_add(tok.text, tok.line, tok.col)) {
+					return result;
+				}
+				continue;
+			}
+		}
+
+		// Pattern 5: [const] Identifier [*|&]* Identifier [();,{}]
+		size_t type_idx = i;
+		if (tok.kind == token_kind::keyword && tok.text == "const") {
+			type_idx = i + 1;
+		}
+		if (type_idx < tokens.size() && tokens[type_idx].kind == token_kind::identifier) {
+			size_t j = type_idx + 1;
+			while (j < tokens.size() && tokens[j].kind == token_kind::operator_sym &&
+			       (tokens[j].text == "*" || tokens[j].text == "&")) {
+				++j;
+			}
+			if (j < tokens.size() && tokens[j].kind == token_kind::identifier) {
+				size_t var_idx = j;
+				size_t next_idx = var_idx + 1;
+				if (next_idx < tokens.size()) {
+					const auto &next = tokens[next_idx];
+					if (next.kind == token_kind::semicolon || next.kind == token_kind::comma ||
+					    next.kind == token_kind::l_paren || next.kind == token_kind::r_paren ||
+					    next.kind == token_kind::l_brace || next.kind == token_kind::r_brace ||
+					    (next.kind == token_kind::operator_sym && next.text == "=")) {
+						if (check_and_add(tokens[type_idx].text, tokens[type_idx].line, tokens[type_idx].col)) {
 							return result;
 						}
 					}
@@ -61,6 +118,21 @@ std::vector<source_token> type_token_extractor::extract_candidates(std::span<con
 	}
 
 	return result;
+}
+
+std::vector<source_token> type_token_extractor::extract_candidates(std::span<const std::string> lines, int start_line)
+{
+	std::string source;
+	size_t total_size = 0;
+	for (const auto &l : lines) {
+		total_size += l.size() + 1;
+	}
+	source.reserve(total_size);
+	for (const auto &l : lines) {
+		source += l;
+		source += '\n';
+	}
+	return extract_candidates_from_source(source, start_line);
 }
 
 } // namespace languages::cpp

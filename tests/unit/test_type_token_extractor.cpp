@@ -45,6 +45,21 @@ int main()
 	assert(names[3] == "ItemData");
 	assert(names[4] == "FinalType");
 
+	// Test multi-line type and template declarations
+	std::vector<std::string> multiline_type_lines = {
+		"    std::unique_ptr<",
+		"        ParsedNode",
+		"    > node_ptr;",
+		"    CustomManager",
+		"        *manager_inst;"
+	};
+	auto multi_candidates = tools::type_token_extractor::extract_candidates("test.cpp", multiline_type_lines, 1);
+	assert(multi_candidates.size() == 2);
+	assert(multi_candidates[0].name == "ParsedNode");
+	assert(multi_candidates[0].line == 2);
+	assert(multi_candidates[1].name == "CustomManager");
+	assert(multi_candidates[1].line == 4);
+
 	// Non-C++ file path should return empty
 	auto non_cpp = tools::type_token_extractor::extract_candidates("test.txt", lines, 1);
 	assert(non_cpp.empty());
