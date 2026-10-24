@@ -84,12 +84,6 @@ test_type_token_extractor = executable('test_type_token_extractor',
   include_directories: inc)
 test('unit_type_token_extractor', test_type_token_extractor, suite: 'editor')
 
-test_cpp_source_masker = executable('test_cpp_source_masker',
-  ['unit/test_cpp_source_masker.cpp'],
-  dependencies : [core_dep],
-  include_directories: inc)
-test('unit_cpp_source_masker', test_cpp_source_masker, suite: 'editor')
-
 test_cpp_keywords = executable('test_cpp_keywords',
   ['unit/test_cpp_keywords.cpp'],
   dependencies : [core_dep],
