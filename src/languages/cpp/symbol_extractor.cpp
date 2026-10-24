@@ -1,12 +1,11 @@
 #include "languages/cpp/symbol_extractor.h"
 
 #include <algorithm>
-#include <re2/re2.h>
 #include <string>
 #include <string_view>
 #include <vector>
 #include "languages/cpp/keywords.h"
-#include "languages/cpp/source_masker.h"
+#include "languages/cpp/lexer.h"
 #include "project_manager.h"
 #include "utf8.h"
 
@@ -166,6 +165,30 @@ scope_qualification qualify_symbol(int line, std::string_view local_name, std::s
 	};
 }
 
+// Finds matching closing brace at same brace_depth
+size_t find_matching_brace(std::span<const token> tokens, size_t open_brace_idx)
+{
+	int target_depth = tokens[open_brace_idx].brace_depth;
+	for (size_t i = open_brace_idx + 1; i < tokens.size(); ++i) {
+		if (tokens[i].kind == token_kind::r_brace && tokens[i].brace_depth == target_depth) {
+			return i;
+		}
+	}
+	return tokens.size();
+}
+
+// Finds matching closing parenthesis at same paren_depth
+size_t find_matching_paren(std::span<const token> tokens, size_t open_paren_idx)
+{
+	int target_depth = tokens[open_paren_idx].paren_depth;
+	for (size_t i = open_paren_idx + 1; i < tokens.size(); ++i) {
+		if (tokens[i].kind == token_kind::r_paren && tokens[i].paren_depth == target_depth) {
+			return i;
+		}
+	}
+	return tokens.size();
+}
+
 } // anonymous namespace
 
 bool symbol_extractor::is_function_specifier_word(std::string_view word)
@@ -173,139 +196,115 @@ bool symbol_extractor::is_function_specifier_word(std::string_view word)
 	return keywords::is_function_specifier(word);
 }
 
-void symbol_extractor::extract_symbols(std::span<const std::string> lines, int min_lines, std::vector<tools::codemap_symbol_info> &out)
+void symbol_extractor::extract_symbols_from_source(std::string_view source, int min_lines, std::vector<tools::codemap_symbol_info> &out)
 {
-	static const re2::RE2 cpp_namespace_regex(
-	    R"(^\s*(?:inline\s+)?namespace(?:\s+\[\[.*?\]\])?(?:\s+([a-zA-Z_]\w*(?:::[a-zA-Z_]\w*)*))?(.*)$)");
-	static const re2::RE2 cpp_class_regex(
-	    R"(^(\s*(?:typedef\s+)?(?:class|struct)\s+(?:\[\[.*?\]\]\s+)?(?:__attribute__\s*\(\(.*?\)\)\s+)?([a-zA-Z_]\w*)))");
-	static const re2::RE2 cpp_enum_regex(R"(^\s*(?:typedef\s+)?enum(?:\s+class|\s+struct)?\s+([a-zA-Z_]\w*))");
-	static const re2::RE2 cpp_func_head_regex(
-	    R"(^(\s*(?:[\w:<>]+[\s*&]*\s+)*[\s*&]*((?:[a-zA-Z_]\w*::)*(?:~[a-zA-Z_]\w*|operator\s*(?:[+\-*/%^&|~!=<>]+|\[\]|\(\)|->\*|->|,|new\[\]|delete\[\]|new|delete)|[a-zA-Z_]\w*))\s*\())");
-
-	std::vector<std::string> masked_lines = source_masker::mask_lines(lines);
+	auto tokens = lexer::tokenize(source);
+	if (tokens.empty()) {
+		return;
+	}
 
 	std::vector<namespace_scope> namespaces;
 	std::vector<type_scope> types;
 
-	// Pass 1: Collect namespaces and classes/structs to establish scope hierarchies
-	for (size_t i = 0; i < masked_lines.size(); ++i) {
+	// Pass 1: Extract namespaces and classes/structs to build scope hierarchy
+	for (size_t i = 0; i < tokens.size(); ++i) {
 		if ((i & 63) == 0 && project_manager::get_instance().is_exiting()) {
 			return;
 		}
-		int line_num = static_cast<int>(i + 1);
+		const auto &tok = tokens[i];
 
 		// Check for namespace
-		std::string ns_name, rest;
-		if (re2::RE2::FullMatch(masked_lines[i], cpp_namespace_regex, &ns_name, &rest)) {
-			size_t eq_pos = rest.find('=');
-			size_t semi_pos = rest.find(';');
-			size_t brace_pos = rest.find('{');
-			bool is_alias = (eq_pos != std::string::npos && (brace_pos == std::string::npos || eq_pos < brace_pos));
-			bool is_proto = (semi_pos != std::string::npos && (brace_pos == std::string::npos || semi_pos < brace_pos));
-			if (!is_alias && !is_proto) {
-				bool found_open = (brace_pos != std::string::npos);
-				size_t open_line = i;
-				size_t open_col = found_open ? brace_pos : 0;
-				if (!found_open) {
-					for (size_t j = i + 1; j < std::min(masked_lines.size(), i + 15); ++j) {
-						std::string_view l = masked_lines[j];
-						size_t first = l.find_first_not_of(" \t\r\n");
-						if (first == std::string_view::npos) {
-							continue;
-						}
-						if (l[first] == ';' || l[first] == '=') {
-							break;
-						}
-						size_t b = l.find('{');
-						if (b != std::string_view::npos) {
-							found_open = true;
-							open_line = j;
-							open_col = b;
-							break;
-						}
-					}
+		if (tok.kind == token_kind::keyword && tok.text == "namespace") {
+			if (i > 0 && tokens[i - 1].kind == token_kind::keyword && tokens[i - 1].text == "using") {
+				continue; // using namespace ...;
+			}
+			// Scan ahead for name or {
+			std::string ns_name;
+			bool is_alias = false;
+			size_t open_brace_idx = tokens.size();
+
+			for (size_t j = i + 1; j < std::min(tokens.size(), i + 40); ++j) {
+				if (tokens[j].kind == token_kind::operator_sym && tokens[j].text == "=") {
+					is_alias = true;
+					break;
 				}
-				if (found_open) {
-					int depth = 0;
-					bool started = false;
-					size_t close_line = open_line;
-					for (size_t j = open_line; j < masked_lines.size(); ++j) {
-						size_t col_start = (j == open_line) ? open_col : 0;
-						for (size_t c = col_start; c < masked_lines[j].size(); ++c) {
-							if (masked_lines[j][c] == '{') {
-								depth++;
-								started = true;
-							} else if (masked_lines[j][c] == '}') {
-								depth--;
-								if (started && depth == 0) {
-									close_line = j;
-									break;
-								}
-							}
-						}
-						if (started && depth == 0) {
-							break;
-						}
-					}
-					if (started && depth == 0) {
-						std::string final_name = ns_name.empty() ? "(anonymous namespace)" : ns_name;
-						namespaces.push_back({final_name, line_num, static_cast<int>(close_line + 1)});
-					}
+				if (tokens[j].kind == token_kind::semicolon) {
+					break;
+				}
+				if (tokens[j].kind == token_kind::l_brace) {
+					open_brace_idx = j;
+					break;
+				}
+				if (tokens[j].kind == token_kind::identifier || tokens[j].kind == token_kind::double_colon) {
+					ns_name += tokens[j].text;
 				}
 			}
+
+			if (!is_alias && open_brace_idx < tokens.size()) {
+				size_t close_brace_idx = find_matching_brace(tokens, open_brace_idx);
+				int end_line = (close_brace_idx < tokens.size()) ? tokens[close_brace_idx].line : tokens[open_brace_idx].line;
+				std::string final_name = ns_name.empty() ? "(anonymous namespace)" : ns_name;
+				namespaces.push_back({final_name, tok.line, end_line});
+			}
+			continue;
 		}
 
-		// Check for class / struct
-		re2::StringPiece full_class_match, class_name_sp;
-		if (re2::RE2::PartialMatch(masked_lines[i], cpp_class_regex, &full_class_match, &class_name_sp)) {
-			bool is_class_candidate = true;
-			std::string_view line_v = masked_lines[i];
-			size_t match_end = static_cast<size_t>(full_class_match.data() - line_v.data()) + full_class_match.size();
-			std::string_view suffix = (match_end <= line_v.size()) ? line_v.substr(match_end) : std::string_view{};
-			size_t first_non_ws = suffix.find_first_not_of(" \t\r\n");
-			if (first_non_ws != std::string_view::npos) {
-				char next_ch = suffix[first_non_ws];
-				if (next_ch == '*' || next_ch == '&' || next_ch == ',' || next_ch == ')') {
-					is_class_candidate = false;
+		// Check for class or struct
+		if (tok.kind == token_kind::keyword && (tok.text == "class" || tok.text == "struct")) {
+			// Skip 'enum class' or 'enum struct'
+			if (i > 0 && tokens[i - 1].kind == token_kind::keyword && tokens[i - 1].text == "enum") {
+				continue;
+			}
+			// Skip parameter usages such as 'struct Foo *f, int x'
+			if (i > 0 && (tokens[i - 1].kind == token_kind::l_paren || tokens[i - 1].kind == token_kind::comma)) {
+				continue;
+			}
+
+			// Find class name
+			std::string class_name;
+			size_t name_idx = tokens.size();
+			for (size_t j = i + 1; j < std::min(tokens.size(), i + 10); ++j) {
+				if (tokens[j].kind == token_kind::identifier) {
+					class_name = tokens[j].text;
+					name_idx = j;
+					break;
+				}
+				if (tokens[j].kind == token_kind::semicolon || tokens[j].kind == token_kind::l_brace) {
+					break;
 				}
 			}
-			size_t close_paren = suffix.find(')');
-			size_t open_brace = suffix.find('{');
-			if (close_paren != std::string_view::npos && (open_brace == std::string_view::npos || close_paren < open_brace)) {
-				is_class_candidate = false;
-			}
-			if (is_class_candidate) {
-				std::string_view trimmed_line = masked_lines[i];
-				size_t last_non_ws = trimmed_line.find_last_not_of(" \t\r\n");
-				if (last_non_ws == std::string_view::npos || trimmed_line[last_non_ws] != ';') {
-					int end_line = line_num;
-					int depth = 0;
-					bool started = false;
-					for (size_t j = i; j < masked_lines.size(); ++j) {
-						for (char c : masked_lines[j]) {
-							if (c == '{') {
-								depth++;
-								started = true;
-							} else if (c == '}') {
-								depth--;
-							}
-						}
-						if (started && depth == 0) {
-							end_line = static_cast<int>(j + 1);
-							break;
-						}
+
+			if (!class_name.empty() && name_idx < tokens.size()) {
+				// Scan forward to see if it's forward declaration (;) or definition ({)
+				size_t open_brace_idx = tokens.size();
+				bool is_forward_decl = false;
+				for (size_t j = name_idx + 1; j < std::min(tokens.size(), name_idx + 60); ++j) {
+					if (tokens[j].kind == token_kind::semicolon) {
+						is_forward_decl = true;
+						break;
 					}
-					if (started) {
-						std::string kind_val = (masked_lines[i].find("struct") != std::string::npos) ? "Struct" : "Class";
-						types.push_back({std::string(class_name_sp), kind_val, line_num, end_line});
+					if (tokens[j].kind == token_kind::l_brace && tokens[j].brace_depth == tok.brace_depth) {
+						open_brace_idx = j;
+						break;
 					}
+					// Reject if inside parameter list
+					if (tokens[j].kind == token_kind::r_paren || tokens[j].kind == token_kind::comma) {
+						is_forward_decl = true;
+						break;
+					}
+				}
+
+				if (!is_forward_decl && open_brace_idx < tokens.size()) {
+					size_t close_brace_idx = find_matching_brace(tokens, open_brace_idx);
+					int end_line = (close_brace_idx < tokens.size()) ? tokens[close_brace_idx].line : tokens[open_brace_idx].line;
+					std::string kind_val = (tok.text == "struct") ? "Struct" : "Class";
+					types.push_back({class_name, kind_val, tok.line, end_line});
 				}
 			}
 		}
 	}
 
-	// Emit namespaces
+	// Emit namespace symbols
 	for (const auto &ns : namespaces) {
 		int len = ns.end_line - ns.start_line + 1;
 		if (len >= min_lines) {
@@ -314,7 +313,7 @@ void symbol_extractor::extract_symbols(std::span<const std::string> lines, int m
 		}
 	}
 
-	// Emit classes and structs
+	// Emit class and struct symbols
 	for (const auto &t : types) {
 		int len = t.end_line - t.start_line + 1;
 		if (len >= min_lines) {
@@ -323,160 +322,164 @@ void symbol_extractor::extract_symbols(std::span<const std::string> lines, int m
 		}
 	}
 
-	// Pass 2: Collect enums and functions
-	for (size_t i = 0; i < masked_lines.size(); ++i) {
+	// Pass 2: Extract enums and functions
+	for (size_t i = 0; i < tokens.size(); ++i) {
 		if ((i & 63) == 0 && project_manager::get_instance().is_exiting()) {
 			return;
 		}
-		int line_num = static_cast<int>(i + 1);
+		const auto &tok = tokens[i];
 
-		std::string enum_name;
-		if (re2::RE2::PartialMatch(masked_lines[i], cpp_enum_regex, &enum_name)) {
-			std::string_view trimmed_line = masked_lines[i];
-			size_t last_non_ws = trimmed_line.find_last_not_of(" \t\r\n");
-			if (last_non_ws != std::string_view::npos && trimmed_line[last_non_ws] == ';') {
-				continue;
-			}
-
-			int end_line = line_num;
-			int depth = 0;
-			bool started = false;
-			for (size_t j = i; j < masked_lines.size(); ++j) {
-				for (char c : masked_lines[j]) {
-					if (c == '{') {
-						depth++;
-						started = true;
-					} else if (c == '}') {
-						depth--;
-					}
+		// Check for enum
+		if (tok.kind == token_kind::keyword && tok.text == "enum") {
+			std::string enum_name;
+			size_t name_idx = tokens.size();
+			for (size_t j = i + 1; j < std::min(tokens.size(), i + 10); ++j) {
+				if (tokens[j].kind == token_kind::keyword && (tokens[j].text == "class" || tokens[j].text == "struct")) {
+					continue;
 				}
-				if (started && depth == 0) {
-					end_line = static_cast<int>(j + 1);
+				if (tokens[j].kind == token_kind::identifier) {
+					enum_name = tokens[j].text;
+					name_idx = j;
+					break;
+				}
+				if (tokens[j].kind == token_kind::l_brace || tokens[j].kind == token_kind::semicolon) {
 					break;
 				}
 			}
-			if (started) {
-				int len = end_line - line_num + 1;
-				if (len >= min_lines) {
-					auto qual = qualify_symbol(line_num, enum_name, namespaces, types, nullptr);
-					out.push_back({qual.qualified_name, qual.display_name, "Enum", line_num, end_line, len, qual.depth, ""});
+
+			if (!enum_name.empty() && name_idx < tokens.size()) {
+				size_t open_brace_idx = tokens.size();
+				bool is_proto = false;
+				for (size_t j = name_idx + 1; j < std::min(tokens.size(), name_idx + 30); ++j) {
+					if (tokens[j].kind == token_kind::semicolon) {
+						is_proto = true;
+						break;
+					}
+					if (tokens[j].kind == token_kind::l_brace) {
+						open_brace_idx = j;
+						break;
+					}
+				}
+
+				if (!is_proto && open_brace_idx < tokens.size()) {
+					size_t close_brace_idx = find_matching_brace(tokens, open_brace_idx);
+					int end_line = (close_brace_idx < tokens.size()) ? tokens[close_brace_idx].line : tokens[open_brace_idx].line;
+					int len = end_line - tok.line + 1;
+					if (len >= min_lines) {
+						auto qual = qualify_symbol(tok.line, enum_name, namespaces, types, nullptr);
+						out.push_back({qual.qualified_name, qual.display_name, "Enum", tok.line, end_line, len, qual.depth, ""});
+					}
 				}
 			}
 			continue;
 		}
 
-		re2::StringPiece full_func_match, func_name_sp;
-		if (re2::RE2::PartialMatch(masked_lines[i], cpp_func_head_regex, &full_func_match, &func_name_sp)) {
-			std::string name(func_name_sp);
-			if (name != "if" && name != "for" && name != "while" && name != "switch" && name != "catch" &&
-			    name != "__attribute__" && !name.starts_with("__builtin_")) {
-				// Forward scan to find body '{' and verify it's not a prototype ';'
-				int paren_depth = 0;
-				bool found_brace = false;
-				size_t brace_line_idx = i;
-				bool is_prototype = false;
-				size_t func_head_pos = static_cast<size_t>(full_func_match.data() - masked_lines[i].data());
+		// Check for function definitions: identifier/operator followed by '('
+		if (tok.kind == token_kind::l_paren && i > 0) {
+			size_t name_end_idx = i - 1;
+			std::string func_name;
+			size_t name_start_idx = name_end_idx;
 
-				for (size_t j = i; j < std::min(masked_lines.size(), i + 40); ++j) {
-					std::string_view scan_line = masked_lines[j];
-					for (size_t char_idx = (j == i ? func_head_pos : 0); char_idx < scan_line.size(); ++char_idx) {
-						char c = scan_line[char_idx];
-						if (c == '(') {
-							paren_depth++;
-						} else if (c == ')') {
-							paren_depth--;
-						} else if (c == ';' && paren_depth <= 0) {
-							is_prototype = true;
-							break;
-						} else if (c == '{' && paren_depth <= 0) {
-							found_brace = true;
-							brace_line_idx = j;
-							break;
-						}
-					}
-					if (is_prototype || found_brace) {
-						break;
-					}
+			// Handle operator overloads
+			if (tokens[name_end_idx].kind == token_kind::operator_sym) {
+				if (name_end_idx > 0 && tokens[name_end_idx - 1].kind == token_kind::keyword && tokens[name_end_idx - 1].text == "operator") {
+					func_name = "operator" + std::string(tokens[name_end_idx].text);
+					name_start_idx = name_end_idx - 1;
 				}
-
-				if (!found_brace || is_prototype) {
-					continue;
+			} else if (tokens[name_end_idx].kind == token_kind::r_bracket && name_end_idx >= 2 &&
+				   tokens[name_end_idx - 1].kind == token_kind::l_bracket &&
+				   tokens[name_end_idx - 2].kind == token_kind::keyword && tokens[name_end_idx - 2].text == "operator") {
+				func_name = "operator[]";
+				name_start_idx = name_end_idx - 2;
+			} else if (tokens[name_end_idx].kind == token_kind::r_paren && name_end_idx >= 2 &&
+				   tokens[name_end_idx - 1].kind == token_kind::l_paren &&
+				   tokens[name_end_idx - 2].kind == token_kind::keyword && tokens[name_end_idx - 2].text == "operator") {
+				func_name = "operator()";
+				name_start_idx = name_end_idx - 2;
+			} else if (tokens[name_end_idx].kind == token_kind::identifier) {
+				// Check for destructor '~ClassName'
+				if (name_end_idx > 0 && tokens[name_end_idx - 1].kind == token_kind::tilde) {
+					func_name = "~" + std::string(tokens[name_end_idx].text);
+					name_start_idx = name_end_idx - 1;
+				} else {
+					func_name = std::string(tokens[name_end_idx].text);
+					name_start_idx = name_end_idx;
 				}
+			}
 
-				// Find upper bound by searching backwards from line i for previous '}'
-				int upper_bound_idx = -1;
-				for (int k = static_cast<int>(i) - 1; k >= 0; --k) {
-					if (masked_lines[k].find('}') != std::string::npos) {
-						upper_bound_idx = k;
-						break;
-					}
+			// Prepend any scope prefix: 'Scope::'
+			while (name_start_idx >= 2 && tokens[name_start_idx - 1].kind == token_kind::double_colon &&
+			       tokens[name_start_idx - 2].kind == token_kind::identifier) {
+				func_name = std::string(tokens[name_start_idx - 2].text) + "::" + func_name;
+				name_start_idx -= 2;
+			}
+
+			if (func_name.empty()) {
+				continue;
+			}
+
+			// Filter out control flow keywords and non-function keywords
+			std::string_view base_name = func_name;
+			size_t last_col = base_name.rfind("::");
+			if (last_col != std::string_view::npos) {
+				base_name = base_name.substr(last_col + 2);
+			}
+			if (base_name == "if" || base_name == "for" || base_name == "while" || base_name == "switch" ||
+			    base_name == "catch" || base_name == "__attribute__" || base_name == "sizeof" ||
+			    base_name == "decltype" || base_name == "alignas" || base_name == "requires" ||
+			    base_name.starts_with("__builtin_")) {
+				continue;
+			}
+
+			// Match parameter list: find closing ')'
+			size_t close_paren_idx = find_matching_paren(tokens, i);
+			if (close_paren_idx >= tokens.size()) {
+				continue;
+			}
+
+			// Scan forward from ')' to find '{' or ';'
+			size_t open_brace_idx = tokens.size();
+			bool is_prototype = false;
+			for (size_t j = close_paren_idx + 1; j < std::min(tokens.size(), close_paren_idx + 80); ++j) {
+				if (tokens[j].kind == token_kind::semicolon) {
+					is_prototype = true;
+					break;
 				}
-
-				// Walk backwards from line i to find the true function start line
-				int func_start = static_cast<int>(i + 1);
-				for (int k = static_cast<int>(i) - 1; k > upper_bound_idx; --k) {
-					std::string_view l_view = masked_lines[k];
-					size_t first_non = l_view.find_first_not_of(" \t\r\n");
-					if (first_non == std::string_view::npos) {
-						// Blank line provides a bound on the start of the function
-						break;
-					}
-					std::string_view trimmed = l_view.substr(first_non);
-					if (trimmed.starts_with('#') || trimmed.starts_with("/*") || trimmed.ends_with("*/") ||
-					    trimmed.find(';') != std::string_view::npos || trimmed.find('}') != std::string_view::npos) {
-						break;
-					}
-
-					// Check if line contains function specifier keywords (static, void, inline, etc.)
-					bool has_specifier = false;
-					std::string token;
-					for (size_t ci = 0; ci <= trimmed.size(); ++ci) {
-						char c = (ci < trimmed.size()) ? trimmed[ci] : ' ';
-						if (utf8::is_alnum(c, "_")) {
-							token += c;
-						} else {
-							if (!token.empty()) {
-								if (is_function_specifier_word(token)) {
-									has_specifier = true;
-									break;
-								}
-								token.clear();
-							}
-						}
-					}
-					if (has_specifier) {
-						func_start = k + 1;
-					} else {
-						break;
-					}
+				if (tokens[j].kind == token_kind::l_brace) {
+					open_brace_idx = j;
+					break;
 				}
+			}
 
-				// Match braces starting from brace_line_idx to determine end_line
-				int end_line = func_start;
-				int depth = 0;
-				bool started = false;
-				for (size_t j = brace_line_idx; j < masked_lines.size(); ++j) {
-					for (char c : masked_lines[j]) {
-						if (c == '{') {
-							depth++;
-							started = true;
-						} else if (c == '}') {
-							depth--;
-						}
-					}
-					if (started && depth == 0) {
-						end_line = static_cast<int>(j + 1);
-						break;
-					}
-				}
+			if (is_prototype || open_brace_idx >= tokens.size()) {
+				continue;
+			}
 
-				if (started) {
-					int len = std::max(1, end_line - func_start + 1);
-					if (len >= min_lines) {
-						auto qual = qualify_symbol(func_start, name, namespaces, types, nullptr);
-						out.push_back({qual.qualified_name, qual.display_name, "Function", func_start, end_line, len, qual.depth, ""});
-					}
+			// Walk backward from name_start_idx to find true function start line (specifiers, return type, template)
+			int func_start = tokens[name_start_idx].line;
+			for (int k = static_cast<int>(name_start_idx) - 1; k >= 0; --k) {
+				const auto &prev = tokens[k];
+				if (prev.kind == token_kind::semicolon || prev.kind == token_kind::r_brace ||
+				    prev.kind == token_kind::l_brace || prev.kind == token_kind::preprocessor) {
+					break;
 				}
+				// Check for specifier or type keyword/identifier
+				if (is_function_specifier_word(prev.text) || prev.kind == token_kind::identifier ||
+				    prev.kind == token_kind::keyword || prev.kind == token_kind::operator_sym ||
+				    prev.kind == token_kind::double_colon) {
+					func_start = prev.line;
+				} else {
+					break;
+				}
+			}
+
+			size_t close_brace_idx = find_matching_brace(tokens, open_brace_idx);
+			int end_line = (close_brace_idx < tokens.size()) ? tokens[close_brace_idx].line : tokens[open_brace_idx].line;
+			int len = std::max(1, end_line - func_start + 1);
+
+			if (len >= min_lines) {
+				auto qual = qualify_symbol(func_start, func_name, namespaces, types, nullptr);
+				out.push_back({qual.qualified_name, qual.display_name, "Function", func_start, end_line, len, qual.depth, ""});
 			}
 		}
 	}
@@ -491,6 +494,21 @@ void symbol_extractor::extract_symbols(std::span<const std::string> lines, int m
 		}
 		return a.name < b.name;
 	});
+}
+
+void symbol_extractor::extract_symbols(std::span<const std::string> lines, int min_lines, std::vector<tools::codemap_symbol_info> &out)
+{
+	std::string source;
+	size_t total_size = 0;
+	for (const auto &l : lines) {
+		total_size += l.size() + 1;
+	}
+	source.reserve(total_size);
+	for (const auto &l : lines) {
+		source += l;
+		source += '\n';
+	}
+	extract_symbols_from_source(source, min_lines, out);
 }
 
 } // namespace languages::cpp

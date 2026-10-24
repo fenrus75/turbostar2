@@ -27,6 +27,14 @@ class symbol_extractor
 	static void extract_symbols(std::span<const std::string> lines, int min_lines, std::vector<tools::codemap_symbol_info> &out);
 
 	/**
+	 * @brief Extract functions, classes, structs, enums, and namespaces from contiguous C/C++ source text.
+	 * @param source Contiguous string view into source buffer.
+	 * @param min_lines Minimum span of lines for a symbol to be included (default 1).
+	 * @param out Output symbol vector to append detected symbols into.
+	 */
+	static void extract_symbols_from_source(std::string_view source, int min_lines, std::vector<tools::codemap_symbol_info> &out);
+
+	/**
 	 * @brief Checks if a word is a C/C++ function specifier or primitive return type.
 	 */
 	static bool is_function_specifier_word(std::string_view word);
