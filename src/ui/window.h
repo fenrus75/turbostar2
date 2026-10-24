@@ -225,6 +225,24 @@ class window
 	}
 	virtual std::string get_mouse_selected_text() const;
 
+	[[nodiscard]] std::optional<std::pair<int, int>> screen_to_buffer_pos(int mouse_x, int mouse_y) const
+	{
+		if (!doc_) {
+			return std::nullopt;
+		}
+		if (mouse_x < x_ + 1 || mouse_x > x_ + width_ - 2 || mouse_y < y_ + 1 || mouse_y > y_ + height_ - 2) {
+			return std::nullopt;
+		}
+		int click_row = top_line_ + (mouse_y - y_ - 1);
+		int click_col_display = left_column_ + (mouse_x - x_ - 1);
+		click_row = std::clamp(click_row, 0, std::max(0, static_cast<int>(doc_->get_line_count()) - 1));
+		click_col_display = std::max(0, click_col_display);
+
+		auto l = doc_->get_line(click_row);
+		int click_char = l ? l->display_col_to_char_pos(click_col_display) : 0;
+		return std::make_pair(click_char, click_row);
+	}
+
       protected:
 	int x_, y_, width_, height_;
 	int restore_x_{0}, restore_y_{0}, restore_width_{0}, restore_height_{0};

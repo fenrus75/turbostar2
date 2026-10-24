@@ -161,5 +161,21 @@ These commands require pressing `Ctrl+K` first, followed by the command letter.
 | `Alt+G N` | Toggle Line Numbers | Cycles line number display mode (`[#Git]`, `[#File]`, `[#Off]`). |
 | Click `[#Git]` / `[#File]` / `[#Off]` | Cycle Line Number Mode | Top window border button cycles line number mode. |
 
+## Mouse Interactions & Context Intelligence
+
+TurboStar features an unconventional, intelligent Right Mouse Button (RMB) code action system that replaces generic edit menus with instant context-aware code generation and navigation:
+
+| Mouse Action | Context | Behavior |
+| :--- | :--- | :--- |
+| `Right Click` (RMB) | Function Call Site | Opens intelligent Call Synthesizer popup. Provides 1–2 instant native C++ argument suggestions (`1`, `2`) based on in-scope variables and signature parameters, with support for existing argument biasing. Reserves Slot 3 (`3. [ ⌛ AI analyzing... ]`) for asynchronous background LLM completions without UI jumping. Also provides Jump to Definition (`D`) and Find References (`R`). |
+| `Right Click` (RMB) | Type / Variable | Displays type synopsis header, Jump to Definition (`D`), Find References (`R`), and Format Code (`F`). |
+| `Right Click` (RMB) | Text / Selection | Displays contextual Cut Block (`t` / `^KY`), Copy Block (`C` / `^KC`), Paste (`P` / `^KV`), Save (`S`), and Format Code (`F`). |
+| `Left Click` (LMB) | Text Area | Positions cursor at clicked character and row. |
+| `Left Click + Drag` | Text Area | Creates a mouse text selection. |
+| `Double Click` (LMB) | Window Title Bar | Toggles between maximized and restored window bounds. |
+| `Click [■]` | Window Title Bar | Closes the window (`^KQ` / Close). |
+| `Click [≡]` | Window Title Bar | Opens the Borland window action popup menu. |
+| `Click [#Git]/[#File]/[#Off]` | Window Title Bar | Cycles gutter line number display mode. |
+
 
 

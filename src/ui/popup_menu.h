@@ -1,14 +1,16 @@
 #pragma once
 
+#include <functional>
+#include <optional>
 #include <string>
 #include <vector>
-#include <optional>
 
 struct popup_menu_item {
-	int id;
+	int id{0};
 	std::string name;
-	char hotkey;
+	char hotkey{0};
 	bool is_separator{false};
+	std::function<void()> on_select{};
 };
 
 class popup_menu {
@@ -23,6 +25,25 @@ class popup_menu {
 	
 	// Returns the ID of the clicked item, a special cancel ID (-1) if clicked outside, or nullopt if just hovering
 	std::optional<int> handle_mouse(int mouse_x, int mouse_y);
+
+	std::function<void()> get_selected_callback() const
+	{
+		if (selected_idx_ >= 0 && selected_idx_ < static_cast<int>(items_.size())) {
+			return items_[selected_idx_].on_select;
+		}
+		return {};
+	}
+
+	void update_item(size_t index, const std::string &new_name, char new_hotkey, std::function<void()> on_select = {})
+	{
+		if (index < items_.size()) {
+			items_[index].name = new_name;
+			items_[index].hotkey = new_hotkey;
+			if (on_select) {
+				items_[index].on_select = std::move(on_select);
+			}
+		}
+	}
 
 	static constexpr int cancel_id = -1;
 

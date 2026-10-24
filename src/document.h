@@ -165,6 +165,12 @@ class document
 	void delete_word_backward();
 	void delete_to_eol();
 	void delete_to_bol();
+	[[nodiscard]] bool is_at_eol() const
+	{
+		std::shared_lock lock(mutex_);
+		if (cursor_y_ < 0 || cursor_y_ >= static_cast<int>(lines_.size())) return true;
+		return cursor_x_ >= lines_[cursor_y_]->length_in_chars();
+	}
 	void split_line();
 	void delete_line();
 

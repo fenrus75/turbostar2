@@ -197,6 +197,14 @@ class editor : public agentlib::document_provider
 		global_queue_.push(ev);
 		return fut.get();
 	}
+	void post_to_main_thread(std::function<void()> fn)
+	{
+		auto task = std::make_shared<std::packaged_task<void()>>(std::move(fn));
+		editor_event ev;
+		ev.type = event_type::run_on_main;
+		ev.generic_promise = task;
+		global_queue_.push(ev);
+	}
 	void open_file_as_text(std::string_view filename);
 	void open_file_as_binary(std::string_view filename);
 	void open_prompt_in_editor(ui_multiline_edit *edit, std::string_view initial_text);
@@ -276,6 +284,7 @@ class editor : public agentlib::document_provider
 	dialog_mode active_dialog_mode_{dialog_mode::none};
 	std::unique_ptr<dialog> active_dialog_;
 	std::unique_ptr<popup_menu> active_popup_;
+	uint64_t rmb_menu_generation_{0};
 	std::shared_ptr<std::promise<std::string>> active_ask_user_promise_;
 	std::string configuring_mcp_server_;
 	std::string pending_open_filename_;

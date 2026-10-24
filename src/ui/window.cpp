@@ -221,7 +221,8 @@ bool window::process_events()
 					invalidate();
 					break;
 				case 4: // Ctrl-D
-					if (doc_->has_multi_cursor() || !doc_->get_word_under_cursor().empty()) {
+					if (doc_->has_multi_cursor() ||
+					    (!doc_->is_at_eol() && !doc_->get_word_under_cursor().empty())) {
 						doc_->select_next_scope_highlight();
 						invalidate();
 					} else {
@@ -1336,7 +1337,12 @@ int window::get_git_button_width() const
 		std::string branch = doc_->get_git_branch();
 		if (branch.empty())
 			branch = "unknown";
-		return branch.length() + 4;
+		int w = static_cast<int>(branch.length()) + 4;
+		std::string title = get_displayed_title();
+		int title_x = x_ + (width_ - static_cast<int>(title.length())) / 2;
+		if (x_ + 6 + w < title_x - 1) {
+			return w;
+		}
 	}
 	return 0;
 }
@@ -1353,13 +1359,16 @@ int window::get_gutter_button_x() const
 int window::get_gutter_button_width() const
 {
 	if (doc_ && !doc_->get_filename().empty() && doc_->get_filename() != "unknown.txt") {
-		switch (gutter_mode_) {
-		case gutter_number_mode::git:
-			return 6; // "[#Git]"
-		case gutter_number_mode::file:
-			return 7; // "[#File]"
-		case gutter_number_mode::none:
-			return 6; // "[#Off]"
+		int w = 6;
+		if (gutter_mode_ == gutter_number_mode::file) {
+			w = 7;
+		}
+		int git_w = get_git_button_width();
+		int gx = (git_w > 0) ? (x_ + 6 + git_w + 1) : (x_ + 6);
+		std::string title = get_displayed_title();
+		int title_x = x_ + (width_ - static_cast<int>(title.length())) / 2;
+		if (gx + w < title_x - 1) {
+			return w;
 		}
 	}
 	return 0;

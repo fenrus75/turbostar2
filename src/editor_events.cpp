@@ -145,6 +145,7 @@ void editor::dispatch(const editor_event &ev)
 			break;
 		}
 		case event_type::mouse_click:
+		case event_type::mouse_right_click:
 		case event_type::mouse_double_click:
 		case event_type::mouse_triple_click:
 		case event_type::mouse_scroll_up:

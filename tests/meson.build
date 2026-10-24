@@ -851,6 +851,12 @@ test_git_gutter = executable('test_git_gutter',
   include_directories: inc)
 test('unit_test_git_gutter', test_git_gutter, suite: 'editor')
 
+test_call_synthesizer = executable('test_call_synthesizer',
+  ['unit/test_call_synthesizer.cpp'],
+  dependencies : [agent_dep, core_dep, ui_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_call_synthesizer', test_call_synthesizer, suite: 'editor')
+
 
 
 test_kill_subagent = executable('test_kill_subagent',

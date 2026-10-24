@@ -4,7 +4,9 @@
 #include <lsp/json/json.h>
 #include <ncurses.h>
 #include <sstream>
+#include <thread>
 #include "build_error_manager.h"
+#include "call_synthesizer.h"
 #include "codereview_manager.h"
 #include "config_manager.h"
 #include "editor.h"
@@ -94,6 +96,274 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::mouse_right_click) {
+		logger.log("Dispatching mouse right click at X=" + std::to_string(ev.mouse_x) + " Y=" + std::to_string(ev.mouse_y));
+
+		if (active_dialog_) {
+			return;
+		}
+
+		if (active_popup_) {
+			active_popup_.reset();
+			set_focus(focus_target::window, "popup_close");
+			global_queue_.push(event_type::redraw);
+			return;
+		}
+
+		if (ev.mouse_y <= 0 || ev.mouse_y >= LINES - 1) {
+			return;
+		}
+
+		// Find topmost window under right click (Reverse Z-order)
+		std::vector<window *> sorted_windows;
+		sorted_windows.reserve(windows_.size());
+		for (auto &w : windows_) {
+			sorted_windows.push_back(w.get());
+		}
+
+		window *active_win = get_active_window();
+		std::sort(sorted_windows.begin(), sorted_windows.end(), [active_win](window *a, window *b) {
+			int priority_a = (a == active_win) ? 9999 : a->get_display_priority();
+			int priority_b = (b == active_win) ? 9999 : b->get_display_priority();
+
+			if (priority_a != priority_b) {
+				return priority_a > priority_b;
+			}
+			return a->get_last_active_timestamp() > b->get_last_active_timestamp();
+		});
+
+		for (window *w : sorted_windows) {
+			if (!w->is_visible()) {
+				continue;
+			}
+
+			auto buf_pos = w->screen_to_buffer_pos(ev.mouse_x, ev.mouse_y);
+			if (!buf_pos.has_value()) {
+				continue;
+			}
+
+			// Activate window under click
+			for (size_t i = 0; i < windows_.size(); ++i) {
+				if (windows_[i].get() == w) {
+					activate_window(i);
+					break;
+				}
+			}
+			set_focus(focus_target::window, "mouse_right_click");
+
+			auto doc = w->get_document();
+			if (!doc) {
+				return;
+			}
+
+			int doc_x = buf_pos->first;
+			int doc_y = buf_pos->second;
+			doc->move_cursor(doc_x - doc->get_cursor_x(), doc_y - doc->get_cursor_y());
+
+			auto ctx = turbostar::call_synthesizer::analyze_context_at(*doc, doc_y, doc_x);
+			uint64_t current_generation = ++rmb_menu_generation_;
+
+			std::vector<popup_menu_item> items;
+
+			if (ctx.kind == turbostar::symbol_kind_context::function_call) {
+				// 1. Native Suggestions (Slots 1 and 2)
+				for (size_t s_idx = 0; s_idx < std::min<size_t>(ctx.suggestions.size(), 2); ++s_idx) {
+					const auto &s = ctx.suggestions[s_idx];
+					char hotkey = static_cast<char>('1' + items.size());
+					std::string label = std::format("{}. {}", hotkey, s.call_text);
+					popup_menu_item item{0, label, hotkey, false};
+					item.on_select = [this, w_ptr = w, ctx, call_text = s.call_text]() {
+						auto d = w_ptr->get_document();
+						if (!d) return;
+						if (ctx.has_existing_parens && ctx.existing_args_end_col != -1) {
+							d->set_selection(ctx.target_line, ctx.existing_args_start_col,
+									 ctx.target_line, ctx.existing_args_end_col + 1);
+							d->delete_selection();
+							d->insert_text(call_text);
+						} else if (ctx.has_existing_parens && ctx.existing_args_end_col == -1) {
+							auto l_obj = d->get_line(ctx.target_line);
+							int len = l_obj ? l_obj->length_in_chars() : ctx.existing_args_start_col + 1;
+							d->set_selection(ctx.target_line, ctx.existing_args_start_col, ctx.target_line, len);
+							d->delete_selection();
+							d->insert_text(call_text);
+						} else {
+							d->move_cursor(ctx.token_end_col - d->get_cursor_x(), ctx.target_line - d->get_cursor_y());
+							d->insert_text(call_text);
+						}
+						global_queue_.push(event_type::redraw);
+					};
+					items.push_back(item);
+				}
+
+				// 2. Slot 3: Reserved for AI Suggestion
+				if (turbostar::call_synthesizer::has_ai_model_configured()) {
+					int ai_item_index = static_cast<int>(items.size());
+					popup_menu_item ai_item{0, "3. [ \u231b AI analyzing... ]", '3', false};
+					ai_item.on_select = []() {};
+					items.push_back(ai_item);
+
+					// Capture context for background worker
+					std::string enclosing_func;
+					int start_l = std::max(0, doc_y - 25);
+					int end_l = std::min(static_cast<int>(doc->get_line_count()), doc_y + 20);
+					for (int l = start_l; l < end_l; ++l) {
+						auto l_obj = doc->get_line(l);
+						if (l_obj) {
+							enclosing_func += l_obj->get_text() + "\n";
+						}
+					}
+					auto locals = turbostar::call_synthesizer::extract_in_scope_variables(*doc, doc_y);
+					std::string sig_str = ctx.token;
+					std::string existing_args;
+					if (ctx.has_existing_parens && ctx.existing_args_end_col > ctx.existing_args_start_col + 1) {
+						auto cur_l = doc->get_line(doc_y);
+						if (cur_l) {
+							std::string lt = cur_l->get_text();
+							if (ctx.existing_args_end_col <= static_cast<int>(lt.size())) {
+								existing_args = lt.substr(ctx.existing_args_start_col + 1,
+											  ctx.existing_args_end_col - ctx.existing_args_start_col - 1);
+							}
+						}
+					}
+
+					std::thread([this, current_generation, ai_item_index, w_ptr = w, ctx,
+						     enclosing_func = std::move(enclosing_func), sig_str = std::move(sig_str),
+						     locals = std::move(locals), existing_args = std::move(existing_args)]() {
+						auto ai_res = turbostar::call_synthesizer::query_ai_call_suggestion(
+						    enclosing_func, sig_str, locals, existing_args);
+						if (!ai_res.has_value() || ai_res->empty()) {
+							return;
+						}
+						post_to_main_thread([this, current_generation, ai_item_index, w_ptr, ctx, call_text = *ai_res]() {
+							if (rmb_menu_generation_ != current_generation || !active_popup_) {
+								return;
+							}
+							std::string label = "3. [AI] " + call_text;
+							active_popup_->update_item(ai_item_index, label, '3', [this, w_ptr, ctx, call_text]() {
+								auto d = w_ptr->get_document();
+								if (!d) return;
+								if (ctx.has_existing_parens && ctx.existing_args_end_col != -1) {
+									d->set_selection(ctx.target_line, ctx.existing_args_start_col,
+											 ctx.target_line, ctx.existing_args_end_col + 1);
+									d->delete_selection();
+									d->insert_text(call_text);
+								} else if (ctx.has_existing_parens && ctx.existing_args_end_col == -1) {
+									auto l_obj = d->get_line(ctx.target_line);
+									int len = l_obj ? l_obj->length_in_chars() : ctx.existing_args_start_col + 1;
+									d->set_selection(ctx.target_line, ctx.existing_args_start_col, ctx.target_line, len);
+									d->delete_selection();
+									d->insert_text(call_text);
+								} else {
+									d->move_cursor(ctx.token_end_col - d->get_cursor_x(), ctx.target_line - d->get_cursor_y());
+									d->insert_text(call_text);
+								}
+								global_queue_.push(event_type::redraw);
+							});
+							global_queue_.push(event_type::redraw);
+						});
+					}).detach();
+				}
+
+				if (!items.empty()) {
+					items.push_back({0, "", 0, true}); // Separator
+				}
+
+				if (!ctx.declaration_location.empty()) {
+					popup_menu_item def_item{0, "Go to Definition", 'D', false};
+					def_item.on_select = [this, loc = ctx.declaration_location]() {
+						editor_event oev;
+						oev.type = event_type::open_file;
+						oev.payload = loc;
+						global_queue_.push(oev);
+					};
+					items.push_back(def_item);
+				}
+
+				popup_menu_item ref_item{0, "Find References", 'R', false};
+				ref_item.on_select = [this, fn = doc->get_filename(), doc_y, doc_x]() {
+					auto refs = project_manager::get_instance().lsp_query_references(fn, doc_y, doc_x);
+					if (!refs.empty()) {
+						editor_event oev;
+						oev.type = event_type::open_file;
+						oev.payload = std::format("{}:{}", refs[0].path, refs[0].range.start_y + 1);
+						global_queue_.push(oev);
+					}
+				};
+				items.push_back(ref_item);
+			} else if (ctx.kind == turbostar::symbol_kind_context::type_definition ||
+				   ctx.kind == turbostar::symbol_kind_context::variable) {
+				if (!ctx.type_synopsis.empty()) {
+					std::string syn = ctx.type_synopsis;
+					if (syn.length() > 40) {
+						syn = syn.substr(0, 37) + "...";
+					}
+					items.push_back({0, syn, 0, false});
+					items.push_back({0, "", 0, true});
+				}
+
+				if (!ctx.declaration_location.empty()) {
+					popup_menu_item def_item{0, "Go to Definition", 'D', false};
+					def_item.on_select = [this, loc = ctx.declaration_location]() {
+						editor_event oev;
+						oev.type = event_type::open_file;
+						oev.payload = loc;
+						global_queue_.push(oev);
+					};
+					items.push_back(def_item);
+				}
+
+				popup_menu_item ref_item{0, "Find References", 'R', false};
+				ref_item.on_select = [this, fn = doc->get_filename(), doc_y, doc_x]() {
+					auto refs = project_manager::get_instance().lsp_query_references(fn, doc_y, doc_x);
+					if (!refs.empty()) {
+						editor_event oev;
+						oev.type = event_type::open_file;
+						oev.payload = std::format("{}:{}", refs[0].path, refs[0].range.start_y + 1);
+						global_queue_.push(oev);
+					}
+				};
+				items.push_back(ref_item);
+
+				popup_menu_item fmt_item{static_cast<int>(event_type::format_doc), "Format Code", 'F', false};
+				items.push_back(fmt_item);
+			} else {
+				if (doc->has_selection()) {
+					popup_menu_item cut_item{0, "Cut Block (^KY)", 't', false};
+					cut_item.on_select = [w_ptr = w]() {
+						auto d = w_ptr->get_document();
+						if (d) d->delete_selection();
+					};
+					items.push_back(cut_item);
+
+					popup_menu_item copy_item{0, "Copy Block (^KC)", 'C', false};
+					copy_item.on_select = [w_ptr = w]() {
+						auto d = w_ptr->get_document();
+						if (d) d->copy_selection();
+					};
+					items.push_back(copy_item);
+				}
+
+				popup_menu_item save_item{static_cast<int>(event_type::save), "Save", 'S', false};
+				items.push_back(save_item);
+
+				popup_menu_item fmt_item{static_cast<int>(event_type::format_doc), "Format Code", 'F', false};
+				items.push_back(fmt_item);
+			}
+
+			if (items.empty()) {
+				return;
+			}
+
+			int popup_x = std::clamp(ev.mouse_x + 1, 1, std::max(1, COLS - 35));
+			int popup_y = std::clamp(ev.mouse_y + 1, 1, std::max(1, LINES - static_cast<int>(items.size()) - 3));
+			active_popup_ = std::make_unique<popup_menu>(popup_x, popup_y, items);
+			set_focus(focus_target::popup, "mouse_right_click");
+			global_queue_.push(event_type::redraw);
+			return;
+		}
+		return;
+	}
+
 	if (ev.type == event_type::mouse_click) {
 		logger.log("Dispatching mouse click at X=" + std::to_string(ev.mouse_x) + " Y=" + std::to_string(ev.mouse_y));
 
@@ -124,11 +394,14 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 			last_click_on_title_bar_ = false;
 			auto res = active_popup_->handle_mouse(ev.mouse_x, ev.mouse_y);
 			if (res.has_value()) {
+				auto cb = active_popup_->get_selected_callback();
 				int id = res.value();
 				active_popup_.reset();
 				set_focus(focus_target::window, "popup_close");
 
-				if (id != popup_menu::cancel_id) {
+				if (cb) {
+					cb();
+				} else if (id != popup_menu::cancel_id) {
 					global_queue_.push(static_cast<event_type>(id));
 				}
 

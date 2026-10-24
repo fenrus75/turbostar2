@@ -58,6 +58,12 @@ After making a change, create a git commit for the change. Before committing, en
   - Turbostar implements a strictly decoupled **Dual-Mode Selection Model** (see `docs/design-selection.md` for full specification):
     1. **Persistent Block Selection** (WordStar/Joe style): Document-scoped markers, `Selection Begin` (^KB) and `Selection End` (^KK), define a contiguous range of text that stays pinned to logical text across edits and navigation. Active only when both markers are set and start < end; incomplete marker states do not highlight. Operates on by `^K` commands (`^KC`, `^KM`, `^KY`, `^KW`, `^KJ`, and `^KT` to copy block to clipboard).
     2. **Transient Mouse Selection**: Window-scoped click-and-drag range that supports vertical auto-scrolling across screens, auto-copies to system clipboard via OSC 52 on mouse release, overrides block highlighting visually during interaction, and is cleared by any subsequent keypress or click.
+- **Right Mouse Button Context Intelligence & Call Synthesizer**:
+  - Turbostar replaces generic edit context menus with an intelligent call synthesizer (`src/call_synthesizer.{h,cpp}`).
+  - Right-clicking a function call site parses signature parameters and local in-scope variables to deliver 1–2 instant native C++ call recommendations (~5ms) with existing-arguments biasing.
+  - Slot 3 is reserved for an asynchronous background AI LLM completion (`3. [ ⌛ AI analyzing... ]`) that populates in place without layout shifts or cursor hopping.
+  - For types and symbols, it displays synopsis information, Jump to Definition (`D`), and Find References (`R`).
+  - For plain buffer regions, it provides fast block operations (Cut, Copy, Paste, Format Code).
 - **Stateful Key Sequences**:
   - Turbostar supports "prefix" keys, most notably the `Ctrl-K` block.
   - When a prefix key is pressed, the editor enters a sub-state waiting for the next "command" key.

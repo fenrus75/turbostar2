@@ -1597,11 +1597,14 @@ void editor::dispatch_event_key(const editor_event &ev)
 		if (current_focus_ == focus_target::popup && active_popup_) {
 			auto res = active_popup_->handle_key(ev.key_code);
 			if (res.has_value()) {
+				auto cb = active_popup_->get_selected_callback();
 				int id = res.value();
 				active_popup_.reset();
 				set_focus(focus_target::window, "popup_close");
 
-				if (id != popup_menu::cancel_id) {
+				if (cb) {
+					cb();
+				} else if (id != popup_menu::cancel_id) {
 					global_queue_.push(static_cast<event_type>(id));
 				}
 

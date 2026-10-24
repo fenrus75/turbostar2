@@ -72,6 +72,7 @@ core_sources = files(
   'languages/cpp/include_extractor.cpp',
   'languages/cpp/lexer.cpp',
   'call_resolver.cpp',
+  'call_synthesizer.cpp',
   'semcode_indexer.cpp'
 )
 

@@ -815,6 +815,11 @@ void editor::run()
 							ev.mouse_x = event.x;
 							ev.mouse_y = event.y;
 							global_queue_.push(ev);
+						} else if (event.bstate & BUTTON3_PRESSED || event.bstate & BUTTON3_CLICKED) {
+							ev.type = event_type::mouse_right_click;
+							ev.mouse_x = event.x;
+							ev.mouse_y = event.y;
+							global_queue_.push(ev);
 						} else if (event.bstate & BUTTON1_RELEASED) {
 							ev.type = event_type::mouse_release;
 							ev.mouse_x = event.x;
