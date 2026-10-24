@@ -216,6 +216,35 @@
       </div>
     </section>
 
+    <!-- Visual Feature 7: Persistent Terminal Window -->
+    <section class="detail-split" id="terminal-split">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Built-In Interactive Terminal Shell</h2>
+        <p class="detail-text">
+          Execute shell commands, run test scripts, manage Git repositories, and inspect system utilities without ever context-switching away from your editing workflow. A full-color, interactive pseudo-terminal lives directly alongside your editor buffers.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Zero Context Switching:</strong> Launch your favorite interactive shell (<code>$SHELL</code>, <code>bash</code>, <code>zsh</code>) right in the tiled workspace. Run arbitrary command-line tools, scripts, or git commands side-by-side with your code.</li>
+          <li><strong>Smart One-Key Navigation (<code>F6</code>):</strong> Press <code>F6</code> to instantly open a terminal or cycle focus between your active shell and editor windows without reaching for the mouse.</li>
+          <li><strong>First-Class Tiled Window:</strong> Tiles, cascades, resizes, and maximizes (<code>F5</code>) just like standard editor buffers. Full 256-color palette and ANSI terminal emulation deliver crystal-clear output for modern CLI applications.</li>
+          <li><strong>Native Shell Keystroke Pass-Through:</strong> Control keys (such as <code>Ctrl+C</code> to interrupt, <code>Ctrl+L</code> to clear, <code>Tab</code> for auto-completion, and <code>Ctrl+D</code>) pass directly to your shell, with <code>Ctrl+G</code> providing an instant input capture toggle.</li>
+          <li><strong>Clean Auto-Dismiss on Exit:</strong> Simply type <code>exit</code> or press <code>Ctrl+D</code> when your task is done—the terminal window automatically closes and smoothly returns focus right back to your code.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <div class="terminal-mockup" id="mock-terminal">
+          <div class="terminal-header">
+            <div class="terminal-title">turbostar --terminal</div>
+          </div>
+          <div class="terminal-content">
+            <a href="./screenshot-terminal.png" target="_blank">
+              <img src="./screenshot-terminal.png" alt="Turbostar Embedded Interactive Terminal Window">
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Keyboard Reference -->
     <section class="page-header" id="key-reference">
       <h2 class="detail-subtitle">Keyboard Quick Reference</h2>
@@ -283,6 +312,16 @@
               <td><strong>Multi-Cursor: Select All in Scope</strong></td>
               <td><code>Ctrl+Shift+D</code></td>
               <td><code>Ctrl+Shift+L</code> or <code>^K D</code></td>
+            </tr>
+            <tr>
+              <td><strong>Interactive Terminal Shell</strong></td>
+              <td>—</td>
+              <td><code>F6</code> or Tools &rarr; Terminal</td>
+            </tr>
+            <tr>
+              <td><strong>Zoom / Maximize Window</strong></td>
+              <td>—</td>
+              <td><code>F5</code></td>
             </tr>
             <tr>
               <td><strong>Quit Editor</strong></td>
