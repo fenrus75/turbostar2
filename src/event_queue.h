@@ -121,6 +121,7 @@ enum class event_type {
 	a2a_config,		    ///< Request to show A2A server configuration dialog
 	rescan_subagents,	    ///< Request to hot-reload custom subagents from disk
 	open_terminal,		    ///< Request to open an interactive terminal shell window
+	toggle_gutter_numbers,	    ///< Request to cycle line number mode (git/file/none) in active window
 	run_on_main		    ///< Internal: execute a callable on the main UI thread (generic_promise carries a std::packaged_task)
 };
 

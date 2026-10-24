@@ -199,6 +199,29 @@ Turbostar embeds full-featured interactive pseudo-terminal (PTY) shell windows d
 - **Smart F6 Toggling & Cycling**: Pressing `F6` automatically opens a new terminal window if none are currently open. If terminal windows exist, `F6` focuses the terminal, cycles between open terminals, and returns to the active editor buffer.
 - **Process Lifecycle & Auto-Close on Exit**: When the shell process terminates (via `exit` or EOF `^D`), `editor::update_terminal_windows()` detects `!is_alive()` and dispatches `event_type::close_window` targeted specifically at that window ID, cleanly closing the tiled window and returning focus to the editor.
 
+## Git Gutter Indicators & Right-Margin Ghost Line Numbers
+
+To provide contextual diff and line navigation awareness without breaking Turbostar's classic Borland-style full-width text canvas or wasting columns on a dedicated line gutter:
+
+- **Left Window Border Indicators**:
+  - Leverages the single-cell left window border (`x_`) to display color-coded unified diff status:
+    - `║` Bright Green (Color Pair 30) for added lines.
+    - `║` Bright Yellow (Color Pair 21) for modified lines.
+    - `▸` Bright Red (Color Pair 31) for deletions above a line (including EOF deletions).
+  - Left border markers provide indestructible 100% visibility regardless of line length or horizontal scroll.
+  - Performance profiling heatmap indicators take visual precedence over diff markers on active hotspot lines (`pct >= 1.0`).
+
+- **Right-Margin Ghost Line Numbers**:
+  - Rendered right-aligned in idle margin whitespace along the right edge of each window in subtle, low-contrast cyan (`COLOR_PAIR(4) | A_DIM`).
+  - Ghost line numbers remain pinned to the right window decoration during horizontal panning (`left_column_ > 0`).
+  - **Z-Ordering & Natural Occlusion**: Ghost line numbers are drawn immediately after background fill and before document text. Long lines of code naturally overwrite the digits without requiring clipping, layout columns, or horizontal reflow.
+
+- **Modal Line Number Navigation (`gutter_number_mode`)**:
+  - **`Git Mode` (`[#Git]`)**: Displays Git HEAD line numbers. Deleted lines appear as number gaps (e.g., jumping from 44 to 47), and added lines display subtle green dots (`··`).
+  - **`File Mode` (`[#File]`)**: Displays physical buffer line numbers (`1, 2, 3...`) matching compiler diagnostics. Automatically engaged upon compiler error navigation (`F4` / Next Error).
+  - **`Off Mode` (`[#Off]`)**: Suppresses right-margin numbers while preserving left-border diff markers.
+  - **Interactive Controls**: Clickable header widget `[#Git]` / `[#File]` / `[#Off]`, Window popup menu (`Alt+=`), and Git menu item (`Alt+G N`).
+
 ## Testing and Diagnostics
 
 To ensure reliability, Turbostar incorporates testing and diagnostic infrastructure from the outset:

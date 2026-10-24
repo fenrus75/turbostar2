@@ -131,6 +131,16 @@ void editor::dispatch_event_window(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::toggle_gutter_numbers) {
+		logger.log("Dispatching toggle_gutter_numbers event.");
+		window *w = get_active_window();
+		if (w) {
+			w->cycle_gutter_number_mode();
+			global_queue_.push(event_type::redraw);
+		}
+		return;
+	}
+
 	if (ev.type == event_type::agent_hide_sidebar) {
 		logger.log("Dispatching agent_hide_sidebar event.");
 		window *w = get_active_window();

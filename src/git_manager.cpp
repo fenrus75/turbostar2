@@ -2,11 +2,13 @@
 #include <array>
 #include <cassert>
 #include <cctype>
+#include <charconv>
 #include <cstdio>
 #include <format>
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include "command_runner.h"
 #include "event_logger.h"
 #include "fs_utils.h"
@@ -116,7 +118,7 @@ void git_manager::worker_loop()
                         {
                                 std::unique_lock lock(cache_mutex_);
                                 git_info& cached = status_cache_[req.filepath];
-                                if (cached.status != info.status || cached.branch != info.branch) {
+                                if (cached.status != info.status || cached.branch != info.branch || cached.diff != info.diff) {
                                         if (cached.branch != info.branch && !info.branch.empty()) {
                                                 event_logger::get_instance().log("Git: Detected branch '{}' for {}", info.branch, req.filepath);
                                         }
@@ -202,6 +204,126 @@ git_info git_manager::run_git_status_cmd(const std::string &filepath)
 		}
 	}
 
+	if (info.status == git_status::dirty) {
+		info.diff = run_git_diff_cmd(filepath);
+	} else if (info.status == git_status::clean) {
+		info.diff.is_tracked = true;
+		info.diff.hunks.clear();
+	} else {
+		info.diff.is_tracked = false;
+		info.diff.hunks.clear();
+	}
+
+	return info;
+}
+
+git_file_diff git_manager::run_git_diff_cmd(const std::string &filepath)
+{
+	git_file_diff diff;
+	diff.is_tracked = true;
+
+	fs::path p(filepath);
+	std::string dir = p.parent_path().string();
+	std::string file = p.filename().string();
+	if (dir.empty())
+		dir = ".";
+
+	std::string cmd = "git -C " + dir + " diff -U0 HEAD -- " + file + " 2>/dev/null";
+	sync_command_runner runner;
+	runner.apply_internal_profile();
+	std::string output = runner.execute_and_get_output(cmd);
+
+	std::istringstream stream(output);
+	std::string line;
+	while (std::getline(stream, line)) {
+		if (line.starts_with("@@ -")) {
+			size_t end_hunk = line.find(" @@", 4);
+			if (end_hunk != std::string::npos) {
+				std::string_view hunk_header = std::string_view(line).substr(4, end_hunk - 4);
+				size_t plus_pos = hunk_header.find(" +");
+				if (plus_pos != std::string::npos) {
+					std::string_view old_part = hunk_header.substr(0, plus_pos);
+					std::string_view new_part = hunk_header.substr(plus_pos + 2);
+
+					int old_start = 0, old_count = 1;
+					size_t old_comma = old_part.find(',');
+					if (old_comma != std::string::npos) {
+						std::from_chars(old_part.data(), old_part.data() + old_comma, old_start);
+						std::from_chars(old_part.data() + old_comma + 1, old_part.data() + old_part.size(), old_count);
+					} else {
+						std::from_chars(old_part.data(), old_part.data() + old_part.size(), old_start);
+					}
+
+					int new_start = 0, new_count = 1;
+					size_t new_comma = new_part.find(',');
+					if (new_comma != std::string::npos) {
+						std::from_chars(new_part.data(), new_part.data() + new_comma, new_start);
+						std::from_chars(new_part.data() + new_comma + 1, new_part.data() + new_part.size(), new_count);
+					} else {
+						std::from_chars(new_part.data(), new_part.data() + new_part.size(), new_start);
+					}
+
+					diff.hunks.push_back({old_start, old_count, new_start, new_count});
+				}
+			}
+		}
+	}
+	return diff;
+}
+
+git_file_diff::line_info git_file_diff::get_line_info(int buffer_line_1based) const
+{
+	line_info info;
+	if (hunks.empty() || buffer_line_1based < 1) {
+		info.git_line = buffer_line_1based;
+		return info;
+	}
+
+	int cumulative_delta = 0;
+	for (const auto &h : hunks) {
+		if (h.new_count == 0) {
+			if (buffer_line_1based <= h.new_start) {
+				info.git_line = buffer_line_1based - cumulative_delta;
+				return info;
+			}
+			if (buffer_line_1based == h.new_start + 1) {
+				info.has_deletion_above = true;
+				info.deleted_count += h.old_count;
+			}
+			cumulative_delta += (h.new_count - h.old_count);
+			continue;
+		}
+
+		int h_start = h.new_start;
+		int h_end = h.new_start + h.new_count - 1;
+
+		if (buffer_line_1based < h_start) {
+			info.git_line = buffer_line_1based - cumulative_delta;
+			return info;
+		}
+
+		if (buffer_line_1based <= h_end) {
+			int offset = buffer_line_1based - h_start;
+			int mod_count = std::min(h.old_count, h.new_count);
+			if (offset < mod_count) {
+				info.type = git_line_diff_type::modified;
+				info.git_line = h.old_start + offset;
+			} else {
+				info.type = git_line_diff_type::added;
+				info.git_line = -1;
+			}
+			return info;
+		}
+
+		if (h.old_count > h.new_count && buffer_line_1based == h_end + 1) {
+			info.has_deletion_above = true;
+			info.deleted_count += (h.old_count - h.new_count);
+		}
+
+		cumulative_delta += (h.new_count - h.old_count);
+	}
+
+	info.git_line = buffer_line_1based - cumulative_delta;
 	return info;
 }
 

@@ -11,7 +11,11 @@ The `git_manager` class provides asynchronous monitoring and interaction with Gi
 - **Cache Synchronization**:
   - Cached branch and status records (`cached_info_`) are protected by `std::mutex mutex_`.
   - When a status change is detected, the worker pushes an `event_type::git_status_update` to `event_queue`, prompting the editor to update window titles and UI status bars cleanly.
+- **Unified Diff Mapping (`git_file_diff`)**:
+  - Executes `git diff -U0 HEAD -- <file>` to extract line-level hunk delta records (`git_diff_hunk`).
+  - Maps any 1-based buffer line to its git status (`unchanged`, `added`, `modified`) and its corresponding git HEAD line number (`git_line`), plus deletion indicators (`has_deletion_above`, `deleted_count`).
 
 ## Lessons Learned
 - **UI Thread Stuttering**: Executing `git status` synchronously on keystrokes or buffer switches causes severe latency spikes on large repositories (e.g. the Linux kernel). Decoupling git operations to an asynchronous worker queue keeps editor frame rates silky smooth.
 - **Repository Root Caching**: Determining the repository root via subprocess calls (`git rev-parse --show-toplevel`) on every query adds unnecessary overhead. Memoizing the root path upon repository initialization eliminates repetitive forks.
+- **Unified Diff Hunk Zero-Count Delta Accounting**: In unified diffs (`@@ -old_start,old_count +new_start,new_count @@`), pure deletions have `new_count == 0`. When calculating `get_line_info()`, lines with `buffer_line <= new_start` precede the deletion and must NOT have the deletion delta subtracted, while lines with `buffer_line == new_start + 1` indicate a deletion above the line.

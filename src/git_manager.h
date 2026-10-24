@@ -16,9 +16,46 @@ enum class git_status {
 	untracked
 };
 
+enum class git_line_diff_type {
+	unchanged,
+	added,
+	modified
+};
+
+struct git_diff_hunk {
+	int old_start{0};
+	int old_count{1};
+	int new_start{0};
+	int new_count{1};
+
+	bool operator==(const git_diff_hunk &) const = default;
+};
+
+struct git_file_diff {
+	bool is_tracked{false};
+	std::vector<git_diff_hunk> hunks;
+
+	[[nodiscard]] bool empty() const noexcept
+	{
+		return hunks.empty();
+	}
+
+	bool operator==(const git_file_diff &) const = default;
+
+	struct line_info {
+		git_line_diff_type type{git_line_diff_type::unchanged};
+		int git_line{-1}; // -1 if added
+		bool has_deletion_above{false};
+		int deleted_count{0};
+	};
+
+	line_info get_line_info(int buffer_line_1based) const;
+};
+
 struct git_info {
 	git_status status{git_status::unknown};
 	std::string branch;
+	git_file_diff diff;
 };
 
 /**
@@ -81,6 +118,7 @@ class git_manager
 
 	void worker_loop();
 	git_info run_git_status_cmd(const std::string &filepath);
+	git_file_diff run_git_diff_cmd(const std::string &filepath);
 	void run_git_add_cmd(const std::string &filepath);
 
 	enum class request_type { status, add };

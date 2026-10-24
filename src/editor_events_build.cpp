@@ -227,6 +227,7 @@ void editor::dispatch_event_build(const editor_event &ev)
 
 			if (win_idx != static_cast<size_t>(-1)) {
 				activate_window(win_idx);
+				windows_[win_idx]->set_gutter_number_mode(gutter_number_mode::file);
 				auto doc = windows_[win_idx]->get_document();
 				if (doc) {
 					// Jump to error

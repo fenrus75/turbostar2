@@ -152,4 +152,14 @@ These commands require pressing `Ctrl+K` first, followed by the command letter.
 | `^Q A` | Replace Text | Opens the advanced Replace dialog. |
 | `^L` | Find Next | Repeats the last search operation. |
 
+## Git & Version Control Commands
+
+| Key Combination | Action | Notes |
+| :--- | :--- | :--- |
+| `Alt+G A` | Git Add | Stages current file to git index. |
+| `Alt+G R` | Git Refresh | Refreshes git branch and diff status. |
+| `Alt+G N` | Toggle Line Numbers | Cycles line number display mode (`[#Git]`, `[#File]`, `[#Off]`). |
+| Click `[#Git]` / `[#File]` / `[#Off]` | Cycle Line Number Mode | Top window border button cycles line number mode. |
+
+
 

@@ -1560,6 +1560,8 @@ void editor::dispatch_event_key(const editor_event &ev)
 						items.push_back({static_cast<int>(event_type::save), "Save", 'S', false});
 						items.push_back({static_cast<int>(event_type::git_add), "Git Add", 'G', false});
 						items.push_back({static_cast<int>(event_type::compile_file), "Compile File", 'C', false});
+						items.push_back({static_cast<int>(event_type::toggle_gutter_numbers),
+								 "Toggle Line Numbers", 'N', false});
 						items.push_back(
 						    {static_cast<int>(event_type::maximize_window), max_label, max_hotkey, false});
 						items.push_back({0, "", 0, true});

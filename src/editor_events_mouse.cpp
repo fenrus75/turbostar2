@@ -237,6 +237,8 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 							items.push_back({static_cast<int>(event_type::git_add), "Git Add", 'G', false});
 							items.push_back(
 							    {static_cast<int>(event_type::compile_file), "Compile File", 'C', false});
+							items.push_back({static_cast<int>(event_type::toggle_gutter_numbers),
+									 "Toggle Line Numbers", 'N', false});
 							items.push_back(
 							    {static_cast<int>(event_type::maximize_window), max_label, max_hotkey, false});
 							items.push_back({0, "", 0, true});
@@ -267,6 +269,25 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 							}
 						}
 						global_queue_.push(event_type::git_add);
+						return;
+					}
+
+					// 1.6 Check for Gutter Mode Button
+					int gutter_x = w->get_gutter_button_x();
+					int gutter_w = w->get_gutter_button_width();
+					if (gutter_w > 0 && ev.mouse_y == w->get_y() && ev.mouse_x >= gutter_x &&
+					    ev.mouse_x < gutter_x + gutter_w) {
+						logger.log("Mouse clicked gutter mode button.");
+						last_click_window_id_ = -1;
+						last_click_on_title_bar_ = false;
+
+						for (size_t i = 0; i < windows_.size(); ++i) {
+							if (windows_[i].get() == w) {
+								activate_window(i);
+								break;
+							}
+						}
+						global_queue_.push(event_type::toggle_gutter_numbers);
 						return;
 					}
 

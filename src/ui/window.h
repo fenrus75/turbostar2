@@ -23,6 +23,12 @@
 | terminal_window    | src/ui/terminal_window.h                  |
 
 */
+enum class gutter_number_mode {
+	git,
+	file,
+	none
+};
+
 class window
 {
       public:
@@ -130,6 +136,28 @@ class window
 	}
 	int get_git_button_width() const;
 
+	gutter_number_mode get_gutter_number_mode() const noexcept
+	{
+		return gutter_mode_;
+	}
+	void set_gutter_number_mode(gutter_number_mode mode) noexcept
+	{
+		gutter_mode_ = mode;
+	}
+	void cycle_gutter_number_mode() noexcept
+	{
+		if (gutter_mode_ == gutter_number_mode::git) {
+			gutter_mode_ = gutter_number_mode::file;
+		} else if (gutter_mode_ == gutter_number_mode::file) {
+			gutter_mode_ = gutter_number_mode::none;
+		} else {
+			gutter_mode_ = gutter_number_mode::git;
+		}
+	}
+
+	int get_gutter_button_x() const;
+	int get_gutter_button_width() const;
+
 	int get_background_color_pair() const
 	{
 		return background_color_pair_;
@@ -220,6 +248,7 @@ class window
 	int display_priority_{0};
 	bool is_visible_{true};
 	bool bypass_global_shortcuts_{false};
+	gutter_number_mode gutter_mode_{gutter_number_mode::git};
 
 	mutable int top_line_{0};
 	mutable int left_column_{0};

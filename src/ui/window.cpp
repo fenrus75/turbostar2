@@ -626,6 +626,11 @@ void window::draw_content(bool cursor_only) const
 
 	last_match_pos_ = match_pos;
 
+	git_info gi;
+	if (doc_ && !doc_->get_filename().empty()) {
+		gi = git_manager::get_instance().get_cached_info(doc_->get_filename());
+	}
+
 	if (doc_) {
 		filename = doc_->get_safe_filename();
 	}
@@ -715,6 +720,36 @@ void window::draw_content(bool cursor_only) const
 
 		if (!doc_ || doc_line_idx >= static_cast<int>(doc_->get_line_count())) {
 			continue;
+		}
+
+		if (gutter_mode_ != gutter_number_mode::none) {
+			int doc_line_1based = doc_line_idx + 1;
+			std::string num_str;
+			int num_pair = 4; // Cyan on Dark Blue
+			int num_attr = COLOR_PAIR(num_pair) | A_DIM;
+
+			if (gutter_mode_ == gutter_number_mode::file) {
+				num_str = std::format("{:4d}", doc_line_1based);
+			} else { // git mode
+				auto diff_info = gi.diff.get_line_info(doc_line_1based);
+				if (diff_info.type == git_line_diff_type::added) {
+					num_str = "  ··";
+					num_pair = 30; // Bright Green
+					num_attr = COLOR_PAIR(num_pair) | A_DIM;
+				} else if (diff_info.type == git_line_diff_type::modified) {
+					num_str = std::format("{:4d}", diff_info.git_line);
+					num_pair = 21; // Bright Yellow
+					num_attr = COLOR_PAIR(num_pair) | A_DIM;
+				} else {
+					num_str = std::format("{:4d}", diff_info.git_line);
+				}
+			}
+
+			int num_x = x_ + width_ - 2 - static_cast<int>(num_str.length());
+			if (num_x > x_) {
+				attrset(num_attr);
+				mvaddstr(y_ + i, num_x, num_str.c_str());
+			}
 		}
 
 		auto current_l = doc_->get_line(doc_line_idx);
@@ -1171,6 +1206,27 @@ void window::draw_border() const
 		attroff(COLOR_PAIR(pair));
 		attron(COLOR_PAIR(border_pair));
 		addstr("]");
+
+		int gutter_x = get_gutter_button_x();
+		int gutter_w = get_gutter_button_width();
+		int title_x = x_ + (width_ - static_cast<int>(current_title.length())) / 2;
+		if (gutter_w > 0 && gutter_x + gutter_w < title_x - 1) {
+			std::string mode_str = "#Git";
+			int mode_pair = 21; // Yellow
+			if (gutter_mode_ == gutter_number_mode::file) {
+				mode_str = "#File";
+				mode_pair = 20; // Green
+			} else if (gutter_mode_ == gutter_number_mode::none) {
+				mode_str = "#Off";
+				mode_pair = border_pair; // Dim
+			}
+			mvaddstr(y_, gutter_x, "[");
+			attron(COLOR_PAIR(mode_pair));
+			addstr(mode_str.c_str());
+			attroff(COLOR_PAIR(mode_pair));
+			attron(COLOR_PAIR(border_pair));
+			addstr("]");
+		}
 	}
 
 	// Draw popup menu widget
@@ -1214,6 +1270,40 @@ void window::draw_border() const
 	}
 	attroff(COLOR_PAIR(4));
 
+	// Overwrite left border for git diff indicators
+	if (doc_ && !doc_->get_filename().empty() && doc_->get_filename() != "unknown.txt") {
+		git_info ginfo = git_manager::get_instance().get_cached_info(doc_->get_filename());
+		int content_h = height_ - 2;
+		for (int i = 0; i < content_h; ++i) {
+			int doc_line = top_line_ + 1 + i;
+			if (doc_line > static_cast<int>(doc_->get_line_count())) {
+				if (doc_line == static_cast<int>(doc_->get_line_count()) + 1) {
+					auto line_res = ginfo.diff.get_line_info(doc_line);
+					if (line_res.has_deletion_above) {
+						attron(COLOR_PAIR(31));
+						mvaddstr(y_ + 1 + i, x_, "▸");
+						attroff(COLOR_PAIR(31));
+					}
+				}
+				continue;
+			}
+			auto line_res = ginfo.diff.get_line_info(doc_line);
+			if (line_res.has_deletion_above) {
+				attron(COLOR_PAIR(31));
+				mvaddstr(y_ + 1 + i, x_, "▸");
+				attroff(COLOR_PAIR(31));
+			} else if (line_res.type == git_line_diff_type::added) {
+				attron(COLOR_PAIR(30));
+				mvaddstr(y_ + 1 + i, x_, "║");
+				attroff(COLOR_PAIR(30));
+			} else if (line_res.type == git_line_diff_type::modified) {
+				attron(COLOR_PAIR(21));
+				mvaddstr(y_ + 1 + i, x_, "║");
+				attroff(COLOR_PAIR(21));
+			}
+		}
+	}
+
 	// Overwrite left border for lines with performance samples
 	if (doc_ && !doc_->get_filename().empty()) {
 		std::string filename = doc_->get_filename();
@@ -1246,6 +1336,30 @@ int window::get_git_button_width() const
 		if (branch.empty())
 			branch = "unknown";
 		return branch.length() + 4;
+	}
+	return 0;
+}
+
+int window::get_gutter_button_x() const
+{
+	int git_w = get_git_button_width();
+	if (git_w > 0) {
+		return x_ + 6 + git_w + 1;
+	}
+	return x_ + 6;
+}
+
+int window::get_gutter_button_width() const
+{
+	if (doc_ && !doc_->get_filename().empty() && doc_->get_filename() != "unknown.txt") {
+		switch (gutter_mode_) {
+		case gutter_number_mode::git:
+			return 6; // "[#Git]"
+		case gutter_number_mode::file:
+			return 7; // "[#File]"
+		case gutter_number_mode::none:
+			return 6; // "[#Off]"
+		}
 	}
 	return 0;
 }
