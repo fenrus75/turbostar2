@@ -8,6 +8,7 @@
  * - `document_edit.cpp`: Text modification (insert, delete, split, append lines)
  * - `document_format.cpp`: Code formatting (clang-format integration)
  * - `document_highlight.cpp`: Syntax highlighting and background thread processing
+ * - `document_multicursor.cpp`: Multi-cursor editing and concurrent operations
  * - `document_nav.cpp`: Cursor movement and viewport navigation
  * - `document_search.cpp`: Text search, matching brackets, and scope selection
  * - `document_selection.cpp`: Selection marking, copying, moving, and deleting blocks

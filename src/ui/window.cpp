@@ -141,12 +141,22 @@ bool window::process_events()
 					invalidate_cursor();
 					break;
 				case KEY_LEFT:
-					doc_->move_cursor(-1, 0);
-					invalidate_cursor();
+					if (doc_->has_multi_cursor()) {
+						doc_->move_multi_cursor(-1);
+						invalidate();
+					} else {
+						doc_->move_cursor(-1, 0);
+						invalidate_cursor();
+					}
 					break;
 				case KEY_RIGHT:
-					doc_->move_cursor(1, 0);
-					invalidate_cursor();
+					if (doc_->has_multi_cursor()) {
+						doc_->move_multi_cursor(1);
+						invalidate();
+					} else {
+						doc_->move_cursor(1, 0);
+						invalidate_cursor();
+					}
 					break;
 				case KEY_HOME:
 					doc_->move_to_bol();
@@ -165,14 +175,24 @@ bool window::process_events()
 					invalidate();
 					break;
 				case KEY_DC:
-					doc_->delete_char();
-					invalidate();
+					if (doc_->has_multi_cursor()) {
+						doc_->delete_char_multi_cursor();
+						invalidate();
+					} else {
+						doc_->delete_char();
+						invalidate();
+					}
 					break;
 				case KEY_BACKSPACE:
 				case 127:
 				case 8:
-					doc_->backspace();
-					invalidate();
+					if (doc_->has_multi_cursor()) {
+						doc_->backspace_multi_cursor();
+						invalidate();
+					} else {
+						doc_->backspace();
+						invalidate();
+					}
 					break;
 				case 13:
 				case KEY_ENTER:
@@ -201,8 +221,24 @@ bool window::process_events()
 					invalidate();
 					break;
 				case 4: // Ctrl-D
-					doc_->delete_char();
+					if (doc_->has_multi_cursor() || !doc_->get_word_under_cursor().empty()) {
+						doc_->select_next_scope_highlight();
+						invalidate();
+					} else {
+						doc_->delete_char();
+						invalidate();
+					}
+					break;
+				case KEY_CTRL_SHIFT_D:
+				case KEY_CTRL_SHIFT_L:
+					doc_->select_all_scope_highlights();
 					invalidate();
+					break;
+				case 27: // Esc
+					if (doc_->has_multi_cursor()) {
+						doc_->clear_multi_cursor();
+						invalidate();
+					}
 					break;
 				case 21: // Ctrl-U
 					doc_->move_page_up(get_content_height());
@@ -241,7 +277,11 @@ bool window::process_events()
 				}
 				default:
 					if (!ev->utf8_char.empty() && (ev->key_code >= 32 || ev->key_code == 9) && ev->key_code != 127) {
-						doc_->insert_char(ev->utf8_char);
+						if (doc_->has_multi_cursor()) {
+							doc_->insert_char_multi_cursor(ev->utf8_char);
+						} else {
+							doc_->insert_char(ev->utf8_char);
+						}
 						invalidate();
 					}
 					break;
@@ -571,9 +611,15 @@ void window::draw_content(bool cursor_only) const
 		match_pos = doc_->find_matching_bracket(doc_->get_cursor_y(), doc_->get_cursor_x());
 	}
 
+	bool has_multi = doc_ && doc_->has_multi_cursor();
+	std::vector<multi_caret> multi_cursors;
+	if (has_multi) {
+		multi_cursors = doc_->get_multi_cursors();
+	}
+
 	if (cursor_only) {
 		bool bracket_changed = (match_pos != last_match_pos_);
-		if (!has_sel && !has_mouse_sel && !bracket_changed) {
+		if (!has_sel && !has_mouse_sel && !bracket_changed && !has_multi) {
 			return;
 		}
 	}
@@ -613,6 +659,15 @@ void window::draw_content(bool cursor_only) const
 		int doc_line_idx = top_line_ + i - 1;
 		move(y_ + i, x_ + 1);
 		bool has_build_err = false;
+
+		std::vector<multi_caret> line_multi_cursors;
+		if (has_multi) {
+			for (const auto &mc : multi_cursors) {
+				if (mc.line == doc_line_idx) {
+					line_multi_cursors.push_back(mc);
+				}
+			}
+		}
 
 		int line_bg_pair = background_color_pair_;
 		if (doc_) {
@@ -717,6 +772,22 @@ void window::draw_content(bool cursor_only) const
 								}
 							}
 
+							bool in_multi_sel = false;
+							bool is_multi_caret = false;
+							if (!line_multi_cursors.empty()) {
+								for (const auto &mc : line_multi_cursors) {
+									if (mc.has_selection() && static_cast<int>(char_idx) >= mc.sel_start &&
+									    static_cast<int>(char_idx) < mc.sel_end) {
+										in_multi_sel = true;
+										break;
+									}
+									if (!mc.has_selection() && mc.col == static_cast<int>(char_idx)) {
+										is_multi_caret = true;
+										break;
+									}
+								}
+							}
+
 							bool in_mouse_selection = false;
 							if (has_mouse_sel) {
 								if (doc_line_idx > mouse_start_l && doc_line_idx < mouse_end_l) {
@@ -799,6 +870,10 @@ void window::draw_content(bool cursor_only) const
 							int pair = line_bg_pair;
 							if (is_match) {
 								pair = 13; // Bright Yellow on Cyan
+							} else if (in_multi_sel) {
+								pair = 8; // Bright White on Cyan
+								if (attr == syntax_attribute::keyword)
+									pair = 13; // Bright Yellow on Cyan
 							} else if (in_mouse_selection) {
 								pair = 41; // Bright White on Light Blue
 								if (attr == syntax_attribute::keyword)
@@ -838,9 +913,10 @@ void window::draw_content(bool cursor_only) const
 								}
 							}
 
-							if (pair != last_attr_pair) {
-								attrset(COLOR_PAIR(pair));
-								last_attr_pair = pair;
+							int final_attr = COLOR_PAIR(pair) | (is_multi_caret ? A_REVERSE : 0);
+							if (final_attr != last_attr_pair) {
+								attrset(final_attr);
+								last_attr_pair = final_attr;
 							}
 
 							addch(' ');
@@ -863,6 +939,22 @@ void window::draw_content(bool cursor_only) const
 								in_block_selection = (static_cast<int>(char_idx) >= sel_start_x);
 							} else if (doc_line_idx == sel_end_y) {
 								in_block_selection = (static_cast<int>(char_idx) < sel_end_x);
+							}
+						}
+
+						bool in_multi_sel = false;
+						bool is_multi_caret = false;
+						if (!line_multi_cursors.empty()) {
+							for (const auto &mc : line_multi_cursors) {
+								if (mc.has_selection() && static_cast<int>(char_idx) >= mc.sel_start &&
+								    static_cast<int>(char_idx) < mc.sel_end) {
+									in_multi_sel = true;
+									break;
+								}
+								if (!mc.has_selection() && mc.col == static_cast<int>(char_idx)) {
+									is_multi_caret = true;
+									break;
+								}
 							}
 						}
 
@@ -948,6 +1040,10 @@ void window::draw_content(bool cursor_only) const
 						int pair = line_bg_pair;
 						if (is_match) {
 							pair = 13; // Bright Yellow on Cyan
+						} else if (in_multi_sel) {
+							pair = 8; // Bright White on Cyan
+							if (attr == syntax_attribute::keyword)
+								pair = 13; // Bright Yellow on Cyan
 						} else if (in_mouse_selection) {
 							pair = 41; // Bright White on Light Blue
 							if (attr == syntax_attribute::keyword)
@@ -987,9 +1083,10 @@ void window::draw_content(bool cursor_only) const
 							}
 						}
 
-						if (pair != last_attr_pair) {
-							attrset(COLOR_PAIR(pair));
-							last_attr_pair = pair;
+						int final_attr = COLOR_PAIR(pair) | (is_multi_caret ? A_REVERSE : 0);
+						if (final_attr != last_attr_pair) {
+							attrset(final_attr);
+							last_attr_pair = final_attr;
 						}
 
 						addstr(utf8_char.c_str());

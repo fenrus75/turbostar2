@@ -1415,6 +1415,11 @@ void editor::dispatch_event_key(const editor_event &ev)
 				// Make sure no other prompt/dialog is active
 				if (current_focus_ == focus_target::window && !active_dialog_ && !active_popup_ &&
 				    active_mode_ == input_mode::normal) {
+					if (doc && doc->has_multi_cursor()) {
+						doc->clear_multi_cursor();
+						global_queue_.push(event_type::redraw);
+						return;
+					}
 					logger.log("Entering Vim prefix mode via ESC.");
 					vim_prefix_mode_ = true;
 					return;

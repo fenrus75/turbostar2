@@ -426,6 +426,19 @@ int main(int argc, char **argv)
 	define_key("\033Od", KEY_CLEFT);
 	define_key("\033Oc", KEY_CRIGHT);
 
+	// Register extended terminal key sequences for Ctrl+Shift+D and Ctrl+Shift+L
+	define_key("\033[68;6u", KEY_CTRL_SHIFT_D);
+	define_key("\033[100;6u", KEY_CTRL_SHIFT_D);
+	define_key("\033[4;6u", KEY_CTRL_SHIFT_D);
+	define_key("\033[27;6;68~", KEY_CTRL_SHIFT_D);
+	define_key("\033[27;6;100~", KEY_CTRL_SHIFT_D);
+
+	define_key("\033[76;6u", KEY_CTRL_SHIFT_L);
+	define_key("\033[108;6u", KEY_CTRL_SHIFT_L);
+	define_key("\033[12;6u", KEY_CTRL_SHIFT_L);
+	define_key("\033[27;6;76~", KEY_CTRL_SHIFT_L);
+	define_key("\033[27;6;108~", KEY_CTRL_SHIFT_L);
+
 	// Enable mouse tracking for clicks
 	mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
 	mouseinterval(0);

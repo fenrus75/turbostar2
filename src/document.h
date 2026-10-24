@@ -38,6 +38,18 @@ enum class undo_group_type {
 	delete_line, // Whole-line deletes (Ctrl-Y)
 };
 
+struct multi_caret {
+	int line{0};
+	int col{0};
+	int sel_start{-1};
+	int sel_end{-1};
+
+	[[nodiscard]] bool has_selection() const noexcept
+	{
+		return sel_start >= 0 && sel_end > sel_start;
+	}
+};
+
 struct cursor_state {
 	int cursor_x{0};
 	int cursor_y{0};
@@ -213,6 +225,17 @@ class document
 
 	void apply_external_edits_json(std::string_view json_str);
 
+	// Multi-cursor support
+	[[nodiscard]] bool has_multi_cursor() const noexcept;
+	[[nodiscard]] std::vector<multi_caret> get_multi_cursors() const;
+	void clear_multi_cursor();
+	void select_all_scope_highlights();
+	void select_next_scope_highlight();
+	void insert_char_multi_cursor(std::string_view utf8_char);
+	void backspace_multi_cursor();
+	void delete_char_multi_cursor();
+	void move_multi_cursor(int dx);
+
 	void set_lsp_highlights(std::span<const text_range> highlights)
 	{
 		std::unique_lock lock(mutex_);
@@ -311,6 +334,11 @@ class document
 	int selection_start_y_{-1};
 	int selection_end_x_{-1};
 	int selection_end_y_{-1};
+
+	// Multi-cursor state (protected by mutex_)
+	std::vector<multi_caret> multi_cursors_;
+	std::string multi_cursor_word_;
+	std::vector<text_range> get_scope_occurrences_unlocked() const;
 
 	// Undo/Redo logic
 	void begin_edit_group(const std::string &name = "", undo_group_type type = undo_group_type::none);

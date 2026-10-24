@@ -11,6 +11,7 @@ core_sources = files(
   'document_search.cpp',
   'document_format.cpp',
   'document_highlight.cpp',
+  'document_multicursor.cpp',
   'fs_utils.cpp',
   'fs_basics.cpp',
   'mime.cpp',

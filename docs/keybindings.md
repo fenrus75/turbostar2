@@ -78,7 +78,7 @@ Active when an editor window has focus.
 | :--- | :--- | :--- |
 | `Space` to `~` | Insert Character | Printable ASCII characters (32-126). |
 | `Backspace` | Delete Character | Deletes character before cursor. Joins lines at start of line. |
-| `Ctrl+D` | Delete Character | Deletes character at cursor. Joins lines at end of line. |
+| `Ctrl+D` | Multi-Cursor / Delete | Selects next occurrence of identifier in scope if on a word; otherwise deletes character at cursor. |
 | `Ctrl+W` | Delete Word Forward | Deletes from cursor to start of next word. |
 | `Ctrl+O` | Delete Word Backward | Deletes from cursor to start of previous word. |
 | `Ctrl+J` | Delete to EOL | Deletes from cursor to end of the current line. |
@@ -87,6 +87,20 @@ Active when an editor window has focus.
 | `Ctrl+Y` | Delete Line | Removes the entire current line. |
 | `Ctrl+_` | Undo | Reverts the last logical edit operation. |
 | `Ctrl+^` | Redo | Re-applies the last undone operation. |
+
+## Multi-Cursor Editing
+
+Multi-cursor editing allows concurrent manipulation of multiple occurrences of an identifier or token within the current semantic/syntactic scope.
+
+| Key Combination | Action | Notes |
+| :--- | :--- | :--- |
+| `Ctrl+D` | Select Next Occurrence | Progressively selects the next occurrence of the word under cursor in current scope (wraps to start). When not on a word and no multi-cursor active, deletes character at cursor. |
+| `Ctrl+Shift+D` | Select All in Scope | Instantly selects all occurrences of the word under cursor in the current function / scope. |
+| `Ctrl+Shift+L` | Select All in Scope | VS Code compatible shortcut to select all occurrences of current token in scope. |
+| `Esc` | Cancel Multi-Cursor | Clears all secondary cursors and returns to single caret mode. |
+| `Left / Right` | Move All Carets | Collapses selections and steps all carets synchronously. |
+| `Backspace / Delete` | Synchronous Deletion | Deletes character or selection across all carets simultaneously. |
+| `Any Typing` | Synchronous Typing | Replaces selected tokens or inserts characters across all carets in a single undo transaction. |
 
 ## Block / Selection Commands (Ctrl+K Prefix)
 

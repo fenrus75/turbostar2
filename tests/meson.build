@@ -1434,6 +1434,12 @@ test_document_reload = executable('test_document_reload',
   include_directories: inc)
 test('unit_document_reload', test_document_reload, suite: 'editor')
 
+test_multi_cursor = executable('test_multi_cursor',
+  'unit/test_multi_cursor.cpp',
+  dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],
+  include_directories: inc)
+test('unit_multi_cursor', test_multi_cursor, suite: 'editor')
+
 test_process_runner = executable('test_process_runner',
   'unit/test_process_runner.cpp',
   dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],

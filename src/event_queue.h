@@ -18,6 +18,12 @@ constexpr int KEY_CLEFT = 545;
 #ifndef KEY_CRIGHT
 constexpr int KEY_CRIGHT = 546;
 #endif
+#ifndef KEY_CTRL_SHIFT_D
+constexpr int KEY_CTRL_SHIFT_D = 560;
+#endif
+#ifndef KEY_CTRL_SHIFT_L
+constexpr int KEY_CTRL_SHIFT_L = 561;
+#endif
 
 
 /**

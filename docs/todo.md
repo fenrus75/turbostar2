@@ -23,8 +23,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 - Git gutter indicators: display real-time line-number margin markers (`+` green for additions, `~` yellow for modifications, `-` red for deletions) in editor windows based on git diff against HEAD.
 
-- Multi-cursor editing: support multiple simultaneous editing carets, starting with `Ctrl+D` to select next occurrence of currently highlighted word / token and concurrent typing.
-
 - Persistent interactive terminal window: expose an interactive PTY shell window (bash/zsh) inside the editor (e.g. via `^K T` or Window menu) using the existing PTY subsystem, supporting tabs and toggleable panel/fullscreen.
 
 - turn docs/testcoverage.md into a file in system:// 
@@ -254,6 +252,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # Done
+
+## 24-10-2026
+- Scope-aware multi-cursor editing: implemented multi-cursor editing subsystem (`src/document_multicursor.cpp`), supporting progressive forward occurrence selection (`Ctrl+D`, wrapping to top of scope), one-shot scope selection (`Ctrl+Shift+D` and `Ctrl+Shift+L`), synchronized typing, backspacing, deletion, and arrow movement across carets with running column shifts and compound single-transaction undo. Integrated multi-cursor key routing and curses rendering in `src/ui/window.cpp` and `src/editor_events_key.cpp`. Added unit test suite `tests/unit/test_multi_cursor.cpp`, documented in `docs/keybindings.md` and `docs/design.md`, and added showcase section and quick-reference entries to `docs/editor.html`. (Completed)
 
 ## 21-10-2026
 - `line::get_delimiter_span_at` and span helper unification: added `line::get_delimiter_span_at` and `line::get_delimiter_at` in `src/line.{h,cpp}` (and exposed in `src/document.{h,cpp}`), expanding contiguous identical delimiter runs under a reader lock. Simplified `window::process_events` to a 3-way span lookup (`get_word_span_at` -> `get_whitespace_span_at` -> `get_delimiter_span_at`), eliminating temporary string copies in UI code. Updated `src/line.md`, and added unit tests in `tests/unit/test_line.cpp` and `tests/unit/test_window_scroll.cpp`. (Completed)
