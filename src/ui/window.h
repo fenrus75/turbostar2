@@ -261,6 +261,7 @@ class window
 	bool needs_render_{false};
 	bool needs_cursor_{false};
 	mutable std::optional<std::pair<int, int>> last_match_pos_;
+	mutable int last_drawn_cursor_y_{-1};
 
       protected:
 	std::shared_ptr<document> doc_;

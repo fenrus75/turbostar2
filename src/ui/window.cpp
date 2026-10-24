@@ -617,14 +617,17 @@ void window::draw_content(bool cursor_only) const
 		multi_cursors = doc_->get_multi_cursors();
 	}
 
+	int cur_y = doc_ ? doc_->get_cursor_y() : -1;
 	if (cursor_only) {
 		bool bracket_changed = (match_pos != last_match_pos_);
-		if (!has_sel && !has_mouse_sel && !bracket_changed && !has_multi) {
+		bool cursor_y_changed = (cur_y != last_drawn_cursor_y_);
+		if (!has_sel && !has_mouse_sel && !bracket_changed && !has_multi && !cursor_y_changed) {
 			return;
 		}
 	}
 
 	last_match_pos_ = match_pos;
+	last_drawn_cursor_y_ = cur_y;
 
 	git_file_diff gi_diff = get_effective_diff();
 
@@ -721,9 +724,10 @@ void window::draw_content(bool cursor_only) const
 
 		if (gutter_mode_ != gutter_number_mode::none) {
 			int doc_line_1based = doc_line_idx + 1;
+			bool is_current_line = (doc_ && doc_line_idx == doc_->get_cursor_y() && is_active());
 			std::string num_str;
-			int num_pair = 4; // Cyan on Dark Blue
-			int num_attr = COLOR_PAIR(num_pair) | A_DIM;
+			int num_pair = is_current_line ? 5 : 4; // Bright White on active line, Dim Cyan otherwise
+			int num_attr = COLOR_PAIR(num_pair) | (is_current_line ? A_BOLD : A_DIM);
 
 			if (gutter_mode_ == gutter_number_mode::file) {
 				num_str = std::format("{:4d}", doc_line_1based);
@@ -732,11 +736,11 @@ void window::draw_content(bool cursor_only) const
 				if (diff_info.type == git_line_diff_type::added) {
 					num_str = "  ··";
 					num_pair = 30; // Bright Green
-					num_attr = COLOR_PAIR(num_pair) | A_DIM;
+					num_attr = COLOR_PAIR(num_pair) | (is_current_line ? A_BOLD : A_DIM);
 				} else if (diff_info.type == git_line_diff_type::modified) {
 					num_str = std::format("{:4d}", diff_info.git_line);
 					num_pair = 21; // Bright Yellow
-					num_attr = COLOR_PAIR(num_pair) | A_DIM;
+					num_attr = COLOR_PAIR(num_pair) | (is_current_line ? A_BOLD : A_DIM);
 				} else {
 					num_str = std::format("{:4d}", diff_info.git_line);
 				}
