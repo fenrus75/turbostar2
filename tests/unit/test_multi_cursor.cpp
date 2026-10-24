@@ -23,28 +23,31 @@ int main()
 		assert(doc.get_word_under_cursor() == "count");
 		assert(!doc.has_multi_cursor());
 
-		// First Ctrl-D: selects occurrence under cursor
+		// First Ctrl-D: selects occurrence under cursor as a point caret at cursor offset
 		doc.select_next_scope_highlight();
 		assert(doc.has_multi_cursor());
 		auto carets = doc.get_multi_cursors();
 		assert(carets.size() == 1);
 		assert(carets[0].line == 1);
-		assert(carets[0].sel_start == 8);
-		assert(carets[0].sel_end == 13);
-		assert(carets[0].has_selection());
+		assert(carets[0].col == 10);
+		assert(!carets[0].has_selection());
 
-		// Second Ctrl-D: adds line 2 occurrence (count += 1)
+		// Second Ctrl-D: adds line 2 occurrence (count += 1, col 4 + 2 = 6)
 		doc.select_next_scope_highlight();
 		carets = doc.get_multi_cursors();
 		assert(carets.size() == 2);
 		assert(carets[0].line == 1);
 		assert(carets[1].line == 2);
+		assert(carets[1].col == 6);
+		assert(!carets[1].has_selection());
 
-		// Third Ctrl-D: adds line 3 occurrence (return count)
+		// Third Ctrl-D: adds line 3 occurrence (return count, col 11 + 2 = 13)
 		doc.select_next_scope_highlight();
 		carets = doc.get_multi_cursors();
 		assert(carets.size() == 3);
 		assert(carets[2].line == 3);
+		assert(carets[2].col == 13);
+		assert(!carets[2].has_selection());
 
 		// Fourth Ctrl-D: all occurrences in scope selected
 		doc.select_next_scope_highlight();
@@ -115,6 +118,9 @@ int main()
 		doc.select_all_scope_highlights();
 		assert(doc.get_multi_cursors().size() == 3);
 
+		// Delete 'x' across all carets
+		doc.delete_char_multi_cursor();
+
 		// Type replacement letters: "t", "m", "p"
 		doc.insert_char_multi_cursor("t");
 		doc.insert_char_multi_cursor("m");
@@ -123,7 +129,12 @@ int main()
 		assert(doc.get_line(0)->get_text() == "int tmp = 1;");
 		assert(doc.get_line(1)->get_text() == "tmp = tmp + 2;");
 
-		// Undo: should revert to original state
+		// Undo typing: should revert to empty variable name before typing
+		doc.undo();
+		assert(doc.get_line(0)->get_text() == "int  = 1;");
+		assert(doc.get_line(1)->get_text() == " =  + 2;");
+
+		// Undo delete: should revert to original state
 		doc.undo();
 		assert(doc.get_line(0)->get_text() == "int x = 1;");
 		assert(doc.get_line(1)->get_text() == "x = x + 2;");
@@ -132,50 +143,63 @@ int main()
 	// Test 5: Backspace and Delete in multi-cursor mode
 	{
 		document doc(queue);
-		doc.insert_text("cat\ncat\n");
+		doc.insert_text("dog\ndog\n");
 
-		doc.set_cursor_position(1, 0);
+		// Cursor at col 3 (end of "dog")
+		doc.set_cursor_position(3, 0);
 		doc.select_all_scope_highlights();
 
-		// Carets currently have selection over "cat"
-		// Backspace deletes selection
-		doc.backspace_multi_cursor();
-		assert(doc.get_line(0)->get_text() == "");
-		assert(doc.get_line(1)->get_text() == "");
-
-		// Type "dog"
-		doc.insert_char_multi_cursor("d");
-		doc.insert_char_multi_cursor("o");
-		doc.insert_char_multi_cursor("g");
-		assert(doc.get_line(0)->get_text() == "dog");
-		assert(doc.get_line(1)->get_text() == "dog");
-
-		// Backspace without selection deletes last character 'g'
+		// Backspace deletes 'g'
 		doc.backspace_multi_cursor();
 		assert(doc.get_line(0)->get_text() == "do");
 		assert(doc.get_line(1)->get_text() == "do");
 
-		// Move left and delete
-		doc.move_multi_cursor(-1); // cursor between 'd' and 'o'
-		doc.delete_char_multi_cursor(); // deletes 'o'
-		assert(doc.get_line(0)->get_text() == "d");
-		assert(doc.get_line(1)->get_text() == "d");
+		// Type "ts"
+		doc.insert_char_multi_cursor("t");
+		doc.insert_char_multi_cursor("s");
+		assert(doc.get_line(0)->get_text() == "dots");
+		assert(doc.get_line(1)->get_text() == "dots");
+
+		// Move left 1 character and delete 's'
+		doc.move_multi_cursor(-1); // cursor between 't' and 's'
+		doc.delete_char_multi_cursor(); // deletes 's'
+		assert(doc.get_line(0)->get_text() == "dot");
+		assert(doc.get_line(1)->get_text() == "dot");
 	}
 
-	// Test 6: Arrow navigation clears selection range
+	// Test 6: Arrow navigation steps by single characters
 	{
 		document doc(queue);
 		doc.insert_text("item = 1;\nitem = 2;\n");
-		doc.set_cursor_position(1, 0);
+		doc.set_cursor_position(1, 0); // index 1: i|tem
 		doc.select_all_scope_highlights();
-		assert(doc.get_multi_cursors()[0].has_selection());
+		assert(doc.get_multi_cursors()[0].col == 1);
 
-		doc.move_multi_cursor(1); // Right arrow collapses selection to end
-		assert(!doc.get_multi_cursors()[0].has_selection());
-		assert(doc.get_multi_cursors()[0].col == 4);
+		doc.move_multi_cursor(1); // Right arrow moves 1 character right
+		assert(doc.get_multi_cursors()[0].col == 2);
 
-		doc.move_multi_cursor(-1); // Left arrow moves cursor backwards
+		doc.move_multi_cursor(-1); // Left arrow moves 1 character left
+		assert(doc.get_multi_cursors()[0].col == 1);
+	}
+
+	// Test 7: User scenario - placing cursor near beginning of multi-word, moving right 1 char, typing to insert
+	{
+		document doc(queue);
+		doc.insert_text("my_var = 1;\nmy_var = 2;\n");
+
+		// Cursor at index 2 (between "my" and "_var")
+		doc.set_cursor_position(2, 0);
+		doc.select_all_scope_highlights();
+
+		// Press right arrow: must move to index 3, NOT jump to end of word!
+		doc.move_multi_cursor(1);
 		assert(doc.get_multi_cursors()[0].col == 3);
+		assert(doc.get_multi_cursors()[1].col == 3);
+
+		// Type 'x' to insert into the word: must add letter without replacing the whole word!
+		doc.insert_char_multi_cursor("x");
+		assert(doc.get_line(0)->get_text() == "my_xvar = 1;");
+		assert(doc.get_line(1)->get_text() == "my_xvar = 2;");
 	}
 
 	std::cout << "All multi-cursor unit tests passed successfully!\n";

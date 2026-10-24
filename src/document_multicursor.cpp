@@ -104,13 +104,29 @@ void document::select_all_scope_highlights()
 		return;
 	}
 
+	// Compute relative offset of cursor within the current occurrence
+	int rel_offset = 0;
+	bool found_current = false;
+	for (const auto &occ : occs) {
+		if (occ.start_y == cursor_y_ && cursor_x_ >= occ.start_x && cursor_x_ <= occ.end_x) {
+			rel_offset = cursor_x_ - occ.start_x;
+			found_current = true;
+			break;
+		}
+	}
+	if (!found_current && !occs.empty()) {
+		rel_offset = 0;
+	}
+
+	bool user_had_selection = has_selection_unlocked();
+
 	multi_cursors_.clear();
 	for (const auto &occ : occs) {
 		multi_cursors_.push_back({
 		    .line = occ.start_y,
-		    .col = occ.end_x,
-		    .sel_start = occ.start_x,
-		    .sel_end = occ.end_x,
+		    .col = occ.start_x + rel_offset,
+		    .sel_start = user_had_selection ? occ.start_x : -1,
+		    .sel_end = user_had_selection ? occ.end_x : -1,
 		});
 	}
 
@@ -118,10 +134,10 @@ void document::select_all_scope_highlights()
 		if (a.line != b.line) {
 			return a.line < b.line;
 		}
-		return a.sel_start < b.sel_start;
+		return a.col < b.col;
 	});
 
-	std::string msg = std::format("Multi-cursor: {} occurrences selected in scope (Esc to cancel)", multi_cursors_.size());
+	std::string msg = std::format("Multi-cursor: {} occurrences in scope (Esc to cancel)", multi_cursors_.size());
 	global_queue_.push(editor_event{.type = event_type::set_transient_status, .payload = msg});
 	lock.unlock();
 	request_redraw();
@@ -143,19 +159,22 @@ void document::select_next_scope_highlight()
 
 		// Find occurrence covering current cursor
 		size_t match_idx = 0;
+		int rel_offset = 0;
 		for (size_t i = 0; i < occs.size(); ++i) {
 			if (occs[i].start_y == cursor_y_ && cursor_x_ >= occs[i].start_x && cursor_x_ <= occs[i].end_x) {
 				match_idx = i;
+				rel_offset = cursor_x_ - occs[i].start_x;
 				break;
 			}
 		}
 
+		bool user_had_selection = has_selection_unlocked();
 		const auto &first = occs[match_idx];
 		multi_cursors_.push_back({
 		    .line = first.start_y,
-		    .col = first.end_x,
-		    .sel_start = first.start_x,
-		    .sel_end = first.end_x,
+		    .col = first.start_x + rel_offset,
+		    .sel_start = user_had_selection ? first.start_x : -1,
+		    .sel_end = user_had_selection ? first.end_x : -1,
 		});
 
 		std::string msg = std::format("Multi-cursor: 1/{} selected (Ctrl+D for next, Esc to cancel)", occs.size());
@@ -176,6 +195,17 @@ void document::select_next_scope_highlight()
 		return;
 	}
 
+	// Compute relative offset from the first caret
+	int rel_offset = 0;
+	if (!multi_cursors_.empty()) {
+		for (const auto &occ : occs) {
+			if (occ.start_y == multi_cursors_.front().line) {
+				rel_offset = multi_cursors_.front().col - occ.start_x;
+				break;
+			}
+		}
+	}
+
 	// Find the occurrence after the last selected caret in file order
 	const auto &last_caret = multi_cursors_.back();
 	int best_next_idx = -1;
@@ -185,10 +215,9 @@ void document::select_next_scope_highlight()
 		bool after_last = (occ.start_y > last_caret.line) ||
 				  (occ.start_y == last_caret.line && occ.start_x > last_caret.col);
 		if (after_last) {
-			// Check if already in multi_cursors_
 			bool already_selected = false;
 			for (const auto &c : multi_cursors_) {
-				if (c.line == occ.start_y && c.sel_start == occ.start_x) {
+				if (c.line == occ.start_y && (c.col == occ.start_x + rel_offset || (c.has_selection() && c.sel_start == occ.start_x))) {
 					already_selected = true;
 					break;
 				}
@@ -206,7 +235,7 @@ void document::select_next_scope_highlight()
 			const auto &occ = occs[i];
 			bool already_selected = false;
 			for (const auto &c : multi_cursors_) {
-				if (c.line == occ.start_y && c.sel_start == occ.start_x) {
+				if (c.line == occ.start_y && (c.col == occ.start_x + rel_offset || (c.has_selection() && c.sel_start == occ.start_x))) {
 					already_selected = true;
 					break;
 				}
@@ -220,22 +249,23 @@ void document::select_next_scope_highlight()
 
 	if (best_next_idx != -1) {
 		const auto &next_occ = occs[best_next_idx];
+		bool user_had_selection = has_selection_unlocked();
 		multi_cursors_.push_back({
 		    .line = next_occ.start_y,
-		    .col = next_occ.end_x,
-		    .sel_start = next_occ.start_x,
-		    .sel_end = next_occ.end_x,
+		    .col = next_occ.start_x + rel_offset,
+		    .sel_start = user_had_selection ? next_occ.start_x : -1,
+		    .sel_end = user_had_selection ? next_occ.end_x : -1,
 		});
 
 		std::sort(multi_cursors_.begin(), multi_cursors_.end(), [](const multi_caret &a, const multi_caret &b) {
 			if (a.line != b.line) {
 				return a.line < b.line;
 			}
-			return a.sel_start < b.sel_start;
+			return a.col < b.col;
 		});
 
 		cursor_y_ = next_occ.start_y;
-		cursor_x_ = next_occ.end_x;
+		cursor_x_ = next_occ.start_x + rel_offset;
 
 		std::string msg = std::format("Multi-cursor: {}/{} selected (Ctrl+D for next, Esc to cancel)",
 					      multi_cursors_.size(), occs.size());
@@ -309,7 +339,15 @@ void document::insert_char_multi_cursor(std::string_view utf8_char)
 		return a.col < b.col;
 	});
 
-	if (!multi_cursors_.empty()) {
+	bool found_current = false;
+	for (const auto &mc : multi_cursors_) {
+		if (mc.line == cursor_y_) {
+			cursor_x_ = mc.col;
+			found_current = true;
+			break;
+		}
+	}
+	if (!found_current && !multi_cursors_.empty()) {
 		cursor_y_ = multi_cursors_.front().line;
 		cursor_x_ = multi_cursors_.front().col;
 	}
@@ -387,7 +425,15 @@ void document::backspace_multi_cursor()
 		return a.col < b.col;
 	});
 
-	if (!multi_cursors_.empty()) {
+	bool found_current = false;
+	for (const auto &mc : multi_cursors_) {
+		if (mc.line == cursor_y_) {
+			cursor_x_ = mc.col;
+			found_current = true;
+			break;
+		}
+	}
+	if (!found_current && !multi_cursors_.empty()) {
 		cursor_y_ = multi_cursors_.front().line;
 		cursor_x_ = multi_cursors_.front().col;
 	}
@@ -465,7 +511,15 @@ void document::delete_char_multi_cursor()
 		return a.col < b.col;
 	});
 
-	if (!multi_cursors_.empty()) {
+	bool found_current = false;
+	for (const auto &mc : multi_cursors_) {
+		if (mc.line == cursor_y_) {
+			cursor_x_ = mc.col;
+			found_current = true;
+			break;
+		}
+	}
+	if (!found_current && !multi_cursors_.empty()) {
 		cursor_y_ = multi_cursors_.front().line;
 		cursor_x_ = multi_cursors_.front().col;
 	}
@@ -497,7 +551,15 @@ void document::move_multi_cursor(int dx)
 			}
 		}
 	}
-	if (!multi_cursors_.empty()) {
+	bool found_current = false;
+	for (const auto &mc : multi_cursors_) {
+		if (mc.line == cursor_y_) {
+			cursor_x_ = mc.col;
+			found_current = true;
+			break;
+		}
+	}
+	if (!found_current && !multi_cursors_.empty()) {
 		cursor_y_ = multi_cursors_.front().line;
 		cursor_x_ = multi_cursors_.front().col;
 	}
