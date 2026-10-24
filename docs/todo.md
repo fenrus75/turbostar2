@@ -19,6 +19,14 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- Right-click context menu: capture `BUTTON3_CLICKED` / right-click in `editor::dispatch_event_mouse` to display a context-sensitive popup menu at cursor position (e.g. Cut, Copy, Paste, Find Definition, Git Blame, Ask AI Agent).
+
+- Git gutter indicators: display real-time line-number margin markers (`+` green for additions, `~` yellow for modifications, `-` red for deletions) in editor windows based on git diff against HEAD.
+
+- Multi-cursor editing: support multiple simultaneous editing carets, starting with `Ctrl+D` to select next occurrence of currently highlighted word / token and concurrent typing.
+
+- Persistent interactive terminal window: expose an interactive PTY shell window (bash/zsh) inside the editor (e.g. via `^K T` or Window menu) using the existing PTY subsystem, supporting tabs and toggleable panel/fullscreen.
+
 - turn docs/testcoverage.md into a file in system:// 
 
 - `fs_run_tests` suite filter (`suite: "unit"` / `"e2e"`): allow running only fast local unit tests without invoking slower external/e2e test suites to prevent 3-minute MCP timeouts when building and running tests.
