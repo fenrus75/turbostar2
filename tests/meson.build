@@ -1359,7 +1359,7 @@ test_verilog_highlighter = executable('test_verilog_highlighter',
 test('unit_verilog_highlighter', test_verilog_highlighter, suite: 'editor')
 
 test_cpp_highlighter = executable('test_cpp_highlighter',
-  ['unit/test_cpp_highlighter.cpp', '../src/languages/cpp/highlighter.cpp', '../src/languages/cpp/keywords.cpp', '../src/languages/cpp/language.cpp', '../src/line.cpp', '../src/utf8.cpp', '../src/mime.cpp'],
+  ['unit/test_cpp_highlighter.cpp', '../src/languages/cpp/highlighter.cpp', '../src/languages/cpp/lexer.cpp', '../src/languages/cpp/keywords.cpp', '../src/languages/cpp/language.cpp', '../src/line.cpp', '../src/utf8.cpp', '../src/mime.cpp'],
   dependencies : [re2_dep],
   include_directories: inc)
 test('unit_cpp_highlighter', test_cpp_highlighter, suite: 'editor')

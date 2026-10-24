@@ -14,3 +14,4 @@ The `languages::cpp::highlighter` class (`src/languages/cpp/highlighter.h`, `src
 
 ## Lessons Learned
 - **Centralizing C++ Logic**: Previously, C++ syntax highlighting was isolated in `src/highlighter/cpp_highlighter.cpp` with a hardcoded, brittle keyword regex. Moving to `src/languages/cpp/highlighter.cpp` and wiring it to `languages::cpp::keywords` ensures fixes to keyword or type definitions immediately propagate to editor syntax coloring.
+- **Lexer Token Stream Integration**: Replaced 6 separate per-line RE2 regular expression searches with a single-pass `languages::cpp::lexer::tokenize` scan. The typed tokens directly map to editor syntax attributes, completely eliminating regex overhead and false keyword collisions inside comments or string literals.
