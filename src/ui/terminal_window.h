@@ -26,6 +26,34 @@ class terminal_window : public ::window
 		is_gdb_ = gdb;
 	}
 
+	bool is_shell() const noexcept
+	{
+		return is_shell_;
+	}
+	void set_shell(bool shell = true) noexcept
+	{
+		is_shell_ = shell;
+	}
+
+	bool should_close_on_exit() const noexcept
+	{
+		return close_on_exit_;
+	}
+	void set_close_on_exit(bool val) noexcept
+	{
+		close_on_exit_ = val;
+	}
+
+	bool has_exit_event_queued() const noexcept
+	{
+		return exit_event_queued_;
+	}
+	void set_exit_event_queued(bool val) noexcept
+	{
+		exit_event_queued_ = val;
+	}
+
+	bool start_shell(const std::string &working_dir = "");
 
 	bool start_process(const std::string &raw_command, std::unique_ptr<build_log_parser> parser = nullptr, bool enable_network = false,
 			   bool enable_crash_catcher = true, bool allow_display = false, bool collect_performance = false);
@@ -94,6 +122,9 @@ class terminal_window : public ::window
 	bool is_alive_{false};
 	bool capture_input_{true};
 	bool is_gdb_{false};
+	bool is_shell_{false};
+	bool close_on_exit_{false};
+	bool exit_event_queued_{false};
 
 	bool sanitize_recorded_data_{false};
 

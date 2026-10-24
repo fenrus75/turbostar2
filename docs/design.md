@@ -190,6 +190,14 @@ Based on the Turbo Pascal interface, Turbostar implements the following core UI 
     - `CRITICAL` (Priority 40): Fatal alerts or system warnings.
   - At render time, the status bar displays the active, non-expired message with the highest priority. When a higher priority message is cleared or expires, the display seamlessly falls back to the next highest active status message.
 
+## Persistent Interactive Terminal Windows
+
+Turbostar embeds full-featured interactive pseudo-terminal (PTY) shell windows directly within the editor layout:
+- **Interactive Shell Session (`ui::terminal_window::start_shell`)**: Spawns the user's interactive shell (`$SHELL`, falling back to `/bin/bash` with `-i`) attached to a pseudo-terminal pair in the active file directory or project root. Environment variables (`TERM=xterm-256color`, `COLORTERM=truecolor`, `TURBOSTAR_TERMINAL=1`) ensure full color and ANSI support.
+- **Tiled Window Integration (Option A)**: Terminal windows are first-class editor windows participating in window tiling, cascading, maximize/zoom (`F5`), switching via `Alt+1..9`, and display title bar widgets.
+- **Key Routing & Pass-Through**: When focused, terminal windows enable `set_bypass_global_shortcuts(true)` to pass through standard terminal control characters (e.g., `Ctrl-C`, `Ctrl-L`, `Ctrl-D`, `Tab`) directly to the shell PTY while keeping function keys (`F1`-`F9`), `Alt`-hotkeys, and `Ctrl-G` input capture escape active.
+- **Smart F6 Toggling & Cycling**: Pressing `F6` automatically opens a new terminal window if none are currently open. If terminal windows exist, `F6` focuses the terminal, cycles between open terminals, and returns to the active editor buffer.
+- **Process Lifecycle & Auto-Close on Exit**: When the shell process terminates (via `exit` or EOF `^D`), `editor::update_terminal_windows()` detects `!is_alive()` and dispatches `event_type::close_window` targeted specifically at that window ID, cleanly closing the tiled window and returning focus to the editor.
 
 ## Testing and Diagnostics
 

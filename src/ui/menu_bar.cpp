@@ -40,6 +40,7 @@ menu_bar::menu_bar()
 	     {{"Compile", event_type::compile, 'c', "F9", false},
 	      {"Compile File", event_type::compile_file, 'p', "^KP", false},
 	      {"Run Tests", event_type::run_tests, 't', "F8", false},
+	      {"Terminal", event_type::open_terminal, 'm', "F6", false},
 	      {"View Crashdumps", event_type::open_crashdump_viewer, 'C', "", false},
 	      {"View Code Reviews", event_type::open_codereview_viewer, 'R', "", false},
 	      {"Clear Code Reviews...", event_type::codereview_action, "clear_all", 'X', "", false}}},

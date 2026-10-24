@@ -765,6 +765,12 @@ test_terminal_window = executable('test_terminal_window',
   include_directories: inc)
 test('unit_test_terminal_window', test_terminal_window, suite: 'ui')
 
+test_terminal_shell = executable('test_terminal_shell',
+  'unit/test_terminal_shell.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_terminal_shell', test_terminal_shell, suite: 'ui')
+
 test_editor_hotkey_len = executable('test_editor_hotkey_len',
   'unit/test_editor_hotkey_len.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep],

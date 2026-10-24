@@ -1056,6 +1056,11 @@ void editor::dispatch_event_key(const editor_event &ev)
 			global_queue_.push(event_type::next_error);
 			return;
 		}
+		if (ev.key_code == KEY_F(5)) {
+			logger.log("F5 shortcut pressed: zoom/maximize window.");
+			global_queue_.push(event_type::maximize_window);
+			return;
+		}
 		if (ev.key_code == KEY_F(9)) {
 			global_queue_.push(event_type::compile);
 			return;
@@ -1069,28 +1074,42 @@ void editor::dispatch_event_key(const editor_event &ev)
 			return;
 		}
 		if (ev.key_code == KEY_F(6)) {
-			logger.log("F6 shortcut pressed: toggling terminal window focus.");
-			int run_idx = -1;
-			int gdb_idx = -1;
+			logger.log("F6 shortcut pressed: smart terminal toggle/cycle.");
+			std::vector<size_t> term_indices;
+			std::vector<size_t> editor_indices;
+			size_t active_idx = static_cast<size_t>(-1);
+
 			for (size_t i = 0; i < windows_.size(); ++i) {
-				if (windows_[i]->get_title() == "Run Output") {
-					run_idx = static_cast<int>(i);
+				if (windows_[i]->is_active()) {
+					active_idx = i;
 				}
-				auto tw = dynamic_cast<ui::terminal_window *>(windows_[i].get());
-				if (tw && tw->is_gdb()) {
-					gdb_idx = static_cast<int>(i);
+				if (dynamic_cast<ui::terminal_window *>(windows_[i].get())) {
+					term_indices.push_back(i);
+				} else {
+					editor_indices.push_back(i);
 				}
 			}
-			if (run_idx != -1 && gdb_idx != -1) {
-				window *active_win = get_active_window();
-				if (active_win == windows_[run_idx].get()) {
-					activate_window(gdb_idx);
-				} else if (active_win == windows_[gdb_idx].get()) {
-					activate_window(run_idx);
-				}
-				global_queue_.push(event_type::redraw);
+
+			if (term_indices.empty()) {
+				global_queue_.push(event_type::open_terminal);
 				return;
 			}
+
+			auto it = std::find(term_indices.begin(), term_indices.end(), active_idx);
+			if (it == term_indices.end()) {
+				activate_window(term_indices.front());
+			} else {
+				size_t next_pos = static_cast<size_t>(std::distance(term_indices.begin(), it) + 1);
+				if (next_pos < term_indices.size()) {
+					activate_window(term_indices[next_pos]);
+				} else if (!editor_indices.empty()) {
+					activate_window(editor_indices.front());
+				} else {
+					activate_window(term_indices.front());
+				}
+			}
+			global_queue_.push(event_type::redraw);
+			return;
 		}
 		if (ev.key_code == -static_cast<int>(KEY_F(3))) {
 			global_queue_.push(event_type::close_window);
@@ -1596,7 +1615,7 @@ void editor::dispatch_event_key(const editor_event &ev)
 			}
 		} else if (current_focus_ == focus_target::window) {
 			// Fallback to quit using Ctrl-C
-			if (ev.key_code == 3) {
+			if (ev.key_code == 3 && !bypass_global_shortcuts) {
 				logger.log("Ctrl-C pressed (Ignored for direct "
 					   "quit, use ^KQ or ^KX)");
 				return;

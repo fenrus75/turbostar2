@@ -23,8 +23,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 - Git gutter indicators: display real-time line-number margin markers (`+` green for additions, `~` yellow for modifications, `-` red for deletions) in editor windows based on git diff against HEAD.
 
-- Persistent interactive terminal window: expose an interactive PTY shell window (bash/zsh) inside the editor (e.g. via `^K T` or Window menu) using the existing PTY subsystem, supporting tabs and toggleable panel/fullscreen.
-
 - turn docs/testcoverage.md into a file in system:// 
 
 - `fs_run_tests` suite filter (`suite: "unit"` / `"e2e"`): allow running only fast local unit tests without invoking slower external/e2e test suites to prevent 3-minute MCP timeouts when building and running tests.
@@ -254,6 +252,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 # Done
 
 ## 24-10-2026
+- Persistent interactive terminal window: embedded interactive pseudo-terminal ($SHELL with -i) in editor layout (Option A tiled window), accessible via Tools -> Terminal menu and smart F6 toggle/cycle (or F5 maximize). Automatically closes window and restores editor focus upon shell process exit. Added comprehensive unit tests in tests/unit/test_terminal_shell.cpp, and updated documentation in docs/keybindings.md, docs/design.md, and src/ui/terminal_window.md. (Completed)
 - Scope-aware multi-cursor editing: implemented multi-cursor editing subsystem (`src/document_multicursor.cpp`), supporting progressive forward occurrence selection (`Ctrl+D`, wrapping to top of scope), one-shot scope selection (`Ctrl+Shift+D` and `Ctrl+Shift+L`), synchronized typing, backspacing, deletion, and arrow movement across carets with running column shifts and compound single-transaction undo. Integrated multi-cursor key routing and curses rendering in `src/ui/window.cpp` and `src/editor_events_key.cpp`. Added unit test suite `tests/unit/test_multi_cursor.cpp`, documented in `docs/keybindings.md` and `docs/design.md`, and added showcase section and quick-reference entries to `docs/editor.html`. (Completed)
 
 ## 21-10-2026

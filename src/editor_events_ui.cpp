@@ -246,6 +246,11 @@ void editor::dispatch_event_ui(const editor_event &ev)
 			activate_window(windows_.size() - 1);
 			break;
 		}
+		case event_type::open_terminal: {
+			logger.log("Dispatching open_terminal event.");
+			new_terminal_window();
+			break;
+		}
 		case event_type::editor_settings_config:
 		case event_type::settings: {
 			logger.log("Dispatching editor_settings_config event.");

@@ -120,6 +120,7 @@ enum class event_type {
 	image_manager,		    ///< Request to show the image VFS manager dialog
 	a2a_config,		    ///< Request to show A2A server configuration dialog
 	rescan_subagents,	    ///< Request to hot-reload custom subagents from disk
+	open_terminal,		    ///< Request to open an interactive terminal shell window
 	run_on_main		    ///< Internal: execute a callable on the main UI thread (generic_promise carries a std::packaged_task)
 };
 
@@ -168,6 +169,7 @@ struct diagnostic_info {
 struct editor_event {
 	event_type type{event_type::key_press};
 	int key_code{0};       ///< NCurses key code or ASCII value
+	int window_id{-1};     ///< Target window ID (-1 = active window or unspecified)
 	int mouse_x{-1};       ///< Mouse X coordinate (if type == mouse_click)
 	int mouse_y{-1};       ///< Mouse Y coordinate (if type == mouse_click)
 	std::string utf8_char{}; ///< UTF-8 character sequence for typing

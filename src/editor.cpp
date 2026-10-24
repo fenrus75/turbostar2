@@ -352,6 +352,39 @@ void editor::update_window_layout()
 	}
 }
 
+void editor::new_terminal_window()
+{
+	std::string work_dir;
+	auto active_doc = get_active_doc();
+	if (active_doc && !active_doc->get_filename().empty()) {
+		std::error_code ec;
+		std::filesystem::path p(active_doc->get_filename());
+		if (p.has_parent_path() && std::filesystem::is_directory(p.parent_path(), ec)) {
+			work_dir = p.parent_path().string();
+		}
+	}
+	if (work_dir.empty()) {
+		work_dir = fs_utils::get_project_dir();
+	}
+	if (work_dir.empty()) {
+		std::error_code ec;
+		work_dir = std::filesystem::current_path(ec).string();
+	}
+
+	auto term_win = std::make_unique<ui::terminal_window>(
+		get_new_window_id(), 0, 1, COLS, LINES - 2, "Terminal");
+
+	if (!term_win->start_shell(work_dir)) {
+		set_status_message("Failed to start terminal shell.", status_priorities::CRITICAL);
+		return;
+	}
+
+	windows_.push_back(std::move(term_win));
+	update_window_layout();
+	activate_window(windows_.size() - 1);
+	global_queue_.push(event_type::redraw);
+}
+
 void editor::new_agent_window()
 {
 	// Check if there is already an open main agent window
@@ -1931,6 +1964,13 @@ void editor::update_terminal_windows()
 	for (size_t i = 0; i < windows_.size(); ++i) {
 		if (auto tw = dynamic_cast<ui::terminal_window *>(windows_[i].get())) {
 			tw->update_pty();
+			if (!tw->is_alive() && tw->should_close_on_exit() && !tw->has_exit_event_queued()) {
+				tw->set_exit_event_queued(true);
+				global_queue_.push(editor_event{
+					.type = event_type::close_window,
+					.window_id = tw->get_id()
+				});
+			}
 		}
 	}
 }

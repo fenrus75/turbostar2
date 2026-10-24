@@ -62,6 +62,122 @@ terminal_window::~terminal_window()
 	}
 }
 
+bool terminal_window::start_shell(const std::string &working_dir)
+{
+	stop_process();
+	parser_ = nullptr;
+	line_count_ = 0;
+	line_buffer_.clear();
+
+	if (pty_master_ >= 0) {
+		close(pty_master_);
+		pty_master_ = -1;
+	}
+
+	pty_master_ = posix_openpt(O_RDWR | O_NOCTTY);
+	if (pty_master_ < 0) {
+		return false;
+	}
+	if (grantpt(pty_master_) < 0 || unlockpt(pty_master_) < 0) {
+		close(pty_master_);
+		pty_master_ = -1;
+		return false;
+	}
+
+	char *slave_name = ptsname(pty_master_);
+	if (!slave_name) {
+		close(pty_master_);
+		pty_master_ = -1;
+		return false;
+	}
+
+	std::string shell_path = "/bin/bash";
+	const char *env_shell = std::getenv("SHELL");
+	if (env_shell && *env_shell != '\0') {
+		std::error_code ec;
+		if (std::filesystem::exists(env_shell, ec)) {
+			shell_path = env_shell;
+		}
+	}
+
+	event_logger::get_instance().log("Terminal window start_shell with: " + shell_path + " in " + working_dir);
+
+	pid_ = fork();
+	if (pid_ < 0) {
+		close(pty_master_);
+		pty_master_ = -1;
+		return false;
+	}
+
+	if (pid_ == 0) {
+		// Child process
+		int slave_fd = open(slave_name, O_RDWR);
+		close(pty_master_);
+
+		struct termios t;
+		if (tcgetattr(slave_fd, &t) == 0) {
+			t.c_lflag &= ~TOSTOP;
+			t.c_iflag &= ~(IXON | IXOFF | IXANY);
+			tcsetattr(slave_fd, TCSANOW, &t);
+		}
+
+		// Set PTY terminal size to match the window content area
+		struct winsize ws;
+		ws.ws_row = height_ - 2;
+		ws.ws_col = width_ - 2;
+		ws.ws_xpixel = 0;
+		ws.ws_ypixel = 0;
+		ioctl(slave_fd, TIOCSWINSZ, &ws);
+
+		dup2(slave_fd, STDIN_FILENO);
+		dup2(slave_fd, STDOUT_FILENO);
+		dup2(slave_fd, STDERR_FILENO);
+		if (slave_fd > STDERR_FILENO) {
+			close(slave_fd);
+		}
+
+		setsid();
+		ioctl(0, TIOCSCTTY, 1);
+
+		signal(SIGINT, SIG_DFL);
+		signal(SIGQUIT, SIG_DFL);
+		signal(SIGTSTP, SIG_DFL);
+		signal(SIGTTIN, SIG_DFL);
+		signal(SIGTTOU, SIG_DFL);
+		signal(SIGCHLD, SIG_DFL);
+
+		setenv("TERM", "xterm-256color", 1);
+		setenv("COLORTERM", "truecolor", 1);
+		setenv("TURBOSTAR_TERMINAL", "1", 1);
+
+		if (!working_dir.empty()) {
+			std::error_code ec;
+			if (std::filesystem::is_directory(working_dir, ec)) {
+				chdir(working_dir.c_str());
+			}
+		}
+
+		std::string shell_name = std::filesystem::path(shell_path).filename().string();
+		execl(shell_path.c_str(), shell_name.c_str(), "-i", nullptr);
+		execl(shell_path.c_str(), shell_name.c_str(), nullptr);
+		execl("/bin/bash", "bash", "-i", nullptr);
+		execl("/bin/sh", "sh", nullptr);
+		_exit(127);
+	}
+
+	is_alive_ = true;
+	is_shell_ = true;
+	close_on_exit_ = true;
+	exit_event_queued_ = false;
+	set_bypass_global_shortcuts(true);
+
+	// Set PTY master to non-blocking
+	int flags = fcntl(pty_master_, F_GETFL, 0);
+	fcntl(pty_master_, F_SETFL, flags | O_NONBLOCK);
+
+	return true;
+}
+
 bool terminal_window::start_process(const std::string &raw_command, std::unique_ptr<build_log_parser> parser, bool enable_network,
 				    bool enable_crash_catcher, bool allow_display, bool collect_performance)
 {
@@ -404,7 +520,13 @@ bool terminal_window::process_events()
 		if (capture_input_) {
 			if (pty_master_ >= 0 && is_alive_) {
 				std::string seq;
-				if (!ev->utf8_char.empty()) {
+				if (ev->key_code == 13 || ev->key_code == 10 || ev->key_code == KEY_ENTER) {
+					seq = "\r";
+				} else if (ev->key_code == KEY_BACKSPACE || ev->key_code == 127 || ev->key_code == 8) {
+					seq = "\x7f";
+				} else if (ev->key_code == 9) {
+					seq = "\t";
+				} else if (!ev->utf8_char.empty()) {
 					seq = ev->utf8_char;
 				} else {
 					switch (ev->key_code) {
@@ -440,16 +562,6 @@ bool terminal_window::process_events()
 							break;
 						case KEY_DC:
 							seq = "\x1b[3~";
-							break;
-						case KEY_BACKSPACE:
-						case 127:
-						case 8:
-							seq = "\x7f";
-							break;
-						case 13:
-						case 10:
-						case KEY_ENTER:
-							seq = "\r";
 							break;
 						case 27:
 							seq = "\x1b";

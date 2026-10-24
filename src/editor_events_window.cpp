@@ -24,10 +24,20 @@ void editor::dispatch_event_window(const editor_event &ev)
 	if (ev.type == event_type::close_window) {
 		logger.log("Dispatching close_window event.");
 		size_t active_idx = static_cast<size_t>(-1);
-		for (size_t i = 0; i < windows_.size(); ++i) {
-			if (windows_[i]->is_active()) {
-				active_idx = i;
-				break;
+		if (ev.window_id != -1) {
+			for (size_t i = 0; i < windows_.size(); ++i) {
+				if (windows_[i]->get_id() == ev.window_id) {
+					active_idx = i;
+					break;
+				}
+			}
+		}
+		if (active_idx == static_cast<size_t>(-1)) {
+			for (size_t i = 0; i < windows_.size(); ++i) {
+				if (windows_[i]->is_active()) {
+					active_idx = i;
+					break;
+				}
 			}
 		}
 

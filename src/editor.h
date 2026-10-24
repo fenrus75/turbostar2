@@ -148,6 +148,7 @@ class editor : public agentlib::document_provider
       private:
 	void new_window(std::string_view filename);
 	std::string get_k_block_status_help() const;
+	void new_terminal_window();
 	void new_agent_window();
 	void new_agent_center_window();
 	void new_crashdump_window();

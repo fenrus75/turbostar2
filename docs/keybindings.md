@@ -22,7 +22,7 @@ These keys are handled by the central dispatcher regardless of focus (unless ove
 | `F3` | Open | Open file dialog. |
 | `F4` | Next Error | Jump to the next build error. |
 | `F5` | Zoom Window | Maximize / restore current editor or terminal window. |
-| `F6` | Toggle Terminal Focus | Switch focus to / cycle terminal runner windows. |
+| `F6` | Terminal / Toggle Focus | Open terminal shell if none open, or cycle focus between terminal and editor windows. |
 | `F7` | Next Hotspot | Jump to the next CPU performance hotspot line. |
 | `F8` | Run Tests | Run the test suite using configured build system. |
 | `F9` | Compile | Run the compile command using configured build system. |
