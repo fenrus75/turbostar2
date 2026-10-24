@@ -197,7 +197,7 @@
         <ul class="detail-list">
           <li><strong>Predictable Scope Boundaries:</strong> Unlike risky global text replacement, multi-cursor editing is bounded to the enclosing function or lexical scope, selecting exactly the identifier uses you want to modify.</li>
           <li><strong>Progressive Selection (<code>Ctrl+D</code>):</strong> Step through occurrences one-by-one with clear visual highlighting. Selection seamlessly wraps to the top of the scope so you can start from any line.</li>
-          <li><strong>One-Shot Scope Selection (<code>Ctrl+Shift+D</code> / <code>Ctrl+Shift+L</code>):</strong> Select all occurrences of an identifier across the active scope in a single keystroke for instant, synchronized renaming.</li>
+          <li><strong>One-Shot Scope Selection (<code>Ctrl+Shift+D</code> / <code>Ctrl+Shift+L</code> / <code>^K D</code>):</strong> Select all occurrences of an identifier across the active scope in a single keystroke for instant, synchronized renaming.</li>
           <li><strong>Simultaneous Typing &amp; Navigation:</strong> Edit, backspace, and navigate across all carets simultaneously, backed by single-stroke compound undo that restores previous code cleanly.</li>
           <li><strong>Zero-Friction Escape:</strong> Press <code>Esc</code> at any time to instantly collapse carets and return to standard single-cursor editing.</li>
         </ul>
@@ -282,7 +282,7 @@
             <tr>
               <td><strong>Multi-Cursor: Select All in Scope</strong></td>
               <td><code>Ctrl+Shift+D</code></td>
-              <td><code>Ctrl+Shift+L</code></td>
+              <td><code>Ctrl+Shift+L</code> or <code>^K D</code></td>
             </tr>
             <tr>
               <td><strong>Quit Editor</strong></td>

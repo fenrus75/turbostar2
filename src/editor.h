@@ -65,6 +65,7 @@ class editor : public agentlib::document_provider
 
 	friend void test_vim_emulation();
 	friend void test_status_bar_paste();
+	friend void test_k_block_multi_cursor();
 
 #include <string_view>
 

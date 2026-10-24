@@ -1,3 +1,4 @@
+// Tested source file: src/editor.cpp, src/editor_events_key.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
@@ -244,12 +245,49 @@ void test_status_bar_paste()
 	std::cout << "Test status_bar_paste (vim) passed!\n";
 }
 
+void test_k_block_multi_cursor()
+{
+	editor_options opts;
+	opts.filenames = {};
+	opts.no_lsp = true;
+	opts.no_welcome = true;
+
+	editor ed(opts);
+	ed.new_window("");
+	auto doc = ed.get_active_doc();
+	assert(doc != nullptr);
+
+	doc->insert_text("int val = 1;\nval += 2;\nreturn val;\n");
+	doc->set_cursor_position(1, 1);
+	assert(doc->get_word_under_cursor() == "val");
+	assert(!doc->has_multi_cursor());
+
+	// Simulate pressing Ctrl+K then 'd'
+	ed.active_mode_ = editor::input_mode::k_block;
+	bool handled = ed.handle_k_block_key('d');
+	assert(handled == true);
+	assert(doc->has_multi_cursor());
+	assert(doc->get_multi_cursors().size() == 3);
+
+	// Clear and test Ctrl+D (key 4) under k_block
+	doc->clear_multi_cursor();
+	assert(!doc->has_multi_cursor());
+	ed.active_mode_ = editor::input_mode::k_block;
+	handled = ed.handle_k_block_key(4); // Ctrl+D key code
+	assert(handled == true);
+	assert(doc->has_multi_cursor());
+	assert(doc->get_multi_cursors().size() == 3);
+
+	std::cout << "Test k_block multi_cursor (^K D alias) passed!\n";
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
 	test_vim_emulation();
 	test_status_priorities();
 	test_status_bar_paste();
+	test_k_block_multi_cursor();
 	return 0;
 }
 

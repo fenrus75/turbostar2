@@ -95,7 +95,7 @@ Multi-cursor editing allows concurrent manipulation of multiple occurrences of a
 | Key Combination | Action | Notes |
 | :--- | :--- | :--- |
 | `Ctrl+D` | Select Next Occurrence | Progressively selects the next occurrence of the word under cursor in current scope (wraps to start). When not on a word and no multi-cursor active, deletes character at cursor. |
-| `Ctrl+Shift+D` | Select All in Scope | Instantly selects all occurrences of the word under cursor in the current function / scope. |
+| `Ctrl+Shift+D` / `^K D` | Select All in Scope | Instantly selects all occurrences of the word under cursor in the current function / scope. |
 | `Ctrl+Shift+L` | Select All in Scope | VS Code compatible shortcut to select all occurrences of current token in scope. |
 | `Esc` | Cancel Multi-Cursor | Clears all secondary cursors and returns to single caret mode. |
 | `Left / Right` | Move All Carets | Collapses selections and steps all carets synchronously. |
@@ -115,7 +115,8 @@ These commands require pressing `Ctrl+K` first, followed by the command letter.
 | `^K N` | New Window | Opens a new, empty window. |
 | `^K P` | Compile File | Compiles only the currently active file using compile_commands.json. |
 | `^K E` | Edit / Load File | Prompts for a filename to load into the editor. |
-| `^K S` / `^K D` | Save File | Saves the current document. If untitled, acts as Save As. |
+| `^K S` | Save File | Saves the current document. If untitled, acts as Save As. |
+| `^K D` | Multi-Cursor (Select All) | Selects all occurrences of word under cursor in current scope (alias for Ctrl+Shift+D). |
 | `^K A` | Save All | Saves all open, modified documents. |
 | `^K W` | Write Block | Prompts for a filename to save the selected block to disk. |
 | `^K R` | Insert File | Prompts for a filename to insert at the cursor position. |

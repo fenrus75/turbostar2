@@ -1235,7 +1235,14 @@ bool editor::handle_k_block_key(int key)
 			}
 			return true;
 		}
-		case 'd':
+		case 'd': {
+			logger.log("K-block: Multi-cursor select all in scope");
+			if (active_doc) {
+				active_doc->select_all_scope_highlights();
+				global_queue_.push(event_type::redraw);
+			}
+			return true;
+		}
 		case 's': {
 			logger.log("K-block: Save File");
 			if (!active_doc || active_doc->is_read_only()) {
@@ -1706,7 +1713,11 @@ std::string editor::get_k_block_status_help() const
 	    {"^P:Compile", 10, 17, [](const editor &, const std::shared_ptr<document> &doc) { return doc != nullptr; }},
 	    {"^G:Error", 10, 18, [](const editor &, const std::shared_ptr<document> &doc) { return doc != nullptr; }},
 	    {"^Q:Quit", 30, 19, [](const editor &, const std::shared_ptr<document> &) { return true; }},
-	    {"^X:SaveExit", 30, 20, [](const editor &, const std::shared_ptr<document> &doc) { return doc != nullptr; }}};
+	    {"^X:SaveExit", 30, 20, [](const editor &, const std::shared_ptr<document> &doc) { return doc != nullptr; }},
+	    {"^D:Multi", 10, 21,
+	     [](const editor &, const std::shared_ptr<document> &doc) {
+		     return doc != nullptr && !doc->get_word_under_cursor().empty();
+	     }}};
 
 	// 1. Filter by applicability
 	std::vector<k_block_option> applicable;
