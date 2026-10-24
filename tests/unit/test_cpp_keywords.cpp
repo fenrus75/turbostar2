@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string_view>
 #include "languages/cpp/keywords.h"
+#include "languages/cpp/language.h"
 #include "test_watchdog.h"
 
 int main()
@@ -75,6 +76,8 @@ int main()
 	assert(!keywords::is_call_candidate_denylisted("process_item"));
 
 	// 6. is_type_candidate_denylisted
+	assert(keywords::is_type_candidate_denylisted("a"));
+	assert(keywords::is_type_candidate_denylisted("ab"));
 	assert(keywords::is_type_candidate_denylisted("int"));
 	assert(keywords::is_type_candidate_denylisted("ptrdiff_t"));
 	assert(keywords::is_type_candidate_denylisted("uintptr_t"));
@@ -84,6 +87,10 @@ int main()
 	assert(keywords::is_type_candidate_denylisted("SOME_MACRO"));
 	assert(!keywords::is_type_candidate_denylisted("Widget"));
 	assert(!keywords::is_type_candidate_denylisted("AppContext"));
+
+	// 7. language supports_file and supports_language edge cases
+	assert(!languages::cpp::supports_file(""));
+	assert(!languages::cpp::supports_language("unsupported_language_xyz"));
 
 	std::cout << "All languages::cpp::keywords tests passed successfully!" << std::endl;
 	return 0;

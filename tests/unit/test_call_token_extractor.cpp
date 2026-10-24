@@ -95,6 +95,14 @@ int main()
 		assert(multi_result[0].line == 1);
 		assert(multi_result[1].name == "comment_separated");
 		assert(multi_result[1].line == 3);
+
+		// Test capping at 20 candidates
+		std::vector<std::string> many_calls;
+		for (int i = 0; i < 25; ++i) {
+			many_calls.push_back("func_" + std::to_string(i) + "();");
+		}
+		auto capped_result = tools::call_token_extractor::extract_candidates("test.cpp", many_calls, 1);
+		assert(capped_result.size() == 20);
 	}
 
 	std::cout << "All call_token_extractor tests passed successfully!" << std::endl;

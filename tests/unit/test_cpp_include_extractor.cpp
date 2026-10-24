@@ -76,6 +76,10 @@ int main()
 	assert(file_names.size() == 3);
 	assert(file_names.count("iostream") == 1);
 
+	// Test non-existent file handling
+	assert(include_extractor::extract_includes_from_file("nonexistent_path_does_not_exist_xyz.cpp").empty());
+	assert(include_extractor::extract_header_names_from_file("nonexistent_path_does_not_exist_xyz.cpp").empty());
+
 	std::cout << "All languages::cpp::include_extractor tests passed successfully!" << std::endl;
 	return 0;
 }

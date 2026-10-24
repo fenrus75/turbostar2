@@ -133,6 +133,17 @@ void test_cpp_collisions()
 	assert(l3->get_attribute(40) == syntax_attribute::comment);
 }
 
+void test_empty_line_and_lifecycle()
+{
+	cpp_highlighter hl;
+	auto l = std::make_shared<line>("");
+	hl.highlight(l);
+	assert(l->length_in_chars() == 0);
+
+	std::unique_ptr<syntax_highlighter> base_ptr = std::make_unique<cpp_highlighter>();
+	base_ptr.reset();
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -142,6 +153,7 @@ int main()
 	test_cpp_strings_and_chars();
 	test_cpp_comments();
 	test_cpp_collisions();
+	test_empty_line_and_lifecycle();
 	std::cout << "All C++ highlighter tests passed successfully!" << std::endl;
 	return 0;
 }

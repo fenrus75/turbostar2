@@ -417,6 +417,58 @@ int main()
 		assert(nested_syms[2].name == "outer::inner::run");
 		assert(nested_syms[2].kind_str == "Function");
 		assert(nested_syms[2].start_line == 3);
+
+		// Multi-level (3+) nested namespaces, nested structs, operator[], operator(), anonymous enum
+		std::vector<std::string> deep_lines = {
+			"namespace L1 {",
+			"namespace L2 {",
+			"namespace L3 {",
+			"void deep_func() {}",
+			"}",
+			"}",
+			"}",
+			"struct OuterS {",
+			"    struct MiddleS {",
+			"        struct InnerS {",
+			"            int operator[](int idx) { return idx; }",
+			"            void operator()(int x) {}",
+			"        };",
+			"    };",
+			"};",
+			"enum { ANON_1, ANON_2 };",
+			"void test_edge_cases(int a) {",
+			"    if (sizeof(int) > 0) {}",
+			"}",
+			"struct SameLineA {}; struct SameLineB {};"
+		};
+		std::vector<tools::codemap_symbol_info> deep_syms;
+		tools::fallback_find_symbols_cpp(deep_lines, deep_syms);
+		bool found_deep_func = false;
+		bool found_bracket_op = false;
+		bool found_paren_op = false;
+		for (const auto &s : deep_syms) {
+			if (s.name == "L1::L2::L3::deep_func") found_deep_func = true;
+			if (s.name == "OuterS::MiddleS::InnerS::operator[]") found_bracket_op = true;
+			if (s.name == "OuterS::MiddleS::InnerS::operator()") found_paren_op = true;
+		}
+		assert(found_deep_func);
+		assert(found_bracket_op);
+		assert(found_paren_op);
+
+		// Edge cases: empty lines and unclosed delimiters
+		std::vector<std::string> empty_lines;
+		std::vector<tools::codemap_symbol_info> empty_syms;
+		tools::fallback_find_symbols_cpp(empty_lines, empty_syms);
+		assert(empty_syms.empty());
+
+		std::vector<std::string> unclosed_lines = {
+			"namespace open_ns {",
+			"class OpenClass {",
+			"void broken_func(int x",
+			"while (1);"
+		};
+		std::vector<tools::codemap_symbol_info> unclosed_syms;
+		tools::fallback_find_symbols_cpp(unclosed_lines, unclosed_syms);
 	}
 
 	// 4. Test Markdown headings parser (both span lines and string wrapper)

@@ -64,6 +64,69 @@ int main()
 	auto non_cpp = tools::type_token_extractor::extract_candidates("test.txt", lines, 1);
 	assert(non_cpp.empty());
 
+	// Additional pattern coverage: const template args, pointers/refs
+	{
+		std::vector<std::string> template_lines = {
+			"std::vector<const CustomAlpha*> alpha_list;",
+			"std::unique_ptr<CustomBeta&> beta_ref;",
+			"CustomGamma const* gamma_ptr;"
+		};
+		auto pat_res = tools::type_token_extractor::extract_candidates("test.cpp", template_lines, 1);
+		bool found_alpha = false;
+		bool found_beta = false;
+		bool found_gamma = false;
+		for (const auto &tok : pat_res) {
+			if (tok.name == "CustomAlpha") found_alpha = true;
+			if (tok.name == "CustomBeta") found_beta = true;
+			if (tok.name == "CustomGamma") found_gamma = true;
+		}
+		assert(found_alpha);
+		assert(found_beta);
+		assert(found_gamma);
+	}
+
+	// Test 15 limit caps across various patterns
+	{
+		std::vector<std::string> cap_lines;
+		for (int i = 0; i < 25; ++i) {
+			cap_lines.push_back("class CapType" + std::to_string(i) + " {};");
+		}
+		auto cap_res = tools::type_token_extractor::extract_candidates("test.cpp", cap_lines, 1);
+		assert(cap_res.size() == 15);
+	}
+	{
+		std::vector<std::string> cap_lines;
+		for (int i = 0; i < 25; ++i) {
+			cap_lines.push_back("CapScope" + std::to_string(i) + "::method();");
+		}
+		auto cap_res = tools::type_token_extractor::extract_candidates("test.cpp", cap_lines, 1);
+		assert(cap_res.size() == 15);
+	}
+	{
+		std::vector<std::string> cap_lines;
+		for (int i = 0; i < 25; ++i) {
+			cap_lines.push_back("std::vector<TplCap" + std::to_string(i) + "> list" + std::to_string(i) + ";");
+		}
+		auto cap_res = tools::type_token_extractor::extract_candidates("test.cpp", cap_lines, 1);
+		assert(cap_res.size() == 15);
+	}
+	{
+		std::vector<std::string> cap_lines;
+		for (int i = 0; i < 25; ++i) {
+			cap_lines.push_back("PtrCap" + std::to_string(i) + "* var" + std::to_string(i) + ";");
+		}
+		auto cap_res = tools::type_token_extractor::extract_candidates("test.cpp", cap_lines, 1);
+		assert(cap_res.size() == 15);
+	}
+	{
+		std::vector<std::string> cap_lines;
+		for (int i = 0; i < 25; ++i) {
+			cap_lines.push_back("DeclCap" + std::to_string(i) + " var" + std::to_string(i) + ";");
+		}
+		auto cap_res = tools::type_token_extractor::extract_candidates("test.cpp", cap_lines, 1);
+		assert(cap_res.size() == 15);
+	}
+
 	std::cout << "All type_token_extractor tests passed successfully!" << std::endl;
 	return 0;
 }

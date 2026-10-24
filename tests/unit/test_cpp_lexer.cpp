@@ -199,6 +199,97 @@ int main()
 		assert(found_next);
 	}
 
+	// 8. token_kind_to_string coverage
+	{
+		using tk = languages::cpp::token_kind;
+		assert(languages::cpp::lexer::token_kind_to_string(tk::eof) == "eof");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::identifier) == "identifier");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::keyword) == "keyword");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::number) == "number");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::string_literal) == "string_literal");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::character_literal) == "character_literal");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::comment) == "comment");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::preprocessor) == "preprocessor");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::l_paren) == "(");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::r_paren) == ")");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::l_brace) == "{");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::r_brace) == "}");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::l_bracket) == "[");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::r_bracket) == "]");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::semicolon) == ";");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::colon) == ":");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::double_colon) == "::");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::comma) == ",");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::dot) == ".");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::arrow) == "->");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::tilde) == "~");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::operator_sym) == "operator");
+		assert(languages::cpp::lexer::token_kind_to_string(tk::other) == "other");
+		assert(languages::cpp::lexer::token_kind_to_string(static_cast<tk>(999)) == "unknown");
+	}
+
+	// 9. Preprocessor line continuation
+	{
+		std::string_view src = "#define FOO \\\n  42\nint y = FOO;";
+		auto tokens = languages::cpp::lexer::tokenize(src);
+		assert(tokens[0].kind == languages::cpp::token_kind::preprocessor);
+		assert(tokens[0].text == "#define FOO \\\n  42");
+		assert(tokens[1].kind == languages::cpp::token_kind::keyword);
+		assert(tokens[1].text == "int");
+		assert(tokens[1].line == 3);
+	}
+
+	// 10. String and character literal escaped newlines and unclosed char
+	{
+		std::string_view src = "\"line1\\\nline2\";\n'\\\n';\n'unclosed\nint after = 1;";
+		auto tokens = languages::cpp::lexer::tokenize(src);
+		assert(tokens[0].kind == languages::cpp::token_kind::string_literal);
+		assert(tokens[0].text == "\"line1\\\nline2\"");
+		assert(tokens[2].kind == languages::cpp::token_kind::character_literal);
+		assert(tokens[2].text == "'\\\n'");
+
+		bool found_after = false;
+		for (const auto &tok : tokens) {
+			if (tok.kind == languages::cpp::token_kind::identifier && tok.text == "after") {
+				found_after = true;
+				assert(tok.line == 6);
+			}
+		}
+		assert(found_after);
+	}
+
+	// 11. Numbers: hex, float exponent, suffixes
+	{
+		std::string_view src = "0x1A 0x1.5p2 100ULL 3.14f";
+		auto tokens = languages::cpp::lexer::tokenize(src);
+		assert(tokens[0].kind == languages::cpp::token_kind::number);
+		assert(tokens[0].text == "0x1A");
+		assert(tokens[1].kind == languages::cpp::token_kind::number);
+		assert(tokens[1].text == "0x1.5p2");
+		assert(tokens[2].kind == languages::cpp::token_kind::number);
+		assert(tokens[2].text == "100ULL");
+		assert(tokens[3].kind == languages::cpp::token_kind::number);
+		assert(tokens[3].text == "3.14f");
+	}
+
+	// 12. Three-way comparison operator <=> and unrecognized symbols
+	{
+		std::string_view src = "auto cmp = a <=> b; @ $";
+		auto tokens = languages::cpp::lexer::tokenize(src);
+		bool found_spaceship = false;
+		int other_count = 0;
+		for (const auto &tok : tokens) {
+			if (tok.kind == languages::cpp::token_kind::operator_sym && tok.text == "<=>") {
+				found_spaceship = true;
+			}
+			if (tok.kind == languages::cpp::token_kind::other) {
+				++other_count;
+			}
+		}
+		assert(found_spaceship);
+		assert(other_count == 2);
+	}
+
 	std::cout << "All languages::cpp::lexer tests passed!" << std::endl;
 	return 0;
 }
