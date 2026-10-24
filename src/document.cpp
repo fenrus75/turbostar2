@@ -143,6 +143,7 @@ bool document::load_from_file(const std::string &filename)
 	}
 	codereview_manager::get_instance().verify_line_contents(filename_, load_lines);
 
+	revision_.fetch_add(1, std::memory_order_relaxed);
 	lock.unlock();
 	git_manager::get_instance().request_status(filename_);
 	project_manager::get_instance().lsp_open_document(filename_, get_text_all());
@@ -671,6 +672,7 @@ void document::set_modified()
 	if (read_only_)
 		return;
 	modified_ = true;
+	revision_.fetch_add(1, std::memory_order_relaxed);
 	lsp_diagnostics_.clear();
 	for (auto *l : listeners_) {
 		l->on_document_changed(filename_);

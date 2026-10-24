@@ -222,6 +222,8 @@ To provide contextual diff and line navigation awareness without breaking Turbos
   - **`Off Mode` (`[#Off]`)**: Suppresses right-margin numbers while preserving left-border diff markers.
   - **Interactive Controls**: Clickable header widget `[#Git]` / `[#File]` / `[#Off]`, Window popup menu (`Alt+=`), and Git menu item (`Alt+G N`).
 
+- **Live In-Memory Diffing**: To deliver instant real-time feedback as the user types without saving to disk, `git_manager` asynchronously caches HEAD file contents (`git show HEAD:./<file>`). When a document is modified in memory, `window::get_effective_diff()` invokes `git_manager::compute_diff()` via `<dtl/dtl.hpp>` to calculate unified hunks directly between cached HEAD lines and active buffer lines. Results are memoized against the document's monotonic revision counter (`revision_`), delivering sub-millisecond updates without spawning background processes or writing temporary files.
+
 ## Testing and Diagnostics
 
 To ensure reliability, Turbostar incorporates testing and diagnostic infrastructure from the outset:

@@ -222,6 +222,10 @@ class document
 	virtual size_t get_undo_count() const;
 	std::vector<std::string> get_lines_at_undo(size_t steps_back) const;
 	std::string get_undo_name(size_t steps_back) const;
+	uint64_t get_revision() const noexcept
+	{
+		return revision_.load(std::memory_order_relaxed);
+	}
 
 	void apply_external_edits_json(std::string_view json_str);
 
@@ -318,6 +322,7 @@ class document
 	std::string safe_filename_;
 	std::string git_branch_;
 	bool modified_{false};
+	std::atomic<uint64_t> revision_{0};
 	bool read_only_{false};
 	std::filesystem::file_time_type last_disk_mtime_;
 	bool has_last_disk_mtime_{false};

@@ -4,6 +4,7 @@
 #include <cctype>
 #include <charconv>
 #include <cstdio>
+#include <dtl/dtl.hpp>
 #include <format>
 #include <filesystem>
 #include <iostream>
@@ -118,7 +119,8 @@ void git_manager::worker_loop()
                         {
                                 std::unique_lock lock(cache_mutex_);
                                 git_info& cached = status_cache_[req.filepath];
-                                if (cached.status != info.status || cached.branch != info.branch || cached.diff != info.diff) {
+                                if (cached.status != info.status || cached.branch != info.branch || cached.diff != info.diff ||
+                                    cached.has_head != info.has_head || cached.head_lines != info.head_lines) {
                                         if (cached.branch != info.branch && !info.branch.empty()) {
                                                 event_logger::get_instance().log("Git: Detected branch '{}' for {}", info.branch, req.filepath);
                                         }
@@ -214,6 +216,25 @@ git_info git_manager::run_git_status_cmd(const std::string &filepath)
 		info.diff.hunks.clear();
 	}
 
+	if (info.status == git_status::dirty || info.status == git_status::clean) {
+		std::string show_cmd = "git -C " + dir + " show HEAD:./" + file + " 2>/dev/null";
+		sync_command_runner show_runner;
+		show_runner.apply_internal_profile();
+		std::string show_res = show_runner.execute_and_get_output(show_cmd);
+		if (show_runner.get_exit_code() == 0) {
+			info.has_head = true;
+			info.head_lines.clear();
+			std::stringstream ss(show_res);
+			std::string l;
+			while (std::getline(ss, l)) {
+				if (!l.empty() && l.back() == '\r') {
+					l.pop_back();
+				}
+				info.head_lines.push_back(l);
+			}
+		}
+	}
+
 	return info;
 }
 
@@ -268,6 +289,60 @@ git_file_diff git_manager::run_git_diff_cmd(const std::string &filepath)
 			}
 		}
 	}
+	return diff;
+}
+
+git_file_diff git_manager::compute_diff(const std::vector<std::string> &old_lines, const std::vector<std::string> &new_lines)
+{
+	git_file_diff diff;
+	diff.is_tracked = true;
+
+	if (old_lines.empty() && new_lines.empty()) {
+		return diff;
+	}
+
+	dtl::Diff<std::string, std::vector<std::string>> d(old_lines, new_lines);
+	d.compose();
+
+	auto ses = d.getSes().getSequence();
+	size_t i = 0;
+	int last_common_old = 0;
+	int last_common_new = 0;
+
+	while (i < ses.size()) {
+		if (ses[i].second.type == dtl::SES_COMMON) {
+			last_common_old = static_cast<int>(ses[i].second.beforeIdx);
+			last_common_new = static_cast<int>(ses[i].second.afterIdx);
+			++i;
+			continue;
+		}
+
+		int del_count = 0;
+		int add_count = 0;
+		int first_del_old = 0;
+		int first_add_new = 0;
+
+		while (i < ses.size() && ses[i].second.type != dtl::SES_COMMON) {
+			if (ses[i].second.type == dtl::SES_DELETE) {
+				if (del_count == 0) {
+					first_del_old = static_cast<int>(ses[i].second.beforeIdx);
+				}
+				del_count++;
+			} else if (ses[i].second.type == dtl::SES_ADD) {
+				if (add_count == 0) {
+					first_add_new = static_cast<int>(ses[i].second.afterIdx);
+				}
+				add_count++;
+			}
+			++i;
+		}
+
+		int old_start = (del_count > 0) ? first_del_old : last_common_old;
+		int new_start = (add_count > 0) ? first_add_new : last_common_new;
+
+		diff.hunks.push_back({old_start, del_count, new_start, add_count});
+	}
+
 	return diff;
 }
 

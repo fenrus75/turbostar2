@@ -7,6 +7,7 @@
 #include <vector>
 #include "document.h"
 #include "event_queue.h"
+#include "git_manager.h"
 
 /*
 
@@ -157,6 +158,7 @@ class window
 
 	int get_gutter_button_x() const;
 	int get_gutter_button_width() const;
+	git_file_diff get_effective_diff() const;
 
 	int get_background_color_pair() const
 	{
@@ -249,6 +251,9 @@ class window
 	bool is_visible_{true};
 	bool bypass_global_shortcuts_{false};
 	gutter_number_mode gutter_mode_{gutter_number_mode::git};
+	mutable git_file_diff live_diff_;
+	mutable uint64_t last_diff_revision_{static_cast<uint64_t>(-1)};
+	mutable bool live_diff_valid_{false};
 
 	mutable int top_line_{0};
 	mutable int left_column_{0};

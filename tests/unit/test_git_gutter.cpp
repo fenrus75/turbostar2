@@ -219,6 +219,53 @@ int main()
 		assert(l13.has_deletion_above);
 	}
 
+	// 11. Test git_manager::compute_diff in-memory diffing
+	{
+		std::vector<std::string> old_lines = {"line1", "line2", "line3", "line4"};
+		std::vector<std::string> new_lines = {"line1", "line2_mod", "line3", "added_line", "line4"};
+
+		git_file_diff diff = git_manager::compute_diff(old_lines, new_lines);
+		assert(!diff.empty());
+
+		// line 1 is unchanged
+		auto info1 = diff.get_line_info(1);
+		assert(info1.type == git_line_diff_type::unchanged && info1.git_line == 1);
+
+		// line 2 is modified
+		auto info2 = diff.get_line_info(2);
+		assert(info2.type == git_line_diff_type::modified && info2.git_line == 2);
+
+		// line 3 is unchanged
+		auto info3 = diff.get_line_info(3);
+		assert(info3.type == git_line_diff_type::unchanged && info3.git_line == 3);
+
+		// line 4 is added
+		auto info4 = diff.get_line_info(4);
+		assert(info4.type == git_line_diff_type::added && info4.git_line == -1);
+
+		// line 5 is unchanged (was old line 4)
+		auto info5 = diff.get_line_info(5);
+		assert(info5.type == git_line_diff_type::unchanged && info5.git_line == 4);
+	}
+
+	// 12. Test git_manager::compute_diff with deletion
+	{
+		std::vector<std::string> old_lines = {"line1", "line2", "line3", "line4"};
+		std::vector<std::string> new_lines = {"line1", "line4"};
+
+		git_file_diff diff = git_manager::compute_diff(old_lines, new_lines);
+		assert(!diff.empty());
+
+		auto info1 = diff.get_line_info(1);
+		assert(info1.type == git_line_diff_type::unchanged && info1.git_line == 1);
+
+		// line 2 is new line4, which has lines 2 and 3 deleted above it
+		auto info2 = diff.get_line_info(2);
+		assert(info2.type == git_line_diff_type::unchanged && info2.git_line == 4);
+		assert(info2.has_deletion_above);
+		assert(info2.deleted_count == 2);
+	}
+
 	std::cout << "All test_git_gutter assertions passed!" << std::endl;
 	return 0;
 }

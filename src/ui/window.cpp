@@ -626,10 +626,7 @@ void window::draw_content(bool cursor_only) const
 
 	last_match_pos_ = match_pos;
 
-	git_info gi;
-	if (doc_ && !doc_->get_filename().empty()) {
-		gi = git_manager::get_instance().get_cached_info(doc_->get_filename());
-	}
+	git_file_diff gi_diff = get_effective_diff();
 
 	if (doc_) {
 		filename = doc_->get_safe_filename();
@@ -731,7 +728,7 @@ void window::draw_content(bool cursor_only) const
 			if (gutter_mode_ == gutter_number_mode::file) {
 				num_str = std::format("{:4d}", doc_line_1based);
 			} else { // git mode
-				auto diff_info = gi.diff.get_line_info(doc_line_1based);
+				auto diff_info = gi_diff.get_line_info(doc_line_1based);
 				if (diff_info.type == git_line_diff_type::added) {
 					num_str = "  ··";
 					num_pair = 30; // Bright Green
@@ -1272,13 +1269,13 @@ void window::draw_border() const
 
 	// Overwrite left border for git diff indicators
 	if (doc_ && !doc_->get_filename().empty() && doc_->get_filename() != "unknown.txt") {
-		git_info ginfo = git_manager::get_instance().get_cached_info(doc_->get_filename());
+		git_file_diff effective_diff = get_effective_diff();
 		int content_h = height_ - 2;
 		for (int i = 0; i < content_h; ++i) {
 			int doc_line = top_line_ + 1 + i;
 			if (doc_line > static_cast<int>(doc_->get_line_count())) {
 				if (doc_line == static_cast<int>(doc_->get_line_count()) + 1) {
-					auto line_res = ginfo.diff.get_line_info(doc_line);
+					auto line_res = effective_diff.get_line_info(doc_line);
 					if (line_res.has_deletion_above) {
 						attron(COLOR_PAIR(31));
 						mvaddstr(y_ + 1 + i, x_, "▸");
@@ -1287,7 +1284,7 @@ void window::draw_border() const
 				}
 				continue;
 			}
-			auto line_res = ginfo.diff.get_line_info(doc_line);
+			auto line_res = effective_diff.get_line_info(doc_line);
 			if (line_res.has_deletion_above) {
 				attron(COLOR_PAIR(31));
 				mvaddstr(y_ + 1 + i, x_, "▸");
@@ -1362,6 +1359,29 @@ int window::get_gutter_button_width() const
 		}
 	}
 	return 0;
+}
+
+git_file_diff window::get_effective_diff() const
+{
+	if (!doc_ || doc_->get_filename().empty() || doc_->get_filename() == "unknown.txt") {
+		return {};
+	}
+
+	git_info ginfo = git_manager::get_instance().get_cached_info(doc_->get_filename());
+	if (doc_->is_modified() && ginfo.has_head) {
+		if (doc_->get_line_count() <= 20000 && ginfo.head_lines.size() <= 20000) {
+			uint64_t rev = doc_->get_revision();
+			if (!live_diff_valid_ || rev != last_diff_revision_) {
+				live_diff_ = git_manager::compute_diff(ginfo.head_lines, doc_->get_all_lines());
+				last_diff_revision_ = rev;
+				live_diff_valid_ = true;
+			}
+			return live_diff_;
+		}
+	}
+
+	live_diff_valid_ = false;
+	return ginfo.diff;
 }
 
 window::~window()

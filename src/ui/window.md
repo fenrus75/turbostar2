@@ -20,6 +20,7 @@ The `window` class represents a rectangular display frame within Turbostar rende
     - `git` (`[#Git]`): Displays Git HEAD line numbers; deleted lines appear as number gaps (e.g. 44 -> 47); added lines display subtle dots (`··`).
     - `file` (`[#File]`): Displays physical buffer line numbers (1, 2, 3...) matching compiler error diagnostics. Auto-selected upon `F4` next-error navigation.
     - `none` (`[#Off]`): Hides line numbers while retaining left-border diff markers.
+  - **Live In-Memory Diffing (`get_effective_diff`)**: When a document is modified in memory, rather than waiting for file saving to disk, `window` executes an in-memory diff via `git_manager::compute_diff` comparing cached HEAD lines against current buffer lines. The calculation is memoized against the document revision counter (`revision_`), running in under 0.5ms and avoiding recomputation during cursor movement or scrolling.
 - **Dismissal Semantics**: Any keypress (navigation, typing, command prefixes) or subsequent mouse click dismisses any active mouse selection.
 
 ## Lessons Learned

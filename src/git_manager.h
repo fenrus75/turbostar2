@@ -56,6 +56,8 @@ struct git_info {
 	git_status status{git_status::unknown};
 	std::string branch;
 	git_file_diff diff;
+	std::vector<std::string> head_lines;
+	bool has_head{false};
 };
 
 /**
@@ -65,6 +67,11 @@ class git_manager
 {
       public:
 	static git_manager &get_instance();
+
+	/**
+	 * @brief Computes unified diff hunks (-U0) between old and new line vectors in memory.
+	 */
+	static git_file_diff compute_diff(const std::vector<std::string> &old_lines, const std::vector<std::string> &new_lines);
 
 	void start(event_queue &queue);
 	void stop();
