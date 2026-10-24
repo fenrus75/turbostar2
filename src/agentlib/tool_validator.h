@@ -170,15 +170,24 @@ class tool_validator
 				if (prop_schema.contains("type") && prop_schema["type"].is_string()) {
 					std::string expected_type = prop_schema["type"].get<std::string>();
 					bool type_ok = false;
-					if (expected_type == "string" && it.value().is_string())
-						type_ok = true;
-					else if (expected_type == "integer") {
+					if (expected_type == "string") {
+						if (it.value().is_string()) {
+							type_ok = true;
+						} else if (it.value().is_number_integer()) {
+							it.value() = std::to_string(it.value().get<int64_t>());
+							type_ok = true;
+						} else if (it.value().is_number_unsigned()) {
+							it.value() = std::to_string(it.value().get<uint64_t>());
+							type_ok = true;
+						}
+					} else if (expected_type == "integer") {
 						if (it.value().is_number_integer()) {
 							type_ok = true;
 						} else if (it.value().is_string()) {
 							std::string dummy_err;
 							int64_t dummy_val = 0;
 							if (json_utils::get_number(args, it.key(), dummy_val, int64_t(0), dummy_err)) {
+								it.value() = dummy_val;
 								type_ok = true;
 							}
 						}

@@ -118,6 +118,24 @@ int main()
 			assert(!prep.error_message.empty());
 		}
 
+		// 4b. Numeric crash_id acceptance: integers passed in JSON should be coerced to string
+		{
+			fs::path c_numeric = fs::path(dump_dir) / "crash_696982";
+			fs::create_directories(c_numeric);
+			{
+				std::ofstream ofs(c_numeric / "info.txt");
+				ofs << "Signal: 6\n";
+			}
+			{
+				std::ofstream ofs(c_numeric / "report.md");
+				ofs << "Crash 696982: Assertion failed in test_numeric: x == 42\n";
+			}
+			crashdump_manager::get_instance().refresh("dummy_hash_numeric");
+			std::string res = registry.execute_tool("crashdump_get_info", R"({"crash_id": 696982})", ctx);
+			assert(res.find("test_numeric") != std::string::npos);
+			assert(res.find("696982") != std::string::npos);
+		}
+
 		std::cout << "crashdump_get_info tool verified successfully!" << std::endl;
 	}
 

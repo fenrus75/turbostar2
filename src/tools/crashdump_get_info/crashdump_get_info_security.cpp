@@ -42,16 +42,28 @@ class crashdump_get_info_validator : public agentlib::tool_validator
 				std::string &out_error) const override
 	{
 		try {
-			crashdump_get_info_raw_args raw_args = args_json.get<crashdump_get_info_raw_args>();
-			if (raw_args.crash_id.length() > 128) {
+			std::string cid;
+			if (args_json.contains("crash_id")) {
+				if (args_json["crash_id"].is_string()) {
+					cid = args_json["crash_id"].get<std::string>();
+				} else if (args_json["crash_id"].is_number_integer()) {
+					cid = std::to_string(args_json["crash_id"].get<int64_t>());
+				} else if (args_json["crash_id"].is_number_unsigned()) {
+					cid = std::to_string(args_json["crash_id"].get<uint64_t>());
+				} else if (!args_json["crash_id"].is_null()) {
+					out_error = "Validation Error: crash_id must be a string or integer.";
+					return false;
+				}
+			}
+			if (cid.length() > 128) {
 				out_error = "Validation Error: crash_id must be max 128 characters.";
 				return false;
 			}
-			if (utf8::is_not_alnum_only(raw_args.crash_id, "_-")) {
+			if (!cid.empty() && utf8::is_not_alnum_only(cid, "_-")) {
 				out_error = "Security Violation: crash_id contains invalid or unsafe characters.";
 				return false;
 			}
-			args_.crash_id = raw_args.crash_id;
+			args_.crash_id = std::move(cid);
 			return true;
 		} catch (const std::exception &e) {
 			out_error = "Argument parsing error: " + std::string(e.what());
