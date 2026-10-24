@@ -74,6 +74,7 @@ enum class event_type {
 	lsp_highlight_result,	    ///< Notification that LSP document highlight is available
 	lsp_selection_range_result, ///< Notification that LSP selection range is available
 	lsp_diagnostics_result,	    ///< Notification that LSP diagnostics are available
+	lsp_signature_result,	    ///< Notification that asynchronous LSP function signature or symbol resolution is available
 	mouse_click,		    ///< A mouse click event
 	mouse_right_click,	    ///< A mouse right-click event
 	mouse_double_click,	    ///< A mouse double click event

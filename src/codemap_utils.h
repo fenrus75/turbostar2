@@ -130,6 +130,10 @@ struct function_signature_query_result {
 	bool from_cache{false};
 };
 
+// Queries in-memory cache and C/C++ builtins with zero blocking or IPC.
+std::optional<function_signature_query_result> get_cached_function_signature(
+    const std::string &safe_path, int line, int col, std::string_view token);
+
 // Resolves the function signature for a call site token using builtins, LSP definition/workspace symbols,
 // and in-memory caching.
 std::optional<function_signature_query_result> resolve_function_signature(

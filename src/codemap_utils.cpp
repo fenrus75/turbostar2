@@ -1757,7 +1757,7 @@ void clear_function_signature_cache()
 	g_signature_cache.clear();
 }
 
-std::optional<function_signature_query_result> resolve_function_signature(
+std::optional<function_signature_query_result> get_cached_function_signature(
     const std::string &safe_path, int line, int col, std::string_view token)
 {
 	if (token.empty()) {
@@ -1791,6 +1791,23 @@ std::optional<function_signature_query_result> resolve_function_signature(
 			return res;
 		}
 	}
+
+	return std::nullopt;
+}
+
+std::optional<function_signature_query_result> resolve_function_signature(
+    const std::string &safe_path, int line, int col, std::string_view token)
+{
+	if (token.empty()) {
+		return std::nullopt;
+	}
+
+	auto cached = get_cached_function_signature(safe_path, line, col, token);
+	if (cached) {
+		return cached;
+	}
+
+	std::string loc_key = std::format("{}:{}:{}:{}", safe_path, line, col, token);
 
 	// 3. Query LSP definition at call site location
 	std::string decl_loc;

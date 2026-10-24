@@ -505,7 +505,7 @@ std::vector<call_suggestion> call_synthesizer::generate_argument_suggestions(
 	return suggestions;
 }
 
-context_menu_data call_synthesizer::analyze_context_at(document &doc, int doc_y, int doc_x)
+context_menu_data call_synthesizer::analyze_context_at(document &doc, int doc_y, int doc_x, bool allow_blocking_lsp)
 {
 	context_menu_data data;
 	data.target_line = doc_y;
@@ -638,28 +638,47 @@ context_menu_data call_synthesizer::analyze_context_at(document &doc, int doc_y,
 		data.call_case = call_site_case::naked_identifier;
 	}
 
-	// 3. Resolve signature using codemap_utils (cache, builtins, LSP definition/workspace symbol)
+	// 3. Resolve signature: check non-blocking cache/builtins first
 	std::string sig_str;
-	auto sig_res = tools::resolve_function_signature(doc.get_filename(), doc_y, data.token_start_col, data.token);
-	if (sig_res) {
-		sig_str = sig_res->raw_signature;
-		data.declaration_location = sig_res->declaration_location;
-		data.type_synopsis = sig_res->raw_signature;
-	}
-
-	// Fallback signature heuristic if LSP is offline or hover unpopulated
-	if (sig_str.empty()) {
-		if (data.has_existing_parens) {
-			sig_str = "void " + data.token + "()";
+	auto cached_sig = tools::get_cached_function_signature(doc.get_filename(), doc_y, data.token_start_col, data.token);
+	if (cached_sig) {
+		sig_str = cached_sig->raw_signature;
+		data.declaration_location = cached_sig->declaration_location;
+		data.type_synopsis = cached_sig->raw_signature;
+		data.is_resolved = true;
+	} else if (allow_blocking_lsp) {
+		auto sig_res = tools::resolve_function_signature(doc.get_filename(), doc_y, data.token_start_col, data.token);
+		if (sig_res) {
+			sig_str = sig_res->raw_signature;
+			data.declaration_location = sig_res->declaration_location;
+			data.type_synopsis = sig_res->raw_signature;
+			data.is_resolved = true;
 		}
 	}
 
-	auto parsed_sig = parse_function_signature(sig_str);
-	if (parsed_sig) {
+	if (!sig_str.empty()) {
+		auto parsed_sig = parse_function_signature(sig_str);
+		if (parsed_sig) {
+			data.kind = symbol_kind_context::function_call;
+			auto locals = extract_in_scope_variables(doc, doc_y);
+			data.suggestions = generate_argument_suggestions(*parsed_sig, locals, data.existing_args);
+			return data;
+		}
+	}
+
+	if (data.is_resolved) {
+		return data;
+	}
+
+	// If not yet resolved, assign preliminary kind without blocking on LSP
+	if (data.has_existing_parens) {
 		data.kind = symbol_kind_context::function_call;
+		data.type_synopsis = data.token + "(...)";
 		auto locals = extract_in_scope_variables(doc, doc_y);
-		data.suggestions = generate_argument_suggestions(*parsed_sig, locals, data.existing_args);
-	} else {
+		signature_info dummy_sig;
+		dummy_sig.function_name = data.token;
+		data.suggestions = generate_argument_suggestions(dummy_sig, locals, data.existing_args);
+	} else if (allow_blocking_lsp) {
 		auto defs = project_manager::get_instance().lsp_query_definition(doc.get_filename(), doc_y, data.token_start_col);
 		if (!defs.empty() && (defs[0].kind == "class" || defs[0].kind == "struct" || defs[0].kind == "enum" ||
 				      defs[0].kind == "interface" || defs[0].kind == "type")) {
@@ -670,12 +689,16 @@ context_menu_data call_synthesizer::analyze_context_at(document &doc, int doc_y,
 			if (!defs[0].path.empty()) {
 				data.declaration_location = std::format("{}:{}", defs[0].path, defs[0].range.start_y + 1);
 			}
+			data.is_resolved = true;
 		} else {
 			data.kind = symbol_kind_context::variable;
 			if (!defs.empty() && !defs[0].path.empty()) {
 				data.declaration_location = std::format("{}:{}", defs[0].path, defs[0].range.start_y + 1);
 			}
+			data.is_resolved = true;
 		}
+	} else {
+		data.kind = symbol_kind_context::unknown;
 	}
 
 	return data;

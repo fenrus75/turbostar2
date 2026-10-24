@@ -12,6 +12,9 @@
 #include "gcc_log_parser.h"
 #include "history_manager.h"
 #include "lsp_manager.h"
+#include "call_synthesizer.h"
+#include "project_manager.h"
+#include "ui/popup_menu.h"
 
 namespace fs = std::filesystem;
 
@@ -150,6 +153,210 @@ void editor::dispatch_event_lsp(const editor_event &ev)
 		if (matched_any) {
 			global_queue_.push(event_type::redraw);
 		}
+		return;
+	}
+
+	if (ev.type == event_type::lsp_signature_result) {
+		auto payload = std::static_pointer_cast<turbostar::lsp_signature_payload>(ev.generic_promise);
+		if (!payload || payload->generation != rmb_menu_generation_ || !active_popup_) {
+			return;
+		}
+
+		window *target_w = nullptr;
+		for (const auto &win : windows_) {
+			if (win->get_id() == payload->window_id) {
+				target_w = win.get();
+				break;
+			}
+		}
+		if (!target_w)
+			return;
+		auto doc = target_w->get_document();
+		if (!doc)
+			return;
+
+		auto ctx = payload->ctx;
+		ctx.is_resolved = payload->resolved;
+		ctx.declaration_location = payload->declaration_location;
+		ctx.type_synopsis = payload->type_synopsis;
+
+		std::vector<popup_menu_item> new_items;
+
+		auto apply_call_mutation = [ctx](document &d, std::string_view call_text) {
+			if (ctx.call_case == turbostar::call_site_case::full_call ||
+			    (ctx.has_existing_parens && ctx.existing_args_end_col != -1)) {
+				d.set_selection(ctx.target_line, ctx.existing_args_start_col,
+						ctx.target_line, ctx.existing_args_end_col + 1);
+				d.delete_selection();
+				d.insert_text(std::string(call_text));
+			} else if (ctx.call_case == turbostar::call_site_case::half_call ||
+				   (ctx.has_existing_parens && ctx.existing_args_end_col == -1)) {
+				auto l_obj = d.get_line(ctx.target_line);
+				int len = l_obj ? l_obj->length_in_chars() : ctx.existing_args_start_col + 1;
+				if (l_obj) {
+					std::string lt = l_obj->get_text();
+					size_t semi = lt.find(';', ctx.existing_args_start_col);
+					if (semi != std::string::npos) {
+						len = static_cast<int>(semi);
+					}
+				}
+				d.set_selection(ctx.target_line, ctx.existing_args_start_col, ctx.target_line, len);
+				d.delete_selection();
+				d.insert_text(std::string(call_text));
+			} else {
+				// Naked identifier (Case 1)
+				d.move_cursor(ctx.token_end_col - d.get_cursor_x(), ctx.target_line - d.get_cursor_y());
+				d.insert_text(std::string(call_text));
+			}
+		};
+
+		if (payload->is_function) {
+			ctx.kind = turbostar::symbol_kind_context::function_call;
+			auto parsed_sig = turbostar::call_synthesizer::parse_function_signature(payload->raw_signature);
+			if (parsed_sig) {
+				auto locals = turbostar::call_synthesizer::extract_in_scope_variables(*doc, payload->doc_y);
+				ctx.suggestions =
+				    turbostar::call_synthesizer::generate_argument_suggestions(*parsed_sig, locals, ctx.existing_args);
+			}
+
+			if (!ctx.type_synopsis.empty()) {
+				std::string syn = ctx.type_synopsis;
+				if (syn.length() > 44) {
+					syn = syn.substr(0, 41) + "...";
+				}
+				new_items.push_back({0, syn, 0, false});
+				new_items.push_back({0, "", 0, true});
+			}
+
+			// Native suggestions (Slots 1 and 2)
+			for (size_t s_idx = 0; s_idx < std::min<size_t>(ctx.suggestions.size(), 2); ++s_idx) {
+				const auto &s = ctx.suggestions[s_idx];
+				char hotkey = static_cast<char>('1' + s_idx);
+				std::string label = std::format("{}. {}", hotkey, s.call_text);
+				popup_menu_item item{0, label, hotkey, false};
+				item.on_select = [this, w_ptr = target_w, apply_call_mutation, call_text = s.call_text]() {
+					auto d = w_ptr->get_document();
+					if (!d)
+						return;
+					apply_call_mutation(*d, call_text);
+					global_queue_.push(event_type::redraw);
+				};
+				new_items.push_back(item);
+			}
+
+			// Slot 3: AI Suggestion
+			if (turbostar::call_synthesizer::has_ai_model_configured()) {
+				int ai_item_index = static_cast<int>(new_items.size());
+				popup_menu_item ai_item{0, "3. [ \u231b AI analyzing... ]", '3', false};
+				ai_item.on_select = []() {};
+				new_items.push_back(ai_item);
+
+				std::string enclosing_func;
+				int start_l = std::max(0, payload->doc_y - 25);
+				int end_l = std::min(static_cast<int>(doc->get_line_count()), payload->doc_y + 20);
+				for (int l = start_l; l < end_l; ++l) {
+					auto l_obj = doc->get_line(l);
+					if (l_obj) {
+						enclosing_func += l_obj->get_text() + "\n";
+					}
+				}
+				auto locals = turbostar::call_synthesizer::extract_in_scope_variables(*doc, payload->doc_y);
+				std::string sig_str = !ctx.type_synopsis.empty() ? ctx.type_synopsis : ctx.token;
+				std::string existing_args = ctx.existing_args;
+
+				std::thread([this, gen = payload->generation, ai_item_index, w_ptr = target_w, apply_call_mutation,
+					     enclosing_func = std::move(enclosing_func), sig_str = std::move(sig_str),
+					     locals = std::move(locals), existing_args = std::move(existing_args)]() {
+					auto ai_res = turbostar::call_synthesizer::query_ai_call_suggestion(
+					    enclosing_func, sig_str, locals, existing_args);
+					if (!ai_res.has_value() || ai_res->empty()) {
+						return;
+					}
+					post_to_main_thread([this, gen, ai_item_index, w_ptr, apply_call_mutation,
+							     call_text = *ai_res]() {
+						if (rmb_menu_generation_ != gen || !active_popup_) {
+							return;
+						}
+						std::string label = "3. [AI] " + call_text;
+						active_popup_->update_item(ai_item_index, label, '3',
+									   [this, w_ptr, apply_call_mutation, call_text]() {
+										   auto d = w_ptr->get_document();
+										   if (!d)
+											   return;
+										   apply_call_mutation(*d, call_text);
+										   global_queue_.push(event_type::redraw);
+									   });
+						global_queue_.push(event_type::redraw);
+					});
+				}).detach();
+			}
+
+			if (!new_items.empty()) {
+				new_items.push_back({0, "", 0, true});
+			}
+
+			if (!ctx.declaration_location.empty()) {
+				popup_menu_item def_item{0, "Go to Definition", 'D', false};
+				def_item.on_select = [this, loc = ctx.declaration_location]() {
+					editor_event oev;
+					oev.type = event_type::open_file;
+					oev.payload = loc;
+					global_queue_.push(oev);
+				};
+				new_items.push_back(def_item);
+			}
+
+			popup_menu_item ref_item{0, "Find References", 'R', false};
+			ref_item.on_select = [this, fn = doc->get_filename(), doc_y = payload->doc_y,
+					      doc_x = payload->doc_x]() {
+				auto refs = project_manager::get_instance().lsp_query_references(fn, doc_y, doc_x);
+				if (!refs.empty()) {
+					editor_event oev;
+					oev.type = event_type::open_file;
+					oev.payload = std::format("{}:{}", refs[0].path, refs[0].range.start_y + 1);
+					global_queue_.push(oev);
+				}
+			};
+			new_items.push_back(ref_item);
+		} else {
+			// Variable or type definition
+			if (!ctx.type_synopsis.empty()) {
+				std::string syn = ctx.type_synopsis;
+				if (syn.length() > 40) {
+					syn = syn.substr(0, 37) + "...";
+				}
+				new_items.push_back({0, syn, 0, false});
+				new_items.push_back({0, "", 0, true});
+			}
+			if (!ctx.declaration_location.empty()) {
+				popup_menu_item def_item{0, "Go to Definition", 'D', false};
+				def_item.on_select = [this, loc = ctx.declaration_location]() {
+					editor_event oev;
+					oev.type = event_type::open_file;
+					oev.payload = loc;
+					global_queue_.push(oev);
+				};
+				new_items.push_back(def_item);
+			}
+			popup_menu_item ref_item{0, "Find References", 'R', false};
+			ref_item.on_select = [this, fn = doc->get_filename(), doc_y = payload->doc_y,
+					      doc_x = payload->doc_x]() {
+				auto refs = project_manager::get_instance().lsp_query_references(fn, doc_y, doc_x);
+				if (!refs.empty()) {
+					editor_event oev;
+					oev.type = event_type::open_file;
+					oev.payload = std::format("{}:{}", refs[0].path, refs[0].range.start_y + 1);
+					global_queue_.push(oev);
+				}
+			};
+			new_items.push_back(ref_item);
+
+			popup_menu_item fmt_item{static_cast<int>(event_type::format_doc), "Format Code", 'F', false};
+			new_items.push_back(fmt_item);
+		}
+
+		active_popup_->set_items(new_items);
+		global_queue_.push(event_type::redraw);
 		return;
 	}
 }

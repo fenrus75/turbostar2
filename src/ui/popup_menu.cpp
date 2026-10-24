@@ -29,6 +29,35 @@ popup_menu::popup_menu(int x, int y, const std::vector<popup_menu_item> &items) 
 	}
 }
 
+void popup_menu::set_items(const std::vector<popup_menu_item> &items)
+{
+	items_ = items;
+	width_ = 15;
+	for (const auto &item : items_) {
+		int w = item.name.length() + 4;
+		if (item.hotkey != 0)
+			w += 2;
+		if (w > width_)
+			width_ = w;
+	}
+	height_ = items_.size() + 2;
+
+	selected_idx_ = 0;
+	while (selected_idx_ < static_cast<int>(items_.size()) && items_[selected_idx_].is_separator) {
+		selected_idx_++;
+	}
+
+	if (x_ + width_ + 1 > COLS) {
+		x_ = std::max(0, COLS - width_ - 1);
+	}
+	if (x_ < 0) {
+		x_ = 0;
+	}
+	if (y_ + height_ > LINES) {
+		y_ = std::max(0, LINES - height_);
+	}
+}
+
 void popup_menu::draw() const
 {
 	// Draw shadow

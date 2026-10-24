@@ -7,6 +7,7 @@
 #include <thread>
 #include "build_error_manager.h"
 #include "call_synthesizer.h"
+#include "codemap_utils.h"
 #include "codereview_manager.h"
 #include "config_manager.h"
 #include "editor.h"
@@ -160,12 +161,86 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 			int doc_y = buf_pos->second;
 			doc->move_cursor(doc_x - doc->get_cursor_x(), doc_y - doc->get_cursor_y());
 
-			auto ctx = turbostar::call_synthesizer::analyze_context_at(*doc, doc_y, doc_x);
+			auto ctx = turbostar::call_synthesizer::analyze_context_at(*doc, doc_y, doc_x, false);
 			uint64_t current_generation = ++rmb_menu_generation_;
 
 			std::vector<popup_menu_item> items;
 
-			if (ctx.kind == turbostar::symbol_kind_context::function_call) {
+			if (!ctx.is_resolved && !ctx.token.empty()) {
+				// Immediate non-blocking popup while background thread queries LSP
+				std::string syn = ctx.token + " [resolving...]";
+				items.push_back({0, syn, 0, false});
+				items.push_back({0, "", 0, true});
+
+				popup_menu_item resolving1{0, "1. [ \u231b Resolving signature... ]", '1', false};
+				resolving1.on_select = []() {};
+				items.push_back(resolving1);
+
+				popup_menu_item resolving2{0, "2. [ \u231b Resolving signature... ]", '2', false};
+				resolving2.on_select = []() {};
+				items.push_back(resolving2);
+
+				if (turbostar::call_synthesizer::has_ai_model_configured()) {
+					popup_menu_item ai_item{0, "3. [ \u231b AI analyzing... ]", '3', false};
+					ai_item.on_select = []() {};
+					items.push_back(ai_item);
+				}
+
+				items.push_back({0, "", 0, true}); // Separator
+
+				popup_menu_item ref_item{0, "Find References", 'R', false};
+				ref_item.on_select = [this, fn = doc->get_filename(), doc_y, doc_x]() {
+					auto refs = project_manager::get_instance().lsp_query_references(fn, doc_y, doc_x);
+					if (!refs.empty()) {
+						editor_event oev;
+						oev.type = event_type::open_file;
+						oev.payload = std::format("{}:{}", refs[0].path, refs[0].range.start_y + 1);
+						global_queue_.push(oev);
+					}
+				};
+				items.push_back(ref_item);
+
+				popup_menu_item fmt_item{static_cast<int>(event_type::format_doc), "Format Code", 'F', false};
+				items.push_back(fmt_item);
+
+				// Spawn asynchronous background worker thread to query LSP
+				std::thread([this, current_generation, w_id = w->get_id(), safe_path = doc->get_filename(),
+					     doc_y, doc_x, token_start = ctx.token_start_col, token = ctx.token, ctx]() mutable {
+					auto sig_res = tools::resolve_function_signature(safe_path, doc_y, token_start, token);
+					editor_event ev;
+					ev.type = event_type::lsp_signature_result;
+					auto payload = std::make_shared<turbostar::lsp_signature_payload>();
+					payload->generation = current_generation;
+					payload->window_id = w_id;
+					payload->doc_y = doc_y;
+					payload->doc_x = doc_x;
+					payload->safe_path = safe_path;
+					payload->ctx = ctx;
+
+					if (sig_res) {
+						payload->resolved = true;
+						payload->is_function = true;
+						payload->raw_signature = sig_res->raw_signature;
+						payload->declaration_location = sig_res->declaration_location;
+						payload->type_synopsis = sig_res->raw_signature;
+					} else {
+						auto defs = project_manager::get_instance().lsp_query_definition(safe_path, doc_y, token_start);
+						if (!defs.empty()) {
+							payload->resolved = true;
+							payload->declaration_location = std::format("{}:{}", defs[0].path, defs[0].range.start_y + 1);
+							if (defs[0].kind == "class" || defs[0].kind == "struct" || defs[0].kind == "enum" ||
+							    defs[0].kind == "interface" || defs[0].kind == "type") {
+								payload->is_function = false;
+								payload->type_synopsis = defs[0].underlying_type;
+							} else {
+								payload->is_function = false;
+							}
+						}
+					}
+					ev.generic_promise = payload;
+					global_queue_.push(std::move(ev));
+				}).detach();
+			} else if (ctx.kind == turbostar::symbol_kind_context::function_call) {
 				auto apply_call_mutation = [ctx](document &d, std::string_view call_text) {
 					if (ctx.call_case == turbostar::call_site_case::full_call ||
 					    (ctx.has_existing_parens && ctx.existing_args_end_col != -1)) {

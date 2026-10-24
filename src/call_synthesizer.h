@@ -65,6 +65,22 @@ struct context_menu_data {
 	int existing_args_end_col{-1};   // Where ')' ends (-1 if none)
 	int target_line{-1};
 	bool has_existing_parens{false};
+	bool is_resolved{false};
+};
+
+struct lsp_signature_payload {
+	uint64_t generation{0};
+	int window_id{-1};
+	int doc_y{0};
+	int doc_x{0};
+	std::string safe_path;
+	context_menu_data ctx;
+
+	bool resolved{false};
+	bool is_function{false};
+	std::string raw_signature;
+	std::string declaration_location;
+	std::string type_synopsis;
 };
 
 /**
@@ -98,8 +114,10 @@ class call_synthesizer
 
 	/**
 	 * @brief Analyzes the symbol and call site at a document line and column.
+	 * @param allow_blocking_lsp If false (default), resolves using fast in-memory cache and
+	 * built-ins without blocking on LSP IPC.
 	 */
-	static context_menu_data analyze_context_at(document &doc, int doc_y, int doc_x);
+	static context_menu_data analyze_context_at(document &doc, int doc_y, int doc_x, bool allow_blocking_lsp = false);
 
 	/**
 	 * @brief Returns true if an AI model is configured in the registry.

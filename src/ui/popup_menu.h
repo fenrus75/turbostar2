@@ -34,6 +34,8 @@ class popup_menu {
 		return {};
 	}
 
+	void set_items(const std::vector<popup_menu_item> &items);
+
 	void update_item(size_t index, const std::string &new_name, char new_hotkey, std::function<void()> on_select = {})
 	{
 		if (index < items_.size()) {

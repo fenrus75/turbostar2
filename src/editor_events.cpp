@@ -241,6 +241,7 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::lsp_highlight_result:
 		case event_type::lsp_selection_range_result:
 		case event_type::lsp_diagnostics_result:
+		case event_type::lsp_signature_result:
 			dispatch_event_lsp(ev);
 			break;
 		case event_type::key_press:
