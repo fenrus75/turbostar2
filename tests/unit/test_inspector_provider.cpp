@@ -102,6 +102,22 @@ int main()
 	assert(lsp_res_pending.is_final == false);
 	assert(lsp_res_pending.markdown.find("resolving") != std::string::npos);
 
+	std::cout << "Testing lsp_inspector_provider::is_system_declaration..." << std::endl;
+	assert(lsp_inspector_provider::is_system_declaration("/usr/include/stdlib.h"));
+	assert(lsp_inspector_provider::is_system_declaration("/usr/include/x86_64-linux-gnu/bits/stdlib.h"));
+	assert(lsp_inspector_provider::is_system_declaration("file:///usr/include/stdio.h"));
+	assert(lsp_inspector_provider::is_system_declaration("/opt/rh/devtoolset/root/usr/include/c++/11/vector"));
+	assert(!lsp_inspector_provider::is_system_declaration("/home/arjan/turbostar2/src/main.cpp"));
+	assert(!lsp_inspector_provider::is_system_declaration("src/core.cpp"));
+	assert(!lsp_inspector_provider::is_system_declaration(""));
+	assert(!lsp_inspector_provider::is_system_declaration("<built-in>"));
+
+	assert(inspector_scores::LSP_SYSTEM_HEADER == 70);
+	assert(inspector_scores::MAN_PAGE == 80);
+	assert(inspector_scores::LSP_RESOLVED == 90);
+	assert(inspector_scores::LSP_SYSTEM_HEADER < inspector_scores::MAN_PAGE);
+	assert(inspector_scores::MAN_PAGE < inspector_scores::LSP_RESOLVED);
+
 	std::cout << "Testing inspector_coordinator with multiple providers and ranking..." << std::endl;
 	inspector_coordinator coordinator;
 	coordinator.register_provider(std::make_unique<fallback_inspector_provider>());
@@ -132,6 +148,45 @@ int main()
 	assert(best_warning.provider_name == "linter");
 	assert(best_warning.score == 95);
 	assert(best_warning.markdown.find("Warning") != std::string::npos);
+
+	// Test system header LSP score (70) vs man page score (80)
+	class mock_system_lsp_provider : public inspector_provider
+	{
+	      public:
+		std::string_view name() const noexcept override { return "lsp"; }
+		inspector_result query(const inspector_query &) override
+		{
+			inspector_result res;
+			res.provider_name = "lsp";
+			res.score = inspector_scores::LSP_SYSTEM_HEADER;
+			res.markdown = "**Signature:** `void qsort(void *, ...)`";
+			res.is_final = true;
+			return res;
+		}
+	};
+
+	class mock_man_provider : public inspector_provider
+	{
+	      public:
+		std::string_view name() const noexcept override { return "man"; }
+		inspector_result query(const inspector_query &) override
+		{
+			inspector_result res;
+			res.provider_name = "man";
+			res.score = inspector_scores::MAN_PAGE;
+			res.markdown = "**Man 3:** `qsort` - sort an array";
+			res.is_final = true;
+			return res;
+		}
+	};
+
+	inspector_coordinator precedence_coordinator;
+	precedence_coordinator.register_provider(std::make_unique<mock_system_lsp_provider>());
+	precedence_coordinator.register_provider(std::make_unique<mock_man_provider>());
+	auto best_prec = precedence_coordinator.query(normal_q, nullptr);
+	assert(best_prec.provider_name == "man");
+	assert(best_prec.score == inspector_scores::MAN_PAGE);
+	assert(best_prec.markdown.find("Man 3") != std::string::npos);
 
 	std::cout << "Testing asynchronous provider resolution in coordinator..." << std::endl;
 	inspector_coordinator async_coordinator;

@@ -30,14 +30,15 @@ struct inspector_result {
  */
 namespace inspector_scores
 {
-constexpr int INVALID = 0;       ///< Invalid result: must never be used or displayed
+constexpr int INVALID = 0;           ///< Invalid result: must never be used or displayed
 constexpr int RESOLVING_HINT = 10;
 constexpr int FALLBACK_TOKEN = 15;
 constexpr int LSP_FALLBACK_TOKEN = 20;
 constexpr int LOCAL_SYMBOLS = 40;
 constexpr int GIT_BLAME = 50;
-constexpr int MAN_PAGE = 80;
-constexpr int LSP_RESOLVED = 90;
+constexpr int LSP_SYSTEM_HEADER = 70; ///< LSP resolved to /usr/ system headers (lower priority than man pages)
+constexpr int MAN_PAGE = 80;          ///< System man page (preferred for libc / POSIX symbols)
+constexpr int LSP_RESOLVED = 90;      ///< LSP resolved to project code / workspace symbols
 constexpr int DIAGNOSTIC_WARNING = 92;
 constexpr int DIAGNOSTIC_ERROR = 98;
 } // namespace inspector_scores

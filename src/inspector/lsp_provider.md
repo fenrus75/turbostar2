@@ -12,3 +12,4 @@
 
 ## Lessons Learned
 - Fast-path checking for local context via `call_synthesizer::analyze_context_at` allows immediate score 90 rendering for symbols defined in the current file or translation unit, completely bypassing background thread dispatch when data is already available.
+- Differentiating system headers (`/usr/include/`): When symbols resolve to system headers (e.g. libc or POSIX headers in `/usr/`), the LSP signature is downgraded to score 70 (`LSP_SYSTEM_HEADER`). This allows authoritative man page documentation (score 80) to win and present clean prototypes with human-readable summaries, while keeping project-local symbols at score 90 (`LSP_RESOLVED`).

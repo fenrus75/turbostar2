@@ -11,6 +11,18 @@ lsp_inspector_provider::lsp_inspector_provider(std::function<document *()> activ
 {
 }
 
+bool lsp_inspector_provider::is_system_declaration(std::string_view loc)
+{
+	if (loc.empty() || loc == "<built-in>") {
+		return false;
+	}
+	if (loc.starts_with("/usr/") || loc.starts_with("/opt/") ||
+	    loc.starts_with("file:///usr/") || loc.starts_with("file:///opt/")) {
+		return true;
+	}
+	return loc.find("/usr/include/") != std::string_view::npos;
+}
+
 static std::string format_context_markdown(const turbostar::context_menu_data &ctx)
 {
 	inspector::markdown_builder mb;
@@ -50,7 +62,9 @@ inspector_result lsp_inspector_provider::query(const inspector_query &q)
 	if (doc) {
 		auto ctx = turbostar::call_synthesizer::analyze_context_at(*doc, q.line, q.col, false);
 		if (ctx.is_resolved) {
-			res.score = inspector_scores::LSP_RESOLVED;
+			res.score = is_system_declaration(ctx.declaration_location) ?
+			                inspector_scores::LSP_SYSTEM_HEADER :
+			                inspector_scores::LSP_RESOLVED;
 			res.markdown = format_context_markdown(ctx);
 			res.is_final = true;
 			return res;
@@ -80,7 +94,9 @@ void lsp_inspector_provider::query_async(const inspector_query &q,
 		res.is_final = true;
 
 		if (sig) {
-			res.score = inspector_scores::LSP_RESOLVED;
+			res.score = is_system_declaration(sig->declaration_location) ?
+			                inspector_scores::LSP_SYSTEM_HEADER :
+			                inspector_scores::LSP_RESOLVED;
 			inspector::markdown_builder mb;
 			mb.header("Signature:").code(sig->raw_signature).newline();
 
