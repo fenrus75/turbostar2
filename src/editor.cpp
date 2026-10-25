@@ -349,16 +349,20 @@ void editor::update_window_layout()
 			target_h = gdb_h;
 		}
 
-		if (win->is_maximized()) {
+		if (win->is_maximized() || (win->get_x() == 0 && win->get_y() == 1 && win->get_width() == COLS)) {
 			if (win->get_document() == nullptr) {
 				win->set_maximized(false);
 				win->set_bounds(target_x, target_y, target_w, target_h);
 				win->set_maximized(true);
-			}
-			win->set_bounds(0, 1, COLS, total_h);
-		} else {
-			if (win->get_document() == nullptr) {
+			} else {
 				win->set_bounds(target_x, target_y, target_w, target_h);
+			}
+		} else if (win->get_document() == nullptr) {
+			win->set_bounds(target_x, target_y, target_w, target_h);
+		} else {
+			if (win->get_y() + win->get_height() > 1 + total_h) {
+				int new_h = std::max(3, 1 + total_h - win->get_y());
+				win->set_bounds(win->get_x(), win->get_y(), win->get_width(), new_h);
 			}
 		}
 		win->invalidate();
@@ -1436,6 +1440,10 @@ void editor::render(bool cursor_only)
 			}
 		}
 
+		if (inspector_win_ && inspector_enabled_ && inspector_win_->is_visible()) {
+			inspector_win_->draw(false);
+		}
+
 		// Draw backwards (lowest priority first, so highest priority is on top)
 		for (auto it = sorted_windows.rbegin(); it != sorted_windows.rend(); ++it) {
 			if ((*it)->is_visible()) {
@@ -1443,10 +1451,6 @@ void editor::render(bool cursor_only)
 					vp_changed = true;
 				}
 			}
-		}
-
-		if (inspector_win_ && inspector_enabled_ && inspector_win_->is_visible()) {
-			inspector_win_->draw(false);
 		}
 
 		top_menu_.draw();

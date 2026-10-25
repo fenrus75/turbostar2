@@ -121,10 +121,11 @@ void editor::dispatch_event_window(const editor_event &ev)
 			if (w->is_maximized()) {
 				w->set_maximized(false);
 				w->set_bounds(w->get_restore_x(), w->get_restore_y(), w->get_restore_width(), w->get_restore_height());
+				update_window_layout();
 			} else {
 				w->save_restore_bounds();
 				w->set_maximized(true);
-				w->set_bounds(0, 1, COLS, LINES - 2);
+				update_window_layout();
 			}
 			global_queue_.push(event_type::redraw);
 		}
