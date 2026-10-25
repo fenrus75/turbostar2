@@ -29,6 +29,7 @@
 #include "input_history_manager.h"
 #include "inspector/fallback_provider.h"
 #include "inspector/lsp_provider.h"
+#include "inspector/man_page_provider.h"
 #include "line.h"
 #include "perf_manager.h"
 #include "project_manager.h"
@@ -122,6 +123,7 @@ editor::editor(editor_options opts)
 	input_history_manager::get_instance().load();
 
 	insp_coordinator_.register_provider(std::make_unique<fallback_inspector_provider>());
+	insp_coordinator_.register_provider(std::make_unique<man_page_provider>());
 	insp_coordinator_.register_provider(std::make_unique<lsp_inspector_provider>([this]() -> document * {
 		return get_active_doc().get();
 	}));

@@ -78,7 +78,8 @@ core_sources = files(
   'inspector/inspector_coordinator.cpp',
   'inspector/inspector_helpers.cpp',
   'inspector/fallback_provider.cpp',
-  'inspector/lsp_provider.cpp'
+  'inspector/lsp_provider.cpp',
+  'inspector/man_page_provider.cpp'
 )
 
 
@@ -287,7 +288,7 @@ libturbostar_core = static_library('turbostar_core',
   core_sources + [project_templates_embedded_h],
   include_directories : inc,
   cpp_args : ['-DPLUGIN_DIR="@0@"'.format(plugin_dir), '-DTURBOCATCH_DIR="@0@"'.format(turbocatch_dir)],
-  dependencies : [nlohmann_json_dep, thread_dep, re2_dep, lsp_dep, libunwind_dep, zydis_dep, magic_dep, sqlite3_dep])
+  dependencies : [nlohmann_json_dep, thread_dep, re2_dep, lsp_dep, libunwind_dep, zydis_dep, magic_dep, sqlite3_dep, zlib_dep])
 
 libagentlib = static_library('agentlib',
   agentlib_sources + [research_agent_h, self_agent_h],
@@ -312,7 +313,7 @@ libturbostar_ui = static_library('turbostar_ui',
 ui_dep = declare_dependency(link_whole : libturbostar_ui, dependencies : [magic_dep])
 
 # Expose dependencies for easy linking
-core_dep = declare_dependency(link_with : libturbostar_core, dependencies : [libunwind_dep, zydis_dep, ncurses, sqlite3_dep])
+core_dep = declare_dependency(link_with : libturbostar_core, dependencies : [libunwind_dep, zydis_dep, ncurses, sqlite3_dep, zlib_dep])
 agent_dep = declare_dependency(link_whole : libagentlib, dependencies : [ui_dep, curl_dep, openssl_dep, yaml_cpp_dep])
 tools_dep = declare_dependency(link_whole : libtools, dependencies : tools_deps)
 

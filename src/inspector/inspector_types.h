@@ -36,6 +36,7 @@ constexpr int FALLBACK_TOKEN = 15;
 constexpr int LSP_FALLBACK_TOKEN = 20;
 constexpr int LOCAL_SYMBOLS = 40;
 constexpr int GIT_BLAME = 50;
+constexpr int MAN_PAGE = 80;
 constexpr int LSP_RESOLVED = 90;
 constexpr int DIAGNOSTIC_WARNING = 92;
 constexpr int DIAGNOSTIC_ERROR = 98;
