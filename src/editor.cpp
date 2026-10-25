@@ -2026,6 +2026,7 @@ void editor::toggle_symbol_inspector()
 		}
 		inspector_win_->set_visible(true);
 		insp_current_token_.clear();
+		insp_last_query_line_ = -1;
 		insp_last_cursor_x_ = -1;
 		insp_last_cursor_y_ = -1;
 		insp_is_moving_ = false;
@@ -2081,21 +2082,13 @@ void editor::handle_cursor_word_update(const editor_event &ev)
 	}
 
 	std::string_view token = ev.payload;
-	if (token.empty()) {
-		if (inspector_win_->get_state() != inspector_state::idle) {
-			insp_current_token_.clear();
-			inspector_win_->set_idle();
-			insp_current_score_ = 0;
-			global_queue_.push(event_type::redraw);
-		}
-		return;
-	}
-
-	if (token == insp_current_token_ && inspector_win_->get_state() == inspector_state::active) {
+	if (token == insp_current_token_ && ev.mouse_y == insp_last_query_line_ &&
+	    inspector_win_->get_state() == inspector_state::active) {
 		return;
 	}
 
 	insp_current_token_ = std::string(token);
+	insp_last_query_line_ = ev.mouse_y;
 
 	auto active_doc = get_active_doc();
 	inspector_query q;

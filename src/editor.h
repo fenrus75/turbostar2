@@ -245,6 +245,7 @@ class editor : public agentlib::document_provider
 	std::chrono::steady_clock::time_point insp_last_move_time_{};
 	int insp_last_cursor_x_{-1};
 	int insp_last_cursor_y_{-1};
+	int insp_last_query_line_{-1};
 	std::string insp_current_token_{};
 	inspector_coordinator insp_coordinator_;
 	int insp_current_score_{0};
