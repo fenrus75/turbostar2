@@ -302,6 +302,21 @@ int main()
 		assert(mock_ptr->last_saved_text == "int x = 42;\n");
 	}
 
+	// 6. Verify non-blocking document operations in standard_lsp_backend
+	{
+		standard_lsp_backend backend;
+		// Querying diagnostics for an unindexed file must never block or launch servers
+		assert(!backend.query_file_diagnostics("dummy.cpp").has_value());
+
+		// Enqueue document operations non-blockingly
+		backend.open_document("test_async.cpp", "int a = 1;");
+		backend.update_document("test_async.cpp", "int a = 2;");
+		backend.save_document("test_async.cpp", "int a = 2;");
+
+		// Stopping backend drains worker thread cleanly
+		backend.stop();
+	}
+
 	std::cout << "All lsp_backend tests passed successfully!" << std::endl;
 	return 0;
 }

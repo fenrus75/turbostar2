@@ -83,7 +83,7 @@ class semcode_backend : public standard_lsp_backend
 	}
 
       protected:
-	std::shared_ptr<server_instance> get_server_for_file(const std::string &filepath) override;
+	std::shared_ptr<server_instance> get_server_for_file(const std::string &filepath, bool start_if_needed = true) override;
 
       private:
 	std::string project_root_;

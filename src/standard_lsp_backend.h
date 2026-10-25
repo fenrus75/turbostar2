@@ -1,9 +1,11 @@
 #pragma once
 
 #include <atomic>
+#include <condition_variable>
 #include <filesystem>
 #include <memory>
 #include <mutex>
+#include <queue>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -72,6 +74,7 @@ class standard_lsp_backend : public lsp_backend
 										       int character) override;
 	[[nodiscard]] std::optional<std::vector<diagnostic_info>> query_file_diagnostics(const std::string &filepath) override;
 	void store_file_diagnostics(const std::string &filepath, const std::vector<diagnostic_info> &diags) override;
+	void flush_doc_queue_for_testing();
 
       protected:
 	struct server_instance {
@@ -84,7 +87,38 @@ class standard_lsp_backend : public lsp_backend
 	};
 
 	virtual void start_server(const std::string &name, const std::vector<std::string> &args, const std::string &language_id);
-	virtual std::shared_ptr<server_instance> get_server_for_file(const std::string &filepath);
+	virtual std::shared_ptr<server_instance> get_server_for_file(const std::string &filepath, bool start_if_needed = true);
+
+	enum class doc_action_type {
+		open,
+		update,
+		save
+	};
+
+	struct doc_action {
+		doc_action_type type;
+		std::string filepath;
+		std::string text;
+	};
+
+	/*
+	 * doc_queue_mutex_ protects doc_queue_ of pending asynchronous LSP document synchronization tasks.
+	 * Locking Rules:
+	 * - Held briefly when enqueuing actions from open_document(), update_document(), save_document()
+	 *   or dequeuing in the background doc_worker_thread.
+	 */
+	std::mutex doc_queue_mutex_;
+	std::condition_variable doc_queue_cv_;
+	std::queue<doc_action> doc_queue_;
+	std::thread doc_worker_thread_;
+	std::atomic<bool> doc_worker_running_{false};
+
+	void ensure_worker_started();
+	void stop_worker();
+	void process_doc_action(const doc_action &action);
+	void process_open_document(const std::string &filepath, const std::string &text);
+	void process_update_document(const std::string &filepath, const std::string &text);
+	void process_save_document(const std::string &filepath, const std::string &text);
 
 	std::vector<std::shared_ptr<server_instance>> servers_;
 

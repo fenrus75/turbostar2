@@ -133,11 +133,78 @@ void standard_lsp_backend::start_server(const std::string &name, const std::vect
 void standard_lsp_backend::start(event_queue &queue)
 {
 	global_queue_.store(&queue);
+	ensure_worker_started();
+}
+
+void standard_lsp_backend::ensure_worker_started()
+{
+	if (doc_worker_running_.load()) {
+		return;
+	}
+	std::lock_guard<std::mutex> lock(doc_queue_mutex_);
+	if (doc_worker_running_.load()) {
+		return;
+	}
+	doc_worker_running_.store(true);
+	doc_worker_thread_ = std::thread([this]() {
+		fs_utils::set_current_thread_name("lsp_doc");
+		event_logger::get_instance().log("Thread started: standard_lsp_backend doc_worker_thread");
+		while (doc_worker_running_.load() && !project_manager::get_instance().is_exiting()) {
+			doc_action action;
+			{
+				std::unique_lock<std::mutex> qlock(doc_queue_mutex_);
+				doc_queue_cv_.wait(qlock, [this]() {
+					return !doc_worker_running_.load() || !doc_queue_.empty() ||
+					       project_manager::get_instance().is_exiting();
+				});
+				if (!doc_worker_running_.load() || project_manager::get_instance().is_exiting()) {
+					break;
+				}
+				if (doc_queue_.empty()) {
+					continue;
+				}
+				action = std::move(doc_queue_.front());
+				doc_queue_.pop();
+			}
+
+			process_doc_action(action);
+		}
+		event_logger::get_instance().log("Thread exited: standard_lsp_backend doc_worker_thread");
+	});
+}
+
+void standard_lsp_backend::stop_worker()
+{
+	if (!doc_worker_running_.load() && !doc_worker_thread_.joinable()) {
+		return;
+	}
+	doc_worker_running_.store(false);
+	doc_queue_cv_.notify_all();
+	if (doc_worker_thread_.joinable()) {
+		doc_worker_thread_.join();
+	}
+}
+
+void standard_lsp_backend::flush_doc_queue_for_testing()
+{
+	while (true) {
+		doc_action action;
+		{
+			std::lock_guard<std::mutex> lock(doc_queue_mutex_);
+			if (doc_queue_.empty()) {
+				break;
+			}
+			action = std::move(doc_queue_.front());
+			doc_queue_.pop();
+		}
+		process_doc_action(action);
+	}
 }
 
 void standard_lsp_backend::stop()
 {
 	global_queue_.store(nullptr);
+	stop_worker();
 	std::lock_guard<std::mutex> lock(servers_mutex_);
 
 	// Terminate all active language server processes in parallel.
@@ -189,7 +256,7 @@ void standard_lsp_backend::stop()
 	servers_.clear();
 }
 
-std::shared_ptr<standard_lsp_backend::server_instance> standard_lsp_backend::get_server_for_file(const std::string &filepath)
+std::shared_ptr<standard_lsp_backend::server_instance> standard_lsp_backend::get_server_for_file(const std::string &filepath, bool start_if_needed)
 {
 	std::string ext = utf8::to_lower(fs::path(filepath).extension().string());
 
@@ -207,6 +274,10 @@ std::shared_ptr<standard_lsp_backend::server_instance> standard_lsp_backend::get
 		if (server->language_id == lang_id && server->is_running) {
 			return server;
 		}
+	}
+
+	if (!start_if_needed) {
+		return nullptr;
 	}
 
 	// Try to start the server on demand
@@ -398,6 +469,66 @@ std::vector<standard_lsp_backend::location_info> standard_lsp_backend::query_ref
 
 void standard_lsp_backend::open_document(const std::string &filepath, const std::string &text)
 {
+	if (!is_supported_file(filepath)) {
+		return;
+	}
+	ensure_worker_started();
+	{
+		std::lock_guard<std::mutex> lock(doc_queue_mutex_);
+		doc_queue_.push({doc_action_type::open, filepath, text});
+	}
+	doc_queue_cv_.notify_one();
+}
+
+void standard_lsp_backend::update_document(const std::string &filepath, const std::string &text)
+{
+	if (!is_supported_file(filepath)) {
+		return;
+	}
+	invalidate_hover_cache(filepath);
+	invalidate_symbol_cache(filepath);
+
+	ensure_worker_started();
+	{
+		std::lock_guard<std::mutex> lock(doc_queue_mutex_);
+		doc_queue_.push({doc_action_type::update, filepath, text});
+	}
+	doc_queue_cv_.notify_one();
+}
+
+void standard_lsp_backend::save_document(const std::string &filepath, const std::string &text)
+{
+	if (!is_supported_file(filepath)) {
+		return;
+	}
+	invalidate_hover_cache(filepath);
+	invalidate_symbol_cache(filepath);
+
+	ensure_worker_started();
+	{
+		std::lock_guard<std::mutex> lock(doc_queue_mutex_);
+		doc_queue_.push({doc_action_type::save, filepath, text});
+	}
+	doc_queue_cv_.notify_one();
+}
+
+void standard_lsp_backend::process_doc_action(const doc_action &action)
+{
+	switch (action.type) {
+	case doc_action_type::open:
+		process_open_document(action.filepath, action.text);
+		break;
+	case doc_action_type::update:
+		process_update_document(action.filepath, action.text);
+		break;
+	case doc_action_type::save:
+		process_save_document(action.filepath, action.text);
+		break;
+	}
+}
+
+void standard_lsp_backend::process_open_document(const std::string &filepath, const std::string &text)
+{
 	auto server = get_server_for_file(filepath);
 	if (!server)
 		return;
@@ -407,7 +538,7 @@ void standard_lsp_backend::open_document(const std::string &filepath, const std:
 		auto it = doc_versions_.find(filepath);
 		if (it != doc_versions_.end()) {
 			lock.unlock();
-			update_document(filepath, text);
+			process_update_document(filepath, text);
 			return;
 		}
 		doc_versions_[filepath] = 1;
@@ -416,15 +547,12 @@ void standard_lsp_backend::open_document(const std::string &filepath, const std:
 		server->message_handler->sendNotification<lsp::notifications::TextDocument_DidOpen>(
 		    {.textDocument = {.uri = std::move(uri), .languageId = server->language_id, .version = 1, .text = text}});
 	} catch (...) {
-		event_logger::get_instance().log("LSP: Caught unknown exception");
+		event_logger::get_instance().log("LSP: Caught unknown exception in process_open_document");
 	}
 }
 
-void standard_lsp_backend::update_document(const std::string &filepath, const std::string &text)
+void standard_lsp_backend::process_update_document(const std::string &filepath, const std::string &text)
 {
-	invalidate_hover_cache(filepath);
-	invalidate_symbol_cache(filepath);
-
 	auto server = get_server_for_file(filepath);
 	if (!server)
 		return;
@@ -453,15 +581,12 @@ void standard_lsp_backend::update_document(const std::string &filepath, const st
 
 		server->message_handler->sendNotification<lsp::notifications::TextDocument_DidChange>(std::move(didChangeParams));
 	} catch (...) {
-		event_logger::get_instance().log("LSP: Caught unknown exception");
+		event_logger::get_instance().log("LSP: Caught unknown exception in process_update_document");
 	}
 }
 
-void standard_lsp_backend::save_document(const std::string &filepath, const std::string &text)
+void standard_lsp_backend::process_save_document(const std::string &filepath, const std::string &text)
 {
-	invalidate_hover_cache(filepath);
-	invalidate_symbol_cache(filepath);
-
 	auto server = get_server_for_file(filepath);
 	if (!server)
 		return;
@@ -495,7 +620,7 @@ void standard_lsp_backend::save_document(const std::string &filepath, const std:
 		didSaveParams.text = text;
 		server->message_handler->sendNotification<lsp::notifications::TextDocument_DidSave>(std::move(didSaveParams));
 	} catch (...) {
-		event_logger::get_instance().log("LSP: Caught unknown exception in save_document");
+		event_logger::get_instance().log("LSP: Caught unknown exception in process_save_document");
 	}
 }
 
@@ -543,7 +668,7 @@ void standard_lsp_backend::request_hover(const std::string &filepath, int line, 
 		return;
 	}
 
-	auto server = get_server_for_file(filepath);
+	auto server = get_server_for_file(filepath, false);
 	if (!server)
 		return;
 
@@ -582,7 +707,7 @@ void standard_lsp_backend::request_hover(const std::string &filepath, int line, 
 
 void standard_lsp_backend::request_document_highlight(const std::string &filepath, int line, int character)
 {
-	auto server = get_server_for_file(filepath);
+	auto server = get_server_for_file(filepath, false);
 	if (!server)
 		return;
 
@@ -624,7 +749,7 @@ void standard_lsp_backend::request_document_highlight(const std::string &filepat
 
 void standard_lsp_backend::request_selection_range(const std::string &filepath, int line, int character)
 {
-	auto server = get_server_for_file(filepath);
+	auto server = get_server_for_file(filepath, false);
 	if (!server)
 		return;
 
@@ -1452,21 +1577,23 @@ std::optional<std::vector<diagnostic_info>> standard_lsp_backend::query_file_dia
 	if (!is_supported_file(filepath)) {
 		return std::nullopt;
 	}
-	auto server = get_server_for_file(filepath);
-	if (!server || !server->is_running.load()) {
-		return std::nullopt;
+
+	{
+		std::lock_guard<std::mutex> lock(diagnostics_mutex_);
+		std::string abs_path = std::filesystem::absolute(filepath).string();
+		auto it = file_diagnostics_.find(abs_path);
+		if (it != file_diagnostics_.end()) {
+			return it->second;
+		}
+		it = file_diagnostics_.find(filepath);
+		if (it != file_diagnostics_.end()) {
+			return it->second;
+		}
 	}
 
-	std::lock_guard<std::mutex> lock(diagnostics_mutex_);
-	std::string abs_path = std::filesystem::absolute(filepath).string();
-	auto it = file_diagnostics_.find(abs_path);
-	if (it != file_diagnostics_.end()) {
-		return it->second;
+	auto server = get_server_for_file(filepath, /*start_if_needed=*/false);
+	if (server && server->is_running.load()) {
+		return std::vector<diagnostic_info>{};
 	}
-	it = file_diagnostics_.find(filepath);
-	if (it != file_diagnostics_.end()) {
-		return it->second;
-	}
-
-	return std::vector<diagnostic_info>{};
+	return std::nullopt;
 }

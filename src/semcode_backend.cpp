@@ -839,12 +839,12 @@ std::vector<lsp_backend::type_hierarchy_item> semcode_backend::query_type_hierar
 	return items;
 }
 
-std::shared_ptr<standard_lsp_backend::server_instance> semcode_backend::get_server_for_file(const std::string &filepath)
+std::shared_ptr<standard_lsp_backend::server_instance> semcode_backend::get_server_for_file(const std::string &filepath, bool start_if_needed)
 {
 	std::string ext = utf8::to_lower(fs::path(filepath).extension().string());
 
 	if (ext == ".py") {
-		return standard_lsp_backend::get_server_for_file(filepath);
+		return standard_lsp_backend::get_server_for_file(filepath, start_if_needed);
 	}
 
 	bool is_c_cpp = (ext == ".cpp" || ext == ".c" || ext == ".h" || ext == ".hpp" || ext == ".cc" || ext == ".cxx");
@@ -857,6 +857,10 @@ std::shared_ptr<standard_lsp_backend::server_instance> semcode_backend::get_serv
 		if (server->language_id == "cpp" && server->is_running) {
 			return server;
 		}
+	}
+
+	if (!start_if_needed) {
+		return nullptr;
 	}
 
 	if (!semcode_lsp_path_.empty()) {
