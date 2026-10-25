@@ -81,6 +81,7 @@ inspector_result lsp_inspector_provider::query(const inspector_query &q)
 			                inspector_scores::LSP_RESOLVED :
 			                inspector_scores::LSP_SYSTEM_HEADER;
 			res.markdown = format_context_markdown(ctx);
+			res.title_addon = ctx.declaration_location;
 			res.is_final = true;
 			return res;
 		}
@@ -112,6 +113,7 @@ void lsp_inspector_provider::query_async(const inspector_query &q,
 			res.score = has_actual_project_path(sig->declaration_location) ?
 			                inspector_scores::LSP_RESOLVED :
 			                inspector_scores::LSP_SYSTEM_HEADER;
+			res.title_addon = sig->declaration_location;
 			inspector::markdown_builder mb;
 			mb.header("Signature:").code(sig->raw_signature).newline();
 

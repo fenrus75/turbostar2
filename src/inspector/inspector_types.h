@@ -20,9 +20,10 @@ struct inspector_query {
  */
 struct inspector_result {
 	std::string provider_name;
-	int score{0};         // 0 - 100 quality/relevance score
-	std::string markdown; // Markdown Lite formatted string
-	bool is_final{true};  // True if final; false if asynchronous resolution is pending
+	int score{0};              // 0 - 100 quality/relevance score
+	std::string markdown;      // Markdown Lite formatted string
+	std::string title_addon;   // Optional title addon (e.g. "man 3 qsort" or declaration location)
+	bool is_final{true};       // True if final; false if asynchronous resolution is pending
 };
 
 /**

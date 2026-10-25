@@ -559,6 +559,7 @@ cached_man_entry man_page_provider::parse_man_page(const std::string &file_path,
 
 static std::string format_man_markdown(const cached_man_entry &entry, const std::string &token)
 {
+	(void)token;
 	inspector::markdown_builder mb;
 	mb.header("Signature:").code(entry.signature).newline();
 	if (!entry.headers.empty()) {
@@ -572,9 +573,8 @@ static std::string format_man_markdown(const cached_man_entry &entry, const std:
 		if (entry.headers.size() > 3) {
 			mb.text(" ...");
 		}
-		mb.text("  ");
+		mb.newline();
 	}
-	mb.header("Decl:").link(std::format("man 3 {}", token), std::format("man:{}", token)).newline();
 	if (!entry.summary.empty()) {
 		mb.header("Summary:").text(entry.summary).newline();
 	}
@@ -599,6 +599,7 @@ inspector_result man_page_provider::query(const inspector_query &q)
 		if (cached->exists) {
 			res.score = inspector_scores::MAN_PAGE;
 			res.markdown = format_man_markdown(*cached, q.token);
+			res.title_addon = std::format("man 3 {}", q.token);
 			res.is_final = true;
 			return res;
 		}
@@ -657,6 +658,7 @@ void man_page_provider::query_async(const inspector_query &q,
 		if (entry.exists) {
 			res.score = inspector_scores::MAN_PAGE;
 			res.markdown = format_man_markdown(entry, q.token);
+			res.title_addon = std::format("man 3 {}", q.token);
 		} else {
 			res.score = inspector_scores::INVALID;
 		}

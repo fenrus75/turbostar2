@@ -32,7 +32,8 @@ class inspector_window : public window
 	void draw_content(bool cursor_only = false) const override;
 	void draw_border() const override;
 
-	void set_markdown(std::string_view markdown, int score = 0, std::string_view provider_name = "");
+	void set_markdown(std::string_view markdown, int score = 0, std::string_view provider_name = "",
+			  std::string_view title_addon = "");
 	void set_idle();
 	void set_resolving(const std::string &token);
 	void set_active_info(const std::string &token, const std::string &signature,
@@ -44,6 +45,7 @@ class inspector_window : public window
 	const std::string &get_markdown() const noexcept { return markdown_; }
 	int get_score() const noexcept { return score_; }
 	const std::string &get_provider_name() const noexcept { return provider_name_; }
+	const std::string &get_title_addon() const noexcept { return title_addon_; }
 
 	const std::string &get_token() const noexcept { return token_; }
 	const std::string &get_signature() const noexcept { return signature_; }
@@ -57,6 +59,7 @@ class inspector_window : public window
 	std::string markdown_;
 	int score_{0};
 	std::string provider_name_;
+	std::string title_addon_;
 
 	std::string token_;
 	std::string signature_;

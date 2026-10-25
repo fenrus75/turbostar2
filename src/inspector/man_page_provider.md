@@ -4,7 +4,8 @@
 - Provide authoritative signatures, argument prototypes, and one-sentence summaries for standard C and POSIX library functions directly from system manual pages in section 3 (`/usr/share/man/man3/`).
 - Seamlessly collapse multi-line prototypes with indentations into a clean, single-line signature fitting the Symbol Inspector companion window.
 - Extract concise summaries from the `.SH NAME` or `.SH DESCRIPTION` sections.
-- Extract required C header `#include` files (e.g. `<stdlib.h>`, `<unistd.h>`) directly from the synopsis and present them inline alongside the declaration reference.
+- Extract required C header `#include` files (e.g. `<stdlib.h>`, `<unistd.h>`) directly from the synopsis.
+- Suggest window title addons (`res.title_addon = "man 3 " + token`) so the source reference appears cleanly in the companion window title bar without consuming vertical body space.
 - Employ in-memory caching for sub-microsecond cache hits and negative caching for fast rejection of non-library tokens.
 - Handle both compressed (`.3.gz`) and uncompressed (`.3`) man pages, as well as symlinks and `.so` redirect directives.
 

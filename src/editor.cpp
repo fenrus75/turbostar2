@@ -2109,13 +2109,14 @@ void editor::handle_cursor_word_update(const editor_event &ev)
 		res_ev.priority = async_res.score;
 		res_ev.payload = async_res.markdown;
 		res_ev.target_binary = async_res.provider_name;
+		res_ev.title_addon = async_res.title_addon;
 		res_ev.utf8_char = std::to_string(req_id);
 		queue.push(res_ev);
 	});
 
 	insp_current_score_ = sync_res.score;
 	if (sync_res.score > inspector_scores::INVALID) {
-		inspector_win_->set_markdown(sync_res.markdown, sync_res.score, sync_res.provider_name);
+		inspector_win_->set_markdown(sync_res.markdown, sync_res.score, sync_res.provider_name, sync_res.title_addon);
 	} else {
 		inspector_win_->set_idle();
 	}
@@ -2145,7 +2146,7 @@ void editor::handle_inspector_provider_result(const editor_event &ev)
 
 	if (ev.priority >= insp_current_score_) {
 		insp_current_score_ = ev.priority;
-		inspector_win_->set_markdown(ev.payload, ev.priority, ev.target_binary);
+		inspector_win_->set_markdown(ev.payload, ev.priority, ev.target_binary, ev.title_addon);
 		global_queue_.push(event_type::redraw);
 	}
 }

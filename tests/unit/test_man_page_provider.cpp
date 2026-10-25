@@ -128,6 +128,7 @@ int main()
 			assert(sync_res.score == inspector_scores::MAN_PAGE);
 			assert(sync_res.markdown.find("printf") != std::string::npos);
 			assert(sync_res.markdown.find("<stdio.h>") != std::string::npos);
+			assert(sync_res.title_addon == "man 3 printf");
 		}
 	} else {
 		// Provisional response: test async query resolution
@@ -155,6 +156,7 @@ int main()
 		assert(async_res.markdown.find("printf") != std::string::npos);
 		assert(async_res.markdown.find("Signature:") != std::string::npos);
 		assert(async_res.markdown.find("<stdio.h>") != std::string::npos);
+		assert(async_res.title_addon == "man 3 printf");
 
 		// Now query again: must be an instant synchronous warm cache hit!
 		auto warm_res = provider.query(pos_q);
@@ -162,6 +164,7 @@ int main()
 		assert(warm_res.is_final == true);
 		assert(warm_res.markdown.find("printf") != std::string::npos);
 		assert(warm_res.markdown.find("<stdio.h>") != std::string::npos);
+		assert(warm_res.title_addon == "man 3 printf");
 	}
 
 	// Test execv (which is in a shared multi-function man page exec.3 with variable declarations)
@@ -185,6 +188,7 @@ int main()
 	assert(execv_res.score == inspector_scores::MAN_PAGE);
 	assert(execv_res.markdown.find("int execv(const char *path, char *const argv[]);") != std::string::npos);
 	assert(execv_res.markdown.find("Execute a file.") != std::string::npos);
+	assert(execv_res.title_addon == "man 3 execv");
 
 	std::cout << "Testing cache clearing..." << std::endl;
 	provider.clear_cache();

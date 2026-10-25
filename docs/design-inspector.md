@@ -60,6 +60,7 @@ struct inspector_result {
 	std::string provider_name;  ///< Identifier of the responding provider
 	int score{0};               ///< Confidence score (0..100). 0 = INVALID
 	std::string markdown;       ///< Markdown Lite formatted payload
+	std::string title_addon;    ///< Optional addon rendered in the window title bar
 	bool is_final{true};        ///< False if background async resolution is in progress
 };
 ```
@@ -142,18 +143,19 @@ The companion window parses Markdown Lite using a specialized single-pass scanne
 | `*text*` | Italic / Annotations | Cyan background (`COLOR_PAIR(17) \| A_UNDERLINE`) |
 | Plain text | Explanations, summaries | Black on Cyan (`COLOR_PAIR(17)`) |
 
-### Standard Field Layout
+### Standard Field Layout & Window Title Addons
 
-To fit comfortably inside a 4-to-6 line companion window (which provides 2 to 4 content lines), providers adhere to a standard 3-line layout:
+To fit comfortably inside a 4-to-6 line companion window (which provides 2 to 4 content lines), providers adhere to a standard 2-to-3 line layout:
 
 ```markdown
 **Signature:** `void qsort(void *base, size_t nmemb, size_t size, int (*compar)(const void *, const void *));`
-**Header:** `<stdlib.h>`  **Decl:** [man 3 qsort](man:qsort)
+**Header:** `<stdlib.h>`
 **Summary:** Sort an array.
 ```
 
+- **Title Bar**: The companion window top border displays `Inspector: <provider> (<score>) - <title_addon>` (e.g. `Inspector: man_pages (80) - man 3 qsort` or `Inspector: lsp (90) - src/editor.cpp:42`). This moves location / origin details out of the content body to save vertical real estate.
 - **Line 1**: Primary signature or expression type.
-- **Line 2**: Relevant header file(s) and declaration link.
+- **Line 2**: Relevant header file(s) (if applicable).
 - **Line 3**: Human-readable summary or diagnostics.
 
 ---

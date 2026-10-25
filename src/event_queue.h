@@ -184,6 +184,7 @@ struct editor_event {
 	bool auto_continue{true};
 	bool collect_performance{false};
 	std::string target_binary{};
+	std::string title_addon{};		  ///< Optional window title addon (e.g. from inspector provider)
 	std::string payload{};			  ///< General payload for complex events (like LSP results)
 	std::vector<text_range> highlight_ranges{}; ///< Payload for LSP highlights
 	std::vector<diagnostic_info> diagnostics{}; ///< Payload for LSP diagnostics

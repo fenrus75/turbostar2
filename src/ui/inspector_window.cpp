@@ -14,11 +14,13 @@ inspector_window::inspector_window(int id, int x, int y, int width, int height)
 	set_idle();
 }
 
-void inspector_window::set_markdown(std::string_view markdown, int score, std::string_view provider_name)
+void inspector_window::set_markdown(std::string_view markdown, int score, std::string_view provider_name,
+				    std::string_view title_addon)
 {
 	markdown_ = std::string(markdown);
 	score_ = score;
 	provider_name_ = std::string(provider_name);
+	title_addon_ = std::string(title_addon);
 
 	if (markdown_.empty() || score <= 0) {
 		state_ = inspector_state::idle;
@@ -34,6 +36,7 @@ void inspector_window::set_idle()
 	signature_.clear();
 	proposals_.clear();
 	location_.clear();
+	title_addon_.clear();
 	set_markdown("*[No symbol under cursor]*", 0, "");
 	state_ = inspector_state::idle;
 }
@@ -216,12 +219,20 @@ void inspector_window::draw_border() const
 	std::string current_title = get_displayed_title();
 	if (current_title.empty() || current_title == "TurboStar Inspector") {
 		if (!provider_name_.empty()) {
-			current_title = std::format("Inspector: {} ({})", provider_name_, score_);
+			if (!title_addon_.empty()) {
+				current_title = std::format("Inspector: {} ({}) - {}", provider_name_, score_, title_addon_);
+			} else {
+				current_title = std::format("Inspector: {} ({})", provider_name_, score_);
+			}
 		} else {
 			current_title = "TurboStar Inspector";
 		}
 	}
 	if (!current_title.empty()) {
+		int max_title_len = std::max(0, width_ - 8);
+		if (static_cast<int>(current_title.length()) > max_title_len && max_title_len > 3) {
+			current_title = current_title.substr(0, max_title_len - 3) + "...";
+		}
 		int title_x = x_ + (width_ - static_cast<int>(current_title.length())) / 2;
 		attron(COLOR_PAIR(title_pair) | A_BOLD);
 		mvprintw(y_, title_x - 1, " %s ", current_title.c_str());

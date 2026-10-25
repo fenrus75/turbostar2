@@ -118,6 +118,15 @@ int main()
 	insp.draw_border();
 	insp.draw_content(false);
 
+	std::cout << "Testing title addon formatting..." << std::endl;
+	insp.set_markdown("**Signature:** `void qsort()`", 80, "man", "man 3 qsort");
+	assert(insp.get_title_addon() == "man 3 qsort");
+	insp.draw_border();
+	insp.draw_content(false);
+
+	insp.set_idle();
+	assert(insp.get_title_addon().empty());
+
 	endwin();
 	std::cout << "inspector_window tests passed successfully!" << std::endl;
 	return 0;
