@@ -349,6 +349,7 @@ int main(int argc, char **argv)
 	init_pair(42, COLOR_YELLOW + 8,
 		  COLOR_BLUE + 8); // Syntax: Mouse Selected Keyword (Bright Yellow on Light Blue)
 	init_pair(43, COLOR_BLUE, COLOR_WHITE); // Inspector/Companion labels (Blue on Gray)
+	init_pair(44, COLOR_BLUE, COLOR_CYAN);  // Inspector/Companion labels (Dark Blue on Cyan)
 	init_pair(11, COLOR_WHITE + 8,
 		  COLOR_WHITE); // Dialog borders (Bright White on Gray)
 	init_pair(16, COLOR_YELLOW + 8,

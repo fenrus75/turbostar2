@@ -46,7 +46,10 @@ Based on the classic Turbo Pascal 7 interface, Turbostar uses the following prim
 | :--- | :--- | :--- | :--- | :--- |
 | **Dialog Background** | Black | Light Gray | 1 | Main dialog content area. |
 | **Dialog Borders** | Bright White | Light Gray | 11 | Double-line high-contrast borders. |
-| **Inspector Label** | Blue | Light Gray | 43 | Companion window field headers and labels. |
+| **Inspector Border** | Bright White | Cyan | 8 | Companion/watch window double-line borders. |
+| **Inspector Content** | Black | Cyan | 17 | Companion/watch window signatures and text. |
+| **Inspector Label** | Dark Blue | Cyan | 44 | Companion/watch window field headers. |
+| **Inspector Numbering** | Bright Yellow | Cyan | 18 | Companion/watch argument numbering. |
 | **Dialog Title** | Black | Light Gray | 1 | Centered on the top border. |
 | **Dialog Hotkeys** | Bright Yellow | Light Gray | 16 | Hotkeys for dialog elements. |
 | **Dialog Group Box** | Black | Cyan | 17 | Content within a group box. |
