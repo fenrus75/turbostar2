@@ -79,7 +79,8 @@ core_sources = files(
   'inspector/inspector_helpers.cpp',
   'inspector/fallback_provider.cpp',
   'inspector/lsp_provider.cpp',
-  'inspector/man_page_provider.cpp'
+  'inspector/man_page_provider.cpp',
+  'inspector/class_summary_provider.cpp'
 )
 
 

@@ -27,6 +27,7 @@
 #include "git_manager.h"
 #include "history_manager.h"
 #include "input_history_manager.h"
+#include "inspector/class_summary_provider.h"
 #include "inspector/fallback_provider.h"
 #include "inspector/lsp_provider.h"
 #include "inspector/man_page_provider.h"
@@ -123,6 +124,7 @@ editor::editor(editor_options opts)
 	input_history_manager::get_instance().load();
 
 	insp_coordinator_.register_provider(std::make_unique<fallback_inspector_provider>());
+	insp_coordinator_.register_provider(std::make_unique<turbostar::class_summary_provider>());
 	insp_coordinator_.register_provider(std::make_unique<man_page_provider>());
 	insp_coordinator_.register_provider(std::make_unique<lsp_inspector_provider>([this]() -> document * {
 		return get_active_doc().get();
@@ -2099,6 +2101,7 @@ void editor::handle_cursor_word_update(const editor_event &ev)
 	q.file_path = active_doc ? active_doc->get_filename() : "";
 	q.line = ev.mouse_y;
 	q.col = ev.mouse_x;
+	q.available_lines = inspector_win_ ? inspector_win_->get_content_height() : 3;
 	q.request_id = insp_coordinator_.next_request_id();
 	insp_current_req_id_ = q.request_id;
 

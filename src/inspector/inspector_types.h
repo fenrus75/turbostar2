@@ -13,6 +13,7 @@ struct inspector_query {
 	std::string token;
 	std::string line_text;
 	uint64_t request_id{0};
+	int available_lines{3};    ///< Number of usable content lines in companion window
 };
 
 /**
@@ -35,6 +36,7 @@ constexpr int INVALID = 0;           ///< Invalid result: must never be used or 
 constexpr int RESOLVING_HINT = 10;
 constexpr int FALLBACK_TOKEN = 15;
 constexpr int LSP_FALLBACK_TOKEN = 20;
+constexpr int CLASS_SUMMARY = 35;    ///< Class overview (methods/members) when specific signature is absent
 constexpr int LOCAL_SYMBOLS = 40;
 constexpr int GIT_BLAME = 50;
 constexpr int LSP_LOW_CONFIDENCE = 70; ///< LSP resolved without actual project path or to /usr/ (lower priority than man pages)

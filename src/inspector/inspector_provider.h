@@ -8,11 +8,12 @@
 
 # subclasses of inspector_provider
 
-| subclass                    | filename                          |
-| --------------------------- | --------------------------------- | 
-| fallback_inspector_provider | src/inspector/fallback_provider.h |
-| lsp_inspector_provider      | src/inspector/lsp_provider.h      |
-| man_page_provider           | src/inspector/man_page_provider.h |
+| subclass                    | filename                               |
+| --------------------------- | -------------------------------------- | 
+| class_summary_provider      | src/inspector/class_summary_provider.h |
+| fallback_inspector_provider | src/inspector/fallback_provider.h      |
+| lsp_inspector_provider      | src/inspector/lsp_provider.h           |
+| man_page_provider           | src/inspector/man_page_provider.h      |
 
 */
 

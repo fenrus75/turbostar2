@@ -38,6 +38,7 @@ This document describes the companion window architecture, the pluggable content
 | `src/inspector/inspector_provider.h` | Abstract base class `inspector_provider` defining `query()` and `query_async()`. |
 | `src/inspector/inspector_coordinator.{h,cpp}` | Central orchestrator: registers providers, queries them synchronously/asynchronously, and ranks results. |
 | `src/inspector/fallback_provider.{h,cpp}` | Baseline provider: handles idle state and fallback token echoing (score 15). |
+| `src/inspector/class_summary_provider.{h,cpp}` | Class summary provider: extracts key fields/methods for enclosing class or token (score 35). |
 | `src/inspector/lsp_provider.{h,cpp}` | LSP and clangd provider: fast-path call synthesizer analysis, async signature queries, and declaration path confidence scoring. |
 | `src/inspector/man_page_provider.{h,cpp}` | System man page provider: reads section 3 man pages (`/usr/share/man/man3/`), extracts clean prototypes, headers, and descriptions. |
 
@@ -54,6 +55,7 @@ struct inspector_query {
 	int line{0};                ///< 0-based document line
 	int col{0};                 ///< 0-based document column
 	std::string token;          ///< Identifier / symbol under the cursor
+	int available_lines{3};     ///< Number of usable content lines in companion window
 };
 
 struct inspector_result {
@@ -73,6 +75,7 @@ struct inspector_result {
 | `RESOLVING_HINT` | `10` | Provisional hint while an async provider resolves in background. |
 | `FALLBACK_TOKEN` | `15` | Default fallback echoing the token name under cursor. |
 | `LSP_FALLBACK_TOKEN` | `20` | Synthesized fallback from AST when LSP definition is absent. |
+| `CLASS_SUMMARY` | `35` | Class overview (member variables and methods) for enclosing class or type. |
 | `LOCAL_SYMBOLS` | `40` | Tag / local symbol table match. |
 | `GIT_BLAME` | `50` | Git blame / author attribution information. |
 | `LSP_LOW_CONFIDENCE`<br>`LSP_SYSTEM_HEADER` | `70` | LSP resolved to `/usr/include/` system headers or missing an actual project path. |
@@ -177,7 +180,13 @@ To fit comfortably inside a 4-to-6 line companion window (which provides 2 to 4 
 - **Async Path**: Dispatches background definition and signature queries via `tools::resolve_function_signature()`.
 - **Path Verification**: Uses `has_actual_project_path()` to inspect `declaration_location`. If missing, compiler-generated, or inside `/usr/` or `/opt/`, scores `70` (`LSP_SYSTEM_HEADER`). If pointing to a workspace file, scores `90` (`LSP_RESOLVED`).
 
-### 3. `fallback_inspector_provider` (`src/inspector/fallback_provider.h`)
+### 3. `class_summary_provider` (`src/inspector/class_summary_provider.h`)
+- **Score**: `35` (`CLASS_SUMMARY`).
+- **Behavior**: When cursor rests on a class or inside a member method, and specific signatures or man pages are unavailable, provides ambient overview of member variables and methods.
+- **Adaptive Height**: Automatically formats output across 2, 3, or 4 lines according to `q.available_lines`.
+- **Title Bar**: Emits `title_addon` (e.g. `class document (src/document.h)`) so the companion window top border displays class name and origin header.
+
+### 4. `fallback_inspector_provider` (`src/inspector/fallback_provider.h`)
 - **Score**: `15` (`FALLBACK_TOKEN`).
 - **Behavior**: If the cursor is on whitespace or an empty line, returns score `0` (`INVALID`) with `*[No symbol under cursor]*`. If over an identifier, echoes the token in code formatting (`` `token` ``).
 

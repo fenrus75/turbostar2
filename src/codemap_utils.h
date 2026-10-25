@@ -100,6 +100,34 @@ inline std::string find_matching_header_file(const std::string &impl_path, agent
 	return find_matching_header_file(impl_path);
 }
 
+struct class_member_info {
+	std::string name;
+	int kind{0}; ///< LSP symbol kind: 8/13/7 (field/property/variable), 6/12/9 (method/constructor)
+	int start_line{0};
+	int end_line{0};
+};
+
+struct class_summary_info {
+	std::string class_name;
+	std::string header_path;
+	std::vector<std::string> header_lines;
+	std::vector<class_member_info> fields;
+	std::vector<class_member_info> methods;
+};
+
+// Extracts member variables and methods for a class from a header file
+bool extract_class_members_from_header(const std::string &safe_header_path,
+				       const std::string &simple_class_name,
+				       class_summary_info &out_summary,
+				       agentlib::tool_context *ctx = nullptr);
+
+// Extracts a structured class summary (class name, header path, member variables, and member functions)
+// for a file at the specified line/col (or matching token_hint).
+bool extract_class_summary(const std::string &file_path, int line, int col,
+			   std::string_view token_hint,
+			   class_summary_info &out_summary,
+			   agentlib::tool_context *ctx = nullptr);
+
 // Extract mini class definition preview (referenced member variables and called member methods)
 std::string extract_class_context_preview(const std::string &cpp_path, int start_line, int end_line,
 					  const std::vector<std::string> &read_lines, agentlib::tool_context &ctx);
