@@ -195,7 +195,6 @@ std::string man_page_provider::extract_synopsis_prototype(std::string_view full_
 	// 1. Locate SYNOPSIS section
 	size_t syn_pos = full_md.find("SYNOPSIS");
 	if (syn_pos == std::string_view::npos) {
-		// Try lowercase
 		syn_pos = full_md.find("Synopsis");
 		if (syn_pos == std::string_view::npos) {
 			syn_pos = full_md.find("synopsis");
@@ -212,91 +211,92 @@ std::string man_page_provider::extract_synopsis_prototype(std::string_view full_
 	}
 	std::string_view syn_block = full_md.substr(line_end + 1);
 
-	// Find the end of SYNOPSIS (next section header '# ')
+	// Find the end of SYNOPSIS (next section header '\n# ')
 	size_t next_sec = syn_block.find("\n# ");
 	if (next_sec != std::string_view::npos) {
 		syn_block = syn_block.substr(0, next_sec);
 	}
 
-	// Split synopsis block into lines
-	std::vector<std::string_view> lines;
-	size_t pos = 0;
-	while (pos < syn_block.size()) {
-		size_t nl = syn_block.find('\n', pos);
-		if (nl == std::string_view::npos) {
-			lines.push_back(syn_block.substr(pos));
+	// 2. Search for token followed by '(' with word boundary before token
+	size_t t_pos = 0;
+	size_t match_pos = std::string_view::npos;
+	while ((t_pos = syn_block.find(token, t_pos)) != std::string_view::npos) {
+		bool boundary_before = (t_pos == 0 ||
+		                        (!std::isalnum(static_cast<unsigned char>(syn_block[t_pos - 1])) &&
+		                         syn_block[t_pos - 1] != '_'));
+		size_t after = t_pos + token.size();
+		while (after < syn_block.size() && (syn_block[after] == ' ' || syn_block[after] == '*' || syn_block[after] == '`')) {
+			after++;
+		}
+		bool is_call = (after < syn_block.size() && syn_block[after] == '(');
+
+		if (boundary_before && is_call) {
+			match_pos = t_pos;
 			break;
 		}
-		lines.push_back(syn_block.substr(pos, nl - pos));
-		pos = nl + 1;
+		t_pos += token.size();
 	}
 
-	// 2. Search for the line containing token as function call (token followed by '(')
-	int match_idx = -1;
-	for (size_t i = 0; i < lines.size(); ++i) {
-		std::string_view l = lines[i];
-		// Skip #include lines
-		if (l.find("#include") != std::string_view::npos) {
-			continue;
-		}
-
-		size_t t_pos = l.find(token);
-		while (t_pos != std::string_view::npos) {
-			bool boundary_before = (t_pos == 0 ||
-			                        (!std::isalnum(static_cast<unsigned char>(l[t_pos - 1])) &&
-			                         l[t_pos - 1] != '_'));
-			size_t after = t_pos + token.size();
-			while (after < l.size() && (l[after] == ' ' || l[after] == '*' || l[after] == '`')) {
-				after++;
-			}
-			bool is_call = (after < l.size() && l[after] == '(');
-
-			if (boundary_before && is_call) {
-				match_idx = static_cast<int>(i);
-				break;
-			}
-			t_pos = l.find(token, t_pos + 1);
-		}
-		if (match_idx >= 0) {
-			break;
-		}
-	}
-
-	if (match_idx < 0) {
+	if (match_pos == std::string_view::npos) {
 		return "";
 	}
 
-	// Check if the preceding line holds the return type
-	int start_idx = match_idx;
-	if (match_idx > 0) {
-		std::string_view prev = lines[match_idx - 1];
-		while (!prev.empty() && (prev.front() == ' ' || prev.front() == '\t')) {
-			prev.remove_prefix(1);
+	// 3. Scan backwards from match_pos to find the start of the declaration statement
+	size_t start_pos = match_pos;
+	while (start_pos > 0) {
+		char c = syn_block[start_pos - 1];
+		if (c == ';') {
+			// Found previous statement end
+			break;
 		}
-		if (!prev.empty() && prev.find("#include") == std::string_view::npos &&
-		    prev.back() != ';' && prev.back() != '{' && prev.back() != '>') {
-			start_idx = match_idx - 1;
+		if (c == '`') {
+			// If we hit backtick code fence "```"
+			if (start_pos >= 3 && syn_block.substr(start_pos - 3, 3) == "```") {
+				break;
+			}
+		}
+		start_pos--;
+	}
+
+	// If start_pos contains code fence language or #include, advance past it
+	std::string_view candidate = syn_block.substr(start_pos);
+	size_t inc_pos = candidate.find("#include");
+	if (inc_pos != std::string_view::npos && inc_pos < (match_pos - start_pos)) {
+		size_t inc_end = candidate.find('\n', inc_pos);
+		if (inc_end != std::string_view::npos && inc_end < (match_pos - start_pos)) {
+			start_pos += (inc_end + 1);
 		}
 	}
 
-	// Collect lines until semicolon is encountered
-	std::string collected;
-	for (size_t k = static_cast<size_t>(start_idx); k < lines.size(); ++k) {
-		std::string_view l = lines[k];
-		if (!collected.empty()) {
-			collected += '\n';
-		}
-		collected += l;
-		if (l.find(';') != std::string_view::npos) {
-			break;
-		}
-		// Safety stop if we hit an empty line or another function
-		if (k > static_cast<size_t>(match_idx) && l.empty()) {
+	// Skip any leading whitespace or newlines or code fence backticks
+	while (start_pos < match_pos) {
+		char c = syn_block[start_pos];
+		if (c == ' ' || c == '\t' || c == '\n' || c == '`' || c == '\r') {
+			start_pos++;
+		} else if (start_pos + 1 < match_pos && syn_block.substr(start_pos, 2) == "c\n") {
+			start_pos += 2;
+		} else {
 			break;
 		}
 	}
 
-	return collapse_prototype(collected);
+	// 4. Scan forwards from match_pos to find the terminating semicolon ';'
+	size_t semi_pos = syn_block.find(';', match_pos);
+	if (semi_pos == std::string_view::npos) {
+		semi_pos = syn_block.find(')', match_pos);
+		if (semi_pos != std::string_view::npos) {
+			semi_pos++;
+		}
+	} else {
+		semi_pos++; // include ';'
+	}
+
+	if (semi_pos != std::string_view::npos && semi_pos > start_pos) {
+		std::string_view raw = syn_block.substr(start_pos, semi_pos - start_pos);
+		return collapse_prototype(raw);
+	}
+
+	return "";
 }
 
 std::string man_page_provider::extract_short_description(std::string_view full_md, std::string_view token)

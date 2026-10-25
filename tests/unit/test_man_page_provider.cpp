@@ -114,6 +114,28 @@ int main()
 		assert(warm_res.markdown.find("printf") != std::string::npos);
 	}
 
+	// Test execv (which is in a shared multi-function man page exec.3 with variable declarations)
+	inspector_query execv_q;
+	execv_q.token = "execv";
+	std::mutex cv_execv_m;
+	std::condition_variable cv_execv;
+	bool execv_done = false;
+	inspector_result execv_res;
+	provider.query_async(execv_q, [&](inspector_result res) {
+		std::lock_guard<std::mutex> lk(cv_execv_m);
+		execv_done = true;
+		execv_res = res;
+		cv_execv.notify_one();
+	});
+	{
+		std::unique_lock<std::mutex> lk(cv_execv_m);
+		cv_execv.wait_for(lk, std::chrono::seconds(2), [&]() { return execv_done; });
+	}
+	assert(execv_done);
+	assert(execv_res.score == inspector_scores::MAN_PAGE);
+	assert(execv_res.markdown.find("int execv(const char *path, char *const argv[]);") != std::string::npos);
+	assert(execv_res.markdown.find("Execute a file.") != std::string::npos);
+
 	std::cout << "Testing cache clearing..." << std::endl;
 	provider.clear_cache();
 	assert(provider.cache_size() == 0);
