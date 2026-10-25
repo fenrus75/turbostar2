@@ -9,7 +9,7 @@ inspector_result fallback_inspector_provider::query(const inspector_query &q)
 	res.is_final = true;
 
 	if (q.token.empty()) {
-		res.score = inspector_scores::NONE;
+		res.score = inspector_scores::INVALID;
 		res.markdown = "*[No symbol under cursor]*";
 	} else {
 		res.score = inspector_scores::FALLBACK_TOKEN;

@@ -116,6 +116,14 @@ int main()
 	assert(best_normal.score == 15);
 	assert(best_normal.markdown == "`process_data`");
 
+	// Test score 0 is INVALID and never selected even if it is the only provider
+	inspector_coordinator invalid_test_coordinator;
+	invalid_test_coordinator.register_provider(std::make_unique<mock_diagnostic_provider>());
+	auto best_invalid = invalid_test_coordinator.query(normal_q, nullptr);
+	assert(best_invalid.score == inspector_scores::INVALID);
+	assert(best_invalid.provider_name == "none");
+	assert(best_invalid.markdown == "*[No symbol under cursor]*");
+
 	// For "deprecated_func", linter (score 95) must beat fallback (score 15)
 	inspector_query warning_q;
 	warning_q.token = "deprecated_func";

@@ -30,7 +30,7 @@ struct inspector_result {
  */
 namespace inspector_scores
 {
-constexpr int NONE = 0;
+constexpr int INVALID = 0;       ///< Invalid result: must never be used or displayed
 constexpr int RESOLVING_HINT = 10;
 constexpr int FALLBACK_TOKEN = 15;
 constexpr int LSP_FALLBACK_TOKEN = 20;

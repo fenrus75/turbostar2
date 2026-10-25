@@ -2112,7 +2112,11 @@ void editor::handle_cursor_word_update(const editor_event &ev)
 	});
 
 	insp_current_score_ = sync_res.score;
-	inspector_win_->set_markdown(sync_res.markdown, sync_res.score, sync_res.provider_name);
+	if (sync_res.score > inspector_scores::INVALID) {
+		inspector_win_->set_markdown(sync_res.markdown, sync_res.score, sync_res.provider_name);
+	} else {
+		inspector_win_->set_idle();
+	}
 	global_queue_.push(event_type::redraw);
 }
 
@@ -2120,6 +2124,10 @@ void editor::handle_inspector_provider_result(const editor_event &ev)
 {
 	if (!inspector_win_ || !inspector_enabled_ || !inspector_win_->is_visible()) {
 		return;
+	}
+
+	if (ev.priority <= inspector_scores::INVALID) {
+		return; // Ignore invalid results
 	}
 
 	uint64_t req_id = 0;

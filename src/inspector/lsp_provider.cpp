@@ -40,7 +40,7 @@ inspector_result lsp_inspector_provider::query(const inspector_query &q)
 	res.provider_name = "lsp";
 
 	if (q.token.empty()) {
-		res.score = inspector_scores::NONE;
+		res.score = inspector_scores::INVALID;
 		res.markdown = "*[No symbol under cursor]*";
 		res.is_final = true;
 		return res;

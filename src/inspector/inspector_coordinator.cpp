@@ -19,23 +19,26 @@ inspector_result inspector_coordinator::query(const inspector_query &q,
 	}
 
 	inspector_result highest_result;
-	highest_result.score = -1;
+	highest_result.score = inspector_scores::INVALID;
 
 	for (auto *p : prov_ptrs) {
 		auto res = p->query(q);
-		if (res.score > highest_result.score) {
+		// Score of INVALID (0 or lower) means: do not use this result under any circumstances
+		if (res.score > highest_result.score && res.score > inspector_scores::INVALID) {
 			highest_result = res;
 		}
 
 		if (!res.is_final && async_callback) {
 			p->query_async(q, [async_callback](inspector_result async_res) {
-				async_callback(async_res);
+				if (async_res.score > inspector_scores::INVALID) {
+					async_callback(async_res);
+				}
 			});
 		}
 	}
 
-	if (highest_result.score < 0) {
-		highest_result.score = inspector_scores::NONE;
+	if (highest_result.score <= inspector_scores::INVALID) {
+		highest_result.score = inspector_scores::INVALID;
 		highest_result.provider_name = "none";
 		highest_result.markdown = "*[No symbol under cursor]*";
 		highest_result.is_final = true;
