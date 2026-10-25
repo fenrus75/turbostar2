@@ -10,6 +10,7 @@
 struct cached_man_entry {
 	bool exists{false};
 	std::string signature;
+	std::vector<std::string> headers;
 	std::string summary;
 	std::string file_path;
 };
@@ -34,6 +35,7 @@ class man_page_provider : public inspector_provider
 	// Helper parsers (public static for testing and reuse)
 	static std::string collapse_prototype(std::string_view raw_proto);
 	static std::string extract_synopsis_prototype(std::string_view full_md, std::string_view token);
+	static std::vector<std::string> extract_synopsis_headers(std::string_view full_md, std::string_view token = "");
 	static std::string extract_short_description(std::string_view full_md, std::string_view token);
 
       private:

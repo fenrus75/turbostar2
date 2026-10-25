@@ -356,6 +356,105 @@ std::string man_page_provider::extract_synopsis_prototype(std::string_view full_
 	return "";
 }
 
+std::vector<std::string> man_page_provider::extract_synopsis_headers(std::string_view full_md, std::string_view token)
+{
+	std::vector<std::string> headers;
+	if (full_md.empty()) {
+		return headers;
+	}
+
+	// 1. Locate SYNOPSIS section
+	size_t syn_pos = full_md.find("SYNOPSIS");
+	if (syn_pos == std::string_view::npos) {
+		syn_pos = full_md.find("Synopsis");
+		if (syn_pos == std::string_view::npos) {
+			syn_pos = full_md.find("synopsis");
+		}
+	}
+	if (syn_pos == std::string_view::npos) {
+		return headers;
+	}
+
+	size_t line_end = full_md.find('\n', syn_pos);
+	if (line_end == std::string_view::npos) {
+		return headers;
+	}
+	std::string_view syn_block = full_md.substr(line_end + 1);
+	size_t next_sec = syn_block.find("\n# ");
+	if (next_sec != std::string_view::npos) {
+		syn_block = syn_block.substr(0, next_sec);
+	}
+
+	// 2. If token is specified, narrow scope to before the token if #include appears before it
+	std::string_view scope = syn_block;
+	if (!token.empty()) {
+		size_t t_pos = 0;
+		while ((t_pos = syn_block.find(token, t_pos)) != std::string_view::npos) {
+			bool boundary_before = (t_pos == 0 ||
+			                        (!std::isalnum(static_cast<unsigned char>(syn_block[t_pos - 1])) &&
+			                         syn_block[t_pos - 1] != '_'));
+			size_t after = t_pos + token.size();
+			while (after < syn_block.size() && (syn_block[after] == ' ' || syn_block[after] == '*' || syn_block[after] == '`')) {
+				after++;
+			}
+			bool is_call = (after < syn_block.size() && syn_block[after] == '(');
+			if (boundary_before && is_call) {
+				std::string_view before = syn_block.substr(0, t_pos);
+				if (before.find("#include") != std::string_view::npos) {
+					scope = before;
+				}
+				break;
+			}
+			t_pos += token.size();
+		}
+	}
+
+	// 3. Search for #include and extract <header> or "header"
+	size_t inc_pos = 0;
+	while ((inc_pos = scope.find("#include", inc_pos)) != std::string_view::npos) {
+		size_t line_limit = scope.find('\n', inc_pos);
+		if (line_limit == std::string_view::npos) {
+			line_limit = scope.size();
+		}
+		std::string_view line = scope.substr(inc_pos, line_limit - inc_pos);
+
+		// Look for '<' ... '>' or '"' ... '"'
+		size_t angle_open = line.find('<');
+		size_t quote_open = line.find('"');
+
+		std::string extracted;
+		if (angle_open != std::string_view::npos) {
+			size_t angle_close = line.find('>', angle_open + 1);
+			if (angle_close != std::string_view::npos) {
+				extracted = std::string(line.substr(angle_open, angle_close - angle_open + 1));
+			}
+		} else if (quote_open != std::string_view::npos) {
+			size_t quote_close = line.find('"', quote_open + 1);
+			if (quote_close != std::string_view::npos) {
+				extracted = std::string(line.substr(quote_open, quote_close - quote_open + 1));
+			}
+		}
+
+		if (!extracted.empty()) {
+			// Strip any inner backticks or asterisks
+			std::string cleaned;
+			for (char c : extracted) {
+				if (c != '`' && c != '*') {
+					cleaned += c;
+				}
+			}
+			if (cleaned.size() >= 3 &&
+			    std::find(headers.begin(), headers.end(), cleaned) == headers.end()) {
+				headers.push_back(std::move(cleaned));
+			}
+		}
+
+		inc_pos = line_limit;
+	}
+
+	return headers;
+}
+
 std::string man_page_provider::extract_short_description(std::string_view full_md, std::string_view token)
 {
 	(void)token;
@@ -451,6 +550,7 @@ cached_man_entry man_page_provider::parse_man_page(const std::string &file_path,
 	if (!proto.empty()) {
 		entry.exists = true;
 		entry.signature = std::move(proto);
+		entry.headers = extract_synopsis_headers(md, token);
 		entry.summary = extract_short_description(md, token);
 	}
 
@@ -461,10 +561,23 @@ static std::string format_man_markdown(const cached_man_entry &entry, const std:
 {
 	inspector::markdown_builder mb;
 	mb.header("Signature:").code(entry.signature).newline();
+	if (!entry.headers.empty()) {
+		mb.header(entry.headers.size() > 1 ? "Headers:" : "Header:");
+		for (size_t i = 0; i < entry.headers.size() && i < 3; ++i) {
+			if (i > 0) {
+				mb.text(" ");
+			}
+			mb.code(entry.headers[i]);
+		}
+		if (entry.headers.size() > 3) {
+			mb.text(" ...");
+		}
+		mb.text("  ");
+	}
+	mb.header("Decl:").link(std::format("man 3 {}", token), std::format("man:{}", token)).newline();
 	if (!entry.summary.empty()) {
 		mb.header("Summary:").text(entry.summary).newline();
 	}
-	mb.header("Decl:").link(std::format("man 3 {}", token), std::format("man:{}", token));
 	return mb.build();
 }
 

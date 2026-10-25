@@ -70,6 +70,37 @@ int main()
 	std::string desc = man_page_provider::extract_short_description(sample_md, "printf");
 	assert(desc == "Formatted output conversion.");
 
+	std::cout << "Testing synopsis header extraction..." << std::endl;
+	auto qsort_hdrs = man_page_provider::extract_synopsis_headers(qsort_md, "qsort");
+	assert(qsort_hdrs.size() == 1);
+	assert(qsort_hdrs[0] == "<stdlib.h>");
+
+	std::string multi_hdr_md =
+	    "# SYNOPSIS\n"
+	    "#include <sys/types.h>\n"
+	    "#include <unistd.h>\n"
+	    "#include <sys/types.h>\n\n"
+	    "pid_t fork(void);\n";
+	auto multi_hdrs = man_page_provider::extract_synopsis_headers(multi_hdr_md, "fork");
+	assert(multi_hdrs.size() == 2);
+	assert(multi_hdrs[0] == "<sys/types.h>");
+	assert(multi_hdrs[1] == "<unistd.h>");
+
+	std::string interleaved_hdr_md =
+	    "# SYNOPSIS\n"
+	    "#include <err.h>\n\n"
+	    "void warn(const char *fmt, ...);\n\n"
+	    "#include <stdarg.h>\n\n"
+	    "void vwarn(const char *fmt, va_list args);\n";
+	auto warn_hdrs = man_page_provider::extract_synopsis_headers(interleaved_hdr_md, "warn");
+	assert(warn_hdrs.size() == 1);
+	assert(warn_hdrs[0] == "<err.h>");
+
+	auto vwarn_hdrs = man_page_provider::extract_synopsis_headers(interleaved_hdr_md, "vwarn");
+	assert(vwarn_hdrs.size() == 2);
+	assert(vwarn_hdrs[0] == "<err.h>");
+	assert(vwarn_hdrs[1] == "<stdarg.h>");
+
 	std::cout << "Testing live man page provider resolution and caching..." << std::endl;
 	man_page_provider provider("/usr/share/man/man3");
 	assert(provider.name() == "man");
@@ -96,6 +127,7 @@ int main()
 		if (sync_res.score > 0) {
 			assert(sync_res.score == inspector_scores::MAN_PAGE);
 			assert(sync_res.markdown.find("printf") != std::string::npos);
+			assert(sync_res.markdown.find("<stdio.h>") != std::string::npos);
 		}
 	} else {
 		// Provisional response: test async query resolution
@@ -122,12 +154,14 @@ int main()
 		assert(async_res.score == inspector_scores::MAN_PAGE);
 		assert(async_res.markdown.find("printf") != std::string::npos);
 		assert(async_res.markdown.find("Signature:") != std::string::npos);
+		assert(async_res.markdown.find("<stdio.h>") != std::string::npos);
 
 		// Now query again: must be an instant synchronous warm cache hit!
 		auto warm_res = provider.query(pos_q);
 		assert(warm_res.score == inspector_scores::MAN_PAGE);
 		assert(warm_res.is_final == true);
 		assert(warm_res.markdown.find("printf") != std::string::npos);
+		assert(warm_res.markdown.find("<stdio.h>") != std::string::npos);
 	}
 
 	// Test execv (which is in a shared multi-function man page exec.3 with variable declarations)

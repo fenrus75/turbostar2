@@ -243,7 +243,7 @@ Turbostar features an ambient, opt-in companion window docked at the bottom of t
   - Content providers reside in `src/inspector/` completely decoupled from ncurses and the UI rendering pipeline.
   - Providers inherit from `inspector_provider` and utilize `inspector::markdown_builder` to format Markdown Lite payloads.
   - Standardized scoring tiers (`inspector_scores::FALLBACK_TOKEN = 15`, `LOCAL_SYMBOLS = 40`, `GIT_BLAME = 50`, `LSP_SYSTEM_HEADER = 70`, `MAN_PAGE = 80`, `LSP_RESOLVED = 90`, `DIAGNOSTIC_WARNING = 92`, `DIAGNOSTIC_ERROR = 98`) govern display priority. System header declarations (`/usr/include/`) or declarations without an actual project path score 70 to yield priority to man pages.
-  - Built-in providers include `lsp_inspector_provider`, `man_page_provider` (reading and caching section 3 man pages with collapsed prototypes and descriptions), and `fallback_inspector_provider`.
+  - Built-in providers include `lsp_inspector_provider`, `man_page_provider` (reading and caching section 3 man pages with collapsed prototypes, required include headers, and descriptions), and `fallback_inspector_provider`.
   - The `inspector_coordinator` ranks providers synchronously and renders content from the highest-scoring provider.
   - Providers supporting asynchronous resolution (e.g. LSP or remote LLMs) return a provisional response (`is_final = false`), resolve in the background on detached threads, and notify the main loop via `inspector_provider_result`. Stale responses are automatically discarded via monotonic request IDs (`inspector_query::request_id`).
 - **Markdown Lite Rendering**:
