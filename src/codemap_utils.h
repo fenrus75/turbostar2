@@ -121,6 +121,17 @@ bool extract_class_members_from_header(const std::string &safe_header_path,
 				       class_summary_info &out_summary,
 				       agentlib::tool_context *ctx = nullptr);
 
+// Extracts enclosing class summary at a given 0-based editor line (pure local codemap, 0ms)
+bool extract_enclosing_class_summary(const std::string &file_path, int line,
+				     class_summary_info &out_summary,
+				     agentlib::tool_context *ctx = nullptr);
+
+// Extracts class summary for a specific token or variable at (line, col) via type definition/LSP
+bool extract_token_class_summary(const std::string &file_path, int line, int col,
+				 std::string_view token,
+				 class_summary_info &out_summary,
+				 agentlib::tool_context *ctx = nullptr);
+
 // Extracts a structured class summary (class name, header path, member variables, and member functions)
 // for a file at the specified line/col (or matching token_hint).
 bool extract_class_summary(const std::string &file_path, int line, int col,

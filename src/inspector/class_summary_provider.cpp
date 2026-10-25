@@ -141,7 +141,7 @@ inspector_result class_summary_provider::query(const inspector_query &q)
 	inspector_result res;
 	res.provider_name = "class_summary";
 
-	if (q.file_path.empty() || !is_supported_cxx_file(q.file_path)) {
+	if (q.file_path.empty() || q.token.empty() || !is_supported_cxx_file(q.file_path)) {
 		res.score = inspector_scores::INVALID;
 		res.is_final = true;
 		return res;
@@ -151,7 +151,7 @@ inspector_result class_summary_provider::query(const inspector_query &q)
 	auto cached = lookup_cache(key);
 	if (cached.has_value()) {
 		if (cached->exists) {
-			res.score = inspector_scores::CLASS_SUMMARY;
+			res.score = inspector_scores::CLASS_TOKEN;
 			res.markdown = format_summary_markdown(cached->summary, q.available_lines);
 			res.title_addon = std::format("class {} ({})", cached->summary.class_name,
 						      fs_utils::make_relative_to_project(cached->summary.header_path));
@@ -163,8 +163,7 @@ inspector_result class_summary_provider::query(const inspector_query &q)
 		return res;
 	}
 
-	res.score = inspector_scores::RESOLVING_HINT;
-	res.markdown = std::format("`{}` *[inspecting class...]*", q.token.empty() ? "class" : q.token);
+	res.score = inspector_scores::INVALID;
 	res.is_final = false;
 	return res;
 }
@@ -172,7 +171,7 @@ inspector_result class_summary_provider::query(const inspector_query &q)
 void class_summary_provider::query_async(const inspector_query &q,
 					 std::function<void(inspector_result)> callback)
 {
-	if (q.file_path.empty() || !is_supported_cxx_file(q.file_path)) {
+	if (q.file_path.empty() || q.token.empty() || !is_supported_cxx_file(q.file_path)) {
 		if (callback) {
 			inspector_result res;
 			res.provider_name = "class_summary";
@@ -190,7 +189,7 @@ void class_summary_provider::query_async(const inspector_query &q,
 			inspector_result res;
 			res.provider_name = "class_summary";
 			if (cached->exists) {
-				res.score = inspector_scores::CLASS_SUMMARY;
+				res.score = inspector_scores::CLASS_TOKEN;
 				res.markdown = format_summary_markdown(cached->summary, q.available_lines);
 				res.title_addon = std::format("class {} ({})", cached->summary.class_name,
 							      fs_utils::make_relative_to_project(cached->summary.header_path));
@@ -205,7 +204,7 @@ void class_summary_provider::query_async(const inspector_query &q,
 
 	std::thread([this, q, key, callback]() {
 		tools::class_summary_info summary;
-		bool ok = tools::extract_class_summary(q.file_path, q.line, q.col, q.token, summary);
+		bool ok = tools::extract_token_class_summary(q.file_path, q.line, q.col, q.token, summary);
 
 		cached_class_summary entry;
 		entry.exists = ok;
@@ -218,7 +217,7 @@ void class_summary_provider::query_async(const inspector_query &q,
 			inspector_result res;
 			res.provider_name = "class_summary";
 			if (ok) {
-				res.score = inspector_scores::CLASS_SUMMARY;
+				res.score = inspector_scores::CLASS_TOKEN;
 				res.markdown = format_summary_markdown(summary, q.available_lines);
 				res.title_addon = std::format("class {} ({})", summary.class_name,
 							      fs_utils::make_relative_to_project(summary.header_path));

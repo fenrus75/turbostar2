@@ -28,6 +28,7 @@
 #include "history_manager.h"
 #include "input_history_manager.h"
 #include "inspector/class_summary_provider.h"
+#include "inspector/enclosing_class_provider.h"
 #include "inspector/fallback_provider.h"
 #include "inspector/lsp_provider.h"
 #include "inspector/man_page_provider.h"
@@ -124,6 +125,7 @@ editor::editor(editor_options opts)
 	input_history_manager::get_instance().load();
 
 	insp_coordinator_.register_provider(std::make_unique<fallback_inspector_provider>());
+	insp_coordinator_.register_provider(std::make_unique<turbostar::enclosing_class_provider>());
 	insp_coordinator_.register_provider(std::make_unique<turbostar::class_summary_provider>());
 	insp_coordinator_.register_provider(std::make_unique<man_page_provider>());
 	insp_coordinator_.register_provider(std::make_unique<lsp_inspector_provider>([this]() -> document * {

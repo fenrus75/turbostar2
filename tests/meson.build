@@ -881,6 +881,12 @@ test_class_summary_provider = executable('test_class_summary_provider',
   include_directories: inc)
 test('unit_test_class_summary_provider', test_class_summary_provider, suite: 'editor')
 
+test_enclosing_class_provider = executable('test_enclosing_class_provider',
+  ['unit/test_enclosing_class_provider.cpp'],
+  dependencies : [agent_dep, core_dep, ui_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_enclosing_class_provider', test_enclosing_class_provider, suite: 'editor')
+
 
 
 test_kill_subagent = executable('test_kill_subagent',

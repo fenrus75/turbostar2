@@ -96,10 +96,9 @@ int main()
 		q.available_lines = 3;
 
 		auto res = prov.query(q);
-		assert(res.score == inspector_scores::RESOLVING_HINT);
 		assert(!res.is_final);
 
-		// Async query resolves to CLASS_SUMMARY
+		// Async query resolves to CLASS_TOKEN (35)
 		std::mutex mtx;
 		std::condition_variable cv;
 		bool resolved = false;
@@ -126,12 +125,12 @@ int main()
 		assert(cached_res.title_addon == async_res.title_addon);
 	}
 
-	// Querying from an implementation file (.cpp) inside a method
+	// Querying a class token from an implementation file (.cpp)
 	{
 		inspector_query q;
 		q.file_path = "src/document.cpp";
 		q.line = 408;
-		q.token = "restore_cursor_state";
+		q.token = "document";
 		q.available_lines = 4;
 
 		std::mutex mtx;

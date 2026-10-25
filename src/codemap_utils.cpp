@@ -1366,10 +1366,9 @@ bool extract_class_members_from_header(const std::string &safe_header_path,
 	return true;
 }
 
-bool extract_class_summary(const std::string &file_path, int line, int col,
-			   std::string_view token_hint,
-			   class_summary_info &out_summary,
-			   agentlib::tool_context *ctx)
+bool extract_enclosing_class_summary(const std::string &file_path, int line,
+				     class_summary_info &out_summary,
+				     agentlib::tool_context *ctx)
 {
 	if (file_path.empty()) {
 		return false;
@@ -1378,56 +1377,45 @@ bool extract_class_summary(const std::string &file_path, int line, int col,
 	std::string ext = utf8::to_lower(ip.extension().string());
 	bool is_header = (ext == ".h" || ext == ".hpp" || ext == ".hh" || ext == ".hxx");
 	bool is_cpp = (ext == ".cpp" || ext == ".c" || ext == ".cc" || ext == ".cxx");
-
-	std::string simple_class_name;
-
-	// Priority 1: Enclosing symbol at line
-	if (line > 0) {
-		std::vector<codemap_symbol_info> symbols;
-		if (ctx) {
-			symbols = get_document_codemap_symbols(file_path, *ctx, 1);
-		} else {
-			symbols = get_document_codemap_symbols(file_path, 1);
-		}
-		const codemap_symbol_info *enclosing = find_enclosing_symbol(symbols, line);
-		if (enclosing) {
-			std::string enclosing_name = enclosing->name;
-			size_t last_colons = enclosing_name.rfind("::");
-			if (last_colons != std::string::npos) {
-				std::string class_scope = enclosing_name.substr(0, last_colons);
-				size_t prev_colons = class_scope.rfind("::");
-				simple_class_name = (prev_colons != std::string::npos) ? class_scope.substr(prev_colons + 2) : class_scope;
-			} else if (enclosing->kind_str == "Class" || enclosing->kind_str == "Struct" || enclosing->kind_str == "Class/Struct") {
-				simple_class_name = enclosing_name;
-			}
-		}
+	if (!is_header && !is_cpp) {
+		return false;
 	}
 
-	// Priority 2: Hint from token_hint
-	if (simple_class_name.empty() && !token_hint.empty()) {
-		std::string hint(token_hint);
-		size_t colons = hint.rfind("::");
-		if (colons != std::string::npos) {
-			std::string class_scope = hint.substr(0, colons);
+	// Line from editor is 0-based; codemap_symbol_info start_line / end_line are 1-based!
+	int line_1based = line + 1;
+	std::vector<codemap_symbol_info> symbols;
+	if (ctx) {
+		symbols = get_document_codemap_symbols(file_path, *ctx, 1);
+	} else {
+		symbols = get_document_codemap_symbols(file_path, 1);
+	}
+
+	const codemap_symbol_info *enclosing = find_enclosing_symbol(symbols, line_1based);
+	std::string simple_class_name;
+	if (enclosing) {
+		std::string enclosing_name = enclosing->name;
+		size_t last_colons = enclosing_name.rfind("::");
+		if (last_colons != std::string::npos) {
+			std::string class_scope = enclosing_name.substr(0, last_colons);
 			size_t prev_colons = class_scope.rfind("::");
 			simple_class_name = (prev_colons != std::string::npos) ? class_scope.substr(prev_colons + 2) : class_scope;
-		} else {
-			simple_class_name = hint;
+		} else if (enclosing->kind_str == "Class" || enclosing->kind_str == "Struct" || enclosing->kind_str == "Class/Struct") {
+			simple_class_name = enclosing_name;
 		}
 	}
 
-	// Priority 3: Scan current line for Class::
-	if (simple_class_name.empty() && is_cpp && line > 0) {
+	// Fallback scan of the current line if in cpp and simple_class_name was not resolved
+	if (simple_class_name.empty() && is_cpp && line >= 0) {
 		std::string line_content;
 		if (ctx && ctx->doc_provider && ctx->doc_provider->get_open_document(file_path)) {
 			auto doc = ctx->doc_provider->get_open_document(file_path);
-			if (line <= static_cast<int>(doc->get_line_count())) {
-				line_content = doc->get_line_text(line - 1);
+			if (line < static_cast<int>(doc->get_line_count())) {
+				line_content = doc->get_line_text(line);
 			}
 		} else {
 			std::ifstream f(file_path);
 			std::string l;
-			int cur = 1;
+			int cur = 0;
 			while (cur <= line && std::getline(f, l)) {
 				if (cur == line) {
 					line_content = l;
@@ -1450,25 +1438,11 @@ bool extract_class_summary(const std::string &file_path, int line, int col,
 		return false;
 	}
 
-	// Locate header file
 	std::string safe_header_path;
 	if (is_header) {
 		safe_header_path = file_path;
 	} else {
-		int lsp_line = line > 0 ? line - 1 : 0;
-		int lsp_col = col >= 0 ? col : 0;
-		auto locs = project_manager::get_instance().lsp_query_definition(file_path, lsp_line, lsp_col);
-		for (const auto &loc : locs) {
-			std::filesystem::path lp(loc.path);
-			std::string lext = utf8::to_lower(lp.extension().string());
-			if (lext == ".h" || lext == ".hpp" || lext == ".hh" || lext == ".hxx") {
-				safe_header_path = loc.path;
-				break;
-			}
-		}
-		if (safe_header_path.empty()) {
-			safe_header_path = find_matching_header_file(file_path);
-		}
+		safe_header_path = find_matching_header_file(file_path);
 	}
 
 	if (safe_header_path.empty() || !is_project_file(safe_header_path) || !fs_utils::is_regular_file(safe_header_path)) {
@@ -1476,6 +1450,109 @@ bool extract_class_summary(const std::string &file_path, int line, int col,
 	}
 
 	return extract_class_members_from_header(safe_header_path, simple_class_name, out_summary, ctx);
+}
+
+bool extract_token_class_summary(const std::string &file_path, int line, int col,
+				 std::string_view token,
+				 class_summary_info &out_summary,
+				 agentlib::tool_context *ctx)
+{
+	if (file_path.empty() || token.empty()) {
+		return false;
+	}
+
+	// Ignore common C++ keywords or literals
+	static const std::unordered_set<std::string_view> keywords = {
+	    "if", "else", "for", "while", "do", "switch", "case", "default", "return",
+	    "break", "continue", "goto", "try", "catch", "throw", "const", "static",
+	    "constexpr", "virtual", "override", "final", "public", "protected", "private",
+	    "inline", "explicit", "friend", "template", "typename", "using", "namespace",
+	    "auto", "void", "int", "bool", "char", "float", "double", "true", "false",
+	    "nullptr", "NULL", "sizeof", "new", "delete", "this"
+	};
+	if (keywords.contains(token)) {
+		return false;
+	}
+
+	std::filesystem::path ip(file_path);
+	std::string ext = utf8::to_lower(ip.extension().string());
+	bool is_header = (ext == ".h" || ext == ".hpp" || ext == ".hh" || ext == ".hxx");
+	bool is_cpp = (ext == ".cpp" || ext == ".c" || ext == ".cc" || ext == ".cxx");
+	if (!is_header && !is_cpp) {
+		return false;
+	}
+
+	std::string token_str(token);
+	std::string class_name = token_str;
+	std::string header_path;
+
+	// 1. Check type_definition_cache directly
+	auto type_entry = type_definition_cache::get_instance().lookup(token_str);
+	if (type_entry && type_entry->state == type_cache_state::resolved && !type_entry->safe_file_path.empty()) {
+		header_path = type_entry->safe_file_path;
+		class_name = type_entry->type_name;
+	}
+
+	// 2. Query LSP type definition (especially effective when cursor is on a variable or field)
+	if (header_path.empty()) {
+		int lsp_line = std::max(0, line);
+		int lsp_col = std::max(0, col);
+		auto locs = project_manager::get_instance().lsp_query_type_definition(file_path, lsp_line, lsp_col);
+		for (const auto &loc : locs) {
+			if (!loc.path.empty() && is_project_file(loc.path) && fs_utils::is_regular_file(loc.path)) {
+				header_path = loc.path;
+				std::vector<codemap_symbol_info> header_symbols;
+				header_symbols = get_document_codemap_symbols(header_path, 1);
+				const codemap_symbol_info *sym = find_enclosing_symbol(header_symbols, loc.range.start_y + 1);
+				if (sym && (sym->kind_str == "Class" || sym->kind_str == "Struct" || sym->kind_str == "Class/Struct")) {
+					class_name = sym->name;
+				}
+				break;
+			}
+		}
+	}
+
+	// 3. Query LSP normal definition (effective when cursor is directly on a class/struct name)
+	if (header_path.empty()) {
+		int lsp_line = std::max(0, line);
+		int lsp_col = std::max(0, col);
+		auto locs = project_manager::get_instance().lsp_query_definition(file_path, lsp_line, lsp_col);
+		for (const auto &loc : locs) {
+			std::filesystem::path lp(loc.path);
+			std::string lext = utf8::to_lower(lp.extension().string());
+			if (lext == ".h" || lext == ".hpp" || lext == ".hh" || lext == ".hxx") {
+				if (is_project_file(loc.path) && fs_utils::is_regular_file(loc.path)) {
+					header_path = loc.path;
+					break;
+				}
+			}
+		}
+	}
+
+	// 4. If still empty and file is a header or has matching header, check if token exists as a class in that header
+	if (header_path.empty()) {
+		std::string cand_header = is_header ? file_path : find_matching_header_file(file_path);
+		if (!cand_header.empty() && is_project_file(cand_header) && fs_utils::is_regular_file(cand_header)) {
+			header_path = cand_header;
+		}
+	}
+
+	if (header_path.empty() || !is_project_file(header_path) || !fs_utils::is_regular_file(header_path)) {
+		return false;
+	}
+
+	return extract_class_members_from_header(header_path, class_name, out_summary, ctx);
+}
+
+bool extract_class_summary(const std::string &file_path, int line, int col,
+			   std::string_view token_hint,
+			   class_summary_info &out_summary,
+			   agentlib::tool_context *ctx)
+{
+	if (!token_hint.empty() && extract_token_class_summary(file_path, line, col, token_hint, out_summary, ctx)) {
+		return true;
+	}
+	return extract_enclosing_class_summary(file_path, line, out_summary, ctx);
 }
 
 std::string extract_class_context_preview(const std::string &cpp_path, int start_line, int end_line,
