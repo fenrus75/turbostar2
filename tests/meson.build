@@ -863,6 +863,12 @@ test_inspector_window = executable('test_inspector_window',
   include_directories: inc)
 test('unit_test_inspector_window', test_inspector_window, suite: 'editor')
 
+test_inspector_provider = executable('test_inspector_provider',
+  ['unit/test_inspector_provider.cpp'],
+  dependencies : [agent_dep, core_dep, ui_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_inspector_provider', test_inspector_provider, suite: 'editor')
+
 
 
 test_kill_subagent = executable('test_kill_subagent',

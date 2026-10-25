@@ -76,6 +76,48 @@ int main()
 	assert(insp.get_width() == 100);
 	assert(insp.get_height() == 6);
 
+	std::cout << "Testing Markdown Lite line parsing..." << std::endl;
+	auto toks = inspector_window::parse_markdown_line("**Signature:** `int foo(int x)`");
+	assert(!toks.empty());
+	assert(toks[0].text == "Signature:");
+	assert(toks[0].color_pair == 8);
+	assert((toks[0].attr & A_BOLD) != 0);
+
+	auto num_toks = inspector_window::parse_markdown_line("**Args:** 1. `x`: value  2. `y`: count");
+	bool found_num1 = false;
+	bool found_num2 = false;
+	for (const auto &t : num_toks) {
+		if (t.text == "1.") {
+			found_num1 = true;
+			assert(t.color_pair == 18);
+			assert((t.attr & A_BOLD) != 0);
+		}
+		if (t.text == "2.") {
+			found_num2 = true;
+			assert(t.color_pair == 18);
+			assert((t.attr & A_BOLD) != 0);
+		}
+	}
+	assert(found_num1 && found_num2);
+
+	auto link_toks = inspector_window::parse_markdown_line("**Decl:** [src/main.cpp:42](file:///src/main.cpp)");
+	bool found_link = false;
+	for (const auto &t : link_toks) {
+		if (t.text == "src/main.cpp:42") {
+			found_link = true;
+			assert(t.color_pair == 8);
+		}
+	}
+	assert(found_link);
+
+	std::cout << "Testing set_markdown and rendering..." << std::endl;
+	insp.set_markdown("**Title:** `Test`\n1. First  2. Second\n**Decl:** src/test.cpp:1", 85, "custom");
+	assert(insp.get_score() == 85);
+	assert(insp.get_provider_name() == "custom");
+	assert(insp.get_state() == inspector_state::active);
+	insp.draw_border();
+	insp.draw_content(false);
+
 	endwin();
 	std::cout << "inspector_window tests passed successfully!" << std::endl;
 	return 0;

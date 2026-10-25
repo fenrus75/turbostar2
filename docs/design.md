@@ -238,12 +238,23 @@ To provide contextual diff and line navigation awareness without breaking Turbos
 ## Symbol Inspector Companion Window
 
 Turbostar features an ambient, opt-in companion window docked at the bottom of the workspace (`Alt+I` / `Tools -> Symbol Inspector`):
-- **Ambient Context**: Live displays signature, synthesized call arguments/proposals, and declaration location of the symbol/call currently under the cursor.
+- **Ambient Context**: Live displays signature, synthesized call arguments/proposals, declaration location, diagnostics, or AI context for the symbol/call currently under the cursor.
+- **Pluggable Content Providers & Dynamic Scoring**:
+  - Content is supplied by pluggable `inspector_provider` implementations (`lsp_inspector_provider`, `fallback_inspector_provider`, and extensible custom/LLM providers).
+  - Each provider returns a quality score (0–100) and a Markdown Lite string. The `inspector_coordinator` ranks providers synchronously and renders content from the highest-scoring provider.
+  - Providers supporting asynchronous resolution (e.g. LSP or remote LLMs) return a provisional response (`is_final = false`), resolve in the background on detached threads, and notify the main loop via `inspector_provider_result`. Stale responses are automatically discarded via monotonic request IDs (`inspector_query::request_id`).
+- **Markdown Lite Rendering**:
+  - The companion window parses Markdown Lite directly without curses dependencies in providers:
+    - `**bold**`: Rendered in Bright White on Cyan (`COLOR_PAIR(8) | A_BOLD`) for field headers (`Signature:`, `Args:`, `Decl:`).
+    - `` `code` ``: Rendered in Black on Cyan (`COLOR_PAIR(17)`).
+    - `*italic*`: Rendered in Dim White on Cyan (`COLOR_PAIR(8) | A_DIM`) or Bright Yellow for resolving notices (`*[resolving...]*`).
+    - `1. `, `2. ` / `- `: Rendered in Bright Yellow on Cyan (`COLOR_PAIR(18) | A_BOLD`) for parameter numbers and bullet items.
+    - `[label](target)`: Rendered in Bright White on Cyan for declaration paths.
 - **Graduated Motion Policy**:
   - *Mild Motion* (< 1 sec): The inspector freezes its previous content to eliminate visual flicker as the user navigates.
   - *Sustained Motion* (>= 1 sec): Blanked/dimmed during continuous rapid scrolling to prevent peripheral distractions.
-  - *Stationary Resolution*: After 250ms debounce of inactivity, cached/builtin signatures resolve immediately (< 0.1ms); uncached symbols display a subtle `[resolving...]` state and resolve asynchronously via detached background threads, notifying the main UI via `lsp_inspector_result` without GUI latency.
-- **Layout & Sizing**: Defaults to 4–6 rows scaled with screen height (`LINES >= 45 ? 6 : (LINES >= 35 ? 5 : 4)`), and is user-resizable via mouse border dragging.
+  - *Stationary Resolution*: After 200–250ms debounce of inactivity, cached/builtin signatures resolve immediately (< 0.1ms); uncached symbols display a subtle `[resolving...]` state and resolve asynchronously via detached background threads without GUI latency.
+- **Layout & Sizing**: Defaults to 4–6 rows scaled with screen height (`LINES >= 45 ? 6 : (LINES >= 35 ? 5 : 4)`), and is user-resizable via mouse border dragging. When open, document windows automatically shrink to `total_h = LINES - 2 - insp_h` to prevent cursors from typing behind the companion window.
 
 ## Testing and Diagnostics
 

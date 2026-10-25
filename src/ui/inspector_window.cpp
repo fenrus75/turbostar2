@@ -1,52 +1,209 @@
 #include "ui/inspector_window.h"
 #include <algorithm>
+#include <cctype>
 #include <format>
 #include <ncurses.h>
 #include "ui/ui_element.h"
 
 inspector_window::inspector_window(int id, int x, int y, int width, int height)
-    : window(id, x, y, width, height, " Inspector ")
+    : window(id, x, y, width, height, "TurboStar Inspector")
 {
-	background_color_pair_ = 17; // Cyan background (Pair 17: Black on Cyan)
+	background_color_pair_ = 17; // Borland Cyan background (Pair 17: Black on Cyan)
 	set_bypass_global_shortcuts(true);
+	set_visible(false);
+	set_idle();
+}
+
+void inspector_window::set_markdown(std::string_view markdown, int score, std::string_view provider_name)
+{
+	markdown_ = std::string(markdown);
+	score_ = score;
+	provider_name_ = std::string(provider_name);
+
+	if (markdown_.empty() || score <= 0) {
+		state_ = inspector_state::idle;
+	} else if (state_ != inspector_state::blanked) {
+		state_ = inspector_state::active;
+	}
+	invalidate();
 }
 
 void inspector_window::set_idle()
 {
-	state_ = inspector_state::idle;
 	token_.clear();
 	signature_.clear();
 	proposals_.clear();
 	location_.clear();
-	invalidate();
+	set_markdown("*[No symbol under cursor]*", 0, "");
+	state_ = inspector_state::idle;
 }
 
 void inspector_window::set_resolving(const std::string &token)
 {
-	state_ = inspector_state::resolving;
 	token_ = token;
 	signature_.clear();
 	proposals_.clear();
 	location_.clear();
-	invalidate();
+	set_markdown(std::format("`{}` *[resolving...]*", token), 10, "lsp");
+	state_ = inspector_state::resolving;
 }
 
 void inspector_window::set_active_info(const std::string &token, const std::string &signature,
 				       const std::vector<turbostar::call_suggestion> &proposals,
 				       const std::string &location)
 {
-	state_ = inspector_state::active;
 	token_ = token;
 	signature_ = signature;
 	proposals_ = proposals;
 	location_ = location;
-	invalidate();
+
+	std::string md;
+	std::string disp_sig = signature.empty() ? token : signature;
+	md += std::format("**Signature:** `{}`\n", disp_sig);
+
+	if (!proposals.empty()) {
+		md += "**Args:** ";
+		for (size_t i = 0; i < proposals.size() && i < 3; ++i) {
+			if (i > 0) {
+				md += "  ";
+			}
+			md += std::format("{}. `{}`", i + 1, proposals[i].call_text);
+		}
+		md += "\n";
+	}
+
+	if (!location.empty()) {
+		md += std::format("**Decl:** `{}`\n", location);
+	}
+
+	set_markdown(md, 90, "lsp");
+	state_ = inspector_state::active;
 }
 
 void inspector_window::set_blanked()
 {
 	state_ = inspector_state::blanked;
 	invalidate();
+}
+
+std::vector<markdown_token> inspector_window::parse_markdown_line(std::string_view line)
+{
+	std::vector<markdown_token> tokens;
+	if (line.empty()) {
+		return tokens;
+	}
+
+	size_t i = 0;
+	bool in_bold = false;
+	bool in_italic = false;
+	bool in_code = false;
+	std::string current;
+
+	auto flush = [&](int override_pair = -1, int override_attr = -1) {
+		if (current.empty()) {
+			return;
+		}
+		markdown_token tok;
+		tok.text = current;
+		if (override_pair != -1) {
+			tok.color_pair = override_pair;
+			tok.attr = override_attr != -1 ? override_attr : 0;
+		} else if (in_bold) {
+			tok.color_pair = 8;
+			tok.attr = A_BOLD;
+		} else if (in_italic) {
+			if (current.find("resolving") != std::string::npos) {
+				tok.color_pair = 18;
+				tok.attr = A_BOLD;
+			} else {
+				tok.color_pair = 8;
+				tok.attr = A_DIM;
+			}
+		} else if (in_code) {
+			tok.color_pair = 17;
+			tok.attr = 0;
+		} else {
+			tok.color_pair = 17;
+			tok.attr = 0;
+		}
+		tokens.push_back(std::move(tok));
+		current.clear();
+	};
+
+	while (i < line.size()) {
+		// Bold: ** or __
+		if (!in_code && i + 1 < line.size() &&
+		    ((line[i] == '*' && line[i + 1] == '*') || (line[i] == '_' && line[i + 1] == '_'))) {
+			flush();
+			in_bold = !in_bold;
+			i += 2;
+			continue;
+		}
+
+		// Inline code: `
+		if (line[i] == '`') {
+			flush();
+			in_code = !in_code;
+			i += 1;
+			continue;
+		}
+
+		// Italic: * or _ (when not bold)
+		if (!in_code && !in_bold && (line[i] == '*' || line[i] == '_')) {
+			flush();
+			in_italic = !in_italic;
+			i += 1;
+			continue;
+		}
+
+		// Numbered list item: e.g. "1. " or "2. " (at start of line or preceded by space)
+		if (!in_code && !in_bold && !in_italic) {
+			bool at_boundary = (i == 0 || line[i - 1] == ' ');
+			if (at_boundary && std::isdigit(static_cast<unsigned char>(line[i]))) {
+				size_t j = i;
+				while (j < line.size() && std::isdigit(static_cast<unsigned char>(line[j]))) {
+					j++;
+				}
+				if (j < line.size() && line[j] == '.' &&
+				    (j + 1 == line.size() || line[j + 1] == ' ')) {
+					flush();
+					current = std::string(line.substr(i, j - i + 1));
+					flush(18, A_BOLD); // Bright Yellow
+					i = j + 1;
+					continue;
+				}
+			} else if (at_boundary && (line[i] == '-' || line[i] == '*') &&
+				   (i + 1 < line.size() && line[i + 1] == ' ')) {
+				flush();
+				current = std::string(line.substr(i, 1));
+				flush(18, A_BOLD); // Bright Yellow bullet
+				i += 1;
+				continue;
+			}
+		}
+
+		// Link syntax: [text](url) -> render 'text' highlighted
+		if (!in_code && line[i] == '[') {
+			size_t close_bracket = line.find(']', i + 1);
+			if (close_bracket != std::string_view::npos && close_bracket + 1 < line.size() &&
+			    line[close_bracket + 1] == '(') {
+				size_t close_paren = line.find(')', close_bracket + 2);
+				if (close_paren != std::string_view::npos) {
+					flush();
+					current = std::string(line.substr(i + 1, close_bracket - (i + 1)));
+					flush(8, A_BOLD);
+					i = close_paren + 1;
+					continue;
+				}
+			}
+		}
+
+		current += line[i];
+		i++;
+	}
+
+	flush();
+	return tokens;
 }
 
 void inspector_window::draw_border() const
@@ -57,6 +214,13 @@ void inspector_window::draw_border() const
 	ui_utils::draw_border(x_, y_, width_, height_, ui_utils::border_style::double_line, border_pair);
 
 	std::string current_title = get_displayed_title();
+	if (current_title.empty() || current_title == "TurboStar Inspector") {
+		if (!provider_name_.empty()) {
+			current_title = std::format("Inspector: {} ({})", provider_name_, score_);
+		} else {
+			current_title = "TurboStar Inspector";
+		}
+	}
 	if (!current_title.empty()) {
 		int title_x = x_ + (width_ - static_cast<int>(current_title.length())) / 2;
 		attron(COLOR_PAIR(title_pair) | A_BOLD);
@@ -83,8 +247,8 @@ void inspector_window::draw_content(bool cursor_only) const
 
 	// Fill background (Pair 17: Black on Cyan)
 	attron(COLOR_PAIR(background_color_pair_));
-	for (int i = 1; i < height_ - 1; ++i) {
-		mvhline(y_ + i, x_ + 1, ' ', width_ - 2);
+	for (int row = y_ + 1; row < y_ + height_ - 1; ++row) {
+		mvhline(row, x_ + 1, ' ', width_ - 2);
 	}
 
 	if (state_ == inspector_state::blanked) {
@@ -98,94 +262,59 @@ void inspector_window::draw_content(bool cursor_only) const
 		return;
 	}
 
-	if (state_ == inspector_state::idle) {
-		attron(COLOR_PAIR(8) | A_DIM); // Subtle white on cyan
-		mvprintw(y_ + 1, x_ + 2, "%.*s", content_w - 2, "[No symbol under cursor]");
-		attroff(COLOR_PAIR(8) | A_DIM);
+	if (markdown_.empty()) {
 		attroff(COLOR_PAIR(background_color_pair_));
 		return;
 	}
 
-	if (state_ == inspector_state::resolving) {
-		attron(COLOR_PAIR(17) | A_BOLD); // Black on cyan
-		mvprintw(y_ + 1, x_ + 2, "%.*s", content_w - 2, token_.c_str());
-		attroff(COLOR_PAIR(17) | A_BOLD);
-		int token_len = static_cast<int>(token_.size());
-		if (content_w - 4 - token_len > 0) {
-			attron(COLOR_PAIR(18) | A_BOLD); // Bright yellow on cyan
-			mvprintw(y_ + 1, x_ + 2 + token_len + 1, "[resolving...]");
-			attroff(COLOR_PAIR(18) | A_BOLD);
+	// Split markdown into lines
+	std::vector<std::string_view> lines;
+	std::string_view remaining = markdown_;
+	while (!remaining.empty()) {
+		size_t pos = remaining.find('\n');
+		if (pos == std::string_view::npos) {
+			lines.push_back(remaining);
+			break;
 		}
-		attroff(COLOR_PAIR(background_color_pair_));
-		return;
+		lines.push_back(remaining.substr(0, pos));
+		remaining.remove_prefix(pos + 1);
 	}
 
-	// Active state:
-	// Line 1: Signature or token
 	int curr_y = y_ + 1;
-	attron(COLOR_PAIR(8) | A_BOLD); // High-contrast Bright White on Cyan
-	mvprintw(curr_y, x_ + 2, "Signature: ");
-	attroff(COLOR_PAIR(8) | A_BOLD);
-	int label_w = 11;
-	attron(COLOR_PAIR(17)); // Black on cyan
-	std::string disp_sig = signature_.empty() ? token_ : signature_;
-	if (content_w - label_w > 0) {
-		mvprintw(curr_y, x_ + 2 + label_w, "%.*s", content_w - label_w - 2, disp_sig.c_str());
-	}
-	attroff(COLOR_PAIR(17));
+	int max_y = y_ + height_ - 2;
 
-	// Line 2: Proposals (call arguments) or location if proposals empty
-	if (height_ >= 4) {
-		curr_y++;
-		if (!proposals_.empty()) {
-			attron(COLOR_PAIR(8) | A_BOLD); // High-contrast Bright White on Cyan
-			mvprintw(curr_y, x_ + 2, "Args: ");
-			attroff(COLOR_PAIR(8) | A_BOLD);
-			int args_label_w = 6;
-			int cur_col = x_ + 2 + args_label_w;
-			for (size_t i = 0; i < proposals_.size() && i < 3; ++i) {
-				if (cur_col >= x_ + content_w) {
-					break;
-				}
-				if (i > 0) {
-					attron(COLOR_PAIR(17));
-					mvaddstr(curr_y, cur_col, "  ");
-					attroff(COLOR_PAIR(17));
-					cur_col += 2;
-				}
-				std::string num_str = std::format("{}.", i + 1);
-				attron(COLOR_PAIR(18) | A_BOLD); // Bright yellow on cyan
-				mvaddstr(curr_y, cur_col, num_str.c_str());
-				attroff(COLOR_PAIR(18) | A_BOLD);
-				cur_col += static_cast<int>(num_str.size());
-
-				attron(COLOR_PAIR(17)); // Black on cyan
-				mvaddch(curr_y, cur_col, ' ');
-				cur_col++;
-				int rem_w = std::max(0, (x_ + content_w) - cur_col);
-				mvprintw(curr_y, cur_col, "%.*s", rem_w, proposals_[i].call_text.c_str());
-				attroff(COLOR_PAIR(17));
-				cur_col += std::min(rem_w, static_cast<int>(proposals_[i].call_text.size()));
-			}
-		} else if (!location_.empty()) {
-			attron(COLOR_PAIR(8) | A_BOLD);
-			mvprintw(curr_y, x_ + 2, "Decl: ");
-			attroff(COLOR_PAIR(8) | A_BOLD);
-			attron(COLOR_PAIR(17));
-			mvprintw(curr_y, x_ + 8, "%.*s", content_w - 8, location_.c_str());
-			attroff(COLOR_PAIR(17));
+	for (const auto &raw_line : lines) {
+		if (curr_y > max_y) {
+			break;
 		}
-	}
 
-	// Line 3 (if height >= 5): Declaration location
-	if (height_ >= 5 && !proposals_.empty() && !location_.empty()) {
+		auto tokens = parse_markdown_line(raw_line);
+		int cur_col = x_ + 2;
+		int max_col = x_ + content_w;
+
+		for (const auto &tok : tokens) {
+			if (cur_col >= max_col) {
+				break;
+			}
+			int rem_w = max_col - cur_col;
+			int tok_len = static_cast<int>(tok.text.size());
+
+			attron(COLOR_PAIR(tok.color_pair) | tok.attr);
+			if (tok_len <= rem_w) {
+				mvaddstr(curr_y, cur_col, tok.text.c_str());
+				cur_col += tok_len;
+			} else {
+				if (rem_w > 3) {
+					mvprintw(curr_y, cur_col, "%.*s...", rem_w - 3, tok.text.c_str());
+				} else {
+					mvprintw(curr_y, cur_col, "%.*s", rem_w, tok.text.c_str());
+				}
+				cur_col = max_col;
+			}
+			attroff(COLOR_PAIR(tok.color_pair) | tok.attr);
+		}
+
 		curr_y++;
-		attron(COLOR_PAIR(8) | A_BOLD); // High-contrast Bright White on Cyan
-		mvprintw(curr_y, x_ + 2, "Decl: ");
-		attroff(COLOR_PAIR(8) | A_BOLD);
-		attron(COLOR_PAIR(17)); // Black on cyan
-		mvprintw(curr_y, x_ + 8, "%.*s", content_w - 8, location_.c_str());
-		attroff(COLOR_PAIR(17));
 	}
 
 	attroff(COLOR_PAIR(background_color_pair_));

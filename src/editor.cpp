@@ -118,6 +118,11 @@ editor::editor(editor_options opts)
 	last_mtime_check_time_ = std::chrono::steady_clock::now();
 	history_manager::get_instance().load();
 	input_history_manager::get_instance().load();
+
+	insp_coordinator_.register_provider(std::make_unique<fallback_inspector_provider>());
+	insp_coordinator_.register_provider(std::make_unique<lsp_inspector_provider>([this]() -> document * {
+		return get_active_doc().get();
+	}));
 	current_search_.query = session_manager::get_instance().get_last_search_query();
 	current_search_.replacement = session_manager::get_instance().get_last_replace_query();
 	git_manager::get_instance().start(global_queue_);
@@ -2072,6 +2077,7 @@ void editor::handle_cursor_word_update(const editor_event &ev)
 		if (inspector_win_->get_state() != inspector_state::idle) {
 			insp_current_token_.clear();
 			inspector_win_->set_idle();
+			insp_current_score_ = 0;
 			global_queue_.push(event_type::redraw);
 		}
 		return;
@@ -2084,59 +2090,56 @@ void editor::handle_cursor_word_update(const editor_event &ev)
 	insp_current_token_ = std::string(token);
 
 	auto active_doc = get_active_doc();
-	if (!active_doc) {
-		inspector_win_->set_idle();
-		global_queue_.push(event_type::redraw);
-		return;
-	}
+	inspector_query q;
+	q.token = std::string(token);
+	q.file_path = active_doc ? active_doc->get_filename() : "";
+	q.line = ev.mouse_y;
+	q.col = ev.mouse_x;
+	q.request_id = insp_coordinator_.next_request_id();
+	insp_current_req_id_ = q.request_id;
 
-	auto ctx = turbostar::call_synthesizer::analyze_context_at(*active_doc, ev.mouse_y, ev.mouse_x, false);
-	if (ctx.is_resolved) {
-		inspector_win_->set_active_info(ctx.token, ctx.type_synopsis, ctx.suggestions, ctx.declaration_location);
-		global_queue_.push(event_type::redraw);
-		return;
-	}
-
-	inspector_win_->set_resolving(ctx.token);
-	global_queue_.push(event_type::redraw);
-
-	std::string req_token = ctx.token;
-	std::string doc_path = active_doc->get_filename();
-	int req_line = ev.mouse_y;
-	int req_col = ev.mouse_x;
 	auto &queue = global_queue_;
-
-	std::thread([req_token, doc_path, req_line, req_col, &queue]() {
-		auto sig = tools::resolve_function_signature(doc_path, req_line, req_col, req_token);
+	auto sync_res = insp_coordinator_.query(q, [&queue, req_id = q.request_id](inspector_result async_res) {
 		editor_event res_ev;
-		res_ev.type = event_type::lsp_inspector_result;
-		res_ev.target_binary = doc_path;
-		res_ev.mouse_x = req_col;
-		res_ev.mouse_y = req_line;
-		res_ev.payload = req_token;
-		if (sig) {
-			res_ev.utf8_char = sig->raw_signature;
-		}
+		res_ev.type = event_type::inspector_provider_result;
+		res_ev.priority = async_res.score;
+		res_ev.payload = async_res.markdown;
+		res_ev.target_binary = async_res.provider_name;
+		res_ev.utf8_char = std::to_string(req_id);
 		queue.push(res_ev);
-	}).detach();
+	});
+
+	insp_current_score_ = sync_res.score;
+	inspector_win_->set_markdown(sync_res.markdown, sync_res.score, sync_res.provider_name);
+	global_queue_.push(event_type::redraw);
 }
 
-void editor::handle_lsp_inspector_result(const editor_event &ev)
+void editor::handle_inspector_provider_result(const editor_event &ev)
 {
 	if (!inspector_win_ || !inspector_enabled_ || !inspector_win_->is_visible()) {
 		return;
 	}
 
-	if (ev.payload != insp_current_token_) {
+	uint64_t req_id = 0;
+	try {
+		req_id = std::stoull(ev.utf8_char);
+	} catch (...) {
 		return;
 	}
 
-	auto active_doc = get_active_doc();
-	if (!active_doc) {
-		return;
+	if (req_id != insp_current_req_id_) {
+		return; // Discard stale response
 	}
 
-	auto ctx = turbostar::call_synthesizer::analyze_context_at(*active_doc, ev.mouse_y, ev.mouse_x, false);
-	inspector_win_->set_active_info(ctx.token, ctx.type_synopsis, ctx.suggestions, ctx.declaration_location);
-	global_queue_.push(event_type::redraw);
+	if (ev.priority >= insp_current_score_) {
+		insp_current_score_ = ev.priority;
+		inspector_win_->set_markdown(ev.payload, ev.priority, ev.target_binary);
+		global_queue_.push(event_type::redraw);
+	}
+}
+
+void editor::handle_lsp_inspector_result(const editor_event &ev)
+{
+	// Forwarding to unified provider handler for backwards compatibility
+	handle_inspector_provider_result(ev);
 }

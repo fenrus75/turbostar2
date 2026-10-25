@@ -127,6 +127,7 @@ enum class event_type {
 	toggle_symbol_inspector,    ///< Request to toggle the symbol inspector companion window
 	cursor_word_update,	    ///< Editor window event reporting current word under cursor regularly
 	lsp_inspector_result,	    ///< LSP resolution result for inspector window
+	inspector_provider_result,  ///< Pluggable provider resolution result for companion inspector window
 	run_on_main		    ///< Internal: execute a callable on the main UI thread (generic_promise carries a std::packaged_task)
 };
 

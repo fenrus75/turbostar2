@@ -19,6 +19,7 @@
 #include "ui/status_bar.h"
 #include "ui/terminal_window.h"
 #include "ui/inspector_window.h"
+#include "ui/inspector_provider.h"
 
 namespace agentlib
 {
@@ -175,6 +176,7 @@ class editor : public agentlib::document_provider
 	void toggle_symbol_inspector();
 	void handle_cursor_word_update(const editor_event &ev);
 	void handle_lsp_inspector_result(const editor_event &ev);
+	void handle_inspector_provider_result(const editor_event &ev);
 	void resolve_dialog(dialog_result res);
 
 	// Executes the given lambda on the MAIN UI thread, blocking the caller until it
@@ -244,6 +246,9 @@ class editor : public agentlib::document_provider
 	int insp_last_cursor_x_{-1};
 	int insp_last_cursor_y_{-1};
 	std::string insp_current_token_{};
+	inspector_coordinator insp_coordinator_;
+	int insp_current_score_{0};
+	uint64_t insp_current_req_id_{0};
 
 	focus_target current_focus_{focus_target::window};
 	enum class input_mode { normal, k_block, q_block, p_block, searching, search_options, going_to_line, inline_agent, vim, replace_prompt, replace_query };

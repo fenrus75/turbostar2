@@ -246,6 +246,9 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::lsp_inspector_result:
 			dispatch_event_lsp(ev);
 			break;
+		case event_type::inspector_provider_result:
+			handle_inspector_provider_result(ev);
+			break;
 		case event_type::cursor_word_update:
 			handle_cursor_word_update(ev);
 			break;
