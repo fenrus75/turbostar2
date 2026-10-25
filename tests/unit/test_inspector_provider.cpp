@@ -102,15 +102,23 @@ int main()
 	assert(lsp_res_pending.is_final == false);
 	assert(lsp_res_pending.markdown.find("resolving") != std::string::npos);
 
-	std::cout << "Testing lsp_inspector_provider::is_system_declaration..." << std::endl;
+	std::cout << "Testing lsp_inspector_provider::has_actual_project_path..." << std::endl;
+	assert(!lsp_inspector_provider::has_actual_project_path(""));
+	assert(!lsp_inspector_provider::has_actual_project_path("<built-in>"));
+	assert(!lsp_inspector_provider::has_actual_project_path("<compiler-generated>"));
+	assert(!lsp_inspector_provider::has_actual_project_path("unresolved_symbol_name"));
+	assert(!lsp_inspector_provider::has_actual_project_path("/usr/include/stdlib.h"));
+	assert(!lsp_inspector_provider::has_actual_project_path("/usr/include/x86_64-linux-gnu/bits/stdlib.h"));
+	assert(!lsp_inspector_provider::has_actual_project_path("file:///usr/include/stdio.h"));
+	assert(!lsp_inspector_provider::has_actual_project_path("/opt/rh/devtoolset/root/usr/include/c++/11/vector"));
+	assert(lsp_inspector_provider::has_actual_project_path("/home/arjan/turbostar2/src/main.cpp"));
+	assert(lsp_inspector_provider::has_actual_project_path("src/core.cpp"));
+	assert(lsp_inspector_provider::has_actual_project_path("file:///home/arjan/turbostar2/src/core.h:10"));
+
+	assert(lsp_inspector_provider::is_system_declaration(""));
+	assert(lsp_inspector_provider::is_system_declaration("<built-in>"));
 	assert(lsp_inspector_provider::is_system_declaration("/usr/include/stdlib.h"));
-	assert(lsp_inspector_provider::is_system_declaration("/usr/include/x86_64-linux-gnu/bits/stdlib.h"));
-	assert(lsp_inspector_provider::is_system_declaration("file:///usr/include/stdio.h"));
-	assert(lsp_inspector_provider::is_system_declaration("/opt/rh/devtoolset/root/usr/include/c++/11/vector"));
 	assert(!lsp_inspector_provider::is_system_declaration("/home/arjan/turbostar2/src/main.cpp"));
-	assert(!lsp_inspector_provider::is_system_declaration("src/core.cpp"));
-	assert(!lsp_inspector_provider::is_system_declaration(""));
-	assert(!lsp_inspector_provider::is_system_declaration("<built-in>"));
 
 	assert(inspector_scores::LSP_SYSTEM_HEADER == 70);
 	assert(inspector_scores::MAN_PAGE == 80);

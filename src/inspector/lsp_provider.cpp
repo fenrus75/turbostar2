@@ -11,16 +11,31 @@ lsp_inspector_provider::lsp_inspector_provider(std::function<document *()> activ
 {
 }
 
-bool lsp_inspector_provider::is_system_declaration(std::string_view loc)
+bool lsp_inspector_provider::has_actual_project_path(std::string_view loc)
 {
-	if (loc.empty() || loc == "<built-in>") {
+	while (!loc.empty() && (loc.front() == ' ' || loc.front() == '\t')) {
+		loc.remove_prefix(1);
+	}
+	while (!loc.empty() && (loc.back() == ' ' || loc.back() == '\t')) {
+		loc.remove_suffix(1);
+	}
+	if (loc.empty() || loc.starts_with("<")) {
 		return false;
 	}
 	if (loc.starts_with("/usr/") || loc.starts_with("/opt/") ||
 	    loc.starts_with("file:///usr/") || loc.starts_with("file:///opt/")) {
-		return true;
+		return false;
 	}
-	return loc.find("/usr/include/") != std::string_view::npos;
+	if (loc.find("/usr/include/") != std::string_view::npos) {
+		return false;
+	}
+	// An actual path must contain a directory separator
+	return loc.find('/') != std::string_view::npos || loc.find('\\') != std::string_view::npos;
+}
+
+bool lsp_inspector_provider::is_system_declaration(std::string_view loc)
+{
+	return !has_actual_project_path(loc);
 }
 
 static std::string format_context_markdown(const turbostar::context_menu_data &ctx)
@@ -62,9 +77,9 @@ inspector_result lsp_inspector_provider::query(const inspector_query &q)
 	if (doc) {
 		auto ctx = turbostar::call_synthesizer::analyze_context_at(*doc, q.line, q.col, false);
 		if (ctx.is_resolved) {
-			res.score = is_system_declaration(ctx.declaration_location) ?
-			                inspector_scores::LSP_SYSTEM_HEADER :
-			                inspector_scores::LSP_RESOLVED;
+			res.score = has_actual_project_path(ctx.declaration_location) ?
+			                inspector_scores::LSP_RESOLVED :
+			                inspector_scores::LSP_SYSTEM_HEADER;
 			res.markdown = format_context_markdown(ctx);
 			res.is_final = true;
 			return res;
@@ -94,9 +109,9 @@ void lsp_inspector_provider::query_async(const inspector_query &q,
 		res.is_final = true;
 
 		if (sig) {
-			res.score = is_system_declaration(sig->declaration_location) ?
-			                inspector_scores::LSP_SYSTEM_HEADER :
-			                inspector_scores::LSP_RESOLVED;
+			res.score = has_actual_project_path(sig->declaration_location) ?
+			                inspector_scores::LSP_RESOLVED :
+			                inspector_scores::LSP_SYSTEM_HEADER;
 			inspector::markdown_builder mb;
 			mb.header("Signature:").code(sig->raw_signature).newline();
 

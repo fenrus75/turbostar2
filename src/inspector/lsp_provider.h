@@ -18,6 +18,7 @@ class lsp_inspector_provider : public inspector_provider
 	inspector_result query(const inspector_query &q) override;
 	void query_async(const inspector_query &q, std::function<void(inspector_result)> callback) override;
 
+	static bool has_actual_project_path(std::string_view loc);
 	static bool is_system_declaration(std::string_view loc);
 
       private:
