@@ -156,6 +156,11 @@ void editor::dispatch_event_lsp(const editor_event &ev)
 		return;
 	}
 
+	if (ev.type == event_type::lsp_inspector_result) {
+		handle_lsp_inspector_result(ev);
+		return;
+	}
+
 	if (ev.type == event_type::lsp_signature_result) {
 		auto payload = std::static_pointer_cast<turbostar::lsp_signature_payload>(ev.generic_promise);
 		if (!payload || payload->generation != rmb_menu_generation_ || !active_popup_) {

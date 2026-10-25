@@ -156,6 +156,7 @@ ui_sources = files(
   'ui/diff_window.cpp',
   'ui/crashdump_window.cpp',
   'ui/code_review_window.cpp',
+  'ui/inspector_window.cpp',
   'ui/ansi_terminal_emulator.cpp',
   'ui/terminal_window.cpp',
   'ui/ui_element.cpp',

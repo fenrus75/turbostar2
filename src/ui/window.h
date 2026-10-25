@@ -21,6 +21,7 @@
 | crashdump_window   | src/ui/crashdump_window.h                |
 | diff_window        | src/ui/diff_window.h                     |
 | hex_editor_window  | src/ui/hex_editor_window.h               |
+| inspector_window   | src/ui/inspector_window.h                |
 | terminal_window    | src/ui/terminal_window.h                  |
 
 */
@@ -33,7 +34,7 @@ enum class gutter_number_mode {
 class window
 {
       public:
-	window(int id, int x, int y, int width, int height, const std::string &title);
+	window(int id, int x, int y, int width, int height, const std::string &title, event_queue *global_queue = nullptr);
 	virtual ~window();
 
 	bool draw(bool cursor_only = false) const;
@@ -218,6 +219,18 @@ class window
 		return window_queue_;
 	}
 
+	void set_global_queue(event_queue *global_queue) noexcept
+	{
+		global_queue_ = global_queue;
+	}
+
+	event_queue *get_global_queue() const noexcept
+	{
+		return global_queue_;
+	}
+
+	void check_cursor_word_update() const;
+
 	bool has_mouse_selection() const noexcept
 	{
 		return mouse_sel_start_line_ != -1 && mouse_sel_end_line_ != -1 &&
@@ -292,5 +305,10 @@ class window
 
       private:
 	event_queue window_queue_;
+	event_queue *global_queue_{nullptr};
+	mutable std::string last_cursor_word_{};
+	mutable int last_reported_cursor_x_{-1};
+	mutable int last_reported_cursor_y_{-1};
+	mutable std::chrono::steady_clock::time_point last_cursor_word_time_{};
 	std::vector<window *> linked_windows_;
 };

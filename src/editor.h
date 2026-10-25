@@ -18,6 +18,7 @@
 #include "ui/popup_menu.h"
 #include "ui/status_bar.h"
 #include "ui/terminal_window.h"
+#include "ui/inspector_window.h"
 
 namespace agentlib
 {
@@ -171,6 +172,9 @@ class editor : public agentlib::document_provider
 	void dispatch_event_build(const editor_event &ev);
 	void dispatch_event_lsp(const editor_event &ev);
 	void dispatch_event_key(const editor_event &ev);
+	void toggle_symbol_inspector();
+	void handle_cursor_word_update(const editor_event &ev);
+	void handle_lsp_inspector_result(const editor_event &ev);
 	void resolve_dialog(dialog_result res);
 
 	// Executes the given lambda on the MAIN UI thread, blocking the caller until it
@@ -231,6 +235,15 @@ class editor : public agentlib::document_provider
 
 	std::vector<std::shared_ptr<document>> documents_;
 	std::vector<std::unique_ptr<window>> windows_;
+	std::unique_ptr<inspector_window> inspector_win_{nullptr};
+	bool inspector_enabled_{false};
+	int inspector_height_{4};
+	bool insp_is_moving_{false};
+	std::chrono::steady_clock::time_point insp_motion_start_time_{};
+	std::chrono::steady_clock::time_point insp_last_move_time_{};
+	int insp_last_cursor_x_{-1};
+	int insp_last_cursor_y_{-1};
+	std::string insp_current_token_{};
 
 	focus_target current_focus_{focus_target::window};
 	enum class input_mode { normal, k_block, q_block, p_block, searching, search_options, going_to_line, inline_agent, vim, replace_prompt, replace_query };

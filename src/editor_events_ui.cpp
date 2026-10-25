@@ -240,7 +240,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 			doc->set_read_only(true);
 			documents_.push_back(doc);
 
-			auto win = std::make_unique<window>(get_new_window_id(), 0, 1, COLS, LINES - 2, "Help");
+			auto win = std::make_unique<window>(get_new_window_id(), 0, 1, COLS, LINES - 2, "Help", &global_queue_);
 			win->attach_document(doc);
 			windows_.push_back(std::move(win));
 			activate_window(windows_.size() - 1);
@@ -567,6 +567,11 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		case event_type::open_crashdump_viewer: {
 			logger.log("Dispatching open_crashdump_viewer event.");
 			new_crashdump_window();
+			break;
+		}
+		case event_type::toggle_symbol_inspector: {
+			logger.log("Dispatching toggle_symbol_inspector event.");
+			toggle_symbol_inspector();
 			break;
 		}
 		case event_type::open_agent_center: {

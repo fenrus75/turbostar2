@@ -76,6 +76,13 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 				new_y = std::max(1, std::min(new_y, LINES - 1 - drag_start_win_h_));
 				drag_window_->set_bounds(new_x, new_y, drag_start_win_w_, drag_start_win_h_);
 			} else if (current_drag_mode_ == drag_mode::resize) {
+				if (inspector_win_ && drag_window_ == inspector_win_.get()) {
+					int new_h = LINES - 1 - ev.mouse_y;
+					inspector_height_ = std::clamp(new_h, 3, std::max(3, LINES / 2));
+					update_window_layout();
+					global_queue_.push(event_type::redraw);
+					return;
+				}
 				if (drag_window_->is_maximized()) {
 					logger.log("Auto-restoring maximized window on resize.");
 					drag_window_->set_maximized(false);
@@ -445,6 +452,29 @@ void editor::dispatch_event_mouse(const editor_event &ev)
 			logger.log("Mouse clicked status bar.");
 			handle_status_bar_click(ev.mouse_x);
 			return;
+		}
+
+		if (inspector_win_ && inspector_enabled_ && inspector_win_->is_visible()) {
+			int iy = inspector_win_->get_y();
+			int ih = inspector_win_->get_height();
+			if (ev.mouse_y >= iy && ev.mouse_y < iy + ih) {
+				if (ev.mouse_y == iy && ev.mouse_x >= inspector_win_->get_x() + 2 && ev.mouse_x <= inspector_win_->get_x() + 4) {
+					toggle_symbol_inspector();
+					return;
+				}
+				if (ev.mouse_y == iy) {
+					current_drag_mode_ = drag_mode::resize;
+					drag_window_ = inspector_win_.get();
+					drag_start_mouse_x_ = ev.mouse_x;
+					drag_start_mouse_y_ = ev.mouse_y;
+					drag_start_win_w_ = inspector_win_->get_width();
+					drag_start_win_h_ = inspector_win_->get_height();
+					drag_start_win_x_ = inspector_win_->get_x();
+					drag_start_win_y_ = inspector_win_->get_y();
+					return;
+				}
+				return;
+			}
 		}
 
 		if (active_dialog_) {

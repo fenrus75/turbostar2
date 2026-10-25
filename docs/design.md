@@ -235,6 +235,16 @@ To provide contextual diff and line navigation awareness without breaking Turbos
 
 - **Live In-Memory Diffing**: To deliver instant real-time feedback as the user types without saving to disk, `git_manager` asynchronously caches HEAD file contents (`git show HEAD:./<file>`). When a document is modified in memory, `window::get_effective_diff()` invokes `git_manager::compute_diff()` via `<dtl/dtl.hpp>` to calculate unified hunks directly between cached HEAD lines and active buffer lines. Results are memoized against the document's monotonic revision counter (`revision_`), delivering sub-millisecond updates without spawning background processes or writing temporary files.
 
+## Symbol Inspector Companion Window
+
+Turbostar features an ambient, opt-in companion window docked at the bottom of the workspace (`Alt+I` / `Tools -> Symbol Inspector`):
+- **Ambient Context**: Live displays signature, synthesized call arguments/proposals, and declaration location of the symbol/call currently under the cursor.
+- **Graduated Motion Policy**:
+  - *Mild Motion* (< 1 sec): The inspector freezes its previous content to eliminate visual flicker as the user navigates.
+  - *Sustained Motion* (>= 1 sec): Blanked/dimmed during continuous rapid scrolling to prevent peripheral distractions.
+  - *Stationary Resolution*: After 250ms debounce of inactivity, cached/builtin signatures resolve immediately (< 0.1ms); uncached symbols display a subtle `[resolving...]` state and resolve asynchronously via detached background threads, notifying the main UI via `lsp_inspector_result` without GUI latency.
+- **Layout & Sizing**: Defaults to 4–6 rows scaled with screen height (`LINES >= 45 ? 6 : (LINES >= 35 ? 5 : 4)`), and is user-resizable via mouse border dragging.
+
 ## Testing and Diagnostics
 
 To ensure reliability, Turbostar incorporates testing and diagnostic infrastructure from the outset:

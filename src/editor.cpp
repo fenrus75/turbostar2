@@ -15,6 +15,8 @@
 #include "ansi.h"
 #include "binary_document.h"
 #include "build_error_manager.h"
+#include "call_synthesizer.h"
+#include "codemap_utils.h"
 #include "codereview_manager.h"
 #include "config_manager.h"
 #include "crashdump_manager.h"
@@ -233,7 +235,7 @@ void editor::open_file_as_text(std::string_view filename)
 	std::string fname(filename);
 	auto doc = std::make_shared<document>(global_queue_, fname);
 	doc->add_listener(&codereview_manager::get_instance());
-	auto win = std::make_unique<window>(get_new_window_id(), 0, 1, COLS, LINES - 2, fname);
+	auto win = std::make_unique<window>(get_new_window_id(), 0, 1, COLS, LINES - 2, fname, &global_queue_);
 	win->attach_document(doc);
 
 	if (!doc->get_safe_filename().empty()) {
@@ -279,7 +281,7 @@ void editor::open_prompt_in_editor(ui_multiline_edit *edit, std::string_view ini
 	doc->insert_text(initial_text);
 	doc->clear_modified();
 
-	auto win = std::make_unique<window>(get_new_window_id(), 0, 1, COLS, LINES - 2, virtual_filename);
+	auto win = std::make_unique<window>(get_new_window_id(), 0, 1, COLS, LINES - 2, virtual_filename, &global_queue_);
 	win->attach_document(doc);
 
 	documents_.push_back(doc);
@@ -302,7 +304,18 @@ void editor::new_diff_window()
 
 void editor::update_window_layout()
 {
-	int total_h = LINES - 2;
+	int insp_h = 0;
+	if (inspector_win_ && inspector_enabled_ && inspector_win_->is_visible()) {
+		insp_h = inspector_height_;
+		if (insp_h <= 0) {
+			insp_h = (LINES >= 45 ? 6 : (LINES >= 35 ? 5 : 4));
+			inspector_height_ = insp_h;
+		}
+		inspector_win_->set_bounds(0, LINES - 1 - insp_h, COLS, insp_h);
+		inspector_win_->invalidate();
+	}
+
+	int total_h = LINES - 2 - insp_h;
 	event_logger::get_instance().log(std::format("Updating window layout: COLS={}, LINES={}, total_h={}", COLS, LINES, total_h));
 	needs_full_redraw_ = true;
 	int main_w = COLS;
@@ -1432,6 +1445,10 @@ void editor::render(bool cursor_only)
 			}
 		}
 
+		if (inspector_win_ && inspector_enabled_ && inspector_win_->is_visible()) {
+			inspector_win_->draw(false);
+		}
+
 		top_menu_.draw();
 	} else {
 		if (active_win && active_win->is_visible()) {
@@ -1978,4 +1995,144 @@ void editor::update_terminal_windows()
 			}
 		}
 	}
+}
+
+void editor::toggle_symbol_inspector()
+{
+	inspector_enabled_ = !inspector_enabled_;
+	if (inspector_enabled_) {
+		if (!inspector_win_) {
+			int insp_h = (LINES >= 45 ? 6 : (LINES >= 35 ? 5 : 4));
+			inspector_height_ = insp_h;
+			inspector_win_ = std::make_unique<inspector_window>(
+			    get_new_window_id(), 0, LINES - 1 - insp_h, COLS, insp_h);
+		}
+		inspector_win_->set_visible(true);
+		insp_current_token_.clear();
+		insp_last_cursor_x_ = -1;
+		insp_last_cursor_y_ = -1;
+		insp_is_moving_ = false;
+
+		window *active_w = get_active_window();
+		if (active_w) {
+			active_w->check_cursor_word_update();
+		}
+	} else {
+		if (inspector_win_) {
+			inspector_win_->set_visible(false);
+		}
+	}
+	update_window_layout();
+	global_queue_.push(event_type::redraw);
+}
+
+void editor::handle_cursor_word_update(const editor_event &ev)
+{
+	if (!inspector_win_ || !inspector_enabled_ || !inspector_win_->is_visible()) {
+		return;
+	}
+
+	auto now = std::chrono::steady_clock::now();
+	bool pos_changed = (ev.mouse_x != insp_last_cursor_x_ || ev.mouse_y != insp_last_cursor_y_);
+
+	if (pos_changed) {
+		if (!insp_is_moving_) {
+			insp_is_moving_ = true;
+			insp_motion_start_time_ = now;
+		}
+		insp_last_move_time_ = now;
+		insp_last_cursor_x_ = ev.mouse_x;
+		insp_last_cursor_y_ = ev.mouse_y;
+
+		auto motion_duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - insp_motion_start_time_).count();
+		if (motion_duration >= 1000) {
+			if (inspector_win_->get_state() != inspector_state::blanked) {
+				inspector_win_->set_blanked();
+				global_queue_.push(event_type::redraw);
+			}
+		}
+		return;
+	}
+
+	if (insp_is_moving_) {
+		auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - insp_last_move_time_).count();
+		if (elapsed >= 200) {
+			insp_is_moving_ = false;
+		} else {
+			return;
+		}
+	}
+
+	std::string_view token = ev.payload;
+	if (token.empty()) {
+		if (inspector_win_->get_state() != inspector_state::idle) {
+			insp_current_token_.clear();
+			inspector_win_->set_idle();
+			global_queue_.push(event_type::redraw);
+		}
+		return;
+	}
+
+	if (token == insp_current_token_ && inspector_win_->get_state() == inspector_state::active) {
+		return;
+	}
+
+	insp_current_token_ = std::string(token);
+
+	auto active_doc = get_active_doc();
+	if (!active_doc) {
+		inspector_win_->set_idle();
+		global_queue_.push(event_type::redraw);
+		return;
+	}
+
+	auto ctx = turbostar::call_synthesizer::analyze_context_at(*active_doc, ev.mouse_y, ev.mouse_x, false);
+	if (ctx.is_resolved) {
+		inspector_win_->set_active_info(ctx.token, ctx.type_synopsis, ctx.suggestions, ctx.declaration_location);
+		global_queue_.push(event_type::redraw);
+		return;
+	}
+
+	inspector_win_->set_resolving(ctx.token);
+	global_queue_.push(event_type::redraw);
+
+	std::string req_token = ctx.token;
+	std::string doc_path = active_doc->get_filename();
+	int req_line = ev.mouse_y;
+	int req_col = ev.mouse_x;
+	auto &queue = global_queue_;
+
+	std::thread([req_token, doc_path, req_line, req_col, &queue]() {
+		auto sig = tools::resolve_function_signature(doc_path, req_line, req_col, req_token);
+		editor_event res_ev;
+		res_ev.type = event_type::lsp_inspector_result;
+		res_ev.target_binary = doc_path;
+		res_ev.mouse_x = req_col;
+		res_ev.mouse_y = req_line;
+		res_ev.payload = req_token;
+		if (sig) {
+			res_ev.utf8_char = sig->raw_signature;
+		}
+		queue.push(res_ev);
+	}).detach();
+}
+
+void editor::handle_lsp_inspector_result(const editor_event &ev)
+{
+	if (!inspector_win_ || !inspector_enabled_ || !inspector_win_->is_visible()) {
+		return;
+	}
+
+	if (ev.payload != insp_current_token_) {
+		return;
+	}
+
+	auto active_doc = get_active_doc();
+	if (!active_doc) {
+		return;
+	}
+
+	auto ctx = turbostar::call_synthesizer::analyze_context_at(*active_doc, ev.mouse_y, ev.mouse_x, false);
+	inspector_win_->set_active_info(ctx.token, ctx.type_synopsis, ctx.suggestions, ctx.declaration_location);
+	global_queue_.push(event_type::redraw);
 }

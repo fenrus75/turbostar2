@@ -200,6 +200,7 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::codereview_updated:
 		case event_type::image_manager:
 		case event_type::open_terminal:
+		case event_type::toggle_symbol_inspector:
 			dispatch_event_ui(ev);
 			break;
 		case event_type::load:
@@ -242,7 +243,11 @@ void editor::dispatch(const editor_event &ev)
 		case event_type::lsp_selection_range_result:
 		case event_type::lsp_diagnostics_result:
 		case event_type::lsp_signature_result:
+		case event_type::lsp_inspector_result:
 			dispatch_event_lsp(ev);
+			break;
+		case event_type::cursor_word_update:
+			handle_cursor_word_update(ev);
 			break;
 		case event_type::key_press:
 			dispatch_event_key(ev);

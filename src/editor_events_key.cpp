@@ -1587,6 +1587,10 @@ void editor::dispatch_event_key(const editor_event &ev)
 				activate_window(static_cast<size_t>(target_idx));
 				return;
 			}
+			if (c == 'i' || c == 'I') {
+				global_queue_.push(event_type::toggle_symbol_inspector);
+				return;
+			}
 			if (top_menu_.handle_alt_key(c, global_queue_)) {
 				set_focus(focus_target::menu_bar, "alt_key");
 				return;

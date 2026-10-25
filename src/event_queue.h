@@ -124,6 +124,9 @@ enum class event_type {
 	rescan_subagents,	    ///< Request to hot-reload custom subagents from disk
 	open_terminal,		    ///< Request to open an interactive terminal shell window
 	toggle_gutter_numbers,	    ///< Request to cycle line number mode (git/file/none) in active window
+	toggle_symbol_inspector,    ///< Request to toggle the symbol inspector companion window
+	cursor_word_update,	    ///< Editor window event reporting current word under cursor regularly
+	lsp_inspector_result,	    ///< LSP resolution result for inspector window
 	run_on_main		    ///< Internal: execute a callable on the main UI thread (generic_promise carries a std::packaged_task)
 };
 

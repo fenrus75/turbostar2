@@ -16,9 +16,9 @@
 #include "syntax_color_manager.h"
 #include "perf_manager.h"
 
-window::window(int id, int x, int y, int width, int height, const std::string &title)
+window::window(int id, int x, int y, int width, int height, const std::string &title, event_queue *global_queue)
     : x_(x), y_(y), width_(width), height_(height), restore_x_(x), restore_y_(y), restore_width_(width), restore_height_(height), id_(id),
-      title_(title)
+      title_(title), global_queue_(global_queue)
 {
 }
 
@@ -57,6 +57,9 @@ void window::set_active(bool active)
 	is_active_ = active;
 	if (is_active_) {
 		update_last_active_timestamp();
+		last_reported_cursor_x_ = -1;
+		last_reported_cursor_y_ = -1;
+		check_cursor_word_update();
 	}
 }
 
@@ -518,7 +521,38 @@ bool window::process_events()
 		}
 	}
 
+	check_cursor_word_update();
 	return needs_render_;
+}
+
+void window::check_cursor_word_update() const
+{
+	if (!doc_ || !global_queue_ || !is_active_) {
+		return;
+	}
+
+	auto now = std::chrono::steady_clock::now();
+	int cur_x = doc_->get_cursor_x();
+	int cur_y = doc_->get_cursor_y();
+	std::string cur_word = doc_->get_word_under_cursor();
+
+	bool pos_changed = (cur_x != last_reported_cursor_x_ || cur_y != last_reported_cursor_y_);
+	bool time_for_heartbeat = (now - last_cursor_word_time_ >= std::chrono::milliseconds(250));
+
+	if (pos_changed || time_for_heartbeat) {
+		last_reported_cursor_x_ = cur_x;
+		last_reported_cursor_y_ = cur_y;
+		last_cursor_word_time_ = now;
+
+		editor_event ev;
+		ev.type = event_type::cursor_word_update;
+		ev.window_id = id_;
+		ev.mouse_x = cur_x;
+		ev.mouse_y = cur_y;
+		ev.payload = std::move(cur_word);
+		ev.target_binary = doc_->get_filename();
+		global_queue_->push(std::move(ev));
+	}
 }
 
 int window::get_cursor_x() const

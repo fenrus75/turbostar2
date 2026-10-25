@@ -16,6 +16,7 @@ These keys are handled by the central dispatcher regardless of focus (unless ove
 | `Alt+G` | Open Git Menu | Git integration commands. |
 | `Alt+W` | Open Window Menu | |
 | `Alt+H` | Open Help Menu | |
+| `Alt+I` | Toggle Symbol Inspector | Toggles ambient companion window showing symbol context. |
 | `Alt+1...9` | Switch Window | Directly activates the corresponding numbered window. |
 | `F1` | Help | Open help dialog. |
 | `F2` | Save | Smart save current document. |
