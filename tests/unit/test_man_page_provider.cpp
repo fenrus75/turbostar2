@@ -50,6 +50,22 @@ int main()
 	assert(proto_fprintf.find("fprintf") != std::string::npos);
 	assert(proto_fprintf.find("FILE *restrict stream") != std::string::npos);
 
+	std::cout << "Testing balanced parenthesis counter and nested function pointers..." << std::endl;
+	std::string qsort_md =
+	    "# SYNOPSIS\n"
+	    "#include <stdlib.h>\n\n"
+	    "void qsort(void *base, size_t nmemb, size_t size,\n"
+	    "           int (*compar)(const void *, const void *));\n";
+	std::string proto_qsort = man_page_provider::extract_synopsis_prototype(qsort_md, "qsort");
+	assert(proto_qsort == "void qsort(void *base, size_t nmemb, size_t size, int (*compar)(const void *, const void *));");
+
+	std::string comment_semi_md =
+	    "# SYNOPSIS\n"
+	    "int execl(const char *path, const char *arg, ... /*, (char *) NULL; */);\n";
+	std::string proto_comment_semi = man_page_provider::extract_synopsis_prototype(comment_semi_md, "execl");
+	assert(proto_comment_semi.find("NULL;") != std::string::npos);
+	assert(proto_comment_semi.back() == ';');
+
 	std::cout << "Testing short description extraction..." << std::endl;
 	std::string desc = man_page_provider::extract_short_description(sample_md, "printf");
 	assert(desc == "Formatted output conversion.");

@@ -147,15 +147,29 @@ std::string man_page_provider::collapse_prototype(std::string_view raw_proto)
 	// Collapse multiple spaces into one, clean up spacing around punctuation
 	std::string collapsed;
 	bool in_space = false;
-	for (char c : combined) {
+	for (size_t i = 0; i < combined.size(); ++i) {
+		char c = combined[i];
 		if (c == ' ' || c == '\t' || c == '\n') {
 			if (!in_space && !collapsed.empty()) {
 				collapsed += ' ';
 				in_space = true;
 			}
 		} else {
-			if (in_space && (c == '(' || c == ',' || c == ';' || c == ')' || c == ']')) {
+			if (in_space && (c == ',' || c == ';' || c == ')' || c == ']')) {
 				if (!collapsed.empty() && collapsed.back() == ' ') {
+					collapsed.pop_back();
+				}
+			} else if (in_space && c == '(') {
+				// If followed by '*', keep space (e.g. "int (*compar)")
+				bool is_fn_ptr = false;
+				size_t next = i + 1;
+				while (next < combined.size() && (combined[next] == ' ' || combined[next] == '\t')) {
+					next++;
+				}
+				if (next < combined.size() && combined[next] == '*') {
+					is_fn_ptr = true;
+				}
+				if (!is_fn_ptr && !collapsed.empty() && collapsed.back() == ' ') {
 					collapsed.pop_back();
 				}
 			}
@@ -280,15 +294,58 @@ std::string man_page_provider::extract_synopsis_prototype(std::string_view full_
 		}
 	}
 
-	// 4. Scan forwards from match_pos to find the terminating semicolon ';'
-	size_t semi_pos = syn_block.find(';', match_pos);
-	if (semi_pos == std::string_view::npos) {
-		semi_pos = syn_block.find(')', match_pos);
-		if (semi_pos != std::string_view::npos) {
-			semi_pos++;
+	// 4. Scan forwards from match_pos to find the terminating ';' when paren depth is 0
+	int paren_depth = 0;
+	bool has_opened_paren = false;
+	size_t semi_pos = std::string_view::npos;
+	size_t k = match_pos;
+	bool in_block_comment = false;
+
+	while (k < syn_block.size()) {
+		// Handle block comments /* ... */
+		if (!in_block_comment && k + 1 < syn_block.size() && syn_block[k] == '/' && syn_block[k + 1] == '*') {
+			in_block_comment = true;
+			k += 2;
+			continue;
 		}
-	} else {
-		semi_pos++; // include ';'
+		if (in_block_comment) {
+			if (k + 1 < syn_block.size() && syn_block[k] == '*' && syn_block[k + 1] == '/') {
+				in_block_comment = false;
+				k += 2;
+				continue;
+			}
+			k++;
+			continue;
+		}
+
+		char c = syn_block[k];
+		if (c == '(') {
+			paren_depth++;
+			has_opened_paren = true;
+		} else if (c == ')') {
+			if (paren_depth > 0) {
+				paren_depth--;
+			}
+		} else if (c == ';') {
+			// Semicolon is only terminating if all parentheses are balanced (depth == 0)
+			if (has_opened_paren && paren_depth == 0) {
+				semi_pos = k + 1; // include ';'
+				break;
+			}
+		} else if (c == '\n' && k + 2 < syn_block.size() && syn_block[k + 1] == '#' && syn_block[k + 2] == ' ') {
+			// Hit next section heading
+			break;
+		}
+
+		k++;
+	}
+
+	// Fallback if no ';' was found after balanced parens
+	if (semi_pos == std::string_view::npos && has_opened_paren && paren_depth == 0) {
+		size_t last_paren = syn_block.rfind(')', k);
+		if (last_paren != std::string_view::npos && last_paren >= match_pos) {
+			semi_pos = last_paren + 1;
+		}
 	}
 
 	if (semi_pos != std::string_view::npos && semi_pos > start_pos) {
