@@ -74,7 +74,11 @@ core_sources = files(
   'languages/cpp/lexer.cpp',
   'call_resolver.cpp',
   'call_synthesizer.cpp',
-  'semcode_indexer.cpp'
+  'semcode_indexer.cpp',
+  'inspector/inspector_coordinator.cpp',
+  'inspector/inspector_helpers.cpp',
+  'inspector/fallback_provider.cpp',
+  'inspector/lsp_provider.cpp'
 )
 
 
@@ -157,7 +161,6 @@ ui_sources = files(
   'ui/crashdump_window.cpp',
   'ui/code_review_window.cpp',
   'ui/inspector_window.cpp',
-  'ui/inspector_provider.cpp',
   'ui/ansi_terminal_emulator.cpp',
   'ui/terminal_window.cpp',
   'ui/ui_element.cpp',

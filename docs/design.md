@@ -240,8 +240,10 @@ To provide contextual diff and line navigation awareness without breaking Turbos
 Turbostar features an ambient, opt-in companion window docked at the bottom of the workspace (`Alt+I` / `Tools -> Symbol Inspector`):
 - **Ambient Context**: Live displays signature, synthesized call arguments/proposals, declaration location, diagnostics, or AI context for the symbol/call currently under the cursor.
 - **Pluggable Content Providers & Dynamic Scoring**:
-  - Content is supplied by pluggable `inspector_provider` implementations (`lsp_inspector_provider`, `fallback_inspector_provider`, and extensible custom/LLM providers).
-  - Each provider returns a quality score (0–100) and a Markdown Lite string. The `inspector_coordinator` ranks providers synchronously and renders content from the highest-scoring provider.
+  - Content providers reside in `src/inspector/` completely decoupled from ncurses and the UI rendering pipeline.
+  - Providers inherit from `inspector_provider` and utilize `inspector::markdown_builder` to format Markdown Lite payloads.
+  - Standardized scoring tiers (`inspector_scores::FALLBACK_TOKEN = 15`, `LOCAL_SYMBOLS = 40`, `GIT_BLAME = 50`, `LSP_RESOLVED = 90`, `DIAGNOSTIC_WARNING = 92`, `DIAGNOSTIC_ERROR = 98`) govern display priority.
+  - The `inspector_coordinator` ranks providers synchronously and renders content from the highest-scoring provider.
   - Providers supporting asynchronous resolution (e.g. LSP or remote LLMs) return a provisional response (`is_final = false`), resolve in the background on detached threads, and notify the main loop via `inspector_provider_result`. Stale responses are automatically discarded via monotonic request IDs (`inspector_query::request_id`).
 - **Markdown Lite Rendering**:
   - The companion window parses Markdown Lite directly without curses dependencies in providers:

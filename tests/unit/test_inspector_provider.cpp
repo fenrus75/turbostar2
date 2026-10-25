@@ -1,10 +1,13 @@
-// Tested source file: src/ui/inspector_provider.cpp
+// Tested source file: src/inspector/inspector_coordinator.cpp
 #include <cassert>
 #include <chrono>
 #include <condition_variable>
 #include <iostream>
 #include <mutex>
-#include "ui/inspector_provider.h"
+#include "inspector/fallback_provider.h"
+#include "inspector/inspector_coordinator.h"
+#include "inspector/inspector_helpers.h"
+#include "inspector/lsp_provider.h"
 #include "test_watchdog.h"
 
 class mock_diagnostic_provider : public inspector_provider
@@ -59,6 +62,17 @@ class mock_async_provider : public inspector_provider
 int main()
 {
 	test_watchdog::setup_watchdog();
+
+	std::cout << "Testing markdown_builder helpers..." << std::endl;
+	inspector::markdown_builder mb;
+	mb.header("Signature:").code("void process()").newline();
+	mb.header("Args:").numbered_arg(1, "param1").text("  ").numbered_arg(2, "param2").newline();
+	mb.header("Decl:").link("src/core.h:10", "file:///src/core.h");
+	std::string built = mb.build();
+	assert(built.find("**Signature:** `void process()`") != std::string::npos);
+	assert(built.find("1. `param1`") != std::string::npos);
+	assert(built.find("2. `param2`") != std::string::npos);
+	assert(built.find("[src/core.h:10](file:///src/core.h)") != std::string::npos);
 
 	std::cout << "Testing fallback_inspector_provider..." << std::endl;
 	fallback_inspector_provider fallback;

@@ -19,7 +19,7 @@
 #include "ui/status_bar.h"
 #include "ui/terminal_window.h"
 #include "ui/inspector_window.h"
-#include "ui/inspector_provider.h"
+#include "inspector/inspector_coordinator.h"
 
 namespace agentlib
 {

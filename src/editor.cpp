@@ -27,6 +27,8 @@
 #include "git_manager.h"
 #include "history_manager.h"
 #include "input_history_manager.h"
+#include "inspector/fallback_provider.h"
+#include "inspector/lsp_provider.h"
 #include "line.h"
 #include "perf_manager.h"
 #include "project_manager.h"
