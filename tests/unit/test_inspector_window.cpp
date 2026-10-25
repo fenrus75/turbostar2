@@ -27,7 +27,8 @@ int main()
 	assert(insp.get_location().empty());
 	assert(insp.bypass_global_shortcuts() == true);
 
-	std::cout << "Testing draw_content in idle state..." << std::endl;
+	std::cout << "Testing draw_content and draw_border in idle state..." << std::endl;
+	insp.draw_border();
 	insp.draw_content(false);
 	insp.draw_content(true);
 

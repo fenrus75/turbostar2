@@ -23,6 +23,7 @@ class inspector_window : public window
 	~inspector_window() override = default;
 
 	void draw_content(bool cursor_only = false) const override;
+	void draw_border() const override;
 
 	void set_idle();
 	void set_resolving(const std::string &token);
