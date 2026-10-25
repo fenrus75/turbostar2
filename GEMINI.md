@@ -84,6 +84,7 @@ The `docs/` directory contains crucial context. Keep these files updated as we m
 | `button-recipe.md` | Guide for implementing Turbo Pascal style UI buttons. |
 | `colorscheme.md` | Defines the Turbo Pascal 7 color palette and ncurses pairs. |
 | `design.md` | Top-level architectural and design documentation. |
+| `design-inspector.md` | Symbol Inspector companion window and provider architecture. |
 | `design-perf-integration.md` | Architecture for CPU cycle profiling using perf_event_open and libturbocatch.so. |
 | `design-plugin.md` | Plugin architecture, lifecycles, and tool registration. |
 | `design-pure.md` | Tool purity, state domain classification, and read-only agent security rules. |

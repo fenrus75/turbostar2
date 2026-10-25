@@ -258,6 +258,7 @@ Turbostar features an ambient, opt-in companion window docked at the bottom of t
   - *Sustained Motion* (>= 1 sec): Blanked/dimmed during continuous rapid scrolling to prevent peripheral distractions.
   - *Stationary Resolution*: After 200–250ms debounce of inactivity, cached/builtin signatures resolve immediately (< 0.1ms); uncached symbols display a subtle `[resolving...]` state and resolve asynchronously via detached background threads without GUI latency.
 - **Layout & Sizing**: Defaults to 4–6 rows scaled with screen height (`LINES >= 45 ? 6 : (LINES >= 35 ? 5 : 4)`), and is user-resizable via mouse border dragging. When open, document windows automatically shrink to `total_h = LINES - 2 - insp_h` to prevent cursors from typing behind the companion window.
+- See [`docs/design-inspector.md`](design-inspector.md) for full architectural details, scoring rules, provider implementations, and guidelines on creating new providers.
 
 ## Testing and Diagnostics
 
