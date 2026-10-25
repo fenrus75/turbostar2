@@ -99,9 +99,9 @@ void inspector_window::draw_content(bool cursor_only) const
 	}
 
 	if (state_ == inspector_state::idle) {
-		attron(COLOR_PAIR(44)); // Dark blue on cyan
+		attron(COLOR_PAIR(8) | A_DIM); // Subtle white on cyan
 		mvprintw(y_ + 1, x_ + 2, "%.*s", content_w - 2, "[No symbol under cursor]");
-		attroff(COLOR_PAIR(44));
+		attroff(COLOR_PAIR(8) | A_DIM);
 		attroff(COLOR_PAIR(background_color_pair_));
 		return;
 	}
@@ -112,9 +112,9 @@ void inspector_window::draw_content(bool cursor_only) const
 		attroff(COLOR_PAIR(17) | A_BOLD);
 		int token_len = static_cast<int>(token_.size());
 		if (content_w - 4 - token_len > 0) {
-			attron(COLOR_PAIR(44)); // Dark blue on cyan
+			attron(COLOR_PAIR(18) | A_BOLD); // Bright yellow on cyan
 			mvprintw(y_ + 1, x_ + 2 + token_len + 1, "[resolving...]");
-			attroff(COLOR_PAIR(44));
+			attroff(COLOR_PAIR(18) | A_BOLD);
 		}
 		attroff(COLOR_PAIR(background_color_pair_));
 		return;
@@ -123,9 +123,9 @@ void inspector_window::draw_content(bool cursor_only) const
 	// Active state:
 	// Line 1: Signature or token
 	int curr_y = y_ + 1;
-	attron(COLOR_PAIR(44) | A_BOLD); // Dark blue on cyan
+	attron(COLOR_PAIR(8) | A_BOLD); // High-contrast Bright White on Cyan
 	mvprintw(curr_y, x_ + 2, "Signature: ");
-	attroff(COLOR_PAIR(44) | A_BOLD);
+	attroff(COLOR_PAIR(8) | A_BOLD);
 	int label_w = 11;
 	attron(COLOR_PAIR(17)); // Black on cyan
 	std::string disp_sig = signature_.empty() ? token_ : signature_;
@@ -138,9 +138,9 @@ void inspector_window::draw_content(bool cursor_only) const
 	if (height_ >= 4) {
 		curr_y++;
 		if (!proposals_.empty()) {
-			attron(COLOR_PAIR(44) | A_BOLD); // Dark blue on cyan
+			attron(COLOR_PAIR(8) | A_BOLD); // High-contrast Bright White on Cyan
 			mvprintw(curr_y, x_ + 2, "Args: ");
-			attroff(COLOR_PAIR(44) | A_BOLD);
+			attroff(COLOR_PAIR(8) | A_BOLD);
 			int args_label_w = 6;
 			int cur_col = x_ + 2 + args_label_w;
 			for (size_t i = 0; i < proposals_.size() && i < 3; ++i) {
@@ -168,18 +168,24 @@ void inspector_window::draw_content(bool cursor_only) const
 				cur_col += std::min(rem_w, static_cast<int>(proposals_[i].call_text.size()));
 			}
 		} else if (!location_.empty()) {
-			attron(COLOR_PAIR(44)); // Dark blue on cyan
-			mvprintw(curr_y, x_ + 2, "Decl: %.*s", content_w - 8, location_.c_str());
-			attroff(COLOR_PAIR(44));
+			attron(COLOR_PAIR(8) | A_BOLD);
+			mvprintw(curr_y, x_ + 2, "Decl: ");
+			attroff(COLOR_PAIR(8) | A_BOLD);
+			attron(COLOR_PAIR(17));
+			mvprintw(curr_y, x_ + 8, "%.*s", content_w - 8, location_.c_str());
+			attroff(COLOR_PAIR(17));
 		}
 	}
 
 	// Line 3 (if height >= 5): Declaration location
 	if (height_ >= 5 && !proposals_.empty() && !location_.empty()) {
 		curr_y++;
-		attron(COLOR_PAIR(44)); // Dark blue on cyan
-		mvprintw(curr_y, x_ + 2, "Decl: %.*s", content_w - 8, location_.c_str());
-		attroff(COLOR_PAIR(44));
+		attron(COLOR_PAIR(8) | A_BOLD); // High-contrast Bright White on Cyan
+		mvprintw(curr_y, x_ + 2, "Decl: ");
+		attroff(COLOR_PAIR(8) | A_BOLD);
+		attron(COLOR_PAIR(17)); // Black on cyan
+		mvprintw(curr_y, x_ + 8, "%.*s", content_w - 8, location_.c_str());
+		attroff(COLOR_PAIR(17));
 	}
 
 	attroff(COLOR_PAIR(background_color_pair_));
