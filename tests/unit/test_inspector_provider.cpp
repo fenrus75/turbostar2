@@ -122,9 +122,13 @@ int main()
 
 	assert(inspector_scores::LSP_SYSTEM_HEADER == 70);
 	assert(inspector_scores::MAN_PAGE == 80);
-	assert(inspector_scores::LSP_RESOLVED == 90);
+	assert(inspector_scores::LSP_RESOLVED == 85);
+	assert(inspector_scores::CLASS_ENCLOSING_MEMBER == 90);
+	assert(inspector_scores::CLASS_TOKEN == 91);
 	assert(inspector_scores::LSP_SYSTEM_HEADER < inspector_scores::MAN_PAGE);
 	assert(inspector_scores::MAN_PAGE < inspector_scores::LSP_RESOLVED);
+	assert(inspector_scores::LSP_RESOLVED < inspector_scores::CLASS_ENCLOSING_MEMBER);
+	assert(inspector_scores::CLASS_ENCLOSING_MEMBER < inspector_scores::CLASS_TOKEN);
 
 	std::cout << "Testing inspector_coordinator with multiple providers and ranking..." << std::endl;
 	inspector_coordinator coordinator;

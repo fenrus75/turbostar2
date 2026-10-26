@@ -76,14 +76,15 @@ struct inspector_result {
 | `RESOLVING_HINT` | `10` | Provisional hint while an async provider resolves in background. |
 | `FALLBACK_TOKEN` | `15` | Default fallback echoing the token name under cursor. |
 | `LSP_FALLBACK_TOKEN` | `20` | Synthesized fallback from AST when LSP definition is absent. |
-| `CLASS_ENCLOSING` | `34` | Enclosing class overview (instant 0ms ambient context for surrounding function). |
-| `CLASS_TOKEN` | `35` | Class overview for focused token or variable under cursor (score + 1). |
+| `CLASS_ENCLOSING` | `34` | Enclosing class overview (instant 0ms ambient context for surrounding function/blank lines). |
 | `LOCAL_SYMBOLS` | `40` | Tag / local symbol table match. |
 | `GIT_BLAME` | `50` | Git blame / author attribution information. |
 | `LSP_LOW_CONFIDENCE`<br>`LSP_SYSTEM_HEADER` | `70` | LSP resolved to `/usr/include/` system headers or missing an actual project path. |
 | `MAN_PAGE` | `80` | Authoritative section 3 system manual page (`/usr/share/man/man3/`). |
-| `LSP_RESOLVED` | `90` | Verified project / workspace symbol definition from LSP. |
-| `DIAGNOSTIC_WARNING` | `92` | Linter or compiler diagnostic warning on the current symbol. |
+| `LSP_RESOLVED` | `85` | Verified project / workspace symbol definition from LSP (for non-member / external calls). |
+| `CLASS_ENCLOSING_MEMBER` | `90` | Enclosing class summary with focused member declaration (beats LSP). |
+| `CLASS_TOKEN` | `91` | Class overview for focused token or variable under cursor (beats LSP). |
+| `DIAGNOSTIC_WARNING` | `95` | Linter or compiler diagnostic warning on the current symbol. |
 | `DIAGNOSTIC_ERROR` | `98` | Compiler diagnostic error on the current symbol. |
 
 ### Rationale: Man Page (80) vs. System LSP (70)
@@ -93,7 +94,8 @@ When inspecting standard C library functions (e.g. `qsort`, `printf`, `malloc`):
 - The raw LSP signature frequently contains noisy glibc internal macros (`__compar_fn_t`, `__restrict`, `__nonnull`, `__wur`).
 - Conversely, section 3 manual pages provide standardized, clean prototypes, specify the exact `#include <stdlib.h>` required, and include concise human-readable summaries.
 - Therefore, when `lsp_inspector_provider::has_actual_project_path()` detects a system header (`/usr/` or `/opt/`) or fails to find a file path, LSP scores **70**, allowing `man_page_provider` (**80**) to win.
-- For local project files (e.g. `src/editor.cpp`), LSP scores **90**, ensuring project-local definitions always take priority.
+- For foreign/external project functions (e.g. `fs_utils::read_file`), LSP scores **85**, beating ambient enclosing class (34).
+- When inspecting a class member or instance variable, rich class summaries (`CLASS_ENCLOSING_MEMBER` = **90** and `CLASS_TOKEN` = **91**) beat LSP (**85**) to present complete type declarations alongside class context.
 
 ---
 
@@ -183,14 +185,14 @@ To fit comfortably inside a 4-to-6 line companion window (which provides 2 to 4 
 - **Path Verification**: Uses `has_actual_project_path()` to inspect `declaration_location`. If missing, compiler-generated, or inside `/usr/` or `/opt/`, scores `70` (`LSP_SYSTEM_HEADER`). If pointing to a workspace file, scores `90` (`LSP_RESOLVED`).
 
 ### 3. `enclosing_class_provider` (`src/inspector/enclosing_class_provider.h`)
-- **Score**: `34` (`CLASS_ENCLOSING`).
+- **Score**: `34` (`CLASS_ENCLOSING`) for ambient context (blank lines, braces), promoting to `90` (`CLASS_ENCLOSING_MEMBER`) when cursor rests on an enclosing class field or method (beating LSP).
 - **Behavior**: Purely synchronous (0ms latency). Queries the local file codemap at cursor line (`q.line + 1`) to provide immediate ambient overview of the current function's enclosing class methods and fields.
 - **Title Bar**: Emits `title_addon` (e.g. `class editor (src/editor.h)`), saving vertical space in the content body by eliminating a redundant `Class:` line.
 - **Focused Member Declaration**: If the symbol under cursor matches an enclosing class field or method, the provider extracts and displays its full type declaration or function signature (e.g. `**Field:** `std::vector<...> lines_;`` or `**Method:** `bool save();``) directly from the header lines.
 
 ### 4. `class_summary_provider` (`src/inspector/class_summary_provider.h`)
-- **Score**: `35` (`CLASS_TOKEN`, score + 1).
-- **Behavior**: Asynchronous resolution via background LSP type definition queries (`lsp_query_type_definition` / `lsp_query_definition`). When cursor rests on a specific type name or variable instance (e.g. `doc`), resolves the class definition and promotes over the enclosing class.
+- **Score**: `91` (`CLASS_TOKEN`).
+- **Behavior**: Asynchronous resolution via background LSP type definition queries (`lsp_query_type_definition` / `lsp_query_definition`). When cursor rests on a specific type name or variable instance (e.g. `doc`), resolves the class definition and promotes over the enclosing class and single-symbol LSP definitions.
 - **Adaptive Height**: Automatically formats output across 2, 3, or 4 lines according to `q.available_lines`. Omits the redundant `Class:` line to maximize density.
 - **Title Bar**: Emits `title_addon` (e.g. `class document (src/document.h)`).
 

@@ -50,14 +50,16 @@ int main()
 		// With focused field under cursor (e.g. lines_)
 		q.token = "lines_";
 		auto res_field = prov.query(q);
-		assert(res_field.score == 34);
+		assert(res_field.score == 90);
+		assert(res_field.score == inspector_scores::CLASS_ENCLOSING_MEMBER);
 		assert(res_field.markdown.find("**Field:**") != std::string::npos);
 		assert(res_field.markdown.find("`std::vector<std::shared_ptr<line>> lines_;`") != std::string::npos);
 
 		// With focused method under cursor (e.g. get_lines_at_undo)
 		q.token = "get_lines_at_undo";
 		auto res_method = prov.query(q);
-		assert(res_method.score == 34);
+		assert(res_method.score == 90);
+		assert(res_method.score == inspector_scores::CLASS_ENCLOSING_MEMBER);
 		assert(res_method.markdown.find("**Method:**") != std::string::npos);
 		assert(res_method.markdown.find("get_lines_at_undo") != std::string::npos);
 	}
