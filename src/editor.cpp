@@ -2097,6 +2097,7 @@ void editor::handle_cursor_word_update(const editor_event &ev)
 	q.line = ev.mouse_y;
 	q.col = ev.mouse_x;
 	q.available_lines = inspector_win_ ? inspector_win_->get_content_height() : 3;
+	q.available_cols = inspector_win_ ? inspector_win_->get_content_width() : 80;
 	q.request_id = insp_coordinator_.next_request_id();
 	insp_current_req_id_ = q.request_id;
 

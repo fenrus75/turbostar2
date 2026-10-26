@@ -14,6 +14,7 @@ struct inspector_query {
 	std::string line_text;
 	uint64_t request_id{0};
 	int available_lines{3};    ///< Number of usable content lines in companion window
+	int available_cols{80};     ///< Usable content width (columns) in companion window
 };
 
 /**

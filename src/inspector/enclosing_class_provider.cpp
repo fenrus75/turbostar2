@@ -66,7 +66,7 @@ inspector_result enclosing_class_provider::query(const inspector_query &q)
 			}
 		}
 		res.score = is_member ? inspector_scores::CLASS_ENCLOSING_MEMBER : inspector_scores::CLASS_ENCLOSING;
-		res.markdown = class_summary_provider::format_summary_markdown(*cached, q.available_lines, q.token);
+		res.markdown = class_summary_provider::format_summary_markdown(*cached, q.available_lines, q.available_cols, q.token);
 		res.title_addon = std::format("class {} ({})", cached->class_name,
 					      fs_utils::make_relative_to_project(cached->header_path));
 		res.is_final = true;
@@ -95,7 +95,7 @@ inspector_result enclosing_class_provider::query(const inspector_query &q)
 			}
 		}
 		res.score = is_member ? inspector_scores::CLASS_ENCLOSING_MEMBER : inspector_scores::CLASS_ENCLOSING;
-		res.markdown = class_summary_provider::format_summary_markdown(summary, q.available_lines, q.token);
+		res.markdown = class_summary_provider::format_summary_markdown(summary, q.available_lines, q.available_cols, q.token);
 		res.title_addon = std::format("class {} ({})", summary.class_name,
 					      fs_utils::make_relative_to_project(summary.header_path));
 		res.is_final = true;

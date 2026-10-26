@@ -47,6 +47,7 @@ class inspector_window : public window
 	const std::string &get_provider_name() const noexcept { return provider_name_; }
 	const std::string &get_title_addon() const noexcept { return title_addon_; }
 	int get_content_height() const noexcept { return std::max(0, height_ - 2); }
+	int get_content_width() const noexcept { return std::max(0, width_ - 4); }
 
 	const std::string &get_token() const noexcept { return token_; }
 	const std::string &get_signature() const noexcept { return signature_; }

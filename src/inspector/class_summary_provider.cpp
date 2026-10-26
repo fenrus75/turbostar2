@@ -171,9 +171,11 @@ void class_summary_provider::clear_cache()
 
 std::string class_summary_provider::format_summary_markdown(const tools::class_summary_info &summary,
 							    int available_lines,
+							    int available_cols,
 							    std::string_view focused_token)
 {
 	int lines = std::max(1, available_lines);
+	int cols = std::max(20, available_cols);
 	inspector::markdown_builder mb;
 
 	const tools::class_member_info *focused_field = nullptr;
@@ -196,49 +198,64 @@ std::string class_summary_provider::format_summary_markdown(const tools::class_s
 		}
 	}
 
-	auto append_fields_line = [&](inspector::markdown_builder &b, size_t max_items) {
-		b.header("Fields:");
-		size_t count = std::min(summary.fields.size(), max_items);
-		for (size_t i = 0; i < count; ++i) {
-			if (i > 0) {
+	auto append_fields_line = [&](inspector::markdown_builder &b, std::string_view label, size_t start_idx) -> size_t {
+		if (start_idx >= summary.fields.size()) {
+			return start_idx;
+		}
+		b.header(label);
+		int rem_cols = cols - (static_cast<int>(label.size()) + 1);
+		size_t i = start_idx;
+		bool added_any = false;
+		for (; i < summary.fields.size(); ++i) {
+			const auto &name = summary.fields[i].name;
+			int cost = (added_any ? 2 : 0) + static_cast<int>(name.size());
+			bool has_more = (i + 1 < summary.fields.size());
+			int reserve = has_more ? 4 : 0;
+			if (added_any && cost + reserve > rem_cols) {
+				break;
+			}
+			if (added_any) {
 				b.text(", ");
 			}
-			b.code(summary.fields[i].name);
+			b.code(name);
+			rem_cols -= cost;
+			added_any = true;
 		}
-		if (summary.fields.size() > max_items) {
+		if (i < summary.fields.size()) {
 			b.text(" ...");
 		}
 		b.newline();
+		return i;
 	};
 
-	auto append_fields_line_offset = [&](inspector::markdown_builder &b, std::string_view label, size_t start_idx, size_t count) {
+	auto append_methods_line = [&](inspector::markdown_builder &b, std::string_view label, size_t start_idx) -> size_t {
+		if (start_idx >= summary.methods.size()) {
+			return start_idx;
+		}
 		b.header(label);
-		size_t end_idx = std::min(summary.fields.size(), start_idx + count);
-		for (size_t i = start_idx; i < end_idx; ++i) {
-			if (i > start_idx) {
+		int rem_cols = cols - (static_cast<int>(label.size()) + 1);
+		size_t i = start_idx;
+		bool added_any = false;
+		for (; i < summary.methods.size(); ++i) {
+			const auto &name = summary.methods[i].name;
+			int cost = (added_any ? 2 : 0) + static_cast<int>(name.size()) + 2; // +2 for "()"
+			bool has_more = (i + 1 < summary.methods.size());
+			int reserve = has_more ? 4 : 0;
+			if (added_any && cost + reserve > rem_cols) {
+				break;
+			}
+			if (added_any) {
 				b.text(", ");
 			}
-			b.code(summary.fields[i].name);
+			b.code(name + "()");
+			rem_cols -= cost;
+			added_any = true;
 		}
-		if (summary.fields.size() > end_idx) {
+		if (i < summary.methods.size()) {
 			b.text(" ...");
 		}
 		b.newline();
-	};
-
-	auto append_methods_line = [&](inspector::markdown_builder &b, std::string_view label, size_t start_idx, size_t count) {
-		b.header(label);
-		size_t end_idx = std::min(summary.methods.size(), start_idx + count);
-		for (size_t i = start_idx; i < end_idx; ++i) {
-			if (i > start_idx) {
-				b.text(", ");
-			}
-			b.code(summary.methods[i].name + "()");
-		}
-		if (summary.methods.size() > end_idx) {
-			b.text(" ...");
-		}
-		b.newline();
+		return i;
 	};
 
 	auto append_focused_member = [&](inspector::markdown_builder &b) {
@@ -252,108 +269,110 @@ std::string class_summary_provider::format_summary_markdown(const tools::class_s
 	};
 
 	bool has_focused = (focused_field != nullptr || focused_method != nullptr);
+	size_t next_field_idx = 0;
+	size_t next_method_idx = 0;
 
 	if (lines == 1) {
 		if (has_focused) {
 			append_focused_member(mb);
 		} else if (!summary.fields.empty()) {
-			append_fields_line(mb, 8);
+			append_fields_line(mb, "Fields:", 0);
 		} else if (!summary.methods.empty()) {
-			append_methods_line(mb, "Methods:", 0, 6);
+			append_methods_line(mb, "Methods:", 0);
 		}
 	} else if (lines == 2) {
 		if (has_focused) {
 			if (focused_field) {
 				if (!summary.fields.empty()) {
-					append_fields_line(mb, 6);
+					append_fields_line(mb, "Fields:", 0);
 				} else {
-					append_methods_line(mb, "Methods:", 0, 5);
+					append_methods_line(mb, "Methods:", 0);
 				}
 			} else {
 				if (!summary.methods.empty()) {
-					append_methods_line(mb, "Methods:", 0, 5);
+					append_methods_line(mb, "Methods:", 0);
 				} else {
-					append_fields_line(mb, 6);
+					append_fields_line(mb, "Fields:", 0);
 				}
 			}
 			append_focused_member(mb);
 		} else {
 			if (!summary.fields.empty() && !summary.methods.empty()) {
-				append_fields_line(mb, 6);
-				append_methods_line(mb, "Methods:", 0, 5);
+				append_fields_line(mb, "Fields:", 0);
+				append_methods_line(mb, "Methods:", 0);
 			} else if (!summary.fields.empty()) {
-				append_fields_line(mb, 6);
-				if (summary.fields.size() > 6) {
-					append_fields_line_offset(mb, "More:", 6, 6);
+				next_field_idx = append_fields_line(mb, "Fields:", 0);
+				if (next_field_idx < summary.fields.size()) {
+					append_fields_line(mb, "More:", next_field_idx);
 				}
 			} else if (!summary.methods.empty()) {
-				append_methods_line(mb, "Methods:", 0, 5);
-				if (summary.methods.size() > 5) {
-					append_methods_line(mb, "More:", 5, 5);
+				next_method_idx = append_methods_line(mb, "Methods:", 0);
+				if (next_method_idx < summary.methods.size()) {
+					append_methods_line(mb, "More:", next_method_idx);
 				}
 			}
 		}
 	} else if (lines == 3) {
 		if (has_focused) {
 			if (!summary.fields.empty()) {
-				append_fields_line(mb, 6);
+				append_fields_line(mb, "Fields:", 0);
 			}
 			if (!summary.methods.empty()) {
-				append_methods_line(mb, "Methods:", 0, 5);
-			} else if (summary.fields.size() > 6) {
-				append_fields_line_offset(mb, "More:", 6, 6);
+				append_methods_line(mb, "Methods:", 0);
+			} else if (next_field_idx < summary.fields.size()) {
+				append_fields_line(mb, "More:", next_field_idx);
 			}
 			append_focused_member(mb);
 		} else {
 			if (!summary.fields.empty()) {
-				append_fields_line(mb, 6);
+				next_field_idx = append_fields_line(mb, "Fields:", 0);
 			}
 			if (!summary.methods.empty()) {
-				append_methods_line(mb, "Methods:", 0, 5);
-				if (summary.methods.size() > 5) {
-					append_methods_line(mb, "More:", 5, 5);
-				} else if (summary.fields.size() > 6) {
-					append_fields_line_offset(mb, "More:", 6, 6);
+				next_method_idx = append_methods_line(mb, "Methods:", 0);
+				if (next_method_idx < summary.methods.size()) {
+					append_methods_line(mb, "More:", next_method_idx);
+				} else if (next_field_idx < summary.fields.size()) {
+					append_fields_line(mb, "More:", next_field_idx);
 				}
-			} else if (summary.fields.size() > 6) {
-				append_fields_line_offset(mb, "More:", 6, 6);
-				if (summary.fields.size() > 12) {
-					append_fields_line_offset(mb, "More:", 12, 6);
+			} else if (next_field_idx < summary.fields.size()) {
+				next_field_idx = append_fields_line(mb, "More:", next_field_idx);
+				if (next_field_idx < summary.fields.size()) {
+					append_fields_line(mb, "More:", next_field_idx);
 				}
 			}
 		}
 	} else { // lines >= 4
 		if (has_focused) {
 			if (!summary.fields.empty()) {
-				append_fields_line(mb, 6);
+				append_fields_line(mb, "Fields:", 0);
 			}
 			if (!summary.methods.empty()) {
-				append_methods_line(mb, "Methods:", 0, 5);
+				next_method_idx = append_methods_line(mb, "Methods:", 0);
 			}
 			append_focused_member(mb);
-			if (summary.methods.size() > 5) {
-				append_methods_line(mb, "More:", 5, 5);
-			} else if (summary.fields.size() > 6) {
-				append_fields_line_offset(mb, "More:", 6, 6);
+			if (next_method_idx < summary.methods.size()) {
+				append_methods_line(mb, "More:", next_method_idx);
+			} else if (next_field_idx < summary.fields.size()) {
+				append_fields_line(mb, "More:", next_field_idx);
 			}
 		} else {
 			if (!summary.fields.empty()) {
-				append_fields_line(mb, 6);
+				next_field_idx = append_fields_line(mb, "Fields:", 0);
 			}
 			if (!summary.methods.empty()) {
-				append_methods_line(mb, "Methods:", 0, 5);
-				if (summary.methods.size() > 5) {
-					append_methods_line(mb, "More:", 5, 5);
+				next_method_idx = append_methods_line(mb, "Methods:", 0);
+				if (next_method_idx < summary.methods.size()) {
+					next_method_idx = append_methods_line(mb, "More:", next_method_idx);
 				}
-				if (summary.methods.size() > 10) {
-					append_methods_line(mb, "More:", 10, 5);
-				} else if (summary.fields.size() > 6) {
-					append_fields_line_offset(mb, "More:", 6, 6);
+				if (next_method_idx < summary.methods.size()) {
+					append_methods_line(mb, "More:", next_method_idx);
+				} else if (next_field_idx < summary.fields.size()) {
+					append_fields_line(mb, "More:", next_field_idx);
 				}
-			} else if (summary.fields.size() > 6) {
-				append_fields_line_offset(mb, "More:", 6, 6);
-				if (summary.fields.size() > 12) {
-					append_fields_line_offset(mb, "More:", 12, 6);
+			} else if (next_field_idx < summary.fields.size()) {
+				next_field_idx = append_fields_line(mb, "More:", next_field_idx);
+				if (next_field_idx < summary.fields.size()) {
+					append_fields_line(mb, "More:", next_field_idx);
 				}
 			}
 		}
@@ -378,7 +397,7 @@ inspector_result class_summary_provider::query(const inspector_query &q)
 	if (cached.has_value()) {
 		if (cached->exists) {
 			res.score = inspector_scores::CLASS_TOKEN;
-			res.markdown = format_summary_markdown(cached->summary, q.available_lines, q.token);
+			res.markdown = format_summary_markdown(cached->summary, q.available_lines, q.available_cols, q.token);
 			res.title_addon = std::format("class {} ({})", cached->summary.class_name,
 						      fs_utils::make_relative_to_project(cached->summary.header_path));
 			res.is_final = true;
@@ -416,7 +435,7 @@ void class_summary_provider::query_async(const inspector_query &q,
 			res.provider_name = "class_summary";
 			if (cached->exists) {
 				res.score = inspector_scores::CLASS_TOKEN;
-				res.markdown = format_summary_markdown(cached->summary, q.available_lines, q.token);
+				res.markdown = format_summary_markdown(cached->summary, q.available_lines, q.available_cols, q.token);
 				res.title_addon = std::format("class {} ({})", cached->summary.class_name,
 							      fs_utils::make_relative_to_project(cached->summary.header_path));
 			} else {
@@ -444,7 +463,7 @@ void class_summary_provider::query_async(const inspector_query &q,
 			res.provider_name = "class_summary";
 			if (ok) {
 				res.score = inspector_scores::CLASS_TOKEN;
-				res.markdown = format_summary_markdown(summary, q.available_lines, q.token);
+				res.markdown = format_summary_markdown(summary, q.available_lines, q.available_cols, q.token);
 				res.title_addon = std::format("class {} ({})", summary.class_name,
 							      fs_utils::make_relative_to_project(summary.header_path));
 			} else {

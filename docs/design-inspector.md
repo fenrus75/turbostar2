@@ -57,6 +57,7 @@ struct inspector_query {
 	int col{0};                 ///< 0-based document column
 	std::string token;          ///< Identifier / symbol under the cursor
 	int available_lines{3};     ///< Number of usable content lines in companion window
+	int available_cols{80};     ///< Usable content columns in companion window
 };
 
 struct inspector_result {
@@ -193,7 +194,7 @@ To fit comfortably inside a 4-to-6 line companion window (which provides 2 to 4 
 ### 4. `class_summary_provider` (`src/inspector/class_summary_provider.h`)
 - **Score**: `91` (`CLASS_TOKEN`).
 - **Behavior**: Asynchronous resolution via background LSP type definition queries (`lsp_query_type_definition` / `lsp_query_definition`). When cursor rests on a specific type name or variable instance (e.g. `doc`), resolves the class definition and promotes over the enclosing class and single-symbol LSP definitions.
-- **Adaptive Height**: Automatically formats output across 2, 3, or 4 lines according to `q.available_lines`. Omits the redundant `Class:` line to maximize density.
+- **Adaptive Layout**: Automatically formats output across 2, 3, or 4 lines according to `q.available_lines` and dynamically packs fields and methods across `q.available_cols` to take full advantage of wide terminal widths without premature `...` cutoff. Omits the redundant `Class:` line to maximize density.
 - **Title Bar**: Emits `title_addon` (e.g. `class document (src/document.h)`).
 
 ### 5. `fallback_inspector_provider` (`src/inspector/fallback_provider.h`)

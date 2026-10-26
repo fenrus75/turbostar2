@@ -114,6 +114,19 @@ int main()
 		assert(md4.find("**More:**") != std::string::npos);
 	}
 
+	// 6. Dynamic column budgeting: narrow vs wide terminal
+	{
+		// In narrow width (35 cols), all 4 fields (38 cols) cannot fit without overflow
+		std::string md_narrow = turbostar::class_summary_provider::format_summary_markdown(sample_info, 2, 35);
+		assert(md_narrow.find("...") != std::string::npos);
+
+		// In wide width (140 cols), all 4 fields and all 6 methods fit without cutting off early
+		std::string md_wide = turbostar::class_summary_provider::format_summary_markdown(sample_info, 2, 140);
+		assert(md_wide.find("`visible_`") != std::string::npos);
+		assert(md_wide.find("`draw_border()`") != std::string::npos);
+		assert(md_wide.find("...") == std::string::npos);
+	}
+
 	std::cout << "Testing extract_class_summary on project files..." << std::endl;
 	{
 		tools::class_summary_info doc_summary;
