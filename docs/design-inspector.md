@@ -185,12 +185,13 @@ To fit comfortably inside a 4-to-6 line companion window (which provides 2 to 4 
 ### 3. `enclosing_class_provider` (`src/inspector/enclosing_class_provider.h`)
 - **Score**: `34` (`CLASS_ENCLOSING`).
 - **Behavior**: Purely synchronous (0ms latency). Queries the local file codemap at cursor line (`q.line + 1`) to provide immediate ambient overview of the current function's enclosing class methods and fields.
-- **Title Bar**: Emits `title_addon` (e.g. `class editor (src/editor.h)`).
+- **Title Bar**: Emits `title_addon` (e.g. `class editor (src/editor.h)`), saving vertical space in the content body by eliminating a redundant `Class:` line.
+- **Focused Member Declaration**: If the symbol under cursor matches an enclosing class field or method, the provider extracts and displays its full type declaration or function signature (e.g. `**Field:** `std::vector<...> lines_;`` or `**Method:** `bool save();``) directly from the header lines.
 
 ### 4. `class_summary_provider` (`src/inspector/class_summary_provider.h`)
 - **Score**: `35` (`CLASS_TOKEN`, score + 1).
 - **Behavior**: Asynchronous resolution via background LSP type definition queries (`lsp_query_type_definition` / `lsp_query_definition`). When cursor rests on a specific type name or variable instance (e.g. `doc`), resolves the class definition and promotes over the enclosing class.
-- **Adaptive Height**: Automatically formats output across 2, 3, or 4 lines according to `q.available_lines`.
+- **Adaptive Height**: Automatically formats output across 2, 3, or 4 lines according to `q.available_lines`. Omits the redundant `Class:` line to maximize density.
 - **Title Bar**: Emits `title_addon` (e.g. `class document (src/document.h)`).
 
 ### 5. `fallback_inspector_provider` (`src/inspector/fallback_provider.h`)

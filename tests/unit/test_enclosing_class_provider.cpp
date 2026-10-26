@@ -39,12 +39,27 @@ int main()
 		assert(res.is_final);
 		assert(res.provider_name == "enclosing_class");
 		assert(res.title_addon.find("class document") != std::string::npos);
-		assert(res.markdown.find("**Class:** `document`") != std::string::npos);
+		assert(res.markdown.find("**Class:**") == std::string::npos);
+		assert(res.markdown.find("**Fields:**") != std::string::npos || res.markdown.find("**Methods:**") != std::string::npos);
 
 		// Cache hit
 		auto res2 = prov.query(q);
 		assert(res2.score == 34);
 		assert(res2.title_addon == res.title_addon);
+
+		// With focused field under cursor (e.g. lines_)
+		q.token = "lines_";
+		auto res_field = prov.query(q);
+		assert(res_field.score == 34);
+		assert(res_field.markdown.find("**Field:**") != std::string::npos);
+		assert(res_field.markdown.find("`std::vector<std::shared_ptr<line>> lines_;`") != std::string::npos);
+
+		// With focused method under cursor (e.g. get_lines_at_undo)
+		q.token = "get_lines_at_undo";
+		auto res_method = prov.query(q);
+		assert(res_method.score == 34);
+		assert(res_method.markdown.find("**Method:**") != std::string::npos);
+		assert(res_method.markdown.find("get_lines_at_undo") != std::string::npos);
 	}
 
 	// Inside document.h class definition (e.g. line 120)
@@ -57,7 +72,8 @@ int main()
 		auto res = prov.query(q);
 		assert(res.score == inspector_scores::CLASS_ENCLOSING);
 		assert(res.title_addon.find("class document") != std::string::npos);
-		assert(res.markdown.find("**Class:** `document`") != std::string::npos);
+		assert(res.markdown.find("**Class:**") == std::string::npos);
+		assert(res.markdown.find("**Fields:**") != std::string::npos || res.markdown.find("**Methods:**") != std::string::npos);
 	}
 
 	std::cout << "All enclosing_class_provider unit tests passed successfully." << std::endl;

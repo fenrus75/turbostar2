@@ -21,6 +21,125 @@ bool is_supported_cxx_file(const std::string &path)
 	       ext == ".h" || ext == ".hpp" || ext == ".hh" || ext == ".hxx";
 }
 
+std::string extract_member_declaration(const tools::class_summary_info &summary,
+				       const tools::class_member_info &member,
+				       bool is_field)
+{
+	if (summary.header_lines.empty() || member.start_line <= 0) {
+		return "";
+	}
+	int start_idx = member.start_line - 1;
+	int max_lines = static_cast<int>(summary.header_lines.size());
+	if (start_idx >= max_lines) {
+		return "";
+	}
+	int end_idx = member.end_line > 0 ? (member.end_line - 1) : start_idx;
+	end_idx = std::clamp(end_idx, start_idx, std::min(max_lines - 1, start_idx + 4));
+
+	std::string decl;
+	for (int i = start_idx; i <= end_idx; ++i) {
+		std::string_view l = summary.header_lines[i];
+
+		// Strip line comments
+		size_t c_pos = l.find("//");
+		if (c_pos != std::string_view::npos) {
+			l = l.substr(0, c_pos);
+		}
+		size_t b_pos = l.find("/*");
+		if (b_pos != std::string_view::npos) {
+			l = l.substr(0, b_pos);
+		}
+
+		// Trim whitespace
+		size_t first = l.find_first_not_of(" \t\r\n");
+		if (first == std::string_view::npos) {
+			continue;
+		}
+		size_t last = l.find_last_not_of(" \t\r\n");
+		l = l.substr(first, last - first + 1);
+
+		// Strip access specifiers if on same line (e.g. "public: int x;")
+		if (l.starts_with("public:") || l.starts_with("protected:") || l.starts_with("private:")) {
+			size_t colon = l.find(':');
+			l.remove_prefix(colon + 1);
+			size_t next_non_ws = l.find_first_not_of(" \t");
+			if (next_non_ws == std::string_view::npos) {
+				continue;
+			}
+			l.remove_prefix(next_non_ws);
+		}
+
+		if (!decl.empty()) {
+			decl += " ";
+		}
+		decl += l;
+
+		if (is_field) {
+			if (decl.find(';') != std::string::npos) {
+				break;
+			}
+		} else {
+			// For method: if we have seen ')' and then '{' or ';', we're done
+			size_t rparen = decl.find(')');
+			if (rparen != std::string_view::npos) {
+				if (decl.find(';', rparen) != std::string::npos ||
+				    decl.find('{', rparen) != std::string::npos) {
+					break;
+				}
+			}
+		}
+	}
+
+	if (is_field) {
+		size_t sc = decl.find(';');
+		if (sc != std::string::npos) {
+			decl = decl.substr(0, sc + 1);
+		}
+	} else {
+		size_t rparen = decl.find(')');
+		if (rparen != std::string_view::npos) {
+			size_t brace = decl.find('{', rparen);
+			if (brace != std::string_view::npos) {
+				decl = decl.substr(0, brace);
+				size_t last_ws = decl.find_last_not_of(" \t");
+				if (last_ws != std::string_view::npos) {
+					decl = decl.substr(0, last_ws + 1);
+				}
+				if (!decl.ends_with(';')) {
+					decl += ";";
+				}
+			} else {
+				size_t sc = decl.find(';', rparen);
+				if (sc != std::string_view::npos) {
+					decl = decl.substr(0, sc + 1);
+				}
+			}
+		}
+	}
+
+	// Collapse multiple spaces/tabs into a single space
+	std::string collapsed;
+	collapsed.reserve(decl.size());
+	bool in_space = false;
+	for (char c : decl) {
+		if (c == ' ' || c == '\t') {
+			if (!in_space) {
+				collapsed.push_back(' ');
+				in_space = true;
+			}
+		} else {
+			collapsed.push_back(c);
+			in_space = false;
+		}
+	}
+	size_t f = collapsed.find_first_not_of(' ');
+	if (f == std::string::npos) {
+		return "";
+	}
+	size_t l = collapsed.find_last_not_of(' ');
+	return collapsed.substr(f, l - f + 1);
+}
+
 } // namespace
 
 std::string class_summary_provider::make_cache_key(const inspector_query &q) const
@@ -50,10 +169,32 @@ void class_summary_provider::clear_cache()
 	cache_.clear();
 }
 
-std::string class_summary_provider::format_summary_markdown(const tools::class_summary_info &summary, int available_lines)
+std::string class_summary_provider::format_summary_markdown(const tools::class_summary_info &summary,
+							    int available_lines,
+							    std::string_view focused_token)
 {
 	int lines = std::max(1, available_lines);
 	inspector::markdown_builder mb;
+
+	const tools::class_member_info *focused_field = nullptr;
+	const tools::class_member_info *focused_method = nullptr;
+
+	if (!focused_token.empty()) {
+		for (const auto &f : summary.fields) {
+			if (f.name == focused_token) {
+				focused_field = &f;
+				break;
+			}
+		}
+		if (!focused_field) {
+			for (const auto &m : summary.methods) {
+				if (m.name == focused_token) {
+					focused_method = &m;
+					break;
+				}
+			}
+		}
+	}
 
 	auto append_fields_line = [&](inspector::markdown_builder &b, size_t max_items) {
 		b.header("Fields:");
@@ -65,6 +206,21 @@ std::string class_summary_provider::format_summary_markdown(const tools::class_s
 			b.code(summary.fields[i].name);
 		}
 		if (summary.fields.size() > max_items) {
+			b.text(" ...");
+		}
+		b.newline();
+	};
+
+	auto append_fields_line_offset = [&](inspector::markdown_builder &b, std::string_view label, size_t start_idx, size_t count) {
+		b.header(label);
+		size_t end_idx = std::min(summary.fields.size(), start_idx + count);
+		for (size_t i = start_idx; i < end_idx; ++i) {
+			if (i > start_idx) {
+				b.text(", ");
+			}
+			b.code(summary.fields[i].name);
+		}
+		if (summary.fields.size() > end_idx) {
 			b.text(" ...");
 		}
 		b.newline();
@@ -85,50 +241,120 @@ std::string class_summary_provider::format_summary_markdown(const tools::class_s
 		b.newline();
 	};
 
-	if (lines <= 2) {
-		if (!summary.fields.empty() && !summary.methods.empty()) {
-			append_fields_line(mb, 5);
-			append_methods_line(mb, "Methods:", 0, 4);
+	auto append_focused_member = [&](inspector::markdown_builder &b) {
+		if (focused_field) {
+			std::string decl = extract_member_declaration(summary, *focused_field, true);
+			b.header("Field:").code(decl.empty() ? focused_field->name : decl).newline();
+		} else if (focused_method) {
+			std::string decl = extract_member_declaration(summary, *focused_method, false);
+			b.header("Method:").code(decl.empty() ? (focused_method->name + "()") : decl).newline();
+		}
+	};
+
+	bool has_focused = (focused_field != nullptr || focused_method != nullptr);
+
+	if (lines == 1) {
+		if (has_focused) {
+			append_focused_member(mb);
 		} else if (!summary.fields.empty()) {
-			mb.header("Class:").code(summary.class_name).text(std::format(" ({} fields)", summary.fields.size())).newline();
 			append_fields_line(mb, 8);
-		} else {
-			mb.header("Class:").code(summary.class_name).text(std::format(" ({} methods)", summary.methods.size())).newline();
+		} else if (!summary.methods.empty()) {
 			append_methods_line(mb, "Methods:", 0, 6);
 		}
-	} else if (lines == 3) {
-		mb.header("Class:")
-		    .code(summary.class_name)
-		    .text(std::format(" ({} fields, {} methods)", summary.fields.size(), summary.methods.size()))
-		    .newline();
-
-		if (!summary.fields.empty()) {
-			append_fields_line(mb, 6);
-		} else {
-			append_methods_line(mb, "Methods:", 0, 4);
-		}
-
-		if (!summary.methods.empty()) {
-			if (!summary.fields.empty()) {
-				append_methods_line(mb, "Methods:", 0, 5);
+	} else if (lines == 2) {
+		if (has_focused) {
+			if (focused_field) {
+				if (!summary.fields.empty()) {
+					append_fields_line(mb, 6);
+				} else {
+					append_methods_line(mb, "Methods:", 0, 5);
+				}
 			} else {
-				append_methods_line(mb, "More:", 4, 5);
+				if (!summary.methods.empty()) {
+					append_methods_line(mb, "Methods:", 0, 5);
+				} else {
+					append_fields_line(mb, 6);
+				}
+			}
+			append_focused_member(mb);
+		} else {
+			if (!summary.fields.empty() && !summary.methods.empty()) {
+				append_fields_line(mb, 6);
+				append_methods_line(mb, "Methods:", 0, 5);
+			} else if (!summary.fields.empty()) {
+				append_fields_line(mb, 6);
+				if (summary.fields.size() > 6) {
+					append_fields_line_offset(mb, "More:", 6, 6);
+				}
+			} else if (!summary.methods.empty()) {
+				append_methods_line(mb, "Methods:", 0, 5);
+				if (summary.methods.size() > 5) {
+					append_methods_line(mb, "More:", 5, 5);
+				}
+			}
+		}
+	} else if (lines == 3) {
+		if (has_focused) {
+			if (!summary.fields.empty()) {
+				append_fields_line(mb, 6);
+			}
+			if (!summary.methods.empty()) {
+				append_methods_line(mb, "Methods:", 0, 5);
+			} else if (summary.fields.size() > 6) {
+				append_fields_line_offset(mb, "More:", 6, 6);
+			}
+			append_focused_member(mb);
+		} else {
+			if (!summary.fields.empty()) {
+				append_fields_line(mb, 6);
+			}
+			if (!summary.methods.empty()) {
+				append_methods_line(mb, "Methods:", 0, 5);
+				if (summary.methods.size() > 5) {
+					append_methods_line(mb, "More:", 5, 5);
+				} else if (summary.fields.size() > 6) {
+					append_fields_line_offset(mb, "More:", 6, 6);
+				}
+			} else if (summary.fields.size() > 6) {
+				append_fields_line_offset(mb, "More:", 6, 6);
+				if (summary.fields.size() > 12) {
+					append_fields_line_offset(mb, "More:", 12, 6);
+				}
 			}
 		}
 	} else { // lines >= 4
-		mb.header("Class:")
-		    .code(summary.class_name)
-		    .text(std::format(" ({} fields, {} methods)", summary.fields.size(), summary.methods.size()))
-		    .newline();
-
-		if (!summary.fields.empty()) {
-			append_fields_line(mb, 6);
-		}
-
-		if (!summary.methods.empty()) {
-			append_methods_line(mb, "Methods:", 0, 4);
-			if (summary.methods.size() > 4) {
-				append_methods_line(mb, "More:", 4, 5);
+		if (has_focused) {
+			if (!summary.fields.empty()) {
+				append_fields_line(mb, 6);
+			}
+			if (!summary.methods.empty()) {
+				append_methods_line(mb, "Methods:", 0, 5);
+			}
+			append_focused_member(mb);
+			if (summary.methods.size() > 5) {
+				append_methods_line(mb, "More:", 5, 5);
+			} else if (summary.fields.size() > 6) {
+				append_fields_line_offset(mb, "More:", 6, 6);
+			}
+		} else {
+			if (!summary.fields.empty()) {
+				append_fields_line(mb, 6);
+			}
+			if (!summary.methods.empty()) {
+				append_methods_line(mb, "Methods:", 0, 5);
+				if (summary.methods.size() > 5) {
+					append_methods_line(mb, "More:", 5, 5);
+				}
+				if (summary.methods.size() > 10) {
+					append_methods_line(mb, "More:", 10, 5);
+				} else if (summary.fields.size() > 6) {
+					append_fields_line_offset(mb, "More:", 6, 6);
+				}
+			} else if (summary.fields.size() > 6) {
+				append_fields_line_offset(mb, "More:", 6, 6);
+				if (summary.fields.size() > 12) {
+					append_fields_line_offset(mb, "More:", 12, 6);
+				}
 			}
 		}
 	}
@@ -152,7 +378,7 @@ inspector_result class_summary_provider::query(const inspector_query &q)
 	if (cached.has_value()) {
 		if (cached->exists) {
 			res.score = inspector_scores::CLASS_TOKEN;
-			res.markdown = format_summary_markdown(cached->summary, q.available_lines);
+			res.markdown = format_summary_markdown(cached->summary, q.available_lines, q.token);
 			res.title_addon = std::format("class {} ({})", cached->summary.class_name,
 						      fs_utils::make_relative_to_project(cached->summary.header_path));
 			res.is_final = true;
@@ -190,7 +416,7 @@ void class_summary_provider::query_async(const inspector_query &q,
 			res.provider_name = "class_summary";
 			if (cached->exists) {
 				res.score = inspector_scores::CLASS_TOKEN;
-				res.markdown = format_summary_markdown(cached->summary, q.available_lines);
+				res.markdown = format_summary_markdown(cached->summary, q.available_lines, q.token);
 				res.title_addon = std::format("class {} ({})", cached->summary.class_name,
 							      fs_utils::make_relative_to_project(cached->summary.header_path));
 			} else {
@@ -218,7 +444,7 @@ void class_summary_provider::query_async(const inspector_query &q,
 			res.provider_name = "class_summary";
 			if (ok) {
 				res.score = inspector_scores::CLASS_TOKEN;
-				res.markdown = format_summary_markdown(summary, q.available_lines);
+				res.markdown = format_summary_markdown(summary, q.available_lines, q.token);
 				res.title_addon = std::format("class {} ({})", summary.class_name,
 							      fs_utils::make_relative_to_project(summary.header_path));
 			} else {

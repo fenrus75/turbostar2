@@ -34,7 +34,8 @@ class class_summary_provider : public inspector_provider
 
 	void clear_cache();
 
-	static std::string format_summary_markdown(const tools::class_summary_info &summary, int available_lines);
+	static std::string format_summary_markdown(const tools::class_summary_info &summary, int available_lines,
+						   std::string_view focused_token = "");
 
       private:
 	std::string make_cache_key(const inspector_query &q) const;
