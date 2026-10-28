@@ -501,8 +501,6 @@ int main(int argc, char **argv)
 	ansi::disable_terminal_modes();
 
 	endwin();
-	if (_nc_free_and_exit)
-		_nc_free_and_exit();
 	del_curterm(cur_term);
 	plugin_loader::get_instance().unload_all_plugins();
 
@@ -519,5 +517,7 @@ int main(int argc, char **argv)
 
 	logger.log("Application exiting main().");
 	logger.clear_all();
+//	if (_nc_free_and_exit)
+//		_nc_free_and_exit();
 	return 0;
 }
