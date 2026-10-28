@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 #include "agentlib/document_provider.h"
@@ -69,7 +70,6 @@ class editor : public agentlib::document_provider
 	friend void test_status_bar_paste();
 	friend void test_k_block_multi_cursor();
 
-#include <string_view>
 
 	const std::vector<latency_spike> &get_latency_spikes_for_testing() const noexcept
 	{
