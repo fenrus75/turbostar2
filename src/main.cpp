@@ -44,7 +44,7 @@ std::string get_home_dir()
 	return ".";
 }
 
-int main(int argc, char **argv)
+int main_wrapped(int argc, char **argv)
 {
 	fs_utils::set_current_thread_name("main");
 	crash_handler::install_fallback_handler();
@@ -521,3 +521,12 @@ int main(int argc, char **argv)
 //		_nc_free_and_exit();
 	return 0;
 }
+
+int main(int argc, char **argv)
+{
+	main_wrapped(argc, argv);
+
+	if (_nc_free_and_exit)
+		_nc_free_and_exit();
+}
+
