@@ -20,6 +20,24 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- have a TLS "I am the rendering thread" variable that we can the check in key latency invasive places to prevent accidents
+
+- log and debug startup to optimize
+
+- have a "non-agent" turbostar binary option in meson
+	- ideally, the mcp and others are still built WITH agent
+
+- split out agent plugins to their own dir -- and load on first agent startup, not turbostar startup!
+
+- put things on a memory diet
+	- known "leaks": 
+		- agentlib::filter_registry is not freed on application exit
+			- note: we should also do filter registration on first use, not at startup
+		- agentlib::subagent_manager::load_builtins
+			- note: we should do this at first agent use not at startup
+		- event_logger  logs
+		
+
 - turn docs/testcoverage.md into a file in system:// 
 
 - `fs_run_tests` suite filter (`suite: "unit"` / `"e2e"`): allow running only fast local unit tests without invoking slower external/e2e test suites to prevent 3-minute MCP timeouts when building and running tests.

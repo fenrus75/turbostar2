@@ -27,6 +27,13 @@
 #include "syntax_color_manager.h"
 #include "images/image_manager.h"
 
+
+#include <term.h>
+extern "C" {
+void __attribute__((weak)) _nc_free_and_exit(void);
+
+}
+
 namespace fs = std::filesystem;
 
 std::string get_home_dir()
@@ -494,7 +501,9 @@ int main(int argc, char **argv)
 	ansi::disable_terminal_modes();
 
 	endwin();
-
+	if (_nc_free_and_exit)
+		_nc_free_and_exit();
+	del_curterm(cur_term);
 	plugin_loader::get_instance().unload_all_plugins();
 
 	// Print interactive event response latency metrics
@@ -509,5 +518,6 @@ int main(int argc, char **argv)
 	project_manager::get_instance().shutdown();
 
 	logger.log("Application exiting main().");
+	logger.clear_all();
 	return 0;
 }

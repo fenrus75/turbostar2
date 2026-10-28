@@ -36,6 +36,8 @@ class event_logger
 	std::vector<std::string> get_event_slice(uint64_t start_seq, uint64_t end_seq) const;
 	static void dump_recent_logs_signal_safe(int fd, size_t max_count = 10);
 
+	void clear_all();
+
       private:
 	event_logger();
 	~event_logger();

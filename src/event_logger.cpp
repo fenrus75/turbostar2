@@ -152,3 +152,13 @@ std::vector<std::string> event_logger::get_event_slice(uint64_t start_seq, uint6
 	}
 	return slice;
 }
+
+void event_logger::clear_all()
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	events.clear();
+	if (log_stream_.is_open()) {
+		log_stream_.close();
+	}
+	log_stream_.clear();
+}
