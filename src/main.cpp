@@ -29,10 +29,6 @@
 
 
 #include <term.h>
-extern "C" {
-void __attribute__((weak)) _nc_freeall(void);
-
-}
 
 namespace fs = std::filesystem;
 
@@ -501,9 +497,9 @@ int main(int argc, char **argv)
 	ansi::disable_terminal_modes();
 
 	endwin();
-	del_curterm(cur_term);
-	if (_nc_freeall) {
-		_nc_freeall();
+	SCREEN *sp = set_term(nullptr);
+	if (sp) {
+		delscreen(sp);
 	}
 	plugin_loader::get_instance().unload_all_plugins();
 
