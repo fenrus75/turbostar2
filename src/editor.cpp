@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "agentlib/agent_subsystems.h"
 #include <algorithm>
 #include <chrono>
 #include <format>
@@ -418,7 +419,7 @@ void editor::new_terminal_window()
 
 void editor::new_agent_window()
 {
-	plugin_loader::get_instance().load_all_plugins();
+	agentlib::agent_subsystems::initialize();
 
 	// Check if there is already an open main agent window
 	for (size_t i = 0; i < windows_.size(); ++i) {
@@ -447,6 +448,8 @@ void editor::new_agent_window()
 
 void editor::new_agent_center_window()
 {
+	agentlib::agent_subsystems::initialize();
+
 	// Check if there is already an open agent center window
 	for (size_t i = 0; i < windows_.size(); ++i) {
 		if (dynamic_cast<agent_center_window *>(windows_[i].get())) {

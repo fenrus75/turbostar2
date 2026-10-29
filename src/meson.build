@@ -90,6 +90,7 @@ agentlib_sources = files(
   'filter_registry.cpp',
   'agentlib/command_registry.cpp',
   'agentlib/ai_agent.cpp',
+  'agentlib/agent_subsystems.cpp',
   'agentlib/agent_animation.cpp',
   'agentlib/agent_run_registry.cpp',
   'agentlib/llm_client.cpp',

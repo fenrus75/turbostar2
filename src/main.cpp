@@ -6,6 +6,7 @@
 #include <string>
 #include "CLI11.hpp"
 #include "agentlib/skill_manager.h"
+#include "agentlib/agent_subsystems.h"
 #include "agentlib/subagent_manager.h"
 #include "a2a/a2a_server.h"
 #include "a2a/a2a_server_manager.h"
@@ -189,7 +190,7 @@ int main(int argc, char **argv)
 			config_manager::get_instance().set_default_model_id(override_model_id);
 		}
 
-		plugin_loader::get_instance().load_all_plugins();
+		agentlib::agent_subsystems::initialize();
 		project_manager::get_instance().set_enforce_initialization(true);
 		project_manager::get_instance().initialize();
 		(void)agentlib::tool_registry::get_instance();

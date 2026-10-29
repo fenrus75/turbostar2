@@ -14,6 +14,7 @@
 #include "../event_queue.h"
 
 #include "../agentlib/ai_model.h"
+#include "agentlib/agent_subsystems.h"
 #include "../config_manager.h"
 #include "../pluginloader.h"
 #include "../hex/hex_highlighter_registry.h"
@@ -118,7 +119,7 @@ int main(int argc, char **argv)
 	agentlib::skill_manager::get_instance().initialize();
 	agentlib::subagent_manager::get_instance().initialize();
 	images::image_manager::get_instance().initialize();
-	plugin_loader::get_instance().load_all_plugins();
+	agentlib::agent_subsystems::initialize();
 	
 	std::filesystem::path workspace_root = project_dir.empty() ? std::filesystem::current_path() : std::filesystem::path(project_dir);
 	ctx.fs_security.set_working_directory(workspace_root);

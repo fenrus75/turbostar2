@@ -16,6 +16,7 @@
 #include <tuple>
 #include <unistd.h>
 #include "agentlib/ai_agent.h"
+#include "agentlib/agent_subsystems.h"
 #include "agentlib/copilot_manager.h"
 #include "agentlib/subagent_manager.h"
 #include "build_error_manager.h"
@@ -189,6 +190,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		}
 		case event_type::plugins: {
 			logger.log("Dispatching plugins event.");
+			agentlib::agent_subsystems::initialize();
 			std::vector<std::string> lines;
 			const auto &plugins = plugin_loader::get_instance().get_plugins();
 			if (plugins.empty()) {
@@ -212,7 +214,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		}
 		case event_type::tool_status: {
 			logger.log("Dispatching tool_status event.");
-			plugin_loader::get_instance().load_all_plugins();
+			agentlib::agent_subsystems::initialize();
 			active_dialog_ = create_tool_status_dialog();
 			active_dialog_mode_ = dialog_mode::none;
 			set_focus(focus_target::dialog, "menu_tool_status");
