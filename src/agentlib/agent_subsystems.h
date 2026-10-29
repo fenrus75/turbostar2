@@ -18,8 +18,11 @@ public:
 	/**
 	 * Initializes all agent-side subsystems exactly once in a thread-safe manner.
 	 * Subsequent calls return immediately.
+	 *
+	 * @param server_mode If true (e.g. turbostar --mcp), skips starting the client-side
+	 *                    MCP process manager and A2A servers to avoid recursive process spawning.
 	 */
-	static void initialize();
+	static void initialize(bool server_mode = false);
 
 	/**
 	 * Returns true if agent subsystems have already been initialized.

@@ -5,14 +5,10 @@
 #include <ncurses.h>
 #include <string>
 #include "CLI11.hpp"
-#include "agentlib/skill_manager.h"
 #include "agentlib/agent_subsystems.h"
-#include "agentlib/subagent_manager.h"
 #include "a2a/a2a_server.h"
 #include "a2a/a2a_server_manager.h"
-#include "agentlib/tool_registry.h"
 #include "agentlib/tool_tracer.h"
-#include "agentlib/command_registry.h"
 #include "ansi.h"
 #include "config_manager.h"
 #include "session_manager.h"
@@ -190,13 +186,9 @@ int main(int argc, char **argv)
 			config_manager::get_instance().set_default_model_id(override_model_id);
 		}
 
-		agentlib::agent_subsystems::initialize();
+		agentlib::agent_subsystems::initialize(true);
 		project_manager::get_instance().set_enforce_initialization(true);
 		project_manager::get_instance().initialize();
-		(void)agentlib::tool_registry::get_instance();
-		(void)command_registry::get_instance();
-		agentlib::skill_manager::get_instance().initialize();
-		agentlib::subagent_manager::get_instance().initialize();
 
 		agentlib::turbomcp_server server;
 		if (!untrusted_mcp_identity.empty()) {
@@ -238,11 +230,6 @@ int main(int argc, char **argv)
 	statistics_manager::get_instance().load();
 	project_manager::get_instance().set_enforce_initialization(true);
 	project_manager::get_instance().initialize();
-	a2a::a2a_server_manager::get_instance().initialize();
-	(void)agentlib::tool_registry::get_instance();
-	(void)command_registry::get_instance();
-	agentlib::skill_manager::get_instance().initialize();
-	agentlib::subagent_manager::get_instance().initialize();
 	images::image_manager::get_instance().initialize();
 
 	auto &logger = event_logger::get_instance();
@@ -472,9 +459,6 @@ int main(int argc, char **argv)
 
 	// Load session state (e.g. search history, last search query)
 	session_manager::get_instance().load();
-
-	// Initialize and start MCP servers asynchronously in a background thread
-	agentlib::mcp_manager::get_instance().start_async(project_root);
 
 	config_manager::get_instance().set_force_ascii(force_ascii);
 

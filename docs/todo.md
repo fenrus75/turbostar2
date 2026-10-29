@@ -27,7 +27,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - have a "non-agent" turbostar binary option in meson
 	- ideally, the mcp and others are still built WITH agent
 
-- split out agent plugins to their own dir (loading on first agent startup is implemented!)
+- split out agent plugins to their own dir (loading on first agent startup is implemented via agent_subsystems!)
 
 - put things on a memory diet
 	- known "leaks": 
@@ -265,6 +265,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # Done
+
+## 29-10-2026
+- Deferred agent subsystem initialization: introduced `agentlib::agent_subsystems` coordinator to defer loading dynamic plugins, MCP server manager (`mcp_manager::start_async`), skills (`skill_manager`), subagents (`subagent_manager`), A2A server configs (`a2a_server_manager`), and tool registries until an agent window is created, an agent CLI task starts, or plugin/MCP/A2A dialogs are opened. Standard editor startup ("just editing a file") completely bypasses all agent subsystems, eliminating child MCP server processes and background threads. (Completed)
 
 ## 24-10-2026
 - Asynchronous non-blocking LSP lookup for right-click context menu: eliminated GUI loop latency spikes during RMB context menu clicks by making `call_synthesizer::analyze_context_at` non-blocking on the UI thread (`tools::get_cached_function_signature` and `builtin_signatures`). Uncached symbols immediately display the popup menu with placeholder items, while an asynchronous worker thread queries LSP and pushes `event_type::lsp_signature_result` to `global_queue_`. Handled in `editor::dispatch_event_lsp` using `popup_menu::set_items`, seamlessly updating the menu in-place with resolved signatures and synthesized arguments. Verified with editor test suite (123/123 pass) and zero critical clang-tidy warnings. (Completed)

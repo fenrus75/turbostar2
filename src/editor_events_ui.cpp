@@ -478,6 +478,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		}
 		case event_type::mcp_config: {
 			logger.log("Dispatching mcp_config event.");
+			agentlib::agent_subsystems::initialize();
 			active_dialog_ = create_mcp_config_dialog();
 			active_dialog_mode_ = dialog_mode::mcp_config;
 			set_focus(focus_target::dialog, "mcp_config");
@@ -485,6 +486,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		}
 		case event_type::a2a_config: {
 			logger.log("Dispatching a2a_config event.");
+			agentlib::agent_subsystems::initialize();
 			active_dialog_ = create_a2a_servers_dialog();
 			active_dialog_mode_ = dialog_mode::a2a_config;
 			set_focus(focus_target::dialog, "a2a_config");

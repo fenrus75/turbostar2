@@ -116,8 +116,6 @@ int main(int argc, char **argv)
 	(void)hex_highlighter_registry::get_instance();
 	project_manager::get_instance().set_enforce_initialization(true);
 	project_manager::get_instance().initialize();
-	agentlib::skill_manager::get_instance().initialize();
-	agentlib::subagent_manager::get_instance().initialize();
 	images::image_manager::get_instance().initialize();
 	agentlib::agent_subsystems::initialize();
 	

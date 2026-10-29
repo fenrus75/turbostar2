@@ -23,6 +23,8 @@ The primary goals of `agent_subsystems` are:
 - `agent_subsystems::initialize()` must be completely safe to call repeatedly from any thread.
 - If an editor session never opens an agent window, executes an agent action, or opens an agent-related dialog, zero agent processes should be spawned and zero agent plugins should be dynamically loaded into the process address space.
 - Unit tests that explicitly test individual subsystems (e.g. testing `tool_registry` or `skill_manager` in isolation) can still initialize their respective components directly if needed.
+- `server_mode` parameter: When Turbostar runs as an MCP stdio server (`turbostar --mcp`), `agent_subsystems::initialize(true)` initializes tools, skills, and subagents without launching the client-side MCP manager or A2A servers to avoid recursive child process spawning.
 
 ## Lessons Learned
 - Calling subsystem initializers indiscriminately inside general class constructors or lookup methods can cause unwanted side effects (such as unit tests scanning directories or loading stale host plugins). Having an explicit lifecycle coordinator called at UI and CLI entry points cleanly separates core editor workflows from agent features.
+- Running background tasks like `mcp_manager::start_async` during startup spawned background threads and child `turbostar --mcp` processes before even knowing if the user would ever open an agent window. Deferring this to `agent_subsystems::initialize()` eliminates hundreds of milliseconds of startup latency and background process overhead.
