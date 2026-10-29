@@ -27,7 +27,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 - have a "non-agent" turbostar binary option in meson
 	- ideally, the mcp and others are still built WITH agent
 
-- split out agent plugins to their own dir -- and load on first agent startup, not turbostar startup!
+- split out agent plugins to their own dir (loading on first agent startup is implemented!)
 
 - put things on a memory diet
 	- known "leaks": 

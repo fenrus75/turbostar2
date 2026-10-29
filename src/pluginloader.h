@@ -1,12 +1,14 @@
 #pragma once
 
-#include <vector>
+#include <atomic>
+#include <mutex>
 #include <string>
+#include <vector>
 
 /*
  * The plugin_loader class is responsible for locating, loading,
  * and running dynamic plugins (.so files) from the configured plugin directory.
- * Implements the singleton pattern.
+ * Implements the singleton pattern with thread-safe on-demand loading.
  */
 class plugin_loader {
 public:
@@ -20,6 +22,7 @@ public:
 
 	/*
 	 * Loads all plugins found in the PLUGIN_DIR directory.
+	 * Thread-safe and idempotent; subsequent calls return immediately.
 	 */
 	void load_all_plugins();
 
@@ -30,9 +33,14 @@ public:
 	void unload_all_plugins();
 
 	/*
-	 * Returns the list of metadata for loaded plugins.
+	 * Returns the list of metadata for loaded plugins, loading them if not yet loaded.
 	 */
-	const std::vector<plugin_info>& get_plugins() const;
+	const std::vector<plugin_info>& get_plugins();
+
+	/*
+	 * Returns true if dynamic plugins have already been loaded.
+	 */
+	[[nodiscard]] bool is_loaded() const noexcept { return loaded_.load(std::memory_order_acquire); }
 
 private:
 	plugin_loader();
@@ -52,6 +60,16 @@ private:
 	std::vector<loaded_plugin> loaded_plugins_;
 	std::vector<plugin_info> plugin_infos_;
 	bool unloaded_ = false;
+	std::atomic<bool> loaded_{false};
+
+	/*
+	 * mutex_ protects access to loaded_plugins_, plugin_infos_, and unloaded_ state
+	 * during load_all_plugins() and unload_all_plugins().
+	 * Locking Rules:
+	 * - Held exclusively during dynamic plugin loading and unloading.
+	 * - External registries or callbacks must not acquire mutex_ recursively.
+	 */
+	std::mutex mutex_;
 };
 
 

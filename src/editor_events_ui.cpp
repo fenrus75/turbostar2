@@ -212,6 +212,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 		}
 		case event_type::tool_status: {
 			logger.log("Dispatching tool_status event.");
+			plugin_loader::get_instance().load_all_plugins();
 			active_dialog_ = create_tool_status_dialog();
 			active_dialog_mode_ = dialog_mode::none;
 			set_focus(focus_target::dialog, "menu_tool_status");

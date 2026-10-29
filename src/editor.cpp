@@ -34,6 +34,7 @@
 #include "inspector/man_page_provider.h"
 #include "line.h"
 #include "perf_manager.h"
+#include "pluginloader.h"
 #include "project_manager.h"
 #include "project_template_manager.h"
 #include "session_manager.h"
@@ -417,6 +418,8 @@ void editor::new_terminal_window()
 
 void editor::new_agent_window()
 {
+	plugin_loader::get_instance().load_all_plugins();
+
 	// Check if there is already an open main agent window
 	for (size_t i = 0; i < windows_.size(); ++i) {
 		if (auto aw = dynamic_cast<agent_window *>(windows_[i].get())) {

@@ -10,6 +10,15 @@ Plugins are compiled as shared modules (`.so` files) and placed in the plugin di
 
 The `plugin_loader` singleton scans this directory, loads valid `.so` files using `dlopen`, queries their metadata and entry points, and manages their lifecycles.
 
+### On-Demand (Lazy) Loading
+To minimize startup latency and resident set size (RSS) for standard file editing sessions, plugins are **not loaded during application startup**. Instead, `plugin_loader` loads plugins lazily on first demand when:
+1. The user creates or opens an agent session (`editor::new_agent_window()`, `--agent`, or `turboagent`).
+2. Turbostar is started in stdio MCP mode (`turbostar --mcp`).
+3. Headless conversation harnesses initialize (`agentcli`).
+4. The user views plugin/tool status dialogs (`Help -> Plugins...`, `Agent -> Tool Status...`).
+
+Calls to `load_all_plugins()` are thread-safe and idempotent; subsequent calls return immediately. If an editor session terminates without invoking agent features, plugin loading is bypassed entirely and shutdown is an instantaneous no-op.
+
 ---
 
 ## 2. Shared Module Interface

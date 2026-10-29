@@ -1,4 +1,5 @@
 #include "pluginloader.h"
+#include "agentlib/tool_registry.h"
 #include <filesystem>
 #include <dlfcn.h>
 #include <cstdlib>
@@ -26,7 +27,8 @@ plugin_loader::~plugin_loader()
 
 void plugin_loader::unload_all_plugins()
 {
-	if (unloaded_) {
+	std::lock_guard<std::mutex> lock(mutex_);
+	if (unloaded_ || !loaded_.load(std::memory_order_relaxed)) {
 		return;
 	}
 	unloaded_ = true;
@@ -45,13 +47,26 @@ void plugin_loader::unload_all_plugins()
 	}
 }
 
-const std::vector<plugin_loader::plugin_info>& plugin_loader::get_plugins() const
+const std::vector<plugin_loader::plugin_info>& plugin_loader::get_plugins()
 {
+	load_all_plugins();
 	return plugin_infos_;
 }
 
 void plugin_loader::load_all_plugins()
 {
+	if (loaded_.load(std::memory_order_acquire)) {
+		return;
+	}
+	std::lock_guard<std::mutex> lock(mutex_);
+	if (loaded_.load(std::memory_order_relaxed)) {
+		return;
+	}
+
+	// Force initialization of tool_registry before loading plugins to ensure
+	// correct singleton destruction ordering during static teardown.
+	(void)agentlib::tool_registry::get_instance();
+
 	std::filesystem::path plugin_path;
 	const char *env_plugin_dir = std::getenv("TURBOSTAR_PLUGIN_DIR");
 	if (env_plugin_dir && *env_plugin_dir) {
@@ -63,6 +78,7 @@ void plugin_loader::load_all_plugins()
 	}
 
 	if (plugin_path.empty() || !std::filesystem::exists(plugin_path) || !std::filesystem::is_directory(plugin_path)) {
+		loaded_.store(true, std::memory_order_release);
 		return;
 	}
 
@@ -124,6 +140,7 @@ void plugin_loader::load_all_plugins()
 			}
 		}
 	}
+	loaded_.store(true, std::memory_order_release);
 }
 
 
