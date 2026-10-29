@@ -315,7 +315,7 @@ std::string class_summary_provider::format_summary_markdown(const tools::class_s
 	} else if (lines == 3) {
 		if (has_focused) {
 			if (!summary.fields.empty()) {
-				append_fields_line(mb, "Fields:", 0);
+				next_field_idx = append_fields_line(mb, "Fields:", 0);
 			}
 			if (!summary.methods.empty()) {
 				append_methods_line(mb, "Methods:", 0);
@@ -344,7 +344,7 @@ std::string class_summary_provider::format_summary_markdown(const tools::class_s
 	} else { // lines >= 4
 		if (has_focused) {
 			if (!summary.fields.empty()) {
-				append_fields_line(mb, "Fields:", 0);
+				next_field_idx = append_fields_line(mb, "Fields:", 0);
 			}
 			if (!summary.methods.empty()) {
 				next_method_idx = append_methods_line(mb, "Methods:", 0);

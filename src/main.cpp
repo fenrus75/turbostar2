@@ -30,7 +30,7 @@
 
 #include <term.h>
 extern "C" {
-void __attribute__((weak)) _nc_free_and_exit(void);
+void __attribute__((weak)) _nc_freeall(void);
 
 }
 
@@ -44,7 +44,7 @@ std::string get_home_dir()
 	return ".";
 }
 
-int main_wrapped(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	fs_utils::set_current_thread_name("main");
 	crash_handler::install_fallback_handler();
@@ -502,6 +502,9 @@ int main_wrapped(int argc, char **argv)
 
 	endwin();
 	del_curterm(cur_term);
+	if (_nc_freeall) {
+		_nc_freeall();
+	}
 	plugin_loader::get_instance().unload_all_plugins();
 
 	// Print interactive event response latency metrics
@@ -517,16 +520,6 @@ int main_wrapped(int argc, char **argv)
 
 	logger.log("Application exiting main().");
 	logger.clear_all();
-//	if (_nc_free_and_exit)
-//		_nc_free_and_exit();
 	return 0;
-}
-
-int main(int argc, char **argv)
-{
-	main_wrapped(argc, argv);
-
-	if (_nc_free_and_exit)
-		_nc_free_and_exit();
 }
 

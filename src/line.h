@@ -33,7 +33,7 @@ class line
 
 	line() noexcept = default;
 	explicit line(std::string_view text);
-	~line() noexcept { attributes_.clear(); };
+	~line() noexcept = default;
 
 	// Custom copy/move to handle mutex
 	line(const line &other);
