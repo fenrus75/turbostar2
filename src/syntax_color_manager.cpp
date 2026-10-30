@@ -12,9 +12,13 @@ syntax_color_manager &syntax_color_manager::get_instance()
 void syntax_color_manager::initialize()
 {
 	// Check if already initialized (can be called multiple times safely)
-	if (!attribute_to_pair_.empty()) {
+	if (initialized_) {
 		return;
 	}
+	initialized_ = true;
+
+	// Fill default pair mappings
+	attribute_to_pair_.fill(3);
 
 	// Register initial defaults
 	attribute_colors_[syntax_attribute::normal] = {COLOR_YELLOW + 8, COLOR_BLUE};
@@ -28,33 +32,35 @@ void syntax_color_manager::initialize()
 	attribute_colors_[syntax_attribute::trailing_space] = {COLOR_WHITE + 8, COLOR_RED};
 
 	// Set static pair IDs
-	attribute_to_pair_[syntax_attribute::normal] = 3;
-	attribute_to_pair_[syntax_attribute::keyword] = 12;
-	attribute_to_pair_[syntax_attribute::comment] = 80;
-	attribute_to_pair_[syntax_attribute::string_literal] = 81;
-	attribute_to_pair_[syntax_attribute::heading] = 22;
-	attribute_to_pair_[syntax_attribute::bold] = 23;
-	attribute_to_pair_[syntax_attribute::italic] = 82;
-	attribute_to_pair_[syntax_attribute::list_item] = 24;
-	attribute_to_pair_[syntax_attribute::trailing_space] = 27;
+	attribute_to_pair_[static_cast<size_t>(syntax_attribute::normal)] = 3;
+	attribute_to_pair_[static_cast<size_t>(syntax_attribute::keyword)] = 12;
+	attribute_to_pair_[static_cast<size_t>(syntax_attribute::comment)] = 80;
+	attribute_to_pair_[static_cast<size_t>(syntax_attribute::string_literal)] = 81;
+	attribute_to_pair_[static_cast<size_t>(syntax_attribute::heading)] = 22;
+	attribute_to_pair_[static_cast<size_t>(syntax_attribute::bold)] = 23;
+	attribute_to_pair_[static_cast<size_t>(syntax_attribute::italic)] = 82;
+	attribute_to_pair_[static_cast<size_t>(syntax_attribute::list_item)] = 24;
+	attribute_to_pair_[static_cast<size_t>(syntax_attribute::trailing_space)] = 27;
 
 	// Load custom colors from JSON configuration if available
 	load();
 
 	// Initialize the ncurses color pairs
 	if (has_colors()) {
-		for (const auto &[attr, pair_id] : attribute_to_pair_) {
-			auto [fg, bg] = attribute_colors_[attr];
-			init_pair(pair_id, fg, bg);
+		for (const auto &[attr, colors] : attribute_colors_) {
+			size_t idx = static_cast<size_t>(attr);
+			if (idx < attribute_to_pair_.size()) {
+				init_pair(attribute_to_pair_[idx], colors.first, colors.second);
+			}
 		}
 	}
 }
 
-int syntax_color_manager::get_color_pair(syntax_attribute attr) const
+int syntax_color_manager::get_color_pair(syntax_attribute attr) const noexcept
 {
-	auto it = attribute_to_pair_.find(attr);
-	if (it != attribute_to_pair_.end()) {
-		return it->second;
+	size_t idx = static_cast<size_t>(attr);
+	if (idx < attribute_to_pair_.size()) [[likely]] {
+		return attribute_to_pair_[idx];
 	}
 	return 3; // Fallback to normal text pair
 }
@@ -62,9 +68,9 @@ int syntax_color_manager::get_color_pair(syntax_attribute attr) const
 void syntax_color_manager::set_color(syntax_attribute attr, uint8_t fg, uint8_t bg)
 {
 	attribute_colors_[attr] = {fg, bg};
-	auto it = attribute_to_pair_.find(attr);
-	if (it != attribute_to_pair_.end() && has_colors()) {
-		init_pair(it->second, fg, bg);
+	size_t idx = static_cast<size_t>(attr);
+	if (idx < attribute_to_pair_.size() && has_colors()) {
+		init_pair(attribute_to_pair_[idx], fg, bg);
 	}
 }
 
@@ -147,9 +153,11 @@ void syntax_color_manager::reload()
 {
 	load();
 	if (has_colors()) {
-		for (const auto &[attr, pair_id] : attribute_to_pair_) {
-			auto [fg, bg] = attribute_colors_[attr];
-			init_pair(pair_id, fg, bg);
+		for (const auto &[attr, colors] : attribute_colors_) {
+			size_t idx = static_cast<size_t>(attr);
+			if (idx < attribute_to_pair_.size()) {
+				init_pair(attribute_to_pair_[idx], colors.first, colors.second);
+			}
 		}
 	}
 }

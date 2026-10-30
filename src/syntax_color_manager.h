@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -14,7 +15,7 @@ class syntax_color_manager
 	void initialize();
 
 	// Retrieves the ncurses color pair for a syntax attribute
-	int get_color_pair(syntax_attribute attr) const;
+	int get_color_pair(syntax_attribute attr) const noexcept;
 
 	// Updates/sets the foreground and background color for a syntax attribute
 	void set_color(syntax_attribute attr, uint8_t fg, uint8_t bg);
@@ -33,8 +34,12 @@ class syntax_color_manager
 	syntax_color_manager() = default;
 	~syntax_color_manager() = default;
 
-	// Map of attribute to ncurses color pair ID
-	std::map<syntax_attribute, int> attribute_to_pair_;
+	// Number of syntax attributes (normal=0 through trailing_space=8)
+	static constexpr size_t max_attributes = 16;
+	bool initialized_{false};
+
+	// Direct flat array mapping attribute enum value -> ncurses color pair ID
+	std::array<int, max_attributes> attribute_to_pair_{};
 
 	// Map of attribute to original {fg, bg} settings
 	std::map<syntax_attribute, std::pair<uint8_t, uint8_t>> attribute_colors_;
