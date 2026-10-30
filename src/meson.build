@@ -39,6 +39,7 @@ core_sources = files(
   'process_runner.cpp',
   'markdown_utils.cpp',
   'command_runner.cpp',
+  'rendering_thread_guard.cpp',
   'syntax_color_manager.cpp',
   'languages/cpp/highlighter.cpp',
   'highlighter/python_highlighter.cpp',

@@ -19,6 +19,7 @@
 #include "fs_utils.h"
 #include "project_manager.h"
 #include "perf_manager.h"
+#include "rendering_thread_guard.h"
 
 namespace fs = std::filesystem;
 
@@ -497,6 +498,8 @@ std::string command_runner::build_command(const std::string &raw_command) const
 
 int command_runner::execute(const std::string &command)
 {
+	rendering_thread_guard::warn_high_latency("command_runner", "synchronous process execution '{}'", command);
+
 	start_time_ = std::chrono::steady_clock::now();
 	timed_out_ = false;
 	std::string final_command = build_command(command);

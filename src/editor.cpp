@@ -38,6 +38,7 @@
 #include "pluginloader.h"
 #include "project_manager.h"
 #include "project_template_manager.h"
+#include "rendering_thread_guard.h"
 #include "session_manager.h"
 #include "tools/troff2md.h"
 #include "ui/agent_center_window.h"
@@ -755,6 +756,8 @@ editor::~editor()
 
 void editor::run()
 {
+	rendering_thread_guard ui_guard;
+
 	if (!initial_agent_prompt_.empty()) {
 		new_agent_window();
 		// Look for the agent window we just created to send the message

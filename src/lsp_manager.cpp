@@ -1,6 +1,7 @@
 #include "lsp_manager.h"
 #include "event_logger.h"
 #include "project_manager.h"
+#include "rendering_thread_guard.h"
 #include "semcode_backend.h"
 #include "standard_lsp_backend.h"
 
@@ -114,6 +115,7 @@ bool lsp_manager::is_supported_file(const std::string &filepath) const
 
 std::vector<text_range> lsp_manager::query_selection_ranges(const std::string &filepath, int line, int character)
 {
+	rendering_thread_guard::warn_high_latency("lsp_manager", "query_selection_ranges on '{}':{}:{}", filepath, line, character);
 	if (backend_) {
 		return backend_->query_selection_ranges(filepath, line, character);
 	}
@@ -122,6 +124,7 @@ std::vector<text_range> lsp_manager::query_selection_ranges(const std::string &f
 
 std::vector<lsp_manager::location_info> lsp_manager::query_definition(const std::string &filepath, int line, int character)
 {
+	rendering_thread_guard::warn_high_latency("lsp_manager", "query_definition on '{}':{}:{}", filepath, line, character);
 	if (backend_) {
 		return backend_->query_definition(filepath, line, character);
 	}
@@ -130,6 +133,7 @@ std::vector<lsp_manager::location_info> lsp_manager::query_definition(const std:
 
 std::vector<lsp_manager::location_info> lsp_manager::query_type_definition(const std::string &filepath, int line, int character)
 {
+	rendering_thread_guard::warn_high_latency("lsp_manager", "query_type_definition on '{}':{}:{}", filepath, line, character);
 	if (backend_) {
 		return backend_->query_type_definition(filepath, line, character);
 	}
@@ -138,6 +142,7 @@ std::vector<lsp_manager::location_info> lsp_manager::query_type_definition(const
 
 std::vector<lsp_manager::location_info> lsp_manager::query_references(const std::string &filepath, int line, int character)
 {
+	rendering_thread_guard::warn_high_latency("lsp_manager", "query_references on '{}':{}:{}", filepath, line, character);
 	if (backend_) {
 		return backend_->query_references(filepath, line, character);
 	}
@@ -146,6 +151,7 @@ std::vector<lsp_manager::location_info> lsp_manager::query_references(const std:
 
 std::vector<lsp_manager::symbol_info> lsp_manager::query_workspace_symbols(const std::string &query)
 {
+	rendering_thread_guard::warn_high_latency("lsp_manager", "query_workspace_symbols for '{}'", query);
 	if (backend_) {
 		return backend_->query_workspace_symbols(query);
 	}
@@ -154,6 +160,7 @@ std::vector<lsp_manager::symbol_info> lsp_manager::query_workspace_symbols(const
 
 std::vector<lsp_manager::symbol_node> lsp_manager::query_document_symbols(const std::string &filepath)
 {
+	rendering_thread_guard::warn_high_latency("lsp_manager", "query_document_symbols on '{}'", filepath);
 	if (backend_) {
 		return backend_->query_document_symbols(filepath);
 	}
@@ -177,6 +184,7 @@ void lsp_manager::invalidate_symbol_cache(const std::string &filepath)
 std::vector<lsp_manager::call_hierarchy_item> lsp_manager::query_call_hierarchy_outgoing(const std::string &filepath, int line,
 											 int character)
 {
+	rendering_thread_guard::warn_high_latency("lsp_manager", "query_call_hierarchy_outgoing on '{}':{}:{}", filepath, line, character);
 	if (backend_) {
 		return backend_->query_call_hierarchy_outgoing(filepath, line, character);
 	}
@@ -187,6 +195,7 @@ std::vector<lsp_manager::outgoing_call_item>
 lsp_manager::query_call_hierarchy_outgoing_batch(const std::string &filepath, const std::vector<std::pair<int, int>> &positions,
 						 std::chrono::steady_clock::time_point deadline)
 {
+	rendering_thread_guard::warn_high_latency("lsp_manager", "query_call_hierarchy_outgoing_batch on '{}' ({} items)", filepath, positions.size());
 	if (backend_) {
 		return backend_->query_call_hierarchy_outgoing_batch(filepath, positions, deadline);
 	}
@@ -196,6 +205,7 @@ lsp_manager::query_call_hierarchy_outgoing_batch(const std::string &filepath, co
 std::vector<lsp_manager::type_hierarchy_item> lsp_manager::query_type_hierarchy_supertypes(const std::string &filepath, int line,
 											   int character)
 {
+	rendering_thread_guard::warn_high_latency("lsp_manager", "query_type_hierarchy_supertypes on '{}':{}:{}", filepath, line, character);
 	if (backend_) {
 		return backend_->query_type_hierarchy_supertypes(filepath, line, character);
 	}

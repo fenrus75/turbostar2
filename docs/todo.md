@@ -20,8 +20,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- have a TLS "I am the rendering thread" variable that we can the check in key latency invasive places to prevent accidents
-
 - log and debug startup to optimize
 
 - have a "non-agent" turbostar binary option in meson
@@ -265,6 +263,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # Done
+
+## 30-10-2026
+- Thread-Local Storage rendering thread latency guard: implemented `rendering_thread_guard` (`src/rendering_thread_guard.{h,cpp,md}`) utilizing C++11 `inline static thread_local bool` to designate the main UI/rendering thread within `editor::run()`. Added non-blocking `warn_high_latency(tag, fmt, ...)` instrumentation to detect and warn against synchronous, latency-sensitive blocking calls (in `command_runner::execute` and synchronous `lsp_manager` query helpers). On non-rendering background threads, TLS checks cost a single `%fs` register read with zero allocation overhead. Added unit tests in `tests/unit/test_rendering_thread_guard.cpp`. (Completed)
 
 ## 29-10-2026
 - LSP FIFO queue ordering for document symbol prefetching & attribute-aware C++ symbol extraction: resolved startup error logs (`LSP: prefetch document symbol query error: trying to get AST for non-added document`) by routing `prefetch_document_symbols` requests into the asynchronous FIFO `doc_queue_` on `doc_worker_thread_` in `standard_lsp_backend`, guaranteeing `textDocument/didOpen` is always transmitted before any AST symbol queries (`textDocument/documentSymbol`). Added auto-open verification guards before AST queries. Fixed C++ symbol extractor to skip GNU attributes (`__attribute__((...))`) and C++ attributes (`[[...]]`) during class/struct declaration parsing and isolated function definition detection to `paren_depth == 0`. Added unit test case in `tests/unit/test_lsp_backend.cpp` and updated documentation in `src/standard_lsp_backend.md` and `src/languages/cpp/symbol_extractor.md`. (Completed)

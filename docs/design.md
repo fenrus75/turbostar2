@@ -47,6 +47,10 @@ After making a change, create a git commit for the change. Before committing, en
 - ncursesw is used for creating the TUI
 - RAII memory management paradigm throughout
 - Design goal: responsiveness 
+- **Rendering Thread Guard & Latency Invariant**:
+  - The main UI and rendering thread is designated via `rendering_thread_guard` (`src/rendering_thread_guard.{h,cpp,md}`), using standard C++11 `inline static thread_local bool`.
+  - Accidental synchronous blocking operations (such as synchronous command execution in `command_runner` or synchronous LSP queries in `lsp_manager`) call `rendering_thread_guard::warn_high_latency(tag, fmt, ...)` to emit structured warnings into the event logger without halting the process.
+  - On background threads, the TLS check compiles to a single CPU register read (`%fs:offset`) with zero dynamic memory allocation or synchronization locks.
 - Multi-tier Locking Model:
     - **Document-level**: Each `document` uses a `std::shared_mutex` to protect the structure of the document (the list of lines) and the cursor/selection state. `shared_lock` is used for rendering and reading state, while `unique_lock` is used for structural changes or moving the cursor.
     - **Line-level**: Each `line` uses its own `std::shared_mutex` to protect its internal UTF-8 string data. This allows background threads to process different lines of the same document concurrently without blocking the main document or each other.

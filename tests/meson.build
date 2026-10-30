@@ -31,7 +31,7 @@ test_event_queue = executable('test_event_queue',
 test('unit_event_queue', test_event_queue, suite: 'agent')
 
 test_file_health_tracker = executable('test_file_health_tracker',
-  ['unit/test_file_health_tracker.cpp', '../src/event_logger.cpp', '../src/lsp_backend.cpp', '../src/standard_lsp_backend.cpp', '../src/semcode_backend.cpp', '../src/lsp_manager.cpp', '../src/fs_utils.cpp', '../src/fs_basics.cpp', '../src/git_manager.cpp', '../src/config_manager.cpp', '../src/build_error_manager.cpp', '../src/gcc_log_parser.cpp', '../src/command_runner.cpp', '../src/event_queue.cpp', '../src/crashdump_manager.cpp', '../src/address_lookup.cpp', '../src/project_manager.cpp', '../src/codereview_manager.cpp', '../src/perf_manager.cpp'],
+  ['unit/test_file_health_tracker.cpp', '../src/event_logger.cpp', '../src/lsp_backend.cpp', '../src/standard_lsp_backend.cpp', '../src/semcode_backend.cpp', '../src/lsp_manager.cpp', '../src/fs_utils.cpp', '../src/fs_basics.cpp', '../src/git_manager.cpp', '../src/config_manager.cpp', '../src/build_error_manager.cpp', '../src/gcc_log_parser.cpp', '../src/command_runner.cpp', '../src/rendering_thread_guard.cpp', '../src/event_queue.cpp', '../src/crashdump_manager.cpp', '../src/address_lookup.cpp', '../src/project_manager.cpp', '../src/codereview_manager.cpp', '../src/perf_manager.cpp'],
   dependencies: [agent_dep, core_dep, lsp_dep, nlohmann_json_dep, thread_dep],
   include_directories: inc)
 test('unit_file_health_tracker', test_file_health_tracker, suite: 'agent', workdir: meson.project_source_root())
@@ -196,13 +196,13 @@ test('unit_binary_plugin', test_binary_plugin_impl, suite: 'plugins')
 
 
 test_history_manager = executable('test_history_manager',
-  ['unit/test_history_manager.cpp', '../src/history_manager.cpp', '../src/event_logger.cpp', '../src/fs_utils.cpp', '../src/fs_basics.cpp', '../src/git_manager.cpp', '../src/config_manager.cpp', '../src/build_error_manager.cpp', '../src/gcc_log_parser.cpp', '../src/command_runner.cpp', '../src/event_queue.cpp', '../src/crashdump_manager.cpp', '../src/codemap_utils.cpp', '../src/codemap_fallbacks.cpp', '../src/address_lookup.cpp', '../src/project_manager.cpp', '../src/lsp_backend.cpp', '../src/standard_lsp_backend.cpp', '../src/semcode_backend.cpp', '../src/lsp_manager.cpp', '../src/codereview_manager.cpp', '../src/perf_manager.cpp'],
+  ['unit/test_history_manager.cpp', '../src/history_manager.cpp', '../src/event_logger.cpp', '../src/fs_utils.cpp', '../src/fs_basics.cpp', '../src/git_manager.cpp', '../src/config_manager.cpp', '../src/build_error_manager.cpp', '../src/gcc_log_parser.cpp', '../src/command_runner.cpp', '../src/rendering_thread_guard.cpp', '../src/event_queue.cpp', '../src/crashdump_manager.cpp', '../src/codemap_utils.cpp', '../src/codemap_fallbacks.cpp', '../src/address_lookup.cpp', '../src/project_manager.cpp', '../src/lsp_backend.cpp', '../src/standard_lsp_backend.cpp', '../src/semcode_backend.cpp', '../src/lsp_manager.cpp', '../src/codereview_manager.cpp', '../src/perf_manager.cpp'],
   dependencies : [agent_dep, core_dep, lsp_dep, nlohmann_json_dep, sqlite3_dep, re2_dep],
   include_directories: inc)
 test('unit_history_manager', test_history_manager, suite: 'editor')
 
 test_command_runner = executable('test_command_runner',
-  ['unit/test_command_runner.cpp', '../src/command_runner.cpp', '../src/config_manager.cpp', '../src/event_logger.cpp', '../src/crashdump_manager.cpp', '../src/codemap_utils.cpp', '../src/codemap_fallbacks.cpp', '../src/address_lookup.cpp', '../src/fs_utils.cpp', '../src/fs_basics.cpp', '../src/git_manager.cpp', '../src/build_error_manager.cpp', '../src/gcc_log_parser.cpp', '../src/event_queue.cpp', '../src/project_manager.cpp', '../src/lsp_backend.cpp', '../src/standard_lsp_backend.cpp', '../src/semcode_backend.cpp', '../src/lsp_manager.cpp', '../src/codereview_manager.cpp', '../src/perf_manager.cpp'],
+  ['unit/test_command_runner.cpp', '../src/command_runner.cpp', '../src/rendering_thread_guard.cpp', '../src/config_manager.cpp', '../src/event_logger.cpp', '../src/crashdump_manager.cpp', '../src/codemap_utils.cpp', '../src/codemap_fallbacks.cpp', '../src/address_lookup.cpp', '../src/fs_utils.cpp', '../src/fs_basics.cpp', '../src/git_manager.cpp', '../src/build_error_manager.cpp', '../src/gcc_log_parser.cpp', '../src/event_queue.cpp', '../src/project_manager.cpp', '../src/lsp_backend.cpp', '../src/standard_lsp_backend.cpp', '../src/semcode_backend.cpp', '../src/lsp_manager.cpp', '../src/codereview_manager.cpp', '../src/perf_manager.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_command_runner', test_command_runner, suite: 'editor')
@@ -560,10 +560,16 @@ test_git_branch_list = executable('test_git_branch_list',
 test('unit_test_git_branch_list', test_git_branch_list, suite: 'agent')
 
 test_git_manager = executable('test_git_manager',
-  ['unit/test_git_manager.cpp', '../src/git_manager.cpp', '../src/event_logger.cpp', '../src/fs_utils.cpp', '../src/fs_basics.cpp', '../src/command_runner.cpp', '../src/config_manager.cpp', '../src/build_error_manager.cpp', '../src/gcc_log_parser.cpp', '../src/event_queue.cpp', '../src/crashdump_manager.cpp', '../src/codemap_utils.cpp', '../src/codemap_fallbacks.cpp', '../src/address_lookup.cpp', '../src/project_manager.cpp', '../src/lsp_backend.cpp', '../src/standard_lsp_backend.cpp', '../src/semcode_backend.cpp', '../src/lsp_manager.cpp', '../src/codereview_manager.cpp', '../src/perf_manager.cpp'],
+  ['unit/test_git_manager.cpp', '../src/git_manager.cpp', '../src/event_logger.cpp', '../src/fs_utils.cpp', '../src/fs_basics.cpp', '../src/command_runner.cpp', '../src/rendering_thread_guard.cpp', '../src/config_manager.cpp', '../src/build_error_manager.cpp', '../src/gcc_log_parser.cpp', '../src/event_queue.cpp', '../src/crashdump_manager.cpp', '../src/codemap_utils.cpp', '../src/codemap_fallbacks.cpp', '../src/address_lookup.cpp', '../src/project_manager.cpp', '../src/lsp_backend.cpp', '../src/standard_lsp_backend.cpp', '../src/semcode_backend.cpp', '../src/lsp_manager.cpp', '../src/codereview_manager.cpp', '../src/perf_manager.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep],
   include_directories: inc)
 test('unit_test_git_manager', test_git_manager, suite: 'agent')
+
+test_rendering_thread_guard = executable('test_rendering_thread_guard',
+  ['unit/test_rendering_thread_guard.cpp', '../src/rendering_thread_guard.cpp', '../src/event_logger.cpp'],
+  dependencies : [thread_dep],
+  include_directories: inc)
+test('unit_test_rendering_thread_guard', test_rendering_thread_guard, suite: 'editor')
 
 test_git_checkout_branch = executable('test_git_checkout_branch',
   ['unit/test_git_checkout_branch.cpp',
