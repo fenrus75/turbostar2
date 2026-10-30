@@ -435,8 +435,8 @@ file_read_result read_file_lines(const std::string &safe_path, const std::string
 		requested_end = start + 50000;
 	}
 
-	// Always attempt to fetch up to 25 more lines to apply the semantic boundary heuristics (unless tail is requested).
-	int fetch_end = tail.has_value() ? requested_end : (requested_end + 25);
+	// Always attempt to fetch up to 25 more lines to apply the semantic boundary heuristics (unless tail is requested or boundary adjustment disabled).
+	int fetch_end = (tail.has_value() || !adjust_boundaries) ? requested_end : (requested_end + 25);
 
 	file_read_result read_res;
 
@@ -467,13 +467,13 @@ file_read_result read_file_lines(const std::string &safe_path, const std::string
 	int adjusted_end = requested_end;
 	if (adjust_boundaries && !tail.has_value() && read_res.success && !read_res.lines.empty()) {
 		adjusted_end = determine_adjusted_end_line(start, requested_end, read_res.lines, safe_path, ctx);
-		int keep_count = adjusted_end - start + 1;
-		if (keep_count < 0) {
-			keep_count = 0;
-		}
-		if (keep_count < static_cast<int>(read_res.lines.size())) {
-			read_res.lines.resize(keep_count);
-		}
+	}
+	int keep_count = adjusted_end - start + 1;
+	if (keep_count < 0) {
+		keep_count = 0;
+	}
+	if (keep_count < static_cast<int>(read_res.lines.size())) {
+		read_res.lines.resize(keep_count);
 	}
 
 	read_res.start_line = start;
@@ -511,7 +511,7 @@ std::string format_file_lines_markdown(const std::string &requested_path, const 
 std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 {
 	file_read_result read_res = read_file_lines(args_.safe_path, args_.requested_path, args_.start_line, args_.end_line, args_.tail,
-						    ctx, /*adjust_boundaries=*/true);
+						    ctx, /*adjust_boundaries=*/!args_.length.has_value());
 	args_.start_line = read_res.start_line;
 	args_.end_line = read_res.end_line;
 	int start = args_.start_line;

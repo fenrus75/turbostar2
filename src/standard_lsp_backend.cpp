@@ -472,6 +472,9 @@ void standard_lsp_backend::open_document(const std::string &filepath, const std:
 	if (!is_supported_file(filepath)) {
 		return;
 	}
+	invalidate_hover_cache(filepath);
+	invalidate_symbol_cache(filepath);
+
 	ensure_worker_started();
 	{
 		std::lock_guard<std::mutex> lock(doc_queue_mutex_);

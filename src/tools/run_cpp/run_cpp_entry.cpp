@@ -374,15 +374,20 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 				}
 				if (!local_path.empty() && std::filesystem::is_directory(local_path)) {
 					clean_flag = std::format("-I{}", local_path);
-				} else if (vfs) {
+				}
+				if (vfs) {
 					// Virtual in-memory files under tmp:// - stage files to tmp_dir
 					auto file_list = vfs->list_directory(inc_path);
 					for (const auto &vf : file_list) {
 						if (vf.type == 'F' || vf.type == 'f') {
 							auto handle = vfs->read_file(vf.uri);
 							if (handle.has_value()) {
-								std::filesystem::path rel_sub = std::filesystem::path(vf.uri).filename();
-								std::filesystem::path target_header = std::filesystem::path(tmp_dir) / rel_sub;
+								std::string fname = vf.uri;
+								size_t slash = fname.rfind('/');
+								if (slash != std::string::npos) {
+									fname = fname.substr(slash + 1);
+								}
+								std::filesystem::path target_header = std::filesystem::path(tmp_dir) / fname;
 								std::ofstream h_ofs(target_header, std::ios::binary);
 								if (h_ofs) {
 									std::string_view h_code = (*handle)->view();
@@ -393,7 +398,9 @@ std::string run_cpp_tool::execute(agentlib::tool_context &ctx)
 							}
 						}
 					}
-					clean_flag = std::format("-I{}", tmp_dir);
+					if (clean_flag == flag) {
+						clean_flag = std::format("-I{}", tmp_dir);
+					}
 				}
 			}
 		}

@@ -358,8 +358,10 @@ int main()
 			assert(res.find("1: line 1") != std::string::npos);
 		}
 
+		std::filesystem::path temp_file_100_path = std::filesystem::path(proj_root) / "test_fs_read_lines_heuristics_100.py";
+		std::string temp_file_100 = "test_fs_read_lines_heuristics_100.py";
 		{
-			std::ofstream out(temp_file_path);
+			std::ofstream out(temp_file_100_path);
 			for (int i = 1; i <= 100; ++i) {
 				if (i == 45) {
 					out << "\n";
@@ -374,14 +376,16 @@ int main()
 		}
 
 		{
-			std::string args = R"({"path": ")" + temp_file + R"(", "start_line": 1, "end_line": 40})";
+			std::string args = R"({"path": ")" + temp_file_100 + R"(", "start_line": 1, "end_line": 40})";
 			std::string res = registry.execute_tool("fs_read_lines", args, ctx);
 
-			assert(res.find("Code for lines 1 - 45 of " + temp_file + " (total 100 lines):") != std::string::npos);
+			assert(res.find("Code for lines 1 - 45 of " + temp_file_100 + " (total 100 lines):") != std::string::npos);
 			assert(res.find("40: line 40") != std::string::npos);
 			assert(res.find("44:     line 44") != std::string::npos);
 			assert(res.find("46: def next_func():") == std::string::npos);
 		}
+		std::filesystem::remove(temp_file_path);
+		std::filesystem::remove(temp_file_100_path);
 
 		std::filesystem::path temp_cpp_path = std::filesystem::path(proj_root) / "test_fs_read_lines_heuristics.cpp";
 		std::string temp_cpp = "test_fs_read_lines_heuristics.cpp";

@@ -191,7 +191,7 @@ int main()
 	{
 		// 1. Invalid type for output_path
 		{
-			nlohmann::json args = {{"url", "http://127.0.0.1:54321/index.html"}, {"output_path", 123}};
+			nlohmann::json args = {{"url", "http://127.0.0.1:54321/index.html"}, {"output_path", false}};
 			auto prep = registry.prepare_tool("web_fetch", args.dump(), ctx);
 			assert(prep.tool == nullptr);
 			assert(!prep.error_message.empty());
@@ -319,7 +319,7 @@ int main()
 			assert(prep.error_message.empty());
 
 			// Invalid method (type)
-			nlohmann::json bad_method = {{"url", "http://127.0.0.1:54321/api"}, {"method", 123}};
+			nlohmann::json bad_method = {{"url", "http://127.0.0.1:54321/api"}, {"method", false}};
 			auto prep_bm = registry.prepare_tool("web_fetch", bad_method.dump(), ctx);
 			assert(prep_bm.tool == nullptr && prep_bm.error_message.find("Expected string") != std::string::npos);
 
