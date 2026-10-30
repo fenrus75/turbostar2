@@ -28,9 +28,10 @@ class Stream;
 
 # subclasses of standard_lsp_backend
 
-| subclass        | filename                  |
-| --------------- | ------------------------- |
-| semcode_backend | src/semcode_backend.h     |
+| subclass                      | filename                        |
+| ----------------------------- | ------------------------------- |
+| semcode_backend               | src/semcode_backend.h           |
+| testable_standard_lsp_backend | tests/unit/test_lsp_backend.cpp |
 
 */
 /**
@@ -92,7 +93,8 @@ class standard_lsp_backend : public lsp_backend
 	enum class doc_action_type {
 		open,
 		update,
-		save
+		save,
+		prefetch_symbols
 	};
 
 	struct doc_action {
@@ -119,6 +121,7 @@ class standard_lsp_backend : public lsp_backend
 	void process_open_document(const std::string &filepath, const std::string &text);
 	void process_update_document(const std::string &filepath, const std::string &text);
 	void process_save_document(const std::string &filepath, const std::string &text);
+	void process_prefetch_document_symbols(const std::string &filepath);
 
 	std::vector<std::shared_ptr<server_instance>> servers_;
 

@@ -527,6 +527,9 @@ void standard_lsp_backend::process_doc_action(const doc_action &action)
 	case doc_action_type::save:
 		process_save_document(action.filepath, action.text);
 		break;
+	case doc_action_type::prefetch_symbols:
+		process_prefetch_document_symbols(action.filepath);
+		break;
 	}
 }
 
@@ -1365,6 +1368,20 @@ void standard_lsp_backend::invalidate_symbol_cache(const std::string &filepath)
 
 void standard_lsp_backend::prefetch_document_symbols(const std::string &filepath)
 {
+	if (!is_supported_file(filepath)) {
+		return;
+	}
+
+	ensure_worker_started();
+	{
+		std::lock_guard<std::mutex> lock(doc_queue_mutex_);
+		doc_queue_.push({doc_action_type::prefetch_symbols, filepath, ""});
+	}
+	doc_queue_cv_.notify_one();
+}
+
+void standard_lsp_backend::process_prefetch_document_symbols(const std::string &filepath)
+{
 	std::string abs_path = std::filesystem::absolute(filepath).string();
 	std::filesystem::file_time_type current_mtime{};
 	std::error_code ec;
@@ -1389,6 +1406,20 @@ void standard_lsp_backend::prefetch_document_symbols(const std::string &filepath
 		std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
 		in_flight_symbol_queries_.erase(abs_path);
 		return;
+	}
+
+	// Auto-open check: Ensure document is opened with the language server before querying AST symbols
+	{
+		std::unique_lock<std::mutex> lock(doc_mutex_);
+		if (!doc_versions_.contains(filepath)) {
+			lock.unlock();
+			std::string content;
+			std::ifstream file(abs_path, std::ios::binary);
+			if (file.is_open()) {
+				content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+			}
+			process_open_document(filepath, content);
+		}
 	}
 
 	event_logger::get_instance().log(std::format("LSP: prefetch_document_symbols path='{}'", filepath));
@@ -1500,6 +1531,20 @@ std::vector<standard_lsp_backend::symbol_node> standard_lsp_backend::query_docum
 	auto server = get_server_for_file(filepath);
 	if (!server)
 		return {};
+
+	// Auto-open check: Ensure document is opened with the language server before querying AST symbols
+	{
+		std::unique_lock<std::mutex> lock(doc_mutex_);
+		if (!doc_versions_.contains(filepath)) {
+			lock.unlock();
+			std::string content;
+			std::ifstream file(abs_path, std::ios::binary);
+			if (file.is_open()) {
+				content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+			}
+			process_open_document(filepath, content);
+		}
+	}
 
 	event_logger::get_instance().log(std::format("LSP: query_document_symbols path='{}'", filepath));
 

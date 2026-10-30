@@ -263,13 +263,34 @@ void symbol_extractor::extract_symbols_from_source(std::string_view source, int 
 			// Find class name
 			std::string class_name;
 			size_t name_idx = tokens.size();
-			for (size_t j = i + 1; j < std::min(tokens.size(), i + 10); ++j) {
+			for (size_t j = i + 1; j < std::min(tokens.size(), i + 40); ++j) {
+				if (tokens[j].kind == token_kind::semicolon || tokens[j].kind == token_kind::l_brace) {
+					break;
+				}
+				if (tokens[j].text == "__attribute__" || tokens[j].text == "alignas") {
+					for (size_t k = j + 1; k < std::min(tokens.size(), j + 5); ++k) {
+						if (tokens[k].kind == token_kind::l_paren) {
+							size_t close_paren = find_matching_paren(tokens, k);
+							if (close_paren < tokens.size()) {
+								j = close_paren;
+							}
+							break;
+						}
+					}
+					continue;
+				}
+				if (tokens[j].kind == token_kind::l_bracket && j + 1 < tokens.size() && tokens[j + 1].kind == token_kind::l_bracket) {
+					for (size_t k = j + 2; k < std::min(tokens.size(), j + 40); ++k) {
+						if (tokens[k].kind == token_kind::r_bracket && k + 1 < tokens.size() && tokens[k + 1].kind == token_kind::r_bracket) {
+							j = k + 1;
+							break;
+						}
+					}
+					continue;
+				}
 				if (tokens[j].kind == token_kind::identifier) {
 					class_name = tokens[j].text;
 					name_idx = j;
-					break;
-				}
-				if (tokens[j].kind == token_kind::semicolon || tokens[j].kind == token_kind::l_brace) {
 					break;
 				}
 			}
@@ -288,7 +309,7 @@ void symbol_extractor::extract_symbols_from_source(std::string_view source, int 
 						break;
 					}
 					// Reject if inside parameter list
-					if (tokens[j].kind == token_kind::r_paren || tokens[j].kind == token_kind::comma) {
+					if (tok.paren_depth > 0 && (tokens[j].kind == token_kind::r_paren || tokens[j].kind == token_kind::comma)) {
 						is_forward_decl = true;
 						break;
 					}
@@ -375,7 +396,7 @@ void symbol_extractor::extract_symbols_from_source(std::string_view source, int 
 		}
 
 		// Check for function definitions: identifier/operator followed by '('
-		if (tok.kind == token_kind::l_paren && i > 0) {
+		if (tok.kind == token_kind::l_paren && tok.paren_depth == 0 && i > 0) {
 			size_t name_end_idx = i - 1;
 			std::string func_name;
 			size_t name_start_idx = name_end_idx;

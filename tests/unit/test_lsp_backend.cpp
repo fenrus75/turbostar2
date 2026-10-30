@@ -174,6 +174,21 @@ class mock_lsp_backend : public lsp_backend
 	}
 };
 
+class testable_standard_lsp_backend : public standard_lsp_backend
+{
+public:
+	void stop_worker_thread()
+	{
+		stop_worker();
+	}
+
+	size_t queue_size()
+	{
+		std::lock_guard<std::mutex> lock(doc_queue_mutex_);
+		return doc_queue_.size();
+	}
+};
+
 } // namespace
 
 int main()
@@ -314,6 +329,21 @@ int main()
 		backend.save_document("test_async.cpp", "int a = 2;");
 
 		// Stopping backend drains worker thread cleanly
+		backend.stop();
+	}
+
+	// 7. Verify prefetch_document_symbols is enqueued into doc_queue_ in FIFO order
+	{
+		testable_standard_lsp_backend backend;
+		backend.stop_worker_thread();
+
+		backend.open_document("test_order.cpp", "int a = 1;");
+		backend.prefetch_document_symbols("test_order.cpp");
+
+		// Both open_document and prefetch_document_symbols must be queued into doc_queue_
+		assert(backend.queue_size() == 2);
+		backend.flush_doc_queue_for_testing();
+		assert(backend.queue_size() == 0);
 		backend.stop();
 	}
 
