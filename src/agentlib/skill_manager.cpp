@@ -92,7 +92,7 @@ void skill_manager::register_skill(const std::map<std::string, std::string> &fil
 					description = config["description"].as<std::string>();
 				}
 			} catch (const std::exception &e) {
-				event_logger::get_instance().log("skill_manager: YAML parse error during dynamic registration: {}",
+				event_logger::get_instance().log_error("skill_manager: YAML parse error during dynamic registration: {}",
 								 e.what());
 				return;
 			}
@@ -100,7 +100,7 @@ void skill_manager::register_skill(const std::map<std::string, std::string> &fil
 	}
 
 	if (name.empty()) {
-		event_logger::get_instance().log(
+		event_logger::get_instance().log_error(
 		    "skill_manager: Failed to register skill: Could not parse name from SKILL.md frontmatter.");
 		return;
 	}
@@ -193,19 +193,19 @@ void skill_manager::initialize()
 					} catch (const std::exception &e) {
 						const char *what_str = e.what();
 						std::string safe_what = what_str ? what_str : "unknown error";
-						event_logger::get_instance().log("skill_manager: YAML parse error at {}: {}", skill_path,
+						event_logger::get_instance().log_error("skill_manager: YAML parse error at {}: {}", skill_path,
 										 safe_what);
 					} catch (...) {
-						event_logger::get_instance().log("skill_manager: Unknown YAML parse error at {}",
+						event_logger::get_instance().log_error("skill_manager: Unknown YAML parse error at {}",
 										 skill_path);
 					}
 				}
 			}
 		}
 	} catch (const std::exception &e) {
-		event_logger::get_instance().log("skill_manager: Error initializing skills: {}", e.what());
+		event_logger::get_instance().log_error("skill_manager: Error initializing skills: {}", e.what());
 	} catch (...) {
-		event_logger::get_instance().log("skill_manager: Unknown error initializing skills");
+		event_logger::get_instance().log_error("skill_manager: Unknown error initializing skills");
 	}
 }
 
@@ -226,9 +226,9 @@ void skill_manager::scan_and_mount(const std::filesystem::path &base_dir, const 
 			}
 		}
 	} catch (const std::exception &e) {
-		event_logger::get_instance().log("skill_manager: Error scanning and mounting skills: {}", e.what());
+		event_logger::get_instance().log_error("skill_manager: Error scanning and mounting skills: {}", e.what());
 	} catch (...) {
-		event_logger::get_instance().log("skill_manager: Unknown error scanning and mounting skills");
+		event_logger::get_instance().log_error("skill_manager: Unknown error scanning and mounting skills");
 	}
 }
 

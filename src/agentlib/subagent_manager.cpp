@@ -157,7 +157,7 @@ static std::optional<subagent> parse_subagent_content(const std::string &content
 		return sa;
 	}
 	catch (const std::exception &e) {
-		event_logger::get_instance().log("subagent_manager: Error parsing yaml metadata for origin {}: {}", origin, e.what());
+		event_logger::get_instance().log_error("subagent_manager: Error parsing yaml metadata for origin {}: {}", origin, e.what());
 		return std::nullopt;
 	}
 }
@@ -301,7 +301,7 @@ void subagent_manager::scan_directory(const std::filesystem::path &dir)
 		}
 	}
 	catch (const std::exception &e) {
-		event_logger::get_instance().log("subagent_manager: Error scanning directory {}: {}", dir.string(), e.what());
+		event_logger::get_instance().log_error("subagent_manager: Error scanning directory {}: {}", dir.string(), e.what());
 	}
 }
 

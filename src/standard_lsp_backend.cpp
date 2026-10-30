@@ -61,7 +61,7 @@ void standard_lsp_backend::start_server(const std::string &name, const std::vect
 			} catch (const std::exception &e) {
 				s->is_running.store(false);
 				if (!project_manager::get_instance().is_exiting()) {
-					event_logger::get_instance().log("LSP message loop error: {}", e.what());
+					event_logger::get_instance().log_error("LSP message loop error: {}", e.what());
 				}
 			}
 			event_logger::get_instance().log("Thread exited: lsp_manager message_thread");
@@ -125,7 +125,7 @@ void standard_lsp_backend::start_server(const std::string &name, const std::vect
 		servers_.push_back(std::move(server));
 		event_logger::get_instance().log("{} started and initialized successfully.", name);
 	} catch (const std::exception &e) {
-		event_logger::get_instance().log("Failed to start {}: {}", name, e.what());
+		event_logger::get_instance().log_error("Failed to start {}: {}", name, e.what());
 		server->is_running.store(false);
 	}
 }
@@ -705,7 +705,7 @@ void standard_lsp_backend::request_hover(const std::string &filepath, int line, 
 				    }
 			    }
 		    },
-		    [](const lsp::ResponseError &error) { event_logger::get_instance().log("LSP hover error: {}", error.message()); });
+		    [](const lsp::ResponseError &error) { event_logger::get_instance().log_error("LSP hover error: {}", error.message()); });
 	} catch (...) {
 		event_logger::get_instance().log("LSP: Caught unknown exception");
 	}
@@ -747,7 +747,7 @@ void standard_lsp_backend::request_document_highlight(const std::string &filepat
 				    }
 			    }
 		    },
-		    [](const lsp::ResponseError &error) { event_logger::get_instance().log("LSP highlight error: {}", error.message()); });
+		    [](const lsp::ResponseError &error) { event_logger::get_instance().log_error("LSP highlight error: {}", error.message()); });
 	} catch (...) {
 		event_logger::get_instance().log("LSP: Caught unknown exception");
 	}
@@ -787,7 +787,7 @@ void standard_lsp_backend::request_selection_range(const std::string &filepath, 
 			    }
 		    },
 		    [](const lsp::ResponseError &error) {
-			    event_logger::get_instance().log("LSP selection range error: {}", error.message());
+			    event_logger::get_instance().log_error("LSP selection range error: {}", error.message());
 		    });
 	} catch (...) {
 		event_logger::get_instance().log("LSP: Caught unknown exception");
@@ -1453,7 +1453,7 @@ void standard_lsp_backend::process_prefetch_document_symbols(const std::string &
 			    }
 		    },
 		    [abs_path, this](const lsp::ResponseError &err) {
-			    event_logger::get_instance().log("LSP: prefetch document symbol query error: {}", err.message());
+			    event_logger::get_instance().log_error("LSP: prefetch document symbol query error: {}", err.message());
 			    std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
 			    in_flight_symbol_queries_.erase(abs_path);
 		    });
@@ -1513,7 +1513,7 @@ std::vector<standard_lsp_backend::symbol_node> standard_lsp_backend::query_docum
 						    }
 					    },
 					    [abs_path, this](const lsp::ResponseError &err) {
-						    event_logger::get_instance().log("LSP: background document symbol refresh error: {}",
+						    event_logger::get_instance().log_error("LSP: background document symbol refresh error: {}",
 										     err.message());
 						    std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
 						    in_flight_symbol_queries_.erase(abs_path);
@@ -1583,7 +1583,7 @@ std::vector<standard_lsp_backend::symbol_node> standard_lsp_backend::query_docum
 			    }
 		    },
 		    [promise, abs_path, this](const lsp::ResponseError &err) {
-			    event_logger::get_instance().log("LSP: document symbol query error: {}", err.message());
+			    event_logger::get_instance().log_error("LSP: document symbol query error: {}", err.message());
 			    std::lock_guard<std::mutex> lock(symbol_cache_mutex_);
 			    in_flight_symbol_queries_.erase(abs_path);
 			    try {

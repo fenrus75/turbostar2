@@ -722,7 +722,7 @@ void editor::dispatch_event_ui(const editor_event &ev)
 			if (found_agent) {
 				open_subagent_window(found_agent);
 			} else {
-				logger.log("Error: Could not find agent with ID " + std::to_string(target_id) + " to open.");
+				logger.log_error("Error: Could not find agent with ID {} to open.", target_id);
 			}
 			break;
 		}
@@ -810,10 +810,10 @@ void editor::dispatch_event_ui(const editor_event &ev)
 							target_doc->apply_external_edits_json(json_str);
 						}
 					} catch (const std::exception &e) {
-						logger.log(std::format("Error parsing apply_edits json: {}", e.what()));
+						logger.log_error("Error parsing apply_edits json: {}", e.what());
 					}
 				} else {
-					logger.log(std::format("Warning: apply_edits target document not found for path '{}'", safe_path));
+					logger.log_warn("Warning: apply_edits target document not found for path '{}'", safe_path);
 				}
 			}
 			break;
@@ -987,7 +987,7 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 		static std::atomic<unsigned int> fifo_counter{0};
 		fs::path fifo_path = fs::path(project_root) / std::format(".turbostar_fifo_{}_{}_{}", getpid(), app_id, ++fifo_counter);
 		if (mkfifo(fifo_path.c_str(), 0600) != 0) {
-			logger.log(std::format("Failed to create input FIFO: {}", strerror(errno)));
+			logger.log_error("Failed to create input FIFO: {}", strerror(errno));
 		}
 
 		std::string gdbserver_cmd = "trap '' SIGTTOU SIGTTIN; exec gdbserver localhost:" + std::to_string(port) + " " +
@@ -999,7 +999,7 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 
 		logger.log(std::format("Starting gdbserver: {}", gdbserver_cmd));
 		if (!app_tw->start_process(gdbserver_cmd, nullptr, true, false, config_manager::get_instance().is_shell_display_access())) {
-			logger.log("Failed to start gdbserver process.");
+			logger.log_error("Failed to start gdbserver process.");
 			std::error_code ec;
 			fs::remove(fifo_path, ec);
 			return {-1, -1};

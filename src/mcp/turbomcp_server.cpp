@@ -304,7 +304,7 @@ int turbomcp_server::run_stdio_loop()
 				send_response(resp);
 			}
 		} catch (const std::exception &e) {
-			event_logger::get_instance().log("turbomcp_server JSON parse error: {}", e.what());
+			event_logger::get_instance().log_error("turbomcp_server JSON parse error: {}", e.what());
 			send_error(nullptr, -32700, "Parse error");
 		}
 	}

@@ -67,9 +67,9 @@ void document::process_line_highlight(std::shared_ptr<line> l)
 		try {
 			highlighter->highlight(l);
 		} catch (const std::exception &e) {
-			event_logger::get_instance().log("Highlighter error: {}", e.what());
+			event_logger::get_instance().log_error("Highlighter error: {}", e.what());
 		} catch (...) {
-			event_logger::get_instance().log("Highlighter error: unknown exception");
+			event_logger::get_instance().log_error("Highlighter error: unknown exception");
 		}
 	}
 }

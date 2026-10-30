@@ -3225,13 +3225,13 @@ void ai_agent::summary_worker_loop()
 						update_episode_hint(task.episode_id, res.msg.content);
 						event_logger::get_instance().log("Generated background summary for {}", task.episode_id);
 					} else {
-						event_logger::get_instance().log("Skipped saving background summary due to LLM error: {}",
+						event_logger::get_instance().log_warn("Skipped saving background summary due to LLM error: {}",
 										 res.msg.content);
 					}
 				}
 			}
 		} catch (const std::exception &e) {
-			event_logger::get_instance().log("Error in background summarization: {}", std::string(e.what()));
+			event_logger::get_instance().log_error("Error in background summarization: {}", e.what());
 		}
 	}
 	event_logger::get_instance().log("Thread exited: ai_agent summary worker");

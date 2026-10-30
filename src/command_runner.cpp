@@ -266,9 +266,9 @@ std::string command_runner::build_command(const std::string &raw_command) const
 
 	if (!is_systemd_user_bus_available()) {
 		if (config_manager::get_instance().is_paranoid_mode()) {
-			event_logger::get_instance().log("[command_runner] ERROR: Systemd user D-Bus bus unavailable in Paranoid Mode for command: '{}'", raw_command);
+			event_logger::get_instance().log_error("[command_runner] Systemd user D-Bus bus unavailable in Paranoid Mode for command: '{}'", raw_command);
 		} else {
-			event_logger::get_instance().log("[command_runner] WARNING: Systemd user D-Bus bus unavailable. Fallback execution triggered for command: '{}'", raw_command);
+			event_logger::get_instance().log_warn("[command_runner] Systemd user D-Bus bus unavailable. Fallback execution triggered for command: '{}'", raw_command);
 			return inject_unsandboxed_environment(raw_command);
 		}
 	}

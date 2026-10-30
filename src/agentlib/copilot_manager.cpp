@@ -155,7 +155,7 @@ static http_response perform_curl_request(
 		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
 		resp.status_code = static_cast<int>(http_code);
 	} else {
-		event_logger::get_instance().log("curl error for URL {}: {}", url, curl_easy_strerror(res));
+		event_logger::get_instance().log_error("curl error for URL {}: {}", url, curl_easy_strerror(res));
 	}
 
 	if (header_list) {
@@ -347,11 +347,11 @@ bool copilot_manager::poll_device_authorization(int /*interval_seconds*/)
 				}
 				event_logger::get_instance().log("GitHub Device Flow slow_down: increasing polling interval to {}s", polling_interval_);
 			} else if (err != "authorization_pending") {
-				event_logger::get_instance().log("GitHub Device Flow error: {}", err);
+				event_logger::get_instance().log_error("GitHub Device Flow error: {}", err);
 			}
 		}
 	} catch (const std::exception& e) {
-		event_logger::get_instance().log("Failed to parse GitHub token response: {}", e.what());
+		event_logger::get_instance().log_error("Failed to parse GitHub token response: {}", e.what());
 	}
 
 	return false;

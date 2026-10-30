@@ -1734,7 +1734,7 @@ void editor::launch_inline_agent(std::string_view prompt)
 	std::string model_id = config_manager::get_instance().get_default_model_id();
 	auto model = agentlib::ai_model_registry::get_instance().get_model(model_id);
 	if (!model) {
-		logger.log("Error: Default model '" + model_id + "' not found in registry.");
+		logger.log_error("Error: Default model '{}' not found in registry.", model_id);
 		return;
 	}
 

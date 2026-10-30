@@ -86,13 +86,13 @@ void codereview_manager::load_project(const std::string &project_root_path)
 				try {
 					items_.push_back(item_j.get<review_item>());
 				} catch (const std::exception &e) {
-					event_logger::get_instance().log(
-					    std::format("Skipping malformed code review item during load: {}", e.what()));
+					event_logger::get_instance().log_warn(
+					    "Skipping malformed code review item during load: {}", e.what());
 				}
 			}
 		}
 	} catch (const std::exception &e) {
-		event_logger::get_instance().log(std::format("Error loading code reviews: {}", e.what()));
+		event_logger::get_instance().log_error("Error loading code reviews: {}", e.what());
 	}
 }
 
@@ -125,13 +125,13 @@ void codereview_manager::save_project_unlocked() const
 			std::error_code ec;
 			std::filesystem::rename(tmp_path, path, ec);
 			if (ec) {
-				event_logger::get_instance().log(std::format("Failed to rename code review file: {}", ec.message()));
+				event_logger::get_instance().log_error("Failed to rename code review file: {}", ec.message());
 			}
 		} else {
-			event_logger::get_instance().log(std::format("Failed to open temporary file for writing code reviews: {}", tmp_path));
+			event_logger::get_instance().log_error("Failed to open temporary file for writing code reviews: {}", tmp_path);
 		}
 	} catch (const std::exception &e) {
-		event_logger::get_instance().log(std::format("Error saving code reviews: {}", e.what()));
+		event_logger::get_instance().log_error("Error saving code reviews: {}", e.what());
 	}
 }
 

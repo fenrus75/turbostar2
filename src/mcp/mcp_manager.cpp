@@ -350,7 +350,7 @@ void mcp_manager::load_servers_from_file_unlocked(const std::string &path, bool 
 		event_logger::get_instance().log("Discovered and loaded MCP servers from: {}", path);
 
 	} catch (const std::exception &e) {
-		event_logger::get_instance().log("Error parsing MCP config file '{}': {}", path, e.what());
+		event_logger::get_instance().log_error("Error parsing MCP config file '{}': {}", path, e.what());
 	}
 }
 
@@ -537,7 +537,7 @@ void mcp_manager::prompt_worker_loop()
 			}
 
 		} catch (const std::exception &e) {
-			event_logger::get_instance().log("Error generating activation description: {}", std::string(e.what()));
+			event_logger::get_instance().log_error("Error generating activation description: {}", e.what());
 		}
 	}
 

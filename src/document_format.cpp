@@ -119,7 +119,7 @@ void document::format_range(int start_y, int end_y)
 	int exit_code = runner.execute("clang-format {} -i {}", style_arg, temp_path);
 
 	if (exit_code != 0) {
-		event_logger::get_instance().log("Format failed: clang-format returned error.");
+		event_logger::get_instance().log_error("Format failed: clang-format returned error.");
 		return;
 	}
 

@@ -357,7 +357,7 @@ bool mcp_server::start()
 
 		auto init_res = send_request("initialize", init_params);
 		if (init_res.contains("error")) {
-			event_logger::get_instance().log("MCP server '{}' initialization failed: {}", name_, init_res["error"].dump());
+			event_logger::get_instance().log_error("MCP server '{}' initialization failed: {}", name_, init_res["error"].dump());
 			stop();
 			return false;
 		}
