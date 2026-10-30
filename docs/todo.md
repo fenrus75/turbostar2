@@ -267,6 +267,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 # Done
 
 ## 29-10-2026
+- Deprecate and remove obsolete background `inventory_thread` and project layout scanner: eliminated background recursive directory crawling and layout markdown tables from `project_manager`, saving startup CPU and disk I/O now that agent prompts do not use full layout tables. Preserved dependency scanning. (Completed)
 - Deferred agent subsystem initialization: introduced `agentlib::agent_subsystems` coordinator to defer loading dynamic plugins, MCP server manager (`mcp_manager::start_async`), skills (`skill_manager`), subagents (`subagent_manager`), A2A server configs (`a2a_server_manager`), and tool registries until an agent window is created, an agent CLI task starts, or plugin/MCP/A2A dialogs are opened. Standard editor startup ("just editing a file") completely bypasses all agent subsystems, eliminating child MCP server processes and background threads. (Completed)
 
 ## 24-10-2026

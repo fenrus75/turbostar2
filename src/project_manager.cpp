@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
-#include <condition_variable>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -30,22 +29,6 @@ namespace fs = std::filesystem;
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(text_range, start_y, start_x, end_y, end_x);
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(lsp_manager::location_info, path, range);
 
-namespace
-{
-
-/**
- * @brief Waits for the specified duration unless interrupted by a stop_token.
- * @return true if interrupted by stop request; false if slept full duration.
- */
-bool interruptible_sleep(std::stop_token stop, std::chrono::milliseconds duration)
-{
-	std::condition_variable_any cv;
-	std::mutex dummy_mutex;
-	std::unique_lock lock(dummy_mutex);
-	return cv.wait_for(lock, stop, duration, [&] { return stop.stop_requested(); });
-}
-
-} // namespace
 
 project_manager &project_manager::get_instance()
 {
@@ -61,9 +44,6 @@ project_manager::project_manager()
 project_manager::~project_manager()
 {
 	shutdown();
-	if (inventory_thread_.joinable()) {
-		inventory_thread_.join();
-	}
 }
 
 /*
@@ -156,255 +136,6 @@ void project_manager::initialize()
 
 	load_instructions();
 	scan_dependencies();
-
-	// Start the inventory thread with a 100ms delay
-	inventory_thread_ = std::jthread([this](std::stop_token stop) {
-		fs_utils::set_current_thread_name("proj_inventory");
-		event_logger::get_instance().log("Thread started: project_manager inventory_thread");
-		if (!interruptible_sleep(stop, std::chrono::milliseconds(100))) {
-			inventory_project(stop);
-		}
-		event_logger::get_instance().log("Thread exited: project_manager inventory_thread");
-	});
-}
-
-static bool is_header(const fs::path &path)
-{
-	std::string ext = path.extension().string();
-	return ext == ".h" || ext == ".hpp" || ext == ".hh" || ext == ".hxx";
-}
-
-static bool is_source(const fs::path &path)
-{
-	std::string ext = path.extension().string();
-	return ext == ".c" || ext == ".cpp" || ext == ".cc" || ext == ".cxx" || ext == ".py" || ext == ".go" || ext == ".rs" ||
-	       ext == ".js" || ext == ".ts" || ext == ".java" || ext == ".sh";
-}
-static bool is_doc_config(const fs::path &path)
-{
-	std::string ext = path.extension().string();
-	if (ext == ".md" || ext == ".txt" || ext == ".json" || ext == ".yaml" || ext == ".yml" || ext == ".toml")
-		return true;
-
-	std::string filename = path.filename().string();
-	return filename == "meson.build" || filename == "CMakeLists.txt" || filename == "Makefile" || filename == "Dockerfile" ||
-	       filename == "GEMINI.md" || filename == "AGENTS.md";
-}
-
-void project_manager::inventory_project(std::stop_token stop)
-{
-	auto start_time = std::chrono::steady_clock::now();
-	std::string build_dir = config_manager::get_instance().get_build_directory();
-	fs::path root(project_root_);
-
-	std::map<std::string, directory_info> dir_map;
-	std::vector<std::string> key_files;
-	int dir_count = 0;
-
-	// Initial set of potential key files in root
-	auto is_root_key_file = [](const std::string &filename) {
-		return filename == "meson.build" || filename == "CMakeLists.txt" || filename == "configure.ac" || filename == "Makefile" ||
-		       filename == "README.md" || filename == "TODO.md";
-	};
-
-	try {
-		for (auto it = fs::recursive_directory_iterator(root, fs::directory_options::skip_permission_denied);
-		     it != fs::recursive_directory_iterator(); ++it) {
-			if (stop.stop_requested())
-				return;
-
-			const auto &path = it->path();
-			std::string rel_path = fs::relative(path, root).string();
-
-			// Skip hidden directories (like .git), build directories, and temp directories
-			if (it->is_directory()) {
-				std::string name = path.filename().string();
-				bool is_top_level = !path.parent_path().has_relative_path() || path.parent_path() == root;
-
-				if (name.front() == '.' || name == build_dir || name == "tmp" || name == "temp" ||
-				    (is_top_level && name.starts_with("build"))) {
-					it.disable_recursion_pending();
-					continue;
-				}
-
-				dir_count++;
-				if (dir_count > 50) {
-					std::this_thread::sleep_for(std::chrono::milliseconds(10));
-				}
-
-				dir_map[rel_path].path = rel_path;
-				dir_map[rel_path].depth = std::count(rel_path.begin(), rel_path.end(), fs::path::preferred_separator);
-			} else if (fs::is_regular_file(path)) {
-				std::string filename = path.filename().string();
-				if (filename.empty() || filename.back() == '~')
-					continue;
-
-				// Check for root-level key files
-				if (path.parent_path() == root && is_root_key_file(filename)) {
-					key_files.push_back(filename);
-				}
-
-				bool header = is_header(path);
-				bool source = is_source(path);
-				bool doc = is_doc_config(path);
-
-				if (!header && !source && !doc)
-					continue;
-
-				// Update parent directory
-				std::string parent_rel = fs::relative(path.parent_path(), root).string();
-				if (parent_rel != ".") {
-					auto &info = dir_map[parent_rel];
-					info.path = parent_rel;
-					if (header)
-						info.direct_headers++;
-					else if (source)
-						info.direct_files++;
-					else if (doc)
-						info.direct_docs_config++;
-				}
-
-				// Update all ancestors for total count
-				fs::path p = path.parent_path();
-				while (p != root && p.has_relative_path()) {
-					std::string ancestor_rel = fs::relative(p, root).string();
-					dir_map[ancestor_rel].total_files_underneath++;
-					p = p.parent_path();
-				}
-			}
-		}
-	} catch (const std::exception &e) {
-		event_logger::get_instance().log("Error during project inventory: {}", e.what());
-	}
-
-	// Finalize Top 15/18
-	std::vector<directory_info> all_dirs;
-	all_dirs.reserve(dir_map.size());
-	for (auto &pair : dir_map) {
-		all_dirs.push_back(pair.second);
-	}
-
-	auto tie_breaker = [](const directory_info &a, const directory_info &b) {
-		if (a.depth != b.depth)
-			return a.depth < b.depth;
-		return a.path < b.path;
-	};
-
-	auto top_recursive = all_dirs;
-	std::sort(top_recursive.begin(), top_recursive.end(), [&](const directory_info &a, const directory_info &b) {
-		if (a.total_files_underneath != b.total_files_underneath)
-			return a.total_files_underneath > b.total_files_underneath;
-		return tie_breaker(a, b);
-	});
-
-	auto top_headers = all_dirs;
-	std::sort(top_headers.begin(), top_headers.end(), [&](const directory_info &a, const directory_info &b) {
-		if (a.direct_headers != b.direct_headers)
-			return a.direct_headers > b.direct_headers;
-		return tie_breaker(a, b);
-	});
-
-	auto top_source = all_dirs;
-	std::sort(top_source.begin(), top_source.end(), [&](const directory_info &a, const directory_info &b) {
-		if (a.direct_files != b.direct_files)
-			return a.direct_files > b.direct_files;
-		return tie_breaker(a, b);
-	});
-
-	auto top_docs = all_dirs;
-	std::sort(top_docs.begin(), top_docs.end(), [&](const directory_info &a, const directory_info &b) {
-		if (a.direct_docs_config != b.direct_docs_config)
-			return a.direct_docs_config > b.direct_docs_config;
-		return tie_breaker(a, b);
-	});
-
-	std::set<std::string> selected_paths;
-	std::vector<directory_info> result;
-
-	auto add_top = [&](const std::vector<directory_info> &list, size_t count, int min_val = 0) {
-		size_t added = 0;
-		for (const auto &info : list) {
-			if (added >= count)
-				break;
-			if (selected_paths.contains(info.path))
-				continue;
-
-			int val = 0;
-			if (&list == &top_recursive)
-				val = info.total_files_underneath;
-			else if (&list == &top_headers)
-				val = info.direct_headers;
-			else if (&list == &top_source)
-				val = info.direct_files;
-			else if (&list == &top_docs)
-				val = info.direct_docs_config;
-
-			if (val <= min_val)
-				continue;
-
-			result.push_back(info);
-			selected_paths.insert(info.path);
-			added++;
-		}
-	};
-
-	add_top(top_recursive, 5);
-	add_top(top_headers, 5);
-	add_top(top_source, 5);
-	add_top(top_docs, 3, 1);
-
-	// Try to find 'main' using common paths
-	static const std::vector<std::string> common_mains = {"src/main.cpp", "src/main.c", "main.cpp", "main.c"};
-	for (const auto &m : common_mains) {
-		if (fs::exists(root / m)) {
-			key_files.push_back(m);
-			break;
-		}
-	}
-
-	// Final sort by path for display
-	std::sort(result.begin(), result.end(), [](const directory_info &a, const directory_info &b) { return a.path < b.path; });
-
-	std::sort(key_files.begin(), key_files.end());
-	key_files.erase(std::unique(key_files.begin(), key_files.end()), key_files.end());
-
-	{
-		std::lock_guard<std::mutex> lock(layout_mutex_);
-		layout_.top_directories = std::move(result);
-		layout_.key_files = std::move(key_files);
-		layout_.ready = true;
-	}
-
-	auto end_time = std::chrono::steady_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-	event_logger::get_instance().log("Project inventory complete in {}ms. Indexed {} directories.", duration.count(), dir_count);
-}
-
-std::string project_manager::get_project_layout_markdown() const
-{
-	std::lock_guard<std::mutex> lock(layout_mutex_);
-	if (!layout_.ready || (layout_.top_directories.empty() && layout_.key_files.empty()))
-		return "";
-
-	std::stringstream ss;
-	if (!layout_.top_directories.empty()) {
-		ss << "\nProject Layout Overview:\n";
-		ss << "| Directory | Files | Headers | Docs/Config | Total Underneath |\n";
-		ss << "| :--- | :---: | :---: | :---: | :---: |\n";
-
-		for (const auto &dir : layout_.top_directories) {
-			ss << "| " << dir.path << " | " << dir.direct_files << " | " << dir.direct_headers << " | "
-			   << dir.direct_docs_config << " | " << dir.total_files_underneath << " |\n";
-		}
-	}
-
-	if (!layout_.key_files.empty()) {
-		ss << "\nKey Files:\n";
-		for (const auto &f : layout_.key_files) {
-			ss << "- " << f << "\n";
-		}
-	}
-	return ss.str();
 }
 
 std::string project_manager::get_project_knowledge_prompt() const
@@ -419,11 +150,6 @@ std::string project_manager::get_project_knowledge_prompt() const
 	std::string clang_format = get_clang_format();
 	if (!clang_format.empty()) {
 		prompt += "\n\nProject formatting rules (.clang-format):\n```yaml\n" + clang_format + "```\n";
-	}
-
-	std::string project_layout = get_project_layout_markdown();
-	if (!project_layout.empty()) {
-		prompt += "\n" + project_layout;
 	}
 
 	std::vector<std::pair<std::string, std::string>> mapped_deps = get_mapped_dependencies();
@@ -919,7 +645,6 @@ void project_manager::refresh_available_tests(std::string_view override_build_di
 void project_manager::shutdown()
 {
 	is_exiting_ = true;
-	inventory_thread_.request_stop();
 	if (lsp_manager_) {
 		lsp_manager_->stop();
 	}

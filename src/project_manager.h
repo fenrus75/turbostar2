@@ -67,9 +67,6 @@ class project_manager
 	void set_exiting(bool exiting)
 	{
 		is_exiting_ = exiting;
-		if (exiting) {
-			inventory_thread_.request_stop();
-		}
 	}
 
 	bool is_editor_mode() const
@@ -100,11 +97,6 @@ class project_manager
 		assert((!enforce_initialization_ || initialized_) && "project_manager must be initialized before calling get_clang_format");
 		return clang_format_;
 	}
-
-	/**
-	 * @brief Returns a markdown representation of the project layout (top directories).
-	 */
-	std::string get_project_layout_markdown() const;
 
 	/**
 	 * @brief Returns a unified markdown block containing all project-level knowledge (instructions, format, layout).
@@ -184,27 +176,12 @@ class project_manager
 
 	void load_instructions();
 	void scan_dependencies();
-	void inventory_project(std::stop_token stop);
 	// Returns true if the build definition file (meson.build or CMakeLists.txt) used to populate
 	// the available-test list has a different mtime than when the list was last refreshed.
 	// Used by get_available_tests() to invalidate the cached list when build definitions
 	// change (e.g. new test targets added).
 	bool build_definition_changed() const;
 
-	struct directory_info {
-		std::string path;
-		int direct_files{0};
-		int direct_headers{0};
-		int direct_docs_config{0};
-		int total_files_underneath{0};
-		int depth{0};
-	};
-
-	struct project_layout {
-		std::vector<directory_info> top_directories;
-		std::vector<std::string> key_files;
-		bool ready{false};
-	};
 
 	std::string project_root_;
 	std::string instructions_;
@@ -234,14 +211,6 @@ class project_manager
 	// while still caching effectively for back-to-back lookups.
 	std::chrono::steady_clock::time_point tests_list_refreshed_at_;
 
-	/*
-	 * layout_mutex_ protects the project_layout structure.
-	 * Locking Rules:
-	 * - Held briefly when querying or updating the cached project layout during directory inventory.
-	 */
-	mutable std::mutex layout_mutex_;
-	project_layout layout_;
-	std::jthread inventory_thread_;
 
 	/*
 	 * dependencies_mutex_ protects detected_dependencies_, github_vfs_urls_, and mapped_dependencies_.
