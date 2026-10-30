@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <mutex>
@@ -17,7 +18,7 @@ namespace tools
  *
  * Caches structured codemap_symbol_info lists indexed by file path across
  * editor and MCP server restarts, with mtime/size validation, LRU eviction,
- * and startup stale-file refresh triggering.
+ * and lazy on-demand disk loading to ensure fast startup.
  */
 class codemap_cache
 {
@@ -39,8 +40,7 @@ class codemap_cache
 	codemap_cache &operator=(const codemap_cache &) = delete;
 
 	/**
-	 * @brief Initializes the cache for the given project root, loading persisted data from disk.
-	 * Checks mtimes of cached files; valid entries are kept, while stale files trigger background refreshes.
+	 * @brief Initializes the cache for the given project root. Disk loading is deferred to first use.
 	 */
 	void initialize(const std::string &project_root);
 
@@ -90,6 +90,11 @@ class codemap_cache
 	void load_from_disk();
 
 	/**
+	 * @brief Returns true if cache entries have been loaded from disk into memory.
+	 */
+	[[nodiscard]] bool is_loaded() const;
+
+	/**
 	 * @brief Clears all in-memory entries (for testing).
 	 */
 	void clear();
@@ -107,6 +112,16 @@ class codemap_cache
       private:
 	std::string resolve_cache_filepath() const;
 	std::string resolve_cache_filepath_locked() const;
+	void ensure_loaded() const;
+
+	/*
+	 * load_mutex_ serializes lazy disk loading in ensure_loaded().
+	 * Locking Rules:
+	 * - Acquired only when loaded_ is false to ensure exactly one thread executes load_from_disk().
+	 * - Never acquired while holding cache_mutex_ (no nested locking of load_mutex_ inside cache_mutex_).
+	 * - Released after load_from_disk() completes.
+	 */
+	mutable std::mutex load_mutex_;
 
 	/*
 	 * cache_mutex_ protects entries_ map of filepaths to cached symbol entries,
@@ -120,6 +135,7 @@ class codemap_cache
 	std::string project_root_;
 	std::string cache_file_override_;
 	bool dirty_{false};
+	std::atomic<bool> loaded_{false};
 	size_t max_entries_{5000};
 };
 

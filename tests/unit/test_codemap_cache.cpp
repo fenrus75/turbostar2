@@ -168,6 +168,35 @@ int main()
 		assert(!cache.has_valid_entry(test_file_1));
 	}
 
+	// ==========================================
+	// Test 6: Lazy / deferred loading
+	// ==========================================
+	std::cout << "[Test 6] Lazy deferred loading..." << std::endl;
+	{
+		// Populate and save cache file
+		cache.clear();
+		std::vector<codemap_symbol_info> syms2 = {{"Bar", "Bar", "Class", 1, 3, 3, 0, ""}};
+		cache.put(test_file_2, syms2);
+		cache.save_to_disk();
+
+		// Re-initialize cache with new project root
+		cache.initialize(test_dir);
+		// Deferred loading: should NOT be loaded immediately upon initialize()
+		assert(!cache.is_loaded());
+
+		// Invalidation before load should be safe no-op without triggering disk load
+		cache.invalidate(test_file_1);
+		assert(!cache.is_loaded());
+
+		// First read triggers load
+		std::vector<codemap_symbol_info> retrieved;
+		bool hit = cache.get(test_file_2, 1, retrieved);
+		assert(hit);
+		assert(cache.is_loaded());
+		assert(retrieved.size() == 1);
+		assert(retrieved[0].name == "Bar");
+	}
+
 	// Cleanup
 	std::filesystem::remove_all(test_dir);
 	std::cout << "All codemap_cache unit tests passed successfully!" << std::endl;

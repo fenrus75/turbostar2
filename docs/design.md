@@ -326,9 +326,9 @@ To provide agents with high-value architectural awareness without token bloat or
 To eliminate multi-second cold-start parsing delays across editor and MCP server restarts:
 - **On-Disk Persistence**: Structured `codemap_symbol_info` trees are persisted to `~/.cache/turbostar/projects/<hash>/codemap_cache.json` using atomic temporary file creation and replacement.
 - **Universal Format Coverage**: Caches symbols from all extraction paths—`clangd`, `pylsp`, `semcode`, regex fallback heuristics (`fallback_find_symbols`), and Markdown headings (`parse_markdown_headings`).
-- **Smart Startup Validation & Eager Refresh**: On startup loading, file modification times (`mtime`) and file sizes are validated against disk via fast `stat()` checks:
+- **Deferred / Lazy Loading & Stale Refresh**: `codemap_cache::initialize()` merely records the project root without performing disk I/O or JSON parsing at application startup. Persistent data is loaded lazily on first access (`get()`, `put()`, `has_valid_entry()`). File modification times (`mtime`) and file sizes are validated against disk via fast `stat()` checks:
   - **Fresh Entries**: Kept in memory (<0.1ms access) and eagerly register classes, structs, and enums into `type_definition_cache`.
-  - **Stale/Modified Entries**: Immediately trigger asynchronous non-blocking prefetching (`prefetch_document_codemap_symbols`) at startup so language server ASTs are warming before the first user or agent toolcall.
+  - **Stale/Modified Entries**: Trigger asynchronous non-blocking prefetching (`prefetch_document_codemap_symbols`) when loaded so language server ASTs are warming before queries arrive.
   - **Deleted Files**: Automatically pruned from the cache.
 - **LRU Eviction**: Tracks `last_used_ms` timestamps on all reads and writes; automatically prunes oldest entries when entry counts exceed limits.
 - **Dirty Buffer Bypass**: Bypasses the cache when a file has unsaved in-memory modifications in `document_provider`.

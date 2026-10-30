@@ -29,16 +29,31 @@ codemap_cache::~codemap_cache()
 
 void codemap_cache::initialize(const std::string &project_root)
 {
-	{
-		std::lock_guard<std::mutex> lock(cache_mutex_);
-		project_root_ = project_root;
-	}
-	load_from_disk();
+	std::lock_guard<std::mutex> lock(cache_mutex_);
+	project_root_ = project_root;
+	loaded_.store(false, std::memory_order_release);
 }
 
 void codemap_cache::shutdown()
 {
 	save_to_disk();
+}
+
+bool codemap_cache::is_loaded() const
+{
+	return loaded_.load(std::memory_order_acquire);
+}
+
+void codemap_cache::ensure_loaded() const
+{
+	if (loaded_.load(std::memory_order_acquire)) {
+		return;
+	}
+	std::lock_guard<std::mutex> lock(load_mutex_);
+	if (loaded_.load(std::memory_order_relaxed)) {
+		return;
+	}
+	const_cast<codemap_cache *>(this)->load_from_disk();
 }
 
 std::string codemap_cache::resolve_cache_filepath_locked() const
@@ -63,6 +78,7 @@ void codemap_cache::set_cache_file_override(const std::string &filepath)
 {
 	std::lock_guard<std::mutex> lock(cache_mutex_);
 	cache_file_override_ = filepath;
+	loaded_.store(false, std::memory_order_release);
 }
 
 void codemap_cache::clear()
@@ -70,10 +86,12 @@ void codemap_cache::clear()
 	std::lock_guard<std::mutex> lock(cache_mutex_);
 	entries_.clear();
 	dirty_ = false;
+	loaded_.store(true, std::memory_order_release);
 }
 
 size_t codemap_cache::size() const
 {
+	ensure_loaded();
 	std::lock_guard<std::mutex> lock(cache_mutex_);
 	return entries_.size();
 }
@@ -81,6 +99,9 @@ size_t codemap_cache::size() const
 void codemap_cache::invalidate(const std::string &safe_path)
 {
 	std::lock_guard<std::mutex> lock(cache_mutex_);
+	if (!loaded_.load(std::memory_order_relaxed)) {
+		return;
+	}
 	auto it = entries_.find(safe_path);
 	if (it != entries_.end()) {
 		entries_.erase(it);
@@ -90,6 +111,8 @@ void codemap_cache::invalidate(const std::string &safe_path)
 
 void codemap_cache::prune_lru(size_t max_entries)
 {
+	ensure_loaded();
+
 	std::lock_guard<std::mutex> lock(cache_mutex_);
 	if (entries_.size() <= max_entries) {
 		return;
@@ -121,6 +144,8 @@ bool codemap_cache::get(const std::string &safe_path, int min_lines, std::vector
 	if (ec) {
 		return false;
 	}
+
+	ensure_loaded();
 
 	std::lock_guard<std::mutex> lock(cache_mutex_);
 	auto it = entries_.find(safe_path);
@@ -171,6 +196,8 @@ bool codemap_cache::has_valid_entry(const std::string &safe_path) const
 		return false;
 	}
 
+	ensure_loaded();
+
 	std::lock_guard<std::mutex> lock(cache_mutex_);
 	auto it = entries_.find(safe_path);
 	if (it == entries_.end()) {
@@ -197,6 +224,8 @@ void codemap_cache::put(const std::string &safe_path, std::vector<codemap_symbol
 	if (ec) {
 		return;
 	}
+
+	ensure_loaded();
 
 	// Pre-warm type definition cache for classes, structs, enums
 	for (const auto &sym : symbols) {
@@ -237,11 +266,13 @@ void codemap_cache::load_from_disk()
 {
 	std::string cache_path = resolve_cache_filepath();
 	if (cache_path.empty() || !std::filesystem::exists(cache_path)) {
+		loaded_.store(true, std::memory_order_release);
 		return;
 	}
 
 	std::ifstream in(cache_path);
 	if (!in.is_open()) {
+		loaded_.store(true, std::memory_order_release);
 		return;
 	}
 
@@ -249,7 +280,8 @@ void codemap_cache::load_from_disk()
 	try {
 		in >> j;
 	} catch (const std::exception &ex) {
-		event_logger::get_instance().log(std::format("codemap_cache: failed to parse cache file '{}': {}", cache_path, ex.what()));
+		event_logger::get_instance().log_warn("codemap_cache: failed to parse cache file '{}': {}", cache_path, ex.what());
+		loaded_.store(true, std::memory_order_release);
 		return;
 	}
 
@@ -328,10 +360,11 @@ void codemap_cache::load_from_disk()
 		std::lock_guard<std::mutex> lock(cache_mutex_);
 		entries_ = std::move(loaded_entries);
 		dirty_ = false;
+		loaded_.store(true, std::memory_order_release);
 	}
 
-	event_logger::get_instance().log(std::format("codemap_cache: loaded {} valid entries from disk ({} stale files queued for refresh)",
-						     loaded_count, stale_or_changed_files.size()));
+	event_logger::get_instance().log_info("codemap_cache: loaded {} valid entries from disk ({} stale files queued for refresh)",
+					      loaded_count, stale_or_changed_files.size());
 
 	// Kick off asynchronous prefetch for all changed/stale files so caches are warm when queries arrive
 	for (const auto &changed_path : stale_or_changed_files) {
@@ -345,7 +378,7 @@ void codemap_cache::save_to_disk()
 	std::string cache_path;
 	{
 		std::lock_guard<std::mutex> lock(cache_mutex_);
-		if (!dirty_) {
+		if (!dirty_ || !loaded_.load(std::memory_order_relaxed)) {
 			return;
 		}
 		snapshot = entries_;
