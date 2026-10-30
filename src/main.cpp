@@ -490,6 +490,9 @@ int main(int argc, char **argv)
 	// Print interactive event response latency metrics
 	main_editor.print_latency_report();
 
+	// Print recorded session errors summary if any occurred
+	event_logger::get_instance().print_exit_error_report();
+
 	if (log_file.empty()) {
 		logger.enable_stdout_logging(true);
 	}

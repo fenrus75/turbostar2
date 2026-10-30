@@ -149,7 +149,7 @@ The window class is a "View" that renders a portion of a `Document`.
 ## Event Queue and Logging
 
 - **`event_queue`**: A thread-safe queue holding `editor_event` objects (e.g., `key_press`, `quit`). Used to safely pass events between threads or into the main dispatcher.
-- **`event_logger`**: A singleton class responsible for capturing internal application state and writing it to a file or displaying it via the `--debug` flag.
+- **`event_logger`**: A singleton class responsible for capturing internal application state with log-level categorizations (`debug`, `info`, `warn`, `error`, `fatal`), early-out filtering, writing formatted diagnostics to a file or stdout (`--debug`), and surfacing recent session errors upon normal exit.
 
 ## Editor class (Manager)
 

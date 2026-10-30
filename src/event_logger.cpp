@@ -1,7 +1,9 @@
 #include "event_logger.h"
 #include <algorithm>
+#include <cstring>
 #include <format>
 #include <iostream>
+#include <unistd.h>
 
 event_logger::event_logger() : start_time_(std::chrono::steady_clock::now())
 {
@@ -30,15 +32,26 @@ void event_logger::set_log_file(std::string_view filename)
 	log_stream_.open(std::string(filename), std::ios::app);
 }
 
-#include <cstring>
-#include <unistd.h>
-
-void event_logger::log(std::string_view message)
+void event_logger::set_min_level(log_level level) noexcept
 {
+	min_level_.store(level, std::memory_order_relaxed);
+}
+
+log_level event_logger::get_min_level() const noexcept
+{
+	return min_level_.load(std::memory_order_relaxed);
+}
+
+void event_logger::log(log_level level, std::string_view message)
+{
+	if (level < min_level_.load(std::memory_order_relaxed)) {
+		return;
+	}
+
 	auto now = std::chrono::steady_clock::now();
 	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time_).count();
 
-	std::string formatted_message = std::format("[{:06d}ms] {}", ms, message);
+	std::string formatted_message = std::format("[{:06d}ms] [{}] {}", ms, log_level_to_string(level), message);
 
 	// Populate lock-free signal-safe ring buffer with trailing '\n' included
 	uint64_t seq = ring_write_seq_.fetch_add(1, std::memory_order_relaxed);
@@ -67,12 +80,68 @@ void event_logger::log(std::string_view message)
 	if (events.size() > 5000) {
 		events.erase(events.begin());
 	}
+
+	if (level == log_level::error || level == log_level::fatal) {
+		total_errors_logged_.fetch_add(1, std::memory_order_relaxed);
+		recent_errors_.push_back(log_error_record{
+			.timestamp_ms = static_cast<uint64_t>(ms),
+			.level = level,
+			.message = std::string(message),
+		});
+		if (recent_errors_.size() > MAX_RECENT_ERRORS) {
+			recent_errors_.erase(recent_errors_.begin());
+		}
+	}
+
 	if (log_stream_.is_open()) {
 		log_stream_ << formatted_message << std::endl;
 	}
 	if (stdout_logging_ && ms >= 50) {
 		std::cout << formatted_message << std::endl;
 	}
+}
+
+std::vector<log_error_record> event_logger::get_recent_errors(size_t max_count) const
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	if (recent_errors_.empty() || max_count == 0) {
+		return {};
+	}
+	size_t count = std::min(recent_errors_.size(), max_count);
+	size_t start_idx = recent_errors_.size() - count;
+	return std::vector<log_error_record>(recent_errors_.begin() + start_idx, recent_errors_.end());
+}
+
+size_t event_logger::get_total_error_count() const noexcept
+{
+	return total_errors_logged_.load(std::memory_order_relaxed);
+}
+
+void event_logger::print_exit_error_report() const
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	if (recent_errors_.empty()) {
+		return;
+	}
+
+	size_t total_errors = total_errors_logged_.load(std::memory_order_relaxed);
+	size_t print_count = std::min(recent_errors_.size(), size_t(5));
+	size_t start_idx = recent_errors_.size() - print_count;
+
+	std::cout << "\n"
+		  << "--------------------------------------------------\n"
+		  << std::format("Turbostar Session Diagnostics: {} error(s) recorded\n", total_errors)
+		  << "--------------------------------------------------\n";
+
+	for (size_t i = start_idx; i < recent_errors_.size(); ++i) {
+		const auto &err = recent_errors_[i];
+		std::cout << std::format("  [{:06d}ms] [{}] {}\n", err.timestamp_ms, log_level_to_string(err.level), err.message);
+	}
+
+	if (total_errors > print_count) {
+		std::cout << std::format("  ... and {} earlier error(s) (logged to disk).\n", total_errors - print_count);
+	}
+	std::cout << "--------------------------------------------------\n" << std::flush;
 }
 
 void event_logger::dump_recent_logs_signal_safe(int fd, size_t max_count)
@@ -157,6 +226,9 @@ void event_logger::clear_all()
 {
 	std::lock_guard<std::mutex> lock(mutex_);
 	events.clear();
+	recent_errors_.clear();
+	total_errors_logged_.store(0, std::memory_order_relaxed);
+	total_events_logged_ = 0;
 	if (log_stream_.is_open()) {
 		log_stream_.close();
 	}
