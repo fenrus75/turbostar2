@@ -148,11 +148,15 @@ class git_manager
 	std::atomic<bool> stop_thread_{false};
 
 	/*
-	 * cache_mutex_ protects the status_cache_ map of file paths to cached git statuses.
+	 * cache_mutex_ protects the status_cache_ map of file paths to cached git statuses,
+	 * cached_repo_root_ string, and repo_root_cached_ flag.
 	 * Locking Rules:
-	 * - Held briefly when retrieving cached info or updating it after a git status command completes.
+	 * - Held briefly when retrieving cached info, updating status after a git status command completes,
+	 *   or accessing/memoizing the repository root.
 	 */
 	mutable std::mutex cache_mutex_;
 	std::unordered_map<std::string, git_info> status_cache_;
+	mutable std::string cached_repo_root_;
+	mutable bool repo_root_cached_{false};
 	std::atomic<event_queue*> global_queue_{nullptr};
 };

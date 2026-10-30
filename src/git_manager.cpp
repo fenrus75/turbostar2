@@ -7,6 +7,7 @@
 #include <dtl/dtl.hpp>
 #include <format>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -49,6 +50,11 @@ void git_manager::stop()
                 worker_thread_.join();
         }
         global_queue_.store(nullptr);
+	{
+		std::unique_lock lock(cache_mutex_);
+		cached_repo_root_.clear();
+		repo_root_cached_ = false;
+	}
 }
 void git_manager::request_status(const std::string &filepath)
 {
@@ -87,6 +93,12 @@ git_info git_manager::get_cached_info(const std::string &filepath) const
 
 std::string git_manager::get_repository_root() const
 {
+	std::unique_lock lock(cache_mutex_);
+	if (repo_root_cached_) {
+		return cached_repo_root_;
+	}
+	lock.unlock();
+
 	std::string cmd = "git rev-parse --show-toplevel 2>/dev/null";
 	sync_command_runner runner;
 	runner.apply_internal_profile();
@@ -94,13 +106,17 @@ std::string git_manager::get_repository_root() const
 	if (!result.empty() && result.back() == '\n') {
 		result.pop_back();
 	}
-	return result;
+
+	lock.lock();
+	cached_repo_root_ = result;
+	repo_root_cached_ = true;
+	return cached_repo_root_;
 }
 
 void git_manager::worker_loop()
 {
 	fs_utils::set_current_thread_name("git_worker");
-	event_logger::get_instance().log("Thread started: git_manager worker_loop");
+	event_logger::get_instance().log_info("Thread started: git_manager worker_loop");
         while (!stop_thread_ && !project_manager::get_instance().is_exiting()) {
                 git_request req;
                 {
@@ -122,7 +138,7 @@ void git_manager::worker_loop()
                                 if (cached.status != info.status || cached.branch != info.branch || cached.diff != info.diff ||
                                     cached.has_head != info.has_head || cached.head_lines != info.head_lines) {
                                         if (cached.branch != info.branch && !info.branch.empty()) {
-                                                event_logger::get_instance().log("Git: Detected branch '{}' for {}", info.branch, req.filepath);
+                                                event_logger::get_instance().log_info("Git: Detected branch '{}' for {}", info.branch, req.filepath);
                                         }
                                         cached = info;
                                         changed = true;
@@ -140,7 +156,7 @@ void git_manager::worker_loop()
                         request_status(req.filepath);
                 }
         }
-	event_logger::get_instance().log("Thread exited: git_manager worker_loop");
+	event_logger::get_instance().log_info("Thread exited: git_manager worker_loop");
 }
 
 void git_manager::run_git_add_cmd(const std::string &filepath)
@@ -148,10 +164,13 @@ void git_manager::run_git_add_cmd(const std::string &filepath)
 	fs::path p(filepath);
 	std::string dir = p.parent_path().string();
 	std::string file = p.filename().string();
-	if (dir.empty())
+	if (dir.empty()) {
 		dir = ".";
+	}
 
-	std::string cmd = "git -C " + dir + " add " + file + " 2>/dev/null";
+	std::string cmd = std::format("git -C {} add -- {} 2>/dev/null",
+	                              fs_utils::escape_shell_arg(dir),
+	                              fs_utils::escape_shell_arg(file));
 	sync_command_runner runner;
 	runner.apply_internal_profile();
 	runner.execute_and_get_output(cmd);
@@ -159,80 +178,135 @@ void git_manager::run_git_add_cmd(const std::string &filepath)
 
 git_info git_manager::run_git_status_cmd(const std::string &filepath)
 {
-        git_info info;
+	git_info info;
 
-        if (!fs::exists(filepath)) {
-                std::unique_lock lock(cache_mutex_);
-                status_cache_.erase(filepath);
-                return info;
-        }
+	if (!fs::exists(filepath)) {
+		std::unique_lock lock(cache_mutex_);
+		status_cache_.erase(filepath);
+		return info;
+	}
 
-        fs::path p(filepath);
-        std::string dir = p.parent_path().string();
-        std::string file = p.filename().string();
-        if (dir.empty())
-                dir = ".";
+	fs::path p(filepath);
+	std::string dir = p.parent_path().string();
+	std::string file = p.filename().string();
+	if (dir.empty()) {
+		dir = ".";
+	}
 
-        // Fetch branch
-        std::string branch_cmd = "git -C " + dir + " rev-parse --abbrev-ref HEAD 2>/dev/null";
-        sync_command_runner branch_runner;
-        branch_runner.apply_internal_profile();
-        std::string branch_res = branch_runner.execute_and_get_output(branch_cmd);
-        if (!branch_res.empty()) {
-                info.branch = branch_res;
-                if (!info.branch.empty() && info.branch.back() == '\n')
-                        info.branch.pop_back();
-        }
-	// Use -C to run git from the file's directory, so it correctly finds the repo.
-	std::string cmd = "git -C " + dir + " status --porcelain -u " + file + " 2>/dev/null";
+	// Single consolidated git invocation: gets branch, repo membership, and file status in one shot
+	std::string cmd = std::format("git -C {} status --porcelain=v1 -b -u --ignored=matching -- {} 2>/dev/null",
+	                              fs_utils::escape_shell_arg(dir),
+	                              fs_utils::escape_shell_arg(file));
 	sync_command_runner status_runner;
 	status_runner.apply_internal_profile();
 	std::string result = status_runner.execute_and_get_output(cmd);
 
-	if (!result.empty()) {
-		if (result.substr(0, 2) == "??") {
+	if (status_runner.get_exit_code() != 0) {
+		info.status = git_status::unknown;
+		info.diff.is_tracked = false;
+		return info;
+	}
+
+	std::stringstream ss(result);
+	std::string line;
+	std::vector<std::string> lines;
+	while (std::getline(ss, line)) {
+		if (!line.empty() && line.back() == '\r') {
+			line.pop_back();
+		}
+		if (!line.empty()) {
+			lines.push_back(line);
+		}
+	}
+
+	if (lines.empty()) {
+		info.status = git_status::unknown;
+		info.diff.is_tracked = false;
+		return info;
+	}
+
+	// First line is branch info: "## <branch_spec>"
+	bool has_head_commit = true;
+	const std::string &header_line = lines[0];
+	if (header_line.starts_with("## ")) {
+		std::string_view branch_spec = std::string_view(header_line).substr(3);
+		if (branch_spec.starts_with("No commits yet on ")) {
+			info.branch = std::string(branch_spec.substr(18));
+			has_head_commit = false;
+		} else if (branch_spec.starts_with("HEAD (no branch)")) {
+			info.branch = "HEAD";
+		} else {
+			size_t dots = branch_spec.find("...");
+			if (dots != std::string_view::npos) {
+				info.branch = std::string(branch_spec.substr(0, dots));
+			} else {
+				size_t sp = branch_spec.find(' ');
+				if (sp != std::string_view::npos) {
+					info.branch = std::string(branch_spec.substr(0, sp));
+				} else {
+					info.branch = std::string(branch_spec);
+				}
+			}
+		}
+	}
+
+	if (lines.size() <= 1) {
+		// Only header line present: file is tracked and unchanged
+		info.status = git_status::clean;
+	} else {
+		// Status line format: XY filename (e.g. "??", "!!", " M", "M ", "A ")
+		const std::string &status_line = lines[1];
+		if (status_line.starts_with("??") || status_line.starts_with("!!")) {
 			info.status = git_status::untracked;
 		} else {
 			info.status = git_status::dirty;
-		}
-	} else {
-		// Result is empty. Check if we are in a git repo.
-		std::string check_cmd = "git -C " + dir + " rev-parse --is-inside-work-tree 2>/dev/null";
-		sync_command_runner check_runner;
-		check_runner.apply_internal_profile();
-		std::string check_res = check_runner.execute_and_get_output(check_cmd);
-		if (check_res.find("true") != std::string::npos) {
-			info.status = git_status::clean;
 		}
 	}
 
 	if (info.status == git_status::dirty) {
 		info.diff = run_git_diff_cmd(filepath);
+		if (has_head_commit) {
+			std::string show_cmd = std::format("git -C {} show HEAD:./{} 2>/dev/null",
+			                                   fs_utils::escape_shell_arg(dir),
+			                                   fs_utils::escape_shell_arg(file));
+			sync_command_runner show_runner;
+			show_runner.apply_internal_profile();
+			std::string show_res = show_runner.execute_and_get_output(show_cmd);
+			if (show_runner.get_exit_code() == 0) {
+				info.has_head = true;
+				info.head_lines.clear();
+				std::stringstream head_ss(show_res);
+				std::string l;
+				while (std::getline(head_ss, l)) {
+					if (!l.empty() && l.back() == '\r') {
+						l.pop_back();
+					}
+					info.head_lines.push_back(l);
+				}
+			}
+		}
 	} else if (info.status == git_status::clean) {
 		info.diff.is_tracked = true;
 		info.diff.hunks.clear();
+		if (has_head_commit) {
+			// When clean, file on disk is identical to HEAD.
+			// Read directly from disk without spawning a git subprocess!
+			std::ifstream file_in(filepath);
+			if (file_in.is_open()) {
+				info.has_head = true;
+				info.head_lines.clear();
+				std::string l;
+				while (std::getline(file_in, l)) {
+					if (!l.empty() && l.back() == '\r') {
+						l.pop_back();
+					}
+					info.head_lines.push_back(l);
+				}
+			}
+		}
 	} else {
 		info.diff.is_tracked = false;
 		info.diff.hunks.clear();
-	}
-
-	if (info.status == git_status::dirty || info.status == git_status::clean) {
-		std::string show_cmd = "git -C " + dir + " show HEAD:./" + file + " 2>/dev/null";
-		sync_command_runner show_runner;
-		show_runner.apply_internal_profile();
-		std::string show_res = show_runner.execute_and_get_output(show_cmd);
-		if (show_runner.get_exit_code() == 0) {
-			info.has_head = true;
-			info.head_lines.clear();
-			std::stringstream ss(show_res);
-			std::string l;
-			while (std::getline(ss, l)) {
-				if (!l.empty() && l.back() == '\r') {
-					l.pop_back();
-				}
-				info.head_lines.push_back(l);
-			}
-		}
 	}
 
 	return info;
@@ -246,10 +320,13 @@ git_file_diff git_manager::run_git_diff_cmd(const std::string &filepath)
 	fs::path p(filepath);
 	std::string dir = p.parent_path().string();
 	std::string file = p.filename().string();
-	if (dir.empty())
+	if (dir.empty()) {
 		dir = ".";
+	}
 
-	std::string cmd = "git -C " + dir + " diff -U0 HEAD -- " + file + " 2>/dev/null";
+	std::string cmd = std::format("git -C {} diff -U0 HEAD -- {} 2>/dev/null",
+	                              fs_utils::escape_shell_arg(dir),
+	                              fs_utils::escape_shell_arg(file));
 	sync_command_runner runner;
 	runner.apply_internal_profile();
 	std::string output = runner.execute_and_get_output(cmd);
@@ -496,7 +573,8 @@ std::string git_manager::get_remote_origin_url() const
 	if (root.empty()) {
 		return "";
 	}
-	std::string url = fs_utils::execute_command_sync("git -C '" + root + "' config --get remote.origin.url");
+	std::string url = fs_utils::execute_command_sync(
+	    std::format("git -C {} config --get remote.origin.url", fs_utils::escape_shell_arg(root)));
 	size_t pos = url.find('\n');
 	if (pos != std::string::npos) {
 		url = url.substr(0, pos);
@@ -513,7 +591,8 @@ std::string git_manager::get_current_branch() const
 	if (root.empty()) {
 		return "";
 	}
-	std::string branch = fs_utils::execute_command_sync("git -C '" + root + "' rev-parse --abbrev-ref HEAD");
+	std::string branch = fs_utils::execute_command_sync(
+	    std::format("git -C {} rev-parse --abbrev-ref HEAD", fs_utils::escape_shell_arg(root)));
 	size_t pos = branch.find('\n');
 	if (pos != std::string::npos) {
 		branch = branch.substr(0, pos);
