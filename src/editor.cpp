@@ -1670,6 +1670,11 @@ void editor::render(bool cursor_only)
 	curs_set(0);
 	refresh();
 
+	if (!initial_render_done_) {
+		initial_render_done_ = true;
+		event_logger::get_instance().log_info("Initial screen render complete.");
+	}
+
 	// Only show cursor if we are in window focus and NOT in a modal state
 	if (current_focus_ == focus_target::window && !active_dialog_ && !active_popup_ &&
 	    (active_mode_ == input_mode::normal || active_mode_ == input_mode::replace_prompt)) {

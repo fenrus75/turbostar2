@@ -348,6 +348,7 @@ class editor : public agentlib::document_provider
 	std::string initial_agent_prompt_;
 	bool fresh_agent_{false};
 	bool needs_full_redraw_{true};
+	bool initial_render_done_{false};
 
 	bool is_pasting_{false};
 	std::string paste_buffer_;
