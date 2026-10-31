@@ -380,7 +380,7 @@ std::vector<std::string> document::get_all_lines() const
 
 std::vector<diagnostic_info> document::get_diagnostics() const
 {
-	std::shared_lock lock(mutex_);
+	std::lock_guard lock(lsp_mutex_);
 	return lsp_diagnostics_;
 }
 
@@ -629,6 +629,7 @@ void document::notify_cursor_changed() const
 		}
 
 		if (changed && word.empty()) {
+			std::lock_guard lsp_lock(lsp_mutex_);
 			lsp_highlights_.clear();
 		}
 
@@ -673,7 +674,10 @@ void document::set_modified()
 		return;
 	modified_ = true;
 	revision_.fetch_add(1, std::memory_order_relaxed);
-	lsp_diagnostics_.clear();
+	{
+		std::lock_guard lock(lsp_mutex_);
+		lsp_diagnostics_.clear();
+	}
 	for (auto *l : listeners_) {
 		l->on_document_changed(filename_);
 	}

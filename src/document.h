@@ -248,34 +248,34 @@ class document
 
 	void set_lsp_highlights(std::span<const text_range> highlights)
 	{
-		std::unique_lock lock(mutex_);
+		std::lock_guard lock(lsp_mutex_);
 		lsp_highlights_.assign(highlights.begin(), highlights.end());
 	}
 	std::vector<text_range> get_lsp_highlights() const
 	{
-		std::shared_lock lock(mutex_);
+		std::lock_guard lock(lsp_mutex_);
 		return lsp_highlights_;
 	}
 
 	void set_lsp_diagnostics(std::span<const diagnostic_info> diagnostics)
 	{
-		std::unique_lock lock(mutex_);
+		std::lock_guard lock(lsp_mutex_);
 		lsp_diagnostics_.assign(diagnostics.begin(), diagnostics.end());
 	}
 	std::vector<diagnostic_info> get_lsp_diagnostics() const
 	{
-		std::shared_lock lock(mutex_);
+		std::lock_guard lock(lsp_mutex_);
 		return lsp_diagnostics_;
 	}
 
 	void set_enclosing_scope(const text_range &range)
 	{
-		std::unique_lock lock(mutex_);
+		std::lock_guard lock(lsp_mutex_);
 		enclosing_scope_ = range;
 	}
 	std::optional<text_range> get_enclosing_scope() const
 	{
-		std::shared_lock lock(mutex_);
+		std::lock_guard lock(lsp_mutex_);
 		return enclosing_scope_;
 	}
 
@@ -381,6 +381,16 @@ class document
 	std::jthread highlighter_thread_;
 	std::shared_ptr<syntax_highlighter> active_highlighter_;
 
+	/*
+	 * lsp_mutex_ protects LSP asynchronous visual annotations:
+	 * lsp_highlights_, lsp_diagnostics_, and enclosing_scope_.
+	 * Locking Rules:
+	 * - Kept strictly decoupled from document mutex_ to ensure that incoming LSP
+	 *   results from the language server do not stall the UI render thread or document edits.
+	 * - If both mutexes must ever be held simultaneously, mutex_ MUST be acquired first,
+	 *   followed by lsp_mutex_.
+	 */
+	mutable std::mutex lsp_mutex_;
 	mutable std::vector<text_range> lsp_highlights_;
 	mutable std::vector<diagnostic_info> lsp_diagnostics_;
 	mutable std::optional<text_range> enclosing_scope_;

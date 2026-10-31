@@ -36,23 +36,26 @@ std::vector<text_range> document::get_scope_occurrences_unlocked() const
 	}
 
 	// 1. If we have active LSP highlights for this exact word, use them
-	if (!lsp_highlights_.empty()) {
-		bool lsp_matches = true;
-		for (const auto &hl : lsp_highlights_) {
-			if (hl.start_y >= 0 && hl.start_y < static_cast<int>(lines_.size())) {
-				std::string line_text = lines_[hl.start_y]->get_text();
-				size_t start_byte = lines_[hl.start_y]->char_to_byte_offset(hl.start_x);
-				size_t end_byte = lines_[hl.start_y]->char_to_byte_offset(hl.end_x);
-				if (end_byte >= start_byte && end_byte <= line_text.size()) {
-					if (line_text.substr(start_byte, end_byte - start_byte) != target) {
-						lsp_matches = false;
-						break;
+	{
+		std::lock_guard lsp_lock(lsp_mutex_);
+		if (!lsp_highlights_.empty()) {
+			bool lsp_matches = true;
+			for (const auto &hl : lsp_highlights_) {
+				if (hl.start_y >= 0 && hl.start_y < static_cast<int>(lines_.size())) {
+					std::string line_text = lines_[hl.start_y]->get_text();
+					size_t start_byte = lines_[hl.start_y]->char_to_byte_offset(hl.start_x);
+					size_t end_byte = lines_[hl.start_y]->char_to_byte_offset(hl.end_x);
+					if (end_byte >= start_byte && end_byte <= line_text.size()) {
+						if (line_text.substr(start_byte, end_byte - start_byte) != target) {
+							lsp_matches = false;
+							break;
+						}
 					}
 				}
 			}
-		}
-		if (lsp_matches) {
-			return lsp_highlights_;
+			if (lsp_matches) {
+				return lsp_highlights_;
+			}
 		}
 	}
 
@@ -60,9 +63,12 @@ std::vector<text_range> document::get_scope_occurrences_unlocked() const
 	int start_y = 0;
 	int end_y = static_cast<int>(lines_.size()) - 1;
 
-	if (enclosing_scope_.has_value() && enclosing_scope_->end_y > enclosing_scope_->start_y) {
-		start_y = std::max(0, enclosing_scope_->start_y);
-		end_y = std::min(static_cast<int>(lines_.size()) - 1, enclosing_scope_->end_y);
+	{
+		std::lock_guard lsp_lock(lsp_mutex_);
+		if (enclosing_scope_.has_value() && enclosing_scope_->end_y > enclosing_scope_->start_y) {
+			start_y = std::max(0, enclosing_scope_->start_y);
+			end_y = std::min(static_cast<int>(lines_.size()) - 1, enclosing_scope_->end_y);
+		}
 	}
 
 	std::vector<text_range> results;
