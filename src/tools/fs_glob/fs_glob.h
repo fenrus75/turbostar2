@@ -9,9 +9,9 @@
 namespace tools {
 
 struct fs_glob_args {
-    std::string pattern;
+    std::string pattern{};
     std::string path{"."};
-    std::string safe_search_path;
+    std::string safe_search_path{};
 };
 
 class fs_glob_tool : public agentlib::llm_tool_action {

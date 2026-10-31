@@ -140,7 +140,7 @@ You will need the following installed to build Turbostar:
 On Debian/Ubuntu-based systems, you can install the build dependencies with:
 ```bash
 sudo apt update
-sudo apt install g++ meson ninja-build pkg-config libncursesw5-dev libpcre2-dev nlohmann-json3-dev libcpp-httplib-dev libyaml-cpp-dev libcurl4-openssl-dev libsqlite3-dev libdtl-dev libunwind-dev libmagic-dev liblexbor-dev libgraphicsmagick++1-dev
+sudo apt install g++ meson ninja-build pkg-config libncursesw5-dev libpcre2-dev nlohmann-json3-dev libcpp-httplib-dev libyaml-cpp-dev libcurl4-openssl-dev libsqlite3-dev libdtl-dev libunwind-dev libmagic-dev liblexbor-dev libgraphicsmagick++1-dev libctre-dev
 ```
 
 ### Runtime Prerequisites

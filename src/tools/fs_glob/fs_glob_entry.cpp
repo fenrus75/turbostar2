@@ -52,7 +52,7 @@ fs_glob_tool::fs_glob_tool(fs_glob_args args)
     : llm_tool_action("Globbing for " + args.pattern), args_(std::move(args)) {}
 
 fs_glob_tool::fs_glob_tool(std::string pattern)
-    : fs_glob_tool(fs_glob_args{.pattern = std::move(pattern)}) {}
+    : fs_glob_tool(fs_glob_args{.pattern = std::move(pattern), .path = ".", .safe_search_path = ""}) {}
 
 bool fs_glob_tool::validate_runtime(const agentlib::tool_context& /*ctx*/, std::string& /*out_error*/) const {
     return true;
