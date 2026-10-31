@@ -616,23 +616,9 @@ word_span document::get_element_span_at(int y, int char_x, std::string_view extr
 
 void document::notify_cursor_changed() const
 {
-	std::string word;
-	bool changed = false;
 	std::string msg;
-
 	{
-		std::unique_lock lock(mutex_);
-		word = get_word_under_cursor_unlocked();
-		if (!filename_.empty() && filename_ != "unknown.txt" && word != last_hover_word_) {
-			last_hover_word_ = word;
-			changed = true;
-		}
-
-		if (changed && word.empty()) {
-			std::lock_guard lsp_lock(lsp_mutex_);
-			lsp_highlights_.clear();
-		}
-
+		std::shared_lock lock(mutex_);
 		int cur_disp_x = lines_[cursor_y_]->char_to_display_col(cursor_x_);
 		msg = std::format("State: C={}:{}", cursor_y_ + 1, cur_disp_x + 1);
 
@@ -648,15 +634,6 @@ void document::notify_cursor_changed() const
 			msg += std::format(" E={}:{}", selection_end_y_ + 1, sel_end_disp_x + 1);
 		} else {
 			msg += " E=none";
-		}
-	}
-
-	if (changed) {
-		if (!word.empty()) {
-			project_manager::get_instance().lsp_request_hover(filename_, cursor_y_, cursor_x_);
-			project_manager::get_instance().lsp_request_document_highlight(filename_, cursor_y_, cursor_x_);
-		} else {
-			request_redraw();
 		}
 	}
 

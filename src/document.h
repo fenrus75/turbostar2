@@ -339,8 +339,6 @@ class document
 	int target_cursor_x_{0}; // "Ghost X" for vertical navigation across short lines
 	int last_match_len_chars_{0};
 
-	mutable std::string last_hover_word_;
-
 	int selection_start_x_{-1};
 	int selection_start_y_{-1};
 	int selection_end_x_{-1};
