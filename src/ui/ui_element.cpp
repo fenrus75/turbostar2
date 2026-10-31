@@ -343,20 +343,20 @@ bool ui_container::update_animation()
 
 void ui_utils::draw_border(int x, int y, int width, int height, border_style style, int color_pair)
 {
-	const char *ls = "│";
-	const char *rs = "│";
-	const char *ts = "─";
-	const char *bs = "─";
+	const wchar_t *ls = L"│";
+	const wchar_t *rs = L"│";
+	const wchar_t *ts = L"─";
+	const wchar_t *bs = L"─";
 	const char *tl = "╭";
 	const char *tr = "╮";
 	const char *bl = "╰";
 	const char *br = "╯";
 
 	if (style == border_style::double_line) {
-		ls = "║";
-		rs = "║";
-		ts = "═";
-		bs = "═";
+		ls = L"║";
+		rs = L"║";
+		ts = L"═";
+		bs = L"═";
 		tl = "╔";
 		tr = "╗";
 		bl = "╚";
@@ -367,16 +367,22 @@ void ui_utils::draw_border(int x, int y, int width, int height, border_style sty
 		attron(COLOR_PAIR(color_pair));
 	}
 
-	// Draw horizontal lines (top and bottom)
-	for (int i = 1; i < width - 1; ++i) {
-		mvaddstr(y, x + i, ts);
-		mvaddstr(y + height - 1, x + i, bs);
+	cchar_t cc_ts, cc_bs, cc_ls, cc_rs;
+	setcchar(&cc_ts, ts, A_NORMAL, color_pair != -1 ? static_cast<short>(color_pair) : 0, nullptr);
+	setcchar(&cc_bs, bs, A_NORMAL, color_pair != -1 ? static_cast<short>(color_pair) : 0, nullptr);
+	setcchar(&cc_ls, ls, A_NORMAL, color_pair != -1 ? static_cast<short>(color_pair) : 0, nullptr);
+	setcchar(&cc_rs, rs, A_NORMAL, color_pair != -1 ? static_cast<short>(color_pair) : 0, nullptr);
+
+	// Draw horizontal lines (top and bottom) in one call each
+	if (width > 2) {
+		mvhline_set(y, x + 1, &cc_ts, width - 2);
+		mvhline_set(y + height - 1, x + 1, &cc_bs, width - 2);
 	}
 
-	// Draw vertical lines (left and right)
-	for (int i = 1; i < height - 1; ++i) {
-		mvaddstr(y + i, x, ls);
-		mvaddstr(y + i, x + width - 1, rs);
+	// Draw vertical lines (left and right) in one call each
+	if (height > 2) {
+		mvvline_set(y + 1, x, &cc_ls, height - 2);
+		mvvline_set(y + 1, x + width - 1, &cc_rs, height - 2);
 	}
 
 	// Draw corners

@@ -1314,11 +1314,13 @@ void window::draw_border() const
 	attroff(COLOR_PAIR(border_pair));
 	// Draw scrollbars
 	attron(COLOR_PAIR(4));
-	for (int i = 1; i < height_ - 1; ++i) {
-		mvaddstr(y_ + i, x_ + width_ - 1, "▒");
+	cchar_t cc_scroll;
+	setcchar(&cc_scroll, L"▒", A_NORMAL, 4, nullptr);
+	if (height_ > 2) {
+		mvvline_set(y_ + 1, x_ + width_ - 1, &cc_scroll, height_ - 2);
 	}
-	for (int i = 1; i < width_ - 1; ++i) {
-		mvaddstr(y_ + height_ - 1, x_ + i, "▒");
+	if (width_ > 2) {
+		mvhline_set(y_ + height_ - 1, x_ + 1, &cc_scroll, width_ - 2);
 	}
 
 	// Scroll arrows
