@@ -1421,11 +1421,10 @@ void editor::render(bool cursor_only)
 
 		// Paint desktop background with dithered pattern
 		attron(COLOR_PAIR(9));
+		cchar_t cc_bg;
+		setcchar(&cc_bg, L"▒", A_NORMAL, 9, nullptr);
 		for (int y = 1; y < LINES - 1; ++y) {
-			move(y, 0);
-			for (int x = 0; x < COLS; ++x) {
-				addstr("▒");
-			}
+			mvhline_set(y, 0, &cc_bg, COLS);
 		}
 		attroff(COLOR_PAIR(9));
 
