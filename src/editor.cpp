@@ -1419,14 +1419,23 @@ void editor::render(bool cursor_only)
 		touchwin(stdscr);
 		curs_set(0); // Default to hidden
 
-		// Paint desktop background with dithered pattern
-		attron(COLOR_PAIR(9));
-		cchar_t cc_bg;
-		setcchar(&cc_bg, L"▒", A_NORMAL, 9, nullptr);
-		for (int y = 1; y < LINES - 1; ++y) {
-			mvhline_set(y, 0, &cc_bg, COLS);
+		// Paint desktop background with dithered pattern only if not fully occluded
+		// by a top-level full-screen/maximized window.
+		bool desktop_occluded = false;
+		if (active_win && active_win->get_x() <= 0 && active_win->get_width() >= COLS &&
+		    active_win->get_y() <= 1 && active_win->get_y() + active_win->get_height() >= LINES - 1) {
+			desktop_occluded = true;
 		}
-		attroff(COLOR_PAIR(9));
+
+		if (!desktop_occluded) {
+			attron(COLOR_PAIR(9));
+			cchar_t cc_bg;
+			setcchar(&cc_bg, L"▒", A_NORMAL, 9, nullptr);
+			for (int y = 1; y < LINES - 1; ++y) {
+				mvhline_set(y, 0, &cc_bg, COLS);
+			}
+			attroff(COLOR_PAIR(9));
+		}
 
 		// 2. Windows (Z-Index Managed)
 		// Create a list of raw pointers to sort
