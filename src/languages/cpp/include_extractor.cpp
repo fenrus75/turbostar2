@@ -26,7 +26,9 @@ std::vector<include_info> include_extractor::extract_includes(std::span<const st
 	for (const auto &tok : tokens) {
 		if (tok.kind == token_kind::preprocessor) {
 			std::string delim, header;
-			if (re2::RE2::PartialMatch(tok.text, inc_regex, &delim, &header)) {
+			/* workaround for older RE2 */
+			absl::string_view input_sv(tok.text.data(), tok.text.size());
+			if (re2::RE2::PartialMatch(input_sv, inc_regex, &delim, &header)) {
 				bool is_sys = (delim == "<");
 				result.push_back({std::move(header), is_sys, start_line + tok.line - 1});
 			}
@@ -59,7 +61,9 @@ std::vector<include_info> include_extractor::extract_includes_from_file(const st
 	for (const auto &tok : tokens) {
 		if (tok.kind == token_kind::preprocessor) {
 			std::string delim, header;
-			if (re2::RE2::PartialMatch(tok.text, inc_regex, &delim, &header)) {
+			/* workaround for older RE2 */
+			absl::string_view input_sv(tok.text.data(), tok.text.size());
+			if (re2::RE2::PartialMatch(input_sv, inc_regex, &delim, &header)) {
 				bool is_sys = (delim == "<");
 				result.push_back({std::move(header), is_sys, tok.line});
 			}
