@@ -114,7 +114,6 @@ nlohmann_json_dep = dependency('nlohmann_json', version : '>=3.11', required : t
 thread_dep = dependency('threads')
 ctre_dep = dependency('ctre', required : true)
 pcre2_dep = dependency('libpcre2-8', required : true)
-re2_dep = dependency('re2', required : true)
 sqlite3_dep = dependency('sqlite3', required : true)
 zlib_dep = dependency('zlib', required : true)
 liblzma_dep = dependency('liblzma', required : false)
@@ -214,7 +213,7 @@ subdir('src')
 
 turbostar_exe = executable('turbostar',
   ['src/main.cpp', 'src/crash_handler.cpp', git_version_h],
-  dependencies : [ui_dep, agent_dep, tools_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, re2_dep, sqlite3_dep, dl_dep],
+  dependencies : [ui_dep, agent_dep, tools_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, sqlite3_dep, dl_dep],
   include_directories: inc,
   export_dynamic: true,
   install : true)
@@ -244,14 +243,14 @@ install_symlink('turbomcp',
 
 agentcli_exe = executable('agentcli',
   'src/agentcli/main.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, sqlite3_dep, dl_dep],
   include_directories: inc,
   export_dynamic: true,
   install : false)
 
 agentcli_record_exe = executable('agentcli_record',
   'src/agentcli/main.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, sqlite3_dep, dl_dep],
   include_directories: inc,
   cpp_args: ['-DLLM_TRANSPORT_RECORD'],
   export_dynamic: true,
@@ -259,7 +258,7 @@ agentcli_record_exe = executable('agentcli_record',
 
 agentcli_replay_exe = executable('agentcli_replay',
   'src/agentcli/main.cpp',
-  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, re2_dep, sqlite3_dep, dl_dep],
+  dependencies : [agent_dep, tools_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, sqlite3_dep, dl_dep],
   include_directories: inc,
   cpp_args: ['-DLLM_TRANSPORT_REPLAY'],
   export_dynamic: true,

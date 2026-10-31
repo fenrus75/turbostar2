@@ -4,7 +4,8 @@
 | ncursesw      | github://mirror/ncurses      |
 | ncurses       | github://mirror/ncurses      |
 | cpp-httplib   | github://yhirose/cpp-httplib |
-| re2           | github://google/re2          |
+| pcre2         | github://PCRE2Project/pcre2  |
+| ctre          | github://hanickadot/compile-time-regular-expressions |
 | sqlite3       | github://sqlite/sqlite       |
 | nlohmann_json | github://nlohmann/json       |
 | zydis         | github://zyantific/zydis     |

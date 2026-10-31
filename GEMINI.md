@@ -58,7 +58,7 @@ Top design documentation: `docs/design.md`
 - all `#include ""` should be relative to the `src/` directory (e.g., `#include "fs_utils.h"` or `#include "agentlib/tool_registry.h"` instead of using relative `../../` paths), since `src/` is in the compiler include paths.
 - use #pragma ONCE for include guards
 - when declaring a mutex in a header file, you MUST add a comment block immediately preceding the declaration explaining: (1) what specific member data or resources the mutex protects, and (2) the general locking rules, lifecycle, or ordering guidelines associated with it.
-- prefer RE2 over std::regexp
+- prefer CTRE for compile-time/static regexes and PCRE2 (via pcre2_regex) for runtime dynamic regexes over std::regex
 - the test suite takes a long time - run only the appropriate subsuite (unit or editor or agent or website) whenever possible
 - when creating a subclass, add or update the header of the parent class with a table that matches this example template:
 ```c

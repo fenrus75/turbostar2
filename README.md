@@ -124,7 +124,8 @@ You will need the following installed to build Turbostar:
 *   `meson` and `ninja`
 *   `pkg-config`
 *   `libncursesw5-dev` (ncurses with wide-character support)
-*   `libre2-dev` (Google's RE2 regular expression library)
+*   `libpcre2-dev` (PCRE2 regular expression library)
+*   `ctre` (Compile-time regular expressions library, e.g. via system package or header)
 *   `nlohmann-json3-dev`
 *   `libcpp-httplib-dev`
 *   `libyaml-cpp-dev` (YAML parser and emitter)
@@ -139,7 +140,7 @@ You will need the following installed to build Turbostar:
 On Debian/Ubuntu-based systems, you can install the build dependencies with:
 ```bash
 sudo apt update
-sudo apt install g++ meson ninja-build pkg-config libncursesw5-dev libre2-dev nlohmann-json3-dev libcpp-httplib-dev libyaml-cpp-dev libcurl4-openssl-dev libsqlite3-dev libdtl-dev libunwind-dev libmagic-dev liblexbor-dev libgraphicsmagick++1-dev
+sudo apt install g++ meson ninja-build pkg-config libncursesw5-dev libpcre2-dev nlohmann-json3-dev libcpp-httplib-dev libyaml-cpp-dev libcurl4-openssl-dev libsqlite3-dev libdtl-dev libunwind-dev libmagic-dev liblexbor-dev libgraphicsmagick++1-dev
 ```
 
 ### Runtime Prerequisites

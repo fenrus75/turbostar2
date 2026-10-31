@@ -156,7 +156,7 @@ To prevent memory corruption, allocator crashes, and duplicate singleton instanc
 
 ### A. Avoid Statically Linking Host Libraries
 Plugins must **NOT** link against `core_dep`, `agent_dep`, or `tools_dep` with `link_whole` or statically compile host source files. 
-- In the plugin's `meson.build`, dependencies should only include external libraries (e.g. `zydis_dep`, `re2_dep`) or header-only dependencies (e.g. `nlohmann_json_dep`).
+- In the plugin's `meson.build`, dependencies should only include external libraries (e.g. `zydis_dep`, `pcre2_dep`) or header-only dependencies (e.g. `nlohmann_json_dep`).
 - Shared template implementations (like `std::map` or `std::function`) are dynamically linked against the system `libstdc++.so`.
 
 ### B. Export Host Symbols

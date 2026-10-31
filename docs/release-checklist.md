@@ -29,7 +29,7 @@ checks below to ensure a smooth, secure, and reliable experience for users.
 - [ ] Verify required system development packages and tools:
       - C++23 compliant compiler (GCC >= 14 or Clang with libc++ >= 18)
       - Meson (>= 1.0) and Ninja
-      - Shared libraries: `ncursesw`, `re2`, `nlohmann-json3`, `cpp-httplib`, `sqlite3`, `libunwind`, `libmagic`, `lexbor`, `graphicsmagick++`, `zydis`, `curl`, `openssl`
+      - Shared libraries: `ncursesw`, `pcre2`, `nlohmann-json3`, `cpp-httplib`, `sqlite3`, `libunwind`, `libmagic`, `lexbor`, `graphicsmagick++`, `zydis`, `curl`, `openssl`
 - [ ] Validate website and documentation HTML assets:
       ```bash
       python3 scripts/verify_html.py docs/index.html docs/editor.html docs/ai.html docs/details.html
