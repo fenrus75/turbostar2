@@ -1603,6 +1603,12 @@ test_gcc_log_parser = executable('test_gcc_log_parser',
   include_directories: inc)
 test('unit_gcc_log_parser', test_gcc_log_parser, suite: 'editor')
 
+test_pcre2_regex = executable('test_pcre2_regex',
+  'unit/test_pcre2_regex.cpp',
+  dependencies : [core_dep, nlohmann_json_dep, pcre2_dep],
+  include_directories: inc)
+test('unit_pcre2_regex', test_pcre2_regex, suite: 'editor')
+
 test_line = executable('test_line',
   'unit/test_line.cpp',
   dependencies : [core_dep, nlohmann_json_dep, sqlite3_dep, re2_dep, lsp_dep],

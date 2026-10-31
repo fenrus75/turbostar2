@@ -4,8 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <mutex>
-#include <re2/re2.h>
-#include <re2/stringpiece.h>
+#include "pcre2_regex.h"
 #include "config_manager.h"
 #include "document.h"
 #include "event_logger.h"
@@ -21,23 +20,22 @@ bool document::find_next(const search_params &params, bool is_repeat)
 	if (params.query.empty())
 		return false;
 
-	re2::RE2::Options options;
-	options.set_log_errors(false);
+	pcre2_regex::compile_options options;
 	if (params.ignore_case)
-		options.set_case_sensitive(false);
+		options.caseless = true;
 
 	std::string pattern = params.query;
 	if (params.whole_words && !params.regex) {
 		pattern = "\\b" + pattern + "\\b";
 	}
 
-	// If literal search, escape it for RE2
+	// If literal search, escape it
 	if (!params.regex && !params.whole_words) {
-		pattern = re2::RE2::QuoteMeta(pattern);
+		pattern = pcre2_regex::quote_meta(pattern);
 	}
 
-	re2::RE2 re(pattern, options);
-	if (!re.ok())
+	pcre2_regex re(pattern, options);
+	if (!re.is_valid())
 		return false;
 
 	std::unique_lock lock(mutex_);
@@ -104,27 +102,26 @@ bool document::find_next(const search_params &params, bool is_repeat)
 			}
 		}
 
-		re2::StringPiece input(line_text);
-		re2::StringPiece match;
 		size_t search_start = 0;
-		while (re.Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
-			search_start = (match.data() - input.data()) + match.size();
-			if (match.empty()) {
+		while (auto m = re.find_next(line_text, search_start)) {
+			size_t byte_pos = m->byte_offset;
+			size_t match_size = m->byte_length;
+
+			search_start = byte_pos + match_size;
+			if (match_size == 0) {
 				search_start++; // prevent infinite loop
 			}
-
-			size_t byte_pos = match.data() - line_text.data();
 
 			if (params.backward) {
 				if (byte_pos >= line_scope_start_byte && byte_pos <= byte_limit) {
 					best_found_char_idx = static_cast<int>(utf8::byte_to_char_pos(line_text, byte_pos));
-					size_t char_pos_end = utf8::byte_to_char_pos(line_text, byte_pos + match.size());
+					size_t char_pos_end = utf8::byte_to_char_pos(line_text, byte_pos + match_size);
 					best_found_char_len = static_cast<int>(char_pos_end - best_found_char_idx);
 				}
 			} else {
 				if (byte_pos >= byte_limit && byte_pos < line_scope_end_byte) {
 					int found_idx = static_cast<int>(utf8::byte_to_char_pos(line_text, byte_pos));
-					size_t char_pos_end = utf8::byte_to_char_pos(line_text, byte_pos + match.size());
+					size_t char_pos_end = utf8::byte_to_char_pos(line_text, byte_pos + match_size);
 					out_match_len = static_cast<int>(char_pos_end - found_idx);
 					return found_idx;
 				}
