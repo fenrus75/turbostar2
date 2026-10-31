@@ -1,7 +1,7 @@
 #include "highlighter/markdown_highlighter.h"
 #include <filesystem>
 #include <memory>
-#include <re2/re2.h>
+#include <ctre.hpp>
 #include <algorithm>
 #include "markdown_utils.h"
 #include "utf8.h"
@@ -39,26 +39,17 @@ void markdown_highlighter::highlight(std::shared_ptr<line> l)
 		}
 	} else {
 		// Basic bold support (**...**)
-		static const re2::RE2 bold_regex("\\*\\*(?:[^*]|\\*[^*]+)+\\*\\*");
-		if (bold_regex.ok()) {
-			re2::StringPiece input(text);
-			re2::StringPiece match;
-			size_t search_start = 0;
-			while (bold_regex.Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
-				search_start = (match.data() - input.data()) + match.size();
-				if (match.empty())
-					search_start++;
-				size_t byte_pos = match.data() - text.data();
-				size_t byte_len = match.length();
+		for (auto match : ctre::search_all<R"(\*\*(?:[^*]|\*[^*]+)+\*\*)">(text)) {
+			size_t byte_pos = match.data() - text.data();
+			size_t byte_len = match.size();
 
-				size_t char_pos = utf8::length(text.substr(0, byte_pos));
-				size_t char_len = utf8::length(text.substr(byte_pos, byte_len));
+			size_t char_pos = utf8::length(text.substr(0, byte_pos));
+			size_t char_len = utf8::length(text.substr(byte_pos, byte_len));
 
-				// Mark as bold
-				for (size_t j = 0; j < char_len; ++j) {
-					if (char_pos + j < attrs.size()) {
-						attrs[char_pos + j] = syntax_attribute::bold;
-					}
+			// Mark as bold
+			for (size_t j = 0; j < char_len; ++j) {
+				if (char_pos + j < attrs.size()) {
+					attrs[char_pos + j] = syntax_attribute::bold;
 				}
 			}
 		}

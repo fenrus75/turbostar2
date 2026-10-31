@@ -8,7 +8,7 @@
 #include <string_view>
 #include <unordered_set>
 #include <vector>
-#include <re2/re2.h>
+#include <ctre.hpp>
 #include "fs_utils.h"
 #include "languages/cpp/symbol_extractor.h"
 #include "project_manager.h"
@@ -129,17 +129,18 @@ void parse_markdown_headings(const std::string &content, int min_lines, std::vec
 
 void fallback_find_symbols_python(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out)
 {
-	static const re2::RE2 py_func_regex(R"(^\s*def\s+([a-zA-Z_]\w*)\s*\()");
-	static const re2::RE2 py_class_regex(R"(^\s*class\s+([a-zA-Z_]\w*))");
-
 	for (size_t i = 0; i < lines.size(); ++i) {
 		if ((i & 63) == 0 && project_manager::get_instance().is_exiting()) {
 			return;
 		}
 		int line_num = static_cast<int>(i + 1);
 		std::string name;
-		if (re2::RE2::PartialMatch(lines[i], py_class_regex, &name) ||
-		    re2::RE2::PartialMatch(lines[i], py_func_regex, &name)) {
+		if (auto m = ctre::search<R"(^\s*class\s+([a-zA-Z_]\w*))">(lines[i])) {
+			name = std::string(m.get<1>().to_view());
+		} else if (auto m2 = ctre::search<R"(^\s*def\s+([a-zA-Z_]\w*)\s*\()">(lines[i])) {
+			name = std::string(m2.get<1>().to_view());
+		}
+		if (!name.empty()) {
 			if (1 >= min_lines) {
 				out.push_back({name, name, "Function", line_num, line_num, 1, 0, ""});
 			}
@@ -154,15 +155,6 @@ void fallback_find_symbols_python(std::span<const std::string> lines, std::vecto
 
 void fallback_find_symbols_verilog(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out)
 {
-	static const re2::RE2 sv_module_regex(R"(^\s*(?:extern\s+)?module\s+([a-zA-Z_]\w*))");
-	static const re2::RE2 sv_interface_regex(R"(^\s*(?:extern\s+)?interface\s+([a-zA-Z_]\w*))");
-	static const re2::RE2 sv_package_regex(R"(^\s*package\s+([a-zA-Z_]\w*))");
-	static const re2::RE2 sv_class_regex(R"(^\s*(?:virtual\s+)?class\s+([a-zA-Z_]\w*))");
-	static const re2::RE2 sv_func_regex(
-	    R"(^\s*(?:(?:pure\s+virtual|virtual|static|local|protected)\s+)*function\s+(?:.*?\s+)?([a-zA-Z_]\w*)\s*[\(;])");
-	static const re2::RE2 sv_task_regex(
-	    R"(^\s*(?:(?:pure\s+virtual|virtual|static|local|protected)\s+)*task\s+(?:.*?\s+)?([a-zA-Z_]\w*)\s*[\(;])");
-
 	for (size_t i = 0; i < lines.size(); ++i) {
 		if ((i & 63) == 0 && project_manager::get_instance().is_exiting()) {
 			return;
@@ -172,22 +164,28 @@ void fallback_find_symbols_verilog(std::span<const std::string> lines, int min_l
 		std::string kind;
 		std::string end_kw;
 
-		if (re2::RE2::PartialMatch(lines[i], sv_module_regex, &name)) {
+		if (auto m = ctre::search<R"(^\s*(?:extern\s+)?module\s+([a-zA-Z_]\w*))">(lines[i])) {
+			name = std::string(m.get<1>().to_view());
 			kind = "Module";
 			end_kw = "endmodule";
-		} else if (re2::RE2::PartialMatch(lines[i], sv_interface_regex, &name)) {
+		} else if (auto m = ctre::search<R"(^\s*(?:extern\s+)?interface\s+([a-zA-Z_]\w*))">(lines[i])) {
+			name = std::string(m.get<1>().to_view());
 			kind = "Interface";
 			end_kw = "endinterface";
-		} else if (re2::RE2::PartialMatch(lines[i], sv_package_regex, &name)) {
+		} else if (auto m = ctre::search<R"(^\s*package\s+([a-zA-Z_]\w*))">(lines[i])) {
+			name = std::string(m.get<1>().to_view());
 			kind = "Package";
 			end_kw = "endpackage";
-		} else if (re2::RE2::PartialMatch(lines[i], sv_class_regex, &name)) {
+		} else if (auto m = ctre::search<R"(^\s*(?:virtual\s+)?class\s+([a-zA-Z_]\w*))">(lines[i])) {
+			name = std::string(m.get<1>().to_view());
 			kind = "Class";
 			end_kw = "endclass";
-		} else if (re2::RE2::PartialMatch(lines[i], sv_func_regex, &name)) {
+		} else if (auto m = ctre::search<R"(^\s*(?:(?:pure\s+virtual|virtual|static|local|protected)\s+)*function\s+(?:.*?\s+)?([a-zA-Z_]\w*)\s*[\(;])">(lines[i])) {
+			name = std::string(m.get<1>().to_view());
 			kind = "Function";
 			end_kw = "endfunction";
-		} else if (re2::RE2::PartialMatch(lines[i], sv_task_regex, &name)) {
+		} else if (auto m = ctre::search<R"(^\s*(?:(?:pure\s+virtual|virtual|static|local|protected)\s+)*task\s+(?:.*?\s+)?([a-zA-Z_]\w*)\s*[\(;])">(lines[i])) {
+			name = std::string(m.get<1>().to_view());
 			kind = "Task";
 			end_kw = "endtask";
 		}

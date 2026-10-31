@@ -14,3 +14,4 @@ The `verilog_highlighter` parses and styles IEEE 1364 Verilog and IEEE 1800 Syst
 
 ## Lessons Learned
 - **Multiple `//` Sequences on a Single Line**: When strings contain `//` (such as URLs in display messages), a single `find("//")` check skips the actual line comment later in the line. Iterating past string/comment boundaries ensures the true comment position is identified.
+- **CTRE Migration**: Migrated regex matching to `ctre::search_all`, eliminating heap-allocated regex pointers and removing Abseil dependencies while compiling all IEEE 1800 patterns into static state machines.

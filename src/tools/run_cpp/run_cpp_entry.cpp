@@ -13,7 +13,7 @@
 #include <set>
 #include <sstream>
 #include <string_view>
-#include <re2/re2.h>
+#include <ctre.hpp>
 
 namespace tools
 {
@@ -54,10 +54,8 @@ std::string generate_linker_diagnostic_tip(/* untrusted */ std::string_view untr
 	}
 
 	std::vector<std::string> cannot_find_libs;
-	static const re2::RE2 re_cannot_find(R"(cannot find -l([^:\s]+))");
-	re2::StringPiece input(untrusted_output.data(), untrusted_output.size());
-	std::string untrusted_lib;
-	while (re2::RE2::FindAndConsume(&input, re_cannot_find, &untrusted_lib)) {
+	for (auto m : ctre::search_all<R"(cannot find -l([^:\s]+))">(untrusted_output)) {
+		std::string untrusted_lib(m.get<1>().to_view());
 		if (fs_utils::is_safe_for_ui(untrusted_lib)) {
 			cannot_find_libs.push_back(untrusted_lib);
 		}
@@ -73,12 +71,10 @@ std::string generate_linker_diagnostic_tip(/* untrusted */ std::string_view untr
 
 	std::vector<std::string> undef_symbols;
 	std::set<std::string> seen_symbols;
-	static const re2::RE2 re_undef(R"((?:undefined reference to [`'\"‘]([^`'\"’\n]+)[`'\"’]|undefined symbol: ([a-zA-Z0-9_:]+)))");
-	input = re2::StringPiece(untrusted_output.data(), untrusted_output.size());
-	std::string untrusted_sym1;
-	std::string untrusted_sym2;
-	while (re2::RE2::FindAndConsume(&input, re_undef, &untrusted_sym1, &untrusted_sym2)) {
-		std::string untrusted_sym = !untrusted_sym1.empty() ? untrusted_sym1 : untrusted_sym2;
+	for (auto m : ctre::search_all<R"((?:undefined reference to [`'\"‘]([^`'\"’\n]+)[`'\"’]|undefined symbol: ([a-zA-Z0-9_:]+)))">(untrusted_output)) {
+		std::string_view s1 = m.get<1>().to_view();
+		std::string_view s2 = m.get<2>().to_view();
+		std::string untrusted_sym(!s1.empty() ? s1 : s2);
 		if (fs_utils::is_safe_for_ui(untrusted_sym) && !seen_symbols.contains(untrusted_sym)) {
 			seen_symbols.insert(untrusted_sym);
 			undef_symbols.push_back(untrusted_sym);

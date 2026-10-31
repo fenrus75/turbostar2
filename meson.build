@@ -112,6 +112,7 @@ openssl_dep = dependency('openssl', required : true)
 # 3.11 added the std::optional support the NLOHMANN_DEFINE_TYPE_* validators rely on.
 nlohmann_json_dep = dependency('nlohmann_json', version : '>=3.11', required : true)
 thread_dep = dependency('threads')
+ctre_dep = dependency('ctre', required : true)
 re2_dep = dependency('re2', required : true)
 sqlite3_dep = dependency('sqlite3', required : true)
 zlib_dep = dependency('zlib', required : true)

@@ -1,6 +1,6 @@
 #include "markdown_utils.h"
 #include <algorithm>
-#include <re2/re2.h>
+#include <ctre.hpp>
 #include <sstream>
 #include "utf8.h"
 
@@ -11,16 +11,14 @@ namespace markdown_utils
 // Matches lines containing at least one pipe '|' and at least one non-pipe, non-whitespace character.
 bool table_aligner::is_table_row(const std::string &line)
 {
-	static const re2::RE2 row_re("(?:\\|.*[^|\\s]|[^|\\s].*\\|)");
-	return re2::RE2::PartialMatch(line, row_re);
+	return (bool)ctre::search<R"((?:\|.*[^|\s]|[^|\s].*\|))">(line);
 }
 
 // Heuristic to detect markdown table header delimiter line (e.g. "|---|---|", "---|---", or "|:---|:---:|---:|").
 // Requires pipes, hyphens, and optional colons/spaces defining column boundaries and alignments.
 bool table_aligner::is_header_separator(const std::string &line)
 {
-	static const re2::RE2 sep_re("^(?:[-:\\s]*-[-|:\\s]*\\||[|:\\s]*\\|[-|:\\s]*-)[-|:\\s]*$");
-	return re2::RE2::FullMatch(line, sep_re);
+	return (bool)ctre::match<R"(^(?:[\-:\s]*-[\-|:\s]*\||[|:\s]*\|[\-|:\s]*-)[\-|:\s]*$)">(line);
 }
 
 // Finds contiguous ranges of line indices that represent valid markdown tables.

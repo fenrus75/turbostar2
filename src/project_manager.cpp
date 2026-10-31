@@ -8,7 +8,6 @@
 #include <map>
 #include <mutex>
 #include <nlohmann/json.hpp>
-#include <re2/re2.h>
 #include <regex>
 #include <set>
 #include <sstream>

@@ -20,27 +20,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-## 31-10-2026
-- Decouple LSP annotation mutex and eliminate cursor pipe spam: resolved UI stuttering when scrolling through C++ code files. Decoupled LSP visual metadata (`lsp_highlights_`, `lsp_diagnostics_`, `enclosing_scope_`) from `document::mutex_` onto a dedicated `lsp_mutex_`, eliminating render thread stalls on `doc_->get_line()` and `doc_->get_cursor_y()` when background language server threads post diagnostics or selection ranges via `std::unique_lock`. Eliminated redundant `lsp_request_hover` and `lsp_request_document_highlight` JSON-RPC pipe spam and writer locks from `notify_cursor_changed()`, making cursor navigation and scrolling 100% local in-memory operations while delegating symbol inspection to the dedicated companion inspector window. (Completed)
-
-## 30-10-2026
-- UI rendering loop latency & CPU optimization: resolved profiling hotspots identified via Linux `perf record -g` during document navigation and scrolling. Replaced `std::map` with `std::array` in `syntax_color_manager` (dropping `get_color_pair` from 6.41% to <0.5%); hoisted per-character `lsp_highlights` and `lsp_diagnostics` queries once per frame using `std::span` viewport filters (eliminating ~6,000 heap allocations per frame); optimized UTF-8 iteration with zero-allocation `std::string_view` overloads and single-byte check in `utf8::next_character`; replaced space-padding loops with `mvhline` row clearing; added ASCII fast-path in `draw_content` using `addch()` to bypass glibc `__mbrtowc` / `__gconv_transform_utf8_internal`; converted `git_info` cache to immutable `std::shared_ptr<const git_info>` snapshots to eliminate deep-copying `head_lines`; batched wide border characters (`mvhline_set`/`mvvline_set`); added occlusion check skipping desktop background dithering when active window is maximized; and hoisted row-level text and attribute buffers. Slashed application rendering CPU time in `window::draw_content` from 35.3% down to 5.5% (>6x speedup). (Completed)
-
-- log and debug startup to optimize
 
 - have a "non-agent" turbostar binary option in meson
 	- ideally, the mcp and others are still built WITH agent
-
-- split out agent plugins to their own dir (loading on first agent startup is implemented via agent_subsystems!)
-
-- put things on a memory diet
-	- known "leaks": 
-		- agentlib::filter_registry is not freed on application exit
-			- note: we should also do filter registration on first use, not at startup
-		- agentlib::subagent_manager::load_builtins
-			- note: we should do this at first agent use not at startup
-		- event_logger  logs
-		
 
 - turn docs/testcoverage.md into a file in system:// 
 
@@ -269,6 +251,15 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # Done
+## 31-10-2026
+- Migrate static and compile-time regular expressions from RE2 to CTRE: converted compile-time constant regexes to `ctre::search`, `ctre::search_all`, and `ctre::match` across `gcc_log_parser`, `include_extractor`, `markdown_utils`, `json_highlighter`, `markdown_highlighter`, `python_highlighter`, `verilog_highlighter`, `codemap_fallbacks`, `codemap_utils`, `call_synthesizer`, and `run_cpp`. Escaped hyphens in character classes for CTRE's compile-time range validator. Eliminated unused `re2` includes in `call_resolver` and `project_manager`. Verified zero critical clang-tidy warnings and full unit test suite passing. (Completed)
+
+- Decouple LSP annotation mutex and eliminate cursor pipe spam: resolved UI stuttering when scrolling through C++ code files. Decoupled LSP visual metadata (`lsp_highlights_`, `lsp_diagnostics_`, `enclosing_scope_`) from `document::mutex_` onto a dedicated `lsp_mutex_`, eliminating render thread stalls on `doc_->get_line()` and `doc_->get_cursor_y()` when background language server threads post diagnostics or selection ranges via `std::unique_lock`. Eliminated redundant `lsp_request_hover` and `lsp_request_document_highlight` JSON-RPC pipe spam and writer locks from `notify_cursor_changed()`, making cursor navigation and scrolling 100% local in-memory operations while delegating symbol inspection to the dedicated companion inspector window. (Completed)
+
+## 30-10-2026
+- UI rendering loop latency & CPU optimization: resolved profiling hotspots identified via Linux `perf record -g` during document navigation and scrolling. Replaced `std::map` with `std::array` in `syntax_color_manager` (dropping `get_color_pair` from 6.41% to <0.5%); hoisted per-character `lsp_highlights` and `lsp_diagnostics` queries once per frame using `std::span` viewport filters (eliminating ~6,000 heap allocations per frame); optimized UTF-8 iteration with zero-allocation `std::string_view` overloads and single-byte check in `utf8::next_character`; replaced space-padding loops with `mvhline` row clearing; added ASCII fast-path in `draw_content` using `addch()` to bypass glibc `__mbrtowc` / `__gconv_transform_utf8_internal`; converted `git_info` cache to immutable `std::shared_ptr<const git_info>` snapshots to eliminate deep-copying `head_lines`; batched wide border characters (`mvhline_set`/`mvvline_set`); added occlusion check skipping desktop background dithering when active window is maximized; and hoisted row-level text and attribute buffers. Slashed application rendering CPU time in `window::draw_content` from 35.3% down to 5.5% (>6x speedup). (Completed)
+
+- log and debug startup to optimize
 
 ## 30-10-2026
 - Thread-Local Storage rendering thread latency guard: implemented `rendering_thread_guard` (`src/rendering_thread_guard.{h,cpp,md}`) utilizing C++11 `inline static thread_local bool` to designate the main UI/rendering thread within `editor::run()`. Added non-blocking `warn_high_latency(tag, fmt, ...)` instrumentation to detect and warn against synchronous, latency-sensitive blocking calls (in `command_runner::execute` and synchronous `lsp_manager` query helpers). On non-rendering background threads, TLS checks cost a single `%fs` register read with zero allocation overhead. Added unit tests in `tests/unit/test_rendering_thread_guard.cpp`. (Completed)

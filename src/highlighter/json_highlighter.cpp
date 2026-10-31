@@ -1,6 +1,7 @@
 #include "highlighter/json_highlighter.h"
 #include <filesystem>
 #include <vector>
+#include <ctre.hpp>
 #include "utf8.h"
 
 bool json_highlighter::supports_file(const std::string &filename) const
@@ -32,22 +33,13 @@ void json_highlighter::highlight(std::shared_ptr<line> l)
 		return static_cast<int>(utf8::byte_to_char_pos(text, byte_pos));
 	};
 
-	re2::StringPiece input(text);
-	re2::StringPiece match;
-	re2::StringPiece submatch;
-	size_t search_start = 0;
-
 	// 1. JSON Keys: ("key")\s*:
 	// We capture the key string as group 1, and the colon is part of the full match.
-	static const std::unique_ptr<re2::RE2> key_regex = std::make_unique<re2::RE2>("(\"([^\"\\\\]|\\\\.)*\")\\s*:");
-	re2::StringPiece matches[3];
-	search_start = 0;
-	while (key_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, matches, 3)) {
-		// matches[0] contains the full match: "key" :
-		// matches[1] contains the first capture group: "key"
-		size_t key_start_byte = matches[1].data() - text.data();
-		size_t key_len = matches[1].size();
-		
+	for (auto m : ctre::search_all<R"(("([^"\\]|\\.)*")\s*:)">(text)) {
+		auto key_match = m.get<1>();
+		size_t key_start_byte = key_match.data() - text.data();
+		size_t key_len = key_match.size();
+
 		int char_pos = byte_to_char(key_start_byte);
 		int char_end = byte_to_char(key_start_byte + key_len);
 
@@ -58,35 +50,30 @@ void json_highlighter::highlight(std::shared_ptr<line> l)
 		}
 
 		// Also highlight the colon (the last char of the match) as heading
-		size_t colon_byte = matches[0].data() - text.data() + matches[0].size() - 1;
+		size_t colon_byte = (m.data() - text.data()) + m.size() - 1;
 		int colon_char = byte_to_char(colon_byte);
 		if (colon_char < static_cast<int>(attrs.size()) && attrs[colon_char] == syntax_attribute::normal) {
 			attrs[colon_char] = syntax_attribute::heading;
 		}
-
-		search_start = (matches[0].data() - input.data()) + matches[0].size();
 	}
 
 	// 2. JSON String Values: any double-quoted string not already colored (i.e. not a key)
-	static const std::unique_ptr<re2::RE2> str_regex = std::make_unique<re2::RE2>("\"([^\"\\\\]|\\\\.)*\"");
-	search_start = 0;
-	while (str_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
-		size_t start_byte = match.data() - text.data();
+	for (auto m : ctre::search_all<R"("([^"\\]|\\.)*")">(text)) {
+		size_t start_byte = m.data() - text.data();
 		int char_pos = byte_to_char(start_byte);
-		int char_end = byte_to_char(start_byte + match.size());
+		int char_end = byte_to_char(start_byte + m.size());
 
 		for (int j = char_pos; j < char_end; ++j) {
 			if (j < static_cast<int>(attrs.size()) && attrs[j] == syntax_attribute::normal) {
 				attrs[j] = syntax_attribute::string_literal;
 			}
 		}
-		search_start = (match.data() - input.data()) + match.size();
 	}
 
 	// 3. Comments (standard single line comments: // ...)
 	// Only recognized outside of keys and string values
 	size_t comment_pos = 0;
-	search_start = 0;
+	size_t search_start = 0;
 	while ((comment_pos = text.find("//", search_start)) != std::string::npos) {
 		int char_comment_pos = byte_to_char(comment_pos);
 		if (char_comment_pos >= 0 && char_comment_pos < static_cast<int>(attrs.size())) {
@@ -102,35 +89,29 @@ void json_highlighter::highlight(std::shared_ptr<line> l)
 	}
 
 	// 4. Booleans and Null
-	static const std::unique_ptr<re2::RE2> val_regex = std::make_unique<re2::RE2>("\\b(true|false|null)\\b");
-	search_start = 0;
-	while (val_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
-		size_t start_byte = match.data() - text.data();
+	for (auto m : ctre::search_all<R"(\b(true|false|null)\b)">(text)) {
+		size_t start_byte = m.data() - text.data();
 		int char_pos = byte_to_char(start_byte);
-		int char_end = byte_to_char(start_byte + match.size());
+		int char_end = byte_to_char(start_byte + m.size());
 
 		for (int j = char_pos; j < char_end; ++j) {
 			if (j < static_cast<int>(attrs.size()) && attrs[j] == syntax_attribute::normal) {
 				attrs[j] = syntax_attribute::keyword;
 			}
 		}
-		search_start = (match.data() - input.data()) + match.size();
 	}
 
 	// 5. Numbers
-	static const std::unique_ptr<re2::RE2> num_regex = std::make_unique<re2::RE2>("-?\\b(\\d+(\\.\\d+)?([eE][+-]?\\d+)?)\\b");
-	search_start = 0;
-	while (num_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
-		size_t start_byte = match.data() - text.data();
+	for (auto m : ctre::search_all<R"(-?\b(\d+(\.\d+)?([eE][\-+]?\d+)?)\b)">(text)) {
+		size_t start_byte = m.data() - text.data();
 		int char_pos = byte_to_char(start_byte);
-		int char_end = byte_to_char(start_byte + match.size());
+		int char_end = byte_to_char(start_byte + m.size());
 
 		for (int j = char_pos; j < char_end; ++j) {
 			if (j < static_cast<int>(attrs.size()) && attrs[j] == syntax_attribute::normal) {
 				attrs[j] = syntax_attribute::italic; // Numbers are highlighted as italic (dark cyan)
 			}
 		}
-		search_start = (match.data() - input.data()) + match.size();
 	}
 
 	// 6. Syntactic Brackets and Punctuation ( { } [ ] , )

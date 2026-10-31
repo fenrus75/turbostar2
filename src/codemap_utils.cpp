@@ -22,11 +22,12 @@
 
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <map>
-#include <re2/re2.h>
+#include <ctre.hpp>
 #include <set>
 #include <sstream>
 #include <unordered_set>
@@ -1252,7 +1253,6 @@ bool extract_class_members_from_header(const std::string &safe_header_path,
 					   [&](const auto &item) { return item.name == name; });
 		};
 
-		re2::RE2 class_decl_re(std::format(R"(\b(?:class|struct)\s+{}\b)", simple_class_name));
 		int brace_depth = 0;
 		bool in_class = false;
 
@@ -1274,13 +1274,15 @@ bool extract_class_members_from_header(const std::string &safe_header_path,
 						continue;
 					}
 				}
-				if (re2::RE2::PartialMatch(line, class_decl_re)) {
-					in_class = true;
-					for (char c : line) {
-						if (c == '{')
-							brace_depth++;
-						else if (c == '}')
-							brace_depth--;
+				if (auto m = ctre::search<R"(\b(?:class|struct)\s+([A-Za-z_][A-Za-z0-9_]*)\b)">((std::string_view)line)) {
+					if (m.get<1>().to_view() == simple_class_name) {
+						in_class = true;
+						for (char c : line) {
+							if (c == '{')
+								brace_depth++;
+							else if (c == '}')
+								brace_depth--;
+						}
 					}
 				}
 			} else {
@@ -1424,12 +1426,11 @@ bool extract_enclosing_class_summary(const std::string &file_path, int line,
 				cur++;
 			}
 		}
-		static const re2::RE2 class_method_re(R"(([A-Za-z_][A-Za-z0-9_]*)::([A-Za-z_][A-Za-z0-9_]*))");
-		std::string c_name, m_name;
-		if (re2::RE2::PartialMatch(line_content, class_method_re, &c_name, &m_name)) {
+		if (auto m = ctre::search<R"(([A-Za-z_][A-Za-z0-9_]*)::([A-Za-z_][A-Za-z0-9_]*))">(line_content)) {
+			auto c_name = m.get<1>().to_view();
 			if (c_name != "std" && c_name != "boost" && c_name != "tools" && c_name != "agentlib" && c_name != "re2" &&
 			    c_name != "fs_utils") {
-				simple_class_name = c_name;
+				simple_class_name = std::string(c_name);
 			}
 		}
 	}
@@ -1596,19 +1597,19 @@ std::string extract_class_context_preview(const std::string &cpp_path, int start
 	}
 
 	if (simple_class_name.empty() || method_name.empty()) {
-		static const re2::RE2 class_method_re(R"(([A-Za-z_][A-Za-z0-9_]*)::([A-Za-z_][A-Za-z0-9_]*))");
-		std::string c_name, m_name;
 		for (const auto &line : read_lines) {
-			if (re2::RE2::PartialMatch(line, class_method_re, &c_name, &m_name)) {
+			if (auto m = ctre::search<R"(([A-Za-z_][A-Za-z0-9_]*)::([A-Za-z_][A-Za-z0-9_]*))">(line)) {
+				auto c_name = m.get<1>().to_view();
+				auto m_name = m.get<2>().to_view();
 				if (c_name != "std" && c_name != "boost" && c_name != "tools" && c_name != "agentlib" && c_name != "re2" &&
 				    c_name != "fs_utils") {
 					if (simple_class_name.empty()) {
-						simple_class_name = c_name;
-						method_name = m_name;
+						simple_class_name = std::string(c_name);
+						method_name = std::string(m_name);
 						break;
 					}
 					if (c_name == simple_class_name) {
-						method_name = m_name;
+						method_name = std::string(m_name);
 						break;
 					}
 				}
@@ -1837,7 +1838,6 @@ std::string augment_compiler_output_with_codemap(const std::string &output, agen
 		return output;
 	}
 
-	static const re2::RE2 error_regex(R"(^(.*?):([0-9]+):([0-9]+): (error|warning): (.*)$)");
 	std::stringstream ss(output);
 	std::string line;
 	std::string result;
@@ -1851,8 +1851,13 @@ std::string augment_compiler_output_with_codemap(const std::string &output, agen
 		std::string file_match, severity_match, message_match;
 		int line_num = 0, col_num = 0;
 
-		if (count < max_annotations &&
-		    re2::RE2::PartialMatch(line, error_regex, &file_match, &line_num, &col_num, &severity_match, &message_match)) {
+		auto err_m = ctre::match<R"(^(.*?):([0-9]+):([0-9]+): (error|warning): (.*)$)">(line);
+		if (count < max_annotations && err_m) {
+			file_match = std::string(err_m.get<1>().to_view());
+			std::from_chars(err_m.get<2>().data(), err_m.get<2>().data() + err_m.get<2>().size(), line_num);
+			std::from_chars(err_m.get<3>().data(), err_m.get<3>().data() + err_m.get<3>().size(), col_num);
+			severity_match = std::string(err_m.get<4>().to_view());
+			message_match = std::string(err_m.get<5>().to_view());
 			std::filesystem::path p(file_match);
 			if (!p.is_absolute()) {
 				std::string build_dir = config_manager::get_instance().get_build_directory();

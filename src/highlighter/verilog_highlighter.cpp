@@ -1,6 +1,7 @@
 #include "highlighter/verilog_highlighter.h"
 #include <filesystem>
 #include <vector>
+#include <ctre.hpp>
 #include "utf8.h"
 
 bool verilog_highlighter::supports_file(const std::string &filename) const
@@ -33,23 +34,7 @@ void verilog_highlighter::highlight(std::shared_ptr<line> l)
 	auto byte_to_char = [&](size_t byte_pos) -> int { return static_cast<int>(utf8::byte_to_char_pos(text, byte_pos)); };
 
 	// 1. Keywords (Verilog & SystemVerilog IEEE 1800)
-	static const std::unique_ptr<re2::RE2> kw_regex = std::make_unique<re2::RE2>(
-		"\\b(module|endmodule|input|output|inout|wire|reg|logic|bit|byte|shortint|int|longint|integer|time|"
-		"shortreal|real|chandle|string|event|always|always_comb|always_ff|always_latch|assign|alias|bind|"
-		"begin|end|parameter|localparam|initial|final|if|else|case|default|endcase|casex|casez|generate|"
-		"endgenerate|function|endfunction|task|endtask|genvar|typedef|struct|enum|union|package|endpackage|"
-		"import|export|interface|endinterface|modport|clocking|endclocking|program|endprogram|class|endclass|"
-		"extends|implements|virtual|local|protected|fork|join|join_any|join_none|automatic|ref|const|static|"
-		"extern|pure|packed|unsigned|signed|void|new|null|this|super|return|break|continue|assert|property|"
-		"endproperty|sequence|endsequence|checker|endchecker|cover|assume|disable|iff|forever|repeat|while|for|"
-		"inside|unique|unique0|priority|rand|randc|constraint|covergroup|endgroup|coverpoint|cross|bins|binsof|"
-		"intersect|dist|matches|tagged|wait|wait_order)\\b");
-
-	re2::StringPiece input(text);
-	re2::StringPiece match;
-	size_t search_start = 0;
-	while (kw_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
-		search_start = (match.data() - input.data()) + match.size();
+	for (auto match : ctre::search_all<R"(\b(module|endmodule|input|output|inout|wire|reg|logic|bit|byte|shortint|int|longint|integer|time|shortreal|real|chandle|string|event|always|always_comb|always_ff|always_latch|assign|alias|bind|begin|end|parameter|localparam|initial|final|if|else|case|default|endcase|casex|casez|generate|endgenerate|function|endfunction|task|endtask|genvar|typedef|struct|enum|union|package|endpackage|import|export|interface|endinterface|modport|clocking|endclocking|program|endprogram|class|endclass|extends|implements|virtual|local|protected|fork|join|join_any|join_none|automatic|ref|const|static|extern|pure|packed|unsigned|signed|void|new|null|this|super|return|break|continue|assert|property|endproperty|sequence|endsequence|checker|endchecker|cover|assume|disable|iff|forever|repeat|while|for|inside|unique|unique0|priority|rand|randc|constraint|covergroup|endgroup|coverpoint|cross|bins|binsof|intersect|dist|matches|tagged|wait|wait_order)\b)">(text)) {
 		int char_pos = byte_to_char(match.data() - text.data());
 		int char_end = byte_to_char(match.data() - text.data() + match.size());
 
@@ -61,11 +46,7 @@ void verilog_highlighter::highlight(std::shared_ptr<line> l)
 	}
 
 	// 2. System Tasks and Compiler Directives (`include, $display, etc.)
-	static const std::unique_ptr<re2::RE2> sys_regex = std::make_unique<re2::RE2>(
-		"(\\$[a-zA-Z_]\\w*|`[a-zA-Z_]\\w*)");
-	search_start = 0;
-	while (sys_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
-		search_start = (match.data() - input.data()) + match.size();
+	for (auto match : ctre::search_all<R"((\$[a-zA-Z_]\w*|`[a-zA-Z_]\w*))">(text)) {
 		int char_pos = byte_to_char(match.data() - text.data());
 		int char_end = byte_to_char(match.data() - text.data() + match.size());
 
@@ -76,12 +57,8 @@ void verilog_highlighter::highlight(std::shared_ptr<line> l)
 		}
 	}
 
-	// 2. Double-quoted Strings
-	static const std::unique_ptr<re2::RE2> str_regex =
-		std::make_unique<re2::RE2>("(\"[^\"\\\\]*(?:\\\\.[^\"\\\\]*)*\")");
-	search_start = 0;
-	while (str_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
-		search_start = (match.data() - input.data()) + match.size();
+	// 3. Double-quoted Strings
+	for (auto match : ctre::search_all<R"(("[^"\\]*(?:\\.[^"\\]*)*"))">(text)) {
 		int char_pos = byte_to_char(match.data() - text.data());
 		int char_end = byte_to_char(match.data() - text.data() + match.size());
 
@@ -92,12 +69,8 @@ void verilog_highlighter::highlight(std::shared_ptr<line> l)
 		}
 	}
 
-	// 3. Block Comments (single line only: /* ... */)
-	static const std::unique_ptr<re2::RE2> block_comment_regex =
-		std::make_unique<re2::RE2>("(/\\*.*?\\*/)");
-	search_start = 0;
-	while (block_comment_regex->Match(input, search_start, input.size(), re2::RE2::UNANCHORED, &match, 1)) {
-		search_start = (match.data() - input.data()) + match.size();
+	// 4. Block Comments (single line only: /* ... */)
+	for (auto match : ctre::search_all<R"((/\*.*?\*/))">(text)) {
 		int char_pos = byte_to_char(match.data() - text.data());
 		int char_end = byte_to_char(match.data() - text.data() + match.size());
 
@@ -108,7 +81,7 @@ void verilog_highlighter::highlight(std::shared_ptr<line> l)
 		}
 	}
 
-	// 4. Line Comments (//)
+	// 5. Line Comments (//)
 	size_t comment_pos = 0;
 	size_t search_pos = 0;
 	while ((comment_pos = text.find("//", search_pos)) != std::string::npos) {

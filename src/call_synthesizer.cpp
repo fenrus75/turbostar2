@@ -3,7 +3,7 @@
 #include <cctype>
 #include <format>
 #include <fstream>
-#include <re2/re2.h>
+#include <ctre.hpp>
 #include <sstream>
 #include <unordered_set>
 #include "agentlib/ai_model.h"
@@ -131,26 +131,23 @@ std::vector<variable_info> call_synthesizer::extract_in_scope_variables(const do
 	}
 
 	// 3. Scan local lines from func_start_line up to target_line
-	static const re2::RE2 var_decl_re(
-	    R"(^\s*(?:const\s+)?([a-zA-Z_][a-zA-Z0-9_:<>*&]*)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:=|;|\{))");
-	static const re2::RE2 for_decl_re(
-	    R"(for\s*\(\s*(?:const\s+)?(?:auto|int|size_t|[a-zA-Z_][a-zA-Z0-9_]*)[*&\s]+([a-zA-Z_][a-zA-Z0-9_]*))");
-
 	for (int line_idx = func_start_line; line_idx <= target_line; ++line_idx) {
 		auto l = doc.get_line(line_idx);
 		if (!l)
 			continue;
 		std::string text = l->get_text();
 
-		std::string vtype, vname;
-		if (re2::RE2::PartialMatch(text, var_decl_re, &vtype, &vname)) {
+		if (auto m = ctre::search<R"(^\s*(?:const\s+)?([a-zA-Z_][a-zA-Z0-9_:<>*&]*)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:=|;|\{))">(text)) {
+			std::string vtype(m.get<1>().to_view());
+			std::string vname(m.get<2>().to_view());
 			if (vname != "return" && vname != "if" && vname != "while" && vname != "for" && vname != "switch") {
 				if (seen_names.insert(vname).second) {
 					vars.push_back({vname, vtype, line_idx});
 				}
 			}
 		}
-		if (re2::RE2::PartialMatch(text, for_decl_re, &vname)) {
+		if (auto m = ctre::search<R"(for\s*\(\s*(?:const\s+)?(?:auto|int|size_t|[a-zA-Z_][a-zA-Z0-9_]*)[*&\s]+([a-zA-Z_][a-zA-Z0-9_]*))">(text)) {
+			std::string vname(m.get<1>().to_view());
 			if (seen_names.insert(vname).second) {
 				vars.push_back({vname, "auto", line_idx});
 			}
@@ -158,16 +155,13 @@ std::vector<variable_info> call_synthesizer::extract_in_scope_variables(const do
 	}
 
 	// 4. Scan for common member variables ending in '_' across nearby lines
-	static const re2::RE2 member_var_re(R"(\b([a-zA-Z_][a-zA-Z0-9_]*_)\b)");
-	re2::StringPiece sp;
 	for (int line_idx = std::max(0, target_line - 50); line_idx <= std::min(total_lines - 1, target_line + 50); ++line_idx) {
 		auto l = doc.get_line(line_idx);
 		if (!l)
 			continue;
 		std::string text = l->get_text();
-		sp = text;
-		std::string mname;
-		while (re2::RE2::FindAndConsume(&sp, member_var_re, &mname)) {
+		for (auto m : ctre::search_all<R"(\b([a-zA-Z_][a-zA-Z0-9_]*_)\b)">(text)) {
+			std::string mname(m.get<1>().to_view());
 			if (seen_names.insert(mname).second) {
 				vars.push_back({mname, "auto", line_idx});
 			}

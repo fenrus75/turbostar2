@@ -4,7 +4,6 @@
 #include <cctype>
 #include <filesystem>
 #include <fstream>
-#include <re2/re2.h>
 
 #include "call_token_extractor.h"
 #include "event_logger.h"

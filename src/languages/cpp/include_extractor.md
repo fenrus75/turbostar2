@@ -8,7 +8,8 @@ The `languages::cpp::include_extractor` class (`src/languages/cpp/include_extrac
 
 ## Architecture and Constraints
 - **Stateless Analysis**: Operates over read-only line spans or standard files without modifying state or requiring AST compilation databases.
-- **Fast RE2 Matching**: Uses RE2 precompiled patterns over source-masked lines to reliably capture delimiters and header paths in sub-millisecond execution times.
+- **Fast CTRE Matching**: Uses Compile-Time Regular Expressions (`ctre::search`) over lexed preprocessor tokens to reliably capture delimiters and header paths with zero runtime regex compilation overhead and zero shared library dependencies.
 
 ## Lessons Learned
-- **False Dependency Injection via Comments**: Naive regex search in `call_resolver::extract_included_headers` previously searched raw source lines, erroneously treating commented-out header examples and headers inside test strings as active include dependencies. Pre-masking with `source_masker` while preserving header-name quotes on active `#include` lines eliminates all false include dependencies.
+- **False Dependency Injection via Comments**: Naive regex search in `call_resolver::extract_included_headers` previously searched raw source lines, erroneously treating commented-out header examples and headers inside test strings as active include dependencies. Token-based lexing on active `#include` lines eliminates all false include dependencies.
+- **CTRE Migration**: Migrated regex matching from `re2::RE2` to `ctre::search`, eliminating transitive `libabsl_*` dependencies while parsing includes directly with compile-time state machines.

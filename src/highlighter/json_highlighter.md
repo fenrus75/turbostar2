@@ -14,3 +14,4 @@ The `json_highlighter` colors JSON (JavaScript Object Notation) and JSONC docume
 
 ## Lessons Learned
 - **Comment Parsing Precedence**: Running `text.find("//")` before parsing strings causes any string with `//` (such as URLs in `{ "url": "https://..." }`) to erroneously color the URL and subsequent fields as a comment. Parsing keys and string values first, then iterating for `//` that occurs outside string literals and keys, resolves this issue.
+- **CTRE Migration**: Migrated regex matching to `ctre::search_all`, eliminating heap-allocated `std::unique_ptr<re2::RE2>` instances and avoiding Abseil dependencies while compiling all JSON patterns into static state machines.

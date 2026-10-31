@@ -5,7 +5,7 @@ The `python_highlighter` parses and styles Python source files (`.py`, `.pyw`). 
 
 ## Key Responsibilities
 - **File & Language Matching**: Recognizes `.py`, `.pyw` and languages `python`, `py`.
-- **Keyword Matching**: Matches Python keywords (`def`, `class`, `return`, `import`, `if`, `else`, etc.) via RE2 regex.
+- **Keyword Matching**: Matches Python keywords (`def`, `class`, `return`, `import`, `if`, `else`, etc.) via CTRE regex.
 - **String Literals**: Matches single-line double-quoted and single-quoted strings with escape sequence handling.
 - **Comments**: Highlights trailing comments starting with `#`.
 
@@ -15,3 +15,4 @@ The `python_highlighter` parses and styles Python source files (`.py`, `.pyw`). 
 
 ## Lessons Learned
 - **Multiple `#` Characters on One Line**: A single `text.find('#')` search stops at the first `#`. When code contains `#` inside a string literal (e.g. `color = "#ff0000" # comment`), the actual line comment was previously omitted. Iterating through occurrences of `#` until finding one outside string literals guarantees comments are recognized.
+- **CTRE Migration**: Migrated keyword and string literal matching from `re2::RE2` to `ctre::search_all`, eliminating heap-allocated regex pointers and removing Abseil dependencies.

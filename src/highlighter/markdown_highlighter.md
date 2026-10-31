@@ -6,7 +6,7 @@ The `markdown_highlighter` parses and styles CommonMark/GitHub-flavored Markdown
 ## Key Responsibilities
 - **File & Language Matching**: Recognizes `.md` and `.markdown` (case-insensitive) and languages `markdown`, `md`.
 - **Heading Recognition**: Highlights lines starting with a single `#` as heading style.
-- **Inline Styling**: Highlights bold spans (`**...**`) using RE2 regex matching.
+- **Inline Styling**: Highlights bold spans (`**...**`) using CTRE compile-time regex matching.
 - **List Markers**: Detects list items starting with `- ` or `* ` (optionally indented with spaces/tabs) and marks the list bullet character.
 
 ## Constraints & Security Considerations
@@ -15,3 +15,4 @@ The `markdown_highlighter` parses and styles CommonMark/GitHub-flavored Markdown
 
 ## Lessons Learned
 - **UTF-8 Alignment in Inline Spans**: Multi-byte characters (such as emojis like 🦀) inside or adjacent to bold markers change byte offsets relative to character offsets. Converting byte spans to Unicode character positions ensures attribute arrays never overflow or misalign attributes across character boundaries.
+- **CTRE Migration**: Migrated bold span detection from `re2::RE2` to `ctre::search_all`, removing the Abseil dependency and eliminating runtime regex compilation overhead.
