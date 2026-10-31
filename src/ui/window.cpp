@@ -700,6 +700,11 @@ void window::draw_content(bool cursor_only) const
 		}
 	}
 
+	std::string line_text;
+	std::vector<syntax_attribute> line_attrs;
+	line_text.reserve(256);
+	line_attrs.reserve(256);
+
 	for (int i = 1; i < height_ - 1; ++i) {
 		int doc_line_idx = top_line_ + i - 1;
 		move(y_ + i, x_ + 1);
@@ -831,8 +836,8 @@ void window::draw_content(bool cursor_only) const
 		if (!current_l)
 			continue;
 
-		std::string line_text;
-		std::vector<syntax_attribute> line_attrs;
+		line_text.clear();
+		line_attrs.clear();
 		current_l->get_content(line_text, line_attrs);
 
 		int current_display_col = 0;
