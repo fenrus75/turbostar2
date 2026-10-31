@@ -1,9 +1,9 @@
 #include <nlohmann/json.hpp>
 #include <string>
-#include <re2/re2.h>
 #include "agentlib/tool_registry.h"
 #include "agentlib/tool_validator.h"
 #include "fs_utils.h"
+#include "pcre2_regex.h"
 #include "elf_list_symbols.h"
 
 namespace tools
@@ -77,10 +77,10 @@ class elf_list_symbols_validator : public agentlib::tool_validator
 					out_error = "Security Violation: pattern contains unsafe control characters.";
 					return false;
 				}
-				re2::RE2::Options options;
-				options.set_case_sensitive(false);
-				re2::RE2 test_re(parsed.pattern, options);
-				if (!test_re.ok()) {
+				pcre2_regex::compile_options opts;
+				opts.caseless = true;
+				pcre2_regex test_re(parsed.pattern, opts);
+				if (!test_re.is_valid()) {
 					out_error = "Validation Error: Invalid regular expression pattern.";
 					return false;
 				}

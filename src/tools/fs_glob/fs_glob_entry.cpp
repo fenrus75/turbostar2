@@ -2,7 +2,7 @@
 #include <filesystem>
 #include <sstream>
 #include <algorithm>
-#include <re2/re2.h>
+#include "pcre2_regex.h"
 #include "../../fs_utils.h"
 #include "../../config_manager.h"
 
@@ -63,8 +63,6 @@ std::string fs_glob_tool::execute(agentlib::tool_context& ctx) {
     std::string build_dir = config_manager::get_instance().get_build_directory();
 
     const size_t max_results = 100;
-    re2::RE2::Options options;
-    options.set_case_sensitive(true);
 
     // Check if pattern or path is a VFS URI (e.g. include://*.h or include://bits/*.h)
     std::string vfs_uri;
@@ -120,11 +118,11 @@ std::string fs_glob_tool::execute(agentlib::tool_context& ctx) {
         scan_vfs_dir(base_dir_uri);
 
         std::string regex_str = glob_to_regex(vfs_uri);
-        re2::RE2 regex(regex_str, options);
+        pcre2_regex regex(regex_str);
 
         std::vector<std::string> matches;
         for (const auto &cand : candidates) {
-            if (re2::RE2::FullMatch(cand, regex)) {
+            if (regex.full_match(cand)) {
                 matches.push_back(cand);
             }
         }
@@ -158,9 +156,9 @@ std::string fs_glob_tool::execute(agentlib::tool_context& ctx) {
     }
 
     std::string regex_str = glob_to_regex(norm_pattern);
-    re2::RE2 regex(regex_str, options);
+    pcre2_regex regex(regex_str);
 
-    if (!regex.ok()) {
+    if (!regex.is_valid()) {
         set_failure(ctx, "Invalid glob pattern translation: " + regex.error());
         return "Error: Invalid glob pattern. Failed to translate pattern to regex.";
     }
@@ -215,10 +213,10 @@ std::string fs_glob_tool::execute(agentlib::tool_context& ctx) {
 
             std::string filename = p.filename().string();
 
-            bool matched = re2::RE2::FullMatch(rel_to_search, regex) ||
-                           re2::RE2::FullMatch(rel_to_root, regex);
+            bool matched = regex.full_match(rel_to_search) ||
+                           regex.full_match(rel_to_root);
             if (!matched && norm_pattern.find('/') == std::string::npos) {
-                matched = re2::RE2::FullMatch(filename, regex);
+                matched = regex.full_match(filename);
             }
 
             if (matched) {

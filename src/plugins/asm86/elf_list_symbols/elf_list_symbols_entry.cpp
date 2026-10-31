@@ -1,10 +1,10 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
-#include <re2/re2.h>
 #include <vector>
 #include "fs_utils.h"
 #include "hex/elf.h"
+#include "pcre2_regex.h"
 #include "elf_list_symbols.h"
 
 namespace tools
@@ -65,12 +65,12 @@ std::string elf_list_symbols_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	// Setup regex if pattern is provided
-	std::unique_ptr<re2::RE2> filter_re;
+	std::unique_ptr<pcre2_regex> filter_re;
 	if (!args_.pattern.empty()) {
-		re2::RE2::Options options;
-		options.set_case_sensitive(false);
-		filter_re = std::make_unique<re2::RE2>(args_.pattern, options);
-		if (!filter_re->ok()) {
+		pcre2_regex::compile_options opts;
+		opts.caseless = true;
+		filter_re = std::make_unique<pcre2_regex>(args_.pattern, opts);
+		if (!filter_re->is_valid()) {
 			set_failure(ctx, "Invalid regular expression pattern.");
 			return "Error: Invalid regular expression pattern.";
 		}
@@ -85,7 +85,7 @@ std::string elf_list_symbols_tool::execute(agentlib::tool_context &ctx)
 	const auto &symbols = parser.get_symbols();
 	size_t count = 0;
 	for (const auto &sym : symbols) {
-		if (filter_re && !re2::RE2::PartialMatch(sym.name, *filter_re)) {
+		if (filter_re && !filter_re->partial_match(sym.name)) {
 			continue;
 		}
 		std::string safe_sym_name = escape_markdown_table_str(sym.name);

@@ -14,7 +14,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
-#include <re2/re2.h>
+#include "pcre2_regex.h"
 #include <string>
 #include <thread>
 #include <vector>
@@ -119,26 +119,24 @@ std::string turbomcp_server::transform_description_for_identity(
 		if (!param_alt.empty()) {
 			param_alt += '|';
 		}
-		param_alt += RE2::QuoteMeta(old_key) + "|" + RE2::QuoteMeta(new_key);
+		param_alt += pcre2_regex::quote_meta(old_key) + "|" + pcre2_regex::quote_meta(new_key);
 	}
 
 	for (const auto &[old_key, new_key] : renamed_params) {
 		if (old_key.empty() || old_key == new_key) {
 			continue;
 		}
-		std::string escaped_old = RE2::QuoteMeta(old_key);
+		std::string escaped_old = pcre2_regex::quote_meta(old_key);
 		if (old_key.find('_') != std::string::npos) {
 			// Multi-word snake_case parameter names (e.g. start_line) are unambiguous identifiers
-			RE2::GlobalReplace(&result, "\\b" + escaped_old + "\\b", new_key);
+			result = pcre2_regex("\\b" + escaped_old + "\\b").global_replace(result, new_key);
 		} else {
 			// Single-word parameter names (e.g. tail, length, start, end): replace when quoted/backticked
 			// or when part of a slash-delimited parameter list (e.g. start/end/length).
-			RE2::GlobalReplace(&result, "(['\"`])" + escaped_old + "(['\"`])", "\\1" + new_key + "\\2");
+			result = pcre2_regex("(['\"`])" + escaped_old + "(['\"`])").global_replace(result, "\\1" + new_key + "\\2");
 			if (!param_alt.empty()) {
-				RE2::GlobalReplace(&result, "\\b" + escaped_old + "/(" + param_alt + ")\\b",
-						   new_key + "/\\1");
-				RE2::GlobalReplace(&result, "\\b(" + param_alt + ")/" + escaped_old + "\\b",
-						   "\\1/" + new_key);
+				result = pcre2_regex("\\b" + escaped_old + "/(" + param_alt + ")\\b").global_replace(result, new_key + "/\\1");
+				result = pcre2_regex("\\b(" + param_alt + ")/" + escaped_old + "\\b").global_replace(result, "\\1/" + new_key);
 			}
 		}
 	}

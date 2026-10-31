@@ -4,7 +4,7 @@
 #include <vector>
 #include <optional>
 #include <memory>
-#include <re2/re2.h>
+#include "pcre2_regex.h"
 #include "../../agentlib/llm_tool.h"
 #include "../../agentlib/tool_validator.h"
 #include "../../agentlib/interactions/tool_interaction.h"
@@ -43,8 +43,8 @@ protected:
 
 private:
     fs_grep_files_args args_;
-    mutable std::unique_ptr<re2::RE2> compiled_regex_;
-    mutable std::unique_ptr<re2::RE2> compiled_exclude_regex_;
+    mutable std::unique_ptr<pcre2_regex> compiled_regex_;
+    mutable std::unique_ptr<pcre2_regex> compiled_exclude_regex_;
     std::shared_ptr<agentlib::interaction_fs_grep_files> interaction_;
     
     std::string escape_markdown(const std::string& text) const;

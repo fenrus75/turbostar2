@@ -298,9 +298,9 @@ libturbostar_core = static_library('turbostar_core',
 libagentlib = static_library('agentlib',
   agentlib_sources + [research_agent_h, self_agent_h],
   include_directories : inc,
-  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, ctre_dep, lsp_dep, re2_dep, curl_dep, openssl_dep, yaml_cpp_dep])
+  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, ctre_dep, pcre2_dep, lsp_dep, re2_dep, curl_dep, openssl_dep, yaml_cpp_dep])
 
-tools_deps = [nlohmann_json_dep, ctre_dep, re2_dep, lsp_dep, zydis_dep, zlib_dep, magic_dep]
+tools_deps = [nlohmann_json_dep, ctre_dep, pcre2_dep, re2_dep, lsp_dep, zydis_dep, zlib_dep, magic_dep]
 if graphicsmagick_dep.found()
   tools_deps += [graphicsmagick_dep]
 endif

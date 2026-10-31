@@ -263,15 +263,15 @@ std::vector<lsp_manager::symbol_info> fs_grep_files_tool::get_lsp_symbols(const 
 
 fs_grep_files_tool::fs_grep_files_tool(fs_grep_files_args args) : args_(std::move(args))
 {
-	RE2::Options options;
+	pcre2_regex::compile_options options;
 	if (args_.case_insensitive) {
-		options.set_case_sensitive(false);
+		options.caseless = true;
 	}
-	std::string final_pattern = args_.is_regex ? args_.pattern : RE2::QuoteMeta(args_.pattern);
-	compiled_regex_ = std::make_unique<RE2>(final_pattern, options);
+	std::string final_pattern = args_.is_regex ? args_.pattern : pcre2_regex::quote_meta(args_.pattern);
+	compiled_regex_ = std::make_unique<pcre2_regex>(final_pattern, options);
 
 	if (args_.exclude_pattern && !args_.exclude_pattern->empty()) {
-		compiled_exclude_regex_ = std::make_unique<RE2>(*args_.exclude_pattern, options);
+		compiled_exclude_regex_ = std::make_unique<pcre2_regex>(*args_.exclude_pattern, options);
 	}
 
 	std::string display_path = "";
@@ -305,7 +305,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 	size_t bytes_scanned = 0;
 	size_t total_match_count = 0;
 
-	if (!compiled_regex_->ok()) {
+	if (!compiled_regex_->is_valid()) {
 		return "Error: Invalid regular expression pattern. " + compiled_regex_->error();
 	}
 
@@ -478,9 +478,9 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 			}
 		}
 
-		if (compiled_exclude_regex_ && compiled_exclude_regex_->ok()) {
-			if (RE2::PartialMatch(rel_path_str, *compiled_exclude_regex_) ||
-			    RE2::PartialMatch(path_str, *compiled_exclude_regex_)) {
+		if (compiled_exclude_regex_ && compiled_exclude_regex_->is_valid()) {
+			if (compiled_exclude_regex_->partial_match(rel_path_str) ||
+			    compiled_exclude_regex_->partial_match(path_str)) {
 				return true;
 			}
 		}
@@ -561,7 +561,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 			if (read_success) {
 				std::vector<int> match_lines;
 				for (size_t i = 0; i < file_lines.size(); ++i) {
-					if (RE2::PartialMatch(file_lines[i], *compiled_regex_)) {
+					if (compiled_regex_->partial_match(file_lines[i])) {
 						match_lines.push_back(static_cast<int>(i + 1));
 					}
 				}
@@ -631,7 +631,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 
 				std::vector<int> match_lines;
 				for (size_t i = 0; i < file_lines.size(); ++i) {
-					if (RE2::PartialMatch(file_lines[i], *compiled_regex_)) {
+					if (compiled_regex_->partial_match(file_lines[i])) {
 						match_lines.push_back(static_cast<int>(i + 1));
 					}
 				}

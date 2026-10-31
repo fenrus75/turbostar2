@@ -18,13 +18,12 @@ fs_regexp_lines_tool::fs_regexp_lines_tool(fs_regexp_lines_args args) : args_(st
 
 bool fs_regexp_lines_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string &out_error) const
 {
-	re2::RE2::Options options;
-	options.set_max_mem(8 * 1024 * 1024); // 8 MB cap
+	pcre2_regex::compile_options options;
 	if (args_.case_insensitive) {
-		options.set_case_sensitive(false);
+		options.caseless = true;
 	}
-	compiled_regex_ = std::make_unique<re2::RE2>(args_.pattern, options);
-	if (!compiled_regex_->ok()) {
+	compiled_regex_ = std::make_unique<pcre2_regex>(args_.pattern, options);
+	if (!compiled_regex_->is_valid()) {
 		out_error = "Invalid regular expression: " + compiled_regex_->error();
 		return false;
 	}
@@ -91,7 +90,7 @@ std::string fs_regexp_lines_tool::execute(agentlib::tool_context &ctx)
 			size_t total_lines = doc_snapshot->get_line_count();
 			for (size_t i = 0; i < total_lines; ++i) {
 				std::string line_text = doc_snapshot->get_line_text(i);
-				if (re2::RE2::PartialMatch(line_text, *compiled_regex_)) {
+				if (compiled_regex_->partial_match(line_text)) {
 					ss << format_line(i + 1, line_text);
 					match_count++;
 					if (match_count >= MAX_MATCHES)
@@ -147,7 +146,7 @@ std::string fs_regexp_lines_tool::execute(agentlib::tool_context &ctx)
 				line.pop_back();
 			}
 
-			if (re2::RE2::PartialMatch(line, *compiled_regex_)) {
+			if (compiled_regex_->partial_match(line)) {
 				ss << format_line(current_line, line);
 				match_count++;
 				if (match_count >= MAX_MATCHES)
@@ -193,7 +192,7 @@ std::string fs_regexp_lines_tool::execute(agentlib::tool_context &ctx)
 		if (!line.empty() && line.back() == '\r') {
 			line.pop_back();
 		}
-		if (re2::RE2::PartialMatch(line, *compiled_regex_)) {
+		if (compiled_regex_->partial_match(line)) {
 			ss << format_line(current_line, line);
 			match_count++;
 			if (match_count >= MAX_MATCHES)
