@@ -1,5 +1,6 @@
 #include "ui/window.h"
 #include <algorithm>
+#include <charconv>
 #include <cmath>
 #include <format>
 #include <ncurses.h>
@@ -778,12 +779,35 @@ void window::draw_content(bool cursor_only) const
 		if (gutter_mode_ != gutter_number_mode::none) {
 			int doc_line_1based = doc_line_idx + 1;
 			bool is_current_line = (doc_ && doc_line_idx == doc_->get_cursor_y() && is_active());
-			std::string num_str;
+			char num_buf[16];
+			std::string_view num_str;
 			int num_pair = is_current_line ? 5 : 4; // Bright White on active line, Dim Cyan otherwise
 			int num_attr = COLOR_PAIR(num_pair) | (is_current_line ? A_BOLD : A_DIM);
 
+			auto format_4d = [](int val, char (&buf)[16]) noexcept -> std::string_view {
+				if (val < 0) {
+					return "    ";
+				}
+				// Format integer directly with std::to_chars
+				auto [ptr, ec] = std::to_chars(buf + 4, buf + sizeof(buf), val);
+				if (ec != std::errc{}) {
+					return "    ";
+				}
+				size_t len = ptr - (buf + 4);
+				if (len >= 4) {
+					return std::string_view(buf + 4, len);
+				}
+				// Prepend spaces for 4-column right alignment
+				size_t spaces = 4 - len;
+				char *start = (buf + 4) - spaces;
+				for (size_t s = 0; s < spaces; ++s) {
+					start[s] = ' ';
+				}
+				return std::string_view(start, 4);
+			};
+
 			if (gutter_mode_ == gutter_number_mode::file) {
-				num_str = std::format("{:4d}", doc_line_1based);
+				num_str = format_4d(doc_line_1based, num_buf);
 			} else { // git mode
 				auto diff_info = gi_diff.get_line_info(doc_line_1based);
 				if (diff_info.type == git_line_diff_type::added) {
@@ -791,18 +815,18 @@ void window::draw_content(bool cursor_only) const
 					num_pair = 30; // Bright Green
 					num_attr = COLOR_PAIR(num_pair) | (is_current_line ? A_BOLD : A_DIM);
 				} else if (diff_info.type == git_line_diff_type::modified) {
-					num_str = std::format("{:4d}", diff_info.git_line);
+					num_str = format_4d(diff_info.git_line, num_buf);
 					num_pair = 21; // Bright Yellow
 					num_attr = COLOR_PAIR(num_pair) | (is_current_line ? A_BOLD : A_DIM);
 				} else {
-					num_str = std::format("{:4d}", diff_info.git_line);
+					num_str = format_4d(diff_info.git_line, num_buf);
 				}
 			}
 
 			int num_x = x_ + width_ - 2 - static_cast<int>(num_str.length());
 			if (num_x > x_) {
 				attrset(num_attr);
-				mvaddstr(y_ + i, num_x, num_str.c_str());
+				mvaddnstr(y_ + i, num_x, num_str.data(), static_cast<int>(num_str.length()));
 			}
 		}
 
