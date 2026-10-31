@@ -1191,7 +1191,11 @@ void window::draw_content(bool cursor_only) const
 							last_attr_pair = final_attr;
 						}
 
-						addnstr(utf8_char.data(), static_cast<int>(utf8_char.size()));
+						if (static_cast<unsigned char>(utf8_char[0]) < 128) [[likely]] {
+							addch(static_cast<unsigned char>(utf8_char[0]));
+						} else {
+							addnstr(utf8_char.data(), static_cast<int>(utf8_char.size()));
+						}
 					}
 				}
 			}
