@@ -20,6 +20,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+## 30-10-2026
+- UI rendering loop latency & CPU optimization: resolved profiling hotspots identified via Linux `perf record -g` during document navigation and scrolling. Replaced `std::map` with `std::array` in `syntax_color_manager` (dropping `get_color_pair` from 6.41% to <0.5%); hoisted per-character `lsp_highlights` and `lsp_diagnostics` queries once per frame using `std::span` viewport filters (eliminating ~6,000 heap allocations per frame); optimized UTF-8 iteration with zero-allocation `std::string_view` overloads and single-byte check in `utf8::next_character`; replaced space-padding loops with `mvhline` row clearing; added ASCII fast-path in `draw_content` using `addch()` to bypass glibc `__mbrtowc` / `__gconv_transform_utf8_internal`; converted `git_info` cache to immutable `std::shared_ptr<const git_info>` snapshots to eliminate deep-copying `head_lines`; batched wide border characters (`mvhline_set`/`mvvline_set`); added occlusion check skipping desktop background dithering when active window is maximized; and hoisted row-level text and attribute buffers. Slashed application rendering CPU time in `window::draw_content` from 35.3% down to 5.5% (>6x speedup). (Completed)
+
 - log and debug startup to optimize
 
 - have a "non-agent" turbostar binary option in meson
