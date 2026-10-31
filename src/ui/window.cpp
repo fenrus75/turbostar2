@@ -1253,17 +1253,17 @@ void window::draw_border() const
 
 	// Draw Git Status and Branch
 	if (doc_ && !doc_->get_filename().empty() && doc_->get_filename() != "unknown.txt") {
-		git_info info = git_manager::get_instance().get_cached_info(doc_->get_filename());
+		auto info = git_manager::get_instance().get_cached_info(doc_->get_filename());
 		std::string branch = doc_->get_git_branch();
 		if (branch.empty())
 			branch = "unknown";
 
 		std::string indicator = "?";
 		int pair = border_pair;
-		if (info.status == git_status::clean) {
+		if (info && info->status == git_status::clean) {
 			indicator = "✔";
 			pair = 20;
-		} else if (info.status == git_status::dirty) {
+		} else if (info && info->status == git_status::dirty) {
 			indicator = "✎";
 			pair = 21;
 		}
@@ -1449,12 +1449,16 @@ git_file_diff window::get_effective_diff() const
 		return {};
 	}
 
-	git_info ginfo = git_manager::get_instance().get_cached_info(doc_->get_filename());
-	if (doc_->is_modified() && ginfo.has_head) {
-		if (doc_->get_line_count() <= 20000 && ginfo.head_lines.size() <= 20000) {
+	auto ginfo = git_manager::get_instance().get_cached_info(doc_->get_filename());
+	if (!ginfo) {
+		return {};
+	}
+
+	if (doc_->is_modified() && ginfo->has_head) {
+		if (doc_->get_line_count() <= 20000 && ginfo->head_lines.size() <= 20000) {
 			uint64_t rev = doc_->get_revision();
 			if (!live_diff_valid_ || rev != last_diff_revision_) {
-				live_diff_ = git_manager::compute_diff(ginfo.head_lines, doc_->get_all_lines());
+				live_diff_ = git_manager::compute_diff(ginfo->head_lines, doc_->get_all_lines());
 				last_diff_revision_ = rev;
 				live_diff_valid_ = true;
 			}
@@ -1463,7 +1467,7 @@ git_file_diff window::get_effective_diff() const
 	}
 
 	live_diff_valid_ = false;
-	return ginfo.diff;
+	return ginfo->diff;
 }
 
 window::~window()

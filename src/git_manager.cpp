@@ -81,14 +81,14 @@ void git_manager::git_add(const std::string &filepath)
         pending_requests_.push({request_type::add, filepath});
         cv_.notify_one();
 }
-git_info git_manager::get_cached_info(const std::string &filepath) const
+std::shared_ptr<const git_info> git_manager::get_cached_info(const std::string &filepath) const
 {
 	std::unique_lock lock(cache_mutex_);
 	auto it = status_cache_.find(filepath);
 	if (it != status_cache_.end()) {
 		return it->second;
 	}
-	return {};
+	return nullptr;
 }
 
 std::string git_manager::get_repository_root() const
@@ -134,13 +134,14 @@ void git_manager::worker_loop()
                         bool changed = false;
                         {
                                 std::unique_lock lock(cache_mutex_);
-                                git_info& cached = status_cache_[req.filepath];
-                                if (cached.status != info.status || cached.branch != info.branch || cached.diff != info.diff ||
-                                    cached.has_head != info.has_head || cached.head_lines != info.head_lines) {
-                                        if (cached.branch != info.branch && !info.branch.empty()) {
+                                auto it = status_cache_.find(req.filepath);
+                                const git_info* cached = it != status_cache_.end() ? it->second.get() : nullptr;
+                                if (!cached || cached->status != info.status || cached->branch != info.branch || cached->diff != info.diff ||
+                                    cached->has_head != info.has_head || cached->head_lines != info.head_lines) {
+                                        if ((!cached || cached->branch != info.branch) && !info.branch.empty()) {
                                                 event_logger::get_instance().log_info("Git: Detected branch '{}' for {}", info.branch, req.filepath);
                                         }
-                                        cached = info;
+                                        status_cache_[req.filepath] = std::make_shared<const git_info>(std::move(info));
                                         changed = true;
                                 }
                         }

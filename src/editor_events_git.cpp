@@ -23,8 +23,10 @@ void editor::dispatch_event_git(const editor_event &ev)
 	if (ev.type == event_type::git_status_updated) {
 		logger.log("Dispatching git_status_updated event.");
 		for (auto &doc : documents_) {
-			git_info info = git_manager::get_instance().get_cached_info(doc->get_filename());
-			doc->set_git_branch(info.branch);
+			auto info = git_manager::get_instance().get_cached_info(doc->get_filename());
+			if (info) {
+				doc->set_git_branch(info->branch);
+			}
 		}
 		for (auto &win : windows_) {
 			win->invalidate();

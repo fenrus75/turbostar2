@@ -87,9 +87,10 @@ class git_manager
 	void git_add(const std::string &filepath);
 
 	/**
-	 * @brief Synchronously returns the last known status of a file.
+	 * @brief Synchronously returns the last known status of a file as an immutable snapshot.
+	 * Returns nullptr if the file is not in cache.
 	 */
-	git_info get_cached_info(const std::string &filepath) const;
+	std::shared_ptr<const git_info> get_cached_info(const std::string &filepath) const;
 
 	/**
 	 * @brief Synchronously returns the absolute path to the git repository root.
@@ -155,7 +156,7 @@ class git_manager
 	 *   or accessing/memoizing the repository root.
 	 */
 	mutable std::mutex cache_mutex_;
-	std::unordered_map<std::string, git_info> status_cache_;
+	std::unordered_map<std::string, std::shared_ptr<const git_info>> status_cache_;
 	mutable std::string cached_repo_root_;
 	mutable bool repo_root_cached_{false};
 	std::atomic<event_queue*> global_queue_{nullptr};
