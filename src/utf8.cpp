@@ -108,24 +108,37 @@ size_t byte_to_char_pos(std::string_view s, size_t byte_offset) noexcept
 // Truncated trailing sequences are safely clamped to the remainder of s.
 bool next_character(std::string_view s, size_t &byte_offset, std::string &out_char)
 {
-	if (byte_offset >= s.length()) {
+	std::string_view sv;
+	if (!next_character(s, byte_offset, sv)) {
 		out_char.clear();
+		return false;
+	}
+	out_char.assign(sv);
+	return true;
+}
+
+// Extracts the next UTF-8 character slice as string_view starting at byte_offset and advances byte_offset.
+// Returns false and empty out_char if byte_offset is at or past the end of string s.
+bool next_character(std::string_view s, size_t &byte_offset, std::string_view &out_char) noexcept
+{
+	if (byte_offset >= s.length()) [[unlikely]] {
+		out_char = {};
 		return false;
 	}
 
 	unsigned char c = static_cast<unsigned char>(s[byte_offset]);
-	if (c < 0x80) {
-		out_char.assign(1, static_cast<char>(c));
+	if (c < 0x80) [[likely]] {
+		out_char = s.substr(byte_offset, 1);
 		byte_offset++;
 		return true;
 	}
 
 	size_t clen = char_len(c);
-	if (byte_offset + clen > s.length()) {
+	if (byte_offset + clen > s.length()) [[unlikely]] {
 		clen = s.length() - byte_offset;
 	}
 
-	out_char.assign(s, byte_offset, clen);
+	out_char = s.substr(byte_offset, clen);
 	byte_offset += clen;
 	return true;
 }

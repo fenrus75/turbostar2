@@ -52,6 +52,12 @@ size_t byte_to_char_pos(std::string_view s, size_t byte_offset) noexcept;
 bool next_character(std::string_view s, size_t &byte_offset, std::string &out_char);
 
 /**
+ * @brief Retrieves the next UTF-8 character slice as a string_view and advances byte_offset without allocations.
+ * @return true if a character was fetched, false if at the end of the string.
+ */
+bool next_character(std::string_view s, size_t &byte_offset, std::string_view &out_char) noexcept;
+
+/**
  * @brief Returns true if the byte at byte_offset exists in s and starts a space
  * (ASCII whitespace or Unicode space character: NBSP, typographic space, CJK ideographic space, etc.).
  * Returns false if byte_offset is out of bounds, points to a non-space, or points to a UTF-8 continuation byte.

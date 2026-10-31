@@ -214,6 +214,28 @@ void test_utf8_next_character()
 	assert(c == "\xE2\x82");
 
 	assert(!utf8::next_character(s_trunc, offset, c));
+
+	// Test string_view overload
+	std::string_view sv;
+	offset = 0;
+	assert(utf8::next_character(s2, offset, sv));
+	assert(offset == 1);
+	assert(sv == "A");
+
+	assert(utf8::next_character(s2, offset, sv));
+	assert(offset == 3);
+	assert(sv == "é");
+
+	assert(utf8::next_character(s2, offset, sv));
+	assert(offset == 6);
+	assert(sv == "€");
+
+	assert(utf8::next_character(s2, offset, sv));
+	assert(offset == 10);
+	assert(sv == "🦀");
+
+	assert(!utf8::next_character(s2, offset, sv));
+	assert(sv.empty());
 }
 
 void test_utf8_wrap_string()

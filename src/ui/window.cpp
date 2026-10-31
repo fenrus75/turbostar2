@@ -818,8 +818,7 @@ void window::draw_content(bool cursor_only) const
 		size_t byte_off = 0;
 		int last_attr_pair = line_bg_pair;
 
-		std::string utf8_char;
-		utf8_char.reserve(4);
+		std::string_view utf8_char;
 
 		for (size_t char_idx = 0;; ++char_idx) {
 			int start_col = current_display_col;
@@ -829,7 +828,8 @@ void window::draw_content(bool cursor_only) const
 				break;
 
 			int char_width = 1;
-			if (utf8_char == "\t") {
+			bool is_tab = (utf8_char[0] == '\t');
+			if (is_tab) {
 				char_width = line::global_tab_width - (start_col % line::global_tab_width);
 			} else {
 				char_width = std::max(1, static_cast<int>(utf8::display_width(utf8_char)));
@@ -841,7 +841,7 @@ void window::draw_content(bool cursor_only) const
 			// Check if character overlaps the viewport
 			bool overlaps_viewport = (end_col > left_column_ && start_col < left_column_ + width_ - 2);
 			if (overlaps_viewport) {
-				if (utf8_char == "\t") {
+				if (is_tab) {
 					for (int col = start_col; col < end_col; ++col) {
 						if (col >= left_column_ && col < left_column_ + width_ - 2) {
 							int screen_x_offset = col - left_column_;
@@ -1170,7 +1170,7 @@ void window::draw_content(bool cursor_only) const
 							last_attr_pair = final_attr;
 						}
 
-						addstr(utf8_char.c_str());
+						addnstr(utf8_char.data(), static_cast<int>(utf8_char.size()));
 					}
 				}
 			}
