@@ -765,12 +765,9 @@ void window::draw_content(bool cursor_only) const
 			}
 		}
 
-		// Clear line background
+		// Clear line background across viewport width
 		attrset(COLOR_PAIR(line_bg_pair));
-		/* FIXME - we should do this at the end and then only for what is left on the screen, not for the whole line. The tricky
-		 * part will be tabs */
-		for (int k = 0; k < width_ - 2; ++k)
-			addch(' ');
+		mvhline(y_ + i, x_ + 1, ' ', width_ - 2);
 
 		if (!doc_ || doc_line_idx >= static_cast<int>(doc_->get_line_count())) {
 			continue;
