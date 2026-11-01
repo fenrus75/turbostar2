@@ -639,6 +639,8 @@ int main()
 		assert(summary.find("sv/register/register.sv:9") != std::string::npos);
 		assert(summary.find("#### Drivers") != std::string::npos);
 		assert(summary.find("#### Consumers (Sinks)") != std::string::npos);
+		assert(summary.find("Reports structural net connectivity") != std::string::npos);
+		assert(!reader.is_flat_gate_level());
 
 		// 11c. Test vcd_signal_to_code validator and tool
 		tools::vcd_signal_to_code_validator code_validator;

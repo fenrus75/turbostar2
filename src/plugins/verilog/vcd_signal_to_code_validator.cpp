@@ -8,7 +8,8 @@ namespace tools
 std::string vcd_signal_to_code_validator::get_description() const
 {
 	return "Traces a simulation signal across the design hierarchy to source code file and line numbers using a Yosys JSON netlist. "
-	       "Identifies signal declarations across module boundaries, the driving cell/port, and consuming sink logic in a token-efficient summary.";
+	       "Identifies structural dataflow connectivity: declarations across module boundaries, the driving cell/port, and consuming sink logic in a token-efficient summary. "
+	       "Note: Traces structural net connectivity; for procedural gating conditions (e.g. enable predicates or if/case mux branches), inspect the reported driver source lines.";
 }
 
 nlohmann::json vcd_signal_to_code_validator::get_parameters_schema() const
@@ -22,7 +23,7 @@ nlohmann::json vcd_signal_to_code_validator::get_parameters_schema() const
 			}},
 			{"netlist", {
 				{"type", "string"},
-				{"description", "Optional path to a Yosys JSON netlist (generated via 'yosys ... prep -flatten; write_json netlist.json'). If omitted, auto-discovers netlist.json in project."}
+				{"description", "Optional path to a hierarchy-preserving Yosys elaboration netlist JSON (generated via 'yosys ... prep -flatten; write_json netlist.json'). Do not pass post-techmap or gate-level synthesis files (e.g. synth_ice40). If omitted, automatically discovers elaboration netlist in project."}
 			}}
 		}},
 		{"required", {"signal"}}

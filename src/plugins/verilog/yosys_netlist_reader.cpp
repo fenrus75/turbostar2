@@ -521,7 +521,22 @@ std::string yosys_netlist_reader::format_trace_summary(const signal_source_trace
 		}
 	}
 
+	ss << "\n*Note: Reports structural net connectivity (driving and consuming cells). "
+	      "For procedural gating conditions (e.g. enable predicates or if/case mux branches), inspect the driver source lines above.*\n";
+
 	return ss.str();
+}
+
+bool yosys_netlist_reader::is_flat_gate_level() const
+{
+	if (netnames_.empty()) return false;
+	size_t dotted_count = 0;
+	for (const auto &[name, _] : netnames_) {
+		if (name.find('.') != std::string::npos) {
+			++dotted_count;
+		}
+	}
+	return dotted_count == 0;
 }
 
 } // namespace verilog

@@ -63,6 +63,9 @@ public:
 	size_t net_count() const { return netnames_.size(); }
 	size_t cell_count() const { return cells_.size(); }
 
+	// Returns true if the netlist appears to be post-synthesis / gate-level without hierarchical nets
+	bool is_flat_gate_level() const;
+
 private:
 	struct parsed_net {
 		std::string name;
