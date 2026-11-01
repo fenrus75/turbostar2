@@ -15,6 +15,8 @@
 #include "plugins/verilog/yosys_netlist_reader.h"
 #include "plugins/verilog/vcd_signal_to_code_tool.h"
 #include "plugins/verilog/vcd_signal_to_code_validator.h"
+#include "plugins/verilog/vcd_compare_tool.h"
+#include "plugins/verilog/vcd_compare_validator.h"
 #include "agentlib/tool_context.h"
 #include <cassert>
 #include <iostream>
@@ -757,8 +759,128 @@ int main()
 		assert(missing_out.find("not found in netlist") != std::string::npos);
 	}
 
+	// 12. Test vcd_compare tool and validator
+	{
+		tools::vcd_compare_validator compare_validator;
+		assert(compare_validator.get_name() == "vcd_compare");
+		assert(compare_validator.get_family() == "verilog");
+		assert(compare_validator.is_pure());
+
+		agentlib::tool_context ctx;
+		ctx.fs_security.add_allowed_root("tests/fixtures", agentlib::access_type::read);
+		ctx.fs_security.set_working_directory(".");
+
+		const std::string org_vcd = "tests/fixtures/test_dump_org.vcd";
+		const std::string mut_vcd = "tests/fixtures/test_dump_mutated.vcd";
+
+		// 12a. Compare file with itself (Identical match)
+		nlohmann::json match_args = {
+			{"path_a", org_vcd},
+			{"path_b", org_vcd}
+		};
+		std::string err;
+		bool valid = compare_validator.validate_args(match_args, ctx, err);
+		assert(valid && err.empty());
+		auto match_tool = compare_validator.create_tool(match_args);
+		std::string match_out = match_tool->execute(ctx);
+		assert(match_out.find("### VCD Compare: MATCH") != std::string::npos);
+		assert(match_out.find("0 differences detected") != std::string::npos);
+
+		// 12b. Compare original vs mutated trace
+		nlohmann::json diff_args = {
+			{"path_a", org_vcd},
+			{"path_b", mut_vcd}
+		};
+		err.clear();
+		valid = compare_validator.validate_args(diff_args, ctx, err);
+		assert(valid && err.empty());
+		auto diff_tool = compare_validator.create_tool(diff_args);
+		std::string diff_out = diff_tool->execute(ctx);
+		assert(diff_out.find("DIVERGENCE DETECTED at Tick 10") != std::string::npos);
+		assert(diff_out.find("tb_main.LED") != std::string::npos);
+		assert(diff_out.find("vcd_wave(") != std::string::npos);
+
+		// 12c. Windowed compare before divergence occurs (Ticks 0–5 should MATCH)
+		nlohmann::json window_args = {
+			{"path_a", org_vcd},
+			{"path_b", mut_vcd},
+			{"start_tick", 0},
+			{"end_tick", 5}
+		};
+		err.clear();
+		valid = compare_validator.validate_args(window_args, ctx, err);
+		assert(valid && err.empty());
+		auto window_tool = compare_validator.create_tool(window_args);
+		std::string window_out = window_tool->execute(ctx);
+		assert(window_out.find("### VCD Compare: MATCH") != std::string::npos);
+		assert(window_out.find("0 differences detected") != std::string::npos);
+
+		// 12d. Scoped comparison
+		nlohmann::json scope_args = {
+			{"path_a", org_vcd},
+			{"path_b", mut_vcd},
+			{"scope", "tb_main.uut.cpu8008.decode"}
+		};
+		err.clear();
+		valid = compare_validator.validate_args(scope_args, ctx, err);
+		assert(valid && err.empty());
+		auto scope_tool = compare_validator.create_tool(scope_args);
+		std::string scope_out = scope_tool->execute(ctx);
+		assert(scope_out.find("DIVERGENCE DETECTED at Tick 10") != std::string::npos);
+		assert(scope_out.find("tb_main.uut.cpu8008.decode.") != std::string::npos);
+
+		// 12e. Qualifier integration (validity mismatch on qualified bus)
+		tools::vcd_signal_qualifier_validator q_val;
+		nlohmann::json q_args_a = {
+			{"path", org_vcd},
+			{"signal", "tb_main.uut.cpu8008.decode.mem_data"},
+			{"qualifier", "tb_main.uut.cpu8008.decode.mem_req_en"}
+		};
+		bool q_ok = q_val.validate_args(q_args_a, ctx, err);
+		assert(q_ok && err.empty());
+		auto q_tool_a = q_val.create_tool(q_args_a);
+		q_tool_a->execute(ctx);
+
+		nlohmann::json q_args_b = {
+			{"path", mut_vcd},
+			{"signal", "tb_main.uut.cpu8008.decode.mem_data"},
+			{"qualifier", "tb_main.uut.cpu8008.decode.mem_req_en"}
+		};
+		q_ok = q_val.validate_args(q_args_b, ctx, err);
+		assert(q_ok && err.empty());
+		auto q_tool_b = q_val.create_tool(q_args_b);
+		q_tool_b->execute(ctx);
+
+		nlohmann::json qual_compare_args = {
+			{"path_a", org_vcd},
+			{"path_b", mut_vcd},
+			{"signals", nlohmann::json::array({"tb_main.uut.cpu8008.decode.mem_data"})},
+			{"ignore_invalid", true}
+		};
+		err.clear();
+		valid = compare_validator.validate_args(qual_compare_args, ctx, err);
+		assert(valid && err.empty());
+		auto qual_tool = compare_validator.create_tool(qual_compare_args);
+		std::string qual_out = qual_tool->execute(ctx);
+		assert(qual_out.find("Validity mismatch") != std::string::npos);
+		assert(qual_out.find("- (invalid)") != std::string::npos);
+
+		// 12f. Missing argument validation
+		nlohmann::json missing_b_args = {
+			{"path_a", org_vcd}
+		};
+		err.clear();
+		valid = compare_validator.validate_args(missing_b_args, ctx, err);
+		assert(!valid);
+		assert(err.find("Missing required") != std::string::npos);
+	}
+
 	// Clean up any test sidecar created during tests
 	std::filesystem::remove(vcd_path + ".labels.json");
+	std::filesystem::remove("tests/fixtures/test_dump_org.vcd.labels.json");
+	std::filesystem::remove("tests/fixtures/test_dump_org.vcd.qualifiers.json");
+	std::filesystem::remove("tests/fixtures/test_dump_mutated.vcd.labels.json");
+	std::filesystem::remove("tests/fixtures/test_dump_mutated.vcd.qualifiers.json");
 
 	std::cout << "All VCD unit tests passed!\n";
 	return 0;

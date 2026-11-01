@@ -25,6 +25,8 @@ void register_vcd_signal_qualifier(void);
 void unregister_vcd_signal_qualifier(void);
 void register_vcd_signal_to_code(void);
 void unregister_vcd_signal_to_code(void);
+void register_vcd_compare(void);
+void unregister_vcd_compare(void);
 
 /*
  * Plugin dynamic entry point invoked when loaded by plugin_loader.
@@ -36,6 +38,7 @@ void plugin_run(void)
 	register_vcd_signal_labels();
 	register_vcd_search();
 	register_vcd_signal_qualifier();
+	register_vcd_compare();
 
 	bool has_yosys = !fs_utils::find_executable("yosys").empty();
 	if (has_yosys) {
@@ -64,14 +67,18 @@ To debug a digital design without blowing your context window, follow this workf
    `vcd_signal_qualifier(path="sim/dump.vcd", signal="opcode_data", qualifier="opcode_data_valid")`
 
 3. **Locate Cycle Intervals of Interest (`vcd_search`)**:
-   Find exact clock cycle ranges matching an opcode, state name, or bit pattern (automatically ignores invalid cycles):
-   `vcd_search(path="sim/dump.vcd", signal="opcode_data", value="LMA")`
+   Find exact clock cycle ranges matching an opcode, state name, or bit pattern (supports multi-condition AND matching):
+   `vcd_search(path="sim/dump.vcd", conditions={"opcode_data": "LMA", "opcode_data_valid": "1"})`
 
 4. **Sample Synchronous Waveforms at Clock Edges (`vcd_wave`)**:
    Query selected signals across the matched cycle window. Multi-bit buses default to hex; use `b:` prefix for binary bit-masks. Consecutive idle cycles (>= 3 ticks of no signal changes) are automatically collapsed:
    `vcd_wave(path="sim/dump.vcd", signals=["rst", "current_ip", "opcode_data", "b:flags"], start_tick=4, end_tick=15)`
 
-5. **Trace Signal to Source RTL (`vcd_signal_to_code`)**:
+5. **Compare Against Reference / Golden Run (`vcd_compare`)**:
+   Pinpoint the exact clock cycle of divergence between golden and candidate traces, listing differing signals while ignoring invalid bus cycles:
+   `vcd_compare(path_a="sim/golden.vcd", path_b="sim/candidate.vcd", scope="tb_main.uut")`
+
+6. **Trace Signal to Source RTL (`vcd_signal_to_code`)**:
    Map a simulation signal back to its source file declarations across the hierarchy, its driving cell/port, and downstream consumers:
    `vcd_signal_to_code(signal="tb_main.uut.cpu8008.A_val")`
 )"
@@ -89,6 +96,7 @@ void plugin_unload(void)
 	unregister_vcd_search();
 	unregister_vcd_signal_qualifier();
 	unregister_vcd_signal_to_code();
+	unregister_vcd_compare();
 
 	agentlib::tool_registry::get_instance().unregister_tool_family("verilog");
 }
