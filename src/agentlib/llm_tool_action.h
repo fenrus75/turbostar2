@@ -35,6 +35,10 @@ namespace agentlib {
 | get_code_review_item_tool | src/tools/get_code_review_item/get_code_review_item.h |
 | list_code_review_items_tool | src/tools/list_code_review_items/list_code_review_items.h |
 | git_log_tool                | src/tools/git_log/git_log.h                          |
+| vcd_file_info_tool          | src/plugins/verilog/vcd_file_info_tool.h             |
+| vcd_wave_tool               | src/plugins/verilog/vcd_wave_tool.h                  |
+| vcd_signal_labels_tool      | src/plugins/verilog/vcd_signal_labels_tool.h          |
+| vcd_search_tool             | src/plugins/verilog/vcd_search_tool.h                 |
 */
 class llm_tool_action : public llm_tool {
 public:

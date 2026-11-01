@@ -20,6 +20,17 @@ class vcd_label_manager
 	// Checks if a given pattern matches a signal name
 	static bool signal_pattern_matches(std::string_view pattern, std::string_view signal_name);
 
+	// Checks if a binary pattern with '?' wildcards matches a raw binary value
+	static bool binary_pattern_matches(std::string_view pattern, std::string_view bin_val);
+
+	// Checks if target_value matches a signal's value via label name, hex representation, or binary wildcard
+	static bool value_matches(
+		std::string_view target_val,
+		std::string_view hex_val,
+		std::string_view raw_bin_val,
+		std::string_view label
+	);
+
 	// Get all registered labels for a VCD path (loads sidecar file if not loaded)
 	std::map<std::string, std::map<std::string, std::string>> get_labels_for_file(std::string_view safe_path);
 

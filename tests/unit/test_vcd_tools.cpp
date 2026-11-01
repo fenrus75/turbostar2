@@ -8,6 +8,8 @@
 #include "plugins/verilog/vcd_wave_validator.h"
 #include "plugins/verilog/vcd_signal_labels_tool.h"
 #include "plugins/verilog/vcd_signal_labels_validator.h"
+#include "plugins/verilog/vcd_search_tool.h"
+#include "plugins/verilog/vcd_search_validator.h"
 #include "agentlib/tool_context.h"
 #include <cassert>
 #include <iostream>
@@ -374,6 +376,110 @@ int main()
 			}
 		}
 		assert(found_collapsed);
+	}
+
+	// 9. Test vcd_search tool and validator
+	{
+		tools::vcd_search_validator search_validator;
+		assert(search_validator.get_name() == "vcd_search");
+		assert(search_validator.get_family() == "verilog");
+		assert(search_validator.is_pure());
+
+		agentlib::tool_context ctx;
+		ctx.fs_security.add_allowed_root("tests/fixtures", agentlib::access_type::read);
+		ctx.fs_security.set_working_directory(".");
+
+		// Test 9a: Search by Hex value ("0x06")
+		nlohmann::json hex_search_args = {
+			{"path", vcd_path},
+			{"signal", "opcode"},
+			{"value", "0x06"}
+		};
+		std::string err;
+		bool valid = search_validator.validate_args(hex_search_args, ctx, err);
+		assert(valid && err.empty());
+		auto hex_tool = search_validator.create_tool(hex_search_args);
+		std::string hex_out = hex_tool->execute(ctx);
+		assert(hex_out.find("Matched ") != std::string::npos);
+		assert(hex_out.find("Tick ranges") != std::string::npos);
+		assert(hex_out.find("0x06") != std::string::npos);
+		assert(hex_out.find("vcd_wave(") != std::string::npos);
+
+		// Test 9b: Search by Label name ("LAI")
+		nlohmann::json label_search_args = {
+			{"path", vcd_path},
+			{"signal", "opcode"},
+			{"value", "LAI"}
+		};
+		valid = search_validator.validate_args(label_search_args, ctx, err);
+		assert(valid && err.empty());
+		auto label_tool = search_validator.create_tool(label_search_args);
+		std::string label_out = label_tool->execute(ctx);
+		assert(label_out.find("0x06 (LAI)") != std::string::npos);
+
+		// Test 9c: Search by Binary wildcard ("b00???110" matches 0x06 and 0x36)
+		nlohmann::json bin_search_args = {
+			{"path", vcd_path},
+			{"signal", "opcode"},
+			{"value", "b00???110"}
+		};
+		valid = search_validator.validate_args(bin_search_args, ctx, err);
+		assert(valid && err.empty());
+		auto bin_tool = search_validator.create_tool(bin_search_args);
+		std::string bin_out = bin_tool->execute(ctx);
+		assert(bin_out.find("Matched ") != std::string::npos);
+
+		// Test 9d: Direction and limit shortcuts ("first: true", "last: true")
+		nlohmann::json first_args = {
+			{"path", vcd_path},
+			{"signal", "opcode"},
+			{"value", "0x06"},
+			{"first", true}
+		};
+		valid = search_validator.validate_args(first_args, ctx, err);
+		assert(valid && err.empty());
+		auto first_tool = search_validator.create_tool(first_args);
+		std::string first_out = first_tool->execute(ctx);
+		assert(first_out.find("| 1 |") != std::string::npos);
+		assert(first_out.find("| 2 |") == std::string::npos); // Exactly 1 row in table
+
+		nlohmann::json last_args = {
+			{"path", vcd_path},
+			{"signal", "opcode"},
+			{"value", "0x06"},
+			{"last", true}
+		};
+		valid = search_validator.validate_args(last_args, ctx, err);
+		assert(valid && err.empty());
+		auto last_tool = search_validator.create_tool(last_args);
+		std::string last_out = last_tool->execute(ctx);
+		assert(last_out.find("| 1 |") != std::string::npos);
+		assert(last_out.find("| 2 |") == std::string::npos); // Exactly 1 row in table
+
+		// Test 9e: Mutually exclusive first and last validation
+		nlohmann::json invalid_args = {
+			{"path", vcd_path},
+			{"signal", "opcode"},
+			{"value", "0x06"},
+			{"first", true},
+			{"last", true}
+		};
+		valid = search_validator.validate_args(invalid_args, ctx, err);
+		assert(!valid);
+		assert(err.find("Cannot specify both 'first' and 'last'") != std::string::npos);
+
+		// Test 9f: Zero matches
+		nlohmann::json no_match_args = {
+			{"path", vcd_path},
+			{"signal", "opcode"},
+			{"value", "0xEE"}
+		};
+		err.clear();
+		valid = search_validator.validate_args(no_match_args, ctx, err);
+		assert(valid && err.empty());
+		auto no_match_tool = search_validator.create_tool(no_match_args);
+		std::string no_match_out = no_match_tool->execute(ctx);
+		assert(no_match_out.find("No clock cycles matched") != std::string::npos);
 	}
 
 	// Clean up any test sidecar created during tests

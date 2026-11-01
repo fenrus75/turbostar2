@@ -52,6 +52,10 @@ namespace agentlib
 | fs_glob_validator            | src/tools/fs_glob/fs_glob.h                                 |
 | fs_find_files_validator      | src/tools/fs_glob/fs_glob.h                                 |
 | git_log_validator            | src/tools/git_log/git_log.h                                 |
+| vcd_file_info_validator      | src/plugins/verilog/vcd_file_info_validator.h                |
+| vcd_wave_validator           | src/plugins/verilog/vcd_wave_validator.h                     |
+| vcd_signal_labels_validator  | src/plugins/verilog/vcd_signal_labels_validator.h             |
+| vcd_search_validator         | src/plugins/verilog/vcd_search_validator.h                    |
 
 */
 

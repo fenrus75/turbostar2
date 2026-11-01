@@ -41,9 +41,11 @@ bool wildcard_match(std::string_view pattern, std::string_view text)
 	return p == pattern.size();
 }
 
+} // namespace
+
 // Checks if a binary pattern with '?' wildcards matches a raw binary value
 // e.g. pattern "00????10" matches "00110110"
-bool binary_pattern_matches(std::string_view pattern, std::string_view bin_val)
+bool vcd_label_manager::binary_pattern_matches(std::string_view pattern, std::string_view bin_val)
 {
 	std::string p(pattern);
 	if (p.starts_with('b') || p.starts_with('B')) {
@@ -72,7 +74,69 @@ bool binary_pattern_matches(std::string_view pattern, std::string_view bin_val)
 	return true;
 }
 
-} // namespace
+bool vcd_label_manager::value_matches(
+	std::string_view target_val,
+	std::string_view hex_val,
+	std::string_view raw_bin_val,
+	std::string_view label
+)
+{
+	if (target_val.empty()) {
+		return false;
+	}
+
+	// 1. Label match (case-insensitive)
+	if (!label.empty()) {
+		if (target_val.size() == label.size()) {
+			bool eq = true;
+			for (size_t i = 0; i < target_val.size(); ++i) {
+				if (std::tolower(static_cast<unsigned char>(target_val[i])) !=
+				    std::tolower(static_cast<unsigned char>(label[i]))) {
+					eq = false;
+					break;
+				}
+			}
+			if (eq) return true;
+		}
+	}
+
+	// 2. Exact match against hex_val or raw_bin_val
+	if (target_val == hex_val || (!raw_bin_val.empty() && target_val == raw_bin_val)) {
+		return true;
+	}
+
+	// 3. Hex normalized match
+	std::string norm_target = normalize_hex_key(target_val);
+	std::string norm_hex = normalize_hex_key(hex_val);
+	if (!norm_target.empty() && !norm_hex.empty() && norm_target == norm_hex) {
+		return true;
+	}
+
+	// 4. Binary pattern with wildcards
+	if (target_val.find('?') != std::string::npos || target_val.starts_with('b') || target_val.starts_with('B')) {
+		if (!raw_bin_val.empty() && binary_pattern_matches(target_val, raw_bin_val)) {
+			return true;
+		}
+		// Also try converting hex_val to binary if raw_bin_val is empty
+		if (hex_val.starts_with("0x")) {
+			try {
+				uint64_t n = std::stoull(std::string(hex_val), nullptr, 16);
+				std::string gen_bin;
+				for (int b = 63; b >= 0; --b) {
+					gen_bin.push_back((n & (1ULL << b)) ? '1' : '0');
+				}
+				size_t f1 = gen_bin.find('1');
+				if (f1 != std::string::npos) gen_bin = gen_bin.substr(f1);
+				else gen_bin = "0";
+				if (binary_pattern_matches(target_val, gen_bin)) {
+					return true;
+				}
+			} catch (...) {}
+		}
+	}
+
+	return false;
+}
 
 bool vcd_label_manager::signal_pattern_matches(std::string_view pattern, std::string_view signal_name)
 {

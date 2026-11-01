@@ -554,7 +554,7 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 
 	auto flush_repeats = [&]() {
 		if (collapsed_extra_count > 0) {
-			if (results.size() < max_rows && !pending_repeats.empty()) {
+			if ((max_rows == 0 || results.size() < max_rows) && !pending_repeats.empty()) {
 				vcd_sample_point collapsed;
 				collapsed.tick = pending_repeats.front().tick;
 				collapsed.end_tick = collapsed_last_tick;
@@ -566,7 +566,7 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 			}
 		} else {
 			for (auto &p : pending_repeats) {
-				if (results.size() >= max_rows) break;
+				if (max_rows > 0 && results.size() >= max_rows) break;
 				results.push_back(std::move(p));
 			}
 		}
@@ -628,7 +628,7 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 		}
 
 		if (!collapse_idle) {
-			if (results.size() >= max_rows) break;
+			if (max_rows > 0 && results.size() >= max_rows) break;
 			results.push_back(std::move(pt));
 		} else {
 			if (!has_current_run) {
@@ -647,7 +647,7 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 					}
 				} else {
 					flush_repeats();
-					if (results.size() >= max_rows) {
+					if (max_rows > 0 && results.size() >= max_rows) {
 						break;
 					}
 
@@ -656,7 +656,7 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 				}
 			}
 
-			if (results.size() >= max_rows) {
+			if (max_rows > 0 && results.size() >= max_rows) {
 				break;
 			}
 		}
