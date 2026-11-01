@@ -213,6 +213,10 @@ int main()
 		assert(wave_out.find("0x06 (LAI)") != std::string::npos);
 		// Tick 6: 0x36 should be annotated as "0x36 (LMA)"
 		assert(wave_out.find("0x36 (LMA)") != std::string::npos);
+
+		// Verify resolved shorthand signal mappings (expanded items only)
+		assert(wave_out.find("#### Resolved Shorthand Signals (Expanded items only)") != std::string::npos);
+		assert(wave_out.find("- `opcode` → `tb_main.uut.cpu8008.opcode` (8-bit)") != std::string::npos);
 	}
 
 	// 6. Test wildcard signal name matching and label listing in vcd_signal_labels

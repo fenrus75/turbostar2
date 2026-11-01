@@ -148,6 +148,45 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 		ss << "|\n";
 	}
 
+	// Append expanded shorthand signal mappings if any
+	std::map<std::string, std::string> full_names_map;
+	for (const auto &sample : samples) {
+		for (const auto &[key, full_name] : sample.signal_full_names) {
+			if (!full_name.empty()) {
+				full_names_map[key] = full_name;
+			}
+		}
+		if (full_names_map.size() == args_.signals.size()) break;
+	}
+
+	std::vector<std::string> expanded_items;
+	for (const auto &sig : args_.signals) {
+		std::string_view display_name = sig;
+		if (display_name.starts_with("x:") || display_name.starts_with("b:")) {
+			display_name.remove_prefix(2);
+		}
+
+		auto it = full_names_map.find(sig);
+		std::string full_name = (it != full_names_map.end()) ? it->second : "";
+		if (full_name.empty()) {
+			const auto *s = parser.find_signal(display_name);
+			if (s) full_name = s->full_name;
+		}
+
+		if (!full_name.empty() && display_name != full_name) {
+			const auto *sig_obj = parser.find_signal(full_name);
+			int width = sig_obj ? sig_obj->bit_width : 1;
+			expanded_items.push_back(std::format("- `{}` → `{}` ({}-bit)", display_name, full_name, width));
+		}
+	}
+
+	if (!expanded_items.empty()) {
+		ss << "\n#### Resolved Shorthand Signals (Expanded items only)\n";
+		for (const auto &item : expanded_items) {
+			ss << item << "\n";
+		}
+	}
+
 	set_success(ctx);
 	return ss.str();
 }
