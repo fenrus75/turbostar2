@@ -45,7 +45,7 @@ class ui_radiobutton_group : public ui_container
 	bool flow() override;
 	bool want_horizontal_stretch() const override
 	{
-		return false;
+		return want_stretch_;
 	}
 	int natural_width() const override;
 	int natural_height() const override;

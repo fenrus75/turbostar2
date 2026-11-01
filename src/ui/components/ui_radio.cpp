@@ -212,9 +212,10 @@ bool ui_radiobutton_group::flow()
 			width_changed = true;
 		}
 	} else {
+		int nat_w = natural_width();
 		int target_width = width();
-		if (target_width == 0) {
-			target_width = natural_width();
+		if (target_width == 0 || (want_stretch_ && target_width < nat_w)) {
+			target_width = std::max(target_width, nat_w);
 			set_width(target_width);
 			width_changed = true;
 		}

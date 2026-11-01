@@ -487,8 +487,16 @@ std::unique_ptr<dialog> create_new_project_dialog()
 					std_group_ptr->add_child(std::make_unique<ui_radio_choice>(std_opt.name, std_opt.name, std_opt.hotkey, sel));
 				}
 			}
-			build_group_ptr->flow();
-			std_group_ptr->flow();
+			if (build_group_ptr->parent()) {
+				build_group_ptr->parent()->flow();
+			} else {
+				build_group_ptr->flow();
+			}
+			if (std_group_ptr->parent()) {
+				std_group_ptr->parent()->flow();
+			} else {
+				std_group_ptr->flow();
+			}
 		}
 	});
 

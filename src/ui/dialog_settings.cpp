@@ -356,7 +356,7 @@ std::unique_ptr<dialog> create_editor_settings_dialog()
 	gb_lang->add_child(std::move(lang_radio));
 	lang_row->add_child(std::move(gb_lang));
 
-	auto gb_std = std::make_unique<ui_group_box>("gb_std", 22, " Standard ");
+	auto gb_std = std::make_unique<ui_group_box>("gb_std", 24, " Standard ");
 	auto *gb_std_ptr = gb_std.get();
 	auto std_radio = std::make_unique<ui_radiobutton_group>("primary_language_version");
 	auto *std_radio_ptr = std_radio.get();
@@ -376,11 +376,10 @@ std::unique_ptr<dialog> create_editor_settings_dialog()
 
 	lang_radio_ptr->set_on_selection_changed([std_radio_ptr, custom_tb_ptr, gb_std_ptr, tabbed_ptr = tabbed.get()](const std::string &new_lang) {
 		populate_language_standards(std_radio_ptr, custom_tb_ptr, new_lang, "");
-		if (std_radio_ptr) {
-			std_radio_ptr->flow();
-		}
 		if (gb_std_ptr) {
 			gb_std_ptr->flow();
+		} else if (std_radio_ptr) {
+			std_radio_ptr->flow();
 		}
 		if (tabbed_ptr) {
 			tabbed_ptr->flow();
