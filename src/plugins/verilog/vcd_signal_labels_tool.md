@@ -11,3 +11,4 @@ Key features:
 
 ## Lessons Learned
 - Providing an instant summary of all active labels in the tool output lets the agent verify that hex values and labels were normalized and mapped as expected.
+- When registering labels with signal name patterns (including wildcards like `*opcode`), parsing the VCD header to check whether any signals match and outputting a warning if 0 signals match prevents silent misconfigurations (such as typos like `*opcode_b?` instead of `opcode_byte`).

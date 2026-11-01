@@ -261,6 +261,46 @@ int main()
 		assert(wave_out.find("0x41 (ASCII_A)") != std::string::npos);
 	}
 
+	// 7. Test zero-match warning and match note in vcd_signal_labels
+	{
+		tools::vcd_signal_labels_validator labels_validator;
+		agentlib::tool_context ctx;
+		ctx.fs_security.add_allowed_root("tests/fixtures", agentlib::access_type::read);
+		ctx.fs_security.set_working_directory(".");
+
+		// Test zero matching signals warning
+		nlohmann::json zero_match_args = {
+			{"path", vcd_path},
+			{"signal", "*opcode_b?"},
+			{"labels", {
+				{"0x06", "LAI"}
+			}}
+		};
+		std::string err;
+		bool valid = labels_validator.validate_args(zero_match_args, ctx, err);
+		assert(valid && err.empty());
+		auto tool = labels_validator.create_tool(zero_match_args);
+		std::string out = tool->execute(ctx);
+		assert(out.find("> [!WARNING] Pattern `*opcode_b?` currently matches **0 signals**") != std::string::npos);
+
+		// Test positive match confirmation note
+		nlohmann::json match_args = {
+			{"path", vcd_path},
+			{"signal", "*opcode"},
+			{"labels", {
+				{"0x06", "LAI"}
+			}}
+		};
+		valid = labels_validator.validate_args(match_args, ctx, err);
+		assert(valid && err.empty());
+		auto match_tool = labels_validator.create_tool(match_args);
+		std::string match_out = match_tool->execute(ctx);
+		assert(match_out.find("> [!NOTE] Pattern `*opcode` matches **4 signal(s)** in the VCD trace.") != std::string::npos);
+	}
+
+	// Clean up any test sidecar created during tests
+	std::filesystem::remove(vcd_path + ".labels.json");
+
 	std::cout << "All VCD unit tests passed!\n";
 	return 0;
 }

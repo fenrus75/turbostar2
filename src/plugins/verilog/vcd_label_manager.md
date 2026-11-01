@@ -10,3 +10,4 @@ Key capabilities:
 
 ## Lessons Learned
 - In multi-turn agent debugging sessions, setting signal labels once drastically reduces token redundancy in subsequent `vcd_wave` invocations while keeping waveform tables readable.
+- Centralizing signal pattern matching via `vcd_label_manager::signal_pattern_matches()` allows both `find_label()` and validation tools (`vcd_signal_labels`) to share identical matching semantics for leaf names, hierarchy wildcards (`uut.*.A_val`), and suffix matching.

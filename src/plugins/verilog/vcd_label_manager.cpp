@@ -74,6 +74,47 @@ bool binary_pattern_matches(std::string_view pattern, std::string_view bin_val)
 
 } // namespace
 
+bool vcd_label_manager::signal_pattern_matches(std::string_view pattern, std::string_view signal_name)
+{
+	if (pattern.empty() || signal_name.empty()) {
+		return false;
+	}
+	if (pattern == signal_name) {
+		return true;
+	}
+	if (pattern.find('*') != std::string::npos || pattern.find('?') != std::string::npos) {
+		if (wildcard_match(pattern, signal_name)) {
+			return true;
+		}
+		// Also check if pattern matches with a leading wildcard (e.g. pattern "uut.*.A_val" matching "tb_main.uut.cpu8008.A_val")
+		std::string wild_prefix = "*" + std::string(pattern);
+		if (wildcard_match(wild_prefix, signal_name)) {
+			return true;
+		}
+		// Also check leaf name against wildcard pattern
+		size_t last_dot = signal_name.rfind('.');
+		if (last_dot != std::string_view::npos) {
+			std::string_view leaf = signal_name.substr(last_dot + 1);
+			if (wildcard_match(pattern, leaf)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	if (signal_name.ends_with("." + std::string(pattern)) || pattern.ends_with("." + std::string(signal_name))) {
+		return true;
+	}
+	// Check leaf short name equality
+	size_t last_dot = signal_name.rfind('.');
+	if (last_dot != std::string_view::npos) {
+		std::string_view leaf = signal_name.substr(last_dot + 1);
+		if (leaf == pattern) {
+			return true;
+		}
+	}
+	return false;
+}
+
 std::string vcd_label_manager::normalize_hex_key(std::string_view val)
 {
 	std::string s(val);
@@ -252,31 +293,10 @@ std::string vcd_label_manager::find_label(
 
 	// 2. Try matching by leaf short name, suffix, or glob wildcard pattern (e.g. "module1.*.opcode" or "*opcode")
 	for (const auto &[reg_sig, val_map] : sig_map) {
-		bool matches = false;
-		if (reg_sig.find('*') != std::string::npos || reg_sig.find('?') != std::string::npos) {
-			if (wildcard_match(reg_sig, signal_name)) {
-				matches = true;
-			} else {
-				// Also check if pattern matches with a leading wildcard (e.g. pattern "uut.*.A_val" matching "tb_main.uut.cpu8008.A_val")
-				std::string wild_prefix = "*" + reg_sig;
-				if (wildcard_match(wild_prefix, signal_name)) {
-					matches = true;
-				} else {
-					// Also check leaf name against wildcard pattern
-					size_t last_dot = signal_name.rfind('.');
-					if (last_dot != std::string_view::npos) {
-						std::string_view leaf = signal_name.substr(last_dot + 1);
-						if (wildcard_match(reg_sig, leaf)) {
-							matches = true;
-						}
-					}
-				}
-			}
-		} else if (signal_name.ends_with("." + reg_sig) || reg_sig.ends_with("." + std::string(signal_name))) {
-			matches = true;
+		if (reg_sig == signal_name) {
+			continue; // Already checked exact match
 		}
-
-		if (matches) {
+		if (signal_pattern_matches(reg_sig, signal_name)) {
 			std::string res = match_in_val_map(val_map);
 			if (!res.empty()) return res;
 		}

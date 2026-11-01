@@ -17,6 +17,9 @@ class vcd_label_manager
 	// Normalizes a hex/binary/decimal string to lowercase 0x... format
 	static std::string normalize_hex_key(std::string_view val);
 
+	// Checks if a given pattern matches a signal name
+	static bool signal_pattern_matches(std::string_view pattern, std::string_view signal_name);
+
 	// Get all registered labels for a VCD path (loads sidecar file if not loaded)
 	std::map<std::string, std::map<std::string, std::string>> get_labels_for_file(std::string_view safe_path);
 
