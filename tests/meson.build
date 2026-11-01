@@ -194,6 +194,18 @@ test_binary_plugin_impl = executable('test_binary_plugin_impl',
   include_directories: inc)
 test('unit_binary_plugin', test_binary_plugin_impl, suite: 'plugins')
 
+test_vcd_tools = executable('test_vcd_tools',
+  ['unit/test_vcd_tools.cpp',
+   '../src/plugins/verilog/vcd_parser.cpp',
+   '../src/plugins/verilog/vcd_file_info_tool.cpp',
+   '../src/plugins/verilog/vcd_file_info_validator.cpp',
+   '../src/plugins/verilog/vcd_wave_tool.cpp',
+   '../src/plugins/verilog/vcd_wave_validator.cpp'],
+  dependencies : [core_dep, agent_dep, nlohmann_json_dep, sqlite3_dep, lsp_dep, ctre_dep],
+  include_directories: inc)
+test('unit_vcd_tools', test_vcd_tools, suite: 'plugins')
+
+
 
 test_history_manager = executable('test_history_manager',
   ['unit/test_history_manager.cpp', '../src/history_manager.cpp', '../src/event_logger.cpp', '../src/fs_utils.cpp', '../src/fs_basics.cpp', '../src/git_manager.cpp', '../src/config_manager.cpp', '../src/build_error_manager.cpp', '../src/gcc_log_parser.cpp', '../src/command_runner.cpp', '../src/rendering_thread_guard.cpp', '../src/event_queue.cpp', '../src/crashdump_manager.cpp', '../src/codemap_utils.cpp', '../src/codemap_fallbacks.cpp', '../src/address_lookup.cpp', '../src/project_manager.cpp', '../src/lsp_backend.cpp', '../src/standard_lsp_backend.cpp', '../src/semcode_backend.cpp', '../src/lsp_manager.cpp', '../src/codereview_manager.cpp', '../src/perf_manager.cpp'],
