@@ -16,6 +16,8 @@ void register_vcd_file_info(void);
 void unregister_vcd_file_info(void);
 void register_vcd_wave(void);
 void unregister_vcd_wave(void);
+void register_vcd_signal_labels(void);
+void unregister_vcd_signal_labels(void);
 
 /*
  * Plugin dynamic entry point invoked when loaded by plugin_loader.
@@ -24,6 +26,7 @@ void plugin_run(void)
 {
 	register_vcd_file_info();
 	register_vcd_wave();
+	register_vcd_signal_labels();
 
 	agentlib::tool_registry::get_instance().register_tool_family(
 		"verilog",
@@ -40,11 +43,15 @@ To debug a digital design without blowing your context window, follow this two-s
    Inspect timescale, duration, detected reference clock, and discover signals in the module of interest:
    `vcd_file_info(path="sim/dump.vcd", scope="tb_main.uut.cpu8008", max_signals=30)`
 
-2. **Sample Synchronous Waveforms at Clock Edges (`vcd_wave`)**:
+2. **Define Value Mappings (Optional, `vcd_signal_labels`)**:
+   Map opcode bytes or FSM state numbers to human-readable names once; they will automatically annotate subsequent waveform tables:
+   `vcd_signal_labels(path="sim/dump.vcd", signal="opcode", labels={"0x06": "LAI", "0x36": "LMA", "0xF8": "RET"})`
+
+3. **Sample Synchronous Waveforms at Clock Edges (`vcd_wave`)**:
    Query selected signals across a specific clock tick window. Multi-bit buses default to hex; use `b:` prefix for binary bit-masks. Short signal names or suffixes (e.g. `"opcode"`, `"flags"`) are automatically resolved, matching the prefix of preceding signals in the list:
    `vcd_wave(path="sim/dump.vcd", signals=["rst", "current_ip", "opcode", "b:flags", "A_val"], start_tick=0, end_tick=15)`
 
-3. **Inspect Half-Cycles or Asynchronous Transitions (Optional)**:
+4. **Inspect Half-Cycles or Asynchronous Transitions (Optional)**:
    To inspect half-cycle phases or asynchronous transitions around clock edges, sample on both edges:
    `vcd_wave(path="sim/dump.vcd", signals=["clk", "mem_write_en", "mem_write_addr"], edge="both", start_tick=10, end_tick=15)`
 )"
@@ -58,6 +65,7 @@ void plugin_unload(void)
 {
 	unregister_vcd_file_info();
 	unregister_vcd_wave();
+	unregister_vcd_signal_labels();
 
 	agentlib::tool_registry::get_instance().unregister_tool_family("verilog");
 }

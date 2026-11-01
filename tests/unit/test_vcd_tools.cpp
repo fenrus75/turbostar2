@@ -1,10 +1,13 @@
 // Tested source file: src/plugins/verilog/vcd_parser.cpp
 #include "test_watchdog.h"
 #include "plugins/verilog/vcd_parser.h"
+#include "plugins/verilog/vcd_label_manager.h"
 #include "plugins/verilog/vcd_file_info_tool.h"
 #include "plugins/verilog/vcd_file_info_validator.h"
 #include "plugins/verilog/vcd_wave_tool.h"
 #include "plugins/verilog/vcd_wave_validator.h"
+#include "plugins/verilog/vcd_signal_labels_tool.h"
+#include "plugins/verilog/vcd_signal_labels_validator.h"
 #include "agentlib/tool_context.h"
 #include <cassert>
 #include <iostream>
@@ -151,6 +154,58 @@ int main()
 		const auto *contextual = parser.find_signal("mem_read_data", first->scope);
 		assert(contextual != nullptr);
 		assert(contextual->full_name == "tb_main.uut.cpu8008.mem_read_data");
+	}
+
+	// 5. Test vcd_signal_labels tool, binary wildcard matching, and waveform annotation
+	{
+		tools::vcd_signal_labels_validator labels_validator;
+		assert(labels_validator.get_name() == "vcd_signal_labels");
+		assert(labels_validator.get_family() == "verilog");
+
+		agentlib::tool_context ctx;
+		ctx.fs_security.add_allowed_root("tests/fixtures", agentlib::access_type::read);
+		ctx.fs_security.set_working_directory(".");
+
+		// Register labels including both exact hex and binary with '?' wildcards
+		nlohmann::json label_args = {
+			{"path", vcd_path},
+			{"signal", "opcode"},
+			{"labels", {
+				{"0x06", "LAI"},
+				{"0x36", "LMA"},
+				{"0xF8", "RET"},
+				{"b01???01", "LDD_MASK"} // wildcard match for 0x41 (01000001) or 0x45
+			}}
+		};
+
+		std::string err;
+		bool valid = labels_validator.validate_args(label_args, ctx, err);
+		assert(valid && err.empty());
+
+		auto label_tool = labels_validator.create_tool(label_args);
+		assert(label_tool != nullptr);
+		std::string label_out = label_tool->execute(ctx);
+		assert(label_out.find("LAI") != std::string::npos);
+
+		// Now run vcd_wave and verify annotations appear
+		tools::vcd_wave_validator wave_validator;
+		nlohmann::json wave_args = {
+			{"path", vcd_path},
+			{"signals", nlohmann::json::array({"opcode"})},
+			{"start_tick", 3},
+			{"end_tick", 6},
+			{"edge", "posedge"}
+		};
+
+		valid = wave_validator.validate_args(wave_args, ctx, err);
+		assert(valid);
+		auto wave_tool = wave_validator.create_tool(wave_args);
+		std::string wave_out = wave_tool->execute(ctx);
+
+		// Tick 3: 0x06 should be annotated as "0x06 (LAI)"
+		assert(wave_out.find("0x06 (LAI)") != std::string::npos);
+		// Tick 6: 0x36 should be annotated as "0x36 (LMA)"
+		assert(wave_out.find("0x36 (LMA)") != std::string::npos);
 	}
 
 	std::cout << "All VCD unit tests passed!\n";

@@ -1,5 +1,6 @@
 #include "vcd_file_info_tool.h"
 #include "vcd_parser.h"
+#include "vcd_label_manager.h"
 #include <format>
 #include <sstream>
 
@@ -58,7 +59,22 @@ std::string vcd_file_info_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	const auto &all_signals = parser.get_signals();
-	ss << std::format("- **Total Signals**: {}\n\n", all_signals.size());
+	ss << std::format("- **Total Signals**: {}\n", all_signals.size());
+
+	// Active signal labels
+	auto &label_mgr = verilog::vcd_label_manager::get_instance();
+	auto active_labels = label_mgr.get_labels_for_file(args_.safe_path);
+	if (!active_labels.empty()) {
+		ss << "- **Active Signal Labels**: ";
+		bool first = true;
+		for (const auto &[sig, val_map] : active_labels) {
+			if (!first) ss << ", ";
+			ss << std::format("`{}` ({} labels)", sig, val_map.size());
+			first = false;
+		}
+		ss << "\n";
+	}
+	ss << "\n";
 
 	// Filter signals
 	auto filtered = parser.filter_signals(args_.scope, args_.filter);

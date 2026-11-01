@@ -1,5 +1,6 @@
 #include "vcd_wave_tool.h"
 #include "vcd_parser.h"
+#include "vcd_label_manager.h"
 #include <format>
 #include <sstream>
 
@@ -86,6 +87,8 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 	ss << "\n";
 
 	// Rows
+	auto &label_mgr = verilog::vcd_label_manager::get_instance();
+
 	for (const auto &sample : samples) {
 		ss << std::format("| {} | {} ", sample.tick, sample.timestamp);
 		if (args_.edge == "both") {
@@ -94,6 +97,19 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 		for (const auto &sig : args_.signals) {
 			auto val_it = sample.signal_values.find(sig);
 			std::string val = (val_it != sample.signal_values.end()) ? val_it->second : "-";
+
+			// Check if a label exists for this signal and value
+			std::string_view lookup_sig = sig;
+			if (lookup_sig.starts_with("x:") || lookup_sig.starts_with("b:")) {
+				lookup_sig.remove_prefix(2);
+			}
+			auto raw_it = sample.signal_raw_values.find(sig);
+			std::string raw_bin = (raw_it != sample.signal_raw_values.end()) ? raw_it->second : "";
+			std::string label = label_mgr.find_label(args_.safe_path, lookup_sig, val, raw_bin);
+			if (!label.empty()) {
+				val = std::format("{} ({})", val, label);
+			}
+
 			ss << std::format("| {} ", val);
 		}
 		ss << "|\n";
