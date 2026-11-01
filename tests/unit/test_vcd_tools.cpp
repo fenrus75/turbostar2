@@ -12,6 +12,9 @@
 #include "plugins/verilog/vcd_search_validator.h"
 #include "plugins/verilog/vcd_signal_qualifier_tool.h"
 #include "plugins/verilog/vcd_signal_qualifier_validator.h"
+#include "plugins/verilog/yosys_netlist_reader.h"
+#include "plugins/verilog/vcd_signal_to_code_tool.h"
+#include "plugins/verilog/vcd_signal_to_code_validator.h"
 #include "agentlib/tool_context.h"
 #include <cassert>
 #include <iostream>
@@ -590,6 +593,84 @@ int main()
 		std::string clear_out = clear_tool->execute(ctx);
 		assert(clear_out.find("Cleared all signal qualifiers") != std::string::npos);
 		assert(clear_out.find("No signal qualifiers currently registered") != std::string::npos);
+	}
+
+	// 11. yosys_netlist_reader and vcd_signal_to_code tests
+	{
+		// 11a. Test source coordinate cleaning
+		assert(verilog::yosys_netlist_reader::clean_src_location("sv/register/register.sv:9.21-9.26") == "sv/register/register.sv:9");
+		assert(verilog::yosys_netlist_reader::clean_src_location("sv/register/register.sv:24.9-31.12") == "sv/register/register.sv:24-31");
+		assert(verilog::yosys_netlist_reader::clean_src_location("sv/alu/alu.sv:0.0-0.0|sv/alu/alu.sv:24.3-53.10") == "sv/alu/alu.sv:24-53");
+
+		const std::string netlist_path = "tests/fixtures/test_netlist.json";
+		verilog::yosys_netlist_reader reader;
+		std::string load_err;
+		bool ok = reader.load_from_file(netlist_path, load_err);
+		assert(ok && load_err.empty());
+		assert(reader.net_count() > 0);
+		assert(reader.cell_count() > 0);
+
+		// 11b. Test trace_signal for A_val
+		auto trace = reader.trace_signal("tb_main.uut.cpu8008.A_val");
+		assert(trace.has_value());
+		assert(trace->matched_net_name == "cpu8008.A_val");
+		assert(trace->bit_width == 8);
+		assert(!trace->hierarchy_declarations.empty());
+		assert(!trace->drivers.empty());
+		assert(!trace->consumers.empty());
+
+		// Verify hierarchy declarations contain submodules
+		bool has_a_reg = false;
+		bool has_alu = false;
+		for (const auto &decl : trace->hierarchy_declarations) {
+			if (decl.hierarchical_name.find("cpu8008.A_reg.value") != std::string::npos) has_a_reg = true;
+			if (decl.hierarchical_name.find("cpu8008.alu.input1") != std::string::npos) has_alu = true;
+		}
+		assert(has_a_reg && has_alu);
+
+		// Format check
+		std::string summary = verilog::yosys_netlist_reader::format_trace_summary(*trace);
+		assert(summary.find("Signal Source Trace: `tb_main.uut.cpu8008.A_val`") != std::string::npos);
+		assert(summary.find("cpu8008.A_reg.value") != std::string::npos);
+		assert(summary.find("sv/register/register.sv:9") != std::string::npos);
+		assert(summary.find("#### Drivers") != std::string::npos);
+		assert(summary.find("#### Consumers (Sinks)") != std::string::npos);
+
+		// 11c. Test vcd_signal_to_code validator and tool
+		tools::vcd_signal_to_code_validator code_validator;
+		assert(code_validator.get_name() == "vcd_signal_to_code");
+		assert(code_validator.get_family() == "verilog");
+		assert(code_validator.is_pure());
+
+		agentlib::tool_context ctx;
+		ctx.fs_security.add_allowed_root("tests/fixtures", agentlib::access_type::read);
+		ctx.fs_security.set_working_directory(".");
+
+		nlohmann::json tool_args = {
+			{"signal", "tb_main.uut.cpu8008.A_val"},
+			{"netlist", netlist_path}
+		};
+		std::string err;
+		bool valid = code_validator.validate_args(tool_args, ctx, err);
+		assert(valid && err.empty());
+
+		auto tool = code_validator.create_tool(tool_args);
+		std::string out = tool->execute(ctx);
+		assert(out.find("Signal Source Trace: `tb_main.uut.cpu8008.A_val`") != std::string::npos);
+		assert(out.find("sv/register/register.sv:9") != std::string::npos);
+		assert(out.find("sv/alu/alu.sv") != std::string::npos);
+
+		// 11d. Non-existent signal error handling
+		nlohmann::json missing_args = {
+			{"signal", "non_existent_wire_1234"},
+			{"netlist", netlist_path}
+		};
+		err.clear();
+		valid = code_validator.validate_args(missing_args, ctx, err);
+		assert(valid && err.empty());
+		auto missing_tool = code_validator.create_tool(missing_args);
+		std::string missing_out = missing_tool->execute(ctx);
+		assert(missing_out.find("not found in netlist") != std::string::npos);
 	}
 
 	// Clean up any test sidecar created during tests

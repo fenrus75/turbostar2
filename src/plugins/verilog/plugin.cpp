@@ -1,4 +1,5 @@
 #include "agentlib/tool_registry.h"
+#include "fs_utils.h"
 
 extern "C" {
 
@@ -22,6 +23,8 @@ void register_vcd_search(void);
 void unregister_vcd_search(void);
 void register_vcd_signal_qualifier(void);
 void unregister_vcd_signal_qualifier(void);
+void register_vcd_signal_to_code(void);
+void unregister_vcd_signal_to_code(void);
 
 /*
  * Plugin dynamic entry point invoked when loaded by plugin_loader.
@@ -33,6 +36,11 @@ void plugin_run(void)
 	register_vcd_signal_labels();
 	register_vcd_search();
 	register_vcd_signal_qualifier();
+
+	bool has_yosys = !fs_utils::find_executable("yosys").empty();
+	if (has_yosys) {
+		register_vcd_signal_to_code();
+	}
 
 	agentlib::tool_registry::get_instance().register_tool_family(
 		"verilog",
@@ -62,6 +70,10 @@ To debug a digital design without blowing your context window, follow this workf
 4. **Sample Synchronous Waveforms at Clock Edges (`vcd_wave`)**:
    Query selected signals across the matched cycle window. Multi-bit buses default to hex; use `b:` prefix for binary bit-masks. Consecutive idle cycles (>= 3 ticks of no signal changes) are automatically collapsed:
    `vcd_wave(path="sim/dump.vcd", signals=["rst", "current_ip", "opcode_data", "b:flags"], start_tick=4, end_tick=15)`
+
+5. **Trace Signal to Source RTL (`vcd_signal_to_code`)**:
+   Map a simulation signal back to its source file declarations across the hierarchy, its driving cell/port, and downstream consumers:
+   `vcd_signal_to_code(signal="tb_main.uut.cpu8008.A_val")`
 )"
 	);
 }
@@ -76,6 +88,7 @@ void plugin_unload(void)
 	unregister_vcd_signal_labels();
 	unregister_vcd_search();
 	unregister_vcd_signal_qualifier();
+	unregister_vcd_signal_to_code();
 
 	agentlib::tool_registry::get_instance().unregister_tool_family("verilog");
 }
