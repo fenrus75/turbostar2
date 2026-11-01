@@ -298,6 +298,84 @@ int main()
 		assert(match_out.find("> [!NOTE] Pattern `*opcode` matches **4 signal(s)** in the VCD trace.") != std::string::npos);
 	}
 
+	// 8. Test collapse_idle and max_rows in vcd_wave
+	{
+		tools::vcd_wave_validator wave_validator;
+		agentlib::tool_context ctx;
+		ctx.fs_security.add_allowed_root("tests/fixtures", agentlib::access_type::read);
+		ctx.fs_security.set_working_directory(".");
+
+		// Test 8a: collapse_idle = true (default) collapses >= 3 unchanged cycles
+		nlohmann::json collapse_args = {
+			{"path", vcd_path},
+			{"signals", nlohmann::json::array({"opcode"})},
+			{"start_tick", 0},
+			{"end_tick", 50},
+			{"collapse_idle", true}
+		};
+		std::string err;
+		bool valid = wave_validator.validate_args(collapse_args, ctx, err);
+		assert(valid && err.empty());
+		auto tool = wave_validator.create_tool(collapse_args);
+		std::string wave_out = tool->execute(ctx);
+
+		assert(wave_out.find("identical cycles collapsed") != std::string::npos);
+		assert(wave_out.find("representing") != std::string::npos);
+		assert(wave_out.find("| ... | ... | *(ticks") != std::string::npos);
+
+		// Test 8b: collapse_idle = false emits every individual tick without collapsing
+		nlohmann::json uncollapsed_args = {
+			{"path", vcd_path},
+			{"signals", nlohmann::json::array({"opcode"})},
+			{"start_tick", 0},
+			{"end_tick", 20},
+			{"collapse_idle", false},
+			{"max_rows", 10}
+		};
+		valid = wave_validator.validate_args(uncollapsed_args, ctx, err);
+		assert(valid && err.empty());
+		auto uncollapsed_tool = wave_validator.create_tool(uncollapsed_args);
+		std::string uncollapsed_out = uncollapsed_tool->execute(ctx);
+
+		assert(uncollapsed_out.find("identical cycles collapsed") == std::string::npos);
+		assert(uncollapsed_out.find("Total Rows: 10") != std::string::npos);
+
+		// Test 8c: max_ticks backwards-compatibility maps to max_rows
+		nlohmann::json legacy_args = {
+			{"path", vcd_path},
+			{"signals", nlohmann::json::array({"opcode"})},
+			{"start_tick", 0},
+			{"end_tick", 20},
+			{"collapse_idle", false},
+			{"max_ticks", 5}
+		};
+		valid = wave_validator.validate_args(legacy_args, ctx, err);
+		assert(valid && err.empty());
+		auto legacy_tool = wave_validator.create_tool(legacy_args);
+		std::string legacy_out = legacy_tool->execute(ctx);
+		assert(legacy_out.find("Total Rows: 5") != std::string::npos);
+
+		// Test 8d: Direct parser sample_wave with collapse_idle
+		verilog::vcd_parser parser;
+		bool ok = parser.parse_all(vcd_path, err);
+		assert(ok && err.empty());
+		std::vector<std::string> sigs = {"opcode"};
+		auto collapsed_samples = parser.sample_wave(
+			"tb_main.clk", "posedge", sigs, 0, 50, std::nullopt, std::nullopt, 50, err, true
+		);
+		assert(err.empty());
+		bool found_collapsed = false;
+		for (const auto &s : collapsed_samples) {
+			if (s.collapsed_count > 0) {
+				found_collapsed = true;
+				assert(s.collapsed_count >= 3);
+				assert(s.end_tick >= s.tick);
+				assert(s.collapsed_count == (s.end_tick - s.tick + 1));
+			}
+		}
+		assert(found_collapsed);
+	}
+
 	// Clean up any test sidecar created during tests
 	std::filesystem::remove(vcd_path + ".labels.json");
 

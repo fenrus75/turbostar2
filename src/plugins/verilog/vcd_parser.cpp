@@ -470,8 +470,9 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 	std::optional<size_t> end_tick,
 	std::optional<uint64_t> start_time,
 	std::optional<uint64_t> end_time,
-	size_t max_ticks,
-	std::string &out_error
+	size_t max_rows,
+	std::string &out_error,
+	bool collapse_idle
 ) const
 {
 	const vcd_signal *clk_sig = find_signal(clock_signal);
@@ -533,7 +534,7 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 		last_clk_val = val;
 	}
 
-	// Apply filtering (tick range, time range, max_ticks)
+	// Apply filtering (tick range, time range, max_rows)
 	size_t first_tick = start_tick.value_or(0);
 	size_t last_tick = end_tick.value_or(sample_events.size() > 0 ? sample_events.size() - 1 : 0);
 
@@ -542,6 +543,36 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 	// State tracking for all requested signal IDs
 	std::map<std::string, std::string> current_values; // id_code -> current raw string
 	auto time_it = timestamps_.begin();
+
+	// State tracking for collapsing consecutive identical idle cycles
+	bool has_current_run = false;
+	std::map<std::string, std::string> current_run_values;
+	std::vector<vcd_sample_point> pending_repeats;
+	size_t collapsed_extra_count = 0;
+	size_t collapsed_last_tick = 0;
+	uint64_t collapsed_last_timestamp = 0;
+
+	auto flush_repeats = [&]() {
+		if (collapsed_extra_count > 0) {
+			if (results.size() < max_rows && !pending_repeats.empty()) {
+				vcd_sample_point collapsed;
+				collapsed.tick = pending_repeats.front().tick;
+				collapsed.end_tick = collapsed_last_tick;
+				collapsed.timestamp = pending_repeats.front().timestamp;
+				collapsed.end_timestamp = collapsed_last_timestamp;
+				collapsed.edge = pending_repeats.front().edge;
+				collapsed.collapsed_count = pending_repeats.size() + collapsed_extra_count;
+				results.push_back(std::move(collapsed));
+			}
+		} else {
+			for (auto &p : pending_repeats) {
+				if (results.size() >= max_rows) break;
+				results.push_back(std::move(p));
+			}
+		}
+		pending_repeats.clear();
+		collapsed_extra_count = 0;
+	};
 
 	for (size_t i = 0; i < sample_events.size(); ++i) {
 		const auto &event = sample_events[i];
@@ -568,8 +599,6 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 		// Filter by time window if specified
 		if (start_time.has_value() && event.timestamp < *start_time) continue;
 		if (end_time.has_value() && event.timestamp > *end_time) break;
-
-		if (results.size() >= max_ticks) break;
 
 		vcd_sample_point pt;
 		pt.tick = i;
@@ -598,7 +627,43 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 			pt.signal_full_names[r.key] = r.signal->full_name;
 		}
 
-		results.push_back(std::move(pt));
+		if (!collapse_idle) {
+			if (results.size() >= max_rows) break;
+			results.push_back(std::move(pt));
+		} else {
+			if (!has_current_run) {
+				current_run_values = pt.signal_values;
+				results.push_back(std::move(pt));
+				has_current_run = true;
+			} else {
+				bool identical = (pt.signal_values == current_run_values);
+				if (identical) {
+					if (pending_repeats.size() < 2) {
+						pending_repeats.push_back(std::move(pt));
+					} else {
+						collapsed_extra_count++;
+						collapsed_last_tick = pt.tick;
+						collapsed_last_timestamp = pt.timestamp;
+					}
+				} else {
+					flush_repeats();
+					if (results.size() >= max_rows) {
+						break;
+					}
+
+					current_run_values = pt.signal_values;
+					results.push_back(std::move(pt));
+				}
+			}
+
+			if (results.size() >= max_rows) {
+				break;
+			}
+		}
+	}
+
+	if (collapse_idle && has_current_run) {
+		flush_repeats();
 	}
 
 	return results;

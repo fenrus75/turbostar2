@@ -36,6 +36,9 @@ struct vcd_sample_point {
 	std::map<std::string, std::string> signal_values; // keyed by requested signal name -> formatted string
 	std::map<std::string, std::string> signal_raw_values; // keyed by requested signal name -> raw binary string
 	std::map<std::string, std::string> signal_full_names; // keyed by requested signal name -> canonical full name
+	size_t collapsed_count{0}; // >0 indicates a collapsed run of identical cycles
+	size_t end_tick{0};        // End tick index of collapsed run
+	uint64_t end_timestamp{0}; // End timestamp of collapsed run
 };
 
 class vcd_parser
@@ -76,8 +79,9 @@ class vcd_parser
 		std::optional<size_t> end_tick,
 		std::optional<uint64_t> start_time,
 		std::optional<uint64_t> end_time,
-		size_t max_ticks,
-		std::string &out_error
+		size_t max_rows,
+		std::string &out_error,
+		bool collapse_idle = false
 	) const;
 
       private:

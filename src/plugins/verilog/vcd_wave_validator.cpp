@@ -52,9 +52,17 @@ nlohmann::json vcd_wave_validator::get_parameters_schema() const
 				{"type", "integer"},
 				{"description", "Optional end time window in VCD timescale units."}
 			}},
+			{"max_rows", {
+				{"type", "integer"},
+				{"description", "Maximum number of output table rows to display (default: 50)."}
+			}},
 			{"max_ticks", {
 				{"type", "integer"},
-				{"description", "Maximum number of clock ticks to sample in table (default: 50)."}
+				{"description", "Deprecated alias for max_rows."}
+			}},
+			{"collapse_idle", {
+				{"type", "boolean"},
+				{"description", "Collapse consecutive clock cycles where all requested signals remain unchanged (>= 3 idle cycles, default: true)."}
 			}}
 		}},
 		{"required", {"path", "signals"}}
@@ -151,11 +159,23 @@ bool vcd_wave_validator::validate_args_impl(const nlohmann::json &raw_json,
 		}
 	}
 
-	if (raw_json.contains("max_ticks")) {
+	if (raw_json.contains("collapse_idle") && raw_json["collapse_idle"].is_boolean()) {
+		args_.collapse_idle = raw_json["collapse_idle"].get<bool>();
+	} else {
+		args_.collapse_idle = true;
+	}
+
+	if (raw_json.contains("max_rows")) {
+		std::string num_err;
+		size_t val = 50;
+		if (json_utils::get_number(raw_json, "max_rows", val, static_cast<size_t>(50), num_err) && val > 0) {
+			args_.max_rows = val;
+		}
+	} else if (raw_json.contains("max_ticks")) {
 		std::string num_err;
 		size_t val = 50;
 		if (json_utils::get_number(raw_json, "max_ticks", val, static_cast<size_t>(50), num_err) && val > 0) {
-			args_.max_ticks = val;
+			args_.max_rows = val;
 		}
 	}
 

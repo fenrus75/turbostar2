@@ -19,7 +19,8 @@ struct vcd_wave_args {
 	std::optional<size_t> end_tick;
 	std::optional<uint64_t> start_time;
 	std::optional<uint64_t> end_time;
-	size_t max_ticks{50};
+	size_t max_rows{50};
+	bool collapse_idle{true};
 };
 
 class vcd_wave_tool : public agentlib::llm_tool_action

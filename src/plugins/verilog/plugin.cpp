@@ -50,8 +50,8 @@ To debug a digital design without blowing your context window, follow this two-s
    `vcd_signal_labels(path="sim/dump.vcd")`
 
 3. **Sample Synchronous Waveforms at Clock Edges (`vcd_wave`)**:
-   Query selected signals across a specific clock tick window. Multi-bit buses default to hex; use `b:` prefix for binary bit-masks. Short signal names or suffixes (e.g. `"opcode"`, `"flags"`) are automatically resolved, matching the prefix of preceding signals in the list:
-   `vcd_wave(path="sim/dump.vcd", signals=["rst", "current_ip", "opcode", "b:flags", "A_val"], start_tick=0, end_tick=15)`
+   Query selected signals across a specific clock tick window. Multi-bit buses default to hex; use `b:` prefix for binary bit-masks. Short signal names or suffixes (e.g. `"opcode"`, `"flags"`) are automatically resolved, matching the prefix of preceding signals in the list. Consecutive idle cycles (>= 3 ticks of no signal changes) are automatically collapsed to conserve context (disable with `collapse_idle=false`). Output is limited by `max_rows` (default 50):
+   `vcd_wave(path="sim/dump.vcd", signals=["rst", "current_ip", "opcode", "b:flags", "A_val"], start_tick=0, end_tick=50, max_rows=30)`
 
 4. **Inspect Half-Cycles or Asynchronous Transitions (Optional)**:
    To inspect half-cycle phases or asynchronous transitions around clock edges, sample on both edges:

@@ -46,8 +46,9 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 		args_.end_tick,
 		args_.start_time,
 		args_.end_time,
-		args_.max_ticks,
-		sample_err
+		args_.max_rows,
+		sample_err,
+		args_.collapse_idle
 	);
 
 	if (!sample_err.empty()) {
@@ -55,10 +56,20 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 		return std::format("Error sampling waveform: {}", sample_err);
 	}
 
+	size_t total_cycles = 0;
+	for (const auto &sample : samples) {
+		total_cycles += (sample.collapsed_count > 0 ? sample.collapsed_count : 1);
+	}
+
 	std::ostringstream ss;
 	ss << std::format("### VCD Waveform: `{}`\n", args_.requested_path);
-	ss << std::format("Sampled on: `{}` ({}) | Timescale: {} | Total Samples: {}\n\n",
-		clock_name, args_.edge, parser.get_timescale(), samples.size());
+	if (total_cycles != samples.size()) {
+		ss << std::format("Sampled on: `{}` ({}) | Timescale: {} | Rows: {} (representing {} cycles)\n\n",
+			clock_name, args_.edge, parser.get_timescale(), samples.size(), total_cycles);
+	} else {
+		ss << std::format("Sampled on: `{}` ({}) | Timescale: {} | Total Rows: {}\n\n",
+			clock_name, args_.edge, parser.get_timescale(), samples.size());
+	}
 
 	if (samples.empty()) {
 		ss << "*No clock transitions matched the requested tick/time window.*\n";
@@ -90,6 +101,23 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 	auto &label_mgr = verilog::vcd_label_manager::get_instance();
 
 	for (const auto &sample : samples) {
+		if (sample.collapsed_count > 0) {
+			ss << "| ... | ... ";
+			if (args_.edge == "both") {
+				ss << "| ... ";
+			}
+			for (size_t i = 0; i < args_.signals.size(); ++i) {
+				if (i == 0) {
+					ss << std::format("| *(ticks {}–{}: {} identical cycles collapsed)* ",
+					                  sample.tick, sample.end_tick, sample.collapsed_count);
+				} else {
+					ss << "| ... ";
+				}
+			}
+			ss << "|\n";
+			continue;
+		}
+
 		ss << std::format("| {} | {} ", sample.tick, sample.timestamp);
 		if (args_.edge == "both") {
 			ss << std::format("| {} ", sample.edge == "posedge" ? "^" : "v");
