@@ -26,6 +26,20 @@ struct project_create_options {
 	bool init_git{true};
 };
 
+struct ui_choice_item {
+	std::string name;
+	char hotkey;
+};
+
+struct language_preset_definition {
+	std::string language;
+	char hotkey;
+	std::vector<ui_choice_item> standards;
+	std::vector<ui_choice_item> buildsystems;
+	std::string default_standard;
+	std::string default_buildsystem;
+};
+
 class project_template_manager
 {
       public:
@@ -33,6 +47,12 @@ class project_template_manager
 
 	// Returns available project templates
 	std::vector<template_info> get_available_templates() const;
+
+	// Returns canonical language preset definitions shared between wizard and settings
+	static const std::vector<language_preset_definition> &get_language_presets();
+
+	// Finds a preset definition by language name, or nullptr if not found
+	static const language_preset_definition *find_language_preset(std::string_view language);
 
 	// Instantiates a new project based on choices, substituting @@VAR@@ tokens
 	// and resolving version overrides (e.g. .C++17). Initializes Git if requested.

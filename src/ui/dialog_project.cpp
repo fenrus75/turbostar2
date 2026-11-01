@@ -429,12 +429,9 @@ std::unique_ptr<dialog> create_new_project_dialog()
 	page1->add_child(std::make_unique<ui_text_label>(""));
 
 	auto lang_group = std::make_unique<ui_radiobutton_group>("language", false);
-	lang_group->add_child(std::make_unique<ui_radio_choice>("C++", "C++", 'C', true));
-	lang_group->add_child(std::make_unique<ui_radio_choice>("C", "C", 'a', false));
-	lang_group->add_child(std::make_unique<ui_radio_choice>("Python", "Python", 'P', false));
-	lang_group->add_child(std::make_unique<ui_radio_choice>("Rust", "Rust", 'R', false));
-	lang_group->add_child(std::make_unique<ui_radio_choice>("SystemVerilog", "SystemVerilog", 'S', false));
-	lang_group->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'O', false));
+	for (const auto &preset : turbostar::project_template_manager::get_language_presets()) {
+		lang_group->add_child(std::make_unique<ui_radio_choice>(preset.language, preset.language, preset.hotkey, preset.language == "C++"));
+	}
 	page1->add_child(std::move(lang_group));
 
 	wizard_ptr->add_page(std::move(page1));
@@ -475,57 +472,20 @@ std::unique_ptr<dialog> create_new_project_dialog()
 			build_group_ptr->clear_children();
 			std_group_ptr->clear_children();
 
-			if (selected_lang == "C++") {
-				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Meson", "Meson", 'M', true));
-				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("CMake", "CMake", 'K', false));
-				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'O', false));
+			const auto *preset = turbostar::project_template_manager::find_language_preset(selected_lang);
+			if (!preset) {
+				preset = turbostar::project_template_manager::find_language_preset("Other");
+			}
 
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("C++23", "C++23", '3', true));
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("C++20", "C++20", '0', false));
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("C++17", "C++17", '7', false));
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'r', false));
-			} else if (selected_lang == "C") {
-				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Meson", "Meson", 'M', true));
-				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("CMake", "CMake", 'K', false));
-				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'O', false));
-
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("C17", "C17", '7', true));
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("C11", "C11", '1', false));
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("C99", "C99", '9', false));
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'r', false));
-			} else if (selected_lang == "Python") {
-				build_group_ptr->add_child(
-				    std::make_unique<ui_radio_choice>("pyproject.toml", "pyproject.toml", 'p', true));
-				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Meson", "Meson", 'M', false));
-				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'O', false));
-
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("3.11+", "3.11+", '1', true));
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("3.10", "3.10", '0', false));
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("3.9", "3.9", '9', false));
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'r', false));
-			} else if (selected_lang == "Rust") {
-				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Cargo", "Cargo", 'C', true));
-				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'O', false));
-
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("2021 Edition", "2021 Edition", '1', true));
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("2018 Edition", "2018 Edition", '8', false));
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'r', false));
-			} else if (selected_lang == "SystemVerilog") {
-				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Meson (FPGA)", "Meson (FPGA)", 'F', true));
-				build_group_ptr->add_child(
-				    std::make_unique<ui_radio_choice>("Meson (Verilator)", "Meson (Verilator)", 'V', false));
-				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("None / Custom", "None / Custom", 'N', false));
-				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'O', false));
-
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("IEEE 1800-2017", "IEEE 1800-2017", '7', true));
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("IEEE 1800-2012", "IEEE 1800-2012", '2', false));
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("IEEE 1800-2005", "IEEE 1800-2005", '5', false));
-				std_group_ptr->add_child(std::make_unique<ui_radio_choice>("Other", "Other", 'r', false));
-			} else {
-				// Other language
-				build_group_ptr->add_child(std::make_unique<ui_radio_choice>("None / Custom", "None / Custom", 'N', true));
-				std_group_ptr->add_child(
-				    std::make_unique<ui_radio_choice>("Custom / Default", "Custom / Default", 'D', true));
+			if (preset) {
+				for (const auto &bs : preset->buildsystems) {
+					bool sel = (bs.name == preset->default_buildsystem);
+					build_group_ptr->add_child(std::make_unique<ui_radio_choice>(bs.name, bs.name, bs.hotkey, sel));
+				}
+				for (const auto &std_opt : preset->standards) {
+					bool sel = (std_opt.name == preset->default_standard);
+					std_group_ptr->add_child(std::make_unique<ui_radio_choice>(std_opt.name, std_opt.name, std_opt.hotkey, sel));
+				}
 			}
 			build_group_ptr->flow();
 			std_group_ptr->flow();

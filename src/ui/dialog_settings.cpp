@@ -9,6 +9,7 @@
 #include "a2a/a2a_server.h"
 #include "config_manager.h"
 #include "project_manager.h"
+#include "project_template_manager.h"
 #include "syntax_color_manager.h"
 
 #include "ui/components/ui_buttons_horizontal.h"
@@ -27,24 +28,9 @@
 
 #include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace {
-
-struct lang_preset_option {
-	std::string name;
-	char hotkey;
-};
-
-const std::unordered_map<std::string, std::vector<lang_preset_option>> LANGUAGE_PRESETS = {
-	{"C++", {{"C++23", '3'}, {"C++20", '0'}, {"C++17", '7'}, {"Other", 'r'}}},
-	{"C", {{"C17", '7'}, {"C11", '1'}, {"C99", '9'}, {"Other", 'r'}}},
-	{"Python", {{"3.11+", '1'}, {"3.10", '0'}, {"3.9", '9'}, {"Other", 'r'}}},
-	{"Rust", {{"2021 Edition", '1'}, {"2018 Edition", '8'}, {"Other", 'r'}}},
-	{"SystemVerilog", {{"IEEE 1800-2017", '7'}, {"IEEE 1800-2012", '2'}, {"IEEE 1800-2005", '5'}, {"Other", 'r'}}},
-	{"Other", {{"Custom / Default", 'D'}}}
-};
 
 void populate_language_standards(ui_radiobutton_group *std_radio, ui_textbox *custom_tb,
                                  const std::string &lang, const std::string &preferred_version)
@@ -53,16 +39,20 @@ void populate_language_standards(ui_radiobutton_group *std_radio, ui_textbox *cu
 		return;
 	std_radio->clear_children();
 
-	auto it = LANGUAGE_PRESETS.find(lang);
-	const auto &presets = (it != LANGUAGE_PRESETS.end()) ? it->second : LANGUAGE_PRESETS.at("Other");
+	const auto *preset = turbostar::project_template_manager::find_language_preset(lang);
+	if (!preset) {
+		preset = turbostar::project_template_manager::find_language_preset("Other");
+	}
+	if (!preset)
+		return;
 
 	bool matched = false;
 	std::string match_target = preferred_version;
-	if (match_target.empty() && !presets.empty()) {
-		match_target = presets.front().name;
+	if (match_target.empty()) {
+		match_target = preset->default_standard;
 	}
 
-	for (const auto &opt : presets) {
+	for (const auto &opt : preset->standards) {
 		bool is_sel = (!matched && (opt.name == match_target));
 		if (is_sel) {
 			matched = true;
@@ -342,24 +332,17 @@ std::unique_ptr<dialog> create_editor_settings_dialog()
 	auto lang_radio = std::make_unique<ui_radiobutton_group>("primary_language");
 	auto *lang_radio_ptr = lang_radio.get();
 
-	std::vector<std::pair<std::string, char>> lang_choices = {
-		{"C++", 'C'},
-		{"C", 'a'},
-		{"Python", 'P'},
-		{"Rust", 'R'},
-		{"SystemVerilog", 'S'},
-		{"Other", 'O'}
-	};
+	const auto &presets = turbostar::project_template_manager::get_language_presets();
 	std::string current_lang = config_manager::get_instance().get_primary_language();
 	std::string current_ver = config_manager::get_instance().get_primary_language_version();
 
 	bool lang_matched = false;
-	for (const auto &item : lang_choices) {
-		bool sel = (!lang_matched && current_lang == item.first);
+	for (const auto &item : presets) {
+		bool sel = (!lang_matched && current_lang == item.language);
 		if (sel) {
 			lang_matched = true;
 		}
-		lang_radio->add_child(std::make_unique<ui_radio_choice>(item.first, item.first, item.second, sel));
+		lang_radio->add_child(std::make_unique<ui_radio_choice>(item.language, item.language, item.hotkey, sel));
 	}
 	if (!lang_matched) {
 		for (auto &child : lang_radio->children()) {

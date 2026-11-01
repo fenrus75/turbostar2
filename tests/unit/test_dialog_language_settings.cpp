@@ -3,6 +3,7 @@
 #include <iostream>
 #include <memory>
 #include "config_manager.h"
+#include "project_template_manager.h"
 #include "test_watchdog.h"
 #include "ui/dialog.h"
 #include "ui/dialog_factories.h"
@@ -123,6 +124,23 @@ int main()
 	assert(cfg.get_primary_language() == "C++");
 	assert(cfg.get_primary_language_version() == "C++26");
 
-	std::cout << "All language tab tests passed successfully!" << std::endl;
+	// Case 6: Verify shared language presets consistency with New Project Wizard
+	auto wizard_dlg = create_new_project_dialog();
+	assert(wizard_dlg != nullptr);
+	wizard_dlg->flow();
+
+	const auto &presets = turbostar::project_template_manager::get_language_presets();
+	assert(!presets.empty());
+	for (const auto &preset : presets) {
+		const auto *found = turbostar::project_template_manager::find_language_preset(preset.language);
+		assert(found != nullptr);
+		assert(found->language == preset.language);
+		assert(!found->standards.empty());
+		assert(!found->buildsystems.empty());
+		assert(!found->default_standard.empty());
+		assert(!found->default_buildsystem.empty());
+	}
+
+	std::cout << "All language tab and shared preset tests passed successfully!" << std::endl;
 	return 0;
 }

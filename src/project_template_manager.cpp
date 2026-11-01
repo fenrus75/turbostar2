@@ -45,6 +45,59 @@ std::vector<template_info> project_template_manager::get_available_templates() c
 	};
 }
 
+const std::vector<language_preset_definition> &project_template_manager::get_language_presets()
+{
+	static const std::vector<language_preset_definition> presets = {
+	    {"C++",
+	     'C',
+	     {{"C++23", '3'}, {"C++20", '0'}, {"C++17", '7'}, {"Other", 'r'}},
+	     {{"Meson", 'M'}, {"CMake", 'K'}, {"Other", 'O'}},
+	     "C++23",
+	     "Meson"},
+	    {"C",
+	     'a',
+	     {{"C17", '7'}, {"C11", '1'}, {"C99", '9'}, {"Other", 'r'}},
+	     {{"Meson", 'M'}, {"CMake", 'K'}, {"Other", 'O'}},
+	     "C17",
+	     "Meson"},
+	    {"Python",
+	     'P',
+	     {{"3.11+", '1'}, {"3.10", '0'}, {"3.9", '9'}, {"Other", 'r'}},
+	     {{"pyproject.toml", 'p'}, {"Meson", 'M'}, {"Other", 'O'}},
+	     "3.11+",
+	     "pyproject.toml"},
+	    {"Rust",
+	     'R',
+	     {{"2021 Edition", '1'}, {"2018 Edition", '8'}, {"Other", 'r'}},
+	     {{"Cargo", 'C'}, {"Other", 'O'}},
+	     "2021 Edition",
+	     "Cargo"},
+	    {"SystemVerilog",
+	     'S',
+	     {{"IEEE 1800-2017", '7'}, {"IEEE 1800-2012", '2'}, {"IEEE 1800-2005", '5'}, {"Other", 'r'}},
+	     {{"Meson (FPGA)", 'F'}, {"Meson (Verilator)", 'V'}, {"None / Custom", 'N'}, {"Other", 'O'}},
+	     "IEEE 1800-2017",
+	     "Meson (FPGA)"},
+	    {"Other",
+	     'O',
+	     {{"Custom / Default", 'D'}},
+	     {{"None / Custom", 'N'}},
+	     "Custom / Default",
+	     "None / Custom"}};
+	return presets;
+}
+
+const language_preset_definition *project_template_manager::find_language_preset(std::string_view language)
+{
+	const auto &presets = get_language_presets();
+	for (const auto &p : presets) {
+		if (p.language == language) {
+			return &p;
+		}
+	}
+	return nullptr;
+}
+
 bool project_template_manager::is_directory_empty(const std::filesystem::path &dir)
 {
 	if (!std::filesystem::exists(dir)) {
