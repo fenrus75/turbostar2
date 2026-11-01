@@ -23,7 +23,7 @@ void syntax_color_manager::initialize()
 	// Register initial defaults
 	attribute_colors_[syntax_attribute::normal] = {COLOR_YELLOW + 8, COLOR_BLUE};
 	attribute_colors_[syntax_attribute::keyword] = {COLOR_WHITE + 8, COLOR_BLUE};
-	attribute_colors_[syntax_attribute::comment] = {COLOR_BLACK + 8, COLOR_BLUE};
+	attribute_colors_[syntax_attribute::comment] = {COLOR_CYAN + 8, COLOR_BLUE};
 	attribute_colors_[syntax_attribute::string_literal] = {COLOR_GREEN + 8, COLOR_BLUE};
 	attribute_colors_[syntax_attribute::heading] = {COLOR_CYAN + 8, COLOR_BLUE};
 	attribute_colors_[syntax_attribute::bold] = {COLOR_YELLOW + 8, COLOR_BLUE};

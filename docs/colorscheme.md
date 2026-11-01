@@ -18,6 +18,8 @@ Based on the classic Turbo Pascal 7 interface, Turbostar uses the following prim
 | **Mouse Selection** | Bright White | Light Blue | 41 | Text selected via mouse drag. |
 | **Desktop Pattern** | Dark Gray | Black | 9 | The dithered `▒` background. |
 | **Syntax: Keyword** | Bright White | Dark Blue | 12 | C++ keywords like `void`, `int`, etc. |
+| **Syntax: Comment** | Bright Cyan | Dark Blue | 80 | C++ single-line and multi-line comments. |
+| **Syntax: String** | Bright Green | Dark Blue | 81 | C++ string literals. |
 | **Syntax: Sel. Keyword** | Bright Yellow | Cyan | 13 | Keyword within a block selection. |
 | **Syntax: Mouse Sel. Keyword** | Bright Yellow | Light Blue | 42 | Keyword within a mouse selection. |
 
