@@ -21,13 +21,32 @@
 #include <cassert>
 #include <iostream>
 
+extern "C" {
+void register_vcd_file_info();
+void unregister_vcd_file_info();
+void register_vcd_wave();
+void unregister_vcd_wave();
+void register_vcd_signal_labels();
+void unregister_vcd_signal_labels();
+void register_vcd_search();
+void unregister_vcd_search();
+void register_vcd_signal_qualifier();
+void unregister_vcd_signal_qualifier();
+void register_vcd_signal_to_code();
+void unregister_vcd_signal_to_code();
+void register_vcd_compare();
+void unregister_vcd_compare();
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
 
 	const std::string vcd_path = "tests/fixtures/test_dump.vcd";
-
-	// 1. Direct vcd_parser tests
+	agentlib::tool_context global_ctx;
+	global_ctx.fs_security.add_allowed_root("tests/fixtures", agentlib::access_type::read);
+	global_ctx.fs_security.add_allowed_root("tests/fixtures", agentlib::access_type::write);
+	global_ctx.fs_security.set_working_directory(".");
 	{
 		verilog::vcd_parser parser;
 		std::string err;
@@ -897,9 +916,247 @@ int main()
 		valid = compare_validator.validate_args(missing_b_args, ctx, err);
 		assert(!valid);
 		assert(err.find("Missing required") != std::string::npos);
+
+		// 12h. Compare with use_qualifiers: false
+		nlohmann::json raw_compare_args = {
+			{"path_a", org_vcd},
+			{"path_b", mut_vcd},
+			{"use_qualifiers", false},
+			{"start_tick", 0},
+			{"end_tick", 5}
+		};
+		err.clear();
+		valid = compare_validator.validate_args(raw_compare_args, ctx, err);
+		assert(valid && err.empty());
+		auto raw_tool = compare_validator.create_tool(raw_compare_args);
+		std::string raw_out = raw_tool->execute(ctx);
+		assert(raw_out.find("### VCD Compare: MATCH") != std::string::npos);
+
+		// 12i. Compare edge and time filtering options
+		nlohmann::json filter_args = {
+			{"path_a", org_vcd},
+			{"path_b", mut_vcd},
+			{"edge", "both"},
+			{"start_time", 0},
+			{"end_time", 50000},
+			{"strict", false}
+		};
+		err.clear();
+		valid = compare_validator.validate_args(filter_args, ctx, err);
+		assert(valid && err.empty());
+
+		// 12j. Compare invalid edge parameter
+		nlohmann::json bad_edge_args = {
+			{"path_a", org_vcd},
+			{"path_b", mut_vcd},
+			{"edge", "invalid_edge"}
+		};
+		err.clear();
+		valid = compare_validator.validate_args(bad_edge_args, ctx, err);
+		assert(!valid);
+		assert(err.find("Invalid 'edge' argument") != std::string::npos);
 	}
 
-	// Clean up any test sidecar created during tests
+	// 13. Test validator edge cases & parameter coverage
+	{
+		agentlib::tool_context ctx;
+		ctx.fs_security.add_allowed_root("tests/fixtures", agentlib::access_type::read);
+		ctx.fs_security.set_working_directory(".");
+		std::string err;
+
+		// 13a. vcd_search_validator parameter edge cases
+		tools::vcd_search_validator search_val;
+		nlohmann::json search_full_args = {
+			{"path", vcd_path},
+			{"signal", "opcode"},
+			{"value", "0x06"},
+			{"edge", "both"},
+			{"direction", "backward"},
+			{"limit", 5},
+			{"start_tick", 2},
+			{"end_tick", 10},
+			{"start_time", 1000},
+			{"end_time", 200000}
+		};
+		bool ok = search_val.validate_args(search_full_args, ctx, err);
+		assert(ok && err.empty());
+
+		nlohmann::json bad_dir_args = {
+			{"path", vcd_path},
+			{"signal", "opcode"},
+			{"value", "0x06"},
+			{"direction", "sideways"}
+		};
+		assert(!search_val.validate_args(bad_dir_args, ctx, err));
+		assert(err.find("Invalid 'direction' argument") != std::string::npos);
+
+		nlohmann::json bad_edge_search = {
+			{"path", vcd_path},
+			{"signal", "opcode"},
+			{"value", "0x06"},
+			{"edge", "falling"}
+		};
+		assert(!search_val.validate_args(bad_edge_search, ctx, err));
+
+		nlohmann::json bad_cond_array = {
+			{"path", vcd_path},
+			{"conditions", nlohmann::json::array({"not_an_object"})}
+		};
+		assert(!search_val.validate_args(bad_cond_array, ctx, err));
+
+		nlohmann::json bad_cond_empty_sig = {
+			{"path", vcd_path},
+			{"conditions", {{"", "val"}}}
+		};
+		assert(!search_val.validate_args(bad_cond_empty_sig, ctx, err));
+
+		// 13b. vcd_wave_validator parameter edge cases
+		tools::vcd_wave_validator wave_val;
+		nlohmann::json wave_full_args = {
+			{"path", vcd_path},
+			{"signals", nlohmann::json::array({"opcode"})},
+			{"edge", "negedge"},
+			{"clock_signal", "tb_main.clk"},
+			{"start_tick", 1},
+			{"end_tick", 10},
+			{"start_time", 5000},
+			{"end_time", 100000},
+			{"max_rows", 15},
+			{"collapse_idle", false}
+		};
+		err.clear();
+		assert(wave_val.validate_args(wave_full_args, ctx, err));
+
+		nlohmann::json bad_edge_wave = {
+			{"path", vcd_path},
+			{"signals", nlohmann::json::array({"opcode"})},
+			{"edge", "bad_edge"}
+		};
+		assert(!wave_val.validate_args(bad_edge_wave, ctx, err));
+
+		// 13c. vcd_file_info_tool with max_signals limit
+		tools::vcd_file_info_validator info_val;
+		nlohmann::json info_limit_args = {
+			{"path", vcd_path},
+			{"scope", "tb_main.uut"},
+			{"filter", "*"},
+			{"max_signals", 5}
+		};
+		err.clear();
+		assert(info_val.validate_args(info_limit_args, ctx, err));
+		auto info_tool = info_val.create_tool(info_limit_args);
+		std::string info_out = info_tool->execute(ctx);
+		assert(info_out.find("additional signals omitted") != std::string::npos);
+		tools::vcd_signal_qualifier_validator qual_val;
+		nlohmann::json batch_q_args = {
+			{"path", vcd_path},
+			{"bindings", {
+				{"opcode_byte", "opcode_valid"},
+				{"next_opcode_byte", "opcode_valid"}
+			}}
+		};
+		err.clear();
+		assert(qual_val.validate_args(batch_q_args, ctx, err));
+		auto batch_q_tool = qual_val.create_tool(batch_q_args);
+		std::string batch_out = batch_q_tool->execute(ctx);
+		assert(batch_out.find("Registered 2 signal qualifier binding(s)") != std::string::npos);
+
+		nlohmann::json clear_all_q = {
+			{"path", vcd_path},
+			{"clear", true}
+		};
+		err.clear();
+		assert(qual_val.validate_args(clear_all_q, ctx, err));
+		auto clear_q_tool = qual_val.create_tool(clear_all_q);
+		std::string clear_out = clear_q_tool->execute(ctx);
+		assert(clear_out.find("Cleared all signal qualifiers") != std::string::npos);
+	}
+
+	// 14. Test C registration/unregistration hooks for all tools
+	{
+		register_vcd_file_info();
+		register_vcd_wave();
+		register_vcd_signal_labels();
+		register_vcd_search();
+		register_vcd_signal_qualifier();
+		register_vcd_signal_to_code();
+		register_vcd_compare();
+
+		unregister_vcd_file_info();
+		unregister_vcd_wave();
+		unregister_vcd_signal_labels();
+		unregister_vcd_search();
+		unregister_vcd_signal_qualifier();
+		unregister_vcd_signal_to_code();
+		unregister_vcd_compare();
+	}
+	{
+		tools::vcd_compare_validator comp_val;
+		std::string err;
+
+		// Strict mode failure when signal filter creates unequal signal sets
+		nlohmann::json strict_args = {
+			{"path_a", "tests/fixtures/test_dump_org.vcd"},
+			{"path_b", "tests/fixtures/test_dump_mutated.vcd"},
+			{"filter", "clk,reset,opcode_byte"},
+			{"strict", true}
+		};
+		// They have same signals, but if we compare with filter where one signal exists only in one or no common signals:
+		nlohmann::json no_common_args = {
+			{"path_a", "tests/fixtures/test_dump_org.vcd"},
+			{"path_b", "tests/fixtures/test_dump_mutated.vcd"},
+			{"signals", {"nonexistent_signal_xyz"}}
+		};
+		err.clear();
+		assert(comp_val.validate_args(no_common_args, global_ctx, err));
+		auto no_common_tool = comp_val.create_tool(no_common_args);
+		std::string no_common_out = no_common_tool->execute(global_ctx);
+		assert(no_common_out.find("No common signals found") != std::string::npos);
+
+		// Identical comparison (comparing file with itself -> MATCH)
+		nlohmann::json match_args = {
+			{"path_a", "tests/fixtures/test_dump_org.vcd"},
+			{"path_b", "tests/fixtures/test_dump_org.vcd"},
+			{"signals", {"tb_main.clk", "tb_main.reset", "tb_main.uut.opcode_byte"}},
+			{"end_tick", 10}
+		};
+		std::string err_m;
+		bool ok = comp_val.validate_args(match_args, global_ctx, err_m);
+		assert(ok);
+		auto match_tool = comp_val.create_tool(match_args);
+		std::string match_out = match_tool->execute(global_ctx);
+		assert(match_out.find("### VCD Compare: MATCH") != std::string::npos);
+		assert(match_out.find("0 differences detected") != std::string::npos);
+	}
+
+	// 16. Test vcd_signal_to_code netlist error cases
+	{
+		tools::vcd_signal_to_code_validator s2c_val;
+		std::string err;
+		// Explicit nonexistent netlist
+		nlohmann::json nonexist_netlist = {
+			{"signal", "uut.opcode"},
+			{"netlist", "tests/fixtures/does_not_exist_netlist_123.json"}
+		};
+		err.clear();
+		assert(s2c_val.validate_args(nonexist_netlist, global_ctx, err));
+		auto nonexist_tool = s2c_val.create_tool(nonexist_netlist);
+		std::string nonexist_out = nonexist_tool->execute(global_ctx);
+		assert(nonexist_out.find("Error loading netlist") != std::string::npos);
+
+		// Signal not found in valid netlist
+		nlohmann::json not_found_sig = {
+			{"signal", "nonexistent_signal_xyz"},
+			{"netlist", "tests/fixtures/test_netlist.json"}
+		};
+		err.clear();
+		assert(s2c_val.validate_args(not_found_sig, global_ctx, err));
+		auto not_found_tool = s2c_val.create_tool(not_found_sig);
+		std::string not_found_out = not_found_tool->execute(global_ctx);
+		assert(not_found_out.find("not found in netlist") != std::string::npos);
+	}
+
+	// Clean up any test sidecars created during tests
 	std::filesystem::remove(vcd_path + ".labels.json");
 	std::filesystem::remove("tests/fixtures/test_dump_org.vcd.labels.json");
 	std::filesystem::remove("tests/fixtures/test_dump_org.vcd.qualifiers.json");
