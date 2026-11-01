@@ -12,3 +12,4 @@ Key capabilities:
 ## Lessons Learned
 - VCD variable identifiers are frequently shared across multiple hierarchical scopes (e.g. connected ports and module wires). The parser maintains an ID-to-signal multimap to avoid duplicate state tracking while allowing any hierarchical alias to be queried.
 - Simulators like Verilator omit `$dumpvars` tags in certain tracing configurations. Parsing body value changes directly after `$enddefinitions $end` ensures compatibility across all standard simulator outputs.
+- In complex designs, agents often request signals by short name or partial hierarchy (e.g. `block2.reset` after `block1.block2.clock`). Suffix and leaf matching with contextual scope preference allows seamless disambiguation of shorthand signal queries.

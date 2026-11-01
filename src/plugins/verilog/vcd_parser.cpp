@@ -277,24 +277,85 @@ void vcd_parser::parse_body_tokens(const std::string &content)
 	}
 }
 
-const vcd_signal *vcd_parser::find_signal(std::string_view name_or_path) const
+const vcd_signal *vcd_parser::find_signal(std::string_view name_or_path, std::string_view preferred_scope) const
 {
+	// 1. Exact full-name match
 	auto it = name_to_signal_idx_.find(std::string(name_or_path));
 	if (it != name_to_signal_idx_.end()) {
 		return &signals_[it->second];
 	}
 
-	// Try searching by short name if unambiguous
-	const vcd_signal *matched = nullptr;
+	// Helper to check case-insensitive match
+	auto iequals = [](std::string_view a, std::string_view b) {
+		return std::ranges::equal(a, b, [](char c1, char c2) {
+			return std::tolower(static_cast<unsigned char>(c1)) == std::tolower(static_cast<unsigned char>(c2));
+		});
+	};
+
+	// 2. Hierarchical suffix match (e.g. query "uut.cpu8008.opcode" or "cpu8008.opcode")
+	std::string dot_query = std::format(".{}", name_or_path);
+	std::vector<const vcd_signal *> suffix_matches;
+	std::vector<const vcd_signal *> leaf_matches;
+
 	for (const auto &sig : signals_) {
-		if (sig.short_name == name_or_path) {
-			if (matched != nullptr) {
-				return nullptr; // Ambiguous match
-			}
-			matched = &sig;
+		if (sig.full_name.ends_with(dot_query) || iequals(sig.full_name, name_or_path)) {
+			suffix_matches.push_back(&sig);
+		} else if (sig.short_name == name_or_path || iequals(sig.short_name, name_or_path)) {
+			leaf_matches.push_back(&sig);
 		}
 	}
-	return matched;
+
+	// Helper to pick candidate matching preferred_scope
+	auto pick_preferred = [&](const std::vector<const vcd_signal *> &candidates) -> const vcd_signal * {
+		if (candidates.empty()) return nullptr;
+		if (candidates.size() == 1) return candidates.front();
+
+		if (!preferred_scope.empty()) {
+			// Try exact scope match or longest prefix match with preferred_scope
+			const vcd_signal *best = nullptr;
+			size_t best_prefix_len = 0;
+			for (const auto *cand : candidates) {
+				if (cand->scope == preferred_scope) {
+					return cand;
+				}
+				// Check common prefix length between cand->scope and preferred_scope
+				size_t common = 0;
+				while (common < cand->scope.size() && common < preferred_scope.size() &&
+				       cand->scope[common] == preferred_scope[common]) {
+					++common;
+				}
+				if (common > best_prefix_len) {
+					best_prefix_len = common;
+					best = cand;
+				}
+			}
+			if (best && best_prefix_len > 0) {
+				return best;
+			}
+		}
+
+		// If no preferred scope match, pick the shallowest scope depth
+		const vcd_signal *shallowest = candidates.front();
+		size_t min_dots = std::ranges::count(shallowest->full_name, '.');
+		for (size_t i = 1; i < candidates.size(); ++i) {
+			size_t dots = std::ranges::count(candidates[i]->full_name, '.');
+			if (dots < min_dots) {
+				min_dots = dots;
+				shallowest = candidates[i];
+			}
+		}
+		return shallowest;
+	};
+
+	if (!suffix_matches.empty()) {
+		return pick_preferred(suffix_matches);
+	}
+
+	if (!leaf_matches.empty()) {
+		return pick_preferred(leaf_matches);
+	}
+
+	return nullptr;
 }
 
 std::vector<const vcd_signal *> vcd_parser::filter_signals(std::string_view scope_filter, std::string_view glob_pattern) const
@@ -433,6 +494,8 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 	};
 
 	std::vector<requested_desc> reqs;
+	std::string last_resolved_scope;
+
 	for (const auto &req_str : requested_signals) {
 		requested_desc desc;
 		desc.key = req_str;
@@ -441,11 +504,12 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 			desc.format_override = lookup_name[0];
 			lookup_name.remove_prefix(2);
 		}
-		desc.signal = find_signal(lookup_name);
+		desc.signal = find_signal(lookup_name, last_resolved_scope);
 		if (!desc.signal) {
 			out_error = std::format("Signal '{}' not found in VCD file", req_str);
 			return {};
 		}
+		last_resolved_scope = desc.signal->scope;
 		reqs.push_back(desc);
 	}
 

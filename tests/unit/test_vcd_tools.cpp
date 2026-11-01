@@ -115,7 +115,7 @@ int main()
 
 		nlohmann::json args = {
 			{"path", vcd_path},
-			{"signals", nlohmann::json::array({"tb_main.uut.cpu8008.opcode", "x:tb_main.uut.cpu8008.current_ip"})},
+			{"signals", nlohmann::json::array({"tb_main.uut.cpu8008.opcode", "x:current_ip", "rst"})},
 			{"start_tick", 0},
 			{"end_tick", 5},
 			{"edge", "posedge"}
@@ -132,6 +132,25 @@ int main()
 		assert(output.find("VCD Waveform") != std::string::npos);
 		assert(output.find("Tick") != std::string::npos);
 		assert(output.find("0x") != std::string::npos); // Formatted hex values
+	}
+
+	// 4. Test suffix & contextual scope resolution in vcd_parser
+	{
+		verilog::vcd_parser parser;
+		std::string err;
+		bool ok = parser.parse_all(vcd_path, err);
+		assert(ok);
+
+		// Disambiguation using preceding signal's scope:
+		// "tb_main.uut.cpu8008.clk" establishes scope "tb_main.uut.cpu8008".
+		// Following with "mem_read_data" should resolve to "tb_main.uut.cpu8008.mem_read_data",
+		// not "tb_main.uut.mem_read_data".
+		const auto *first = parser.find_signal("tb_main.uut.cpu8008.clk");
+		assert(first != nullptr);
+
+		const auto *contextual = parser.find_signal("mem_read_data", first->scope);
+		assert(contextual != nullptr);
+		assert(contextual->full_name == "tb_main.uut.cpu8008.mem_read_data");
 	}
 
 	std::cout << "All VCD unit tests passed!\n";

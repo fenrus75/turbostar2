@@ -56,8 +56,8 @@ class vcd_parser
 	uint64_t get_end_time() const noexcept { return end_time_; }
 	const std::vector<vcd_signal> &get_signals() const noexcept { return signals_; }
 
-	// Signal lookups
-	const vcd_signal *find_signal(std::string_view name_or_path) const;
+	// Signal lookups with optional context scope preference for ambiguous suffix/leaf matches
+	const vcd_signal *find_signal(std::string_view name_or_path, std::string_view preferred_scope = "") const;
 	std::vector<const vcd_signal *> filter_signals(std::string_view scope_filter, std::string_view glob_pattern) const;
 
 	// Clock analysis
