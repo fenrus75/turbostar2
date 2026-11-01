@@ -201,4 +201,13 @@ markdown_extract_plugin = shared_module('markdown_extract',
   install_dir: plugin_dir
 )
 
+verilog_plugin = shared_module('verilog',
+  ['verilog/plugin.cpp'],
+  dependencies: [nlohmann_json_dep],
+  include_directories: inc,
+  install: true,
+  name_prefix: '',
+  install_dir: plugin_dir
+)
+
 

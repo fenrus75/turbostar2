@@ -78,6 +78,13 @@ int main()
 		assert(registry.has_tool_family("image"));
 	}
 
+	// Verify that the verilog plugin loaded and registered its tool family
+	{
+		auto &registry = agentlib::tool_registry::get_instance();
+		assert(registry.has_tool_family("verilog"));
+		assert(registry.get_tool_family_reason("verilog").find("Verilog/SystemVerilog") != std::string::npos);
+	}
+
 	std::cout << "pluginloader unit tests passed!\n";
 	return 0;
 }
