@@ -10,6 +10,8 @@
 #include "plugins/verilog/vcd_signal_labels_validator.h"
 #include "plugins/verilog/vcd_search_tool.h"
 #include "plugins/verilog/vcd_search_validator.h"
+#include "plugins/verilog/vcd_signal_qualifier_tool.h"
+#include "plugins/verilog/vcd_signal_qualifier_validator.h"
 #include "agentlib/tool_context.h"
 #include <cassert>
 #include <iostream>
@@ -480,6 +482,114 @@ int main()
 		auto no_match_tool = search_validator.create_tool(no_match_args);
 		std::string no_match_out = no_match_tool->execute(ctx);
 		assert(no_match_out.find("No clock cycles matched") != std::string::npos);
+	}
+
+	// 10. vcd_signal_qualifier tool and validity masking tests
+	{
+		// 10a. Qualifier logic checks for 0, 1, x, z and active-low
+		assert(verilog::vcd_label_manager::is_qualifier_valid("1", false));
+		assert(!verilog::vcd_label_manager::is_qualifier_valid("0", false));
+		assert(!verilog::vcd_label_manager::is_qualifier_valid("x", false));
+		assert(!verilog::vcd_label_manager::is_qualifier_valid("z", false));
+		assert(!verilog::vcd_label_manager::is_qualifier_valid("1", true));
+		assert(verilog::vcd_label_manager::is_qualifier_valid("0", true));
+		assert(!verilog::vcd_label_manager::is_qualifier_valid("x", true));
+		assert(!verilog::vcd_label_manager::is_qualifier_valid("z", true));
+
+		agentlib::tool_context ctx;
+		ctx.fs_security.add_allowed_root("tests/fixtures", agentlib::access_type::read);
+		ctx.fs_security.set_working_directory(".");
+
+		tools::vcd_signal_qualifier_validator qual_validator;
+		assert(qual_validator.get_name() == "vcd_signal_qualifier");
+		assert(qual_validator.get_family() == "verilog");
+		assert(!qual_validator.is_pure());
+		std::string err;
+
+		// 10b. Register single qualifier: opcode_data qualified by opcode_data_valid
+		nlohmann::json reg_args = {
+			{"path", vcd_path},
+			{"signal", "opcode_data"},
+			{"qualifier", "opcode_data_valid"}
+		};
+		bool valid = qual_validator.validate_args(reg_args, ctx, err);
+		assert(valid && err.empty());
+		auto reg_tool = qual_validator.create_tool(reg_args);
+		std::string reg_out = reg_tool->execute(ctx);
+		assert(reg_out.find("Bound `opcode_data`") != std::string::npos);
+		assert(reg_out.find("Active-High (`1` = valid)") != std::string::npos);
+
+		// 10c. Register warning for non-existent signal
+		nlohmann::json warn_args = {
+			{"path", vcd_path},
+			{"signal", "non_existent_data_bus"},
+			{"qualifier", "non_existent_valid_bit"}
+		};
+		valid = qual_validator.validate_args(warn_args, ctx, err);
+		assert(valid && err.empty());
+		auto warn_tool = qual_validator.create_tool(warn_args);
+		std::string warn_out = warn_tool->execute(ctx);
+		assert(warn_out.find("matches **0 signals**") != std::string::npos);
+
+		// 10d. Test vcd_wave rendering with qualifier: invalid cycles should render "-"
+		err.clear();
+		tools::vcd_wave_validator wave_validator;
+		nlohmann::json wave_args = {
+			{"path", vcd_path},
+			{"signals", nlohmann::json::array({"opcode_data", "opcode_data_valid"})},
+			{"max_rows", 20},
+			{"collapse_idle", false}
+		};
+		valid = wave_validator.validate_args(wave_args, ctx, err);
+		assert(valid && err.empty());
+		auto wave_tool = wave_validator.create_tool(wave_args);
+		std::string wave_out = wave_tool->execute(ctx);
+		// Verify table contains '-' when valid bit is 0
+		assert(wave_out.find("| - |") != std::string::npos);
+
+		// 10e. Test vcd_search with qualifier: search should not match cycles when invalid
+		err.clear();
+		tools::vcd_search_validator search_validator;
+		nlohmann::json search_args = {
+			{"path", vcd_path},
+			{"signal", "opcode_data"},
+			{"value", "0x00"}
+		};
+		valid = search_validator.validate_args(search_args, ctx, err);
+		assert(valid && err.empty());
+		auto search_tool = search_validator.create_tool(search_args);
+		std::string search_out = search_tool->execute(ctx);
+		// In test_dump.vcd, opcode_data is 0 at initial reset when opcode_data_valid is 0;
+		// Qualifier must filter those out so they are not matched or counted as valid.
+
+		// 10f. Batch registration with active-low prefix ("~" or "!")
+		err.clear();
+		nlohmann::json batch_args = {
+			{"path", vcd_path},
+			{"bindings", {
+				{"addr_lo", "addr_lo_valid"},
+				{"addr_hi", "~next_addr_hi_valid"}
+			}}
+		};
+		valid = qual_validator.validate_args(batch_args, ctx, err);
+		assert(valid && err.empty());
+		auto batch_tool = qual_validator.create_tool(batch_args);
+		std::string batch_out = batch_tool->execute(ctx);
+		assert(batch_out.find("Registered 2 signal qualifier binding(s)") != std::string::npos);
+		assert(batch_out.find("Active-Low (`0` = valid)") != std::string::npos);
+
+		// 10g. Clear all qualifiers
+		err.clear();
+		nlohmann::json clear_args = {
+			{"path", vcd_path},
+			{"clear", true}
+		};
+		valid = qual_validator.validate_args(clear_args, ctx, err);
+		assert(valid && err.empty());
+		auto clear_tool = qual_validator.create_tool(clear_args);
+		std::string clear_out = clear_tool->execute(ctx);
+		assert(clear_out.find("Cleared all signal qualifiers") != std::string::npos);
+		assert(clear_out.find("No signal qualifiers currently registered") != std::string::npos);
 	}
 
 	// Clean up any test sidecar created during tests

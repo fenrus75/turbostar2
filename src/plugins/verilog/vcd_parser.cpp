@@ -1,4 +1,5 @@
 #include "vcd_parser.h"
+#include "vcd_label_manager.h"
 #include <algorithm>
 #include <fstream>
 #include <format>
@@ -492,6 +493,8 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 		std::string key;
 		char format_override{' '}; // 'x' for hex, 'b' for binary
 		const vcd_signal *signal{nullptr};
+		const vcd_signal *qualifier_signal{nullptr};
+		bool qualifier_active_low{false};
 	};
 
 	std::vector<requested_desc> reqs;
@@ -511,6 +514,16 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 			return {};
 		}
 		last_resolved_scope = desc.signal->scope;
+
+		// Check if signal has a qualifier bound in vcd_label_manager
+		auto [qual_name, active_low] = verilog::vcd_label_manager::get_instance().find_qualifier(
+			file_path_, desc.signal->full_name
+		);
+		if (!qual_name.empty()) {
+			desc.qualifier_signal = find_signal(qual_name, desc.signal->scope);
+			desc.qualifier_active_low = active_low;
+		}
+
 		reqs.push_back(desc);
 	}
 
@@ -588,6 +601,15 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 						current_values[r.signal->id_code] = v_it->second;
 					}
 				}
+				if (r.qualifier_signal) {
+					const auto &q_map = id_transitions_.find(r.qualifier_signal->id_code);
+					if (q_map != id_transitions_.end()) {
+						auto v_it = q_map->second.find(t);
+						if (v_it != q_map->second.end()) {
+							current_values[r.qualifier_signal->id_code] = v_it->second;
+						}
+					}
+				}
 			}
 			++time_it;
 		}
@@ -606,6 +628,20 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 		pt.edge = event.edge;
 
 		for (const auto &r : reqs) {
+			// Check qualifier validity if present
+			bool is_valid = true;
+			if (r.qualifier_signal) {
+				std::string q_val = current_values[r.qualifier_signal->id_code];
+				is_valid = verilog::vcd_label_manager::is_qualifier_valid(q_val, r.qualifier_active_low);
+			}
+
+			if (!is_valid) {
+				pt.signal_values[r.key] = "-";
+				pt.signal_raw_values[r.key] = "-";
+				pt.signal_full_names[r.key] = r.signal->full_name;
+				continue;
+			}
+
 			std::string raw = current_values[r.signal->id_code];
 			if (raw.empty()) raw = "x";
 

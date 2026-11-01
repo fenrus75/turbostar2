@@ -87,6 +87,13 @@ std::string vcd_search_tool::execute(agentlib::tool_context &ctx)
 	for (const auto &sample : samples) {
 		auto it_val = sample.signal_values.find(args_.signal);
 		std::string hex_val = (it_val != sample.signal_values.end()) ? it_val->second : "";
+		if (hex_val == "-") {
+			if (in_interval) {
+				all_intervals.push_back(cur_interval);
+				in_interval = false;
+			}
+			continue;
+		}
 		auto it_raw = sample.signal_raw_values.find(args_.signal);
 		std::string raw_bin = (it_raw != sample.signal_raw_values.end()) ? it_raw->second : "";
 

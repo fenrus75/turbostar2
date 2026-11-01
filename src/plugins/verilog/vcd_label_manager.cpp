@@ -179,6 +179,17 @@ bool vcd_label_manager::signal_pattern_matches(std::string_view pattern, std::st
 	return false;
 }
 
+bool vcd_label_manager::is_qualifier_valid(std::string_view qualifier_raw_val, bool active_low)
+{
+	// Single-bit qualifier: active_low expects "0", active_high expects "1"
+	// "x", "z", or empty are always invalid
+	if (active_low) {
+		return qualifier_raw_val == "0";
+	} else {
+		return qualifier_raw_val == "1";
+	}
+}
+
 std::string vcd_label_manager::normalize_hex_key(std::string_view val)
 {
 	std::string s(val);
@@ -243,12 +254,35 @@ void vcd_label_manager::load_sidecar_locked(std::string_view safe_path)
 		nlohmann::json j;
 		file >> j;
 		if (j.is_object()) {
-			for (auto &[sig, val_map] : j.items()) {
-				if (val_map.is_object()) {
-					for (auto &[val_str, label_str] : val_map.items()) {
-						if (label_str.is_string()) {
-							std::string norm = normalize_hex_key(val_str);
-							path_labels_[p][sig][norm] = label_str.get<std::string>();
+			if (j.contains("labels") || j.contains("qualifiers")) {
+				if (j.contains("labels") && j["labels"].is_object()) {
+					for (auto &[sig, val_map] : j["labels"].items()) {
+						if (val_map.is_object()) {
+							for (auto &[val_str, label_str] : val_map.items()) {
+								if (label_str.is_string()) {
+									std::string norm = normalize_hex_key(val_str);
+									path_labels_[p][sig][norm] = label_str.get<std::string>();
+								}
+							}
+						}
+					}
+				}
+				if (j.contains("qualifiers") && j["qualifiers"].is_object()) {
+					for (auto &[sig, q_str] : j["qualifiers"].items()) {
+						if (q_str.is_string()) {
+							path_qualifiers_[p][sig] = q_str.get<std::string>();
+						}
+					}
+				}
+			} else {
+				// Legacy format where entire root is signal -> val_map
+				for (auto &[sig, val_map] : j.items()) {
+					if (val_map.is_object()) {
+						for (auto &[val_str, label_str] : val_map.items()) {
+							if (label_str.is_string()) {
+								std::string norm = normalize_hex_key(val_str);
+								path_labels_[p][sig][norm] = label_str.get<std::string>();
+							}
 						}
 					}
 				}
@@ -263,8 +297,9 @@ bool vcd_label_manager::save_sidecar_locked(std::string_view safe_path, std::str
 	std::string sidecar_path = p + ".labels.json";
 
 	const auto &sig_map = path_labels_[p];
-	if (sig_map.empty()) {
-		// If map is completely empty, remove sidecar file if it exists
+	const auto &qual_map = path_qualifiers_[p];
+	if (sig_map.empty() && qual_map.empty()) {
+		// If both maps are completely empty, remove sidecar file if it exists
 		if (std::filesystem::exists(sidecar_path)) {
 			std::error_code ec;
 			std::filesystem::remove(sidecar_path, ec);
@@ -273,13 +308,22 @@ bool vcd_label_manager::save_sidecar_locked(std::string_view safe_path, std::str
 	}
 
 	nlohmann::json j = nlohmann::json::object();
+
+	nlohmann::json labels_obj = nlohmann::json::object();
 	for (const auto &[sig, val_map] : sig_map) {
 		nlohmann::json v_obj = nlohmann::json::object();
 		for (const auto &[val_key, label] : val_map) {
 			v_obj[val_key] = label;
 		}
-		j[sig] = v_obj;
+		labels_obj[sig] = v_obj;
 	}
+	j["labels"] = labels_obj;
+
+	nlohmann::json quals_obj = nlohmann::json::object();
+	for (const auto &[sig, q_expr] : qual_map) {
+		quals_obj[sig] = q_expr;
+	}
+	j["qualifiers"] = quals_obj;
 
 	std::ofstream file(sidecar_path, std::ios::trunc);
 	if (!file.is_open()) {
@@ -410,10 +454,119 @@ bool vcd_label_manager::set_labels(
 	return true;
 }
 
+std::map<std::string, std::string> vcd_label_manager::get_qualifiers_for_file(std::string_view safe_path)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	load_sidecar_locked(safe_path);
+	return path_qualifiers_[std::string(safe_path)];
+}
+
+std::pair<std::string, bool> vcd_label_manager::find_qualifier(std::string_view safe_path, std::string_view signal_name)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	std::string p(safe_path);
+	load_sidecar_locked(p);
+
+	const auto &qual_map = path_qualifiers_[p];
+	if (qual_map.empty() || signal_name.empty()) {
+		return {"", false};
+	}
+
+	auto parse_expr = [](std::string_view expr) -> std::pair<std::string, bool> {
+		bool active_low = false;
+		std::string s(expr);
+		if (s.starts_with('~') || s.starts_with('!')) {
+			active_low = true;
+			s.erase(0, 1);
+		}
+		return {s, active_low};
+	};
+
+	// 1. Exact match
+	auto it = qual_map.find(std::string(signal_name));
+	if (it != qual_map.end()) {
+		return parse_expr(it->second);
+	}
+
+	// 2. Pattern / wildcard / suffix match
+	for (const auto &[reg_sig, q_expr] : qual_map) {
+		if (signal_pattern_matches(reg_sig, signal_name)) {
+			return parse_expr(q_expr);
+		}
+	}
+
+	return {"", false};
+}
+
+bool vcd_label_manager::set_qualifier(
+	std::string_view safe_path,
+	std::string_view signal_name,
+	std::string_view qualifier_expr,
+	bool clear,
+	bool &out_file_saved,
+	std::string &out_msg
+)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	std::string p(safe_path);
+	load_sidecar_locked(p);
+
+	if (clear) {
+		if (signal_name.empty()) {
+			path_qualifiers_[p].clear();
+			out_msg = "Cleared all signal qualifiers for this VCD file.";
+		} else {
+			path_qualifiers_[p].erase(std::string(signal_name));
+			out_msg = std::format("Cleared qualifier for signal '{}'.", signal_name);
+		}
+	} else {
+		path_qualifiers_[p][std::string(signal_name)] = std::string(qualifier_expr);
+		out_msg = std::format("Registered qualifier '{}' for signal '{}'.", qualifier_expr, signal_name);
+	}
+
+	std::string save_err;
+	out_file_saved = save_sidecar_locked(p, save_err);
+	if (out_file_saved) {
+		out_msg += " Saved to sidecar file.";
+	} else {
+		out_msg += std::format(" Retained in-memory only (could not write sidecar: {}).", save_err);
+	}
+
+	return true;
+}
+
+bool vcd_label_manager::set_qualifiers_batch(
+	std::string_view safe_path,
+	const std::map<std::string, std::string> &bindings,
+	bool &out_file_saved,
+	std::string &out_msg
+)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	std::string p(safe_path);
+	load_sidecar_locked(p);
+
+	for (const auto &[sig, q] : bindings) {
+		path_qualifiers_[p][sig] = q;
+	}
+	out_msg = std::format("Registered {} signal qualifier binding(s).", bindings.size());
+
+	std::string save_err;
+	out_file_saved = save_sidecar_locked(p, save_err);
+	if (out_file_saved) {
+		out_msg += " Saved to sidecar file.";
+	} else {
+		out_msg += std::format(" Retained in-memory only (could not write sidecar: {}).", save_err);
+	}
+
+	return true;
+}
+
 void vcd_label_manager::clear_all()
 {
 	std::lock_guard<std::mutex> lock(mutex_);
 	path_labels_.clear();
+	path_qualifiers_.clear();
 	file_loaded_.clear();
 }
 

@@ -56,6 +56,8 @@ namespace agentlib
 | vcd_wave_validator           | src/plugins/verilog/vcd_wave_validator.h                     |
 | vcd_signal_labels_validator  | src/plugins/verilog/vcd_signal_labels_validator.h             |
 | vcd_search_validator         | src/plugins/verilog/vcd_search_validator.h                    |
+| vcd_signal_qualifier_validator | src/plugins/verilog/vcd_signal_qualifier_validator.h         |
+
 
 */
 

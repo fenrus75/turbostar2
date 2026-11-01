@@ -205,7 +205,9 @@ test_vcd_tools = executable('test_vcd_tools',
    '../src/plugins/verilog/vcd_signal_labels_tool.cpp',
    '../src/plugins/verilog/vcd_signal_labels_validator.cpp',
    '../src/plugins/verilog/vcd_search_tool.cpp',
-   '../src/plugins/verilog/vcd_search_validator.cpp'],
+   '../src/plugins/verilog/vcd_search_validator.cpp',
+   '../src/plugins/verilog/vcd_signal_qualifier_tool.cpp',
+   '../src/plugins/verilog/vcd_signal_qualifier_validator.cpp'],
   dependencies : [core_dep, agent_dep, nlohmann_json_dep, sqlite3_dep, lsp_dep, ctre_dep],
   include_directories: inc)
 test('unit_vcd_tools', test_vcd_tools, suite: 'plugins')

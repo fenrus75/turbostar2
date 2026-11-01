@@ -39,6 +39,7 @@ namespace agentlib {
 | vcd_wave_tool               | src/plugins/verilog/vcd_wave_tool.h                  |
 | vcd_signal_labels_tool      | src/plugins/verilog/vcd_signal_labels_tool.h          |
 | vcd_search_tool             | src/plugins/verilog/vcd_search_tool.h                 |
+| vcd_signal_qualifier_tool   | src/plugins/verilog/vcd_signal_qualifier_tool.h       |
 */
 class llm_tool_action : public llm_tool {
 public:
