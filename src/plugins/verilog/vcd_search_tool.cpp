@@ -38,22 +38,39 @@ std::string vcd_search_tool::execute(agentlib::tool_context &ctx)
 		clock_name = detected->signal_name;
 	}
 
-	std::string_view lookup_name = args_.signal;
-	if (lookup_name.starts_with("x:") || lookup_name.starts_with("b:")) {
-		lookup_name.remove_prefix(2);
-	}
-	const auto *target_sig = parser.find_signal(lookup_name);
-	if (!target_sig) {
-		set_failure(ctx, std::format("Signal '{}' not found in VCD file", args_.signal));
-		return std::format("Error: Signal '{}' not found in `{}`. Check `vcd_file_info` to confirm available signal names.",
-		                   args_.signal, args_.requested_path);
+	struct condition_resolved {
+		std::string query_signal;
+		std::string query_value;
+		const verilog::vcd_signal *sig_info{nullptr};
+	};
+
+	std::vector<condition_resolved> resolved_conditions;
+	resolved_conditions.reserve(args_.conditions.size());
+
+	std::vector<std::string> sample_signals;
+
+	for (const auto &cond : args_.conditions) {
+		std::string_view lookup_name = cond.signal;
+		if (lookup_name.starts_with("x:") || lookup_name.starts_with("b:")) {
+			lookup_name.remove_prefix(2);
+		}
+		const auto *target_sig = parser.find_signal(lookup_name);
+		if (!target_sig) {
+			set_failure(ctx, std::format("Signal '{}' not found in VCD file", cond.signal));
+			return std::format("Error: Signal '{}' not found in `{}`. Check `vcd_file_info` to confirm available signal names.",
+			                   cond.signal, args_.requested_path);
+		}
+		resolved_conditions.push_back({cond.signal, cond.value, target_sig});
+		if (std::ranges::find(sample_signals, cond.signal) == sample_signals.end()) {
+			sample_signals.push_back(cond.signal);
+		}
 	}
 
 	std::string sample_err;
 	auto samples = parser.sample_wave(
 		clock_name,
 		args_.edge,
-		{args_.signal},
+		sample_signals,
 		args_.start_tick,
 		args_.end_tick,
 		args_.start_time,
@@ -76,8 +93,7 @@ std::string vcd_search_tool::execute(agentlib::tool_context &ctx)
 		uint64_t start_time{0};
 		uint64_t end_time{0};
 		size_t cycle_count{0};
-		std::string sample_val;
-		std::string sample_label;
+		std::string sample_values_desc;
 	};
 
 	std::vector<matched_interval> all_intervals;
@@ -85,20 +101,39 @@ std::string vcd_search_tool::execute(agentlib::tool_context &ctx)
 	matched_interval cur_interval;
 
 	for (const auto &sample : samples) {
-		auto it_val = sample.signal_values.find(args_.signal);
-		std::string hex_val = (it_val != sample.signal_values.end()) ? it_val->second : "";
-		if (hex_val == "-") {
-			if (in_interval) {
-				all_intervals.push_back(cur_interval);
-				in_interval = false;
-			}
-			continue;
-		}
-		auto it_raw = sample.signal_raw_values.find(args_.signal);
-		std::string raw_bin = (it_raw != sample.signal_raw_values.end()) ? it_raw->second : "";
+		bool is_match = true;
+		std::vector<std::string> match_pieces;
 
-		std::string label = label_mgr.find_label(args_.safe_path, target_sig->full_name, hex_val, raw_bin);
-		bool is_match = verilog::vcd_label_manager::value_matches(args_.value, hex_val, raw_bin, label);
+		for (const auto &cond : resolved_conditions) {
+			auto it_val = sample.signal_values.find(cond.query_signal);
+			std::string hex_val = (it_val != sample.signal_values.end()) ? it_val->second : "";
+			if (hex_val == "-") {
+				is_match = false;
+				break;
+			}
+			auto it_raw = sample.signal_raw_values.find(cond.query_signal);
+			std::string raw_bin = (it_raw != sample.signal_raw_values.end()) ? it_raw->second : "";
+
+			std::string label = label_mgr.find_label(args_.safe_path, cond.sig_info->full_name, hex_val, raw_bin);
+			if (!verilog::vcd_label_manager::value_matches(cond.query_value, hex_val, raw_bin, label)) {
+				is_match = false;
+				break;
+			}
+
+			if (resolved_conditions.size() == 1) {
+				std::string piece = hex_val;
+				if (!label.empty()) {
+					piece = std::format("{} ({})", hex_val, label);
+				}
+				match_pieces.push_back(std::move(piece));
+			} else {
+				std::string piece = std::format("{}={}", cond.query_signal, hex_val);
+				if (!label.empty()) {
+					piece += std::format(" ({})", label);
+				}
+				match_pieces.push_back(std::move(piece));
+			}
+		}
 
 		if (is_match) {
 			if (in_interval && sample.tick == cur_interval.end_tick + 1) {
@@ -114,8 +149,12 @@ std::string vcd_search_tool::execute(agentlib::tool_context &ctx)
 				cur_interval.start_time = sample.timestamp;
 				cur_interval.end_time = sample.timestamp;
 				cur_interval.cycle_count = 1;
-				cur_interval.sample_val = hex_val;
-				cur_interval.sample_label = label;
+				std::string desc;
+				for (size_t i = 0; i < match_pieces.size(); ++i) {
+					if (i > 0) desc += ", ";
+					desc += match_pieces[i];
+				}
+				cur_interval.sample_values_desc = std::move(desc);
 				in_interval = true;
 			}
 		} else {
@@ -131,12 +170,24 @@ std::string vcd_search_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	std::ostringstream ss;
-	ss << std::format("### VCD Search: `{}` == `{}` in `{}`\n\n",
-	                  target_sig->full_name, args_.value, args_.requested_path);
+	std::string cond_summary;
+	for (size_t i = 0; i < resolved_conditions.size(); ++i) {
+		if (i > 0) cond_summary += " AND ";
+		if (resolved_conditions.size() == 1) {
+			cond_summary += std::format("`{}` == `{}`",
+			                            resolved_conditions[i].sig_info->full_name,
+			                            resolved_conditions[i].query_value);
+		} else {
+			cond_summary += std::format("`{}` == `{}`",
+			                            resolved_conditions[i].query_signal,
+			                            resolved_conditions[i].query_value);
+		}
+	}
+
+	ss << std::format("### VCD Search: {} in `{}`\n\n", cond_summary, args_.requested_path);
 
 	if (all_intervals.empty()) {
-		ss << std::format("*No clock cycles matched signal `{}` == `{}` in the specified window.*\n",
-		                  target_sig->full_name, args_.value);
+		ss << std::format("*No clock cycles matched {} in the specified window.*\n", cond_summary);
 		set_success(ctx);
 		return ss.str();
 	}
@@ -177,16 +228,12 @@ std::string vcd_search_tool::execute(agentlib::tool_context &ctx)
 	ss << std::format("* **Tick ranges**: `{}`\n\n", ranges_summary);
 
 	// Table breakdown
-	ss << "| Interval | Start Tick | End Tick | Cycles | Time Window (" << parser.get_timescale() << ") | Matched Value |\n";
-	ss << "|:---------|:-----------|:---------|:-------|:-------------------|:--------------|\n";
+	std::string col_name = (resolved_conditions.size() > 1) ? "Matched Values" : "Matched Value";
+	ss << "| Interval | Start Tick | End Tick | Cycles | Time Window (" << parser.get_timescale() << ") | " << col_name << " |\n";
+	ss << "|:---------|:-----------|:---------|:-------|:-------------------|:" << std::string(col_name.size() + 2, '-') << "|\n";
 
 	for (size_t i = 0; i < shown_count; ++i) {
 		const auto &inv = all_intervals[i];
-		std::string val_str = inv.sample_val;
-		if (!inv.sample_label.empty()) {
-			val_str = std::format("{} ({})", val_str, inv.sample_label);
-		}
-
 		std::string time_window_str;
 		if (inv.start_time == inv.end_time) {
 			time_window_str = std::format("{}", inv.start_time);
@@ -196,7 +243,7 @@ std::string vcd_search_tool::execute(agentlib::tool_context &ctx)
 
 		ss << std::format("| {} | {} | {} | {} | {} | {} |\n",
 		                  i + 1, inv.start_tick, inv.end_tick, inv.cycle_count,
-		                  time_window_str, val_str);
+		                  time_window_str, inv.sample_values_desc);
 	}
 
 	if (all_intervals.size() > shown_count) {
@@ -209,9 +256,14 @@ std::string vcd_search_tool::execute(agentlib::tool_context &ctx)
 		const auto &first_inv = all_intervals.front();
 		size_t wave_start = (first_inv.start_tick > 1) ? (first_inv.start_tick - 1) : 0;
 		size_t wave_end = first_inv.end_tick + 1;
+		std::string sig_list_str;
+		for (size_t i = 0; i < sample_signals.size(); ++i) {
+			if (i > 0) sig_list_str += ", ";
+			sig_list_str += std::format("\"{}\"", sample_signals[i]);
+		}
 		ss << std::format("\n> [!TIP] To inspect waveforms around match 1, run:\n"
-		                  "> `vcd_wave(path=\"{}\", signals=[\"{}\"], start_tick={}, end_tick={})`\n",
-		                  args_.requested_path, args_.signal, wave_start, wave_end);
+		                  "> `vcd_wave(path=\"{}\", signals=[{}], start_tick={}, end_tick={})`\n",
+		                  args_.requested_path, sig_list_str, wave_start, wave_end);
 	}
 
 	set_success(ctx);

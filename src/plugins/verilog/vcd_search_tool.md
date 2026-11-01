@@ -9,10 +9,12 @@ Key capabilities:
    - Hexadecimal strings (`0x36`, `36`)
    - Binary patterns with wildcards (`00????10`, `b01???01`)
    - Registered signal label names (`LMA`, `FETCH`) from `vcd_label_manager`
-3. **Interval Aggregation**: Automatically groups consecutive matching cycles into clean tick intervals (`"4-12, 23-59"`) with cycle counts and physical simulation time windows. Single-cycle matches are displayed as individual tick numbers (`"80"`).
-4. **Direction & Selection**: Supports forward (default) and backward searches (`direction: "backward"`, `last: true`, `first: true`) with configurable limits.
-5. **Actionable Follow-up Hint**: Produces a ready-to-run `vcd_wave` command centered on the first match.
+3. **Multi-Condition AND Matching**: Supports simultaneous multi-signal conditions via `conditions: {"valid": "1", "opcode": "0x36"}` in a single pass. Only cycles where ALL specified conditions hold true are matched.
+4. **Interval Aggregation**: Automatically groups consecutive matching cycles into clean tick intervals (`"4-12, 23-59"`) with cycle counts and physical simulation time windows. Single-cycle matches are displayed as individual tick numbers (`"80"`).
+5. **Direction & Selection**: Supports forward (default) and backward searches (`direction: "backward"`, `last: true`, `first: true`) with configurable limits.
+6. **Actionable Follow-up Hint**: Produces a ready-to-run `vcd_wave` command centered on the first match including all queried condition signals.
 
 ## Lessons Learned
 - In large simulation traces (tens of thousands to millions of cycles), querying cycle intervals directly before invoking waveform sampling saves immense context space and eliminates exploratory trial-and-error sampling loops.
 - Integrating `vcd_search` directly with `vcd_label_manager` allows agents to work in terms of architecture-level domain semantics (e.g. instruction names, bus states) rather than raw machine bit patterns.
+- Multi-condition AND search (`conditions: {"valid": "1", "ready": "1"}`) avoids the need for complex multi-query agent loops or manual visual correlation in `vcd_wave`, evaluating compound transaction triggers natively in a single simulation sweep.

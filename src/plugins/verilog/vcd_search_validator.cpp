@@ -8,8 +8,10 @@ namespace tools
 
 std::string vcd_search_validator::get_description() const
 {
-	return "Searches a VCD simulation trace for clock cycles where a signal matches a specified value "
-	       "(hexadecimal, binary with '?' wildcards, or label names), returning matched cycle intervals.";
+	return "Searches a VCD simulation trace for clock cycles matching signal values "
+	       "(hexadecimal, binary with '?' wildcards, or label names), returning matched cycle intervals. "
+	       "Supports single-signal queries via 'signal'/'value' or multi-signal simultaneous matching "
+	       "via 'conditions' (key-value map of signals to values combined with logical AND).";
 }
 
 nlohmann::json vcd_search_validator::get_parameters_schema() const
@@ -21,13 +23,18 @@ nlohmann::json vcd_search_validator::get_parameters_schema() const
 				{"type", "string"},
 				{"description", "Path to the VCD file."}
 			}},
+			{"conditions", {
+				{"type", "object"},
+				{"description", "Key-value map of signal names to expected values to match simultaneously (logical AND), e.g. {\"valid\": \"1\", \"opcode\": \"0x36\"}. Can be used instead of 'signal' and 'value'."},
+				{"additionalProperties", {{"type", "string"}}}
+			}},
 			{"signal", {
 				{"type", "string"},
-				{"description", "Signal name or path to search (supports short names, suffix matching, or 'b:'/'x:' prefixes)."}
+				{"description", "Signal name or path for single-signal search (supports short names, suffix matching, or 'b:'/'x:' prefixes)."}
 			}},
 			{"value", {
 				{"type", "string"},
-				{"description", "Value to match against: hex (e.g. '0x36'), binary with wildcards (e.g. 'b01???01'), or registered label name (e.g. 'LMA')."}
+				{"description", "Value to match against for single-signal search: hex (e.g. '0x36'), binary with wildcards (e.g. 'b01???01'), or registered label name (e.g. 'LMA')."}
 			}},
 			{"clock_signal", {
 				{"type", "string"},
@@ -72,11 +79,11 @@ nlohmann::json vcd_search_validator::get_parameters_schema() const
 				{"description", "Optional end time window in VCD timescale units."}
 			}}
 		}},
-		{"required", {"path", "signal", "value"}}
+		{"required", {"path"}}
 	};
 }
 
-bool vcd_search_validator::validate_args_impl(const nlohmann::json &raw_json,
+bool vcd_search_validator::validate_args_impl(/* untrusted */ const nlohmann::json &raw_json,
 					      const agentlib::tool_context &ctx,
 					      std::string &out_error) const
 {
@@ -85,20 +92,8 @@ bool vcd_search_validator::validate_args_impl(const nlohmann::json &raw_json,
 		return false;
 	}
 
-	if (!raw_json.contains("signal") || !raw_json["signal"].is_string() || raw_json["signal"].get<std::string>().empty()) {
-		out_error = "Missing required non-empty string argument 'signal'";
-		return false;
-	}
-
-	if (!raw_json.contains("value") || !raw_json["value"].is_string() || raw_json["value"].get<std::string>().empty()) {
-		out_error = "Missing required non-empty string argument 'value'";
-		return false;
-	}
-
 	args_ = vcd_search_args{};
 	args_.requested_path = raw_json["path"].get<std::string>();
-	args_.signal = raw_json["signal"].get<std::string>();
-	args_.value = raw_json["value"].get<std::string>();
 
 	std::string untrusted_path = args_.requested_path;
 	std::string safe_path;
@@ -108,6 +103,82 @@ bool vcd_search_validator::validate_args_impl(const nlohmann::json &raw_json,
 		return false;
 	}
 	args_.safe_path = safe_path;
+
+	if (raw_json.contains("conditions")) {
+		const auto &untrusted_conds = raw_json["conditions"];
+		if (untrusted_conds.is_object()) {
+			for (auto it = untrusted_conds.begin(); it != untrusted_conds.end(); ++it) {
+				std::string untrusted_sig = it.key();
+				if (untrusted_sig.empty()) {
+					out_error = "Condition signal name cannot be empty";
+					return false;
+				}
+				std::string untrusted_val;
+				if (it.value().is_string()) {
+					untrusted_val = it.value().get<std::string>();
+				} else if (it.value().is_number_integer()) {
+					untrusted_val = std::to_string(it.value().get<int64_t>());
+				} else if (it.value().is_boolean()) {
+					untrusted_val = it.value().get<bool>() ? "1" : "0";
+				} else {
+					out_error = std::format("Invalid value for condition '{}': expected string, number, or boolean", untrusted_sig);
+					return false;
+				}
+				if (untrusted_val.empty()) {
+					out_error = std::format("Condition value for signal '{}' cannot be empty", untrusted_sig);
+					return false;
+				}
+				args_.conditions.push_back({untrusted_sig, untrusted_val});
+			}
+		} else if (untrusted_conds.is_array()) {
+			for (const auto &item : untrusted_conds) {
+				if (!item.is_object() || !item.contains("signal") || !item.contains("value")) {
+					out_error = "Array condition items must be objects with 'signal' and 'value' fields";
+					return false;
+				}
+				std::string untrusted_sig = item["signal"].is_string() ? item["signal"].get<std::string>() : "";
+				std::string untrusted_val = item["value"].is_string() ? item["value"].get<std::string>() : "";
+				if (untrusted_sig.empty() || untrusted_val.empty()) {
+					out_error = "Condition 'signal' and 'value' must be non-empty strings";
+					return false;
+				}
+				args_.conditions.push_back({untrusted_sig, untrusted_val});
+			}
+		} else {
+			out_error = "Argument 'conditions' must be an object map (e.g. {\"signal\": \"value\"})";
+			return false;
+		}
+	}
+
+	if (raw_json.contains("signal") && raw_json["signal"].is_string() && !raw_json["signal"].get<std::string>().empty()) {
+		std::string untrusted_sig = raw_json["signal"].get<std::string>();
+		std::string untrusted_val = (raw_json.contains("value") && raw_json["value"].is_string()) ? raw_json["value"].get<std::string>() : "";
+		if (untrusted_val.empty()) {
+			out_error = "When 'signal' is specified, 'value' must also be specified and non-empty";
+			return false;
+		}
+		bool already_present = false;
+		for (const auto &c : args_.conditions) {
+			if (c.signal == untrusted_sig) {
+				already_present = true;
+				break;
+			}
+		}
+		if (!already_present) {
+			args_.conditions.push_back({untrusted_sig, untrusted_val});
+		}
+	} else if (raw_json.contains("value") && (!raw_json.contains("signal") || raw_json["signal"].get<std::string>().empty())) {
+		out_error = "When 'value' is specified, 'signal' must also be specified and non-empty";
+		return false;
+	}
+
+	if (args_.conditions.empty()) {
+		out_error = "Must provide either 'conditions' (key-value map of signals to values) or both 'signal' and 'value'";
+		return false;
+	}
+
+	args_.signal = args_.conditions.front().signal;
+	args_.value = args_.conditions.front().value;
 
 	if (raw_json.contains("clock_signal") && raw_json["clock_signal"].is_string()) {
 		args_.clock_signal = raw_json["clock_signal"].get<std::string>();
@@ -199,15 +270,16 @@ std::unique_ptr<agentlib::llm_tool> vcd_search_validator::create_tool_impl(const
 
 extern "C"
 {
-void register_vcd_search(void)
+
+void register_vcd_search()
 {
 	agentlib::tool_registry::get_instance().register_validator(
-		[]() { return std::make_unique<tools::vcd_search_validator>(); }
-	);
+		[]() { return std::make_unique<tools::vcd_search_validator>(); });
 }
 
-void unregister_vcd_search(void)
+void unregister_vcd_search()
 {
 	agentlib::tool_registry::get_instance().unregister_validator("vcd_search");
 }
+
 }

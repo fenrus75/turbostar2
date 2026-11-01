@@ -19,7 +19,7 @@ class vcd_search_validator : public agentlib::tool_validator
 	nlohmann::json get_parameters_schema() const override;
 
       protected:
-	bool validate_args_impl(const nlohmann::json &raw_json, const agentlib::tool_context &ctx,
+	bool validate_args_impl(/* untrusted */ const nlohmann::json &raw_json, const agentlib::tool_context &ctx,
 				std::string &out_error) const override;
 	std::unique_ptr<agentlib::llm_tool> create_tool_impl(const nlohmann::json &raw_json) const override;
 

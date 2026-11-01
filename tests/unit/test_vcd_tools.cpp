@@ -489,6 +489,84 @@ int main()
 		auto no_match_tool = search_validator.create_tool(no_match_args);
 		std::string no_match_out = no_match_tool->execute(ctx);
 		assert(no_match_out.find("No clock cycles matched") != std::string::npos);
+
+		// Test 9g: Multi-condition AND search with map syntax
+		nlohmann::json multi_map_args = {
+			{"path", vcd_path},
+			{"conditions", {
+				{"opcode", "0x06"},
+				{"opcode_data_valid", "1"}
+			}}
+		};
+		err.clear();
+		valid = search_validator.validate_args(multi_map_args, ctx, err);
+		assert(valid && err.empty());
+		auto multi_tool = search_validator.create_tool(multi_map_args);
+		std::string multi_out = multi_tool->execute(ctx);
+		assert(multi_out.find("Matched ") != std::string::npos);
+		assert(multi_out.find("`opcode` == `0x06` AND `opcode_data_valid` == `1`") != std::string::npos);
+		assert(multi_out.find("Matched Values") != std::string::npos);
+		assert(multi_out.find("opcode=0x06") != std::string::npos);
+		assert(multi_out.find("opcode_data_valid=1") != std::string::npos);
+		assert(multi_out.find("vcd_wave(") != std::string::npos);
+		assert(multi_out.find("\"opcode\", \"opcode_data_valid\"") != std::string::npos);
+
+		// Test 9h: Multi-condition search with label name and integer boolean value
+		nlohmann::json multi_label_args = {
+			{"path", vcd_path},
+			{"conditions", {
+				{"opcode", "LAI"},
+				{"opcode_data_valid", 1}
+			}}
+		};
+		err.clear();
+		valid = search_validator.validate_args(multi_label_args, ctx, err);
+		assert(valid && err.empty());
+		auto multi_label_tool = search_validator.create_tool(multi_label_args);
+		std::string multi_label_out = multi_label_tool->execute(ctx);
+		assert(multi_label_out.find("opcode=0x06 (LAI)") != std::string::npos);
+
+		// Test 9i: Multi-condition mismatch (contradictory conditions yielding 0 matches)
+		nlohmann::json multi_none_args = {
+			{"path", vcd_path},
+			{"conditions", {
+				{"opcode", "0xEE"},
+				{"opcode_data_valid", "1"}
+			}}
+		};
+		err.clear();
+		valid = search_validator.validate_args(multi_none_args, ctx, err);
+		assert(valid && err.empty());
+		auto multi_none_tool = search_validator.create_tool(multi_none_args);
+		std::string multi_none_out = multi_none_tool->execute(ctx);
+		assert(multi_none_out.find("No clock cycles matched") != std::string::npos);
+
+		// Test 9j: Empty conditions map and missing signal/value validation
+		nlohmann::json empty_cond_args = {
+			{"path", vcd_path},
+			{"conditions", nlohmann::json::object()}
+		};
+		err.clear();
+		valid = search_validator.validate_args(empty_cond_args, ctx, err);
+		assert(!valid);
+		assert(err.find("Must provide either 'conditions'") != std::string::npos);
+
+		nlohmann::json missing_all_args = {
+			{"path", vcd_path}
+		};
+		err.clear();
+		valid = search_validator.validate_args(missing_all_args, ctx, err);
+		assert(!valid);
+		assert(err.find("Must provide either 'conditions'") != std::string::npos);
+
+		nlohmann::json missing_val_args = {
+			{"path", vcd_path},
+			{"signal", "opcode"}
+		};
+		err.clear();
+		valid = search_validator.validate_args(missing_val_args, ctx, err);
+		assert(!valid);
+		assert(err.find("When 'signal' is specified, 'value' must also be specified") != std::string::npos);
 	}
 
 	// 10. vcd_signal_qualifier tool and validity masking tests

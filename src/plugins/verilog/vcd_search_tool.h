@@ -9,9 +9,16 @@
 namespace tools
 {
 
+struct vcd_search_condition {
+	std::string signal;
+	std::string value;
+};
+
 struct vcd_search_args {
 	std::string requested_path;
 	std::string safe_path;
+	std::vector<vcd_search_condition> conditions;
+	// Kept for backward compatibility and single-signal convenience:
 	std::string signal;
 	std::string value;
 	std::string clock_signal;
