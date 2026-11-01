@@ -248,12 +248,29 @@ void ui_radiobutton_group::child_got_selected(ui_element *selected_child)
 		if (radio) {
 			if (radio != selected_child) {
 				radio->set_selected(false);
+			} else {
+				radio->set_selected(true);
 			}
 		}
+	}
+	if (on_selection_changed_ && selected_child) {
+		on_selection_changed_(selected_child->name());
 	}
 	// Also pass it up in case our parent is another group or needs to know
 	if (parent_)
 		parent_->child_got_selected(selected_child);
+}
+
+bool ui_radiobutton_group::select_choice(const std::string &choice_name)
+{
+	for (auto &child : children_) {
+		auto *radio = dynamic_cast<ui_radio_choice *>(child.get());
+		if (radio && radio->name() == choice_name) {
+			child_got_selected(radio);
+			return true;
+		}
+	}
+	return false;
 }
 
 std::optional<std::string> ui_radiobutton_group::get_value(const std::string &target_name) const

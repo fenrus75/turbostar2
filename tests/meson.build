@@ -735,6 +735,12 @@ test_options_dialogs = executable('test_options_dialogs',
   include_directories: inc)
 test('unit_test_options_dialogs', test_options_dialogs, suite: 'ui')
 
+test_dialog_language_settings = executable('test_dialog_language_settings',
+  'unit/test_dialog_language_settings.cpp',
+  dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, sqlite3_dep],
+  include_directories: inc)
+test('unit_test_dialog_language_settings', test_dialog_language_settings, suite: 'ui')
+
 test_menu_submenus = executable('test_menu_submenus',
   'unit/test_menu_submenus.cpp',
   dependencies : [ui_dep, agent_dep, core_dep, ncurses_dep, lsp_dep, httplib_dep, nlohmann_json_dep, thread_dep, sqlite3_dep],

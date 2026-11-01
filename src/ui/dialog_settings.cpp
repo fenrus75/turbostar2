@@ -27,7 +27,65 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
+
+namespace {
+
+struct lang_preset_option {
+	std::string name;
+	char hotkey;
+};
+
+const std::unordered_map<std::string, std::vector<lang_preset_option>> LANGUAGE_PRESETS = {
+	{"C++", {{"C++23", '3'}, {"C++20", '0'}, {"C++17", '7'}, {"Other", 'r'}}},
+	{"C", {{"C17", '7'}, {"C11", '1'}, {"C99", '9'}, {"Other", 'r'}}},
+	{"Python", {{"3.11+", '1'}, {"3.10", '0'}, {"3.9", '9'}, {"Other", 'r'}}},
+	{"Rust", {{"2021 Edition", '1'}, {"2018 Edition", '8'}, {"Other", 'r'}}},
+	{"SystemVerilog", {{"IEEE 1800-2017", '7'}, {"IEEE 1800-2012", '2'}, {"IEEE 1800-2005", '5'}, {"Other", 'r'}}},
+	{"Other", {{"Custom / Default", 'D'}}}
+};
+
+void populate_language_standards(ui_radiobutton_group *std_radio, ui_textbox *custom_tb,
+                                 const std::string &lang, const std::string &preferred_version)
+{
+	if (!std_radio)
+		return;
+	std_radio->clear_children();
+
+	auto it = LANGUAGE_PRESETS.find(lang);
+	const auto &presets = (it != LANGUAGE_PRESETS.end()) ? it->second : LANGUAGE_PRESETS.at("Other");
+
+	bool matched = false;
+	std::string match_target = preferred_version;
+	if (match_target.empty() && !presets.empty()) {
+		match_target = presets.front().name;
+	}
+
+	for (const auto &opt : presets) {
+		bool is_sel = (!matched && (opt.name == match_target));
+		if (is_sel) {
+			matched = true;
+		}
+		std_radio->add_child(std::make_unique<ui_radio_choice>(opt.name, opt.name, opt.hotkey, is_sel));
+	}
+
+	if (!matched) {
+		for (auto &child : std_radio->children()) {
+			auto *choice = dynamic_cast<ui_radio_choice *>(child.get());
+			if (choice && (choice->name() == "Other" || choice->name() == "Custom / Default")) {
+				choice->set_selected(true);
+				matched = true;
+				break;
+			}
+		}
+		if (custom_tb && !preferred_version.empty() && preferred_version != "Other" && preferred_version != "Custom / Default") {
+			custom_tb->set_buffer(preferred_version);
+		}
+	}
+}
+
+} // namespace
 
 std::unique_ptr<dialog> create_settings_dialog()
 {
@@ -175,8 +233,16 @@ void apply_settings_from_dialog(const dialog &dlg)
 		cfg.set_primary_language(*prim_lang);
 
 	auto prim_ver = dlg.get_value("primary_language_version");
-	if (prim_ver)
-		cfg.set_primary_language_version(*prim_ver);
+	auto custom_ver = dlg.get_value("custom_standard");
+	if (prim_ver) {
+		if ((*prim_ver == "Other" || *prim_ver == "Custom / Default") && custom_ver && !custom_ver->empty()) {
+			cfg.set_primary_language_version(*custom_ver);
+		} else {
+			cfg.set_primary_language_version(*prim_ver);
+		}
+	} else if (custom_ver && !custom_ver->empty()) {
+		cfg.set_primary_language_version(*custom_ver);
+	}
 
 	auto a2a_tok = dlg.get_value("a2a_server_token");
 	if (a2a_tok) {
@@ -268,7 +334,79 @@ std::unique_ptr<dialog> create_editor_settings_dialog()
 	tab1_flow->add_child(std::move(tab1_chk));
 	tabbed->add_tab_page("general", "General & Code", std::move(tab1_flow));
 
-	// --- Tab 2: Build & Run ---
+	// --- Tab 2: Language ---
+	auto tab_lang_flow = std::make_unique<ui_vertical_flow>("tab_lang_flow", 0, 0, 1, 1);
+	auto lang_row = std::make_unique<ui_horizontal_flow>("lang_row", 0, 0);
+
+	auto gb_lang = std::make_unique<ui_group_box>("gb_lang", 19, " Language ");
+	auto lang_radio = std::make_unique<ui_radiobutton_group>("primary_language");
+	auto *lang_radio_ptr = lang_radio.get();
+
+	std::vector<std::pair<std::string, char>> lang_choices = {
+		{"C++", 'C'},
+		{"C", 'a'},
+		{"Python", 'P'},
+		{"Rust", 'R'},
+		{"SystemVerilog", 'S'},
+		{"Other", 'O'}
+	};
+	std::string current_lang = config_manager::get_instance().get_primary_language();
+	std::string current_ver = config_manager::get_instance().get_primary_language_version();
+
+	bool lang_matched = false;
+	for (const auto &item : lang_choices) {
+		bool sel = (!lang_matched && current_lang == item.first);
+		if (sel) {
+			lang_matched = true;
+		}
+		lang_radio->add_child(std::make_unique<ui_radio_choice>(item.first, item.first, item.second, sel));
+	}
+	if (!lang_matched) {
+		for (auto &child : lang_radio->children()) {
+			auto *choice = dynamic_cast<ui_radio_choice *>(child.get());
+			if (choice && choice->name() == "Other") {
+				choice->set_selected(true);
+				break;
+			}
+		}
+	}
+	gb_lang->add_child(std::move(lang_radio));
+	lang_row->add_child(std::move(gb_lang));
+
+	auto gb_std = std::make_unique<ui_group_box>("gb_std", 22, " Standard ");
+	auto *gb_std_ptr = gb_std.get();
+	auto std_radio = std::make_unique<ui_radiobutton_group>("primary_language_version");
+	auto *std_radio_ptr = std_radio.get();
+
+	auto custom_tb = std::make_unique<ui_textbox>("custom_standard", 22, "", nullptr, "Custom Std: ");
+	auto *custom_tb_ptr = custom_tb.get();
+
+	populate_language_standards(std_radio_ptr, custom_tb_ptr, current_lang, current_ver);
+
+	gb_std->add_child(std::move(std_radio));
+	lang_row->add_child(std::move(gb_std));
+	tab_lang_flow->add_child(std::move(lang_row));
+
+	auto custom_flow = std::make_unique<ui_horizontal_flow>("custom_flow", 0, 0);
+	custom_flow->add_child(std::move(custom_tb));
+	tab_lang_flow->add_child(std::move(custom_flow));
+
+	lang_radio_ptr->set_on_selection_changed([std_radio_ptr, custom_tb_ptr, gb_std_ptr, tabbed_ptr = tabbed.get()](const std::string &new_lang) {
+		populate_language_standards(std_radio_ptr, custom_tb_ptr, new_lang, "");
+		if (std_radio_ptr) {
+			std_radio_ptr->flow();
+		}
+		if (gb_std_ptr) {
+			gb_std_ptr->flow();
+		}
+		if (tabbed_ptr) {
+			tabbed_ptr->flow();
+		}
+	});
+
+	tabbed->add_tab_page("language", "Language", std::move(tab_lang_flow));
+
+	// --- Tab 3: Build & Run ---
 	auto tab2_flow = std::make_unique<ui_vertical_flow>("tab2_flow", 0, 0, 1, 1);
 	auto build_group = std::make_unique<ui_group_box>("build_group", 38, " Build System ");
 	auto build_radio = std::make_unique<ui_radiobutton_group>("build_system");
@@ -286,7 +424,7 @@ std::unique_ptr<dialog> create_editor_settings_dialog()
 	tab2_flow->add_child(std::make_unique<ui_textbox>("run_arguments", 26, config_manager::get_instance().get_run_arguments(), nullptr, "Run Args:  "));
 	tabbed->add_tab_page("build_run", "Build & Run", std::move(tab2_flow));
 
-	// --- Tab 3: LSP & Features ---
+	// --- Tab 4: LSP & Features ---
 	auto tab3_flow = std::make_unique<ui_vertical_flow>("tab3_flow", 0, 0, 1, 1);
 	auto lsp_grp = std::make_unique<ui_checkbox_group>("lsp_grp");
 	lsp_grp->add_child(std::make_unique<ui_checkbox>("lsp_enabled", "Enable LSP (clangd)", 'E', config_manager::get_instance().is_lsp_enabled()));
@@ -296,7 +434,7 @@ std::unique_ptr<dialog> create_editor_settings_dialog()
 	tab3_flow->add_child(std::move(lsp_grp));
 	tabbed->add_tab_page("lsp", "LSP & Features", std::move(tab3_flow));
 
-	// --- Tab 4: Syntax Colors ---
+	// --- Tab 5: Syntax Colors ---
 	auto tab4_flow = std::make_unique<ui_vertical_flow>("tab4_flow", 0, 0, 1, 1);
 	tab4_flow->add_child(std::make_unique<ui_text_label>("Syntax Highlight Colors:"));
 

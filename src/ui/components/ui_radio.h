@@ -59,7 +59,14 @@ class ui_radiobutton_group : public ui_container
 	bool focus_previous() override;
 	std::vector<ui_element *> get_focusable_elements() override;
 
+	void set_on_selection_changed(std::function<void(const std::string &)> callback)
+	{
+		on_selection_changed_ = std::move(callback);
+	}
+	bool select_choice(const std::string &choice_name);
+
       private:
 	bool horizontal_;
 	bool want_stretch_{false};
+	std::function<void(const std::string &)> on_selection_changed_;
 };

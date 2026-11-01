@@ -251,6 +251,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # Done
+## 01-11-2026
+- Project language and version settings in preferences dialog: added dedicated "Language" tab to `create_editor_settings_dialog` in `src/ui/dialog_settings.cpp`. Supports selecting primary project language (`C++`, `C`, `Python`, `Rust`, `SystemVerilog`, `Other`) with dynamic reactive updates to available language standards and edition presets (`populate_language_standards`), plus custom standard textbox fallback. Added reactive callback `set_on_selection_changed` and `select_choice` to `ui_radiobutton_group` (`src/ui/components/ui_radio.{h,cpp}`). Updated `apply_settings_from_dialog` to persist language settings into `config_manager`. Added comprehensive unit tests in `tests/unit/test_dialog_language_settings.cpp`, created companion documentation `src/ui/dialog_settings.md` and `src/ui/components/ui_radio.md`, and maintained 0 critical clang-tidy warnings. (Completed)
+
 ## 31-10-2026
 - Improve C++ comment syntax highlight color: updated default comment color from `COLOR_BLACK + 8` (dark gray, ~1.8:1 contrast on dark blue) to `COLOR_CYAN + 8` (bright cyan, >10:1 contrast) in `src/syntax_color_manager.cpp`. Documented in `docs/colorscheme.md` and `src/syntax_color_manager.md`. (Completed)
 - Fix `-Wmissing-field-initializers` warning in `fs_glob_tool`: added default member initializers to `fs_glob_args` and provided explicit field initialization in `fs_glob_tool::fs_glob_tool(std::string)`. Created companion documentation `src/tools/fs_glob/fs_glob.md`. (Completed)
