@@ -24,6 +24,7 @@ struct vcd_compare_args {
 	std::optional<uint64_t> end_time;
 	bool strict{false};
 	bool ignore_invalid{true};
+	bool use_qualifiers{true};
 };
 
 class vcd_compare_tool : public agentlib::llm_tool_action

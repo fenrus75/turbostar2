@@ -865,7 +865,31 @@ int main()
 		assert(qual_out.find("Validity mismatch") != std::string::npos);
 		assert(qual_out.find("- (invalid)") != std::string::npos);
 
-		// 12f. Missing argument validation
+		// 12f. Asymmetric qualifier sidecar unification
+		// Clear qualifiers on File A, leaving qualifier on File B only
+		nlohmann::json clear_a = {
+			{"path", org_vcd},
+			{"clear", true}
+		};
+		q_ok = q_val.validate_args(clear_a, ctx, err);
+		assert(q_ok);
+		q_val.create_tool(clear_a)->execute(ctx);
+
+		nlohmann::json asym_args = {
+			{"path_a", org_vcd},
+			{"path_b", mut_vcd}
+		};
+		err.clear();
+		valid = compare_validator.validate_args(asym_args, ctx, err);
+		assert(valid && err.empty());
+		auto asym_tool = compare_validator.create_tool(asym_args);
+		std::string asym_out = asym_tool->execute(ctx);
+		// Crucial verification: should NOT trigger false validity mismatch at tick 0!
+		assert(asym_out.find("DIVERGENCE DETECTED at Tick 10") != std::string::npos);
+		assert(asym_out.find("Ticks 0–9 matched identically") != std::string::npos);
+		assert(asym_out.find("Applied") != std::string::npos && asym_out.find("symmetrically") != std::string::npos);
+
+		// 12g. Missing argument validation
 		nlohmann::json missing_b_args = {
 			{"path_a", org_vcd}
 		};

@@ -152,13 +152,25 @@ std::string vcd_compare_tool::execute(agentlib::tool_context &ctx)
 
 	auto &label_mgr = verilog::vcd_label_manager::get_instance();
 
-	// Inherit qualifiers from File A to File B if File B doesn't have qualifiers for common signals
-	auto quals_a = label_mgr.get_qualifiers_for_file(args_.safe_path_a);
-	auto quals_b = label_mgr.get_qualifiers_for_file(args_.safe_path_b);
-	if (!quals_a.empty() && quals_b.empty()) {
-		bool saved = false;
-		std::string msg;
-		label_mgr.set_qualifiers_batch(args_.safe_path_b, quals_a, saved, msg);
+	// Symmetrically unify qualifiers across both files so inactive cycles are masked identically
+	std::map<std::string, std::string> symmetric_quals;
+	if (args_.use_qualifiers) {
+		auto quals_a = label_mgr.get_qualifiers_for_file(args_.safe_path_a);
+		auto quals_b = label_mgr.get_qualifiers_for_file(args_.safe_path_b);
+
+		symmetric_quals = quals_a;
+		for (const auto &[sig, q] : quals_b) {
+			if (!symmetric_quals.contains(sig)) {
+				symmetric_quals[sig] = q;
+			}
+		}
+
+		if (!symmetric_quals.empty()) {
+			bool saved = false;
+			std::string msg;
+			label_mgr.set_qualifiers_batch(args_.safe_path_a, symmetric_quals, saved, msg);
+			label_mgr.set_qualifiers_batch(args_.safe_path_b, symmetric_quals, saved, msg);
+		}
 	}
 
 	std::string sample_err_a;
@@ -244,17 +256,23 @@ std::string vcd_compare_tool::execute(agentlib::tool_context &ctx)
 				std::string lbl_a = label_mgr.find_label(args_.safe_path_a, sig, va, raw_a);
 				std::string lbl_b = label_mgr.find_label(args_.safe_path_b, sig, vb, raw_b);
 
-				d.val_a = va;
-				if (!lbl_a.empty()) d.val_a += std::format(" ({})", lbl_a);
-				if (va == "-") d.val_a = "- (invalid)";
-
-				d.val_b = vb;
-				if (!lbl_b.empty()) d.val_b += std::format(" ({})", lbl_b);
-				if (vb == "-") d.val_b = "- (invalid)";
-
-				if (va == "-" || vb == "-") {
+				if (va == "-" && vb != "-") {
+					d.val_a = "- (invalid)";
+					d.val_b = vb;
+					if (!lbl_b.empty()) d.val_b += std::format(" ({})", lbl_b);
+					d.val_b += " (valid)";
+					d.desc = "Validity mismatch";
+				} else if (va != "-" && vb == "-") {
+					d.val_a = va;
+					if (!lbl_a.empty()) d.val_a += std::format(" ({})", lbl_a);
+					d.val_a += " (valid)";
+					d.val_b = "- (invalid)";
 					d.desc = "Validity mismatch";
 				} else {
+					d.val_a = va;
+					if (!lbl_a.empty()) d.val_a += std::format(" ({})", lbl_a);
+					d.val_b = vb;
+					if (!lbl_b.empty()) d.val_b += std::format(" ({})", lbl_b);
 					d.desc = "Value mismatch";
 				}
 
@@ -296,6 +314,11 @@ std::string vcd_compare_tool::execute(agentlib::tool_context &ctx)
 			                  common_signals.size());
 		}
 
+		if (!symmetric_quals.empty()) {
+			ss << std::format("> [!NOTE] Applied {} qualifier(s) symmetrically across both traces.\n\n",
+			                  symmetric_quals.size());
+		}
+
 		if (!unique_a.empty() || !unique_b.empty()) {
 			ss << "> [!NOTE] Non-matching signal manifests (ignored during comparison):\n";
 			if (!unique_a.empty()) {
@@ -330,9 +353,24 @@ std::string vcd_compare_tool::execute(agentlib::tool_context &ctx)
 	ss << std::format("- **File A (Reference)**: `{}`\n", args_.requested_path_a);
 	ss << std::format("- **File B (Candidate)**: `{}`\n", args_.requested_path_b);
 	ss << std::format("- **Reference Clock**: `{}` (sampled on `{}`)\n", clock_name, args_.edge);
-	ss << std::format("- **Evaluated Window**: {} cycles (divergence at tick {}; {} of {} cycles differed)\n",
-	                  compared_cycles, first_div.tick, divergence_events.size(), compared_cycles);
-	ss << std::format("- **Signals Compared**: {} common signals\n\n", common_signals.size());
+
+	if (first_div.tick > 0) {
+		ss << std::format("- **In-Sync Prefix**: Ticks 0–{} matched identically across all {} common signals ({} initial cycles in lock-step).\n",
+		                  first_div.tick - 1, common_signals.size(), first_div.tick);
+	} else {
+		ss << std::format("- **In-Sync Prefix**: 0 cycles (traces diverged on initial tick 0).\n");
+	}
+	ss << std::format("- **First Divergence**: Tick {} ({} differing signal(s) at this cycle).\n",
+	                  first_div.tick, first_div.diffs.size());
+	size_t remaining_cycles = compared_cycles - first_div.tick;
+	ss << std::format("- **Post-Divergence Cascade**: {} of {} subsequent cycles differed as state drifted.\n",
+	                  divergence_events.size(), remaining_cycles);
+	ss << std::format("- **Signals Evaluated**: {} common signals\n\n", common_signals.size());
+
+	if (!symmetric_quals.empty()) {
+		ss << std::format("> [!NOTE] Applied {} qualifier(s) symmetrically to both traces.\n\n",
+		                  symmetric_quals.size());
+	}
 
 	if (!unique_a.empty() || !unique_b.empty()) {
 		ss << std::format("> [!NOTE] {} signal(s) unique to File A and {} unique to File B were omitted from comparison.\n\n",
@@ -343,18 +381,18 @@ std::string vcd_compare_tool::execute(agentlib::tool_context &ctx)
 	ss << "| Signal | File A (Reference) | File B (Candidate) | Difference |\n";
 	ss << "|:-------|:-------------------|:-------------------|:-----------|\n";
 
-	size_t show_diff_count = std::min(first_div.diffs.size(), size_t(20));
+	size_t show_diff_count = std::min(first_div.diffs.size(), size_t(25));
 	std::vector<std::string> divergent_sig_names;
 	for (size_t i = 0; i < show_diff_count; ++i) {
 		const auto &d = first_div.diffs[i];
 		ss << std::format("| `{}` | `{}` | `{}` | {} |\n", d.signal, d.val_a, d.val_b, d.desc);
-		if (divergent_sig_names.size() < 4) {
+		if (divergent_sig_names.size() < 6) {
 			divergent_sig_names.push_back(d.signal);
 		}
 	}
 
 	if (first_div.diffs.size() > show_diff_count) {
-		ss << std::format("\n*(Showing first {} of {} differing signals at this tick.)*\n",
+		ss << std::format("\n*(Showing first {} of {} differing signals at this tick. Use `scope` or `signals` filter to focus.)*\n",
 		                  show_diff_count, first_div.diffs.size());
 	}
 

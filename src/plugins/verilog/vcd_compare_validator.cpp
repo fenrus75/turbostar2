@@ -66,6 +66,10 @@ nlohmann::json vcd_compare_validator::get_parameters_schema() const
 			{"ignore_invalid", {
 				{"type", "boolean"},
 				{"description", "If true (default), ignores differences on clock cycles where signals are masked as invalid ('-') by registered qualifiers."}
+			}},
+			{"use_qualifiers", {
+				{"type", "boolean"},
+				{"description", "If true (default), applies signal validity qualifiers symmetrically across both files so inactive bus cycles don't cause false alarms."}
 			}}
 		}},
 		{"required", {"path_a", "path_b"}}
@@ -140,6 +144,10 @@ bool vcd_compare_validator::validate_args_impl(/* untrusted */ const nlohmann::j
 
 	if (raw_json.contains("ignore_invalid") && raw_json["ignore_invalid"].is_boolean()) {
 		args_.ignore_invalid = raw_json["ignore_invalid"].get<bool>();
+	}
+
+	if (raw_json.contains("use_qualifiers") && raw_json["use_qualifiers"].is_boolean()) {
+		args_.use_qualifiers = raw_json["use_qualifiers"].get<bool>();
 	}
 
 	if (raw_json.contains("start_tick")) {
