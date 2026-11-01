@@ -20,25 +20,32 @@ std::string vcd_signal_labels_tool::execute(agentlib::tool_context &ctx)
 {
 	auto &mgr = verilog::vcd_label_manager::get_instance();
 
-	bool file_saved = false;
-	std::string msg;
-
-	mgr.set_labels(args_.safe_path, args_.signal, args_.labels, args_.clear, file_saved, msg);
-
 	std::ostringstream ss;
 	ss << std::format("### VCD Signal Labels: `{}`\n\n", args_.requested_path);
-	ss << msg << "\n\n";
+
+	// If clear or labels provided, perform modification
+	if (args_.clear || !args_.labels.empty()) {
+		bool file_saved = false;
+		std::string msg;
+		mgr.set_labels(args_.safe_path, args_.signal, args_.labels, args_.clear, file_saved, msg);
+		ss << msg << "\n\n";
+	}
 
 	// Show current label table for this file
 	auto all_labels = mgr.get_labels_for_file(args_.safe_path);
 	if (!all_labels.empty()) {
 		ss << "#### Active Label Mappings\n\n";
 		for (const auto &[sig, val_map] : all_labels) {
-			ss << std::format("- **Signal `{}`**:\n", sig);
+			if (!args_.signal.empty() && args_.labels.empty() && !args_.clear && sig != args_.signal) {
+				continue;
+			}
+			ss << std::format("- **Signal Pattern `{}`** ({} labels):\n", sig, val_map.size());
 			for (const auto &[val_key, label_str] : val_map) {
 				ss << std::format("  - `{}` -> `{}`\n", val_key, label_str);
 			}
 		}
+	} else {
+		ss << "*No custom signal labels currently registered for this VCD file.*\n";
 	}
 
 	set_success(ctx);

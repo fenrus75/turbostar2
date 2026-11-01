@@ -103,6 +103,11 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 			if (lookup_sig.starts_with("x:") || lookup_sig.starts_with("b:")) {
 				lookup_sig.remove_prefix(2);
 			}
+			auto name_it = sample.signal_full_names.find(sig);
+			if (name_it != sample.signal_full_names.end() && !name_it->second.empty()) {
+				lookup_sig = name_it->second;
+			}
+
 			auto raw_it = sample.signal_raw_values.find(sig);
 			std::string raw_bin = (raw_it != sample.signal_raw_values.end()) ? raw_it->second : "";
 			std::string label = label_mgr.find_label(args_.safe_path, lookup_sig, val, raw_bin);

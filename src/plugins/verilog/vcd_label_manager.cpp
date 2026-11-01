@@ -17,6 +17,30 @@ vcd_label_manager &vcd_label_manager::get_instance()
 namespace
 {
 
+bool wildcard_match(std::string_view pattern, std::string_view text)
+{
+	size_t p = 0, t = 0;
+	size_t star_p = std::string_view::npos, match_t = 0;
+	while (t < text.size()) {
+		if (p < pattern.size() && (pattern[p] == '?' || pattern[p] == text[t])) {
+			++p;
+			++t;
+		} else if (p < pattern.size() && pattern[p] == '*') {
+			star_p = p++;
+			match_t = t;
+		} else if (star_p != std::string_view::npos) {
+			p = star_p + 1;
+			t = ++match_t;
+		} else {
+			return false;
+		}
+	}
+	while (p < pattern.size() && pattern[p] == '*') {
+		++p;
+	}
+	return p == pattern.size();
+}
+
 // Checks if a binary pattern with '?' wildcards matches a raw binary value
 // e.g. pattern "00????10" matches "00110110"
 bool binary_pattern_matches(std::string_view pattern, std::string_view bin_val)
@@ -226,9 +250,33 @@ std::string vcd_label_manager::find_label(
 		if (!res.empty()) return res;
 	}
 
-	// 2. Try matching by leaf short name or suffix
+	// 2. Try matching by leaf short name, suffix, or glob wildcard pattern (e.g. "module1.*.opcode" or "*opcode")
 	for (const auto &[reg_sig, val_map] : sig_map) {
-		if (signal_name.ends_with("." + reg_sig) || reg_sig.ends_with("." + std::string(signal_name))) {
+		bool matches = false;
+		if (reg_sig.find('*') != std::string::npos || reg_sig.find('?') != std::string::npos) {
+			if (wildcard_match(reg_sig, signal_name)) {
+				matches = true;
+			} else {
+				// Also check if pattern matches with a leading wildcard (e.g. pattern "uut.*.A_val" matching "tb_main.uut.cpu8008.A_val")
+				std::string wild_prefix = "*" + reg_sig;
+				if (wildcard_match(wild_prefix, signal_name)) {
+					matches = true;
+				} else {
+					// Also check leaf name against wildcard pattern
+					size_t last_dot = signal_name.rfind('.');
+					if (last_dot != std::string_view::npos) {
+						std::string_view leaf = signal_name.substr(last_dot + 1);
+						if (wildcard_match(reg_sig, leaf)) {
+							matches = true;
+						}
+					}
+				}
+			}
+		} else if (signal_name.ends_with("." + reg_sig) || reg_sig.ends_with("." + std::string(signal_name))) {
+			matches = true;
+		}
+
+		if (matches) {
 			std::string res = match_in_val_map(val_map);
 			if (!res.empty()) return res;
 		}

@@ -35,6 +35,7 @@ struct vcd_sample_point {
 	std::string edge; // "posedge", "negedge", or ""
 	std::map<std::string, std::string> signal_values; // keyed by requested signal name -> formatted string
 	std::map<std::string, std::string> signal_raw_values; // keyed by requested signal name -> raw binary string
+	std::map<std::string, std::string> signal_full_names; // keyed by requested signal name -> canonical full name
 };
 
 class vcd_parser

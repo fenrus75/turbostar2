@@ -8,9 +8,11 @@ namespace tools
 
 std::string vcd_signal_labels_validator::get_description() const
 {
-	return "Registers human-readable labels for specific signal values in a VCD file "
-	       "(e.g. mapping opcodes, bus states, or FSM values like '0x06' -> 'LAI'). "
-	       "Labels persist across calls for the VCD file (saved to a '<path>.labels.json' sidecar file) "
+	return "Registers or queries human-readable labels for specific signal values in a VCD file "
+	       "(e.g. mapping opcodes, bus states, or FSM values like '0x06' -> 'LAI', or binary masks like '00????10'). "
+	       "Signal names support wildcards ('*' and '?') such as 'uut.*.opcode' to label signals across hierarchy levels. "
+	       "If 'labels' is omitted, lists all currently active label mappings for the file. "
+	       "Labels persist across calls (saved to a '<path>.labels.json' sidecar file) "
 	       "and are automatically displayed in 'vcd_wave' tables. Use 'clear: true' to remove labels.";
 }
 
@@ -25,11 +27,11 @@ nlohmann::json vcd_signal_labels_validator::get_parameters_schema() const
 			}},
 			{"signal", {
 				{"type", "string"},
-				{"description", "Signal name (e.g. 'opcode', 'state', or 'tb_main.uut.cpu8008.opcode')."}
+				{"description", "Optional signal name or wildcard pattern (e.g. 'opcode', '*state*', or 'uut.*.opcode'). Required when registering labels."}
 			}},
 			{"labels", {
 				{"type", "object"},
-				{"description", "Key-value map of signal values (hex '0x06', decimal '6', or binary '00000110') to string labels (e.g. 'LAI')."}
+				{"description", "Optional key-value map of signal values (hex '0x06', decimal '6', or binary with wildcards 'b01???01') to string labels (e.g. 'LAI'). If omitted and clear is false, lists current labels."}
 			}},
 			{"clear", {
 				{"type", "boolean"},
@@ -73,11 +75,6 @@ bool vcd_signal_labels_validator::validate_args_impl(const nlohmann::json &raw_j
 		args_.signal = raw_json["signal"].get<std::string>();
 	}
 
-	if (!args_.clear && args_.signal.empty()) {
-		out_error = "Argument 'signal' is required when registering labels";
-		return false;
-	}
-
 	if (raw_json.contains("labels") && raw_json["labels"].is_object()) {
 		for (auto &[k, v] : raw_json["labels"].items()) {
 			if (v.is_string()) {
@@ -86,8 +83,10 @@ bool vcd_signal_labels_validator::validate_args_impl(const nlohmann::json &raw_j
 		}
 	}
 
-	if (!args_.clear && args_.labels.empty()) {
-		out_error = "Argument 'labels' must contain at least one label mapping";
+	// Validation rule:
+	// If labels are provided, signal is required.
+	if (!args_.labels.empty() && args_.signal.empty()) {
+		out_error = "Argument 'signal' is required when registering labels";
 		return false;
 	}
 

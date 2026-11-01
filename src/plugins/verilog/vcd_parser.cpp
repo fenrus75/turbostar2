@@ -595,6 +595,7 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 			}
 			pt.signal_values[r.key] = formatted;
 			pt.signal_raw_values[r.key] = raw;
+			pt.signal_full_names[r.key] = r.signal->full_name;
 		}
 
 		results.push_back(std::move(pt));

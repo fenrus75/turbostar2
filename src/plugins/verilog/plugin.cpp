@@ -43,9 +43,11 @@ To debug a digital design without blowing your context window, follow this two-s
    Inspect timescale, duration, detected reference clock, and discover signals in the module of interest:
    `vcd_file_info(path="sim/dump.vcd", scope="tb_main.uut.cpu8008", max_signals=30)`
 
-2. **Define Value Mappings (Optional, `vcd_signal_labels`)**:
-   Map opcode bytes or FSM state numbers to human-readable names once; they will automatically annotate subsequent waveform tables:
-   `vcd_signal_labels(path="sim/dump.vcd", signal="opcode", labels={"0x06": "LAI", "0x36": "LMA", "0xF8": "RET"})`
+2. **Define Value Mappings with Wildcards (`vcd_signal_labels`)**:
+   Map opcode bytes or FSM state numbers across all instances using wildcard signal names (`*`) and binary bitmasks (`?`):
+   `vcd_signal_labels(path="sim/dump.vcd", signal="*opcode", labels={"0x06": "LAI", "0x36": "LMA", "b01???01": "ALU_OP"})`
+   To inspect all active label mappings for a file, call without labels:
+   `vcd_signal_labels(path="sim/dump.vcd")`
 
 3. **Sample Synchronous Waveforms at Clock Edges (`vcd_wave`)**:
    Query selected signals across a specific clock tick window. Multi-bit buses default to hex; use `b:` prefix for binary bit-masks. Short signal names or suffixes (e.g. `"opcode"`, `"flags"`) are automatically resolved, matching the prefix of preceding signals in the list:

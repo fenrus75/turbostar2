@@ -208,6 +208,59 @@ int main()
 		assert(wave_out.find("0x36 (LMA)") != std::string::npos);
 	}
 
+	// 6. Test wildcard signal name matching and label listing in vcd_signal_labels
+	{
+		tools::vcd_signal_labels_validator labels_validator;
+		agentlib::tool_context ctx;
+		ctx.fs_security.add_allowed_root("tests/fixtures", agentlib::access_type::read);
+		ctx.fs_security.set_working_directory(".");
+
+		// Register labels using wildcard pattern for signal name
+		nlohmann::json wildcard_args = {
+			{"path", vcd_path},
+			{"signal", "uut.*.A_val"},
+			{"labels", {
+				{"0x41", "ASCII_A"}
+			}}
+		};
+
+		std::string err;
+		bool valid = labels_validator.validate_args(wildcard_args, ctx, err);
+		assert(valid && err.empty());
+
+		auto tool = labels_validator.create_tool(wildcard_args);
+		std::string out = tool->execute(ctx);
+		assert(out.find("uut.*.A_val") != std::string::npos);
+
+		// Now query/list labels by omitting 'labels'
+		nlohmann::json list_args = {
+			{"path", vcd_path}
+		};
+		valid = labels_validator.validate_args(list_args, ctx, err);
+		assert(valid);
+		auto list_tool = labels_validator.create_tool(list_args);
+		std::string list_out = list_tool->execute(ctx);
+		assert(list_out.find("Active Label Mappings") != std::string::npos);
+		assert(list_out.find("uut.*.A_val") != std::string::npos);
+		assert(list_out.find("ASCII_A") != std::string::npos);
+
+		// Waveform check: tb_main.uut.cpu8008.A_val should match uut.*.A_val wildcard
+		tools::vcd_wave_validator wave_validator;
+		nlohmann::json wave_args = {
+			{"path", vcd_path},
+			{"signals", nlohmann::json::array({"A_val"})},
+			{"start_tick", 5},
+			{"end_tick", 6},
+			{"edge", "posedge"}
+		};
+
+		valid = wave_validator.validate_args(wave_args, ctx, err);
+		assert(valid);
+		auto wave_tool = wave_validator.create_tool(wave_args);
+		std::string wave_out = wave_tool->execute(ctx);
+		assert(wave_out.find("0x41 (ASCII_A)") != std::string::npos);
+	}
+
 	std::cout << "All VCD unit tests passed!\n";
 	return 0;
 }
