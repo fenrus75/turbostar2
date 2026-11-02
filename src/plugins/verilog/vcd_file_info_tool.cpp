@@ -140,7 +140,7 @@ std::string vcd_file_info_tool::execute(agentlib::tool_context &ctx)
 		if (args_.stats) {
 			std::string first_toggle_str;
 			if (is_ref_clk) {
-				first_toggle_str = "0";
+				first_toggle_str = std::format("{}", args_.start_tick.value_or(0));
 			} else if (!stats.has_transitions) {
 				first_toggle_str = "never";
 			} else if (has_clock && stats.first_toggle_tick.has_value()) {

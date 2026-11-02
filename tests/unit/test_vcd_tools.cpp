@@ -1238,6 +1238,19 @@ int main()
 		assert(out_clk.find("`tb_main.clk`**") == std::string::npos); // clock should never be flagged with **
 		assert(out_clk.find("`tb_main.clk`") != std::string::npos);
 
+		// Windowed clock: First Toggle should report window start tick (e.g. 8)
+		nlohmann::json info_clk_windowed = {
+			{"path", vcd_path},
+			{"filter", "*clk*"},
+			{"start_tick", 8},
+			{"end_tick", 20}
+		};
+		err.clear();
+		assert(info_val.validate_args(info_clk_windowed, global_ctx, err));
+		auto tool_clk_win = info_val.create_tool(info_clk_windowed);
+		std::string out_clk_win = tool_clk_win->execute(global_ctx);
+		assert(out_clk_win.find("| `tb_main.clk` | 1 | wire | 8 | [ref clk] |") != std::string::npos);
+
 		// Windowed stats: start_tick and end_tick
 		nlohmann::json info_windowed = {
 			{"path", vcd_path},
