@@ -1,6 +1,7 @@
 #include "vcd_signal_labels_tool.h"
 #include "vcd_label_manager.h"
 #include "vcd_parser.h"
+#include "vcd_parser_cache.h"
 #include <format>
 #include <sstream>
 
@@ -33,12 +34,12 @@ std::string vcd_signal_labels_tool::execute(agentlib::tool_context &ctx)
 
 		// If registering labels for a pattern, verify if it matches any signal in the VCD header
 		if (!args_.clear && !args_.signal.empty()) {
-			verilog::vcd_parser parser;
 			std::string hdr_err;
-			if (parser.parse_header(args_.safe_path, hdr_err)) {
+			auto parser_ptr = verilog::vcd_parser_cache::get_instance().get_or_parse(args_.safe_path, hdr_err);
+			if (parser_ptr) {
 				// Count matching signals against args_.signal
 				size_t matched_count = 0;
-				for (const auto &sig : parser.get_signals()) {
+				for (const auto &sig : parser_ptr->get_signals()) {
 					if (verilog::vcd_label_manager::signal_pattern_matches(args_.signal, sig.full_name)) {
 						++matched_count;
 					}

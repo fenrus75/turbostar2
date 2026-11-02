@@ -1,6 +1,7 @@
 // Tested source file: src/plugins/verilog/vcd_parser.cpp
 #include "test_watchdog.h"
 #include "plugins/verilog/vcd_parser.h"
+#include "plugins/verilog/vcd_parser_cache.h"
 #include "plugins/verilog/vcd_label_manager.h"
 #include "plugins/verilog/vcd_file_info_tool.h"
 #include "plugins/verilog/vcd_file_info_validator.h"
@@ -1300,6 +1301,65 @@ int main()
 		std::string out_qualified = tool_qualified->execute(global_ctx);
 		assert(out_qualified.find("opcode_byte") != std::string::npos);
 		assert(out_qualified.find("%") != std::string::npos);
+	}
+
+	// 19. Test vcd_parser_cache: hits, 2-slot LRU, invalidation on file modification
+	{
+		auto &cache = verilog::vcd_parser_cache::get_instance();
+		cache.clear();
+		assert(cache.size() == 0);
+
+		std::string err;
+		auto p1 = cache.get_or_parse(vcd_path, err);
+		assert(p1 != nullptr && err.empty());
+		assert(cache.size() == 1);
+
+		// Cache hit returns identical shared_ptr
+		auto p1_hit = cache.get_or_parse(vcd_path, err);
+		assert(p1_hit == p1);
+		assert(cache.size() == 1);
+
+		// Insert second file: both fit in 2-slot LRU
+		const std::string vcd_path_b = "tests/fixtures/test_dump_mutated.vcd";
+		auto p2 = cache.get_or_parse(vcd_path_b, err);
+		assert(p2 != nullptr && err.empty());
+		assert(cache.size() == 2);
+		assert(p2 != p1);
+
+		// Insert third file: evicts oldest (vcd_path)
+		const std::string vcd_path_c = "tests/fixtures/test_dump_org.vcd";
+		auto p3 = cache.get_or_parse(vcd_path_c, err);
+		assert(p3 != nullptr && err.empty());
+		assert(cache.size() == 2);
+
+		// p2 and p3 should now be cached
+		auto p2_hit = cache.get_or_parse(vcd_path_b, err);
+		assert(p2_hit == p2);
+
+		auto p3_hit = cache.get_or_parse(vcd_path_c, err);
+		assert(p3_hit == p3);
+
+		// Test invalidation when file is modified:
+		const std::string tmp_vcd = "tests/fixtures/test_cache_tmp.vcd";
+		std::filesystem::copy_file(vcd_path, tmp_vcd, std::filesystem::copy_options::overwrite_existing);
+
+		auto p_tmp1 = cache.get_or_parse(tmp_vcd, err);
+		assert(p_tmp1 != nullptr);
+
+		// Modify file on disk (append a comment line)
+		{
+			std::ofstream ofs(tmp_vcd, std::ios::app);
+			ofs << "\n$comment modified for cache test $end\n";
+		}
+
+		// Cache should detect modification and re-parse
+		auto p_tmp2 = cache.get_or_parse(tmp_vcd, err);
+		assert(p_tmp2 != nullptr);
+		assert(p_tmp2 != p_tmp1);
+
+		std::filesystem::remove(tmp_vcd);
+		cache.clear();
+		assert(cache.size() == 0);
 	}
 
 	// Clean up any test sidecars created during tests

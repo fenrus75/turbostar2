@@ -1,5 +1,6 @@
 #include "vcd_compare_tool.h"
 #include "vcd_parser.h"
+#include "vcd_parser_cache.h"
 #include "vcd_label_manager.h"
 #include <format>
 #include <sstream>
@@ -21,19 +22,21 @@ bool vcd_compare_tool::validate_runtime(const agentlib::tool_context &/*ctx*/, s
 
 std::string vcd_compare_tool::execute(agentlib::tool_context &ctx)
 {
-	verilog::vcd_parser parser_a;
 	std::string err_a;
-	if (!parser_a.parse_all(args_.safe_path_a, err_a)) {
+	auto parser_ptr_a = verilog::vcd_parser_cache::get_instance().get_or_parse(args_.safe_path_a, err_a);
+	if (!parser_ptr_a) {
 		set_failure(ctx, err_a);
 		return std::format("Error parsing File A (`{}`): {}", args_.requested_path_a, err_a);
 	}
+	const auto &parser_a = *parser_ptr_a;
 
-	verilog::vcd_parser parser_b;
 	std::string err_b;
-	if (!parser_b.parse_all(args_.safe_path_b, err_b)) {
+	auto parser_ptr_b = verilog::vcd_parser_cache::get_instance().get_or_parse(args_.safe_path_b, err_b);
+	if (!parser_ptr_b) {
 		set_failure(ctx, err_b);
 		return std::format("Error parsing File B (`{}`): {}", args_.requested_path_b, err_b);
 	}
+	const auto &parser_b = *parser_ptr_b;
 
 	std::string clock_name = args_.clock_signal;
 	if (clock_name.empty()) {

@@ -1,5 +1,6 @@
 #include "vcd_file_info_tool.h"
 #include "vcd_parser.h"
+#include "vcd_parser_cache.h"
 #include "vcd_label_manager.h"
 #include <format>
 #include <sstream>
@@ -19,14 +20,13 @@ bool vcd_file_info_tool::validate_runtime(const agentlib::tool_context &/*ctx*/,
 
 std::string vcd_file_info_tool::execute(agentlib::tool_context &ctx)
 {
-	verilog::vcd_parser parser;
 	std::string parse_err;
-
-	// Parse full simulation to get clock analysis and transition counts
-	if (!parser.parse_all(args_.safe_path, parse_err)) {
+	auto parser_ptr = verilog::vcd_parser_cache::get_instance().get_or_parse(args_.safe_path, parse_err);
+	if (!parser_ptr) {
 		set_failure(ctx, parse_err);
 		return std::format("Error parsing VCD file: {}", parse_err);
 	}
+	const auto &parser = *parser_ptr;
 
 	std::ostringstream ss;
 	ss << std::format("### VCD File Information: `{}`\n\n", args_.requested_path);

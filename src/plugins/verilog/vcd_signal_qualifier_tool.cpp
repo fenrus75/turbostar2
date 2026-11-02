@@ -1,6 +1,7 @@
 #include "vcd_signal_qualifier_tool.h"
 #include "vcd_label_manager.h"
 #include "vcd_parser.h"
+#include "vcd_parser_cache.h"
 #include <format>
 #include <sstream>
 
@@ -40,9 +41,9 @@ std::string vcd_signal_qualifier_tool::execute(agentlib::tool_context &ctx)
 			ss << msg << "\n";
 
 			// Verify if signal and qualifier pattern match signals in trace
-			verilog::vcd_parser parser;
 			std::string hdr_err;
-			if (parser.parse_header(args_.safe_path, hdr_err)) {
+			auto parser_ptr = verilog::vcd_parser_cache::get_instance().get_or_parse(args_.safe_path, hdr_err);
+			if (parser_ptr) {
 				size_t matched_sig = 0;
 				size_t matched_qual = 0;
 
@@ -51,7 +52,7 @@ std::string vcd_signal_qualifier_tool::execute(agentlib::tool_context &ctx)
 					clean_qual.erase(0, 1);
 				}
 
-				for (const auto &sig : parser.get_signals()) {
+				for (const auto &sig : parser_ptr->get_signals()) {
 					if (verilog::vcd_label_manager::signal_pattern_matches(args_.signal, sig.full_name)) {
 						++matched_sig;
 					}

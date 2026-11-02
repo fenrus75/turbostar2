@@ -197,6 +197,7 @@ test('unit_binary_plugin', test_binary_plugin_impl, suite: 'plugins')
 test_vcd_tools = executable('test_vcd_tools',
   ['unit/test_vcd_tools.cpp',
    '../src/plugins/verilog/vcd_parser.cpp',
+   '../src/plugins/verilog/vcd_parser_cache.cpp',
    '../src/plugins/verilog/vcd_label_manager.cpp',
    '../src/plugins/verilog/vcd_file_info_tool.cpp',
    '../src/plugins/verilog/vcd_file_info_validator.cpp',

@@ -1,5 +1,6 @@
 #include "vcd_wave_tool.h"
 #include "vcd_parser.h"
+#include "vcd_parser_cache.h"
 #include "vcd_label_manager.h"
 #include <format>
 #include <sstream>
@@ -20,13 +21,13 @@ bool vcd_wave_tool::validate_runtime(const agentlib::tool_context &/*ctx*/, std:
 
 std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 {
-	verilog::vcd_parser parser;
 	std::string parse_err;
-
-	if (!parser.parse_all(args_.safe_path, parse_err)) {
+	auto parser_ptr = verilog::vcd_parser_cache::get_instance().get_or_parse(args_.safe_path, parse_err);
+	if (!parser_ptr) {
 		set_failure(ctx, parse_err);
 		return std::format("Error parsing VCD file: {}", parse_err);
 	}
+	const auto &parser = *parser_ptr;
 
 	std::string clock_name = args_.clock_signal;
 	if (clock_name.empty()) {
