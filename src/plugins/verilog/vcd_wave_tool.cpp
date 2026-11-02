@@ -143,13 +143,25 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 			}
 
 			if (has_clock) {
-				uint64_t since_tick = parser.get_signal_since_tick(
+				auto since_tick = parser.get_signal_since_tick(
 					*sig_obj, first_sample.timestamp, clock_name, args_.edge, edge_times
 				);
-				ss << std::format("| {} ", since_tick);
+				if (!since_tick.has_value()) {
+					ss << "| init ";
+				} else if (*since_tick == first_sample.tick) {
+					ss << "| new ";
+				} else {
+					ss << std::format("| {} ", *since_tick);
+				}
 			} else {
 				uint64_t since_time = parser.get_signal_since_time(*sig_obj, first_sample.timestamp);
-				ss << std::format("| {} ", since_time);
+				if (since_time <= parser.get_start_time()) {
+					ss << "| init ";
+				} else if (since_time == first_sample.timestamp) {
+					ss << "| new ";
+				} else {
+					ss << std::format("| {} ", since_time);
+				}
 			}
 		}
 		ss << "|\n";

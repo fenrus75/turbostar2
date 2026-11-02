@@ -936,7 +936,7 @@ std::vector<uint64_t> vcd_parser::get_clock_edge_times(
 	return edge_times;
 }
 
-uint64_t vcd_parser::get_signal_since_tick(
+std::optional<size_t> vcd_parser::get_signal_since_tick(
 	const vcd_signal &sig,
 	uint64_t target_time,
 	std::string_view clock_signal,
@@ -954,18 +954,18 @@ uint64_t vcd_parser::get_signal_since_tick(
 	}
 
 	if (edge_times.empty()) {
-		return change_time;
+		return std::nullopt;
 	}
 
-	if (change_time <= edge_times.front()) {
-		return 0;
+	if (change_time < edge_times.front()) {
+		return std::nullopt; // Established prior to the first clock edge (initialization)
 	}
 
 	auto it = std::lower_bound(edge_times.begin(), edge_times.end(), change_time);
 	if (it == edge_times.end()) {
-		return static_cast<uint64_t>(edge_times.size() - 1);
+		return edge_times.size() - 1;
 	}
-	return static_cast<uint64_t>(std::distance(edge_times.begin(), it));
+	return static_cast<size_t>(std::distance(edge_times.begin(), it));
 }
 
 } // namespace verilog

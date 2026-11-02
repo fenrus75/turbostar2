@@ -112,13 +112,20 @@ int main()
 		// Test get_signal_since_tick and get_signal_since_time
 		const auto *clk_sig = parser.find_signal("tb_main.clk");
 		assert(clk_sig != nullptr);
-		assert(parser.get_signal_since_tick(*clk_sig, 105000, "tb_main.clk") == 10);
+		auto clk_since = parser.get_signal_since_tick(*clk_sig, 105000, "tb_main.clk");
+		assert(clk_since.has_value() && *clk_since == 10);
 
 		const auto *rst_sig = parser.find_signal("tb_main.rst");
 		assert(rst_sig != nullptr);
-		uint64_t rst_since_tick = parser.get_signal_since_tick(*rst_sig, 105000, "tb_main.clk");
-		// rst deasserts early in simulation and remains 0 at tick 10
-		assert(rst_since_tick <= 10);
+		auto rst_since_tick = parser.get_signal_since_tick(*rst_sig, 105000, "tb_main.clk");
+		// rst deasserts at tick 2 and remains 0 at tick 10
+		assert(rst_since_tick.has_value() && *rst_since_tick == 2);
+
+		const auto *flags_sig = parser.find_signal("tb_main.uut.cpu8008.flags");
+		assert(flags_sig != nullptr);
+		auto flags_since = parser.get_signal_since_tick(*flags_sig, 105000, "tb_main.clk");
+		// flags never transitioned from simulation start -> nullopt (init)
+		assert(!flags_since.has_value());
 	}
 
 	// 2. Test vcd_file_info validator and tool
@@ -187,7 +194,7 @@ int main()
 		{
 			nlohmann::json args_win = {
 				{"path", vcd_path},
-				{"signals", nlohmann::json::array({"tb_main.uut.cpu8008.opcode", "rst", "tb_main.clk"})},
+				{"signals", nlohmann::json::array({"tb_main.uut.cpu8008.opcode", "rst", "tb_main.clk", "b:tb_main.uut.cpu8008.flags"})},
 				{"start_tick", 10},
 				{"end_tick", 15},
 				{"edge", "posedge"}
@@ -200,8 +207,8 @@ int main()
 			std::string out_win = tool_win->execute(ctx);
 			assert(out_win.find("*(since clock)*") != std::string::npos);
 			assert(out_win.find("| *(since clock)* | - |") != std::string::npos);
-			// Verify rst is reported as since tick 2 and clk as since tick 10
-			assert(out_win.find("| 2 | 10 |") != std::string::npos);
+			// Verify opcode reports 9, rst reports 2, clk reports "new", and flags reports "init"
+			assert(out_win.find("| 9 | 2 | new | init |") != std::string::npos);
 		}
 
 		// Test windowed waveform output with edge: "both" (Edge column present)
@@ -221,6 +228,8 @@ int main()
 			std::string out_both = tool_both->execute(ctx);
 			assert(out_both.find("*(since clock)*") != std::string::npos);
 			assert(out_both.find("| *(since clock)* | - | - |") != std::string::npos);
+			// In edge: "both", clk toggled at tick 5 so it reports "new", rst held since tick 3
+			assert(out_both.find("| 3 | new |") != std::string::npos);
 		}
 	}
 

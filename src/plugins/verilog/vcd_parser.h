@@ -113,9 +113,10 @@ class vcd_parser
 	) const;
 
 	// Return the earliest clock tick index the signal has held its value at target_time.
+	// Returns std::nullopt if the value was established prior to the first clock edge (initialization).
 	// If cached_edge_times is provided, reuses the precomputed edge timestamps.
-	// If no clock is detected/available, falls back to get_signal_since_time().
-	uint64_t get_signal_since_tick(
+	// If no clock is detected/available, returns std::nullopt.
+	std::optional<size_t> get_signal_since_tick(
 		const vcd_signal &sig,
 		uint64_t target_time,
 		std::string_view clock_signal = "",
