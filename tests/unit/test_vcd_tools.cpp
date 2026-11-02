@@ -102,6 +102,23 @@ int main()
 		assert(samples.size() == 11);
 		assert(samples[0].tick == 0);
 		assert(samples[0].timestamp == 5000); // First clk rising edge at 5000ps
+
+		// Test get_clock_edge_times
+		auto edge_times = parser.get_clock_edge_times("tb_main.clk", "posedge");
+		assert(edge_times.size() == 202);
+		assert(edge_times[0] == 5000);
+		assert(edge_times[10] == 105000);
+
+		// Test get_signal_since_tick and get_signal_since_time
+		const auto *clk_sig = parser.find_signal("tb_main.clk");
+		assert(clk_sig != nullptr);
+		assert(parser.get_signal_since_tick(*clk_sig, 105000, "tb_main.clk") == 10);
+
+		const auto *rst_sig = parser.find_signal("tb_main.rst");
+		assert(rst_sig != nullptr);
+		uint64_t rst_since_tick = parser.get_signal_since_tick(*rst_sig, 105000, "tb_main.clk");
+		// rst deasserts early in simulation and remains 0 at tick 10
+		assert(rst_since_tick <= 10);
 	}
 
 	// 2. Test vcd_file_info validator and tool
@@ -164,6 +181,47 @@ int main()
 		assert(output.find("VCD Waveform") != std::string::npos);
 		assert(output.find("Tick") != std::string::npos);
 		assert(output.find("0x") != std::string::npos); // Formatted hex values
+		assert(output.find("*(since clock)*") == std::string::npos); // Unwindowed at tick 0 should not emit since row
+
+		// Test windowed waveform output with *(since clock)* provenance row
+		{
+			nlohmann::json args_win = {
+				{"path", vcd_path},
+				{"signals", nlohmann::json::array({"tb_main.uut.cpu8008.opcode", "rst", "tb_main.clk"})},
+				{"start_tick", 10},
+				{"end_tick", 15},
+				{"edge", "posedge"}
+			};
+			std::string err_win;
+			bool valid_win = validator.validate_args(args_win, ctx, err_win);
+			assert(valid_win && err_win.empty());
+			auto tool_win = validator.create_tool(args_win);
+			assert(tool_win != nullptr);
+			std::string out_win = tool_win->execute(ctx);
+			assert(out_win.find("*(since clock)*") != std::string::npos);
+			assert(out_win.find("| *(since clock)* | - |") != std::string::npos);
+			// Verify rst is reported as since tick 2 and clk as since tick 10
+			assert(out_win.find("| 2 | 10 |") != std::string::npos);
+		}
+
+		// Test windowed waveform output with edge: "both" (Edge column present)
+		{
+			nlohmann::json args_both = {
+				{"path", vcd_path},
+				{"signals", nlohmann::json::array({"rst", "tb_main.clk"})},
+				{"start_tick", 5},
+				{"end_tick", 8},
+				{"edge", "both"}
+			};
+			std::string err_both;
+			bool valid_both = validator.validate_args(args_both, ctx, err_both);
+			assert(valid_both && err_both.empty());
+			auto tool_both = validator.create_tool(args_both);
+			assert(tool_both != nullptr);
+			std::string out_both = tool_both->execute(ctx);
+			assert(out_both.find("*(since clock)*") != std::string::npos);
+			assert(out_both.find("| *(since clock)* | - | - |") != std::string::npos);
+		}
 	}
 
 	// 4. Test suffix & contextual scope resolution in vcd_parser

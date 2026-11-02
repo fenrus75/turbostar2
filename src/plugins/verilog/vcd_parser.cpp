@@ -575,6 +575,9 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 				collapsed.end_timestamp = collapsed_last_timestamp;
 				collapsed.edge = pending_repeats.front().edge;
 				collapsed.collapsed_count = pending_repeats.size() + collapsed_extra_count;
+				collapsed.signal_values = pending_repeats.front().signal_values;
+				collapsed.signal_raw_values = pending_repeats.front().signal_raw_values;
+				collapsed.signal_full_names = pending_repeats.front().signal_full_names;
 				results.push_back(std::move(collapsed));
 			}
 		} else {
@@ -865,6 +868,104 @@ vcd_signal_stats vcd_parser::compute_signal_stats(
 		: 0.0;
 
 	return stats;
+}
+
+uint64_t vcd_parser::get_signal_since_time(const vcd_signal &sig, uint64_t target_time) const
+{
+	auto it = id_transitions_.find(sig.id_code);
+	if (it == id_transitions_.end() || it->second.empty()) {
+		return 0;
+	}
+
+	const auto &transitions = it->second;
+	auto up = transitions.upper_bound(target_time);
+	if (up == transitions.begin()) {
+		return 0;
+	}
+	--up;
+
+	const std::string &val_at_target = up->second;
+	uint64_t change_time = up->first;
+	auto scan = up;
+	while (scan != transitions.begin()) {
+		auto prev = std::prev(scan);
+		if (prev->second == val_at_target) {
+			change_time = prev->first;
+			scan = prev;
+		} else {
+			break;
+		}
+	}
+	return change_time;
+}
+
+std::vector<uint64_t> vcd_parser::get_clock_edge_times(
+	std::string_view clock_signal,
+	std::string_view edge_mode
+) const
+{
+	std::string clk_name(clock_signal);
+	if (clk_name.empty()) {
+		auto detected = detect_clock();
+		if (detected) {
+			clk_name = detected->signal_name;
+		}
+	}
+
+	const vcd_signal *clk_sig = !clk_name.empty() ? find_signal(clk_name) : nullptr;
+	auto clk_it = clk_sig ? id_transitions_.find(clk_sig->id_code) : id_transitions_.end();
+
+	if (!clk_sig || clk_it == id_transitions_.end() || clk_it->second.empty()) {
+		return {};
+	}
+
+	std::vector<uint64_t> edge_times;
+	std::string last_clk_val;
+	for (const auto &[time, val] : clk_it->second) {
+		bool is_posedge = (val == "1" && last_clk_val == "0");
+		bool is_negedge = (val == "0" && last_clk_val == "1");
+
+		if (is_posedge && (edge_mode == "posedge" || edge_mode == "both")) {
+			edge_times.push_back(time);
+		} else if (is_negedge && (edge_mode == "negedge" || edge_mode == "both")) {
+			edge_times.push_back(time);
+		}
+		last_clk_val = val;
+	}
+
+	return edge_times;
+}
+
+uint64_t vcd_parser::get_signal_since_tick(
+	const vcd_signal &sig,
+	uint64_t target_time,
+	std::string_view clock_signal,
+	std::string_view edge_mode,
+	std::span<const uint64_t> cached_edge_times
+) const
+{
+	uint64_t change_time = get_signal_since_time(sig, target_time);
+
+	std::vector<uint64_t> local_edges;
+	std::span<const uint64_t> edge_times = cached_edge_times;
+	if (edge_times.empty()) {
+		local_edges = get_clock_edge_times(clock_signal, edge_mode);
+		edge_times = local_edges;
+	}
+
+	if (edge_times.empty()) {
+		return change_time;
+	}
+
+	if (change_time <= edge_times.front()) {
+		return 0;
+	}
+
+	auto it = std::lower_bound(edge_times.begin(), edge_times.end(), change_time);
+	if (it == edge_times.end()) {
+		return static_cast<uint64_t>(edge_times.size() - 1);
+	}
+	return static_cast<uint64_t>(std::distance(edge_times.begin(), it));
 }
 
 } // namespace verilog

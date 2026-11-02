@@ -99,6 +99,62 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 	}
 	ss << "\n";
 
+	// Provenance row: if trace is windowed (start_tick > 0 or start_time > start_time_),
+	// show earliest clock tick (or time) each signal has continuously held its starting value.
+	bool has_clock = !clock_name.empty();
+	bool show_since = false;
+	if (!samples.empty()) {
+		if (has_clock) {
+			show_since = (samples.front().tick > 0);
+		} else {
+			show_since = (samples.front().timestamp > parser.get_start_time());
+		}
+	}
+
+	if (show_since && !samples.empty()) {
+		const auto &first_sample = samples.front();
+		auto edge_times = has_clock ? parser.get_clock_edge_times(clock_name, args_.edge) : std::vector<uint64_t>{};
+
+		ss << std::format("| *({})* | - ", has_clock ? "since clock" : "since time");
+		if (args_.edge == "both") {
+			ss << "| - ";
+		}
+		for (const auto &sig : args_.signals) {
+			auto val_it = first_sample.signal_values.find(sig);
+			if (val_it != first_sample.signal_values.end() && val_it->second == "-") {
+				// Signal is invalid/masked by qualifier at window start
+				ss << "| - ";
+				continue;
+			}
+
+			std::string_view lookup_sig = sig;
+			if (lookup_sig.starts_with("x:") || lookup_sig.starts_with("b:")) {
+				lookup_sig.remove_prefix(2);
+			}
+			auto name_it = first_sample.signal_full_names.find(sig);
+			if (name_it != first_sample.signal_full_names.end() && !name_it->second.empty()) {
+				lookup_sig = name_it->second;
+			}
+
+			const auto *sig_obj = parser.find_signal(lookup_sig);
+			if (!sig_obj) {
+				ss << "| - ";
+				continue;
+			}
+
+			if (has_clock) {
+				uint64_t since_tick = parser.get_signal_since_tick(
+					*sig_obj, first_sample.timestamp, clock_name, args_.edge, edge_times
+				);
+				ss << std::format("| {} ", since_tick);
+			} else {
+				uint64_t since_time = parser.get_signal_since_time(*sig_obj, first_sample.timestamp);
+				ss << std::format("| {} ", since_time);
+			}
+		}
+		ss << "|\n";
+	}
+
 	// Rows
 	auto &label_mgr = verilog::vcd_label_manager::get_instance();
 

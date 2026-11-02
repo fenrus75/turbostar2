@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -100,6 +101,26 @@ class vcd_parser
 		std::string_view clock_signal = "",
 		std::optional<size_t> start_tick = std::nullopt,
 		std::optional<size_t> end_tick = std::nullopt
+	) const;
+
+	// Return the earliest simulation timestamp the signal has held its value at target_time
+	uint64_t get_signal_since_time(const vcd_signal &sig, uint64_t target_time) const;
+
+	// Extract clock edge timestamps for a given clock signal and edge mode ("posedge", "negedge", "both")
+	std::vector<uint64_t> get_clock_edge_times(
+		std::string_view clock_signal,
+		std::string_view edge_mode = "posedge"
+	) const;
+
+	// Return the earliest clock tick index the signal has held its value at target_time.
+	// If cached_edge_times is provided, reuses the precomputed edge timestamps.
+	// If no clock is detected/available, falls back to get_signal_since_time().
+	uint64_t get_signal_since_tick(
+		const vcd_signal &sig,
+		uint64_t target_time,
+		std::string_view clock_signal = "",
+		std::string_view edge_mode = "posedge",
+		std::span<const uint64_t> cached_edge_times = {}
 	) const;
 
       private:
