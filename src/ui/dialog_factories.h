@@ -38,9 +38,8 @@ std::unique_ptr<dialog> create_syntax_colors_dialog();
 // ============================================================================
 // Domain 3: AI & Agent Dialogs (Implemented in src/ui/dialog_ai.cpp)
 // ============================================================================
-std::unique_ptr<dialog> create_ai_settings_dialog();
+std::unique_ptr<dialog> create_ai_settings_dialog(std::string_view active_tab_id = "", std::string_view selected_server_id = "");
 void apply_ai_settings_from_dialog(const dialog &dlg);
-
 std::unique_ptr<dialog> create_task_models_dialog();
 void apply_task_models_from_dialog(const dialog &dlg);
 

@@ -244,8 +244,10 @@ void editor::resolve_dialog(dialog_result res)
 				return;
 			}
 			if (res_str == "add_model_server") {
+				editing_model_server_id_ = "";
+				model_server_edit_from_ai_settings_ = true;
 				active_dialog_ = create_model_server_edit_dialog(nullptr);
-				active_dialog_mode_ = dialog_mode::settings;
+				active_dialog_mode_ = dialog_mode::model_server_edit;
 				set_focus(focus_target::dialog, "model_server_edit");
 				return;
 			}
@@ -513,6 +515,8 @@ void editor::resolve_dialog(dialog_result res)
 				set_focus(focus_target::window);
 				return;
 			} else if (res_str == "add") {
+				editing_model_server_id_ = "";
+				model_server_edit_from_ai_settings_ = false;
 				active_dialog_ = create_model_server_edit_dialog(nullptr);
 				active_dialog_mode_ = dialog_mode::model_server_edit;
 				set_focus(focus_target::dialog, "id");
@@ -520,6 +524,7 @@ void editor::resolve_dialog(dialog_result res)
 			} else if (res_str.starts_with("edit:")) {
 				std::string id = res_str.substr(5);
 				editing_model_server_id_ = id;
+				model_server_edit_from_ai_settings_ = false;
 				active_dialog_ =
 				    create_model_server_edit_dialog(agentlib::model_server_registry::get_instance().get_server(id));
 				active_dialog_mode_ = dialog_mode::model_server_edit;
@@ -619,12 +624,23 @@ void editor::resolve_dialog(dialog_result res)
 				return;
 			}
 		} else if (active_dialog_mode_ == dialog_mode::model_server_edit) {
+			std::string target_id = editing_model_server_id_;
 			if (active_dialog_->get_result() == "ok") {
+				auto id_opt = active_dialog_->get_value("id");
+				if (id_opt && !id_opt->empty()) {
+					target_id = *id_opt;
+				}
 				apply_model_server_edit_from_dialog(*active_dialog_, editing_model_server_id_);
 			}
-			active_dialog_ = create_model_server_list_dialog();
-			active_dialog_mode_ = dialog_mode::model_server_list;
-			set_focus(focus_target::dialog, "server_list");
+			if (model_server_edit_from_ai_settings_) {
+				active_dialog_ = create_ai_settings_dialog("providers", target_id);
+				active_dialog_mode_ = dialog_mode::settings;
+				set_focus(focus_target::dialog, "ai_settings");
+			} else {
+				active_dialog_ = create_model_server_list_dialog();
+				active_dialog_mode_ = dialog_mode::model_server_list;
+				set_focus(focus_target::dialog, "server_list");
+			}
 			return;
 		} else if (active_dialog_mode_ == dialog_mode::model_selection) {
 			std::string res_str = active_dialog_->get_result();
@@ -954,6 +970,18 @@ void editor::resolve_dialog(dialog_result res)
 			active_dialog_ = create_image_manager_dialog();
 			active_dialog_mode_ = dialog_mode::image_manager;
 			set_focus(focus_target::dialog, "image_manager");
+			return;
+		}
+		if (active_dialog_mode_ == dialog_mode::model_server_edit) {
+			if (model_server_edit_from_ai_settings_) {
+				active_dialog_ = create_ai_settings_dialog("providers", editing_model_server_id_);
+				active_dialog_mode_ = dialog_mode::settings;
+				set_focus(focus_target::dialog, "ai_settings");
+			} else {
+				active_dialog_ = create_model_server_list_dialog();
+				active_dialog_mode_ = dialog_mode::model_server_list;
+				set_focus(focus_target::dialog, "server_list");
+			}
 			return;
 		}
 		if (active_dialog_mode_ == dialog_mode::ask_user) {

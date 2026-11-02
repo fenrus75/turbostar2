@@ -69,7 +69,7 @@ class editor : public agentlib::document_provider
 	friend void test_vim_emulation();
 	friend void test_status_bar_paste();
 	friend void test_k_block_multi_cursor();
-
+	friend void test_options_dialogs_flow();
 
 	const std::vector<latency_spike> &get_latency_spikes_for_testing() const noexcept
 	{
@@ -337,6 +337,7 @@ class editor : public agentlib::document_provider
 
 	std::string editing_model_id_;
 	std::string editing_model_server_id_;
+	bool model_server_edit_from_ai_settings_{false};
 	int switching_agent_id_{-1};
 	std::string get_search_autocomplete() const;
 

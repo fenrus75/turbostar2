@@ -32,7 +32,7 @@
 #include <fstream>
 #include <memory>
 
-std::unique_ptr<dialog> create_ai_settings_dialog()
+std::unique_ptr<dialog> create_ai_settings_dialog(std::string_view active_tab_id, std::string_view selected_server_id)
 {
 	auto dlg = std::make_unique<dialog>("AI & Agent Settings", 68, 22);
 	auto main_flow = std::make_unique<ui_vertical_flow>("main_flow", 0, 0, 1, 1);
@@ -73,10 +73,19 @@ std::unique_ptr<dialog> create_ai_settings_dialog()
 	tab2_flow->add_child(std::make_unique<ui_text_label>("Configured LLM Provider Servers:"));
 	auto servers_list = std::make_unique<ui_listbox>("server_list", 38, 5, nullptr, nullptr);
 	std::vector<std::string> server_names;
-	for (const auto &srv : agentlib::model_server_registry::get_instance().get_all_servers()) {
-		server_names.push_back("  " + srv->get_id() + " - " + srv->get_name());
+	int selected_srv_idx = -1;
+	const auto all_servers = agentlib::model_server_registry::get_instance().get_all_servers();
+	for (size_t i = 0; i < all_servers.size(); ++i) {
+		const auto &srv = all_servers[i];
+		server_names.push_back(std::format("  {} - {}", srv->get_id(), srv->get_name()));
+		if (!selected_server_id.empty() && srv->get_id() == selected_server_id) {
+			selected_srv_idx = static_cast<int>(i);
+		}
 	}
 	servers_list->set_items(server_names);
+	if (selected_srv_idx >= 0) {
+		servers_list->set_selected_index(selected_srv_idx);
+	}
 	auto srv_ptr = servers_list.get();
 	tab2_flow->add_child(std::move(servers_list));
 
@@ -177,6 +186,9 @@ std::unique_ptr<dialog> create_ai_settings_dialog()
 	tab4_flow->add_child(std::move(mcp_btns));
 	tabbed->add_tab_page("mcp", "MCP & Plugins", std::move(tab4_flow));
 
+	if (!active_tab_id.empty()) {
+		tabbed->set_active_tab_by_id(std::string(active_tab_id));
+	}
 	main_flow->add_child(std::move(tabbed));
 
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 0, 0, 0);
@@ -200,6 +212,10 @@ std::unique_ptr<dialog> create_ai_settings_dialog()
 	dlg->flow();
 	dlg->set_width(flow_ptr->width());
 	dlg->set_height(flow_ptr->height());
+
+	if (active_tab_id == "providers") {
+		dlg->set_focus_by_name("server_list");
+	}
 
 	return dlg;
 }
