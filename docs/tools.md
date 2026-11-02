@@ -936,3 +936,94 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Arguments:**
     *   `path` *(string)*: Relative path under the project workspace or VFS URI (e.g., 'src/plugins/securityagent/securityagent.md') of the agent .md definition file.
     *   `output_path` *(string, optional)*: Relative path under the project workspace or VFS URI (e.g., 'src/plugins/securityagent/securityagent.card.json'). Optional output card path (defaults to sidecar next to .md).
+
+---
+
+## 14. Verilog & Simulation Waveform Tools (Family: `verilog`)
+
+Tools in this family assist in digital ASIC and FPGA hardware engineering, simulation verification, and waveform analysis for IEEE 1364/1800 Value Change Dump (`.vcd`) files.
+
+### `vcd_file_info` (Family: `verilog`)
+*   **Description:** Inspects an IEEE 1364/1800 Value Change Dump (VCD) simulation file. Returns timescale, simulation start/end times, detected reference clock with period and tick counts, and a Markdown table of signals filtered by hierarchical scope or name pattern. Signals with 0 transitions throughout the trace are automatically annotated with `**` (dead/stuck-at signal detection). When `stats: true` is passed, expands the table with cycle-accurate `First Toggle (Tick)` and `Toggle Rate` (percentage of clock cycles where posedge-sampled values change). Supports cycle windowing via `start_tick` and `end_tick`.
+*   **Arguments:**
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI of the VCD simulation file (e.g. `'sim/dump.vcd'` or `'tmp://trace.vcd'`).
+    *   `clock_signal` *(string, optional)*: Optional signal name to analyze as the reference clock. If omitted, the tool automatically detects the primary clock candidate.
+    *   `scope` *(string, optional)*: Optional hierarchical module scope to filter signals (e.g. `'tb_main.uut.cpu8008'`).
+    *   `filter` *(string, optional)*: Optional wildcard pattern to filter signal names (e.g. `'*addr*'` or `'*data*'`).
+    *   `max_signals` *(integer, optional)*: Maximum number of signals to display in the output table. Defaults to 100.
+    *   `stats` *(boolean, optional)*: If true, expands the signal table with 'First Toggle' tick and 'Toggle Rate' columns.
+    *   `start_tick` *(integer, optional)*: Optional starting clock tick for toggle statistics windowing (inclusive). Automatically enables stats.
+    *   `end_tick` *(integer, optional)*: Optional ending clock tick for toggle statistics windowing (inclusive). Automatically enables stats.
+
+### `vcd_wave` (Family: `verilog`)
+*   **Description:** Samples simulation waveform traces synchronously at clock edges (`posedge`, `negedge`, or `both`) and renders a clean Markdown table. Formats multi-bit buses into hexadecimal (`0x36`) by default, with `b:` prefix for binary bit-masks and `x:` for hex. Automatically collapses runs of consecutive unchanged idle cycles ($\ge 3$ cycles). When leaf/shorthand signal names are queried, appends a resolved hierarchy mapping table. Can export an open-in-GTKWave `.gtkw` save file configured with display radices, open scopes, and time cursors.
+*   **Arguments:**
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI of the VCD simulation file.
+    *   `signals` *(array of strings, optional)*: List of signal names or hierarchical paths to sample (e.g. `['rst', 'clk', 'tb_main.uut.opcode', 'b:flags']`).
+    *   `clock_signal` *(string, optional)*: Optional clock signal to sample on. If omitted, auto-detects the primary clock candidate.
+    *   `edge` *(string, optional)*: Clock transition edge to sample on: `'posedge'` (default), `'negedge'`, or `'both'`.
+    *   `start_tick` *(integer, optional)*: Starting clock tick index (0-based). Defaults to 0.
+    *   `end_tick` *(integer, optional)*: Ending clock tick index.
+    *   `start_time` *(integer, optional)*: Optional start time window in VCD timescale units.
+    *   `end_time` *(integer, optional)*: Optional end time window in VCD timescale units.
+    *   `max_rows` *(integer, optional)*: Maximum number of output table rows to display. Defaults to 50. (`max_ticks` accepted as backwards-compatible alias).
+    *   `collapse_idle` *(boolean, optional)*: If true (default), collapses runs of $\ge 3$ identical unchanged clock cycles into summary rows.
+    *   `gtkw_output` *(string, optional)*: Optional output file path to write a GTKWave save file (`.gtkw`) with configured signals, display radices, and marker timestamps.
+
+### `vcd_signal_labels` (Family: `verilog`)
+*   **Description:** Maps raw simulation signal bit values (hex, decimal, or binary with wildcards) to human-readable symbolic state or opcode names (e.g. `0x06` $\to$ `"LAI"`). Persists labels to a `<path>.labels.json` sidecar file, which are then automatically rendered in `vcd_wave` output tables and `vcd_search` queries. Supports wildcard signal patterns (e.g. `'*opcode'`) to label matching nets across all hierarchy levels.
+*   **Arguments:**
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI of the VCD simulation file.
+    *   `signal` *(string, optional)*: Signal name or wildcard pattern (e.g. `'opcode'` or `'*state*'`). Required when registering labels.
+    *   `labels` *(object, optional)*: Key-value map of signal values (hex `'0x06'`, decimal `'6'`, or binary with wildcards `'b01???01'`) to string labels (e.g. `'LAI'`). If omitted and clear is false, lists all currently active labels.
+    *   `clear` *(boolean, optional)*: If true, clears labels for the specified signal (or all signals if signal is omitted).
+
+### `vcd_search` (Family: `verilog`)
+*   **Description:** Searches simulation traces for clock cycles matching signal values, registered symbolic labels, or binary wildcard patterns. Aggregates contiguous cycles into tick ranges (`"4-12, 23-59"`), supports multi-signal conditions (logical AND matching across buses and strobes), and provides bidirectional scanning (`forward`, `backward`) with `first` / `last` match shortcuts.
+*   **Arguments:**
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI of the VCD simulation file.
+    *   `conditions` *(object, optional)*: Key-value map of signal names to expected values to match simultaneously (logical AND), e.g. `{"valid": "1", "opcode": "0x36"}`.
+    *   `signal` *(string, optional)*: Signal name or path for single-signal search.
+    *   `value` *(string, optional)*: Value to match against for single-signal search: hex (`'0x36'`), binary with wildcards (`'b01???01'`), or registered label (`'LMA'`).
+    *   `clock_signal` *(string, optional)*: Optional clock signal to sample on. If omitted, auto-detects the primary clock candidate.
+    *   `edge` *(string, optional)*: Clock transition edge to sample on: `'posedge'` (default), `'negedge'`, or `'both'`.
+    *   `direction` *(string, optional)*: Search direction: `'forward'` (default) or `'backward'`.
+    *   `limit` *(integer, optional)*: Maximum number of matched intervals to return. Defaults to 10.
+    *   `first` *(boolean, optional)*: If true, returns only the first matched interval.
+    *   `last` *(boolean, optional)*: If true, returns only the last matched interval.
+    *   `start_tick` *(integer, optional)*: Starting clock tick index. Defaults to 0.
+    *   `end_tick` *(integer, optional)*: Ending clock tick index.
+    *   `start_time` *(integer, optional)*: Optional start time window in VCD timescale units.
+    *   `end_time` *(integer, optional)*: Optional end time window in VCD timescale units.
+
+### `vcd_signal_qualifier` (Family: `verilog`)
+*   **Description:** Binds data signals to 1-bit strobe or enable qualifiers (e.g. `valid` or active-low `~cs_n`). During simulation cycles where the qualifier is inactive (`0`, `X`, or `Z`), the qualified signal's value is masked to `"-"`. Masked cycles collapse cleanly in `vcd_wave`, are excluded from `vcd_search` matches, and are ignored when evaluating toggle statistics. Persists bindings to a sidecar file.
+*   **Arguments:**
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI of the VCD simulation file.
+    *   `signal` *(string, optional)*: Signal name or wildcard pattern to qualify (e.g. `'opcode_data'` or `'uut.*.data'`).
+    *   `qualifier` *(string, optional)*: 1-bit qualifier signal name. Prefix with `'~'` or `'!'` for active-low (e.g. `'valid'` or `'~cs_n'`).
+    *   `bindings` *(object, optional)*: Batch map of signal names to qualifier names (e.g. `{"wdata": "we", "rdata": "re"}`).
+    *   `clear` *(boolean, optional)*: If true, clears qualifiers for the specified signal, or all qualifiers if signal is omitted.
+
+### `vcd_compare` (Family: `verilog`)
+*   **Description:** Performs cycle-by-cycle differential comparison between two VCD simulation traces (e.g. golden reference vs. candidate bug trace). Identifies the exact clock cycle of first divergence and summarizes differing signal values. Automatically applies registered validity qualifiers symmetrically so inactive bus cycles do not cause false alarms.
+*   **Arguments:**
+    *   `path_a` *(string, required)*: Relative path under the project workspace or VFS URI of the first VCD file (reference / golden trace).
+    *   `path_b` *(string, required)*: Relative path under the project workspace or VFS URI of the second VCD file (candidate / test run trace).
+    *   `signals` *(array of strings, optional)*: Optional list of signal names or wildcard patterns (`*`, `?`) to compare. If omitted, compares the intersection of common signals.
+    *   `scope` *(string, optional)*: Optional hierarchical scope prefix to filter signals (e.g. `'tb_main.uut'`).
+    *   `clock_signal` *(string, optional)*: Optional clock signal to sample on. If omitted, auto-detects from the reference trace.
+    *   `edge` *(string, optional)*: Clock transition edge to sample on: `'posedge'` (default), `'negedge'`, or `'both'`.
+    *   `start_tick` *(integer, optional)*: Starting clock tick index (default: 0, useful to skip reset sequences).
+    *   `end_tick` *(integer, optional)*: Ending clock tick index.
+    *   `start_time` *(integer, optional)*: Optional start time window in VCD timescale units.
+    *   `end_time` *(integer, optional)*: Optional end time window in VCD timescale units.
+    *   `strict` *(boolean, optional)*: If true, fails if signal manifests differ between files. Defaults to false.
+    *   `ignore_invalid` *(boolean, optional)*: If true (default), ignores differences on clock cycles where signals are masked as invalid (`'-'`) by registered qualifiers.
+    *   `use_qualifiers` *(boolean, optional)*: If true (default), applies signal validity qualifiers symmetrically across both files.
+
+### `vcd_signal_to_code` (Family: `verilog`)
+*   **Description:** Traces simulation signal names back to source RTL declarations across module hierarchy levels, driving sequential/combinational cells and ports, and downstream consumer nets. Uses elaborated flattened Yosys JSON netlists to resolve interconnects across module boundaries. Only registered when `yosys` is present in system PATH.
+*   **Arguments:**
+    *   `signal` *(string, required)*: Simulation signal name or path (e.g. `'tb_main.uut.cpu8008.A_val'` or `'cpu8008.A_val'`).
+    *   `netlist` *(string, optional)*: Optional path to a hierarchy-preserving Yosys elaboration netlist JSON (generated via `yosys ... prep -flatten; write_json netlist.json`). If omitted, automatically discovers elaboration netlists in the project workspace.

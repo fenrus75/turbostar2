@@ -21,7 +21,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
 - vcd plugin
-   2. Signal Activity / Toggle Stats                    │                         Low                         │    High (Instant diagnosis of stuck-at signals)     │ Recommended (fits cleanly into vcd_file_info)
    3. FST Binary Trace Parser                           │                       Medium                        │      Critical for large industrial simulations      │ Recommended for mid-term roadmap
    4. Glitch / Hazard Detector                          │                       Medium                        │           Specialized verification tasks            │ Consider for future verification tool
 
