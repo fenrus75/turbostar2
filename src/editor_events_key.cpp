@@ -253,9 +253,11 @@ void editor::resolve_dialog(dialog_result res)
 			}
 			if (res_str.starts_with("edit_model_server:")) {
 				std::string srv_id = res_str.substr(18);
+				editing_model_server_id_ = srv_id;
+				model_server_edit_from_ai_settings_ = true;
 				auto srv = agentlib::model_server_registry::get_instance().get_server(srv_id);
 				active_dialog_ = create_model_server_edit_dialog(srv);
-				active_dialog_mode_ = dialog_mode::settings;
+				active_dialog_mode_ = dialog_mode::model_server_edit;
 				set_focus(focus_target::dialog, "model_server_edit");
 				return;
 			}

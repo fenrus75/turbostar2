@@ -114,6 +114,40 @@ void test_options_dialogs_flow()
 	}
 	assert(expected_idx >= 0);
 	assert(srv_list->get_selected_index() == expected_idx);
+
+	// 6. Click "Edit" on the newly added server in the Model Providers tab
+	ed.active_dialog_->set_action(dialog_result::confirmed);
+	ed.active_dialog_->set_result("edit_model_server:custom_provider_1");
+	ed.resolve_dialog(dialog_result::confirmed);
+
+	assert(ed.active_dialog_ != nullptr);
+	assert(ed.active_dialog_->get_title() == "Edit Server");
+	assert(ed.active_dialog_mode_ == editor::dialog_mode::model_server_edit);
+
+	auto *edit_name_tb = dynamic_cast<ui_textbox *>(find_element_by_name(ed.active_dialog_.get(), "name"));
+	auto *edit_url_tb = dynamic_cast<ui_textbox *>(find_element_by_name(ed.active_dialog_.get(), "url"));
+	assert(edit_name_tb && edit_url_tb);
+	assert(ed.active_dialog_->get_value("name") == "My Custom Provider");
+	edit_name_tb->set_buffer("Updated Custom Provider");
+	edit_url_tb->set_buffer("https://api.updated.example.com/v1");
+
+	ed.active_dialog_->set_action(dialog_result::confirmed);
+	ed.active_dialog_->set_result("ok");
+	ed.resolve_dialog(dialog_result::confirmed);
+
+	auto edited_srv = agentlib::model_server_registry::get_instance().get_server("custom_provider_1");
+	assert(edited_srv != nullptr);
+	assert(edited_srv->get_name() == "Updated Custom Provider");
+	assert(edited_srv->get_url() == "https://api.updated.example.com/v1");
+
+	assert(ed.active_dialog_ != nullptr);
+	assert(ed.active_dialog_->get_title() == "AI & Agent Settings");
+	assert(ed.active_dialog_mode_ == editor::dialog_mode::settings);
+
+	auto *srv_list_after_edit = dynamic_cast<ui_listbox *>(find_element_by_name(ed.active_dialog_.get(), "server_list"));
+	assert(srv_list_after_edit != nullptr);
+	assert(srv_list_after_edit->has_focus());
+	assert(srv_list_after_edit->get_selected_index() == expected_idx);
 }
 
 int main()
