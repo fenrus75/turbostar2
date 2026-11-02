@@ -1190,6 +1190,40 @@ int main()
 		std::filesystem::remove(test_gtkw_path);
 	}
 
+	// 18. Test vcd_file_info static signal annotation and stats
+	{
+		tools::vcd_file_info_validator info_val;
+		std::string err;
+
+		// Default view without stats: should flag never-toggled signals with ** and show note
+		nlohmann::json info_default = {
+			{"path", vcd_path},
+			{"scope", "tb_main.uut"},
+			{"max_signals", 20}
+		};
+		assert(info_val.validate_args(info_default, global_ctx, err));
+		auto tool_default = info_val.create_tool(info_default);
+		std::string out_default = tool_default->execute(global_ctx);
+		assert(out_default.find("**") != std::string::npos);
+		assert(out_default.find("Signals marked with `**` had 0 transitions") != std::string::npos);
+
+		// With stats: true: should have First Toggle and Toggle Rate columns
+		nlohmann::json info_stats = {
+			{"path", vcd_path},
+			{"scope", "tb_main.uut"},
+			{"max_signals", 20},
+			{"stats", true}
+		};
+		err.clear();
+		assert(info_val.validate_args(info_stats, global_ctx, err));
+		auto tool_stats = info_val.create_tool(info_stats);
+		std::string out_stats = tool_stats->execute(global_ctx);
+		assert(out_stats.find("First Toggle (Tick)") != std::string::npos);
+		assert(out_stats.find("Toggle Rate") != std::string::npos);
+		assert(out_stats.find("never") != std::string::npos);
+		assert(out_stats.find("%") != std::string::npos);
+	}
+
 	// Clean up any test sidecars created during tests
 	std::filesystem::remove(vcd_path + ".labels.json");
 	std::filesystem::remove("tests/fixtures/test_dump_org.vcd.labels.json");

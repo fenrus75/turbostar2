@@ -705,4 +705,122 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 	return results;
 }
 
+vcd_signal_stats vcd_parser::compute_signal_stats(const vcd_signal &sig, std::string_view clock_signal) const
+{
+	vcd_signal_stats stats;
+
+	auto it = id_transitions_.find(sig.id_code);
+	if (it == id_transitions_.end() || it->second.empty()) {
+		return stats;
+	}
+
+	const auto &transitions = it->second;
+
+	// Check if signal has any transition after simulation start (t > 0) or multiple entries
+	// If only 1 entry at t == 0, it was only initialized and never toggled.
+	bool has_real_toggle = false;
+	uint64_t raw_first_toggle_time = 0;
+	auto trans_it = transitions.begin();
+	std::string initial_val = trans_it->second;
+	++trans_it;
+
+	while (trans_it != transitions.end()) {
+		if (trans_it->second != initial_val) {
+			has_real_toggle = true;
+			raw_first_toggle_time = trans_it->first;
+			break;
+		}
+		++trans_it;
+	}
+
+	stats.has_transitions = has_real_toggle;
+	if (!has_real_toggle) {
+		return stats;
+	}
+
+	// Try to evaluate synchronously with reference clock
+	std::string clk_name(clock_signal);
+	if (clk_name.empty()) {
+		auto detected = detect_clock();
+		if (detected) {
+			clk_name = detected->signal_name;
+		}
+	}
+
+	const vcd_signal *clk_sig = !clk_name.empty() ? find_signal(clk_name) : nullptr;
+	auto clk_it = clk_sig ? id_transitions_.find(clk_sig->id_code) : id_transitions_.end();
+
+	if (clk_sig && clk_it != id_transitions_.end() && !clk_it->second.empty()) {
+		// Sample signal on clock posedges
+		const auto &clk_trans = clk_it->second;
+		std::string clk_last = "0";
+		std::vector<uint64_t> posedge_times;
+		for (const auto &[t, val] : clk_trans) {
+			if (val == "1" && clk_last == "0") {
+				posedge_times.push_back(t);
+			}
+			clk_last = val;
+		}
+
+		if (posedge_times.size() > 1) {
+			// Helper to get signal value at timestamp
+			auto get_val_at = [&](uint64_t target_t) -> std::string {
+				auto up = transitions.upper_bound(target_t);
+				if (up == transitions.begin()) return "";
+				--up;
+				return up->second;
+			};
+
+			std::string prev_val;
+			size_t total_cycles = posedge_times.size();
+			size_t toggled_cycles = 0;
+			bool found_first_tick = false;
+
+			for (size_t tick = 0; tick < total_cycles; ++tick) {
+				std::string curr_val = get_val_at(posedge_times[tick]);
+				if (tick > 0) {
+					if (curr_val != prev_val) {
+						toggled_cycles++;
+						if (!found_first_tick) {
+							stats.first_toggle_tick = tick;
+							stats.first_toggle_time = posedge_times[tick];
+							found_first_tick = true;
+						}
+					}
+				}
+				prev_val = curr_val;
+			}
+
+			stats.toggle_count = toggled_cycles;
+			stats.toggle_rate_percent = (total_cycles > 1)
+				? (static_cast<double>(toggled_cycles) / static_cast<double>(total_cycles - 1)) * 100.0
+				: 0.0;
+
+			if (!found_first_tick && has_real_toggle) {
+				// Toggled asynchronously between clock edges
+				stats.first_toggle_time = raw_first_toggle_time;
+			}
+			return stats;
+		}
+	}
+
+	// Fallback to asynchronous transition counting if no clock
+	stats.first_toggle_time = raw_first_toggle_time;
+	size_t raw_changes = 0;
+	std::string cur_val;
+	for (const auto &[t, val] : transitions) {
+		if (!cur_val.empty() && val != cur_val) {
+			raw_changes++;
+		}
+		cur_val = val;
+	}
+	stats.toggle_count = raw_changes;
+	// Without clock, percentage relative to total timestamps
+	stats.toggle_rate_percent = timestamps_.size() > 1
+		? (static_cast<double>(raw_changes) / static_cast<double>(timestamps_.size() - 1)) * 100.0
+		: 0.0;
+
+	return stats;
+}
+
 } // namespace verilog

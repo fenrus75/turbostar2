@@ -37,9 +37,12 @@ nlohmann::json vcd_file_info_validator::get_parameters_schema() const
 			{"max_signals", {
 				{"type", "integer"},
 				{"description", "Maximum number of signals to display in the output table (default: 100)."}
+			}},
+			{"stats", {
+				{"type", "boolean"},
+				{"description", "If true, expands the signal table with 'First Toggle' tick and 'Toggle Rate' columns."}
 			}}
 		}},
-		{"required", {"path"}}
 	};
 }
 
@@ -88,9 +91,12 @@ bool vcd_file_info_validator::validate_args_impl(const nlohmann::json &raw_json,
 		}
 	}
 
+	if (raw_json.contains("stats") && raw_json["stats"].is_boolean()) {
+		args_.stats = raw_json["stats"].get<bool>();
+	}
+
 	return true;
 }
-
 std::unique_ptr<agentlib::llm_tool> vcd_file_info_validator::create_tool_impl(const nlohmann::json &/*raw_json*/) const
 {
 	return std::make_unique<vcd_file_info_tool>(args_);

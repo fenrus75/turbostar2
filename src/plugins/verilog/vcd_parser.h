@@ -41,10 +41,17 @@ struct vcd_sample_point {
 	uint64_t end_timestamp{0}; // End timestamp of collapsed run
 };
 
+struct vcd_signal_stats {
+	bool has_transitions{false};
+	std::optional<size_t> first_toggle_tick;
+	std::optional<uint64_t> first_toggle_time;
+	double toggle_rate_percent{0.0};
+	size_t toggle_count{0};
+};
+
 class vcd_parser
 {
       public:
-	vcd_parser() = default;
 	~vcd_parser() = default;
 
 	// Parse header only (definitions, timescale, signals) - fast
@@ -83,6 +90,11 @@ class vcd_parser
 		std::string &out_error,
 		bool collapse_idle = false
 	) const;
+
+	// Compute toggle statistics for a signal
+	// If clock_signal is provided (or auto-detected), computes first_toggle_tick and cycle-by-cycle toggle rate.
+	// Otherwise computes physical timestamp of first toggle and raw change count.
+	vcd_signal_stats compute_signal_stats(const vcd_signal &sig, std::string_view clock_signal = "") const;
 
       private:
 	std::string date_;

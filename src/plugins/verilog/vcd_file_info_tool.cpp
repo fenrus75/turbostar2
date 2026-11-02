@@ -87,22 +87,76 @@ std::string vcd_file_info_tool::execute(agentlib::tool_context &ctx)
 		ss << "#### Signals\n\n";
 	}
 
-	ss << "| Signal Name | Width | Type | Slice |\n";
-	ss << "|:------------|:-----:|:----:|:-----:|\n";
+	bool has_clock = clk_info.has_value();
+
+	if (args_.stats) {
+		if (has_clock) {
+			ss << "| Signal Name | Width | Type | First Toggle (Tick) | Toggle Rate |\n";
+			ss << "|:------------|:-----:|:----:|:-------------------:|:-----------:|\n";
+		} else {
+			ss << "| Signal Name | Width | Type | First Toggle (Time) | Toggle Rate |\n";
+			ss << "|:------------|:-----:|:----:|:-------------------:|:-----------:|\n";
+		}
+	} else {
+		ss << "| Signal Name | Width | Type | Slice |\n";
+		ss << "|:------------|:-----:|:----:|:-----:|\n";
+	}
 
 	size_t displayed = 0;
+	size_t never_toggled_count = 0;
+
 	for (const auto *sig : filtered) {
 		if (displayed >= args_.max_signals) {
 			ss << std::format("\n*... [{} additional signals omitted. Use 'scope', 'filter', or increase 'max_signals']*\n",
 				filtered.size() - displayed);
 			break;
 		}
-		ss << std::format("| `{}` | {} | {} | {} |\n",
-			sig->full_name, sig->bit_width, sig->var_type,
-			sig->slice.empty() ? "-" : sig->slice);
+
+		auto stats = parser.compute_signal_stats(*sig, args_.clock_signal);
+		bool never_toggles = !stats.has_transitions;
+		if (never_toggles) {
+			never_toggled_count++;
+		}
+
+		std::string name_col = never_toggles ? std::format("`{}`**", sig->full_name) : std::format("`{}`", sig->full_name);
+
+		if (args_.stats) {
+			std::string first_toggle_str;
+			if (!stats.has_transitions) {
+				first_toggle_str = "never";
+			} else if (has_clock && stats.first_toggle_tick.has_value()) {
+				first_toggle_str = std::format("{}", *stats.first_toggle_tick);
+			} else if (stats.first_toggle_time.has_value()) {
+				first_toggle_str = std::format("{}", *stats.first_toggle_time);
+			} else {
+				first_toggle_str = "async";
+			}
+
+			std::string rate_str;
+			if (!stats.has_transitions || stats.toggle_count == 0) {
+				rate_str = "0%";
+			} else {
+				rate_str = std::format("{:.1f}%", stats.toggle_rate_percent);
+			}
+
+			ss << std::format("| {} | {} | {} | {} | {} |\n",
+				name_col, sig->bit_width, sig->var_type, first_toggle_str, rate_str);
+		} else {
+			ss << std::format("| {} | {} | {} | {} |\n",
+				name_col, sig->bit_width, sig->var_type,
+				sig->slice.empty() ? "-" : sig->slice);
+		}
+
 		++displayed;
 	}
 
+	if (never_toggled_count > 0) {
+		if (!args_.stats) {
+			ss << "\n> [!NOTE] Signals marked with `**` had 0 transitions throughout the simulation. Pass `stats: true` for full toggle rates.\n";
+		} else {
+			ss << "\n> [!NOTE] Signals marked with `**` had 0 transitions throughout the simulation (constant value).\n";
+		}
+	}
 	set_success(ctx);
 	return ss.str();
 }
