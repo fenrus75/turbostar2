@@ -149,7 +149,7 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 				if (!since_tick.has_value()) {
 					ss << "| init ";
 				} else if (*since_tick == first_sample.tick) {
-					ss << "| new ";
+					ss << "| now ";
 				} else {
 					ss << std::format("| {} ", *since_tick);
 				}
@@ -158,7 +158,7 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 				if (since_time <= parser.get_start_time()) {
 					ss << "| init ";
 				} else if (since_time == first_sample.timestamp) {
-					ss << "| new ";
+					ss << "| now ";
 				} else {
 					ss << std::format("| {} ", since_time);
 				}
