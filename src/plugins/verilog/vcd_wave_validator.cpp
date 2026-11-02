@@ -63,9 +63,12 @@ nlohmann::json vcd_wave_validator::get_parameters_schema() const
 			{"collapse_idle", {
 				{"type", "boolean"},
 				{"description", "Collapse consecutive clock cycles where all requested signals remain unchanged (>= 3 idle cycles, default: true)."}
+			}},
+			{"gtkw_output", {
+				{"type", "string"},
+				{"description", "Optional output file path to write a GTKWave save file (.gtkw) with all requested signals, display radices, and marker/window time."}
 			}}
 		}},
-		{"required", {"path", "signals"}}
 	};
 }
 
@@ -177,6 +180,17 @@ bool vcd_wave_validator::validate_args_impl(const nlohmann::json &raw_json,
 		if (json_utils::get_number(raw_json, "max_ticks", val, static_cast<size_t>(50), num_err) && val > 0) {
 			args_.max_rows = val;
 		}
+	}
+
+	if (raw_json.contains("gtkw_output") && raw_json["gtkw_output"].is_string() && !raw_json["gtkw_output"].get<std::string>().empty()) {
+		args_.requested_gtkw = raw_json["gtkw_output"].get<std::string>();
+		std::string canonical_gtkw;
+		std::string sec_err_gtkw;
+		if (!ctx.fs_security.validate_access(args_.requested_gtkw, agentlib::access_type::write, canonical_gtkw, sec_err_gtkw)) {
+			out_error = std::format("Security validation failed for 'gtkw_output' path '{}': {}", args_.requested_gtkw, sec_err_gtkw);
+			return false;
+		}
+		args_.safe_gtkw = canonical_gtkw;
 	}
 
 	return true;

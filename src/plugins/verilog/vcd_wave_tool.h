@@ -21,8 +21,9 @@ struct vcd_wave_args {
 	std::optional<uint64_t> end_time;
 	size_t max_rows{50};
 	bool collapse_idle{true};
+	std::string requested_gtkw;
+	std::string safe_gtkw;
 };
-
 class vcd_wave_tool : public agentlib::llm_tool_action
 {
       public:

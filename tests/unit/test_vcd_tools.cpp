@@ -20,7 +20,7 @@
 #include "agentlib/tool_context.h"
 #include <cassert>
 #include <iostream>
-
+#include <fstream>
 extern "C" {
 void register_vcd_file_info();
 void unregister_vcd_file_info();
@@ -1154,6 +1154,40 @@ int main()
 		auto not_found_tool = s2c_val.create_tool(not_found_sig);
 		std::string not_found_out = not_found_tool->execute(global_ctx);
 		assert(not_found_out.find("not found in netlist") != std::string::npos);
+	}
+
+	// 17. Test vcd_wave gtkw_output save file generation
+	{
+		tools::vcd_wave_validator wave_val;
+		std::string err;
+		std::string test_gtkw_path = "tests/fixtures/test_dump.gtkw";
+		std::filesystem::remove(test_gtkw_path);
+
+		nlohmann::json wave_gtkw_args = {
+			{"path", vcd_path},
+			{"signals", {"clk", "rst", "x:opcode", "b:mem_data"}},
+			{"max_rows", 5},
+			{"gtkw_output", test_gtkw_path}
+		};
+		assert(wave_val.validate_args(wave_gtkw_args, global_ctx, err));
+		auto wave_tool = wave_val.create_tool(wave_gtkw_args);
+		std::string out = wave_tool->execute(global_ctx);
+		assert(out.find("Generated GTKWave save file") != std::string::npos);
+		assert(out.find("gtkwave") != std::string::npos);
+
+		// Verify contents of the generated GTKWave save file
+		std::ifstream ifs(test_gtkw_path);
+		std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+		assert(content.find("[dumpfile]") != std::string::npos);
+		assert(content.find("[savefile]") != std::string::npos);
+		assert(content.find("[treeopen]") != std::string::npos);
+		assert(content.find("@22") != std::string::npos); // Hex
+		assert(content.find("@28") != std::string::npos); // Binary / default
+		assert(content.find("opcode") != std::string::npos);
+		assert(content.find("clk") != std::string::npos);
+		assert(content.find("[pattern_trace] 1") != std::string::npos);
+		ifs.close();
+		std::filesystem::remove(test_gtkw_path);
 	}
 
 	// Clean up any test sidecars created during tests
