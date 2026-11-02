@@ -94,7 +94,13 @@ class vcd_parser
 	// Compute toggle statistics for a signal
 	// If clock_signal is provided (or auto-detected), computes first_toggle_tick and cycle-by-cycle toggle rate.
 	// Otherwise computes physical timestamp of first toggle and raw change count.
-	vcd_signal_stats compute_signal_stats(const vcd_signal &sig, std::string_view clock_signal = "") const;
+	// Optional start_tick and end_tick bound evaluation to the tick interval [start_tick, end_tick].
+	vcd_signal_stats compute_signal_stats(
+		const vcd_signal &sig,
+		std::string_view clock_signal = "",
+		std::optional<size_t> start_tick = std::nullopt,
+		std::optional<size_t> end_tick = std::nullopt
+	) const;
 
       private:
 	std::string date_;

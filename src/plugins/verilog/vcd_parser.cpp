@@ -705,7 +705,12 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 	return results;
 }
 
-vcd_signal_stats vcd_parser::compute_signal_stats(const vcd_signal &sig, std::string_view clock_signal) const
+vcd_signal_stats vcd_parser::compute_signal_stats(
+	const vcd_signal &sig,
+	std::string_view clock_signal,
+	std::optional<size_t> start_tick,
+	std::optional<size_t> end_tick
+) const
 {
 	vcd_signal_stats stats;
 
@@ -763,6 +768,18 @@ vcd_signal_stats vcd_parser::compute_signal_stats(const vcd_signal &sig, std::st
 		}
 
 		if (posedge_times.size() > 1) {
+			size_t total_cycles = posedge_times.size();
+			size_t from_tick = start_tick.value_or(0);
+			size_t to_tick = end_tick.value_or(total_cycles > 0 ? total_cycles - 1 : 0);
+
+			if (from_tick > to_tick || from_tick >= total_cycles) {
+				stats.has_transitions = false;
+				stats.toggle_count = 0;
+				stats.toggle_rate_percent = 0.0;
+				return stats;
+			}
+			to_tick = std::min(to_tick, total_cycles - 1);
+
 			// Check if signal has a registered qualifier
 			auto [qual_name, active_low] = verilog::vcd_label_manager::get_instance().find_qualifier(
 				file_path_, sig.full_name
@@ -780,12 +797,11 @@ vcd_signal_stats vcd_parser::compute_signal_stats(const vcd_signal &sig, std::st
 			};
 
 			std::string prev_val;
-			size_t total_cycles = posedge_times.size();
 			size_t valid_cycles = 0;
 			size_t toggled_cycles = 0;
 			bool found_first_tick = false;
 
-			for (size_t tick = 0; tick < total_cycles; ++tick) {
+			for (size_t tick = from_tick; tick <= to_tick; ++tick) {
 				uint64_t t = posedge_times[tick];
 				bool is_valid = true;
 				if (qual_transitions) {
@@ -815,8 +831,8 @@ vcd_signal_stats vcd_parser::compute_signal_stats(const vcd_signal &sig, std::st
 				prev_val = curr_val;
 			}
 
-			// If signal has a qualifier, has_transitions reflects whether it toggled while valid
-			if (qual_transitions) {
+			// If signal has a qualifier or windowing is applied, has_transitions reflects whether it toggled in this active window
+			if (qual_transitions || start_tick.has_value() || end_tick.has_value()) {
 				stats.has_transitions = (toggled_cycles > 0);
 			}
 

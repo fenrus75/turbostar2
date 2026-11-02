@@ -15,6 +15,8 @@ struct vcd_file_info_args {
 	std::string filter;
 	size_t max_signals{100};
 	bool stats{false};
+	std::optional<size_t> start_tick;
+	std::optional<size_t> end_tick;
 };
 class vcd_file_info_tool : public agentlib::llm_tool_action
 {

@@ -1222,6 +1222,47 @@ int main()
 		assert(out_stats.find("Toggle Rate") != std::string::npos);
 		assert(out_stats.find("never") != std::string::npos);
 		assert(out_stats.find("%") != std::string::npos);
+		assert(out_stats.find("Toggle Rate measures the percentage of clock cycles") != std::string::npos);
+
+		// Clock row clarity: reference clock should report [ref clk] and 0 tick, not 0%
+		nlohmann::json info_clk = {
+			{"path", vcd_path},
+			{"filter", "*clk*"},
+			{"stats", true}
+		};
+		err.clear();
+		assert(info_val.validate_args(info_clk, global_ctx, err));
+		auto tool_clk = info_val.create_tool(info_clk);
+		std::string out_clk = tool_clk->execute(global_ctx);
+		assert(out_clk.find("[ref clk]") != std::string::npos);
+		assert(out_clk.find("`tb_main.clk`**") == std::string::npos); // clock should never be flagged with **
+		assert(out_clk.find("`tb_main.clk`") != std::string::npos);
+
+		// Windowed stats: start_tick and end_tick
+		nlohmann::json info_windowed = {
+			{"path", vcd_path},
+			{"filter", "*rst*"},
+			{"start_tick", 10},
+			{"end_tick", 50}
+		};
+		err.clear();
+		assert(info_val.validate_args(info_windowed, global_ctx, err));
+		auto tool_windowed = info_val.create_tool(info_windowed);
+		std::string out_windowed = tool_windowed->execute(global_ctx);
+		assert(out_windowed.find("Analysis Window") != std::string::npos);
+		assert(out_windowed.find("Ticks 10 to 50") != std::string::npos);
+		// In window [10, 50], rst remains 0 and does not toggle -> should report 'never' or 0%
+		assert(out_windowed.find("never") != std::string::npos || out_windowed.find("0%") != std::string::npos);
+
+		// Invalid window: start_tick > end_tick
+		nlohmann::json info_invalid_window = {
+			{"path", vcd_path},
+			{"start_tick", 50},
+			{"end_tick", 10}
+		};
+		err.clear();
+		assert(!info_val.validate_args(info_invalid_window, global_ctx, err));
+		assert(err.find("start_tick (50) cannot be greater than end_tick (10)") != std::string::npos);
 
 		// Test with signal qualifier: register qualifier, verify toggle rate changes or ignores masked toggles
 		tools::vcd_signal_qualifier_validator qual_val;

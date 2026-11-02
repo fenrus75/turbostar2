@@ -41,6 +41,14 @@ nlohmann::json vcd_file_info_validator::get_parameters_schema() const
 			{"stats", {
 				{"type", "boolean"},
 				{"description", "If true, expands the signal table with 'First Toggle' tick and 'Toggle Rate' columns."}
+			}},
+			{"start_tick", {
+				{"type", "integer"},
+				{"description", "Optional starting clock tick for toggle statistics windowing (inclusive). Automatically enables stats."}
+			}},
+			{"end_tick", {
+				{"type", "integer"},
+				{"description", "Optional ending clock tick for toggle statistics windowing (inclusive). Automatically enables stats."}
 			}}
 		}},
 	};
@@ -93,6 +101,30 @@ bool vcd_file_info_validator::validate_args_impl(const nlohmann::json &raw_json,
 
 	if (raw_json.contains("stats") && raw_json["stats"].is_boolean()) {
 		args_.stats = raw_json["stats"].get<bool>();
+	}
+
+	if (raw_json.contains("start_tick")) {
+		std::string num_err;
+		size_t st = 0;
+		if (json_utils::get_number(raw_json, "start_tick", st, static_cast<size_t>(0), num_err)) {
+			args_.start_tick = st;
+			args_.stats = true;
+		}
+	}
+
+	if (raw_json.contains("end_tick")) {
+		std::string num_err;
+		size_t et = 0;
+		if (json_utils::get_number(raw_json, "end_tick", et, static_cast<size_t>(0), num_err)) {
+			args_.end_tick = et;
+			args_.stats = true;
+		}
+	}
+
+	if (args_.start_tick && args_.end_tick && *args_.start_tick > *args_.end_tick) {
+		out_error = std::format("start_tick ({}) cannot be greater than end_tick ({})",
+			*args_.start_tick, *args_.end_tick);
+		return false;
 	}
 
 	return true;

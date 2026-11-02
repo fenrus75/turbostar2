@@ -49,6 +49,15 @@ std::string vcd_file_info_tool::execute(agentlib::tool_context &ctx)
 		clk_info = parser.detect_clock();
 	}
 
+	const verilog::vcd_signal *clk_sig = nullptr;
+	std::string clk_name(args_.clock_signal);
+	if (clk_name.empty() && clk_info.has_value()) {
+		clk_name = clk_info->signal_name;
+	}
+	if (!clk_name.empty()) {
+		clk_sig = parser.find_signal(clk_name);
+	}
+
 	if (clk_info) {
 		ss << std::format("- **Reference Clock**: `{}`\n", clk_info->signal_name);
 		if (clk_info->period > 0) {
@@ -56,6 +65,12 @@ std::string vcd_file_info_tool::execute(agentlib::tool_context &ctx)
 		}
 		ss << std::format("  - **Clock Ticks**: {} posedges, {} negedges\n",
 			clk_info->posedge_count, clk_info->negedge_count);
+	}
+
+	if (args_.stats && (args_.start_tick || args_.end_tick)) {
+		ss << std::format("- **Analysis Window**: Ticks {} to {}\n",
+			args_.start_tick.value_or(0),
+			args_.end_tick ? std::to_string(*args_.end_tick) : "end");
 	}
 
 	const auto &all_signals = parser.get_signals();
@@ -112,8 +127,10 @@ std::string vcd_file_info_tool::execute(agentlib::tool_context &ctx)
 			break;
 		}
 
-		auto stats = parser.compute_signal_stats(*sig, args_.clock_signal);
-		bool never_toggles = !stats.has_transitions;
+		bool is_ref_clk = clk_sig && (sig->id_code == clk_sig->id_code || sig->full_name == clk_sig->full_name);
+
+		auto stats = parser.compute_signal_stats(*sig, args_.clock_signal, args_.start_tick, args_.end_tick);
+		bool never_toggles = !stats.has_transitions && !is_ref_clk;
 		if (never_toggles) {
 			never_toggled_count++;
 		}
@@ -122,7 +139,9 @@ std::string vcd_file_info_tool::execute(agentlib::tool_context &ctx)
 
 		if (args_.stats) {
 			std::string first_toggle_str;
-			if (!stats.has_transitions) {
+			if (is_ref_clk) {
+				first_toggle_str = "0";
+			} else if (!stats.has_transitions) {
 				first_toggle_str = "never";
 			} else if (has_clock && stats.first_toggle_tick.has_value()) {
 				first_toggle_str = std::format("{}", *stats.first_toggle_tick);
@@ -133,7 +152,9 @@ std::string vcd_file_info_tool::execute(agentlib::tool_context &ctx)
 			}
 
 			std::string rate_str;
-			if (!stats.has_transitions || stats.toggle_count == 0) {
+			if (is_ref_clk) {
+				rate_str = "[ref clk]";
+			} else if (!stats.has_transitions || stats.toggle_count == 0) {
 				rate_str = "0%";
 			} else {
 				rate_str = std::format("{:.1f}%", stats.toggle_rate_percent);
@@ -150,12 +171,23 @@ std::string vcd_file_info_tool::execute(agentlib::tool_context &ctx)
 		++displayed;
 	}
 
-	if (never_toggled_count > 0) {
-		if (!args_.stats) {
-			ss << "\n> [!NOTE] Signals marked with `**` had 0 transitions throughout the simulation. Pass `stats: true` for full toggle rates.\n";
-		} else {
-			ss << "\n> [!NOTE] Signals marked with `**` had 0 transitions throughout the simulation (constant value).\n";
+	if (args_.stats) {
+		ss << "\n> [!NOTE] Toggle Rate measures the percentage of clock cycles where the posedge-sampled signal value changes from the prior cycle";
+		if (has_clock && clk_info) {
+			ss << std::format(" (reference clock: `{}`)", clk_info->signal_name);
 		}
+		ss << ".";
+		if (args_.start_tick || args_.end_tick) {
+			ss << std::format(" Window: ticks {} to {}.",
+				args_.start_tick.value_or(0),
+				args_.end_tick ? std::to_string(*args_.end_tick) : "end");
+		}
+		if (never_toggled_count > 0) {
+			ss << " Signals marked with `**` had 0 transitions in this range (constant value).";
+		}
+		ss << "\n";
+	} else if (never_toggled_count > 0) {
+		ss << "\n> [!NOTE] Signals marked with `**` had 0 transitions throughout the simulation. Pass `stats: true` for full toggle rates.\n";
 	}
 	set_success(ctx);
 	return ss.str();

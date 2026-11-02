@@ -8,6 +8,7 @@ Key capabilities:
 2. **Clock Analysis**: Automatic detection and transition counting of periodic reference clocks, period estimation, and posedge/negedge counting.
 3. **Clock-Synchronous Waveform Sampling**: Samples signal state vectors exactly at clock transitions (`posedge`, `negedge`, or `both`) across specified clock tick ranges or simulation time windows.
 4. **Signal Formatting**: Automatically formats multi-bit vectors into readable hexadecimal (`0x36`) by default, while supporting explicit format overrides (`b:` for binary, `x:` for hex).
+5. **Cycle-Accurate Toggle Statistics**: Evaluates signal toggle counts, first toggle clock ticks, and cycle-by-cycle activity rates synchronously against reference clocks or asynchronously, with optional tick interval windowing (`start_tick`/`end_tick`).
 
 ## Lessons Learned
 - VCD variable identifiers are frequently shared across multiple hierarchical scopes (e.g. connected ports and module wires). The parser maintains an ID-to-signal multimap to avoid duplicate state tracking while allowing any hierarchical alias to be queried.
