@@ -763,27 +763,51 @@ vcd_signal_stats vcd_parser::compute_signal_stats(const vcd_signal &sig, std::st
 		}
 
 		if (posedge_times.size() > 1) {
+			// Check if signal has a registered qualifier
+			auto [qual_name, active_low] = verilog::vcd_label_manager::get_instance().find_qualifier(
+				file_path_, sig.full_name
+			);
+			const vcd_signal *qual_sig = !qual_name.empty() ? find_signal(qual_name, sig.scope) : nullptr;
+			const auto *qual_transitions = (qual_sig && id_transitions_.contains(qual_sig->id_code))
+				? &id_transitions_.at(qual_sig->id_code) : nullptr;
+
 			// Helper to get signal value at timestamp
-			auto get_val_at = [&](uint64_t target_t) -> std::string {
-				auto up = transitions.upper_bound(target_t);
-				if (up == transitions.begin()) return "";
+			auto get_val_at = [&](const std::map<uint64_t, std::string> &m, uint64_t target_t) -> std::string {
+				auto up = m.upper_bound(target_t);
+				if (up == m.begin()) return "";
 				--up;
 				return up->second;
 			};
 
 			std::string prev_val;
 			size_t total_cycles = posedge_times.size();
+			size_t valid_cycles = 0;
 			size_t toggled_cycles = 0;
 			bool found_first_tick = false;
 
 			for (size_t tick = 0; tick < total_cycles; ++tick) {
-				std::string curr_val = get_val_at(posedge_times[tick]);
-				if (tick > 0) {
-					if (curr_val != prev_val) {
+				uint64_t t = posedge_times[tick];
+				bool is_valid = true;
+				if (qual_transitions) {
+					std::string q_val = get_val_at(*qual_transitions, t);
+					is_valid = verilog::vcd_label_manager::is_qualifier_valid(q_val, active_low);
+				}
+
+				if (!is_valid) {
+					// While masked/invalid, treat as inactive and do not count transitions
+					prev_val = "-";
+					continue;
+				}
+
+				valid_cycles++;
+				std::string curr_val = get_val_at(transitions, t);
+
+				if (valid_cycles > 1) {
+					if (!prev_val.empty() && prev_val != "-" && curr_val != prev_val) {
 						toggled_cycles++;
 						if (!found_first_tick) {
 							stats.first_toggle_tick = tick;
-							stats.first_toggle_time = posedge_times[tick];
+							stats.first_toggle_time = t;
 							found_first_tick = true;
 						}
 					}
@@ -791,13 +815,17 @@ vcd_signal_stats vcd_parser::compute_signal_stats(const vcd_signal &sig, std::st
 				prev_val = curr_val;
 			}
 
+			// If signal has a qualifier, has_transitions reflects whether it toggled while valid
+			if (qual_transitions) {
+				stats.has_transitions = (toggled_cycles > 0);
+			}
+
 			stats.toggle_count = toggled_cycles;
-			stats.toggle_rate_percent = (total_cycles > 1)
-				? (static_cast<double>(toggled_cycles) / static_cast<double>(total_cycles - 1)) * 100.0
+			stats.toggle_rate_percent = (valid_cycles > 1)
+				? (static_cast<double>(toggled_cycles) / static_cast<double>(valid_cycles - 1)) * 100.0
 				: 0.0;
 
-			if (!found_first_tick && has_real_toggle) {
-				// Toggled asynchronously between clock edges
+			if (!found_first_tick && stats.has_transitions) {
 				stats.first_toggle_time = raw_first_toggle_time;
 			}
 			return stats;

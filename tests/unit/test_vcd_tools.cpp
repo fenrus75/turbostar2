@@ -1222,6 +1222,30 @@ int main()
 		assert(out_stats.find("Toggle Rate") != std::string::npos);
 		assert(out_stats.find("never") != std::string::npos);
 		assert(out_stats.find("%") != std::string::npos);
+
+		// Test with signal qualifier: register qualifier, verify toggle rate changes or ignores masked toggles
+		tools::vcd_signal_qualifier_validator qual_val;
+		nlohmann::json reg_q = {
+			{"path", vcd_path},
+			{"signal", "opcode_byte"},
+			{"qualifier", "opcode_valid"}
+		};
+		err.clear();
+		assert(qual_val.validate_args(reg_q, global_ctx, err));
+		auto q_tool = qual_val.create_tool(reg_q);
+		q_tool->execute(global_ctx);
+
+		nlohmann::json info_qualified = {
+			{"path", vcd_path},
+			{"filter", "*opcode_byte*"},
+			{"stats", true}
+		};
+		err.clear();
+		assert(info_val.validate_args(info_qualified, global_ctx, err));
+		auto tool_qualified = info_val.create_tool(info_qualified);
+		std::string out_qualified = tool_qualified->execute(global_ctx);
+		assert(out_qualified.find("opcode_byte") != std::string::npos);
+		assert(out_qualified.find("%") != std::string::npos);
 	}
 
 	// Clean up any test sidecars created during tests
