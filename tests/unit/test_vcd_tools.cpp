@@ -207,8 +207,8 @@ int main()
 			std::string out_win = tool_win->execute(ctx);
 			assert(out_win.find("*(since clock)*") != std::string::npos);
 			assert(out_win.find("| *(since clock)* | - |") != std::string::npos);
-			// Verify opcode reports 9, rst reports 2, clk reports "new", and flags reports "init"
-			assert(out_win.find("| 9 | 2 | new | init |") != std::string::npos);
+			// Verify opcode reports 9, rst reports 2, clk reports "now", and flags reports "init"
+			assert(out_win.find("| 9 | 2 | now | init |") != std::string::npos);
 		}
 
 		// Test windowed waveform output with edge: "both" (Edge column present)
@@ -228,8 +228,8 @@ int main()
 			std::string out_both = tool_both->execute(ctx);
 			assert(out_both.find("*(since clock)*") != std::string::npos);
 			assert(out_both.find("| *(since clock)* | - | - |") != std::string::npos);
-			// In edge: "both", clk toggled at tick 5 so it reports "new", rst held since tick 3
-			assert(out_both.find("| 3 | new |") != std::string::npos);
+			// In edge: "both", clk toggled at tick 5 so it reports "now", rst held since tick 3
+			assert(out_both.find("| 3 | now |") != std::string::npos);
 		}
 	}
 
