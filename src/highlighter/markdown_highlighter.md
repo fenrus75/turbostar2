@@ -15,4 +15,4 @@ The `markdown_highlighter` parses and styles CommonMark/GitHub-flavored Markdown
 
 ## Lessons Learned
 - **UTF-8 Alignment in Inline Spans**: Multi-byte characters (such as emojis like 🦀) inside or adjacent to bold markers change byte offsets relative to character offsets. Converting byte spans to Unicode character positions ensures attribute arrays never overflow or misalign attributes across character boundaries.
-- **CTRE Migration**: Migrated bold span detection from `re2::RE2` to `ctre::search_all`, removing the Abseil dependency and eliminating runtime regex compilation overhead.
+- **CTRE Migration & Possessive Quantifiers**: Migrated bold span detection from `re2::RE2` to `ctre::search_all`, using possessive quantifiers (`R"(\*\*(?:[^*]++|\*[^*]++)++\*\*)"`) so CTRE compiles to an iterative `possessive_repeat` loop instead of `ctre::evaluate_recursive`, preventing stack overflow on long lines with unclosed `**` markers.

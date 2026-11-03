@@ -137,7 +137,7 @@ std::vector<variable_info> call_synthesizer::extract_in_scope_variables(const do
 			continue;
 		std::string text = l->get_text();
 
-		if (auto m = ctre::search<R"(^\s*(?:const\s+)?([a-zA-Z_][a-zA-Z0-9_:<>*&]*)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:=|;|\{))">(text)) {
+		if (auto m = ctre::search<R"(^\s*+(?:const\s++)?+([a-zA-Z_][a-zA-Z0-9_:<>*&]*+)\s++([a-zA-Z_][a-zA-Z0-9_]*+)\s*+(?:=|;|\{))">(text)) {
 			std::string vtype(m.get<1>().to_view());
 			std::string vname(m.get<2>().to_view());
 			if (vname != "return" && vname != "if" && vname != "while" && vname != "for" && vname != "switch") {
@@ -146,7 +146,7 @@ std::vector<variable_info> call_synthesizer::extract_in_scope_variables(const do
 				}
 			}
 		}
-		if (auto m = ctre::search<R"(for\s*\(\s*(?:const\s+)?(?:auto|int|size_t|[a-zA-Z_][a-zA-Z0-9_]*)[*&\s]+([a-zA-Z_][a-zA-Z0-9_]*))">(text)) {
+		if (auto m = ctre::search<R"(for\s*+\(\s*+(?:const\s++)?+(?:auto|int|size_t|[a-zA-Z_][a-zA-Z0-9_]*+)[*&\s]++([a-zA-Z_][a-zA-Z0-9_]*+))">(text)) {
 			std::string vname(m.get<1>().to_view());
 			if (seen_names.insert(vname).second) {
 				vars.push_back({vname, "auto", line_idx});
@@ -160,14 +160,16 @@ std::vector<variable_info> call_synthesizer::extract_in_scope_variables(const do
 		if (!l)
 			continue;
 		std::string text = l->get_text();
-		for (auto m : ctre::search_all<R"(\b([a-zA-Z_][a-zA-Z0-9_]*_)\b)">(text)) {
-			std::string mname(m.get<1>().to_view());
-			if (seen_names.insert(mname).second) {
-				vars.push_back({mname, "auto", line_idx});
+		for (auto m : ctre::search_all<R"(\b([a-zA-Z_][a-zA-Z0-9_]*+)\b)">(text)) {
+			std::string_view mview = m.get<1>().to_view();
+			if (mview.size() >= 2 && mview.back() == '_') {
+				std::string mname(mview);
+				if (seen_names.insert(mname).second) {
+					vars.push_back({mname, "auto", line_idx});
+				}
 			}
 		}
 	}
-
 	return vars;
 }
 

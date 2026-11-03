@@ -80,6 +80,10 @@ int main()
 	assert(include_extractor::extract_includes_from_file("nonexistent_path_does_not_exist_xyz.cpp").empty());
 	assert(include_extractor::extract_header_names_from_file("nonexistent_path_does_not_exist_xyz.cpp").empty());
 
+	// Regression test: 500,000-byte single-line unclosed include directive must not stack-overflow
+	std::vector<std::string> long_inc_lines = {"#include \"" + std::string(500000, 'a')};
+	assert(include_extractor::extract_includes(long_inc_lines, 1).empty());
+
 	std::cout << "All languages::cpp::include_extractor tests passed successfully!" << std::endl;
 	return 0;
 }

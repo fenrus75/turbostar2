@@ -24,7 +24,7 @@ std::vector<include_info> include_extractor::extract_includes(std::span<const st
 	auto tokens = lexer::tokenize(source);
 	for (const auto &tok : tokens) {
 		if (tok.kind == token_kind::preprocessor) {
-			if (auto m = ctre::search<R"(^#\s*include\s*([<"])([^>"]+)[>"])">(tok.text)) {
+			if (auto m = ctre::search<R"(^#\s*+include\s*+([<"])([^">]++)[">])">(tok.text)) {
 				bool is_sys = (m.get<1>().to_view() == "<");
 				result.push_back({std::string(m.get<2>().to_view()), is_sys, start_line + tok.line - 1});
 			}
@@ -55,7 +55,7 @@ std::vector<include_info> include_extractor::extract_includes_from_file(const st
 	auto tokens = lexer::tokenize(source);
 	for (const auto &tok : tokens) {
 		if (tok.kind == token_kind::preprocessor) {
-			if (auto m = ctre::search<R"(^#\s*include\s*([<"])([^>"]+)[>"])">(tok.text)) {
+			if (auto m = ctre::search<R"(^#\s*+include\s*+([<"])([^">]++)[">])">(tok.text)) {
 				bool is_sys = (m.get<1>().to_view() == "<");
 				result.push_back({std::string(m.get<2>().to_view()), is_sys, tok.line});
 			}

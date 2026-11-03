@@ -39,7 +39,7 @@ void markdown_highlighter::highlight(std::shared_ptr<line> l)
 		}
 	} else {
 		// Basic bold support (**...**)
-		for (auto match : ctre::search_all<R"(\*\*(?:[^*]|\*[^*]+)+\*\*)">(text)) {
+		for (auto match : ctre::search_all<R"(\*\*(?:[^*]++|\*[^*]++)++\*\*)">(text)) {
 			size_t byte_pos = match.data() - text.data();
 			size_t byte_len = match.size();
 

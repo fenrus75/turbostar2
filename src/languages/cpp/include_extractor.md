@@ -12,4 +12,4 @@ The `languages::cpp::include_extractor` class (`src/languages/cpp/include_extrac
 
 ## Lessons Learned
 - **False Dependency Injection via Comments**: Naive regex search in `call_resolver::extract_included_headers` previously searched raw source lines, erroneously treating commented-out header examples and headers inside test strings as active include dependencies. Token-based lexing on active `#include` lines eliminates all false include dependencies.
-- **CTRE Migration**: Migrated regex matching from `re2::RE2` to `ctre::search`, eliminating transitive `libabsl_*` dependencies while parsing includes directly with compile-time state machines.
+- **CTRE Migration & Possessive Quantifiers**: Migrated regex matching from `re2::RE2` to `ctre::search` using sorted negated character classes and possessive quantifiers (`R"(^#\s*+include\s*+([<"])([^">]++)[">])"`), ensuring CTRE compiles to iterative `possessive_repeat` loops and never instantiates recursive `ctre::evaluate_recursive` on long lines.

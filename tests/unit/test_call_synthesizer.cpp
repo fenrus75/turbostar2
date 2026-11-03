@@ -217,6 +217,16 @@ void test_func()
 		assert(sig_snprintf->raw_signature.find("snprintf") != std::string::npos);
 	}
 
+	// 12. Regression test: 500,000-byte single-line identifier must not stack-overflow
+	{
+		event_queue q;
+		document doc(q);
+		doc.insert_text("void f() {\nint x = 0;\n}\n");
+		doc.get_line(1)->set_text(std::string(500000, 'a'));
+		auto vars = call_synthesizer::extract_in_scope_variables(doc, 1);
+		(void)vars;
+	}
+
 	std::cout << "All test_call_synthesizer assertions passed!" << std::endl;
 	return 0;
 }

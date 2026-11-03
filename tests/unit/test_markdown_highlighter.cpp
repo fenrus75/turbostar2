@@ -111,6 +111,11 @@ void test_markdown_edge_cases()
 	auto l_hyphen = std::make_shared<line>("word-hyphenated");
 	hl.highlight(l_hyphen);
 	assert(l_hyphen->get_attribute(4) == syntax_attribute::normal);
+
+	// Regression test: 500,000-byte single-line unclosed bold marker must not stack-overflow
+	auto l_long = std::make_shared<line>("**" + std::string(500000, 'a'));
+	hl.highlight(l_long);
+	assert(l_long->get_attribute(0) == syntax_attribute::normal);
 }
 
 int main()

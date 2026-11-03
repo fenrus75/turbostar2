@@ -164,32 +164,35 @@ void fallback_find_symbols_verilog(std::span<const std::string> lines, int min_l
 		std::string kind;
 		std::string end_kw;
 
-		if (auto m = ctre::search<R"(^\s*(?:extern\s+)?module\s+([a-zA-Z_]\w*))">(lines[i])) {
+		if (auto m = ctre::search<R"(^\s*+(?:extern\s++)?+module\s++([a-zA-Z_]\w*+))">(lines[i])) {
 			name = std::string(m.get<1>().to_view());
 			kind = "Module";
 			end_kw = "endmodule";
-		} else if (auto m = ctre::search<R"(^\s*(?:extern\s+)?interface\s+([a-zA-Z_]\w*))">(lines[i])) {
+		} else if (auto m = ctre::search<R"(^\s*+(?:extern\s++)?+interface\s++([a-zA-Z_]\w*+))">(lines[i])) {
 			name = std::string(m.get<1>().to_view());
 			kind = "Interface";
 			end_kw = "endinterface";
-		} else if (auto m = ctre::search<R"(^\s*package\s+([a-zA-Z_]\w*))">(lines[i])) {
+		} else if (auto m = ctre::search<R"(^\s*+package\s++([a-zA-Z_]\w*+))">(lines[i])) {
 			name = std::string(m.get<1>().to_view());
 			kind = "Package";
 			end_kw = "endpackage";
-		} else if (auto m = ctre::search<R"(^\s*(?:virtual\s+)?class\s+([a-zA-Z_]\w*))">(lines[i])) {
+		} else if (auto m = ctre::search<R"(^\s*+(?:virtual\s++)?+class\s++([a-zA-Z_]\w*+))">(lines[i])) {
 			name = std::string(m.get<1>().to_view());
 			kind = "Class";
 			end_kw = "endclass";
-		} else if (auto m = ctre::search<R"(^\s*(?:(?:pure\s+virtual|virtual|static|local|protected)\s+)*function\s+(?:.*?\s+)?([a-zA-Z_]\w*)\s*[\(;])">(lines[i])) {
-			name = std::string(m.get<1>().to_view());
-			kind = "Function";
-			end_kw = "endfunction";
-		} else if (auto m = ctre::search<R"(^\s*(?:(?:pure\s+virtual|virtual|static|local|protected)\s+)*task\s+(?:.*?\s+)?([a-zA-Z_]\w*)\s*[\(;])">(lines[i])) {
-			name = std::string(m.get<1>().to_view());
-			kind = "Task";
-			end_kw = "endtask";
+		} else if (auto m = ctre::search<R"(^\s*+(?:(?:pure\s++virtual|virtual|static|local|protected)\s++)*+function\s++([^(;]++)[\(;])">(lines[i])) {
+			if (auto nm = ctre::search<R"((?:^|\s)([a-zA-Z_]\w*+)\s*+$)">(m.get<1>().to_view())) {
+				name = std::string(nm.get<1>().to_view());
+				kind = "Function";
+				end_kw = "endfunction";
+			}
+		} else if (auto m = ctre::search<R"(^\s*+(?:(?:pure\s++virtual|virtual|static|local|protected)\s++)*+task\s++([^(;]++)[\(;])">(lines[i])) {
+			if (auto nm = ctre::search<R"((?:^|\s)([a-zA-Z_]\w*+)\s*+$)">(m.get<1>().to_view())) {
+				name = std::string(nm.get<1>().to_view());
+				kind = "Task";
+				end_kw = "endtask";
+			}
 		}
-
 		if (!name.empty()) {
 			int end_line = line_num;
 			for (size_t j = i + 1; j < lines.size(); ++j) {

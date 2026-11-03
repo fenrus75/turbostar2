@@ -622,6 +622,11 @@ int main()
 		tools::fallback_find_symbols_cpp(edge_cpp, edge_symbols);
 		assert(edge_symbols.size() == 1);
 		assert(edge_symbols[0].name == "test_param");
+		// Regression test: 500,000-byte single-line Verilog function prefix must not stack-overflow
+		std::vector<std::string> long_verilog = {"function " + std::string(500000, ' ')};
+		std::vector<tools::codemap_symbol_info> long_sv_symbols;
+		tools::fallback_find_symbols_verilog(long_verilog, long_sv_symbols);
+		assert(long_sv_symbols.empty());
 	}
 
 	std::cout << "All codemap_fallbacks unit tests passed successfully!" << std::endl;

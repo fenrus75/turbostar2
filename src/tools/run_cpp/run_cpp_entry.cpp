@@ -54,7 +54,7 @@ std::string generate_linker_diagnostic_tip(/* untrusted */ std::string_view untr
 	}
 
 	std::vector<std::string> cannot_find_libs;
-	for (auto m : ctre::search_all<R"(cannot find -l([^:\s]+))">(untrusted_output)) {
+	for (auto m : ctre::search_all<R"(cannot find -l([^:\s]++))">(untrusted_output)) {
 		std::string untrusted_lib(m.get<1>().to_view());
 		if (fs_utils::is_safe_for_ui(untrusted_lib)) {
 			cannot_find_libs.push_back(untrusted_lib);
@@ -71,7 +71,7 @@ std::string generate_linker_diagnostic_tip(/* untrusted */ std::string_view untr
 
 	std::vector<std::string> undef_symbols;
 	std::set<std::string> seen_symbols;
-	for (auto m : ctre::search_all<R"((?:undefined reference to [`'\"‘]([^`'\"’\n]+)[`'\"’]|undefined symbol: ([a-zA-Z0-9_:]+)))">(untrusted_output)) {
+	for (auto m : ctre::search_all<R"((?:undefined reference to [`'\"‘]([^`'\"’\n]++)[`'\"’]|undefined symbol: ([a-zA-Z0-9_:]++)))">(untrusted_output)) {
 		std::string_view s1 = m.get<1>().to_view();
 		std::string_view s2 = m.get<2>().to_view();
 		std::string untrusted_sym(!s1.empty() ? s1 : s2);
