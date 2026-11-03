@@ -1444,8 +1444,8 @@ test_cpp_highlighter = executable('test_cpp_highlighter',
 test('unit_cpp_highlighter', test_cpp_highlighter, suite: 'editor')
 
 test_markdown_highlighter = executable('test_markdown_highlighter',
-  ['unit/test_markdown_highlighter.cpp', '../src/highlighter/markdown_highlighter.cpp', '../src/line.cpp', '../src/markdown_utils.cpp', '../src/utf8.cpp', '../src/mime.cpp'],
-  dependencies : [ctre_dep],
+  ['unit/test_markdown_highlighter.cpp', '../src/highlighter/markdown_highlighter.cpp', '../src/line.cpp', '../src/markdown_utils.cpp', '../src/pcre2_regex.cpp', '../src/utf8.cpp', '../src/mime.cpp'],
+  dependencies : [ctre_dep, pcre2_dep],
   include_directories: inc)
 test('unit_markdown_highlighter', test_markdown_highlighter, suite: 'editor')
 
@@ -1476,16 +1476,17 @@ test_highlighter_registry = executable('test_highlighter_registry',
    '../src/line.cpp',
    '../src/utf8.cpp',
    '../src/mime.cpp',
+   '../src/pcre2_regex.cpp',
    '../src/markdown_utils.cpp'],
-  dependencies : [ctre_dep],
+  dependencies : [ctre_dep, pcre2_dep],
   include_directories: inc)
 test('unit_highlighter_registry', test_highlighter_registry, suite: 'editor')
 
 
 
 test_markdown_utils = executable('test_markdown_utils',
-  ['unit/test_markdown_utils.cpp', '../src/markdown_utils.cpp', '../src/utf8.cpp', '../src/mime.cpp'],
-  dependencies : [ctre_dep],
+  ['unit/test_markdown_utils.cpp', '../src/markdown_utils.cpp', '../src/pcre2_regex.cpp', '../src/utf8.cpp', '../src/mime.cpp'],
+  dependencies : [pcre2_dep],
   include_directories: inc)
 test('unit_markdown_utils', test_markdown_utils, suite: 'editor')
 

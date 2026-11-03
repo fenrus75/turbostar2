@@ -539,8 +539,16 @@ void test_markdown_utils_coverage()
 		}
 	}
 	assert(has_pipe);
-}
 
+	// 8. Regression test for GitHub Issue #5: very long single-line input (e.g. minified HTML body)
+	// must not cause stack overflow recursion in is_table_row / is_header_separator / find_table_ranges.
+	std::string long_html_line = "Body: <!DOCTYPE html><html lang=\"en\"> <head> <meta charset=\"UTF-8\"> ";
+	long_html_line.append(500000, 'x');
+	assert(!table_aligner::is_table_row(long_html_line));
+	assert(!table_aligner::is_header_separator(std::string(500000, '-')));
+	std::vector<std::string> long_lines = {long_html_line};
+	assert(table_aligner::find_table_ranges(long_lines).empty());
+}
 int main()
 {
 	test_watchdog::setup_watchdog(30);

@@ -1,7 +1,7 @@
 #include "markdown_utils.h"
 #include <algorithm>
-#include <ctre.hpp>
 #include <sstream>
+#include "pcre2_regex.h"
 #include "utf8.h"
 
 namespace markdown_utils
@@ -11,16 +11,17 @@ namespace markdown_utils
 // Matches lines containing at least one pipe '|' and at least one non-pipe, non-whitespace character.
 bool table_aligner::is_table_row(const std::string &line)
 {
-	return (bool)ctre::search<R"((?:\|.*[^|\s]|[^|\s].*\|))">(line);
+	static const pcre2_regex re(R"((?:\|\s*[^|\s]|[^|\s][^|]*\|))");
+	return re.partial_match(line);
 }
 
 // Heuristic to detect markdown table header delimiter line (e.g. "|---|---|", "---|---", or "|:---|:---:|---:|").
 // Requires pipes, hyphens, and optional colons/spaces defining column boundaries and alignments.
 bool table_aligner::is_header_separator(const std::string &line)
 {
-	return (bool)ctre::match<R"(^(?:[\-:\s]*-[\-|:\s]*\||[|:\s]*\|[\-|:\s]*-)[\-|:\s]*$)">(line);
+	static const pcre2_regex re(R"(^(?:[:\s]*-[\-|:\s]*\||[:\s]*\|[\-|:\s]*-)[\-|:\s]*$)");
+	return re.full_match(line);
 }
-
 // Finds contiguous ranges of line indices that represent valid markdown tables.
 // A valid table block must contain contiguous table rows and at least one header separator line.
 std::vector<table_range> table_aligner::find_table_ranges(const std::vector<std::string> &lines)
