@@ -89,33 +89,33 @@ void test_hexdump_elf_code_dedup()
 	write_u16_le(data, 60, 4);   // e_shnum = 4 (null, .text, .symtab, .strtab/.shstrtab)
 	write_u16_le(data, 62, 3);   // e_shstrndx = 3
 
-	// String table at 500: "\0.text\0.symtab\0.shstrtab\0my_func\0"
-	const std::string strtab("\0.text\0.symtab\0.shstrtab\0my_func\0", 33);
+	// String table at 500: "\0.text\0.symtab\0.shstrtab\0my_func\0callee_func\0"
+	const std::string strtab("\0.text\0.symtab\0.shstrtab\0my_func\0callee_func\0", 45);
 	for (size_t i = 0; i < strtab.size(); ++i) {
 		data[500 + i] = static_cast<uint8_t>(strtab[i]);
 	}
 
-	// Section 1: .text at offset 448 (0x1C0), size 16
+	// Section 1: .text at offset 448 (0x1C0), size 32
 	write_u32_le(data, 128 + 64, 1);         // sh_name = ".text"
 	write_u32_le(data, 128 + 64 + 4, 1);     // SHT_PROGBITS
 	write_u64_le(data, 128 + 64 + 8, 6);     // SHF_ALLOC | SHF_EXECINSTR
 	write_u64_le(data, 128 + 64 + 16, 0x401000);
 	write_u64_le(data, 128 + 64 + 24, 448);  // sh_offset = 448
-	write_u64_le(data, 128 + 64 + 32, 16);   // sh_size = 16
+	write_u64_le(data, 128 + 64 + 32, 32);   // sh_size = 32
 
-	// Section 2: .symtab at offset 600, size 48 (2 entries of 24 bytes), sh_link = 3
+	// Section 2: .symtab at offset 600, size 72 (3 entries of 24 bytes), sh_link = 3
 	write_u32_le(data, 128 + 128, 7);        // sh_name = ".symtab"
 	write_u32_le(data, 128 + 128 + 4, 2);    // SHT_SYMTAB
 	write_u64_le(data, 128 + 128 + 24, 600);
-	write_u64_le(data, 128 + 128 + 32, 48);
+	write_u64_le(data, 128 + 128 + 32, 72);
 	write_u32_le(data, 128 + 128 + 40, 3);   // sh_link = 3
 	write_u64_le(data, 128 + 128 + 56, 24);  // sh_entsize = 24
 
-	// Section 3: .shstrtab/.strtab at offset 500, size 33
+	// Section 3: .shstrtab/.strtab at offset 500, size 45
 	write_u32_le(data, 128 + 192, 15);       // sh_name = ".shstrtab"
 	write_u32_le(data, 128 + 192 + 4, 3);    // SHT_STRTAB
 	write_u64_le(data, 128 + 192 + 24, 500);
-	write_u64_le(data, 128 + 192 + 32, 33);
+	write_u64_le(data, 128 + 192 + 32, 45);
 
 	// Symbol 1 in .symtab (at 624): my_func (name offset 25), STT_FUNC (0x12), shndx=1, value=0x401000, size=16
 	write_u32_le(data, 624, 25);
@@ -124,10 +124,23 @@ void test_hexdump_elf_code_dedup()
 	write_u64_le(data, 624 + 8, 0x401000);
 	write_u64_le(data, 624 + 16, 16);
 
-	// Instructions at 448 (0x1C0): 51 (push %rcx), 8D 45 FF (lea -0x1(%rbp), %eax), C3 (ret)
+	// Symbol 2 in .symtab (at 648): callee_func (name offset 33), STT_FUNC (0x12), shndx=1, value=0x401010, size=16
+	write_u32_le(data, 648, 33);
+	data[648 + 4] = 0x12; // STB_GLOBAL | STT_FUNC
+	write_u16_le(data, 648 + 6, 1);
+	write_u64_le(data, 648 + 8, 0x401010);
+	write_u64_le(data, 648 + 16, 16);
+
+	// Instructions at 448 (0x1C0, vaddr 0x401000):
+	// 448: 51 (push %rcx)
+	// 449..451: 8D 45 FF (lea -0x1(%rbp), %eax)
+	// 452..456: E8 07 00 00 00 (call 0x401010 <callee_func>)
+	// 457: C3 (ret)
 	data[448] = 0x51;
 	data[449] = 0x8D; data[450] = 0x45; data[451] = 0xFF;
-	data[452] = 0xC3;
+	data[452] = 0xE8; data[453] = 0x07; data[454] = 0x00; data[455] = 0x00; data[456] = 0x00;
+	data[457] = 0xC3;
+	data[464] = 0xC3;
 
 	{
 		std::ofstream out(test_file, std::ios::binary);
@@ -138,7 +151,7 @@ void test_hexdump_elf_code_dedup()
 	args.requested_path = test_file;
 	args.safe_path = test_file;
 	args.offset = 448;
-	args.size = 5;
+	args.size = 10;
 
 	tools::hexdump_tool tool(args);
 	auto ctx = create_mock_context();
@@ -149,6 +162,8 @@ void test_hexdump_elf_code_dedup()
 	size_t first_lea = result.find("lea");
 	assert(first_lea != std::string::npos);
 	assert(result.find("lea", first_lea + 3) == std::string::npos);
+	// Call target symbol resolution must annotate <callee_func>
+	assert(result.find("<callee_func>") != std::string::npos);
 	// Should not repeat verbose ELF Sec metadata on disassembled instruction rows
 	assert(result.find("ELF Sec") == std::string::npos);
 #endif

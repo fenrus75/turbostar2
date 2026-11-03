@@ -333,6 +333,57 @@ std::string shorten_hex_numbers(const std::string &input)
 	return result;
 }
 
+std::string replace_all_substrings(std::string str, std::string_view from, std::string_view to)
+{
+	size_t pos = 0;
+	while ((pos = str.find(from, pos)) != std::string::npos) {
+		str.replace(pos, from.size(), to);
+		pos += to.size();
+	}
+	return str;
+}
+
+std::string shorten_symbol_for_disasm(std::string_view raw_name, const elf_hex_highlighter::parsed_symbol *enclosing_sym)
+{
+	auto simplify_one = [](std::string_view input) {
+		std::string s(input);
+		s = replace_all_substrings(std::move(s), "std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >", "std::string");
+		s = replace_all_substrings(std::move(s), "std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>>", "std::string");
+		s = replace_all_substrings(std::move(s), "std::basic_string<char, std::char_traits<char>, std::allocator<char> >", "std::string");
+		s = replace_all_substrings(std::move(s), "std::basic_string<char, std::char_traits<char>, std::allocator<char>>", "std::string");
+		s = replace_all_substrings(std::move(s), "std::basic_string_view<char, std::char_traits<char> >", "std::string_view");
+		s = replace_all_substrings(std::move(s), "std::basic_string_view<char, std::char_traits<char>>", "std::string_view");
+
+		std::string out;
+		out.reserve(s.size());
+		int paren_depth = 0;
+		for (size_t i = 0; i < s.size(); ++i) {
+			if (s[i] == '(') {
+				++paren_depth;
+			} else if (s[i] == ')') {
+				if (paren_depth > 0) {
+					--paren_depth;
+					if (paren_depth == 0 && std::string_view(s).substr(i + 1).starts_with(" const")) {
+						i += 6;
+					}
+				}
+			} else if (paren_depth == 0) {
+				out.push_back(s[i]);
+			}
+		}
+		return out;
+	};
+
+	std::string short_target = simplify_one(raw_name);
+	if (enclosing_sym) {
+		std::string short_enclosing = simplify_one(enclosing_sym->name);
+		if (!short_enclosing.empty()) {
+			short_target = replace_all_substrings(std::move(short_target), short_enclosing + "::", "");
+		}
+	}
+	return short_target;
+}
+
 } // namespace
 
 bool elf_hex_highlighter::can_handle(std::span<const uint8_t> data) const
@@ -347,6 +398,8 @@ bool elf_hex_highlighter::parse(std::span<const uint8_t> data)
 	parsed_successfully_ = false;
 	sections_.clear();
 	symbols_.clear();
+	object_symbols_.clear();
+	got_plt_symbols_.clear();
 	last_code_sec_idx_ = SIZE_MAX;
 	last_code_inst_start_ = 0;
 
@@ -429,10 +482,12 @@ bool elf_hex_highlighter::parse(std::span<const uint8_t> data)
 
 			if (header_.is_64) {
 				sec.type_val = read_u32(data, entry_start + 4, lsb);
+				sec.addr = read_u64(data, entry_start + 16, lsb);
 				sec.offset = read_u64(data, entry_start + 24, lsb);
 				sec.size = read_u64(data, entry_start + 32, lsb);
 			} else {
 				sec.type_val = read_u32(data, entry_start + 4, lsb);
+				sec.addr = read_u32(data, entry_start + 12, lsb);
 				sec.offset = read_u32(data, entry_start + 16, lsb);
 				sec.size = read_u32(data, entry_start + 20, lsb);
 			}
@@ -457,21 +512,22 @@ bool elf_hex_highlighter::parse(std::span<const uint8_t> data)
 		}
 	}
 
-	// Parse symbol table bounds-safely if SHT exists
+	// Parse symbol tables (.symtab / .dynsym) and PLT relocations (.rela.plt / .rela.dyn) bounds-safely if SHT exists
 	if (header_.e_shoff > 0 && header_.e_shnum > 0 && header_.e_shentsize >= (header_.is_64 ? 64 : 40) && header_.e_shoff <= data.size()) {
 		size_t max_entries = (data.size() - header_.e_shoff) / header_.e_shentsize;
 		size_t valid_shnum = std::min(static_cast<size_t>(header_.e_shnum), max_entries);
-		uint64_t symtab_offset = 0;
-		uint64_t symtab_size = 0;
-		uint64_t symtab_entsize = 0;
-		uint32_t symtab_link = 0;
+		uint16_t e_type = read_u16(data, 16, lsb);
 
 		for (size_t i = 1; i < valid_shnum; ++i) {
 			size_t entry_start = header_.e_shoff + i * header_.e_shentsize;
 			if (entry_start > data.size() || header_.e_shentsize > data.size() - entry_start)
 				break;
 			uint32_t type = read_u32(data, entry_start + 4, lsb);
-			if (type == 2) { // SHT_SYMTAB
+			if (type == 2 || type == 11) { // SHT_SYMTAB or SHT_DYNSYM
+				uint64_t symtab_offset = 0;
+				uint64_t symtab_size = 0;
+				uint64_t symtab_entsize = 0;
+				uint32_t symtab_link = 0;
 				if (header_.is_64) {
 					symtab_offset = read_u64(data, entry_start + 24, lsb);
 					symtab_size = read_u64(data, entry_start + 32, lsb);
@@ -483,96 +539,136 @@ bool elf_hex_highlighter::parse(std::span<const uint8_t> data)
 					symtab_link = read_u32(data, entry_start + 24, lsb);
 					symtab_entsize = read_u32(data, entry_start + 36, lsb);
 				}
-				break;
-			}
-		}
 
-		uint64_t symstr_offset = 0;
-		uint64_t symstr_size = 0;
-		if (symtab_offset > 0 && symtab_size > 0 && symtab_entsize > 0 && symtab_link < valid_shnum) {
-			size_t entry_start = header_.e_shoff + symtab_link * header_.e_shentsize;
-			if (entry_start <= data.size() && header_.e_shentsize <= data.size() - entry_start) {
-				if (header_.is_64) {
-					symstr_offset = read_u64(data, entry_start + 24, lsb);
-					symstr_size = read_u64(data, entry_start + 32, lsb);
-				} else {
-					symstr_offset = read_u32(data, entry_start + 16, lsb);
-					symstr_size = read_u32(data, entry_start + 20, lsb);
-				}
-			}
+				uint64_t symstr_offset = 0;
+				uint64_t symstr_size = 0;
+				if (symtab_offset > 0 && symtab_size > 0 && symtab_entsize > 0 && symtab_link < valid_shnum) {
+					size_t str_entry = header_.e_shoff + symtab_link * header_.e_shentsize;
+					if (str_entry <= data.size() && header_.e_shentsize <= data.size() - str_entry) {
+						if (header_.is_64) {
+							symstr_offset = read_u64(data, str_entry + 24, lsb);
+							symstr_size = read_u64(data, str_entry + 32, lsb);
+						} else {
+							symstr_offset = read_u32(data, str_entry + 16, lsb);
+							symstr_size = read_u32(data, str_entry + 20, lsb);
+						}
+					}
 
-			size_t req_sym_size = header_.is_64 ? 24 : 16;
-			if (symtab_entsize >= req_sym_size && symtab_offset <= data.size()) {
-				size_t max_syms = (data.size() - symtab_offset) / symtab_entsize;
-				size_t sym_count = std::min(static_cast<size_t>(symtab_size / symtab_entsize), max_syms);
-				for (size_t j = 0; j < sym_count; ++j) {
-					size_t sym_start = symtab_offset + j * symtab_entsize;
-					if (sym_start > data.size() || req_sym_size > data.size() - sym_start || symtab_entsize < req_sym_size)
-						break;
+					size_t req_sym_size = header_.is_64 ? 24 : 16;
+					if (symtab_entsize >= req_sym_size && symtab_offset <= data.size()) {
+						size_t max_syms = (data.size() - symtab_offset) / symtab_entsize;
+						size_t sym_count = std::min(static_cast<size_t>(symtab_size / symtab_entsize), max_syms);
+						for (size_t j = 0; j < sym_count; ++j) {
+							size_t sym_start = symtab_offset + j * symtab_entsize;
+							if (sym_start > data.size() || req_sym_size > data.size() - sym_start)
+								break;
 
-				uint32_t st_name = 0;
-				uint8_t st_info = 0;
-				uint16_t st_shndx = 0;
-				uint64_t st_value = 0;
-				uint64_t st_size = 0;
+							uint32_t st_name = 0;
+							uint8_t st_info = 0;
+							uint16_t st_shndx = 0;
+							uint64_t st_value = 0;
+							uint64_t st_size = 0;
 
-				if (header_.is_64) {
-					st_name = read_u32(data, sym_start, lsb);
-					st_info = data[sym_start + 4];
-					st_shndx = read_u16(data, sym_start + 6, lsb);
-					st_value = read_u64(data, sym_start + 8, lsb);
-					st_size = read_u64(data, sym_start + 16, lsb);
-				} else {
-					st_name = read_u32(data, sym_start, lsb);
-					st_value = read_u32(data, sym_start + 4, lsb);
-					st_size = read_u32(data, sym_start + 8, lsb);
-					st_info = data[sym_start + 12];
-					st_shndx = read_u16(data, sym_start + 14, lsb);
-				}
-
-				uint8_t sym_type = st_info & 0xF;
-				if (sym_type == 2 && st_size > 0 && st_shndx < header_.e_shnum) {
-					uint64_t sym_file_offset = 0;
-					bool resolved = false;
-
-					for (const auto &sec : sections_) {
-						if (sec.index == st_shndx) {
-							uint16_t e_type = read_u16(data, 16, lsb);
-							if (e_type == 1) { // ET_REL
-								sym_file_offset = sec.offset + st_value;
+							if (header_.is_64) {
+								st_name = read_u32(data, sym_start, lsb);
+								st_info = data[sym_start + 4];
+								st_shndx = read_u16(data, sym_start + 6, lsb);
+								st_value = read_u64(data, sym_start + 8, lsb);
+								st_size = read_u64(data, sym_start + 16, lsb);
 							} else {
-								size_t sec_entry = header_.e_shoff + sec.index * header_.e_shentsize;
-								uint64_t sh_addr = 0;
-								if (header_.is_64) {
-									sh_addr = read_u64(data, sec_entry + 16, lsb);
-								} else {
-									sh_addr = read_u32(data, sec_entry + 12, lsb);
+								st_name = read_u32(data, sym_start, lsb);
+								st_value = read_u32(data, sym_start + 4, lsb);
+								st_size = read_u32(data, sym_start + 8, lsb);
+								st_info = data[sym_start + 12];
+								st_shndx = read_u16(data, sym_start + 14, lsb);
+							}
+
+							uint8_t sym_type = st_info & 0xF;
+							if ((sym_type == 1 || sym_type == 2) && st_size > 0 && st_shndx > 0 && st_shndx < header_.e_shnum) {
+								uint64_t sym_file_offset = 0;
+								bool resolved = false;
+
+								for (const auto &sec : sections_) {
+									if (sec.index == st_shndx) {
+										if (e_type == 1) { // ET_REL
+											sym_file_offset = sec.offset + st_value;
+										} else if (st_value >= sec.addr && st_value < sec.addr + sec.size) {
+											sym_file_offset = sec.offset + (st_value - sec.addr);
+										} else {
+											continue;
+										}
+										resolved = true;
+										break;
+									}
 								}
-								if (st_value >= sh_addr && st_value < sh_addr + sec.size) {
-									sym_file_offset = sec.offset + (st_value - sh_addr);
-								} else {
+
+								parsed_symbol sym;
+								if (symstr_offset > 0 && st_name < symstr_size) {
+									sym.name = read_string(data, symstr_offset + st_name, 4096);
+									sym.name = demangle_section_name(sym.name);
+								} else if (sym_type == 2) {
+									sym.name = std::format("sym_func_{:X}", st_value);
+								}
+								if (sym.name.empty()) {
 									continue;
 								}
-							}
-							resolved = true;
-							break;
-						}
-					}
+								sym.offset = sym_file_offset;
+								sym.size = st_size;
+								sym.vaddr = st_value;
 
-					if (resolved) {
-						parsed_symbol sym;
-						if (symstr_offset > 0 && st_name < symstr_size) {
-							sym.name = read_string(data, symstr_offset + st_name, 4096);
-							sym.name = demangle_section_name(sym.name);
-						} else {
-							sym.name = std::format("sym_func_{:X}", st_value);
+								if (sym_type == 2 && resolved) {
+									bool dup = std::ranges::any_of(symbols_, [&](const parsed_symbol &s) {
+										return s.offset == sym.offset;
+									});
+									if (!dup) {
+										symbols_.push_back(std::move(sym));
+									}
+								} else if (sym_type == 1 && st_value > 0) {
+									object_symbols_.push_back(std::move(sym));
+								}
+							}
 						}
-						sym.offset = sym_file_offset;
-						sym.size = st_size;
-						sym.vaddr = st_value;
-						symbols_.push_back(sym);
 					}
 				}
+			} else if (type == 4 && header_.is_64) { // SHT_RELA (e.g. .rela.plt / .rela.dyn)
+				uint64_t rela_offset = read_u64(data, entry_start + 24, lsb);
+				uint64_t rela_size = read_u64(data, entry_start + 32, lsb);
+				uint32_t rela_link = read_u32(data, entry_start + 40, lsb);
+				uint64_t rela_entsize = read_u64(data, entry_start + 56, lsb);
+				if (rela_offset > 0 && rela_size > 0 && rela_entsize >= 24 && rela_offset <= data.size() &&
+				    rela_link > 0 && rela_link < valid_shnum) {
+					size_t dynsym_hdr = header_.e_shoff + rela_link * header_.e_shentsize;
+					uint64_t dynsym_off = read_u64(data, dynsym_hdr + 24, lsb);
+					uint64_t dynsym_sz = read_u64(data, dynsym_hdr + 32, lsb);
+					uint32_t dynstr_link = read_u32(data, dynsym_hdr + 40, lsb);
+					uint64_t dynsym_entsz = read_u64(data, dynsym_hdr + 56, lsb);
+					if (dynsym_off > 0 && dynsym_entsz >= 24 && dynsym_off <= data.size() &&
+					    dynstr_link > 0 && dynstr_link < valid_shnum) {
+						size_t dynstr_hdr = header_.e_shoff + dynstr_link * header_.e_shentsize;
+						uint64_t dynstr_off = read_u64(data, dynstr_hdr + 24, lsb);
+						uint64_t dynstr_sz = read_u64(data, dynstr_hdr + 32, lsb);
+						size_t max_relas = (data.size() - rela_offset) / rela_entsize;
+						size_t rela_count = std::min(static_cast<size_t>(rela_size / rela_entsize), max_relas);
+						size_t max_dynsyms = (data.size() - dynsym_off) / dynsym_entsz;
+						size_t dynsym_count = std::min(static_cast<size_t>(dynsym_sz / dynsym_entsz), max_dynsyms);
+						for (size_t r = 0; r < rela_count; ++r) {
+							size_t r_start = rela_offset + r * rela_entsize;
+							uint64_t r_offset = read_u64(data, r_start, lsb);
+							uint64_t r_info = read_u64(data, r_start + 8, lsb);
+							uint32_t sym_idx = static_cast<uint32_t>(r_info >> 32);
+							if (r_offset > 0 && sym_idx > 0 && sym_idx < dynsym_count) {
+								size_t d_start = dynsym_off + sym_idx * dynsym_entsz;
+								uint32_t st_name = read_u32(data, d_start, lsb);
+								if (dynstr_off > 0 && st_name < dynstr_sz) {
+									std::string sname = read_string(data, dynstr_off + st_name, 4096);
+									if (!sname.empty()) {
+										sname = demangle_section_name(sname) + "@plt";
+										got_plt_symbols_.push_back({std::move(sname), 0, 8, r_offset});
+									}
+								}
+							}
+						}
+					}
 				}
 			}
 		}
@@ -1046,14 +1142,7 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 				}
 
 				size_t inst_start = start_offset;
-				size_t sec_entry = header_.e_shoff + sec.index * header_.e_shentsize;
-				uint64_t sh_addr = 0;
-				if (header_.is_64) {
-					sh_addr = read_u64(data, sec_entry + 16, header_.is_lsb);
-				} else {
-					sh_addr = read_u32(data, sec_entry + 12, header_.is_lsb);
-				}
-				ZyanU64 runtime_address = sh_addr + (inst_start - sec.offset);
+				ZyanU64 runtime_address = sec.addr + (inst_start - sec.offset);
 
 				while (inst_start < limit_offset && inst_start <= offset) {
 					ZydisDisassembledInstruction instruction;
@@ -1075,13 +1164,32 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 					if (offset >= inst_start && offset < inst_start + inst_len) {
 						last_code_sec_idx_ = sec.index;
 						last_code_inst_start_ = inst_start;
+						std::string target_annotation;
+						for (uint8_t op_idx = 0; op_idx < instruction.info.operand_count_visible; ++op_idx) {
+							const auto &op = instruction.operands[op_idx];
+							bool is_rel_imm = (op.type == ZYDIS_OPERAND_TYPE_IMMEDIATE && op.imm.is_relative);
+							bool is_rip_mem = (op.type == ZYDIS_OPERAND_TYPE_MEMORY &&
+							                   (op.mem.base == ZYDIS_REGISTER_RIP || op.mem.base == ZYDIS_REGISTER_EIP));
+							if (!is_rel_imm && !is_rip_mem) {
+								continue;
+							}
+							int64_t rel_disp = is_rel_imm ? op.imm.value.s : op.mem.disp.value;
+							uint64_t target_vaddr = static_cast<uint64_t>(static_cast<int64_t>(runtime_address + inst_len) + rel_disp);
+							if (!header_.is_64) {
+								target_vaddr &= 0xFFFFFFFFULL;
+							}
+							target_annotation = resolve_target_annotation(data, target_vaddr, is_rip_mem, found_sym);
+							if (!target_annotation.empty()) {
+								break;
+							}
+						}
 						std::string symbol_ctx;
 						if (found_sym) {
 							symbol_ctx = std::format(" (in {} + 0x{:X})", found_sym->name, inst_start - found_sym->offset);
 						}
 						return clamp_and_return(sec.semantic,
-							std::format("{}{} | ELF Sec \"{}\": type = {}, offset = 0x{:X}",
-										  shorten_hex_numbers(instruction.text), symbol_ctx, sec.name,
+							std::format("{}{}{} | ELF Sec \"{}\": type = {}, offset = 0x{:X}",
+										  shorten_hex_numbers(instruction.text), target_annotation, symbol_ctx, sec.name,
 										  get_shdr_type_desc(sec.type_val), sec.offset),
 							inst_start, inst_len);
 					}
@@ -1100,6 +1208,105 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 	}
 
 	return {hex_semantic_type::normal, "", 0, 0};
+}
+
+std::string elf_hex_highlighter::resolve_target_annotation(std::span<const uint8_t> data, uint64_t target_vaddr,
+                                                           bool is_rip_mem, const parsed_symbol *found_sym) const
+{
+	const parsed_section *target_sec = nullptr;
+	uint64_t target_offset = 0;
+	for (const auto &sec : sections_) {
+		if (sec.addr > 0 && target_vaddr >= sec.addr && target_vaddr < sec.addr + sec.size) {
+			target_sec = &sec;
+			target_offset = sec.offset + (target_vaddr - sec.addr);
+			break;
+		}
+	}
+
+	if (target_sec) {
+		for (const auto &sym : symbols_) {
+			if (target_offset >= sym.offset && target_offset < sym.offset + sym.size) {
+				if (&sym == found_sym) {
+					return "";
+				}
+				std::string short_name = shorten_symbol_for_disasm(sym.name, found_sym);
+				if (target_offset > sym.offset) {
+					return std::format(" <{}+0x{:X}>", short_name, target_offset - sym.offset);
+				}
+				return std::format(" <{}>", short_name);
+			}
+		}
+
+		if (target_sec->name.starts_with(".plt") && target_offset <= data.size()) {
+			size_t jmp_off = SIZE_MAX;
+			if (6 <= data.size() - target_offset && data[target_offset] == 0xFF && data[target_offset + 1] == 0x25) {
+				jmp_off = 0;
+			} else if (10 <= data.size() - target_offset && data[target_offset] == 0xF3 && data[target_offset + 1] == 0x0F &&
+			           data[target_offset + 2] == 0x1E && data[target_offset + 3] == 0xFA &&
+			           data[target_offset + 4] == 0xFF && data[target_offset + 5] == 0x25) {
+				jmp_off = 4;
+			}
+			if (jmp_off != SIZE_MAX) {
+				int32_t disp = static_cast<int32_t>(read_u32(data, target_offset + jmp_off + 2, header_.is_lsb));
+				uint64_t got_vaddr = static_cast<uint64_t>(static_cast<int64_t>(target_vaddr + jmp_off + 6) + disp);
+				for (const auto &gsym : got_plt_symbols_) {
+					if (gsym.vaddr == got_vaddr) {
+						return std::format(" <{}>", shorten_symbol_for_disasm(gsym.name, found_sym));
+					}
+				}
+			}
+		}
+	}
+
+	for (const auto &osym : object_symbols_) {
+		if (target_vaddr >= osym.vaddr && target_vaddr < osym.vaddr + osym.size) {
+			std::string short_name = shorten_symbol_for_disasm(osym.name, found_sym);
+			if (target_vaddr > osym.vaddr) {
+				return std::format(" <{}+0x{:X}>", short_name, target_vaddr - osym.vaddr);
+			}
+			return std::format(" <{}>", short_name);
+		}
+	}
+
+	for (const auto &gsym : got_plt_symbols_) {
+		if (gsym.vaddr == target_vaddr) {
+			return std::format(" <{}>", shorten_symbol_for_disasm(gsym.name, found_sym));
+		}
+	}
+
+	if (is_rip_mem && target_sec &&
+	    (target_sec->name.starts_with(".rodata") || target_sec->semantic == hex_semantic_type::rodata_section) &&
+	    target_offset < data.size()) {
+		size_t max_scan = std::min<size_t>(33, data.size() - target_offset);
+		std::string literal;
+		bool valid_str = false;
+		bool truncated = false;
+		for (size_t k = 0; k < max_scan; ++k) {
+			uint8_t ch = data[target_offset + k];
+			if (ch == 0) {
+				valid_str = (k >= 2);
+				break;
+			}
+			if (ch < 32 || ch > 126) {
+				valid_str = false;
+				break;
+			}
+			if (k == 32) {
+				valid_str = true;
+				truncated = true;
+				break;
+			}
+			if (ch == '"' || ch == '\\') {
+				literal.push_back('\\');
+			}
+			literal.push_back(static_cast<char>(ch));
+		}
+		if (valid_str) {
+			return std::format(" <\"{}{}\">", literal, truncated ? "..." : "");
+		}
+	}
+
+	return "";
 }
 
 size_t elf_hex_highlighter::get_next_symbol_offset(size_t current_offset) const
@@ -1123,15 +1330,20 @@ std::optional<size_t> elf_hex_highlighter::get_offset_by_name(std::string_view n
 			return sec.offset;
 		}
 	}
-	// Next search symbols
+	// Next search function symbols
 	for (const auto &sym : symbols_) {
 		if (sym.name == name) {
 			return sym.offset;
 		}
 	}
+	// Also search file-backed object symbols
+	for (const auto &osym : object_symbols_) {
+		if (osym.offset > 0 && osym.name == name) {
+			return osym.offset;
+		}
+	}
 	return std::nullopt;
 }
-
 std::string elf_hex_highlighter::get_structure_summary() const
 {
 	if (!parsed_successfully_) {

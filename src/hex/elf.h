@@ -11,6 +11,7 @@ class elf_hex_highlighter : public hex_highlighter
 		size_t index{0};
 		std::string name;
 		uint32_t type_val{0};
+		uint64_t addr{0};
 		uint64_t offset{0};
 		uint64_t size{0};
 		hex_semantic_type semantic{hex_semantic_type::normal};
@@ -52,9 +53,14 @@ class elf_hex_highlighter : public hex_highlighter
 		uint16_t e_ehsize{0};
 	};
 
+	std::string resolve_target_annotation(std::span<const uint8_t> data, uint64_t target_vaddr,
+	                                      bool is_rip_mem, const parsed_symbol *found_sym) const;
+
 	elf_parsed_data header_;
 	std::vector<parsed_section> sections_;
 	std::vector<parsed_symbol> symbols_;
+	std::vector<parsed_symbol> object_symbols_;
+	std::vector<parsed_symbol> got_plt_symbols_;
 	bool parsed_successfully_{false};
 	std::string mime_type_;
 	std::string description_;
