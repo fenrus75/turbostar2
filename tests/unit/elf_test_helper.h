@@ -103,8 +103,8 @@ inline std::vector<uint8_t> create_mock_elf()
 	write_u32_le(data, sh3_start + 4, 2);	 // sh_type = SHT_SYMTAB
 	write_u64_le(data, sh3_start + 8, 0);	 // sh_flags = 0
 	write_u64_le(data, sh3_start + 16, 0);	 // sh_addr = 0
-	write_u64_le(data, sh3_start + 24, 650); // sh_offset = 650
-	write_u64_le(data, sh3_start + 32, 48);	 // sh_size = 48 (2 entries)
+	write_u64_le(data, sh3_start + 24, 630); // sh_offset = 630
+	write_u64_le(data, sh3_start + 32, 72);	 // sh_size = 72 (3 entries)
 	write_u32_le(data, sh3_start + 40, 4);	 // sh_link = 4 (associated with .strtab)
 	write_u32_le(data, sh3_start + 44, 1);	 // sh_info = 1
 	write_u64_le(data, sh3_start + 48, 8);	 // sh_addralign = 8
@@ -116,20 +116,33 @@ inline std::vector<uint8_t> create_mock_elf()
 	write_u32_le(data, sh4_start + 4, 3);	 // sh_type = SHT_STRTAB
 	write_u64_le(data, sh4_start + 8, 0);	 // sh_flags = 0
 	write_u64_le(data, sh4_start + 16, 0);	 // sh_addr = 0
-	write_u64_le(data, sh4_start + 24, 700); // sh_offset = 700
-	write_u64_le(data, sh4_start + 32, 10);	 // sh_size = 10
+	write_u64_le(data, sh4_start + 24, 710); // sh_offset = 710
+	write_u64_le(data, sh4_start + 32, 250); // sh_size = 250
 
 	// Write .strtab data
 	std::string func_sym_name = "my_func";
-	std::ranges::copy(func_sym_name, &data[700 + 1]); // offset 701 is "my_func"
+	std::ranges::copy(func_sym_name, &data[710 + 1]); // offset 711 is "my_func"
 
-	// Write .symtab entry 1 (offset 674)
-	size_t sym1_start = 650 + 24;
+	std::string long_mangled_sym =
+	    "_ZN19very_long_namespace24very_long_template_classI22very_long_arg_type_one22very_long_arg_type_two"
+	    "24very_long_arg_type_three23very_long_arg_type_four22final_distinctive_typeE25very_long_member_functionEv";
+	std::ranges::copy(long_mangled_sym, &data[710 + 10]); // offset 720 is long_mangled_sym
+
+	// Write .symtab entry 1 (offset 630 + 24 = 654)
+	size_t sym1_start = 630 + 24;
 	write_u32_le(data, sym1_start, 1);	      // st_name = 1 ("my_func")
 	data[sym1_start + 4] = 0x12;		      // st_info = STB_GLOBAL | STT_FUNC
 	write_u16_le(data, sym1_start + 6, 1);	      // st_shndx = 1
 	write_u64_le(data, sym1_start + 8, 0x401000); // st_value = 0x401000
-	write_u64_le(data, sym1_start + 16, 32);      // st_size = 32
+	write_u64_le(data, sym1_start + 16, 16);      // st_size = 16
+
+	// Write .symtab entry 2 (offset 630 + 48 = 678)
+	size_t sym2_start = 630 + 48;
+	write_u32_le(data, sym2_start, 10);	      // st_name = 10 (long_mangled_sym)
+	data[sym2_start + 4] = 0x12;		      // st_info = STB_GLOBAL | STT_FUNC
+	write_u16_le(data, sym2_start + 6, 1);	      // st_shndx = 1
+	write_u64_le(data, sym2_start + 8, 0x401010); // st_value = 0x401010
+	write_u64_le(data, sym2_start + 16, 16);      // st_size = 16
 
 	// Write mock x86-64 instructions into .text at offset 450
 	data[450] = 0x51; // push rcx

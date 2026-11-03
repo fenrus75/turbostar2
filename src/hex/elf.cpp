@@ -560,17 +560,18 @@ bool elf_hex_highlighter::parse(std::span<const uint8_t> data)
 					if (resolved) {
 						parsed_symbol sym;
 						if (symstr_offset > 0 && st_name < symstr_size) {
-							sym.name = read_string(data, symstr_offset + st_name, 128);
+							sym.name = read_string(data, symstr_offset + st_name, 4096);
 							sym.name = demangle_section_name(sym.name);
 						} else {
 							sym.name = std::format("sym_func_{:X}", st_value);
 						}
 						sym.offset = sym_file_offset;
 						sym.size = st_size;
+						sym.vaddr = st_value;
 						symbols_.push_back(sym);
 					}
 				}
-			}
+				}
 			}
 		}
 

@@ -12,3 +12,4 @@ The `elf_list_symbols` tool inspects an ELF binary file and extracts symbols fro
 
 ## Lessons Learned
 - Migrated from RE2 to PCRE2 (`pcre2_regex`) to eliminate Abseil and RE2 dependencies from binary plugins and core executables.
+- Added batch DWARF source location resolution (`Source` column via `address_lookup::resolve_addresses`) and full 4096-byte `.strtab` symbol reading before C++ demangling so template instantiations can be traced directly to their source file and line without external `nm -C` or `addr2line` commands.

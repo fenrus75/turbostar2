@@ -103,6 +103,25 @@ int main()
 		assert(!prep.error_message.empty());
 	}
 
+	// 8. Test long (>128 byte) mangled C++ template symbol demangling
+	{
+		std::string args = R"({"path": ")" + elf_path + R"(", "pattern": "final_distinctive_type"})";
+		std::string res = registry.execute_tool("elf_list_symbols", args, ctx);
+		std::cout << "elf_list_symbols result (long template symbol):\n" << res << "\n";
+		assert(res.find("very_long_namespace::very_long_template_class<") != std::string::npos);
+		assert(res.find("final_distinctive_type>::very_long_member_function()") != std::string::npos);
+	}
+
+	// 9. Test DWARF source location resolution on an unstripped ELF binary
+	{
+		std::string self_elf = std::filesystem::canonical("/proc/self/exe").string();
+		ctx.fs_security.add_allowed_root(std::filesystem::path(self_elf).parent_path().string(), access_type::read);
+		std::string args = R"({"path": ")" + self_elf + R"(", "pattern": "^main$"})";
+		std::string res = registry.execute_tool("elf_list_symbols", args, ctx);
+		std::cout << "elf_list_symbols result (self binary main):\n" << res << "\n";
+		assert(res.find("test_elf_list_symbols.cpp:") != std::string::npos);
+	}
+
 	// Clean up mock file
 	std::filesystem::remove(full_elf_path);
 

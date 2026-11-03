@@ -351,8 +351,28 @@ std::vector<resolved_address> address_lookup::resolve_addresses(std::span<const 
 		addr2line_bin = "/bin/addr2line";
 	}
 
-	// 2. High-performance batch resolution using eu-addr2line (-M <maps_file>)
-	if (!eu_addr2line_bin.empty() && fs::exists(maps_path)) {
+	std::vector<memory_mapping> mappings = parse_maps(maps_path);
+
+	// 2. Direct ELF binary path (not a /proc/<pid>/maps text file)
+	if (mappings.empty() && fs::exists(maps_path) && !fs::is_directory(maps_path)) {
+		std::string direct_bin = !addr2line_bin.empty() ? addr2line_bin : eu_addr2line_bin;
+		if (!direct_bin.empty()) {
+			std::vector<std::string> args = {"-a", "-f", "-C", "-e", maps_path};
+			for (auto addr : unique_addrs) {
+				args.push_back(std::format("0x{:x}", addr));
+			}
+
+			event_logger::get_instance().log(std::format("address_lookup: Executing {} -a -f -C -e {} for {} addresses",
+								     direct_bin, maps_path, unique_addrs.size()));
+			auto lines = run_command(direct_bin, args);
+			event_logger::get_instance().log(std::format("address_lookup: {} returned {} output lines", direct_bin, lines.size()));
+			for (size_t k = 0; k < std::min<size_t>(10, lines.size()); ++k) {
+				event_logger::get_instance().log(std::format("  [raw_line_{}] {}", k, lines[k]));
+			}
+			resolved_map = parse_addr2line_output(lines);
+		}
+	} else if (!eu_addr2line_bin.empty() && fs::exists(maps_path)) {
+		// 3. High-performance batch resolution using eu-addr2line (-M <maps_file>)
 		std::vector<std::string> args = {"-a", "-M", maps_path, "-f", "-C"};
 		for (auto addr : unique_addrs) {
 			args.push_back(std::format("0x{:x}", addr));
@@ -367,25 +387,7 @@ std::vector<resolved_address> address_lookup::resolve_addresses(std::span<const 
 		}
 		resolved_map = parse_addr2line_output(lines);
 	} else if (!addr2line_bin.empty()) {
-		// Fallback: Parse memory mappings and group relative offsets per ELF binary
-		std::vector<memory_mapping> mappings = parse_maps(maps_path);
-
-		// If maps_path_or_pid is a direct ELF binary path (not a maps file)
-		if (mappings.empty() && fs::exists(maps_path) && !fs::is_directory(maps_path)) {
-			std::vector<std::string> args = {"-a", "-f", "-C", "-e", maps_path};
-			for (auto addr : unique_addrs) {
-				args.push_back(std::format("0x{:x}", addr));
-			}
-
-			event_logger::get_instance().log(std::format("address_lookup: Executing {} -a -f -C -e {} for {} addresses",
-								     addr2line_bin, maps_path, unique_addrs.size()));
-			auto lines = run_command(addr2line_bin, args);
-			event_logger::get_instance().log(std::format("address_lookup: addr2line returned {} output lines", lines.size()));
-			for (size_t k = 0; k < std::min<size_t>(10, lines.size()); ++k) {
-				event_logger::get_instance().log(std::format("  [raw_line_{}] {}", k, lines[k]));
-			}
-			resolved_map = parse_addr2line_output(lines);
-		} else {
+		{
 			// Group addresses by mapped ELF pathname
 			struct addr_offset {
 				uintptr_t original_addr;

@@ -20,8 +20,8 @@ class elf_hex_highlighter : public hex_highlighter
 		std::string name;
 		uint64_t offset{0};
 		uint64_t size{0};
+		uint64_t vaddr{0};
 	};
-
 	elf_hex_highlighter() = default;
 	~elf_hex_highlighter() override = default;
 
