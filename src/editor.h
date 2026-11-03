@@ -338,6 +338,8 @@ class editor : public agentlib::document_provider
 	std::string editing_model_id_;
 	std::string editing_model_server_id_;
 	bool model_server_edit_from_ai_settings_{false};
+	std::string editing_a2a_server_name_;
+	bool a2a_server_edit_from_a2a_settings_{false};
 	int switching_agent_id_{-1};
 	std::string get_search_autocomplete() const;
 

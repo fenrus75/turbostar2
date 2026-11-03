@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include "a2a/a2a_server_manager.h"
 #include "agentlib/model_server.h"
 #include "editor.h"
 #include "test_watchdog.h"
@@ -170,6 +171,72 @@ void test_options_dialogs_flow()
 	auto *srv_list_after_del = dynamic_cast<ui_listbox *>(find_element_by_name(ed.active_dialog_.get(), "server_list"));
 	assert(srv_list_after_del != nullptr);
 	assert(srv_list_after_del->has_focus());
+
+	// 8. Test A2A & Remote Settings -> Add A2A Server -> Save -> Edit -> Save -> Delete
+	editor_event a2a_open_ev;
+	a2a_open_ev.type = event_type::a2a_settings_config;
+	ed.dispatch_event_ui(a2a_open_ev);
+	assert(ed.active_dialog_ != nullptr);
+	assert(ed.active_dialog_->get_title() == "A2A & Remote Settings");
+	assert(ed.active_dialog_mode_ == editor::dialog_mode::settings);
+
+	ed.active_dialog_->set_action(dialog_result::confirmed);
+	ed.active_dialog_->set_result("add_a2a_server");
+	ed.resolve_dialog(dialog_result::confirmed);
+
+	assert(ed.active_dialog_ != nullptr);
+	assert(ed.active_dialog_->get_title() == "Add A2A Server");
+
+	auto *a2a_name_tb = dynamic_cast<ui_textbox *>(find_element_by_name(ed.active_dialog_.get(), "name"));
+	auto *a2a_url_tb = dynamic_cast<ui_textbox *>(find_element_by_name(ed.active_dialog_.get(), "url"));
+	auto *a2a_auth_tb = dynamic_cast<ui_textbox *>(find_element_by_name(ed.active_dialog_.get(), "auth"));
+	assert(a2a_name_tb && a2a_url_tb && a2a_auth_tb);
+	a2a_name_tb->set_buffer("remote_agent_1");
+	a2a_url_tb->set_buffer("http://127.0.0.1:9001");
+	a2a_auth_tb->set_buffer("bearer_xyz");
+
+	ed.active_dialog_->set_action(dialog_result::confirmed);
+	ed.active_dialog_->set_result("save");
+	ed.resolve_dialog(dialog_result::confirmed);
+
+	auto added_a2a = a2a::a2a_server_manager::get_instance().find_server("remote_agent_1");
+	assert(added_a2a.has_value());
+	assert(added_a2a->url == "http://127.0.0.1:9001");
+	assert(added_a2a->auth_token == "bearer_xyz");
+
+	assert(ed.active_dialog_ != nullptr);
+	assert(ed.active_dialog_->get_title() == "A2A & Remote Settings");
+	assert(ed.active_dialog_mode_ == editor::dialog_mode::settings);
+
+	auto *rem_list = dynamic_cast<ui_listbox *>(find_element_by_name(ed.active_dialog_.get(), "remote_list"));
+	assert(rem_list != nullptr);
+	assert(rem_list->has_focus());
+
+	// Edit A2A server and rename it
+	ed.active_dialog_->set_action(dialog_result::confirmed);
+	ed.active_dialog_->set_result("edit_a2a_server:remote_agent_1");
+	ed.resolve_dialog(dialog_result::confirmed);
+
+	assert(ed.active_dialog_ != nullptr);
+	assert(ed.active_dialog_->get_title() == "Edit A2A Server");
+	auto *edit_a2a_name_tb = dynamic_cast<ui_textbox *>(find_element_by_name(ed.active_dialog_.get(), "name"));
+	auto *edit_a2a_url_tb = dynamic_cast<ui_textbox *>(find_element_by_name(ed.active_dialog_.get(), "url"));
+	assert(edit_a2a_name_tb && edit_a2a_url_tb);
+	edit_a2a_name_tb->set_buffer("remote_agent_renamed");
+	edit_a2a_url_tb->set_buffer("http://127.0.0.1:9002");
+
+	ed.active_dialog_->set_action(dialog_result::confirmed);
+	ed.active_dialog_->set_result("save");
+	ed.resolve_dialog(dialog_result::confirmed);
+
+	assert(!a2a::a2a_server_manager::get_instance().find_server("remote_agent_1").has_value());
+	auto renamed_a2a = a2a::a2a_server_manager::get_instance().find_server("remote_agent_renamed");
+	assert(renamed_a2a.has_value());
+	assert(renamed_a2a->url == "http://127.0.0.1:9002");
+
+	assert(ed.active_dialog_ != nullptr);
+	assert(ed.active_dialog_->get_title() == "A2A & Remote Settings");
+	assert(ed.active_dialog_mode_ == editor::dialog_mode::settings);
 }
 
 int main()

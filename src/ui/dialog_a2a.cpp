@@ -26,7 +26,7 @@
 #include <string>
 #include <vector>
 
-std::unique_ptr<dialog> create_a2a_settings_dialog()
+std::unique_ptr<dialog> create_a2a_settings_dialog(std::string_view active_tab_id, std::string_view selected_server_name)
 {
 	auto dlg = std::make_unique<dialog>("A2A & Remote Settings", 68, 22);
 	auto main_flow = std::make_unique<ui_vertical_flow>("main_flow", 0, 0, 1, 1);
@@ -71,10 +71,19 @@ std::unique_ptr<dialog> create_a2a_settings_dialog()
 	tab3_flow->add_child(std::make_unique<ui_text_label>("Registered Remote A2A Servers:"));
 	auto remotes_list = std::make_unique<ui_listbox>("remote_list", 38, 5, nullptr, nullptr);
 	std::vector<std::string> remote_names;
-	for (const auto &srv : a2a::a2a_server_manager::get_instance().get_all_servers()) {
-		remote_names.push_back(srv.name + " (" + srv.url + ")");
+	int selected_rem_idx = -1;
+	const auto all_remotes = a2a::a2a_server_manager::get_instance().get_all_servers();
+	for (size_t i = 0; i < all_remotes.size(); ++i) {
+		const auto &srv = all_remotes[i];
+		remote_names.push_back(std::format("{} ({})", srv.name, srv.url));
+		if (!selected_server_name.empty() && srv.name == selected_server_name) {
+			selected_rem_idx = static_cast<int>(i);
+		}
 	}
 	remotes_list->set_items(remote_names);
+	if (selected_rem_idx >= 0) {
+		remotes_list->set_selected_index(selected_rem_idx);
+	}
 	auto rem_ptr = remotes_list.get();
 	tab3_flow->add_child(std::move(remotes_list));
 
@@ -95,14 +104,16 @@ std::unique_ptr<dialog> create_a2a_settings_dialog()
 		int idx = rem_ptr->get_selected_index();
 		auto servers = a2a::a2a_server_manager::get_instance().get_all_servers();
 		if (idx >= 0 && idx < (int)servers.size()) {
-			a2a::a2a_server_manager::get_instance().remove_server(servers[idx].name);
 			d->set_action(dialog_result::confirmed);
-			d->set_result("reopen_a2a_settings");
+			d->set_result("delete_a2a_server:" + servers[idx].name);
 		}
 	}));
 	tab3_flow->add_child(std::move(rem_btns));
 	tabbed->add_tab_page("remote", "Remote Servers", std::move(tab3_flow));
 
+	if (!active_tab_id.empty()) {
+		tabbed->set_active_tab_by_id(std::string(active_tab_id));
+	}
 	main_flow->add_child(std::move(tabbed));
 
 	auto btns = std::make_unique<ui_buttons_horizontal>("buttons", 0, 0, 0, 0);
@@ -126,6 +137,10 @@ std::unique_ptr<dialog> create_a2a_settings_dialog()
 	dlg->flow();
 	dlg->set_width(flow_ptr->width());
 	dlg->set_height(flow_ptr->height());
+
+	if (active_tab_id == "remote") {
+		dlg->set_focus_by_name("remote_list");
+	}
 
 	return dlg;
 }

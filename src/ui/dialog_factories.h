@@ -60,7 +60,7 @@ std::unique_ptr<dialog> create_tool_status_dialog();
 // ============================================================================
 // Domain 4: Agent-to-Agent Dialogs (Implemented in src/ui/dialog_a2a.cpp)
 // ============================================================================
-std::unique_ptr<dialog> create_a2a_settings_dialog();
+std::unique_ptr<dialog> create_a2a_settings_dialog(std::string_view active_tab_id = "", std::string_view selected_server_name = "");
 void apply_a2a_settings_from_dialog(const dialog &dlg);
 
 std::unique_ptr<dialog> create_a2a_servers_dialog(int initial_selection = 0);

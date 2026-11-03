@@ -347,17 +347,21 @@ void editor::resolve_dialog(dialog_result res)
 				return;
 			}
 			if (res_str == "add_a2a_server") {
+				editing_a2a_server_name_ = "";
+				a2a_server_edit_from_a2a_settings_ = true;
 				active_dialog_ = create_a2a_server_edit_dialog("", "", "");
-				active_dialog_mode_ = dialog_mode::settings;
+				active_dialog_mode_ = dialog_mode::a2a_server_edit;
 				set_focus(focus_target::dialog, "a2a_server_edit");
 				return;
 			}
 			if (res_str.starts_with("edit_a2a_server:")) {
 				std::string srv_name = res_str.substr(16);
+				editing_a2a_server_name_ = srv_name;
+				a2a_server_edit_from_a2a_settings_ = true;
 				auto srv_opt = a2a::a2a_server_manager::get_instance().find_server(srv_name);
 				if (srv_opt) {
 					active_dialog_ = create_a2a_server_edit_dialog(srv_opt->name, srv_opt->url, srv_opt->auth_token);
-					active_dialog_mode_ = dialog_mode::settings;
+					active_dialog_mode_ = dialog_mode::a2a_server_edit;
 					set_focus(focus_target::dialog, "a2a_server_edit");
 					return;
 				}
@@ -387,7 +391,8 @@ void editor::resolve_dialog(dialog_result res)
 			if (res_str.starts_with("delete_a2a_server:")) {
 				std::string srv_name = res_str.substr(18);
 				a2a::a2a_server_manager::get_instance().remove_server(srv_name);
-				active_dialog_ = create_a2a_settings_dialog();
+				a2a::a2a_server_manager::get_instance().save_project_servers();
+				active_dialog_ = create_a2a_settings_dialog("remote");
 				active_dialog_mode_ = dialog_mode::settings;
 				set_focus(focus_target::dialog, "a2a_settings");
 				return;
@@ -733,6 +738,8 @@ void editor::resolve_dialog(dialog_result res)
 		} else if (active_dialog_mode_ == dialog_mode::a2a_config) {
 			std::string res_str = active_dialog_->get_result();
 			if (res_str == "add") {
+				editing_a2a_server_name_ = "";
+				a2a_server_edit_from_a2a_settings_ = false;
 				active_dialog_ = create_a2a_server_edit_dialog();
 				active_dialog_mode_ = dialog_mode::a2a_server_edit;
 				set_focus(focus_target::dialog, "a2a_server_edit");
@@ -745,6 +752,8 @@ void editor::resolve_dialog(dialog_result res)
 				}
 				auto servers = a2a::a2a_server_manager::get_instance().get_all_servers();
 				if (idx >= 0 && idx < (int)servers.size()) {
+					editing_a2a_server_name_ = servers[idx].name;
+					a2a_server_edit_from_a2a_settings_ = false;
 					active_dialog_ =
 					    create_a2a_server_edit_dialog(servers[idx].name, servers[idx].url, servers[idx].auth_token);
 					active_dialog_mode_ = dialog_mode::a2a_server_edit;
@@ -792,12 +801,16 @@ void editor::resolve_dialog(dialog_result res)
 				return;
 			}
 		} else if (active_dialog_mode_ == dialog_mode::a2a_server_edit) {
+			std::string target_name = editing_a2a_server_name_;
 			if (active_dialog_->get_action() == dialog_result::confirmed) {
 				std::string s_name = active_dialog_->get_value("name").value_or("");
 				std::string s_url = active_dialog_->get_value("url").value_or("");
 				std::string s_auth = active_dialog_->get_value("auth").value_or("");
 
 				if (!s_name.empty() && !s_url.empty()) {
+					if (!editing_a2a_server_name_.empty() && editing_a2a_server_name_ != s_name) {
+						a2a::a2a_server_manager::get_instance().remove_server(editing_a2a_server_name_);
+					}
 					a2a::a2a_server_config cfg;
 					cfg.name = s_name;
 					cfg.url = s_url;
@@ -806,11 +819,18 @@ void editor::resolve_dialog(dialog_result res)
 
 					a2a::a2a_server_manager::get_instance().add_server(cfg);
 					a2a::a2a_server_manager::get_instance().save_project_servers();
+					target_name = s_name;
 				}
 			}
-			active_dialog_ = create_a2a_servers_dialog(0);
-			active_dialog_mode_ = dialog_mode::a2a_config;
-			set_focus(focus_target::dialog, "a2a_config");
+			if (a2a_server_edit_from_a2a_settings_) {
+				active_dialog_ = create_a2a_settings_dialog("remote", target_name);
+				active_dialog_mode_ = dialog_mode::settings;
+				set_focus(focus_target::dialog, "a2a_settings");
+			} else {
+				active_dialog_ = create_a2a_servers_dialog(0);
+				active_dialog_mode_ = dialog_mode::a2a_config;
+				set_focus(focus_target::dialog, "a2a_config");
+			}
 			return;
 		} else if (active_dialog_mode_ == dialog_mode::mcp_tools) {
 			std::string res_str = active_dialog_->get_result();
@@ -1018,6 +1038,18 @@ void editor::resolve_dialog(dialog_result res)
 				active_dialog_ = create_model_server_list_dialog();
 				active_dialog_mode_ = dialog_mode::model_server_list;
 				set_focus(focus_target::dialog, "server_list");
+			}
+			return;
+		}
+		if (active_dialog_mode_ == dialog_mode::a2a_server_edit) {
+			if (a2a_server_edit_from_a2a_settings_) {
+				active_dialog_ = create_a2a_settings_dialog("remote", editing_a2a_server_name_);
+				active_dialog_mode_ = dialog_mode::settings;
+				set_focus(focus_target::dialog, "a2a_settings");
+			} else {
+				active_dialog_ = create_a2a_servers_dialog(0);
+				active_dialog_mode_ = dialog_mode::a2a_config;
+				set_focus(focus_target::dialog, "a2a_config");
 			}
 			return;
 		}
