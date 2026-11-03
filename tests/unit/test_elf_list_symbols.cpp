@@ -64,8 +64,8 @@ int main()
 		assert(res.find("ELF Symbol Table") != std::string::npos);
 		assert(res.find("| Name | Offset/Value | Size |") != std::string::npos);
 		assert(res.find("my_func") != std::string::npos);
+		assert(res.find("| my_func | 0x1C2 | 16 |") != std::string::npos);
 	}
-
 	// 4. Test successful execution with regex pattern filter (matching)
 	{
 		std::string args = R"({"path": ")" + elf_path + R"(", "pattern": "^my_.*"})";

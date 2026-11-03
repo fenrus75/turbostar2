@@ -113,7 +113,7 @@ std::string elf_list_symbols_tool::execute(agentlib::tool_context &ctx)
 			source_loc = escape_markdown_table_str(
 			    std::format("{}:{}", resolved_locs[i].file_path, resolved_locs[i].line_number));
 		}
-		result += std::format("| {} | 0x{:X} | 0x{:X} | {} |\n", safe_sym_name, sym->offset, sym->size, source_loc);
+		result += std::format("| {} | 0x{:X} | {} | {} |\n", safe_sym_name, sym->offset, sym->size, source_loc);
 	}
 	if (truncated) {
 		result += "\n*(Remaining symbols omitted to save context. Refine your query pattern to find specific symbols.)*\n";

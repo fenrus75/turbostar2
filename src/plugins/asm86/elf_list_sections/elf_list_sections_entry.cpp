@@ -89,7 +89,7 @@ std::string elf_list_sections_tool::execute(agentlib::tool_context &ctx)
 			sem_desc = "Data";
 		}
 		std::string safe_sec_name = escape_markdown_table_str(sec.name);
-		result += std::format("| {} | {} | 0x{:X} | 0x{:X} | {} |\n", sec.index, safe_sec_name, sec.offset, sec.size, sem_desc);
+		result += std::format("| {} | {} | 0x{:X} | {} | {} |\n", sec.index, safe_sec_name, sec.offset, sec.size, sem_desc);
 	}
 
 	set_success(ctx, "Listed " + std::to_string(sections.size()) + " sections.");
