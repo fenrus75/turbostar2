@@ -1,3 +1,4 @@
+// Tested source file: src/agentlib/httplib_transport.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
@@ -5,7 +6,7 @@
 #include <chrono>
 #include <format>
 #include <httplib.h>
-#include "../../src/agentlib/httplib_transport.h"
+#include "agentlib/httplib_transport.h"
 
 int main()
 {
@@ -30,7 +31,19 @@ int main()
 		}
 	});
 
-	svr.Get("/v1/models", [](const httplib::Request&, httplib::Response& res) {
+	std::string last_auth_bearer;
+	std::string last_api_key;
+	svr.Post("/auth_check", [&](const httplib::Request &req, httplib::Response &res) {
+		last_auth_bearer = req.get_header_value("Authorization");
+		last_api_key = req.get_header_value("api-key");
+		res.set_content("ok", "text/plain");
+	});
+
+	std::string last_models_auth_bearer;
+	std::string last_models_api_key;
+	svr.Get("/v1/models", [&](const httplib::Request &req, httplib::Response &res) {
+		last_models_auth_bearer = req.get_header_value("Authorization");
+		last_models_api_key = req.get_header_value("api-key");
 		res.set_content(R"({
 			"object": "list",
 			"data": [
@@ -87,10 +100,28 @@ int main()
 
 	std::cout << "Streaming request completed. Success: " << std::boolalpha << stream_success << ", Body: " << stream_body << std::endl;
 
-	// Test fetch_models_from_server helper
+	// Test OpenAI-protocol auth headers (both Authorization: Bearer and api-key)
+	agentlib::httplib_transport authed_transport(base_url, "test-secret-key");
+	auto auth_post_resp = authed_transport.post("/auth_check", "{}");
+	assert(auth_post_resp.status_code == 200);
+	assert(last_auth_bearer == "Bearer test-secret-key");
+	assert(last_api_key == "test-secret-key");
+
+	last_auth_bearer.clear();
+	last_api_key.clear();
+	bool auth_stream_ok = authed_transport.post_stream("/auth_check", "{}", [](const char *, size_t, size_t, size_t) {
+		return true;
+	});
+	assert(auth_stream_ok);
+	assert(last_auth_bearer == "Bearer test-secret-key");
+	assert(last_api_key == "test-secret-key");
+
+	// Test fetch_models_from_server helper (including auth headers)
 	std::cout << "Testing fetch_models_from_server..." << std::endl;
+	last_models_auth_bearer.clear();
+	last_models_api_key.clear();
 	std::string error_out;
-	auto imported = agentlib::fetch_models_from_server(std::format("http://127.0.0.1:{}/v1", port), error_out);
+	auto imported = agentlib::fetch_models_from_server(std::format("http://127.0.0.1:{}/v1", port), error_out, "test-secret-key");
 	assert(imported.size() == 2);
 	assert(imported[0]->get_id() == "mock-model-1");
 	assert(imported[0]->get_name() == "mock-model-1");
@@ -98,6 +129,8 @@ int main()
 	assert(imported[0]->get_cost_type() == agentlib::model_cost_type::free_local);
 	assert(imported[1]->get_id() == "mock-model-2");
 	assert(error_out.empty());
+	assert(last_models_auth_bearer == "Bearer test-secret-key");
+	assert(last_models_api_key == "test-secret-key");
 
 	// Test fetch_models_from_server failure case
 	std::string error_failed;

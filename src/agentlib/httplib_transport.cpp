@@ -197,6 +197,7 @@ transport_response httplib_transport::post(const std::string &path, const std::s
 					headers.emplace("anthropic-version", "2023-06-01");
 				} else {
 					headers.emplace("Authorization", "Bearer " + api_key_);
+					headers.emplace("api-key", api_key_);
 				}
 			}
 
@@ -288,6 +289,7 @@ bool httplib_transport::post_stream(const std::string &path, const std::string &
 					req.set_header("anthropic-version", "2023-06-01");
 				} else {
 					req.set_header("Authorization", "Bearer " + api_key_);
+					req.set_header("api-key", api_key_);
 				}
 			}
 
@@ -441,7 +443,9 @@ std::vector<std::shared_ptr<ai_model>> fetch_models_from_server(const std::strin
 		struct curl_slist *headers = nullptr;
 		if (type != api_type::gemini && !api_key.empty()) {
 			std::string auth_header = "Authorization: Bearer " + api_key;
+			std::string api_key_header = "api-key: " + api_key;
 			headers = curl_slist_append(headers, auth_header.c_str());
+			headers = curl_slist_append(headers, api_key_header.c_str());
 		}
 
 		if (headers) {
