@@ -42,6 +42,9 @@ bool hexdump_validator::validate_args_impl(const nlohmann::json &raw_json, const
 		args_.offset = json_utils::parse_numeric_from_json(raw_json, "offset", 0);
 		size_t parsed_size = json_utils::parse_numeric_from_json(raw_json, "size", 0);
 		args_.offset_by_name = raw_json.value("offset_by_name", "");
+		if (args_.offset_by_name.empty()) {
+			args_.offset_by_name = raw_json.value("symbol", "");
+		}
 
 		if (args_.requested_path.empty()) {
 			out_error = "Path cannot be empty.";
@@ -54,8 +57,7 @@ bool hexdump_validator::validate_args_impl(const nlohmann::json &raw_json, const
 		}
 
 		args_.safe_path = canonical_path;
-		args_.size = (parsed_size == 0) ? 256 : (parsed_size > 4096 ? 4096 : parsed_size);
-
+		args_.size = (parsed_size > 4096) ? 4096 : parsed_size;
 		return true;
 	} catch (const std::exception &e) {
 		out_error = "Invalid arguments: " + std::string(e.what());

@@ -686,13 +686,17 @@ These tools allow the agent to interact with the project's Git repository.
 ## 10. Specialized Tool Families
 
 ### `x86_disassemble` (Family: `x86`)
-*   **Description:** Disassembles raw x86/x64 machine code bytes into human-readable assembly instructions. Outputs a Markdown table containing the instruction bytes and the formatted instruction.
+*   **Description:** Disassembles x86/x64 machine code from either an ELF/binary file (`path` with optional `symbol`, `offset`, `size`) or raw bytes (`data` in hex or Base64). Automatically resolves ELF call targets, PLT stubs, global objects, intra-function branch offsets (`<+0x...>`), and `.rodata` string literals (`<str#N>` with a `#### Referenced String Literals` table below).
 *   **Arguments:**
-    *   `data` *(string, required)*: The raw machine code bytes to disassemble. Can be Base64 or space-separated ASCII hex.
+    *   `path` *(string, optional)*: Path to an ELF or binary file relative to the project root. Either `path` or `data` is required.
+    *   `symbol` *(string, optional)*: Function symbol or section name (e.g. `'main'` or `'.text'`) when `path` is provided. Automatically resolves offset and size from `.symtab`.
+    *   `offset` *(integer or string, optional)*: Starting byte offset (or virtual address) when `path` is provided (e.g. `0` or `'0x114D8'`).
+    *   `size` *(integer or string, optional)*: Number of bytes to disassemble when `path` is provided. Defaults to the symbol size (or 256 bytes, max 4096).
+    *   `data` *(string, optional)*: Raw machine code bytes to disassemble (Base64 or space-separated/contiguous ASCII hex) when `path` is not used.
     *   `format` *(string, optional)*: The input format (`'hex'`, `'base64'`, or `'auto'`). Defaults to `'auto'`.
-    *   `mode` *(string, optional)*: The CPU mode (`'16'`, `'32'`, or `'64'`). Defaults to `'64'`.
-    *   `syntax` *(string, optional)*: Assembly syntax format (`'intel'` or `'att'`). Defaults to `'intel'`.
-    *   `address` *(integer, optional)*: The starting runtime address/IP offset. Defaults to 0.
+    *   `mode` *(string, optional)*: The CPU mode (`'16'`, `'32'`, or `'64'`). Defaults to `'64'` (or auto-detected from ELF header).
+    *   `syntax` *(string, optional)*: Assembly syntax format (`'att'` or `'intel'`). Defaults to `'att'`.
+    *   `address` *(integer or string, optional)*: The starting runtime address/IP offset for raw `data`. Defaults to 0.
 
 ### `x86_assemble` (Family: `x86`)
 *   **Description:** Assembles a single x86/x64 assembly instruction string into its corresponding machine code bytes (space-separated hex).
@@ -705,9 +709,9 @@ These tools allow the agent to interact with the project's Git repository.
 *   **Description:** Generates a formatted hexadecimal dump of a binary file. Annotates output with binary structure details (like ELF or PNG segments) automatically using registered syntax highlighters.
 *   **Arguments:**
     *   `path` *(string, required)*: The path to the binary file relative to project root.
-    *   `start_offset` *(integer, optional)*: 0-based byte offset to start the dump. Defaults to 0.
-    *   `size` *(integer, optional)*: Number of bytes to dump. Defaults to 256. Maximum 4096.
-
+    *   `offset` *(integer or string, optional)*: 0-based byte offset to start the dump. Defaults to 0.
+    *   `size` *(integer or string, optional)*: Number of bytes to dump. Defaults to symbol/section size when `offset_by_name` is used, otherwise 256 (maximum 4096).
+    *   `offset_by_name` *(string, optional, alias `symbol`)*: Optional section/chunk/symbol name (e.g. `'.text'` or `'main'`) to resolve offset and default size automatically.
 ### `hexwrite` (Family: `hexedit`)
 *   **Description:** Overwrites/patches raw bytes at a specific offset in a binary file. Creates a new file or expands an existing file if the offset exceeds the current file size.
 *   **Arguments:**

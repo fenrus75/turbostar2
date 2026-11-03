@@ -194,6 +194,7 @@ std::string hexdump_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	size_t start = args_.offset;
+	size_t effective_size = args_.size;
 	if (!args_.offset_by_name.empty()) {
 		if (!highlighter) {
 			set_failure(ctx, "File format not supported for offset resolution by name.");
@@ -205,6 +206,14 @@ std::string hexdump_tool::execute(agentlib::tool_context &ctx)
 			return "Error: Could not resolve named chunk or symbol: " + args_.offset_by_name;
 		}
 		start = *resolved_offset;
+		if (effective_size == 0) {
+			if (auto resolved_size = highlighter->get_size_by_name(args_.offset_by_name); resolved_size && *resolved_size > 0) {
+				effective_size = std::min<size_t>(*resolved_size, 4096);
+			}
+		}
+	}
+	if (effective_size == 0) {
+		effective_size = 256;
 	}
 
 	if (start >= file_data.size()) {
@@ -212,8 +221,7 @@ std::string hexdump_tool::execute(agentlib::tool_context &ctx)
 		return "Error: start_offset is out of bounds.";
 	}
 
-	size_t limit = (args_.size > file_data.size() - start) ? file_data.size() : start + args_.size;
-
+	size_t limit = (effective_size > file_data.size() - start) ? file_data.size() : start + effective_size;
 	std::vector<referenced_string_literal> string_literals;
 	std::string result = std::format("### Hexdump: {} [0x{:X} - 0x{:X}]\n```\n", args_.requested_path, start, limit);
 	for (size_t row = (start / 16) * 16; row < limit; row += 16) {

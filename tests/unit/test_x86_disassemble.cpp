@@ -1,17 +1,44 @@
+// Tested source file: src/plugins/asm86/x86_disassemble/x86_disassemble_entry.cpp, src/plugins/asm86/x86_disassemble/x86_disassemble_security.cpp
 #include "test_watchdog.h"
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
-#include "../../src/agentlib/ai_agent.h"
-#include "../../src/agentlib/tool_registry.h"
-#include "../../src/project_manager.h"
-#include "../../src/config_manager.h"
+#include "agentlib/ai_agent.h"
+#include "agentlib/tool_registry.h"
+#include "config_manager.h"
+#include "project_manager.h"
 
 using namespace agentlib;
 
 extern "C" void register_x86_disassemble(void);
+
+namespace
+{
+void write_u16_le(std::vector<uint8_t> &buf, size_t off, uint16_t val)
+{
+	buf[off] = val & 0xFF;
+	buf[off + 1] = (val >> 8) & 0xFF;
+}
+
+void write_u32_le(std::vector<uint8_t> &buf, size_t off, uint32_t val)
+{
+	buf[off] = val & 0xFF;
+	buf[off + 1] = (val >> 8) & 0xFF;
+	buf[off + 2] = (val >> 16) & 0xFF;
+	buf[off + 3] = (val >> 24) & 0xFF;
+}
+
+void write_u64_le(std::vector<uint8_t> &buf, size_t off, uint64_t val)
+{
+	write_u32_le(buf, off, static_cast<uint32_t>(val & 0xFFFFFFFFULL));
+	write_u32_le(buf, off + 4, static_cast<uint32_t>((val >> 32) & 0xFFFFFFFFULL));
+}
+} // namespace
 
 int main()
 {
@@ -27,6 +54,7 @@ int main()
 
 	std::string project_root = project_manager::get_instance().get_project_root();
 	ctx.fs_security.set_working_directory(project_root);
+	ctx.fs_security.add_allowed_root(std::filesystem::current_path(), access_type::read);
 
 	std::cout << "Testing x86_disassemble tool..." << std::endl;
 
@@ -72,9 +100,9 @@ int main()
 #endif
 	}
 
-	// 4. Test AT&T 64-bit Hex Disassembly
+	// 4. Test AT&T 64-bit Hex Disassembly (also verify AT&T is the default syntax)
 	{
-		std::string args = R"({"data": "89 c0", "format": "hex", "mode": "64", "syntax": "att"})";
+		std::string args = R"({"data": "89 c0", "format": "hex", "mode": "64"})";
 		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
 		std::cout << "AT&T 64-bit Hex Disassembly Result:\n" << res << std::endl;
 #ifdef HAVE_ZYDIS
@@ -113,7 +141,114 @@ int main()
 #endif
 	}
 
-	// 7. Test invalid inputs (should report error during preparation or execution)
+	// 7. Test ELF binary disassembly by path + symbol (with auto symbol size, call target, local branch, and string table)
+	{
+		std::string test_file = (std::filesystem::current_path() / "test_x86_disasm_elf_temp.bin").string();
+		std::vector<uint8_t> data(800, 0);
+		data[0] = 0x7F; data[1] = 'E'; data[2] = 'L'; data[3] = 'F';
+		data[4] = 2; // 64-bit
+		data[5] = 1; // LSB
+		data[6] = 1;
+		write_u16_le(data, 16, 2);  // ET_EXEC
+		write_u16_le(data, 18, 62); // EM_X86_64
+		write_u32_le(data, 20, 1);
+		write_u64_le(data, 40, 128); // e_shoff = 128
+		write_u16_le(data, 52, 64);  // e_ehsize = 64
+		write_u16_le(data, 58, 64);  // e_shentsize = 64
+		write_u16_le(data, 60, 5);   // e_shnum = 5 (null, .text, .symtab, .shstrtab, .rodata)
+		write_u16_le(data, 62, 3);   // e_shstrndx = 3
+
+		const std::string strtab("\0.text\0.symtab\0.shstrtab\0my_func\0callee_func\0.rodata\0", 53);
+		for (size_t i = 0; i < strtab.size(); ++i) {
+			data[500 + i] = static_cast<uint8_t>(strtab[i]);
+		}
+
+		// Section 1: .text at offset 448 (0x1C0), vaddr 0x401000, size 32
+		write_u32_le(data, 128 + 64, 1);
+		write_u32_le(data, 128 + 64 + 4, 1);
+		write_u64_le(data, 128 + 64 + 8, 6);
+		write_u64_le(data, 128 + 64 + 16, 0x401000);
+		write_u64_le(data, 128 + 64 + 24, 448);
+		write_u64_le(data, 128 + 64 + 32, 32);
+
+		// Section 2: .symtab at offset 600, size 72, sh_link = 3
+		write_u32_le(data, 128 + 128, 7);
+		write_u32_le(data, 128 + 128 + 4, 2);
+		write_u64_le(data, 128 + 128 + 24, 600);
+		write_u64_le(data, 128 + 128 + 32, 72);
+		write_u32_le(data, 128 + 128 + 40, 3);
+		write_u64_le(data, 128 + 128 + 56, 24);
+
+		// Section 3: .shstrtab at offset 500, size 53
+		write_u32_le(data, 128 + 192, 15);
+		write_u32_le(data, 128 + 192 + 4, 3);
+		write_u64_le(data, 128 + 192 + 24, 500);
+		write_u64_le(data, 128 + 192 + 32, 53);
+
+		// Section 4: .rodata at offset 700, vaddr 0x402000, size 32
+		write_u32_le(data, 128 + 256, 45);
+		write_u32_le(data, 128 + 256 + 4, 1);
+		write_u64_le(data, 128 + 256 + 8, 2);
+		write_u64_le(data, 128 + 256 + 16, 0x402000);
+		write_u64_le(data, 128 + 256 + 24, 700);
+		write_u64_le(data, 128 + 256 + 32, 32);
+
+		const std::string ro_str = "hello_disasm_rodata";
+		for (size_t i = 0; i < ro_str.size(); ++i) {
+			data[700 + i] = static_cast<uint8_t>(ro_str[i]);
+		}
+		data[700 + ro_str.size()] = 0;
+
+		// Symbol 1: my_func at 0x401000, size 16
+		write_u32_le(data, 624, 25);
+		data[624 + 4] = 0x12;
+		write_u16_le(data, 624 + 6, 1);
+		write_u64_le(data, 624 + 8, 0x401000);
+		write_u64_le(data, 624 + 16, 16);
+
+		// Symbol 2: callee_func at 0x401010, size 16
+		write_u32_le(data, 648, 33);
+		data[648 + 4] = 0x12;
+		write_u16_le(data, 648 + 6, 1);
+		write_u64_le(data, 648 + 8, 0x401010);
+		write_u64_le(data, 648 + 16, 16);
+
+		// Instructions in my_func (448..463, vaddr 0x401000..0x40100F):
+		// 448..449: 74 0C (jz 0x40100E <+0xE>)
+		// 450..454: E8 09 00 00 00 (call 0x401010 <callee_func>)
+		// 455..461: 48 8D 3D F2 0F 00 00 (lea 0xFF2(%rip), %rdi -> 0x402000 <str#1>)
+		// 462: 90 (nop)
+		// 463: C3 (ret)
+		data[448] = 0x74; data[449] = 0x0C;
+		data[450] = 0xE8; data[451] = 0x09; data[452] = 0x00; data[453] = 0x00; data[454] = 0x00;
+		data[455] = 0x48; data[456] = 0x8D; data[457] = 0x3D;
+		data[458] = 0xF2; data[459] = 0x0F; data[460] = 0x00; data[461] = 0x00;
+		data[462] = 0x90;
+		data[463] = 0xC3;
+
+		{
+			std::ofstream out(test_file, std::ios::binary);
+			out.write(reinterpret_cast<const char *>(data.data()), static_cast<std::streamsize>(data.size()));
+		}
+
+		std::string args = std::format(R"({{"path": "{}", "symbol": "my_func"}})", test_file);
+		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
+		std::cout << "ELF Symbol Disassembly Result:\n" << res << std::endl;
+#ifdef HAVE_ZYDIS
+		assert(res.find("### Disassembly: `my_func`") != std::string::npos);
+		assert(res.find("`0x401000` `<+0x0>`") != std::string::npos);
+		assert(res.find("<+0xE>") != std::string::npos);
+		assert(res.find("<callee_func>") != std::string::npos);
+		assert(res.find("<str#1>") != std::string::npos);
+		assert(res.find("#### Referenced String Literals") != std::string::npos);
+		assert(res.find("| `str#1` | `0x402000` | `\"hello_disasm_rodata\"` |") != std::string::npos);
+		// Should stop at my_func's size (16 bytes -> 0x401000..0x40100f), not spilling into 0x401010
+		assert(res.find("`0x401010`") == std::string::npos);
+#endif
+		std::filesystem::remove(test_file);
+	}
+
+	// 8. Test invalid inputs (should report error during preparation or execution)
 	{
 		// Invalid hex characters in hex format
 		std::string args = R"({"data": "89 zz", "format": "hex"})";
@@ -126,7 +261,7 @@ int main()
 		assert(b64_res.find("Error") != std::string::npos);
 	}
 
-	// 8. Test system prompt modification with x86 tool family table
+	// 9. Test system prompt modification with x86 tool family table
 	{
 		auto model = std::make_shared<ai_model>("test-model", "Test Model", "http://localhost", "Test", 0.0, 0.0);
 		auto agent = ai_agent::create(1, "TestAgent", model, nullptr, nullptr);

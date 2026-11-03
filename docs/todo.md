@@ -31,8 +31,6 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 - `fs_run_tests` suite filter (`suite: "unit"` / `"e2e"`): allow running only fast local unit tests without invoking slower external/e2e test suites to prevent 3-minute MCP timeouts when building and running tests.
 
-- `hexdump` symbol size auto-resolution: when `hexdump` is called with `offset_by_name` (e.g. symbol name `"main"` or section `".text"`), automatically resolve `size` from the symbol's size reported in the binary `.symtab` when `size` is omitted or unspecified.
-
 - `hexinspect` format auto-chaining: when `hexinspect` is invoked on a compressed archive (e.g. `.tar.gz`, `.gz`, `.bz2`, `.zst`), transparently decompress the stream in memory before running structural format parsers (TAR, ELF, PNG, JPEG).
 
 - consider async compile of the whole project on edits to cut down time?
@@ -254,6 +252,8 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # Done
+## 03-11-2026
+- `hexdump` and `x86_disassemble` symbol size auto-resolution & ELF disassembly parity: added `get_size_by_name`, `find_symbol_by_name`, `find_symbol_at_offset`, `find_section_by_name`, `find_section_at_offset`, and public `resolve_target_annotation` to `elf_hex_highlighter` (`src/hex/elf.{h,cpp}`). Updated `hexdump` (`hexdump_tool.cpp`, `hexdump_validator.cpp`) and `x86_disassemble` (`x86_disassemble.{h,md}`, `x86_disassemble_entry.cpp`, `x86_disassemble_security.cpp`) to automatically resolve `size` from `.symtab` when `symbol`/`offset_by_name` is given without `size`, default `x86_disassemble` syntax to AT&T on Linux, include an `Address` column (`0x... <+0x...>`), resolve call targets, PLT stubs, global objects, local branch offsets (`<+0x...>`), and emit indexed `<str#N>` string literal tables. (Completed)
 ## 01-11-2026
 - Signal value provenance row in `vcd_wave` (`*(since clock)*` / `*(since time)*`): added temporal provenance inspection to `vcd_wave` (`vcd_wave_tool.{h,cpp,md}`, `vcd_parser.{h,cpp,md}`) for windowed queries (`start_tick > 0` or `start_time > 0`). Emits a compact first row under the table header reporting the earliest clock tick index (or physical timestamp if asynchronous) each monitored signal has held its initial window value continuously. Signals actively transitioning on the window start cycle report `now`, signals holding their initial value since simulation start report `init`, and earlier transitions report their integer tick index (or timestamp). Added `get_signal_since_time`, `get_clock_edge_times`, and `get_signal_since_tick` with span caching, updated unit tests in `tests/unit/test_vcd_tools.cpp`, documented in `docs/tools.md`, and maintained 0 critical clang-tidy warnings. (Completed)
 - Implement 2-slot in-memory VCD parser LRU cache (`vcd_parser_cache`): implemented thread-safe LRU cache in `src/plugins/verilog/vcd_parser_cache.{h,cpp,md}` with `(mtime, file_size)` stat-based invalidation. Avoids redundant re-parsing of simulation traces across consecutive tool calls (`vcd_file_info`, `vcd_wave`, `vcd_search`, `vcd_signal_to_code`), turning multi-second parses into sub-millisecond lookups. Sized with 2 slots to support concurrent traces in `vcd_compare` without cache thrashing. Updated all Verilog tools and build targets, added unit test coverage in `tests/unit/test_vcd_tools.cpp`, and verified 0 critical clang-tidy warnings. (Completed)

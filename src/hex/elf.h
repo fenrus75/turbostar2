@@ -31,11 +31,23 @@ class elf_hex_highlighter : public hex_highlighter
 	highlight_info get_info(std::span<const uint8_t> data, size_t offset) const override;
 	size_t get_next_symbol_offset(size_t current_offset) const override;
 	std::optional<size_t> get_offset_by_name(std::string_view name) const override;
+	std::optional<size_t> get_size_by_name(std::string_view name) const override;
 	std::string get_structure_summary() const override;
 	bool prefer_summary_in_tmp_only() const override { return true; }
 
+	bool is_64_bit() const noexcept { return header_.is_64; }
+	uint16_t get_machine() const noexcept { return header_.e_machine; }
 	const std::vector<parsed_section> &get_sections() const { return sections_; }
 	const std::vector<parsed_symbol> &get_symbols() const { return symbols_; }
+
+	const parsed_symbol *find_symbol_by_name(std::string_view name) const;
+	const parsed_symbol *find_symbol_at_offset(size_t offset) const;
+	const parsed_section *find_section_by_name(std::string_view name) const;
+	const parsed_section *find_section_at_offset(size_t offset) const;
+	std::string resolve_target_annotation(std::span<const uint8_t> data, uint64_t target_vaddr,
+	                                      bool is_rip_mem, const parsed_symbol *found_sym,
+	                                      bool include_self_offset = false) const;
+	static std::string shorten_hex(std::string_view input);
 
       private:
 	struct elf_parsed_data {
@@ -52,10 +64,6 @@ class elf_hex_highlighter : public hex_highlighter
 		uint16_t e_shstrndx{0};
 		uint16_t e_ehsize{0};
 	};
-
-	std::string resolve_target_annotation(std::span<const uint8_t> data, uint64_t target_vaddr,
-	                                      bool is_rip_mem, const parsed_symbol *found_sym) const;
-
 	elf_parsed_data header_;
 	std::vector<parsed_section> sections_;
 	std::vector<parsed_symbol> symbols_;

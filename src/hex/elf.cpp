@@ -1210,8 +1210,91 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 	return {hex_semantic_type::normal, "", 0, 0};
 }
 
+std::string elf_hex_highlighter::shorten_hex(std::string_view input)
+{
+	return shorten_hex_numbers(std::string(input));
+}
+
+const elf_hex_highlighter::parsed_symbol *elf_hex_highlighter::find_symbol_by_name(std::string_view name) const
+{
+	if (!parsed_successfully_ || name.empty()) {
+		return nullptr;
+	}
+	for (const auto &sym : symbols_) {
+		if (sym.name == name) {
+			return &sym;
+		}
+	}
+	for (const auto &sym : symbols_) {
+		size_t paren = sym.name.find('(');
+		if (paren != std::string::npos && std::string_view(sym.name).substr(0, paren) == name) {
+			return &sym;
+		}
+	}
+	for (const auto &sym : symbols_) {
+		size_t paren = sym.name.find('(');
+		std::string_view base = (paren != std::string::npos) ? std::string_view(sym.name).substr(0, paren) : std::string_view(sym.name);
+		if (base.size() > name.size() + 2 && base.ends_with(name) &&
+		    base.substr(base.size() - name.size() - 2, 2) == "::") {
+			return &sym;
+		}
+	}
+	const parsed_symbol *substr_match = nullptr;
+	size_t match_count = 0;
+	for (const auto &sym : symbols_) {
+		if (sym.name.find(name) != std::string::npos) {
+			substr_match = &sym;
+			++match_count;
+		}
+	}
+	if (match_count == 1) {
+		return substr_match;
+	}
+	return nullptr;
+}
+
+const elf_hex_highlighter::parsed_symbol *elf_hex_highlighter::find_symbol_at_offset(size_t offset) const
+{
+	if (!parsed_successfully_) {
+		return nullptr;
+	}
+	for (const auto &sym : symbols_) {
+		if (offset >= sym.offset && offset < sym.offset + sym.size) {
+			return &sym;
+		}
+	}
+	return nullptr;
+}
+
+const elf_hex_highlighter::parsed_section *elf_hex_highlighter::find_section_by_name(std::string_view name) const
+{
+	if (!parsed_successfully_ || name.empty()) {
+		return nullptr;
+	}
+	for (const auto &sec : sections_) {
+		if (sec.name == name) {
+			return &sec;
+		}
+	}
+	return nullptr;
+}
+
+const elf_hex_highlighter::parsed_section *elf_hex_highlighter::find_section_at_offset(size_t offset) const
+{
+	if (!parsed_successfully_) {
+		return nullptr;
+	}
+	for (const auto &sec : sections_) {
+		if (offset >= sec.offset && offset < sec.offset + sec.size) {
+			return &sec;
+		}
+	}
+	return nullptr;
+}
+
 std::string elf_hex_highlighter::resolve_target_annotation(std::span<const uint8_t> data, uint64_t target_vaddr,
-                                                           bool is_rip_mem, const parsed_symbol *found_sym) const
+                                                           bool is_rip_mem, const parsed_symbol *found_sym,
+                                                           bool include_self_offset) const
 {
 	const parsed_section *target_sec = nullptr;
 	uint64_t target_offset = 0;
@@ -1227,6 +1310,9 @@ std::string elf_hex_highlighter::resolve_target_annotation(std::span<const uint8
 		for (const auto &sym : symbols_) {
 			if (target_offset >= sym.offset && target_offset < sym.offset + sym.size) {
 				if (&sym == found_sym) {
+					if (include_self_offset) {
+						return std::format(" <+0x{:X}>", target_offset - sym.offset);
+					}
 					return "";
 				}
 				std::string short_name = shorten_symbol_for_disasm(sym.name, found_sym);
@@ -1332,22 +1418,38 @@ std::optional<size_t> elf_hex_highlighter::get_offset_by_name(std::string_view n
 	if (!parsed_successfully_) {
 		return std::nullopt;
 	}
-	// First search sections
-	for (const auto &sec : sections_) {
-		if (sec.name == name) {
-			return sec.offset;
-		}
+	if (const auto *sec = find_section_by_name(name)) {
+		return sec->offset;
 	}
-	// Next search function symbols
-	for (const auto &sym : symbols_) {
-		if (sym.name == name) {
-			return sym.offset;
-		}
+	if (const auto *sym = find_symbol_by_name(name)) {
+		return sym->offset;
 	}
-	// Also search file-backed object symbols
 	for (const auto &osym : object_symbols_) {
 		if (osym.offset > 0 && osym.name == name) {
 			return osym.offset;
+		}
+	}
+	return std::nullopt;
+}
+
+std::optional<size_t> elf_hex_highlighter::get_size_by_name(std::string_view name) const
+{
+	if (!parsed_successfully_) {
+		return std::nullopt;
+	}
+	if (const auto *sec = find_section_by_name(name)) {
+		if (sec->size > 0) {
+			return sec->size;
+		}
+	}
+	if (const auto *sym = find_symbol_by_name(name)) {
+		if (sym->size > 0) {
+			return sym->size;
+		}
+	}
+	for (const auto &osym : object_symbols_) {
+		if (osym.offset > 0 && osym.size > 0 && osym.name == name) {
+			return osym.size;
 		}
 	}
 	return std::nullopt;
