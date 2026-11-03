@@ -224,6 +224,15 @@ void test_elf_highlighter()
 	assert(inf.range_start == 450);
 	assert(inf.range_size == 1);
 
+	// Multi-byte instruction (8D 45 FF at 451..453) should report identical symbol offset (+ 0x1) for all its bytes
+	highlight_info inf_lea0 = hl.get_info(data, 451);
+	highlight_info inf_lea1 = hl.get_info(data, 452);
+	highlight_info inf_lea2 = hl.get_info(data, 453);
+	assert(inf_lea0.range_start == 451 && inf_lea0.range_size == 3);
+	assert(inf_lea0.description.find("(in my_func + 0x1)") != std::string::npos);
+	assert(inf_lea1.description == inf_lea0.description);
+	assert(inf_lea2.description == inf_lea0.description);
+
 	// Test address shortening for offset 454
 	highlight_info inf_short = hl.get_info(data, 454);
 	assert(inf_short.type == hex_semantic_type::code_section);
@@ -233,7 +242,6 @@ void test_elf_highlighter()
 #else
 	assert(inf.description.find("Sec \".text.std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string() [requires is_default_constructible]\"") != std::string::npos);
 #endif
-
 	// Test .shstrtab section body range (mapped range: offset 500 to 619)
 	inf = hl.get_info(data, 505);
 	assert(inf.type == hex_semantic_type::symtab_section);
@@ -730,6 +738,11 @@ void test_elf_various_types()
 		write_u64_le(big_data, 100 + 128 + 24, 300); // sh_offset = 300
 		write_u64_le(big_data, 100 + 128 + 32, 17);  // sh_size = 17
 
+		// Stripped large section disassembly across a 16-byte boundary (0x10770 = 67440):
+		// 49 83 FC 01 = cmp $0x1, %r12 at 67437..67440, followed by 48 89 E5 = mov %rsp, %rbp at 67441..67443
+		big_data[67437] = 0x49; big_data[67438] = 0x83; big_data[67439] = 0xFC; big_data[67440] = 0x01;
+		big_data[67441] = 0x48; big_data[67442] = 0x89; big_data[67443] = 0xE5;
+
 		// Invalid instruction bytes to test disassembly decode failure
 		big_data[68000] = 0xFF; big_data[68001] = 0xFF; big_data[68002] = 0xFF;
 
@@ -739,11 +752,20 @@ void test_elf_various_types()
 		auto inf_big = hl_big.get_info(big_data, 67400);
 		assert(inf_big.type == hex_semantic_type::code_section);
 
+#ifdef HAVE_ZYDIS
+		auto inf_cross0 = hl_big.get_info(big_data, 67437);
+		auto inf_cross3 = hl_big.get_info(big_data, 67440);
+		auto inf_next = hl_big.get_info(big_data, 67441);
+		assert(inf_cross0.range_start == 67437 && inf_cross0.range_size == 4);
+		assert(inf_cross3.range_start == 67437 && inf_cross3.range_size == 4);
+		assert(inf_next.range_start == 67441 && inf_next.range_size == 3);
+		assert(inf_next.description.find("mov") != std::string::npos);
+#endif
+
 		// Query where disassembly fails
 		auto inf_fail = hl_big.get_info(big_data, 68000);
 		assert(inf_fail.type == hex_semantic_type::code_section);
 	}
-
 	// Test read_u64, read_u32, read_u16, and read_string bounds checks
 	{
 		// 64-bit Phdr query with buffer too short for read_u64

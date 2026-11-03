@@ -347,6 +347,8 @@ bool elf_hex_highlighter::parse(std::span<const uint8_t> data)
 	parsed_successfully_ = false;
 	sections_.clear();
 	symbols_.clear();
+	last_code_sec_idx_ = SIZE_MAX;
+	last_code_inst_start_ = 0;
 
 	if (!can_handle(data))
 		return false;
@@ -1032,8 +1034,11 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 				size_t start_offset = found_sym ? found_sym->offset : sec.offset;
 				size_t limit_offset = found_sym ? (found_sym->offset + found_sym->size) : (sec.offset + sec.size);
 
-				if (!found_sym && offset - start_offset > 65536) {
-					start_offset = offset - (offset % 16);
+				if (last_code_sec_idx_ == sec.index && last_code_inst_start_ >= start_offset &&
+				    offset >= last_code_inst_start_ && offset - last_code_inst_start_ <= 64) {
+					start_offset = last_code_inst_start_;
+				} else if (!found_sym && offset - start_offset > 65536) {
+					start_offset = offset;
 				}
 
 				if (limit_offset > data.size()) {
@@ -1068,9 +1073,11 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 					}
 
 					if (offset >= inst_start && offset < inst_start + inst_len) {
+						last_code_sec_idx_ = sec.index;
+						last_code_inst_start_ = inst_start;
 						std::string symbol_ctx;
 						if (found_sym) {
-							symbol_ctx = std::format(" (in {} + 0x{:X})", found_sym->name, offset - found_sym->offset);
+							symbol_ctx = std::format(" (in {} + 0x{:X})", found_sym->name, inst_start - found_sym->offset);
 						}
 						return clamp_and_return(sec.semantic,
 							std::format("{}{} | ELF Sec \"{}\": type = {}, offset = 0x{:X}",
@@ -1082,6 +1089,7 @@ highlight_info elf_hex_highlighter::get_info(std::span<const uint8_t> data, size
 					inst_start += inst_len;
 					runtime_address += inst_len;
 				}
+				last_code_sec_idx_ = SIZE_MAX;
 			}
 #endif
 			return clamp_and_return(sec.semantic,

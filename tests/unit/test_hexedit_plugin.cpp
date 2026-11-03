@@ -52,6 +52,111 @@ void test_hexdump_tool()
 	std::cout << "test_hexdump_tool passed!" << std::endl;
 }
 
+static void write_u16_le(std::vector<uint8_t> &buf, size_t offset, uint16_t val)
+{
+	buf[offset] = val & 0xFF;
+	buf[offset + 1] = (val >> 8) & 0xFF;
+}
+
+static void write_u32_le(std::vector<uint8_t> &buf, size_t offset, uint32_t val)
+{
+	buf[offset] = val & 0xFF;
+	buf[offset + 1] = (val >> 8) & 0xFF;
+	buf[offset + 2] = (val >> 16) & 0xFF;
+	buf[offset + 3] = (val >> 24) & 0xFF;
+}
+
+static void write_u64_le(std::vector<uint8_t> &buf, size_t offset, uint64_t val)
+{
+	write_u32_le(buf, offset, val & 0xFFFFFFFF);
+	write_u32_le(buf, offset + 4, (val >> 32) & 0xFFFFFFFF);
+}
+
+void test_hexdump_elf_code_dedup()
+{
+	std::string test_file = "test_hexdump_elf_temp.bin";
+	std::vector<uint8_t> data(800, 0);
+	data[0] = 0x7F; data[1] = 'E'; data[2] = 'L'; data[3] = 'F';
+	data[4] = 2; // 64-bit
+	data[5] = 1; // LSB
+	data[6] = 1;
+	write_u16_le(data, 16, 2);  // ET_EXEC
+	write_u16_le(data, 18, 62); // EM_X86_64
+	write_u32_le(data, 20, 1);
+	write_u64_le(data, 40, 128); // e_shoff = 128
+	write_u16_le(data, 52, 64);  // e_ehsize = 64
+	write_u16_le(data, 58, 64);  // e_shentsize = 64
+	write_u16_le(data, 60, 4);   // e_shnum = 4 (null, .text, .symtab, .strtab/.shstrtab)
+	write_u16_le(data, 62, 3);   // e_shstrndx = 3
+
+	// String table at 500: "\0.text\0.symtab\0.shstrtab\0my_func\0"
+	const std::string strtab("\0.text\0.symtab\0.shstrtab\0my_func\0", 33);
+	for (size_t i = 0; i < strtab.size(); ++i) {
+		data[500 + i] = static_cast<uint8_t>(strtab[i]);
+	}
+
+	// Section 1: .text at offset 448 (0x1C0), size 16
+	write_u32_le(data, 128 + 64, 1);         // sh_name = ".text"
+	write_u32_le(data, 128 + 64 + 4, 1);     // SHT_PROGBITS
+	write_u64_le(data, 128 + 64 + 8, 6);     // SHF_ALLOC | SHF_EXECINSTR
+	write_u64_le(data, 128 + 64 + 16, 0x401000);
+	write_u64_le(data, 128 + 64 + 24, 448);  // sh_offset = 448
+	write_u64_le(data, 128 + 64 + 32, 16);   // sh_size = 16
+
+	// Section 2: .symtab at offset 600, size 48 (2 entries of 24 bytes), sh_link = 3
+	write_u32_le(data, 128 + 128, 7);        // sh_name = ".symtab"
+	write_u32_le(data, 128 + 128 + 4, 2);    // SHT_SYMTAB
+	write_u64_le(data, 128 + 128 + 24, 600);
+	write_u64_le(data, 128 + 128 + 32, 48);
+	write_u32_le(data, 128 + 128 + 40, 3);   // sh_link = 3
+	write_u64_le(data, 128 + 128 + 56, 24);  // sh_entsize = 24
+
+	// Section 3: .shstrtab/.strtab at offset 500, size 33
+	write_u32_le(data, 128 + 192, 15);       // sh_name = ".shstrtab"
+	write_u32_le(data, 128 + 192 + 4, 3);    // SHT_STRTAB
+	write_u64_le(data, 128 + 192 + 24, 500);
+	write_u64_le(data, 128 + 192 + 32, 33);
+
+	// Symbol 1 in .symtab (at 624): my_func (name offset 25), STT_FUNC (0x12), shndx=1, value=0x401000, size=16
+	write_u32_le(data, 624, 25);
+	data[624 + 4] = 0x12; // STB_GLOBAL | STT_FUNC
+	write_u16_le(data, 624 + 6, 1);
+	write_u64_le(data, 624 + 8, 0x401000);
+	write_u64_le(data, 624 + 16, 16);
+
+	// Instructions at 448 (0x1C0): 51 (push %rcx), 8D 45 FF (lea -0x1(%rbp), %eax), C3 (ret)
+	data[448] = 0x51;
+	data[449] = 0x8D; data[450] = 0x45; data[451] = 0xFF;
+	data[452] = 0xC3;
+
+	{
+		std::ofstream out(test_file, std::ios::binary);
+		out.write(reinterpret_cast<const char *>(data.data()), static_cast<std::streamsize>(data.size()));
+	}
+
+	tools::hexdump_args args;
+	args.requested_path = test_file;
+	args.safe_path = test_file;
+	args.offset = 448;
+	args.size = 5;
+
+	tools::hexdump_tool tool(args);
+	auto ctx = create_mock_context();
+	std::string result = tool.execute(ctx);
+
+#ifdef HAVE_ZYDIS
+	// First occurrence of "lea" must exist, and there must NOT be a second occurrence on the same row
+	size_t first_lea = result.find("lea");
+	assert(first_lea != std::string::npos);
+	assert(result.find("lea", first_lea + 3) == std::string::npos);
+	// Should not repeat verbose ELF Sec metadata on disassembled instruction rows
+	assert(result.find("ELF Sec") == std::string::npos);
+#endif
+
+	std::filesystem::remove(test_file);
+	std::cout << "test_hexdump_elf_code_dedup passed!" << std::endl;
+}
+
 void test_hexwrite_tool()
 {
 	std::string test_file = "test_hexwrite_temp.bin";
@@ -259,6 +364,7 @@ int main()
 {
 	test_watchdog::setup_watchdog(30);
 	test_hexdump_tool();
+	test_hexdump_elf_code_dedup();
 	test_hexwrite_tool();
 	test_named_offsets();
 	test_hexdump_validator();

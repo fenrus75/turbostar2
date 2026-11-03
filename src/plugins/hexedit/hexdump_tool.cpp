@@ -12,11 +12,28 @@ namespace tools
 
 namespace
 {
-std::string format_hexdump_row(const std::vector<uint8_t> &data, size_t row_start, size_t read_limit, const hex_highlighter *highlighter)
+std::string compact_code_annotation(std::string_view desc)
+{
+	size_t sec_pos = desc.find(" | ELF Sec ");
+	if (sec_pos != std::string_view::npos) {
+		desc = desc.substr(0, sec_pos);
+	}
+	if (desc.ends_with(')')) {
+		size_t sym_pos = desc.rfind(" (in ");
+		if (sym_pos != std::string_view::npos) {
+			desc = desc.substr(0, sym_pos);
+		}
+	}
+	return std::string(desc);
+}
+
+std::string format_hexdump_row(const std::vector<uint8_t> &data, size_t row_start, size_t read_start, size_t read_limit, const hex_highlighter *highlighter)
 {
 	std::string hex_part;
 	std::string ascii_part;
 	std::vector<std::string> row_annotations;
+	size_t last_code_range_start = SIZE_MAX;
+	size_t effective_row_start = std::max(row_start, read_start);
 
 	for (size_t col = 0; col < 16; ++col) {
 		size_t offset = row_start + col;
@@ -34,10 +51,16 @@ std::string format_hexdump_row(const std::vector<uint8_t> &data, size_t row_star
 				ascii_part.push_back('.');
 			}
 
-			if (highlighter) {
+			if (highlighter && offset >= read_start) {
 				highlight_info info = highlighter->get_info(data, offset);
 				if (info.type != hex_semantic_type::normal && !info.description.empty()) {
-					if (row_annotations.empty() || row_annotations.back() != info.description) {
+					if (info.type == hex_semantic_type::code_section && info.range_size > 0 &&
+					    info.description.find(" | ELF Sec ") != std::string::npos) {
+						if (info.range_start >= effective_row_start && info.range_start != last_code_range_start) {
+							last_code_range_start = info.range_start;
+							row_annotations.push_back(compact_code_annotation(info.description));
+						}
+					} else if (row_annotations.empty() || row_annotations.back() != info.description) {
 						row_annotations.push_back(info.description);
 					}
 				}
@@ -142,10 +165,9 @@ std::string hexdump_tool::execute(agentlib::tool_context &ctx)
 
 	std::string result = std::format("### Hexdump: {} [0x{:X} - 0x{:X}]\n```\n", args_.requested_path, start, limit);
 	for (size_t row = (start / 16) * 16; row < limit; row += 16) {
-		result += format_hexdump_row(file_data, row, limit, highlighter.get()) + "\n";
+		result += format_hexdump_row(file_data, row, start, limit, highlighter.get()) + "\n";
 	}
 	result += "```\n";
-
 	set_success(ctx, std::format("Read {} bytes.", limit - start));
 	return result;
 }

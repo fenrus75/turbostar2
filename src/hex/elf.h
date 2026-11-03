@@ -58,4 +58,6 @@ class elf_hex_highlighter : public hex_highlighter
 	bool parsed_successfully_{false};
 	std::string mime_type_;
 	std::string description_;
+	mutable size_t last_code_sec_idx_{SIZE_MAX};
+	mutable size_t last_code_inst_start_{0};
 };
