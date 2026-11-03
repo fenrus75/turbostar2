@@ -263,6 +263,7 @@ void editor::resolve_dialog(dialog_result res)
 			}
 			if (res_str.starts_with("query_model_server:")) {
 				std::string id = res_str.substr(19);
+				editing_model_server_id_ = id;
 				auto server = agentlib::model_server_registry::get_instance().get_server(id);
 				if (server) {
 					std::string error_msg;
@@ -270,6 +271,14 @@ void editor::resolve_dialog(dialog_result res)
 					    server->get_url(), error_msg, server->get_api_key(), server->get_id(), server->get_api_type());
 					if (!imported_models.empty()) {
 						auto &registry = agentlib::ai_model_registry::get_instance();
+
+						std::string old_default_id = config_manager::get_instance().get_default_model_id();
+						std::string old_default_name;
+						auto old_default_model = registry.get_model(old_default_id);
+						if (old_default_model) {
+							old_default_name = old_default_model->get_name();
+						}
+
 						std::vector<std::string> to_remove;
 						for (const auto &model : registry.get_all_models()) {
 							if (model->get_server_id() == id && model->get_from_download()) {
@@ -279,10 +288,22 @@ void editor::resolve_dialog(dialog_result res)
 						for (const auto &mid : to_remove) {
 							registry.remove_model(mid);
 						}
+
+						bool restored_default = false;
 						for (const auto &model : imported_models) {
 							registry.register_model(model);
+							if (!old_default_id.empty() &&
+							    (model->get_id() == old_default_id ||
+							     (!old_default_name.empty() && model->get_name() == old_default_name))) {
+								config_manager::get_instance().set_default_model_id(model->get_id());
+								restored_default = true;
+							}
 						}
 						registry.save_models();
+						if (restored_default) {
+							config_manager::get_instance().save_global();
+						}
+
 						std::vector<std::string> lines = {
 						    std::format("Successfully imported {} models", imported_models.size()),
 						    "from server " + server->get_name()};
@@ -297,7 +318,7 @@ void editor::resolve_dialog(dialog_result res)
 					set_focus(focus_target::dialog, "btn_ok");
 					return;
 				}
-				active_dialog_ = create_ai_settings_dialog();
+				active_dialog_ = create_ai_settings_dialog("providers", id);
 				active_dialog_mode_ = dialog_mode::settings;
 				set_focus(focus_target::dialog, "ai_settings");
 				return;
@@ -306,7 +327,21 @@ void editor::resolve_dialog(dialog_result res)
 				std::string id = res_str.substr(20);
 				agentlib::model_server_registry::get_instance().remove_server(id);
 				agentlib::model_server_registry::get_instance().save_servers();
-				active_dialog_ = create_ai_settings_dialog();
+
+				// Delete associated from_download models
+				auto &model_reg = agentlib::ai_model_registry::get_instance();
+				std::vector<std::string> to_remove;
+				for (const auto &model : model_reg.get_all_models()) {
+					if (model->get_server_id() == id && model->get_from_download()) {
+						to_remove.push_back(model->get_id());
+					}
+				}
+				for (const auto &mid : to_remove) {
+					model_reg.remove_model(mid);
+				}
+				model_reg.save_models();
+
+				active_dialog_ = create_ai_settings_dialog("providers");
 				active_dialog_mode_ = dialog_mode::settings;
 				set_focus(focus_target::dialog, "ai_settings");
 				return;
@@ -411,7 +446,7 @@ void editor::resolve_dialog(dialog_result res)
 				}
 			}
 		} else if (active_dialog_mode_ == dialog_mode::reopen_ai_settings) {
-			active_dialog_ = create_ai_settings_dialog();
+			active_dialog_ = create_ai_settings_dialog("providers", editing_model_server_id_);
 			active_dialog_mode_ = dialog_mode::settings;
 			set_focus(focus_target::dialog, "ai_settings");
 			return;

@@ -148,6 +148,28 @@ void test_options_dialogs_flow()
 	assert(srv_list_after_edit != nullptr);
 	assert(srv_list_after_edit->has_focus());
 	assert(srv_list_after_edit->get_selected_index() == expected_idx);
+
+	// 7. Register a downloaded model associated with custom_provider_1, then click "Delete"
+	auto dl_model = std::make_shared<agentlib::ai_model>(
+	    "custom_provider_1_dl_model", "Downloaded Model", "", "", 0.0, 0.0, "",
+	    agentlib::api_type::openai, 128000, agentlib::model_cost_type::paid_per_token,
+	    "custom_provider_1", true /*from_download*/);
+	agentlib::ai_model_registry::get_instance().register_model(dl_model);
+	assert(agentlib::ai_model_registry::get_instance().get_model("custom_provider_1_dl_model") != nullptr);
+
+	ed.active_dialog_->set_action(dialog_result::confirmed);
+	ed.active_dialog_->set_result("delete_model_server:custom_provider_1");
+	ed.resolve_dialog(dialog_result::confirmed);
+
+	assert(agentlib::model_server_registry::get_instance().get_server("custom_provider_1") == nullptr);
+	assert(agentlib::ai_model_registry::get_instance().get_model("custom_provider_1_dl_model") == nullptr);
+
+	assert(ed.active_dialog_ != nullptr);
+	assert(ed.active_dialog_->get_title() == "AI & Agent Settings");
+	assert(ed.active_dialog_mode_ == editor::dialog_mode::settings);
+	auto *srv_list_after_del = dynamic_cast<ui_listbox *>(find_element_by_name(ed.active_dialog_.get(), "server_list"));
+	assert(srv_list_after_del != nullptr);
+	assert(srv_list_after_del->has_focus());
 }
 
 int main()
