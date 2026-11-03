@@ -197,6 +197,7 @@ void editor::resolve_dialog(dialog_result res)
 		} else if (active_dialog_mode_ == dialog_mode::settings) {
 			std::string res_str = active_dialog_->get_result();
 			if (res_str == "select_model") {
+				apply_ai_settings_from_dialog(*active_dialog_);
 				model_list_from_ai_settings_ = true;
 				active_dialog_ = create_model_list_dialog();
 				active_dialog_mode_ = dialog_mode::model_list;
@@ -204,6 +205,7 @@ void editor::resolve_dialog(dialog_result res)
 				return;
 			}
 			if (res_str == "add_model_server") {
+				apply_ai_settings_from_dialog(*active_dialog_);
 				editing_model_server_id_ = "";
 				model_server_edit_from_ai_settings_ = true;
 				active_dialog_ = create_model_server_edit_dialog(nullptr);
@@ -212,6 +214,7 @@ void editor::resolve_dialog(dialog_result res)
 				return;
 			}
 			if (res_str.starts_with("edit_model_server:")) {
+				apply_ai_settings_from_dialog(*active_dialog_);
 				std::string srv_id = res_str.substr(18);
 				editing_model_server_id_ = srv_id;
 				model_server_edit_from_ai_settings_ = true;
@@ -222,6 +225,7 @@ void editor::resolve_dialog(dialog_result res)
 				return;
 			}
 			if (res_str.starts_with("query_model_server:")) {
+				apply_ai_settings_from_dialog(*active_dialog_);
 				std::string id = res_str.substr(19);
 				editing_model_server_id_ = id;
 				auto server = agentlib::model_server_registry::get_instance().get_server(id);
@@ -284,6 +288,7 @@ void editor::resolve_dialog(dialog_result res)
 				return;
 			}
 			if (res_str.starts_with("delete_model_server:")) {
+				apply_ai_settings_from_dialog(*active_dialog_);
 				std::string id = res_str.substr(20);
 				agentlib::model_server_registry::get_instance().remove_server(id);
 				agentlib::model_server_registry::get_instance().save_servers();
@@ -307,6 +312,7 @@ void editor::resolve_dialog(dialog_result res)
 				return;
 			}
 			if (res_str == "add_a2a_server") {
+				apply_a2a_settings_from_dialog(*active_dialog_);
 				editing_a2a_server_name_ = "";
 				a2a_server_edit_from_a2a_settings_ = true;
 				active_dialog_ = create_a2a_server_edit_dialog("", "", "");
@@ -315,6 +321,7 @@ void editor::resolve_dialog(dialog_result res)
 				return;
 			}
 			if (res_str.starts_with("edit_a2a_server:")) {
+				apply_a2a_settings_from_dialog(*active_dialog_);
 				std::string srv_name = res_str.substr(16);
 				editing_a2a_server_name_ = srv_name;
 				a2a_server_edit_from_a2a_settings_ = true;
@@ -349,6 +356,7 @@ void editor::resolve_dialog(dialog_result res)
 				}
 			}
 			if (res_str.starts_with("delete_a2a_server:")) {
+				apply_a2a_settings_from_dialog(*active_dialog_);
 				std::string srv_name = res_str.substr(18);
 				a2a::a2a_server_manager::get_instance().remove_server(srv_name);
 				a2a::a2a_server_manager::get_instance().save_project_servers();
@@ -358,6 +366,7 @@ void editor::resolve_dialog(dialog_result res)
 				return;
 			}
 			if (res_str == "gen_a2a_token") {
+				apply_a2a_settings_from_dialog(*active_dialog_);
 				std::string new_tok = config_manager::get_instance().generate_a2a_server_token();
 				config_manager::get_instance().set_a2a_server_token(new_tok);
 				a2a::a2a_server::get_instance().set_auth_token(new_tok);

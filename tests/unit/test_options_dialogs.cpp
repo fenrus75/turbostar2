@@ -273,6 +273,43 @@ void test_options_dialogs_flow()
 	assert(ed.active_dialog_ != nullptr);
 	assert(ed.active_dialog_->get_title() == "AI & Agent Settings");
 	assert(ed.active_dialog_mode_ == editor::dialog_mode::settings);
+
+	// 10. Test preserving in-progress form edits across sub-dialog transitions
+	auto *def_model_tb = dynamic_cast<ui_textbox *>(find_element_by_name(ed.active_dialog_.get(), "default_model_id"));
+	assert(def_model_tb != nullptr);
+	def_model_tb->set_buffer("in-progress-model-123");
+
+	ed.active_dialog_->set_action(dialog_result::confirmed);
+	ed.active_dialog_->set_result("add_model_server");
+	ed.resolve_dialog(dialog_result::confirmed);
+	assert(ed.active_dialog_ != nullptr);
+	assert(ed.active_dialog_->get_title() == "Add Server");
+
+	ed.active_dialog_->set_action(dialog_result::cancelled);
+	ed.active_dialog_->set_result("cancel");
+	ed.resolve_dialog(dialog_result::cancelled);
+	assert(ed.active_dialog_ != nullptr);
+	assert(ed.active_dialog_->get_title() == "AI & Agent Settings");
+	assert(ed.active_dialog_->get_value("default_model_id") == "in-progress-model-123");
+
+	// Same check for A2A & Remote Settings form edits preserved across sub-dialog
+	ed.dispatch_event_ui(a2a_open_ev);
+	auto *a2a_port_tb = dynamic_cast<ui_textbox *>(find_element_by_name(ed.active_dialog_.get(), "a2a_server_port"));
+	assert(a2a_port_tb != nullptr);
+	a2a_port_tb->set_buffer("9456");
+
+	ed.active_dialog_->set_action(dialog_result::confirmed);
+	ed.active_dialog_->set_result("add_a2a_server");
+	ed.resolve_dialog(dialog_result::confirmed);
+	assert(ed.active_dialog_ != nullptr);
+	assert(ed.active_dialog_->get_title() == "Add A2A Server");
+
+	ed.active_dialog_->set_action(dialog_result::cancelled);
+	ed.active_dialog_->set_result("cancel");
+	ed.resolve_dialog(dialog_result::cancelled);
+	assert(ed.active_dialog_ != nullptr);
+	assert(ed.active_dialog_->get_title() == "A2A & Remote Settings");
+	assert(ed.active_dialog_->get_value("a2a_server_port") == "9456");
 }
 
 int main()
