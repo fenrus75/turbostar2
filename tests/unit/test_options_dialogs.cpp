@@ -7,6 +7,7 @@
 #include "a2a/a2a_server_manager.h"
 #include "agentlib/model_server.h"
 #include "editor.h"
+#include "syntax_color_manager.h"
 #include "test_watchdog.h"
 #include "ui/components/ui_listbox.h"
 #include "ui/components/ui_radio.h"
@@ -310,6 +311,30 @@ void test_options_dialogs_flow()
 	assert(ed.active_dialog_ != nullptr);
 	assert(ed.active_dialog_->get_title() == "A2A & Remote Settings");
 	assert(ed.active_dialog_->get_value("a2a_server_port") == "9456");
+
+	// 11. Test Syntax Colors save on OK and reload on Cancel in Editor & Workspace Settings
+	syntax_color_manager::get_instance().initialize();
+	editor_event ed_open_ev;
+	ed_open_ev.type = event_type::editor_settings_config;
+	ed.dispatch_event_ui(ed_open_ev);
+	assert(ed.active_dialog_ != nullptr);
+	assert(ed.active_dialog_->get_title() == "Editor & Workspace Settings");
+
+	// Modify keyword color live and confirm with OK -> should save to disk
+	syntax_color_manager::get_instance().set_color(syntax_attribute::keyword, 5, 2);
+	ed.active_dialog_->set_action(dialog_result::confirmed);
+	ed.active_dialog_->set_result("ok");
+	ed.resolve_dialog(dialog_result::confirmed);
+
+	// Reopen Editor & Workspace Settings, mutate keyword color live, and Cancel -> should reload {5, 2} from disk
+	ed.dispatch_event_ui(ed_open_ev);
+	syntax_color_manager::get_instance().set_color(syntax_attribute::keyword, 9, 4);
+	assert((syntax_color_manager::get_instance().get_color(syntax_attribute::keyword) == std::make_pair<uint8_t, uint8_t>(9, 4)));
+
+	ed.active_dialog_->set_action(dialog_result::cancelled);
+	ed.active_dialog_->set_result("cancel");
+	ed.resolve_dialog(dialog_result::cancelled);
+	assert((syntax_color_manager::get_instance().get_color(syntax_attribute::keyword) == std::make_pair<uint8_t, uint8_t>(5, 2)));
 }
 
 int main()

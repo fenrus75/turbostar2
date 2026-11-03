@@ -392,7 +392,7 @@ void editor::resolve_dialog(dialog_result res)
 				apply_ai_settings_from_dialog(*active_dialog_);
 				apply_a2a_settings_from_dialog(*active_dialog_);
 				apply_settings_from_dialog(*active_dialog_);
-
+				syntax_color_manager::get_instance().save();
 				// Handle Linux Kernel formatting style special case
 				if (config_manager::get_instance().get_clang_format_style() == "Linux Kernel") {
 					std::string project_root = project_manager::get_instance().get_project_root();
@@ -987,7 +987,7 @@ void editor::resolve_dialog(dialog_result res)
 
 	} else if (res == dialog_result::cancelled) {
 		is_quitting_ = false;
-		if (active_dialog_mode_ == dialog_mode::syntax_colors) {
+		if (active_dialog_mode_ == dialog_mode::syntax_colors || active_dialog_mode_ == dialog_mode::settings) {
 			syntax_color_manager::get_instance().reload();
 		}
 		if (active_dialog_mode_ == dialog_mode::reload_prompt) {

@@ -151,6 +151,16 @@ void syntax_color_manager::save()
 
 void syntax_color_manager::reload()
 {
+	attribute_colors_[syntax_attribute::normal] = {COLOR_YELLOW + 8, COLOR_BLUE};
+	attribute_colors_[syntax_attribute::keyword] = {COLOR_WHITE + 8, COLOR_BLUE};
+	attribute_colors_[syntax_attribute::comment] = {COLOR_CYAN + 8, COLOR_BLUE};
+	attribute_colors_[syntax_attribute::string_literal] = {COLOR_GREEN + 8, COLOR_BLUE};
+	attribute_colors_[syntax_attribute::heading] = {COLOR_CYAN + 8, COLOR_BLUE};
+	attribute_colors_[syntax_attribute::bold] = {COLOR_YELLOW + 8, COLOR_BLUE};
+	attribute_colors_[syntax_attribute::italic] = {COLOR_CYAN, COLOR_BLUE};
+	attribute_colors_[syntax_attribute::list_item] = {COLOR_GREEN + 8, COLOR_BLUE};
+	attribute_colors_[syntax_attribute::trailing_space] = {COLOR_WHITE + 8, COLOR_RED};
+
 	load();
 	if (has_colors()) {
 		for (const auto &[attr, colors] : attribute_colors_) {
