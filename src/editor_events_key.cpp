@@ -197,50 +197,10 @@ void editor::resolve_dialog(dialog_result res)
 		} else if (active_dialog_mode_ == dialog_mode::settings) {
 			std::string res_str = active_dialog_->get_result();
 			if (res_str == "select_model") {
+				model_list_from_ai_settings_ = true;
 				active_dialog_ = create_model_list_dialog();
-				active_dialog_mode_ = dialog_mode::settings;
-				set_focus(focus_target::dialog, "models");
-				return;
-			}
-			if (res_str == "add") {
-				active_dialog_ = create_model_edit_dialog(nullptr);
-				active_dialog_mode_ = dialog_mode::model_edit;
-				editing_model_id_ = "";
-				set_focus(focus_target::dialog, "model_edit");
-				return;
-			}
-			if (res_str.starts_with("edit:")) {
-				std::string m_id = res_str.substr(5);
-				editing_model_id_ = m_id;
-				active_dialog_ = create_model_edit_dialog(agentlib::ai_model_registry::get_instance().get_model(m_id));
-				active_dialog_mode_ = dialog_mode::model_edit;
-				set_focus(focus_target::dialog, "model_edit");
-				return;
-			}
-			if (res_str.starts_with("delete:")) {
-				std::string m_id = res_str.substr(7);
-				agentlib::ai_model_registry::get_instance().remove_model(m_id);
-				agentlib::ai_model_registry::get_instance().save_models();
-				active_dialog_ = create_ai_settings_dialog();
-				active_dialog_mode_ = dialog_mode::settings;
-				set_focus(focus_target::dialog, "ai_settings");
-				return;
-			}
-			if (res_str.starts_with("default:")) {
-				std::string m_id = res_str.substr(8);
-				config_manager::get_instance().set_default_model_id(m_id);
-
-				std::string cache_root = fs_utils::get_project_cache_root();
-				if (!cache_root.empty()) {
-					config_manager::get_instance().save_project(cache_root);
-				} else {
-					config_manager::get_instance().save_global();
-				}
-
-				// Return to a refreshed AI settings dialog so the new default is reflected.
-				active_dialog_ = create_ai_settings_dialog();
-				active_dialog_mode_ = dialog_mode::settings;
-				set_focus(focus_target::dialog, "ai_settings");
+				active_dialog_mode_ = dialog_mode::model_list;
+				set_focus(focus_target::dialog, "model_list");
 				return;
 			}
 			if (res_str == "add_model_server") {
@@ -530,11 +490,16 @@ void editor::resolve_dialog(dialog_result res)
 					config_manager::get_instance().save_global();
 				}
 
-				active_dialog_ = create_model_list_dialog();
-				active_dialog_mode_ = dialog_mode::model_list;
-				set_focus(focus_target::dialog, "model_list");
+				if (model_list_from_ai_settings_) {
+					active_dialog_ = create_ai_settings_dialog("general_ai");
+					active_dialog_mode_ = dialog_mode::settings;
+					set_focus(focus_target::dialog, "ai_settings");
+				} else {
+					active_dialog_ = create_model_list_dialog();
+					active_dialog_mode_ = dialog_mode::model_list;
+					set_focus(focus_target::dialog, "model_list");
+				}
 				return;
-
 			} else if (res_str == "ok") {
 				active_dialog_ = create_model_list_dialog();
 				active_dialog_mode_ = dialog_mode::model_list;
@@ -1051,6 +1016,18 @@ void editor::resolve_dialog(dialog_result res)
 				active_dialog_mode_ = dialog_mode::a2a_config;
 				set_focus(focus_target::dialog, "a2a_config");
 			}
+			return;
+		}
+		if (active_dialog_mode_ == dialog_mode::model_edit) {
+			active_dialog_ = create_model_list_dialog();
+			active_dialog_mode_ = dialog_mode::model_list;
+			set_focus(focus_target::dialog, "model_list");
+			return;
+		}
+		if (active_dialog_mode_ == dialog_mode::model_list && model_list_from_ai_settings_) {
+			active_dialog_ = create_ai_settings_dialog("general_ai");
+			active_dialog_mode_ = dialog_mode::settings;
+			set_focus(focus_target::dialog, "ai_settings");
 			return;
 		}
 		if (active_dialog_mode_ == dialog_mode::ask_user) {

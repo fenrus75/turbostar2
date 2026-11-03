@@ -237,6 +237,42 @@ void test_options_dialogs_flow()
 	assert(ed.active_dialog_ != nullptr);
 	assert(ed.active_dialog_->get_title() == "A2A & Remote Settings");
 	assert(ed.active_dialog_mode_ == editor::dialog_mode::settings);
+
+	// 9. Test AI & Agent Settings -> Browse... (select_model) -> Add Model (Cancel & OK) -> Close returns to AI Settings
+	ed.dispatch_event_ui(open_ev);
+	assert(ed.active_dialog_ != nullptr);
+	assert(ed.active_dialog_->get_title() == "AI & Agent Settings");
+
+	ed.active_dialog_->set_action(dialog_result::confirmed);
+	ed.active_dialog_->set_result("select_model");
+	ed.resolve_dialog(dialog_result::confirmed);
+
+	assert(ed.active_dialog_ != nullptr);
+	assert(ed.active_dialog_->get_title() == "AI Models");
+	assert(ed.active_dialog_mode_ == editor::dialog_mode::model_list);
+
+	// Click "Add" in AI Models, then Cancel -> should return to AI Models
+	ed.active_dialog_->set_action(dialog_result::confirmed);
+	ed.active_dialog_->set_result("add");
+	ed.resolve_dialog(dialog_result::confirmed);
+	assert(ed.active_dialog_ != nullptr);
+	assert(ed.active_dialog_->get_title() == "Add Model");
+	assert(ed.active_dialog_mode_ == editor::dialog_mode::model_edit);
+
+	ed.active_dialog_->set_action(dialog_result::cancelled);
+	ed.active_dialog_->set_result("cancel");
+	ed.resolve_dialog(dialog_result::cancelled);
+	assert(ed.active_dialog_ != nullptr);
+	assert(ed.active_dialog_->get_title() == "AI Models");
+	assert(ed.active_dialog_mode_ == editor::dialog_mode::model_list);
+
+	// Click "Close" in AI Models -> should return to AI & Agent Settings
+	ed.active_dialog_->set_action(dialog_result::cancelled);
+	ed.active_dialog_->set_result("cancel");
+	ed.resolve_dialog(dialog_result::cancelled);
+	assert(ed.active_dialog_ != nullptr);
+	assert(ed.active_dialog_->get_title() == "AI & Agent Settings");
+	assert(ed.active_dialog_mode_ == editor::dialog_mode::settings);
 }
 
 int main()

@@ -336,6 +336,7 @@ class editor : public agentlib::document_provider
 	const status_message *get_active_status_message_obj() const;
 
 	std::string editing_model_id_;
+	bool model_list_from_ai_settings_{false};
 	std::string editing_model_server_id_;
 	bool model_server_edit_from_ai_settings_{false};
 	std::string editing_a2a_server_name_;
