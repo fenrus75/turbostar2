@@ -12,7 +12,29 @@ namespace tools
 
 namespace
 {
-std::string compact_code_annotation(std::string_view desc)
+struct referenced_string_literal {
+	size_t id{0};
+	std::string address;
+	std::string value;
+};
+
+std::string extract_hex_address_token(std::string_view inst_part)
+{
+	size_t hex_pos = inst_part.find("0x");
+	if (hex_pos == std::string_view::npos) {
+		return "";
+	}
+	size_t end_pos = hex_pos + 2;
+	while (end_pos < inst_part.size() &&
+	       ((inst_part[end_pos] >= '0' && inst_part[end_pos] <= '9') ||
+	        (inst_part[end_pos] >= 'a' && inst_part[end_pos] <= 'f') ||
+	        (inst_part[end_pos] >= 'A' && inst_part[end_pos] <= 'F'))) {
+		++end_pos;
+	}
+	return std::string(inst_part.substr(hex_pos, end_pos - hex_pos));
+}
+
+std::string compact_code_annotation(std::string_view desc, std::vector<referenced_string_literal> &string_literals)
 {
 	size_t sec_pos = desc.find(" | ELF Sec ");
 	if (sec_pos != std::string_view::npos) {
@@ -24,10 +46,39 @@ std::string compact_code_annotation(std::string_view desc)
 			desc = desc.substr(0, sym_pos);
 		}
 	}
+	if (desc.ends_with("\">")) {
+		size_t lit_pos = desc.find(" <\"");
+		if (lit_pos != std::string_view::npos && lit_pos + 5 <= desc.size()) {
+			std::string_view inst_part = desc.substr(0, lit_pos);
+			std::string_view lit_val = desc.substr(lit_pos + 3, desc.size() - (lit_pos + 5));
+			std::string addr = extract_hex_address_token(inst_part);
+			size_t assigned_id = 0;
+			for (const auto &entry : string_literals) {
+				if (entry.value == lit_val && entry.address == addr) {
+					assigned_id = entry.id;
+					break;
+				}
+			}
+			if (assigned_id == 0) {
+				assigned_id = string_literals.size() + 1;
+				string_literals.push_back(referenced_string_literal{
+				    .id = assigned_id,
+				    .address = std::move(addr),
+				    .value = std::string(lit_val),
+				});
+			}
+			return std::format("{} <str#{}>", inst_part, assigned_id);
+		}
+	}
 	return std::string(desc);
 }
 
-std::string format_hexdump_row(const std::vector<uint8_t> &data, size_t row_start, size_t read_start, size_t read_limit, const hex_highlighter *highlighter)
+std::string format_hexdump_row(const std::vector<uint8_t> &data,
+                               size_t row_start,
+                               size_t read_start,
+                               size_t read_limit,
+                               const hex_highlighter *highlighter,
+                               std::vector<referenced_string_literal> &string_literals)
 {
 	std::string hex_part;
 	std::string ascii_part;
@@ -58,7 +109,7 @@ std::string format_hexdump_row(const std::vector<uint8_t> &data, size_t row_star
 					    info.description.find(" | ELF Sec ") != std::string::npos) {
 						if (info.range_start >= effective_row_start && info.range_start != last_code_range_start) {
 							last_code_range_start = info.range_start;
-							row_annotations.push_back(compact_code_annotation(info.description));
+							row_annotations.push_back(compact_code_annotation(info.description, string_literals));
 						}
 					} else if (row_annotations.empty() || row_annotations.back() != info.description) {
 						row_annotations.push_back(info.description);
@@ -163,11 +214,32 @@ std::string hexdump_tool::execute(agentlib::tool_context &ctx)
 
 	size_t limit = (args_.size > file_data.size() - start) ? file_data.size() : start + args_.size;
 
+	std::vector<referenced_string_literal> string_literals;
 	std::string result = std::format("### Hexdump: {} [0x{:X} - 0x{:X}]\n```\n", args_.requested_path, start, limit);
 	for (size_t row = (start / 16) * 16; row < limit; row += 16) {
-		result += format_hexdump_row(file_data, row, start, limit, highlighter.get()) + "\n";
+		result += format_hexdump_row(file_data, row, start, limit, highlighter.get(), string_literals) + "\n";
 	}
 	result += "```\n";
+	if (!string_literals.empty()) {
+		result += "\n#### Referenced String Literals\n";
+		result += "| ID | Address | Value |\n";
+		result += "| --- | --- | --- |\n";
+		for (const auto &entry : string_literals) {
+			std::string escaped_val;
+			escaped_val.reserve(entry.value.size());
+			for (char c : entry.value) {
+				if (c == '|') {
+					escaped_val += "\\|";
+				} else {
+					escaped_val.push_back(c);
+				}
+			}
+			result += std::format("| `str#{}` | `{}` | `\"{}\"` |\n",
+			                      entry.id,
+			                      entry.address.empty() ? "-" : entry.address,
+			                      escaped_val);
+		}
+	}
 	set_success(ctx, std::format("Read {} bytes.", limit - start));
 	return result;
 }

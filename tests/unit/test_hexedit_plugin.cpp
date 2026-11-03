@@ -86,11 +86,11 @@ void test_hexdump_elf_code_dedup()
 	write_u64_le(data, 40, 128); // e_shoff = 128
 	write_u16_le(data, 52, 64);  // e_ehsize = 64
 	write_u16_le(data, 58, 64);  // e_shentsize = 64
-	write_u16_le(data, 60, 4);   // e_shnum = 4 (null, .text, .symtab, .strtab/.shstrtab)
+	write_u16_le(data, 60, 5);   // e_shnum = 5 (null, .text, .symtab, .strtab/.shstrtab, .rodata)
 	write_u16_le(data, 62, 3);   // e_shstrndx = 3
 
-	// String table at 500: "\0.text\0.symtab\0.shstrtab\0my_func\0callee_func\0"
-	const std::string strtab("\0.text\0.symtab\0.shstrtab\0my_func\0callee_func\0", 45);
+	// String table at 500: "\0.text\0.symtab\0.shstrtab\0my_func\0callee_func\0.rodata\0"
+	const std::string strtab("\0.text\0.symtab\0.shstrtab\0my_func\0callee_func\0.rodata\0", 53);
 	for (size_t i = 0; i < strtab.size(); ++i) {
 		data[500 + i] = static_cast<uint8_t>(strtab[i]);
 	}
@@ -111,11 +111,25 @@ void test_hexdump_elf_code_dedup()
 	write_u32_le(data, 128 + 128 + 40, 3);   // sh_link = 3
 	write_u64_le(data, 128 + 128 + 56, 24);  // sh_entsize = 24
 
-	// Section 3: .shstrtab/.strtab at offset 500, size 45
+	// Section 3: .shstrtab/.strtab at offset 500, size 53
 	write_u32_le(data, 128 + 192, 15);       // sh_name = ".shstrtab"
 	write_u32_le(data, 128 + 192 + 4, 3);    // SHT_STRTAB
 	write_u64_le(data, 128 + 192 + 24, 500);
-	write_u64_le(data, 128 + 192 + 32, 45);
+	write_u64_le(data, 128 + 192 + 32, 53);
+
+	// Section 4: .rodata at offset 700, vaddr 0x402000, size 32
+	write_u32_le(data, 128 + 256, 45);       // sh_name = ".rodata"
+	write_u32_le(data, 128 + 256 + 4, 1);    // SHT_PROGBITS
+	write_u64_le(data, 128 + 256 + 8, 2);    // SHF_ALLOC
+	write_u64_le(data, 128 + 256 + 16, 0x402000);
+	write_u64_le(data, 128 + 256 + 24, 700);
+	write_u64_le(data, 128 + 256 + 32, 32);
+
+	const std::string ro_str = "hello_rodata_str";
+	for (size_t i = 0; i < ro_str.size(); ++i) {
+		data[700 + i] = static_cast<uint8_t>(ro_str[i]);
+	}
+	data[700 + ro_str.size()] = 0;
 
 	// Symbol 1 in .symtab (at 624): my_func (name offset 25), STT_FUNC (0x12), shndx=1, value=0x401000, size=16
 	write_u32_le(data, 624, 25);
@@ -135,11 +149,12 @@ void test_hexdump_elf_code_dedup()
 	// 448: 51 (push %rcx)
 	// 449..451: 8D 45 FF (lea -0x1(%rbp), %eax)
 	// 452..456: E8 07 00 00 00 (call 0x401010 <callee_func>)
-	// 457: C3 (ret)
+	// 457..463: 48 8D 3D F0 0F 00 00 (lea 0xFF0(%rip), %rdi -> 0x402000 <str#1>)
 	data[448] = 0x51;
 	data[449] = 0x8D; data[450] = 0x45; data[451] = 0xFF;
 	data[452] = 0xE8; data[453] = 0x07; data[454] = 0x00; data[455] = 0x00; data[456] = 0x00;
-	data[457] = 0xC3;
+	data[457] = 0x48; data[458] = 0x8D; data[459] = 0x3D;
+	data[460] = 0xF0; data[461] = 0x0F; data[462] = 0x00; data[463] = 0x00;
 	data[464] = 0xC3;
 
 	{
@@ -151,23 +166,28 @@ void test_hexdump_elf_code_dedup()
 	args.requested_path = test_file;
 	args.safe_path = test_file;
 	args.offset = 448;
-	args.size = 10;
+	args.size = 16;
 
 	tools::hexdump_tool tool(args);
 	auto ctx = create_mock_context();
 	std::string result = tool.execute(ctx);
 
 #ifdef HAVE_ZYDIS
-	// First occurrence of "lea" must exist, and there must NOT be a second occurrence on the same row
+	// First occurrence of "lea" must exist, and second occurrence is the RIP-relative .rodata lea
 	size_t first_lea = result.find("lea");
 	assert(first_lea != std::string::npos);
-	assert(result.find("lea", first_lea + 3) == std::string::npos);
+	size_t second_lea = result.find("lea", first_lea + 3);
+	assert(second_lea != std::string::npos);
+	assert(result.find("lea", second_lea + 3) == std::string::npos);
 	// Call target symbol resolution must annotate <callee_func>
 	assert(result.find("<callee_func>") != std::string::npos);
+	// .rodata string literal must be indexed as <str#1> inline and listed in the table below
+	assert(result.find("<str#1>") != std::string::npos);
+	assert(result.find("#### Referenced String Literals") != std::string::npos);
+	assert(result.find("| `str#1` | `0x402000` | `\"hello_rodata_str\"` |") != std::string::npos);
 	// Should not repeat verbose ELF Sec metadata on disassembled instruction rows
 	assert(result.find("ELF Sec") == std::string::npos);
 #endif
-
 	std::filesystem::remove(test_file);
 	std::cout << "test_hexdump_elf_code_dedup passed!" << std::endl;
 }

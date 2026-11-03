@@ -1277,7 +1277,7 @@ std::string elf_hex_highlighter::resolve_target_annotation(std::span<const uint8
 	if (is_rip_mem && target_sec &&
 	    (target_sec->name.starts_with(".rodata") || target_sec->semantic == hex_semantic_type::rodata_section) &&
 	    target_offset < data.size()) {
-		size_t max_scan = std::min<size_t>(33, data.size() - target_offset);
+		size_t max_scan = std::min<size_t>(257, data.size() - target_offset);
 		std::string literal;
 		bool valid_str = false;
 		bool truncated = false;
@@ -1287,19 +1287,27 @@ std::string elf_hex_highlighter::resolve_target_annotation(std::span<const uint8
 				valid_str = (k >= 2);
 				break;
 			}
-			if (ch < 32 || ch > 126) {
+			if ((ch < 32 || ch > 126) && ch != '\n' && ch != '\r' && ch != '\t') {
 				valid_str = false;
 				break;
 			}
-			if (k == 32) {
+			if (k == 256) {
 				valid_str = true;
 				truncated = true;
 				break;
 			}
-			if (ch == '"' || ch == '\\') {
-				literal.push_back('\\');
+			if (ch == '\n') {
+				literal += "\\n";
+			} else if (ch == '\r') {
+				literal += "\\r";
+			} else if (ch == '\t') {
+				literal += "\\t";
+			} else {
+				if (ch == '"' || ch == '\\') {
+					literal.push_back('\\');
+				}
+				literal.push_back(static_cast<char>(ch));
 			}
-			literal.push_back(static_cast<char>(ch));
 		}
 		if (valid_str) {
 			return std::format(" <\"{}{}\">", literal, truncated ? "..." : "");
