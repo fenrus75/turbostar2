@@ -318,6 +318,14 @@ int main()
 		assert(seq[0].type == tools::disasm_line_type::source_location);
 		assert(seq[1].type == tools::disasm_line_type::block_label);
 		assert(seq[2].type == tools::disasm_line_type::instruction);
+		assert(seq[1].indent_depth == 0);
+		assert(seq[2].indent_depth == 1);
+
+		// Verify indent_depth > 1 keeps Address/Bytes aligned and indents the Instruction column
+		auto nested_line = ret_line;
+		nested_line.indent_depth = 2;
+		assert(ret_line.format_markdown_row() == "  0x1004:    c3                    ret\n");
+		assert(nested_line.format_markdown_row() == "  0x1004:    c3                      ret\n");
 #endif
 	}
 

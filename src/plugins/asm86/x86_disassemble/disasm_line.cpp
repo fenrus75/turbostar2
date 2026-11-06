@@ -110,6 +110,7 @@ disasm_line disasm_line::make_label(uint64_t address, size_t file_offset, std::s
 	line.file_offset = file_offset;
 	line.type = disasm_line_type::block_label;
 	line.sub_order = sub_order;
+	line.indent_depth = 0;
 	line.label_name = std::move(label_name);
 	line.text = line.label_name;
 	return line;
@@ -122,6 +123,7 @@ disasm_line disasm_line::make_source_location(uint64_t address, size_t file_offs
 	line.file_offset = file_offset;
 	line.type = disasm_line_type::source_location;
 	line.sub_order = sub_order;
+	line.indent_depth = 0;
 	line.source_location = std::move(source_loc);
 	line.text = line.source_location;
 	return line;
@@ -134,10 +136,10 @@ disasm_line disasm_line::make_comment(uint64_t address, size_t file_offset, std:
 	line.file_offset = file_offset;
 	line.type = disasm_line_type::comment;
 	line.sub_order = sub_order;
+	line.indent_depth = 0;
 	line.text = std::move(comment_text);
 	return line;
 }
-
 void disasm_line::populate_control_flow_labels(std::vector<disasm_line> &lines)
 {
 	if (lines.empty()) {
@@ -267,15 +269,26 @@ std::string disasm_line::format_instruction_column() const
 
 std::string disasm_line::format_markdown_row() const
 {
+	constexpr size_t k_spaces_per_indent_level = 2;
+
 	if (!is_instruction_or_data()) {
-		return std::format("{}\n", format_instruction_column());
+		const std::string prefix(indent_depth * k_spaces_per_indent_level, ' ');
+		return std::format("{}{}\n", prefix, format_instruction_column());
 	}
+
+	// Option A: Keep Address and Bytes columns aligned at base indent (level 1 = 2 spaces),
+	// and apply any additional nesting levels (indent_depth > 1) before the Instruction column.
+	const size_t base_levels = (indent_depth > 0) ? 1 : 0;
+	const size_t extra_levels = (indent_depth > 1) ? (indent_depth - 1) : 0;
+	const std::string base_prefix(base_levels * k_spaces_per_indent_level, ' ');
+	const std::string inst_prefix(extra_levels * k_spaces_per_indent_level, ' ');
+
 	const std::string addr_col = format_address_column();
 	const std::string bytes_col = format_bytes_column();
 	const std::string inst_col = format_instruction_column();
 	if (has_symbol_context) {
-		return std::format("  {:<18} {:<21} {}\n", addr_col, bytes_col, inst_col);
+		return std::format("{}{:<18} {:<21} {}{}\n", base_prefix, addr_col, bytes_col, inst_prefix, inst_col);
 	}
-	return std::format("  {:<10} {:<21} {}\n", addr_col, bytes_col, inst_col);
+	return std::format("{}{:<10} {:<21} {}{}\n", base_prefix, addr_col, bytes_col, inst_prefix, inst_col);
 }
 } // namespace tools

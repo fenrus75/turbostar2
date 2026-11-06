@@ -42,7 +42,10 @@ class disasm_line
 	disasm_line_type type{disasm_line_type::instruction};
 	uint32_t sub_order{0};
 
-	// Raw instruction bytes (x86/x64 instructions are at most 15 bytes).
+	// Logical indentation depth in abstract levels (0 = label/header at left margin,
+	// 1 = top-level instruction, 2+ = nested loop or conditional body).
+	// Visual rendering of levels into spaces is handled solely at formatting time.
+	uint32_t indent_depth{1};
 	std::array<uint8_t, 15> bytes{};
 
 	// Control-flow graph edges:
