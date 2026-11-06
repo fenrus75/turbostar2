@@ -17,7 +17,7 @@
   - Identifies intra-range branch targets from `alt_next_address`, assigns sequential `L1`, `L2`, ... labels in ascending address order, records incoming `branch_sources` on target instructions, annotates branching instructions, and inserts `block_label` rows before target instructions.
 ## Constraints & Security Considerations
 - **Bounded Instruction Bytes**: Caps copied instruction bytes to `std::min(length, 15)` and `buffer.size() - offset` to prevent buffer overreads on truncated inputs.
-- **Markdown Table Escaping**: Escapes `|` characters in instruction and annotation text before emitting Markdown table cells.
+- **Compact `asm` Code Block Formatting (`format_markdown_row`)**: Emits instructions in fixed-width aligned columns inside a fenced ```` ```asm ```` block while placing basic-block labels (`L1: # from ...`), source locations, and comments unindented at column 0 without redundant address or byte columns.
 
 ## Lessons Learned
 - **Value-Type IR with Composite `(address, type, sub_order)` Key**: Storing `disasm_line` by value in a contiguous `std::vector<disasm_line>` and sorting by `(address, type, sub_order)` avoids per-instruction heap allocations while making multi-pass insertion of basic-block labels and source annotations trivial.

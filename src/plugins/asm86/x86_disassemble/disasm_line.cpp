@@ -11,22 +11,6 @@
 namespace tools
 {
 
-namespace
-{
-std::string escape_markdown_pipes(std::string_view text)
-{
-	std::string out;
-	out.reserve(text.size());
-	for (char c : text) {
-		if (c == '|') {
-			out += "\\|";
-		} else {
-			out.push_back(c);
-		}
-	}
-	return out;
-}
-} // namespace
 
 disasm_line disasm_line::decode_one(std::span<const uint8_t> buffer,
                                     size_t offset,
@@ -232,9 +216,9 @@ void disasm_line::populate_control_flow_labels(std::vector<disasm_line> &lines)
 std::string disasm_line::format_address_column() const
 {
 	if (has_symbol_context) {
-		return std::format("`0x{:x}` `<+0x{:x}>`", address, symbol_offset);
+		return std::format("0x{:x} <+0x{:x}>:", address, symbol_offset);
 	}
-	return std::format("`0x{:x}`", address);
+	return std::format("0x{:x}:", address);
 }
 
 std::string disasm_line::format_bytes_column() const
@@ -259,35 +243,39 @@ std::string disasm_line::format_instruction_column() const
 	case disasm_line_type::block_label: {
 		std::string from_str;
 		if (!branch_sources.empty()) {
-			from_str = " *(from ";
+			from_str = " # from ";
 			for (size_t i = 0; i < branch_sources.size(); ++i) {
 				if (i > 0) {
 					from_str += ", ";
 				}
 				from_str += std::format("0x{:x}", branch_sources[i]);
 			}
-			from_str += ")*";
 		}
-		return escape_markdown_pipes(std::format("**{}:**{}", label_name, from_str));
+		return std::format("{}:{}", label_name, from_str);
 	}
 	case disasm_line_type::source_location:
-		return escape_markdown_pipes(std::format("`{}`", source_location));
+		return std::format("# {}", source_location);
 	case disasm_line_type::comment:
 	case disasm_line_type::function_header:
-		return escape_markdown_pipes(std::format("*{}*", text));
+		return std::format("# {}", text);
 	case disasm_line_type::instruction:
 	case disasm_line_type::data_byte:
-		return escape_markdown_pipes(text + target_annotation);
+		return text + target_annotation;
 	}
-	return escape_markdown_pipes(text);
+	return text;
 }
 
 std::string disasm_line::format_markdown_row() const
 {
-	return std::format("| {} | {} | {} |\n",
-	                   format_address_column(),
-	                   format_bytes_column(),
-	                   format_instruction_column());
+	if (!is_instruction_or_data()) {
+		return std::format("{}\n", format_instruction_column());
+	}
+	const std::string addr_col = format_address_column();
+	const std::string bytes_col = format_bytes_column();
+	const std::string inst_col = format_instruction_column();
+	if (has_symbol_context) {
+		return std::format("  {:<18} {:<21} {}\n", addr_col, bytes_col, inst_col);
+	}
+	return std::format("  {:<10} {:<21} {}\n", addr_col, bytes_col, inst_col);
 }
-
 } // namespace tools

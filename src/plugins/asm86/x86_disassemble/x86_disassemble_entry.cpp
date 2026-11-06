@@ -402,10 +402,11 @@ std::string x86_disassemble_tool::execute(agentlib::tool_context &ctx)
 			result += std::format("### Disassembly: {} [0x{:X} - 0x{:X}]\n\n",
 			                      args_.requested_path, start_offset, limit);
 		}
-		result += "| Address | Bytes | Instruction |\n| --- | --- | --- |\n";
+		result += "```asm\n";
 		for (const auto &line : lines) {
 			result += line.format_markdown_row();
 		}
+		result += "```\n";
 
 		if (!string_literals.empty()) {
 			result += "\n#### Referenced String Literals\n";
@@ -510,10 +511,11 @@ std::string x86_disassemble_tool::execute(agentlib::tool_context &ctx)
 
 	disasm_line::populate_control_flow_labels(lines);
 
-	std::string result = "| Address | Bytes | Instruction |\n| --- | --- | --- |\n";
+	std::string result = "```asm\n";
 	for (const auto &line : lines) {
 		result += line.format_markdown_row();
 	}
+	result += "```\n";
 	set_success(ctx, "Disassembled " + std::to_string(bytes.size()) + " bytes");
 	return result;
 #endif

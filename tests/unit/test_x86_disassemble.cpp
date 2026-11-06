@@ -92,7 +92,8 @@ int main()
 		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
 		std::cout << "Intel 64-bit Hex Disassembly Result:\n" << res << std::endl;
 #ifdef HAVE_ZYDIS
-		assert(res.find("| 89 c0 |") != std::string::npos);
+		assert(res.find("```asm\n") != std::string::npos);
+		assert(res.find("89 c0") != std::string::npos);
 		assert(res.find("mov") != std::string::npos);
 		assert(res.find("eax") != std::string::npos);
 #else
@@ -106,7 +107,8 @@ int main()
 		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
 		std::cout << "AT&T 64-bit Hex Disassembly Result:\n" << res << std::endl;
 #ifdef HAVE_ZYDIS
-		assert(res.find("| 89 c0 |") != std::string::npos);
+		assert(res.find("```asm\n") != std::string::npos);
+		assert(res.find("89 c0") != std::string::npos);
 		assert(res.find("mov") != std::string::npos);
 		assert(res.find("%eax") != std::string::npos);
 #else
@@ -121,7 +123,7 @@ int main()
 		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
 		std::cout << "Base64 Disassembly Result:\n" << res << std::endl;
 #ifdef HAVE_ZYDIS
-		assert(res.find("| 89 c0 |") != std::string::npos);
+		assert(res.find("89 c0") != std::string::npos);
 		assert(res.find("mov") != std::string::npos);
 #else
 		assert(res.find("not available") != std::string::npos);
@@ -134,8 +136,8 @@ int main()
 		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
 		std::cout << "Contiguous Hex Result:\n" << res << std::endl;
 #ifdef HAVE_ZYDIS
-		assert(res.find("| 89 c0 |") != std::string::npos);
-		assert(res.find("| 90 |") != std::string::npos);
+		assert(res.find("89 c0") != std::string::npos);
+		assert(res.find("90") != std::string::npos);
 #else
 		assert(res.find("not available") != std::string::npos);
 #endif
@@ -236,15 +238,17 @@ int main()
 		std::cout << "ELF Symbol Disassembly Result:\n" << res << std::endl;
 #ifdef HAVE_ZYDIS
 		assert(res.find("### Disassembly: `my_func`") != std::string::npos);
-		assert(res.find("`0x401000` `<+0x0>`") != std::string::npos);
+		assert(res.find("```asm\n") != std::string::npos);
+		assert(res.find("0x401000 <+0x0>:") != std::string::npos);
 		assert(res.find("<+0xE> (L1)") != std::string::npos);
-		assert(res.find("| `0x40100e` `<+0xe>` |  | **L1:** *(from 0x401000)* |") != std::string::npos);
+		assert(res.find("L1: # from 0x401000\n") != std::string::npos);
+		assert(res.find("0x40100e <+0xe>:") != std::string::npos);
 		assert(res.find("<callee_func>") != std::string::npos);
 		assert(res.find("<str#1>") != std::string::npos);
 		assert(res.find("#### Referenced String Literals") != std::string::npos);
 		assert(res.find("| `str#1` | `0x402000` | `\"hello_disasm_rodata\"` |") != std::string::npos);
 		// Should stop at my_func's size (16 bytes -> 0x401000..0x40100f), not spilling into 0x401010
-		assert(res.find("`0x401010`") == std::string::npos);
+		assert(res.find("0x401010 <+0x0>:") == std::string::npos);
 #endif
 		std::filesystem::remove(test_file);
 	}
@@ -327,10 +331,10 @@ int main()
 		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
 		std::cout << "Recursive + Gap-Fill Disassembly Result:\n" << res << std::endl;
 #ifdef HAVE_ZYDIS
-		assert(res.find("| `0x0` | eb 01 | jmp 0x3 <L1> |") != std::string::npos);
-		assert(res.find("| `0x2` | e8 | db 0xe8 |") != std::string::npos);
-		assert(res.find("| `0x3` |  | **L1:** *(from 0x0)* |") != std::string::npos);
-		assert(res.find("| `0x3` | c3 | ret |") != std::string::npos);
+		assert(res.find("0x0:       eb 01                 jmp 0x3 <L1>\n") != std::string::npos);
+		assert(res.find("0x2:       e8                    db 0xe8\n") != std::string::npos);
+		assert(res.find("L1: # from 0x0\n") != std::string::npos);
+		assert(res.find("0x3:       c3                    ret\n") != std::string::npos);
 #endif
 	}
 
@@ -345,17 +349,18 @@ int main()
 		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
 		std::cout << "Sequential Labels (L1, L2) Disassembly Result:\n" << res << std::endl;
 #ifdef HAVE_ZYDIS
-		assert(res.find("| `0x0` | 74 04 | jz 0x6 <L2> |") != std::string::npos);
-		assert(res.find("| `0x2` |  | **L1:** *(from 0x3)* |") != std::string::npos);
-		assert(res.find("| `0x2` | 90 | nop |") != std::string::npos);
-		assert(res.find("| `0x3` | 75 fd | jnz 0x2 <L1> |") != std::string::npos);
-		assert(res.find("| `0x6` |  | **L2:** *(from 0x0)* |") != std::string::npos);
-		assert(res.find("| `0x6` | c3 | ret |") != std::string::npos);
+		assert(res.find("0x0:       74 04                 jz 0x6 <L2>\n") != std::string::npos);
+		assert(res.find("L1: # from 0x3\n") != std::string::npos);
+		assert(res.find("0x2:       90                    nop\n") != std::string::npos);
+		assert(res.find("0x3:       75 fd                 jnz 0x2 <L1>\n") != std::string::npos);
+		assert(res.find("L2: # from 0x0\n") != std::string::npos);
+		assert(res.find("0x6:       c3                    ret\n") != std::string::npos);
 		// Verify L1 appears before its target instruction at 0x2, and L2 appears before its target instruction at 0x6
-		assert(res.find("**L1:**") < res.find("| `0x2` | 90 | nop |"));
-		assert(res.find("**L2:**") < res.find("| `0x6` | c3 | ret |"));
+		assert(res.find("L1:") < res.find("0x2:       90                    nop\n"));
+		assert(res.find("L2:") < res.find("0x6:       c3                    ret\n"));
 #endif
 	}
+
 	std::cout << "x86_disassemble tool verified successfully!" << std::endl;
 	return 0;
 }
