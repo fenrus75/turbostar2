@@ -17,7 +17,5 @@
   - Identifies intra-range branch targets from `alt_next_address`, assigns sequential `L1`, `L2`, ... labels in ascending address order, records incoming `branch_sources` on target instructions, annotates branching instructions, and inserts `block_label` rows before target instructions.
 ## Constraints & Security Considerations
 - **Bounded Instruction Bytes**: Caps copied instruction bytes to `std::min(length, 15)` and `buffer.size() - offset` to prevent buffer overreads on truncated inputs.
-- **Logical `indent_depth` Separated from Presentation (`format_markdown_row`)**: `indent_depth` is stored in abstract nesting levels (`0` for labels/headers, `1` for top-level instructions, `2+` for nested loop/conditional bodies). At formatting time, `Address` and `Bytes` columns remain vertically aligned at level 1 while levels `> 1` indent the `Instruction` column.
-
-## Lessons Learned
+- **Logical `indent_depth` Separated from Presentation (`format_markdown_row`)**: `indent_depth` is stored in abstract nesting levels (`0` for function headers and labels, `1` for top-level instructions, `2+` for nested loop/conditional bodies). At formatting time, every line shares the same fixed-width `Address` and `Bytes` columns on the left, while the `Code` column indents by `indent_depth * 2` spaces—aligning function (`my_func:`) and basic-block (`L1:`) labels at depth `0` of the code column and indenting instructions to the right of them.
 - **Value-Type IR with Composite `(address, type, sub_order)` Key**: Storing `disasm_line` by value in a contiguous `std::vector<disasm_line>` and sorting by `(address, type, sub_order)` avoids per-instruction heap allocations while making multi-pass insertion of basic-block labels and source annotations trivial.

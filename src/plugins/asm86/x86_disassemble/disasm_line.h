@@ -92,6 +92,10 @@ class disasm_line
 	                              bool is_64_bit_addr = true);
 
 	// Construct synthetic non-instruction lines at a given address that sort before instructions
+	static disasm_line make_function_header(uint64_t address,
+	                                        size_t file_offset,
+	                                        std::string func_name,
+	                                        uint32_t sub_order = 0);
 	static disasm_line make_label(uint64_t address,
 	                              size_t file_offset,
 	                              std::string label_name,
@@ -105,8 +109,8 @@ class disasm_line
 	                                std::string comment_text,
 	                                uint32_t sub_order = 0);
 
-	// Analyze intra-range branches across decoded lines, populate branch_sources, assign .L<N> labels,
-	// insert block_label lines before target instructions, and sort the sequence deterministically.
+	// Analyze intra-range branches across decoded lines, populate branch_sources, assign L<N> labels,
+	// insert function_header and block_label lines before target instructions, and sort deterministically.
 	static void populate_control_flow_labels(std::vector<disasm_line> &lines);
 
 	constexpr bool is_instruction_or_data() const noexcept

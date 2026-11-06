@@ -103,6 +103,22 @@ disasm_line disasm_line::decode_one(std::span<const uint8_t> buffer,
 	return line;
 }
 
+disasm_line disasm_line::make_function_header(uint64_t address,
+                                              size_t file_offset,
+                                              std::string func_name,
+                                              uint32_t sub_order)
+{
+	disasm_line line;
+	line.address = address;
+	line.file_offset = file_offset;
+	line.type = disasm_line_type::function_header;
+	line.sub_order = sub_order;
+	line.indent_depth = 0;
+	line.label_name = std::move(func_name);
+	line.text = line.label_name;
+	return line;
+}
+
 disasm_line disasm_line::make_label(uint64_t address, size_t file_offset, std::string label_name, uint32_t sub_order)
 {
 	disasm_line line;
@@ -140,6 +156,7 @@ disasm_line disasm_line::make_comment(uint64_t address, size_t file_offset, std:
 	line.text = std::move(comment_text);
 	return line;
 }
+
 void disasm_line::populate_control_flow_labels(std::vector<disasm_line> &lines)
 {
 	if (lines.empty()) {
@@ -150,9 +167,18 @@ void disasm_line::populate_control_flow_labels(std::vector<disasm_line> &lines)
 
 	// Map from target instruction virtual address to index in `lines`
 	std::map<uint64_t, size_t> addr_to_index;
+	std::vector<disasm_line> synthetic_lines;
 	for (size_t i = 0; i < lines.size(); ++i) {
 		if (lines[i].is_instruction_or_data()) {
 			addr_to_index[lines[i].address] = i;
+			if (lines[i].has_symbol_context && lines[i].symbol_offset == 0 && !lines[i].symbol_name.empty()) {
+				disasm_line fn_line =
+				    make_function_header(lines[i].address, lines[i].file_offset, lines[i].symbol_name);
+				fn_line.has_symbol_context = true;
+				fn_line.symbol_name = lines[i].symbol_name;
+				fn_line.symbol_offset = 0;
+				synthetic_lines.push_back(std::move(fn_line));
+			}
 		}
 	}
 
@@ -167,56 +193,57 @@ void disasm_line::populate_control_flow_labels(std::vector<disasm_line> &lines)
 		}
 	}
 
-	if (target_to_sources.empty()) {
-		return;
-	}
+	if (!target_to_sources.empty()) {
+		// Assign sequential L1, L2, ... labels in ascending address order
+		std::map<uint64_t, std::string> target_labels;
+		size_t label_counter = 1;
+		for (const auto &[target_addr, sources] : target_to_sources) {
+			std::string lbl = std::format("L{}", label_counter++);
+			target_labels[target_addr] = lbl;
+			size_t idx = addr_to_index[target_addr];
+			lines[idx].label_name = lbl;
+			lines[idx].branch_sources = sources;
+		}
 
-	// Assign sequential L1, L2, ... labels in ascending address order
-	std::map<uint64_t, std::string> target_labels;
-	size_t label_counter = 1;
-	for (const auto &[target_addr, sources] : target_to_sources) {
-		std::string lbl = std::format("L{}", label_counter++);
-		target_labels[target_addr] = lbl;
-		size_t idx = addr_to_index[target_addr];
-		lines[idx].label_name = lbl;
-		lines[idx].branch_sources = sources;
-	}
-
-	// Decorate branching instructions with the resolved local label
-	for (auto &line : lines) {
-		if (line.is_branch && line.alt_next_address.has_value()) {
-			auto it = target_labels.find(*line.alt_next_address);
-			if (it != target_labels.end()) {
-				if (line.target_annotation.empty()) {
-					line.target_annotation = std::format(" <{}>", it->second);
-				} else {
-					line.target_annotation += std::format(" ({})", it->second);
+		// Decorate branching instructions with the resolved local label
+		for (auto &line : lines) {
+			if (line.is_branch && line.alt_next_address.has_value()) {
+				auto it = target_labels.find(*line.alt_next_address);
+				if (it != target_labels.end()) {
+					if (line.target_annotation.empty()) {
+						line.target_annotation = std::format(" <{}>", it->second);
+					} else {
+						line.target_annotation += std::format(" ({})", it->second);
+					}
 				}
 			}
 		}
+
+		// Insert synthetic block_label lines that share the target instruction's address and sort before it
+		for (const auto &[target_addr, sources] : target_to_sources) {
+			const auto &target_inst = lines[addr_to_index[target_addr]];
+			disasm_line lbl_line = make_label(target_addr, target_inst.file_offset, target_labels[target_addr]);
+			lbl_line.has_symbol_context = target_inst.has_symbol_context;
+			lbl_line.symbol_name = target_inst.symbol_name;
+			lbl_line.symbol_offset = target_inst.symbol_offset;
+			lbl_line.branch_sources = sources;
+			synthetic_lines.push_back(std::move(lbl_line));
+		}
 	}
 
-	// Insert synthetic block_label lines that share the target instruction's address and sort before it
-	std::vector<disasm_line> label_lines;
-	label_lines.reserve(target_to_sources.size());
-	for (const auto &[target_addr, sources] : target_to_sources) {
-		const auto &target_inst = lines[addr_to_index[target_addr]];
-		disasm_line lbl_line = make_label(target_addr, target_inst.file_offset, target_labels[target_addr]);
-		lbl_line.has_symbol_context = target_inst.has_symbol_context;
-		lbl_line.symbol_name = target_inst.symbol_name;
-		lbl_line.symbol_offset = target_inst.symbol_offset;
-		lbl_line.branch_sources = sources;
-		label_lines.push_back(std::move(lbl_line));
+	if (!synthetic_lines.empty()) {
+		lines.insert(lines.end(),
+		             std::make_move_iterator(synthetic_lines.begin()),
+		             std::make_move_iterator(synthetic_lines.end()));
+		std::ranges::stable_sort(lines);
 	}
-
-	lines.insert(lines.end(),
-	             std::make_move_iterator(label_lines.begin()),
-	             std::make_move_iterator(label_lines.end()));
-	std::ranges::stable_sort(lines);
 }
 
 std::string disasm_line::format_address_column() const
 {
+	if (!is_instruction_or_data()) {
+		return "";
+	}
 	if (has_symbol_context) {
 		return std::format("0x{:x} <+0x{:x}>:", address, symbol_offset);
 	}
@@ -242,6 +269,8 @@ std::string disasm_line::format_bytes_column() const
 std::string disasm_line::format_instruction_column() const
 {
 	switch (type) {
+	case disasm_line_type::function_header:
+		return std::format("{}:", label_name.empty() ? text : label_name);
 	case disasm_line_type::block_label: {
 		std::string from_str;
 		if (!branch_sources.empty()) {
@@ -258,7 +287,6 @@ std::string disasm_line::format_instruction_column() const
 	case disasm_line_type::source_location:
 		return std::format("# {}", source_location);
 	case disasm_line_type::comment:
-	case disasm_line_type::function_header:
 		return std::format("# {}", text);
 	case disasm_line_type::instruction:
 	case disasm_line_type::data_byte:
@@ -270,25 +298,14 @@ std::string disasm_line::format_instruction_column() const
 std::string disasm_line::format_markdown_row() const
 {
 	constexpr size_t k_spaces_per_indent_level = 2;
-
-	if (!is_instruction_or_data()) {
-		const std::string prefix(indent_depth * k_spaces_per_indent_level, ' ');
-		return std::format("{}{}\n", prefix, format_instruction_column());
-	}
-
-	// Option A: Keep Address and Bytes columns aligned at base indent (level 1 = 2 spaces),
-	// and apply any additional nesting levels (indent_depth > 1) before the Instruction column.
-	const size_t base_levels = (indent_depth > 0) ? 1 : 0;
-	const size_t extra_levels = (indent_depth > 1) ? (indent_depth - 1) : 0;
-	const std::string base_prefix(base_levels * k_spaces_per_indent_level, ' ');
-	const std::string inst_prefix(extra_levels * k_spaces_per_indent_level, ' ');
+	const std::string code_indent(indent_depth * k_spaces_per_indent_level, ' ');
 
 	const std::string addr_col = format_address_column();
 	const std::string bytes_col = format_bytes_column();
 	const std::string inst_col = format_instruction_column();
 	if (has_symbol_context) {
-		return std::format("{}{:<18} {:<21} {}{}\n", base_prefix, addr_col, bytes_col, inst_prefix, inst_col);
+		return std::format("{:<18} {:<21} {}{}\n", addr_col, bytes_col, code_indent, inst_col);
 	}
-	return std::format("{}{:<10} {:<21} {}{}\n", base_prefix, addr_col, bytes_col, inst_prefix, inst_col);
+	return std::format("{:<10} {:<21} {}{}\n", addr_col, bytes_col, code_indent, inst_col);
 }
 } // namespace tools

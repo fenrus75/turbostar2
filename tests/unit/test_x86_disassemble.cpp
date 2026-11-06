@@ -239,10 +239,10 @@ int main()
 #ifdef HAVE_ZYDIS
 		assert(res.find("### Disassembly: `my_func`") != std::string::npos);
 		assert(res.find("```asm\n") != std::string::npos);
-		assert(res.find("0x401000 <+0x0>:") != std::string::npos);
-		assert(res.find("<+0xE> (L1)") != std::string::npos);
-		assert(res.find("L1: # from 0x401000\n") != std::string::npos);
-		assert(res.find("0x40100e <+0xe>:") != std::string::npos);
+		assert(res.find("                                         my_func:\n") != std::string::npos);
+		assert(res.find("0x401000 <+0x0>:   74 0c                   jz 0x40100E <+0xE> (L1)\n") != std::string::npos);
+		assert(res.find("                                         L1: # from 0x401000\n") != std::string::npos);
+		assert(res.find("0x40100e <+0xe>:   90                      nop\n") != std::string::npos);
 		assert(res.find("<callee_func>") != std::string::npos);
 		assert(res.find("<str#1>") != std::string::npos);
 		assert(res.find("#### Referenced String Literals") != std::string::npos);
@@ -322,10 +322,12 @@ int main()
 		assert(seq[2].indent_depth == 1);
 
 		// Verify indent_depth > 1 keeps Address/Bytes aligned and indents the Instruction column
+		// Verify indent_depth aligns labels (depth 0) at the code column and instructions (depth 1, 2) indented by 2*depth spaces
 		auto nested_line = ret_line;
 		nested_line.indent_depth = 2;
-		assert(ret_line.format_markdown_row() == "  0x1004:    c3                    ret\n");
-		assert(nested_line.format_markdown_row() == "  0x1004:    c3                      ret\n");
+		assert(seq[1].format_markdown_row() == "                                 .L_ret:\n");
+		assert(ret_line.format_markdown_row() == "0x1004:    c3                      ret\n");
+		assert(nested_line.format_markdown_row() == "0x1004:    c3                        ret\n");
 #endif
 	}
 
@@ -339,10 +341,10 @@ int main()
 		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
 		std::cout << "Recursive + Gap-Fill Disassembly Result:\n" << res << std::endl;
 #ifdef HAVE_ZYDIS
-		assert(res.find("0x0:       eb 01                 jmp 0x3 <L1>\n") != std::string::npos);
-		assert(res.find("0x2:       e8                    db 0xe8\n") != std::string::npos);
-		assert(res.find("L1: # from 0x0\n") != std::string::npos);
-		assert(res.find("0x3:       c3                    ret\n") != std::string::npos);
+		assert(res.find("0x0:       eb 01                   jmp 0x3 <L1>\n") != std::string::npos);
+		assert(res.find("0x2:       e8                      db 0xe8\n") != std::string::npos);
+		assert(res.find("                                 L1: # from 0x0\n") != std::string::npos);
+		assert(res.find("0x3:       c3                      ret\n") != std::string::npos);
 #endif
 	}
 
@@ -357,18 +359,16 @@ int main()
 		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
 		std::cout << "Sequential Labels (L1, L2) Disassembly Result:\n" << res << std::endl;
 #ifdef HAVE_ZYDIS
-		assert(res.find("0x0:       74 04                 jz 0x6 <L2>\n") != std::string::npos);
-		assert(res.find("L1: # from 0x3\n") != std::string::npos);
-		assert(res.find("0x2:       90                    nop\n") != std::string::npos);
-		assert(res.find("0x3:       75 fd                 jnz 0x2 <L1>\n") != std::string::npos);
-		assert(res.find("L2: # from 0x0\n") != std::string::npos);
-		assert(res.find("0x6:       c3                    ret\n") != std::string::npos);
+		assert(res.find("0x0:       74 04                   jz 0x6 <L2>\n") != std::string::npos);
+		assert(res.find("                                 L1: # from 0x3\n") != std::string::npos);
+		assert(res.find("0x2:       90                      nop\n") != std::string::npos);
+		assert(res.find("0x3:       75 fd                   jnz 0x2 <L1>\n") != std::string::npos);
+		assert(res.find("                                 L2: # from 0x0\n") != std::string::npos);
+		assert(res.find("0x6:       c3                      ret\n") != std::string::npos);
 		// Verify L1 appears before its target instruction at 0x2, and L2 appears before its target instruction at 0x6
-		assert(res.find("L1:") < res.find("0x2:       90                    nop\n"));
-		assert(res.find("L2:") < res.find("0x6:       c3                    ret\n"));
+		assert(res.find("L1:") < res.find("0x2:       90                      nop\n"));
+		assert(res.find("L2:") < res.find("0x6:       c3                      ret\n"));
 #endif
 	}
-
-	std::cout << "x86_disassemble tool verified successfully!" << std::endl;
 	return 0;
 }
