@@ -381,8 +381,13 @@ int main(int argc, char **argv)
 		std::cout << "Self Binary DWARF Source Anchors Result:\n" << res << std::endl;
 #ifdef HAVE_ZYDIS
 		if (std::filesystem::exists("/usr/bin/addr2line") || std::filesystem::exists("/usr/bin/eu-addr2line")) {
-			assert(res.find("# ") != std::string::npos);
-			assert(res.find("test_x86_disassemble.cpp:") != std::string::npos);
+			assert(res.find("# Function ") != std::string::npos);
+			assert(res.find(" at file ") != std::string::npos);
+			assert(res.find("test_x86_disassemble.cpp lines 36 - 40") != std::string::npos);
+			assert(res.find(" # line 37\n") != std::string::npos);
+			assert(res.find(" # line 38\n") != std::string::npos);
+			assert(res.find(" # line 39\n") != std::string::npos);
+			assert(res.find(" # line 40\n") != std::string::npos);
 		}
 #endif
 	}

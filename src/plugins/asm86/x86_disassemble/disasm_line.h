@@ -16,12 +16,12 @@ namespace tools
 /**
  * Discriminator for disassembled listing lines.
  * Ordered by display priority when multiple lines share the same virtual address,
- * so sorting a vector of disasm_line places headers, source locations, labels, and
+ * so sorting a vector of disasm_line places source locations, headers, labels, and
  * comments immediately before the instruction at that address.
  */
 enum class disasm_line_type : uint8_t {
-	function_header = 0,
-	source_location = 1,
+	source_location = 0,
+	function_header = 1,
 	block_label = 2,
 	comment = 3,
 	instruction = 4,
@@ -71,14 +71,16 @@ class disasm_line
 	// Primary text (decoded instruction mnemonic+operands, label name, source line, or comment)
 	std::string text;
 
-	// Assigned basic-block label (e.g. ".L1") when targeted by intra-function branches
+	// Assigned basic-block label (e.g. "L1") when targeted by intra-function branches
 	std::string label_name;
 
 	// Symbolic or string-literal annotation appended to the instruction (e.g. " <callee_func>", " <str#1>")
 	std::string target_annotation;
 
-	// DWARF source file:line location (if resolved)
+	// DWARF source file:line location (if resolved), and optional trailing suffix comment
+	// (e.g. " # line 38" when staying in the same file, or " # path/to/other.h:12" when switching files).
 	std::string source_location;
+	std::string source_comment_suffix;
 
 	// Virtual addresses of instructions that branch to this address
 	std::vector<uint64_t> branch_sources;
@@ -114,8 +116,9 @@ class disasm_line
 	static void populate_control_flow_labels(std::vector<disasm_line> &lines);
 
 	// Resolve DWARF file:line source anchors for instructions in `lines` in batches via address_lookup,
-	// bailing out early if the probe batch returns mostly "??", and insert source_location comment lines
-	// whenever the source line transitions.
+	// bailing out early if the probe batch returns mostly "??", emit a header comment at function entry
+	// ("# Function <name> at file <file> lines <from> - <to>"), and attach trailing "# line <N>" or
+	// "# <file>:<N>" suffix comments to instructions when the source line transitions.
 	static void populate_source_locations(std::vector<disasm_line> &lines, std::string_view elf_path);
 
 	constexpr bool is_instruction_or_data() const noexcept

@@ -3,6 +3,8 @@
 #include <format>
 #include <map>
 #include "address_lookup.h"
+#include "codemap_fallbacks.h"
+#include "codemap_utils.h"
 #include "hex/elf.h"
 #ifdef HAVE_ZYDIS
 #include <Zydis/Zydis.h>
@@ -10,7 +12,6 @@
 
 namespace tools
 {
-
 
 disasm_line disasm_line::decode_one(std::span<const uint8_t> buffer,
                                     size_t offset,
@@ -269,10 +270,15 @@ void disasm_line::populate_source_locations(std::vector<disasm_line> &lines, std
 	constexpr size_t k_first_probe_size = 16;
 	constexpr size_t k_subsequent_batch_size = 512;
 
-	std::vector<disasm_line> source_lines;
-	std::string last_source_loc;
-	size_t cursor = 0;
+	struct resolved_inst_loc {
+		size_t line_idx;
+		std::string file_path;
+		int line_number;
+	};
+	std::vector<resolved_inst_loc> resolved_locs;
+	resolved_locs.reserve(inst_indices.size());
 
+	size_t cursor = 0;
 	while (cursor < inst_indices.size()) {
 		const size_t batch_limit = (cursor == 0 && inst_indices.size() > k_single_batch_threshold)
 		    ? k_first_probe_size
@@ -291,17 +297,9 @@ void disasm_line::populate_source_locations(std::vector<disasm_line> &lines, std
 		for (size_t k = 0; k < count && k < resolved.size(); ++k) {
 			const auto &res = resolved[k];
 			if (!res.file_path.empty() && res.file_path != "??" && res.line_number > 0) {
-				std::string loc = std::format("{}:{}", res.file_path, res.line_number);
-				auto &inst = lines[inst_indices[cursor + k]];
-				inst.source_location = loc;
-				if (loc != last_source_loc) {
-					last_source_loc = loc;
-					disasm_line src_line = make_source_location(inst.address, inst.file_offset, loc);
-					src_line.has_symbol_context = inst.has_symbol_context;
-					src_line.symbol_name = inst.symbol_name;
-					src_line.symbol_offset = inst.symbol_offset;
-					source_lines.push_back(std::move(src_line));
-				}
+				size_t idx = inst_indices[cursor + k];
+				lines[idx].source_location = std::format("{}:{}", res.file_path, res.line_number);
+				resolved_locs.push_back({idx, res.file_path, res.line_number});
 			} else {
 				++unresolved_count;
 			}
@@ -315,13 +313,103 @@ void disasm_line::populate_source_locations(std::vector<disasm_line> &lines, std
 		}
 	}
 
-	if (!source_lines.empty()) {
+	if (resolved_locs.empty()) {
+		return;
+	}
+
+	// Group resolved locations by function entry (or initial instruction) to emit
+	// "# Function <name> at file <file> lines <from> - <to>" header comments and
+	// attach trailing "# line <N>" or "# <file>:<N>" suffix comments to instructions.
+	std::vector<disasm_line> header_comments;
+	std::map<std::string, std::vector<codemap_symbol_info>> file_symbols_cache;
+
+	std::string current_file;
+	int current_line = -1;
+	std::string current_func_symbol;
+	bool emitted_initial_header = false;
+
+	for (size_t r = 0; r < resolved_locs.size(); ++r) {
+		const auto &rl = resolved_locs[r];
+		auto &inst = lines[rl.line_idx];
+
+		const bool is_new_function =
+		    (inst.has_symbol_context && !inst.symbol_name.empty() &&
+		     (inst.symbol_offset == 0 || inst.symbol_name != current_func_symbol)) ||
+		    (!emitted_initial_header && r == 0);
+
+		if (is_new_function) {
+			emitted_initial_header = true;
+			current_func_symbol = inst.symbol_name;
+			const std::string &primary_file = rl.file_path;
+
+			// Compute observed min/max line range within primary_file for this function
+			int min_line = rl.line_number;
+			int max_line = rl.line_number;
+			for (size_t j = r + 1; j < resolved_locs.size(); ++j) {
+				const auto &next_inst = lines[resolved_locs[j].line_idx];
+				if (inst.has_symbol_context && next_inst.has_symbol_context &&
+				    next_inst.symbol_name != inst.symbol_name) {
+					break;
+				}
+				if (resolved_locs[j].file_path == primary_file) {
+					min_line = std::min(min_line, resolved_locs[j].line_number);
+					max_line = std::max(max_line, resolved_locs[j].line_number);
+				}
+			}
+
+			// Query codemap fallback symbols for exact function start/end lines if file exists on disk
+			auto sym_it = file_symbols_cache.find(primary_file);
+			if (sym_it == file_symbols_cache.end()) {
+				std::vector<codemap_symbol_info> syms;
+				fallback_find_symbols(primary_file, 1, syms);
+				sym_it = file_symbols_cache.emplace(primary_file, std::move(syms)).first;
+			}
+			if (const auto *enclosing = find_enclosing_symbol(sym_it->second, rl.line_number)) {
+				min_line = enclosing->start_line;
+				max_line = enclosing->end_line;
+			} else if (!inst.symbol_name.empty()) {
+				if (const auto *by_hint = find_symbol_by_hint(sym_it->second, inst.symbol_name)) {
+					min_line = by_hint->start_line;
+					max_line = by_hint->end_line;
+				}
+			}
+
+			std::string header_text;
+			if (!inst.symbol_name.empty()) {
+				header_text = std::format(
+				    "Function {} at file {} lines {} - {}", inst.symbol_name, primary_file, min_line, max_line);
+			} else {
+				header_text = std::format("File {} lines {} - {}", primary_file, min_line, max_line);
+			}
+
+			disasm_line hdr_line = make_source_location(inst.address, inst.file_offset, std::move(header_text));
+			hdr_line.has_symbol_context = inst.has_symbol_context;
+			hdr_line.symbol_name = inst.symbol_name;
+			hdr_line.symbol_offset = inst.symbol_offset;
+			header_comments.push_back(std::move(hdr_line));
+
+			current_file = primary_file;
+			current_line = -1; // Force first instruction to emit "# line <N>"
+		}
+
+		if (rl.file_path != current_file) {
+			current_file = rl.file_path;
+			current_line = rl.line_number;
+			inst.source_comment_suffix = std::format(" # {}:{}", rl.file_path, rl.line_number);
+		} else if (rl.line_number != current_line) {
+			current_line = rl.line_number;
+			inst.source_comment_suffix = std::format(" # line {}", rl.line_number);
+		}
+	}
+
+	if (!header_comments.empty()) {
 		lines.insert(lines.end(),
-		             std::make_move_iterator(source_lines.begin()),
-		             std::make_move_iterator(source_lines.end()));
+		             std::make_move_iterator(header_comments.begin()),
+		             std::make_move_iterator(header_comments.end()));
 		std::ranges::stable_sort(lines);
 	}
 }
+
 std::string disasm_line::format_address_column() const
 {
 	if (!is_instruction_or_data()) {
@@ -373,7 +461,7 @@ std::string disasm_line::format_instruction_column() const
 		return std::format("# {}", text);
 	case disasm_line_type::instruction:
 	case disasm_line_type::data_byte:
-		return text + target_annotation;
+		return text + target_annotation + source_comment_suffix;
 	}
 	return text;
 }
@@ -391,4 +479,5 @@ std::string disasm_line::format_markdown_row() const
 	}
 	return std::format("{:<10} {:<21} {}{}\n", addr_col, bytes_col, code_indent, inst_col);
 }
+
 } // namespace tools
