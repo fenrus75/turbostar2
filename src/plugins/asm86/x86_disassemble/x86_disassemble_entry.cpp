@@ -392,9 +392,8 @@ std::string x86_disassemble_tool::execute(agentlib::tool_context &ctx)
 			}
 		}
 
-		// Phase 3: Sort lines by (address, type, sub_order) and render Markdown output
-		std::ranges::stable_sort(lines);
-
+		// Phase 3: Populate sequential branch target labels (L1, L2, ...), sort lines, and render Markdown output
+		disasm_line::populate_control_flow_labels(lines);
 		std::string result;
 		if (resolved_sym) {
 			result += std::format("### Disassembly: `{}` in {} [0x{:X} - 0x{:X}]\n\n",
@@ -509,7 +508,7 @@ std::string x86_disassemble_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-	std::ranges::stable_sort(lines);
+	disasm_line::populate_control_flow_labels(lines);
 
 	std::string result = "| Address | Bytes | Instruction |\n| --- | --- | --- |\n";
 	for (const auto &line : lines) {

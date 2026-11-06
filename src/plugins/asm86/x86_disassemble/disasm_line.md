@@ -12,10 +12,9 @@
     - `memory_target_address`: target virtual address for `RIP`/`EIP`-relative memory operands.
 - **Line Type Priority & Deterministic Sorting (`disasm_line_type`, `operator<=>`)**:
   - Orders entries at the same `address` by `disasm_line_type` (`function_header` < `source_location` < `block_label` < `comment` < `instruction` < `data_byte`) and `sub_order`.
-  - Allows synthetic entries (such as `.L1:` basic-block labels or DWARF source line transitions) to be appended in any pass with the target instruction's `address` and sorted into place immediately before the instruction via `std::ranges::stable_sort`.
+  - Allows synthetic entries (such as `L1:` basic-block labels or DWARF source line transitions) to be appended in any pass with the target instruction's `address` and sorted into place immediately before the instruction via `std::ranges::stable_sort`.
 - **Control-Flow Label Generation (`populate_control_flow_labels`)**:
-  - Identifies intra-range branch targets from `alt_next_address`, assigns sequential `.L1`, `.L2`, ... labels in ascending address order, records incoming `branch_sources` on target instructions, annotates branching instructions, and inserts `block_label` rows before target instructions.
-
+  - Identifies intra-range branch targets from `alt_next_address`, assigns sequential `L1`, `L2`, ... labels in ascending address order, records incoming `branch_sources` on target instructions, annotates branching instructions, and inserts `block_label` rows before target instructions.
 ## Constraints & Security Considerations
 - **Bounded Instruction Bytes**: Caps copied instruction bytes to `std::min(length, 15)` and `buffer.size() - offset` to prevent buffer overreads on truncated inputs.
 - **Markdown Table Escaping**: Escapes `|` characters in instruction and annotation text before emitting Markdown table cells.

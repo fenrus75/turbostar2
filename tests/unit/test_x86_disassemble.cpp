@@ -237,7 +237,8 @@ int main()
 #ifdef HAVE_ZYDIS
 		assert(res.find("### Disassembly: `my_func`") != std::string::npos);
 		assert(res.find("`0x401000` `<+0x0>`") != std::string::npos);
-		assert(res.find("<+0xE>") != std::string::npos);
+		assert(res.find("<+0xE> (L1)") != std::string::npos);
+		assert(res.find("| `0x40100e` `<+0xe>` |  | **L1:** *(from 0x401000)* |") != std::string::npos);
 		assert(res.find("<callee_func>") != std::string::npos);
 		assert(res.find("<str#1>") != std::string::npos);
 		assert(res.find("#### Referenced String Literals") != std::string::npos);
@@ -326,12 +327,35 @@ int main()
 		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
 		std::cout << "Recursive + Gap-Fill Disassembly Result:\n" << res << std::endl;
 #ifdef HAVE_ZYDIS
-		assert(res.find("| `0x0` | eb 01 | jmp 0x3 |") != std::string::npos);
+		assert(res.find("| `0x0` | eb 01 | jmp 0x3 <L1> |") != std::string::npos);
 		assert(res.find("| `0x2` | e8 | db 0xe8 |") != std::string::npos);
+		assert(res.find("| `0x3` |  | **L1:** *(from 0x0)* |") != std::string::npos);
 		assert(res.find("| `0x3` | c3 | ret |") != std::string::npos);
 #endif
 	}
 
+	// 12. Test sequential L1, L2 branch labels with forward jump and backward loop edge
+	{
+		// 0x0: 74 04 (jz 0x6 -> L2)
+		// 0x2: 90    (nop -> L1 target of loop at 0x3)
+		// 0x3: 75 FD (jnz 0x2 -> L1 backward loop)
+		// 0x5: C3    (ret)
+		// 0x6: C3    (ret -> L2 target of forward branch at 0x0)
+		std::string args = R"({"data": "74 04 90 75 fd c3 c3", "format": "hex", "mode": "64", "syntax": "att"})";
+		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
+		std::cout << "Sequential Labels (L1, L2) Disassembly Result:\n" << res << std::endl;
+#ifdef HAVE_ZYDIS
+		assert(res.find("| `0x0` | 74 04 | jz 0x6 <L2> |") != std::string::npos);
+		assert(res.find("| `0x2` |  | **L1:** *(from 0x3)* |") != std::string::npos);
+		assert(res.find("| `0x2` | 90 | nop |") != std::string::npos);
+		assert(res.find("| `0x3` | 75 fd | jnz 0x2 <L1> |") != std::string::npos);
+		assert(res.find("| `0x6` |  | **L2:** *(from 0x0)* |") != std::string::npos);
+		assert(res.find("| `0x6` | c3 | ret |") != std::string::npos);
+		// Verify L1 appears before its target instruction at 0x2, and L2 appears before its target instruction at 0x6
+		assert(res.find("**L1:**") < res.find("| `0x2` | 90 | nop |"));
+		assert(res.find("**L2:**") < res.find("| `0x6` | c3 | ret |"));
+#endif
+	}
 	std::cout << "x86_disassemble tool verified successfully!" << std::endl;
 	return 0;
 }

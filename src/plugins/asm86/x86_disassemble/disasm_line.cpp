@@ -160,6 +160,8 @@ void disasm_line::populate_control_flow_labels(std::vector<disasm_line> &lines)
 		return;
 	}
 
+	std::ranges::stable_sort(lines);
+
 	// Map from target instruction virtual address to index in `lines`
 	std::map<uint64_t, size_t> addr_to_index;
 	for (size_t i = 0; i < lines.size(); ++i) {
@@ -180,15 +182,14 @@ void disasm_line::populate_control_flow_labels(std::vector<disasm_line> &lines)
 	}
 
 	if (target_to_sources.empty()) {
-		std::ranges::stable_sort(lines);
 		return;
 	}
 
-	// Assign sequential .L1, .L2, ... labels in ascending address order
+	// Assign sequential L1, L2, ... labels in ascending address order
 	std::map<uint64_t, std::string> target_labels;
 	size_t label_counter = 1;
 	for (const auto &[target_addr, sources] : target_to_sources) {
-		std::string lbl = std::format(".L{}", label_counter++);
+		std::string lbl = std::format("L{}", label_counter++);
 		target_labels[target_addr] = lbl;
 		size_t idx = addr_to_index[target_addr];
 		lines[idx].label_name = lbl;
