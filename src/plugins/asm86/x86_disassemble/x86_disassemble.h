@@ -19,6 +19,7 @@ struct x86_disassemble_args {
 	bool mode_specified{false};
 	std::string syntax{"att"};
 	uint64_t address{0};
+	bool brief{false};
 };
 
 class x86_disassemble_tool : public agentlib::llm_tool_action

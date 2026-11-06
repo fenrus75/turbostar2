@@ -66,7 +66,10 @@ class x86_disassemble_validator : public agentlib::tool_validator
 			    {"description", "Assembly syntax format (att or intel). Defaults to 'att'."}}},
 			  {"address",
 			   {{"type", nlohmann::json::array({"integer", "string"})},
-			    {"description", "The starting runtime address/IP offset for raw 'data'. Defaults to 0."}}}}}};
+			    {"description", "The starting runtime address/IP offset for raw 'data'. Defaults to 0."}}},
+			  {"brief",
+			   {{"type", "boolean"},
+			    {"description", "Optional. If true, omits the address and raw byte columns as well as parenthesized target addresses, emitting only clean assembly instructions, labels, symbolic targets, and source line comments. Defaults to false."}}}}}};
 	}
 
       protected:
@@ -89,6 +92,11 @@ class x86_disassemble_validator : public agentlib::tool_validator
 			args_.offset = json_utils::parse_numeric_from_json(raw_json, "offset", 0);
 			size_t parsed_size = json_utils::parse_numeric_from_json(raw_json, "size", 0);
 			args_.size = (parsed_size > 4096) ? 4096 : parsed_size;
+			if (raw_json.contains("brief") && raw_json["brief"].is_boolean()) {
+				args_.brief = raw_json["brief"].get<bool>();
+			} else if (raw_json.contains("asm_only") && raw_json["asm_only"].is_boolean()) {
+				args_.brief = raw_json["asm_only"].get<bool>();
+			}
 
 			if (args_.requested_path.empty() && args_.data.empty()) {
 				out_error = "Either 'path' or 'data' must be provided.";

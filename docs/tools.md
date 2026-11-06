@@ -697,6 +697,7 @@ These tools allow the agent to interact with the project's Git repository.
     *   `mode` *(string, optional)*: The CPU mode (`'16'`, `'32'`, or `'64'`). Defaults to `'64'` (or auto-detected from ELF header).
     *   `syntax` *(string, optional)*: Assembly syntax format (`'att'` or `'intel'`). Defaults to `'att'`.
     *   `address` *(integer or string, optional)*: The starting runtime address/IP offset for raw `data`. Defaults to 0.
+    *   `brief` *(boolean, optional, alias `asm_only`)*: If `true`, omits the address and raw byte columns as well as parenthesized hex target addresses, emitting only clean assembly instructions, labels, symbolic call targets, and source line comments. Defaults to `false`.
 
 ### `x86_assemble` (Family: `x86`)
 *   **Description:** Assembles a single x86/x64 assembly instruction string into its corresponding machine code bytes (space-separated hex).

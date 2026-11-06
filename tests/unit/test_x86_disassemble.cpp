@@ -244,12 +244,25 @@ int main(int argc, char **argv)
 		assert(res.find("0x401000 <+0x0>:   74 0c                   jz L1 (0x40100E <+0xE>)\n") != std::string::npos);
 		assert(res.find("                                         L1: # from 0x401000\n") != std::string::npos);
 		assert(res.find("0x40100e <+0xe>:   90                      nop\n") != std::string::npos);
-		assert(res.find("<callee_func>") != std::string::npos);
+		assert(res.find("call <callee_func> (0x401010)") != std::string::npos);
 		assert(res.find("<str#1>") != std::string::npos);
 		assert(res.find("#### Referenced String Literals") != std::string::npos);
 		assert(res.find("| `str#1` | `0x402000` | `\"hello_disasm_rodata\"` |") != std::string::npos);
 		// Should stop at my_func's size (16 bytes -> 0x401000..0x40100f), not spilling into 0x401010
 		assert(res.find("0x401010 <+0x0>:") == std::string::npos);
+
+		// Also test brief mode on the same ELF symbol
+		std::string brief_args = std::format(R"({{"path": "{}", "symbol": "my_func", "brief": true}})", test_file);
+		std::string brief_res = registry.execute_tool("x86_disassemble", brief_args, ctx);
+		std::cout << "ELF Symbol Brief Disassembly Result:\n" << brief_res << std::endl;
+		assert(brief_res.find("\nmy_func:\n") != std::string::npos);
+		assert(brief_res.find("  jz L1\n") != std::string::npos);
+		assert(brief_res.find("  call <callee_func>\n") != std::string::npos);
+		assert(brief_res.find("  lea 0x402000, %rdi <str#1>\n") != std::string::npos);
+		assert(brief_res.find("\nL1:\n") != std::string::npos);
+		assert(brief_res.find("  nop\n") != std::string::npos);
+		assert(brief_res.find("  ret\n") != std::string::npos);
+		assert(brief_res.find("0x401000 <+0x0>:") == std::string::npos);
 #endif
 		std::filesystem::remove(test_file);
 	}
@@ -388,6 +401,13 @@ int main(int argc, char **argv)
 			assert(res.find(" # line 38\n") != std::string::npos);
 			assert(res.find(" # line 39\n") != std::string::npos);
 			assert(res.find(" # line 40\n") != std::string::npos);
+			assert(res.find("call <::write_u32_le> (0x") != std::string::npos);
+
+			std::string brief_args = std::format(R"({{"path": "{}", "symbol": "write_u64_le", "brief": true}})", self_bin);
+			std::string brief_res = registry.execute_tool("x86_disassemble", brief_args, ctx);
+			std::cout << "Self Binary Brief DWARF Source Anchors Result:\n" << brief_res << std::endl;
+			assert(brief_res.find("\n# Function ") != std::string::npos);
+			assert(brief_res.find("  call <::write_u32_le>\n") != std::string::npos);
 		}
 #endif
 	}

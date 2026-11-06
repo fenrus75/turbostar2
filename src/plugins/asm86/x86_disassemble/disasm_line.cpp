@@ -237,6 +237,27 @@ void disasm_line::populate_control_flow_labels(std::vector<disasm_line> &lines)
 		}
 	}
 
+	// Rewrite resolved call instructions so the symbolic target is the primary operand:
+	// "call <callee_func> (0x401010)" in full mode, and "call <callee_func>" in brief mode.
+	for (auto &line : lines) {
+		if (line.is_call && line.alt_next_address.has_value() && !line.target_annotation.empty()) {
+			std::string_view ann = line.target_annotation;
+			while (!ann.empty() && ann.front() == ' ') {
+				ann.remove_prefix(1);
+			}
+			// Only rewrite if annotation is a resolved symbol name (not a self-relative <+0x...> offset)
+			if (ann.starts_with('<') && !ann.starts_with("<+")) {
+				auto sp = line.text.find(' ');
+				if (sp != std::string::npos) {
+					std::string mnemonic = line.text.substr(0, sp);
+					std::string orig_target = line.text.substr(sp + 1);
+					line.text = std::format("{} {}", mnemonic, ann);
+					line.target_annotation = std::format(" ({})", orig_target);
+				}
+			}
+		}
+	}
+
 	if (!synthetic_lines.empty()) {
 		lines.insert(lines.end(),
 		             std::make_move_iterator(synthetic_lines.begin()),
@@ -437,12 +458,15 @@ std::string disasm_line::format_bytes_column() const
 	return out;
 }
 
-std::string disasm_line::format_instruction_column() const
+std::string disasm_line::format_instruction_column(bool brief) const
 {
 	switch (type) {
 	case disasm_line_type::function_header:
 		return std::format("{}:", label_name.empty() ? text : label_name);
 	case disasm_line_type::block_label: {
+		if (brief) {
+			return std::format("{}:", label_name);
+		}
 		std::string from_str;
 		if (!branch_sources.empty()) {
 			from_str = " # from ";
@@ -461,19 +485,26 @@ std::string disasm_line::format_instruction_column() const
 		return std::format("# {}", text);
 	case disasm_line_type::instruction:
 	case disasm_line_type::data_byte:
+		if (brief && (is_branch || is_call) && target_annotation.starts_with(" (")) {
+			return text + source_comment_suffix;
+		}
 		return text + target_annotation + source_comment_suffix;
 	}
 	return text;
 }
 
-std::string disasm_line::format_markdown_row() const
+std::string disasm_line::format_markdown_row(bool brief) const
 {
 	constexpr size_t k_spaces_per_indent_level = 2;
 	const std::string code_indent(indent_depth * k_spaces_per_indent_level, ' ');
+	const std::string inst_col = format_instruction_column(brief);
+
+	if (brief) {
+		return std::format("{}{}\n", code_indent, inst_col);
+	}
 
 	const std::string addr_col = format_address_column();
 	const std::string bytes_col = format_bytes_column();
-	const std::string inst_col = format_instruction_column();
 	if (has_symbol_context) {
 		return std::format("{:<18} {:<21} {}{}\n", addr_col, bytes_col, code_indent, inst_col);
 	}

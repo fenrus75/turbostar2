@@ -133,8 +133,8 @@ class disasm_line
 
 	std::string format_address_column() const;
 	std::string format_bytes_column() const;
-	std::string format_instruction_column() const;
-	std::string format_markdown_row() const;
+	std::string format_instruction_column(bool brief = false) const;
+	std::string format_markdown_row(bool brief = false) const;
 
 	constexpr std::strong_ordering operator<=>(const disasm_line &other) const noexcept
 	{

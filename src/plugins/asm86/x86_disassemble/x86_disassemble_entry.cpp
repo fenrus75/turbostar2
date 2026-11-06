@@ -408,7 +408,7 @@ std::string x86_disassemble_tool::execute(agentlib::tool_context &ctx)
 		}
 		result += "```asm\n";
 		for (const auto &line : lines) {
-			result += line.format_markdown_row();
+			result += line.format_markdown_row(args_.brief);
 		}
 		result += "```\n";
 
@@ -517,7 +517,7 @@ std::string x86_disassemble_tool::execute(agentlib::tool_context &ctx)
 
 	std::string result = "```asm\n";
 	for (const auto &line : lines) {
-		result += line.format_markdown_row();
+		result += line.format_markdown_row(args_.brief);
 	}
 	result += "```\n";
 	set_success(ctx, "Disassembled " + std::to_string(bytes.size()) + " bytes");
