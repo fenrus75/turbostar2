@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cctype>
+#include <deque>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -11,7 +12,6 @@
 #include "plugins/asm86/x86_disassemble/disasm_line.h"
 #include "utf8.h"
 #include "x86_disassemble.h"
-
 namespace tools
 {
 
@@ -255,57 +255,144 @@ std::string x86_disassemble_tool::execute(agentlib::tool_context &ctx)
 
 		size_t limit = (disasm_size > file_data.size() - start_offset) ? file_data.size() : start_offset + disasm_size;
 
-		// Pass 1: Decode instructions into disasm_line IR and resolve ELF target annotations
+		// Phase 1 (Recursive control-flow traversal) + Phase 2 (Gap-fill for switch/jump-table blocks & landing pads)
 		std::vector<disasm_line> lines;
 		std::vector<referenced_string_literal> string_literals;
-		size_t file_pos = start_offset;
-		while (file_pos < limit) {
-			const auto *cur_sec = is_elf ? elf.find_section_at_offset(file_pos) : nullptr;
-			const auto *cur_sym = is_elf ? elf.find_symbol_at_offset(file_pos) : nullptr;
-			uint64_t runtime_addr = file_pos;
-			if (cur_sec && cur_sec->addr > 0) {
-				runtime_addr = cur_sec->addr + (file_pos - cur_sec->offset);
-			} else if (cur_sym && cur_sym->vaddr > 0) {
-				runtime_addr = cur_sym->vaddr + (file_pos - cur_sym->offset);
-			} else if (args_.address != 0) {
-				runtime_addr = args_.address + (file_pos - start_offset);
-			}
+		std::vector<bool> covered(limit - start_offset, false);
+		std::deque<size_t> worklist;
 
-			disasm_line line = disasm_line::decode_one(
-			    file_data, file_pos, runtime_addr, effective_mode, args_.syntax, !is_elf || elf.is_64_bit());
-			if (cur_sym) {
-				line.has_symbol_context = true;
-				line.symbol_name = cur_sym->name;
-				line.symbol_offset = file_pos - cur_sym->offset;
+		auto enqueue_offset = [&](size_t off) {
+			if (off >= start_offset && off < limit && !covered[off - start_offset]) {
+				worklist.push_back(off);
 			}
+		};
 
-			if (is_elf && line.type == disasm_line_type::instruction) {
-				std::optional<uint64_t> target_vaddr = line.alt_next_address.has_value()
-				    ? line.alt_next_address
-				    : line.memory_target_address;
-				if (target_vaddr.has_value()) {
-					line.target_annotation = elf.resolve_target_annotation(
-					    file_data, *target_vaddr, line.is_rip_relative_mem, cur_sym, true);
-					if (!line.target_annotation.empty()) {
-						line.target_annotation = format_string_literal_annotation(
-						    line.target_annotation, *target_vaddr, string_literals);
-						if (line.is_call && (line.target_annotation.find("_Unwind_Resume") != std::string::npos ||
-						                     line.target_annotation.find("__cxa_throw") != std::string::npos ||
-						                     line.target_annotation.find("__cxa_rethrow") != std::string::npos ||
-						                     line.target_annotation.find("abort@plt") != std::string::npos ||
-						                     line.target_annotation.find("__assert_fail") != std::string::npos)) {
-							line.next_address = std::nullopt;
+		auto vaddr_to_offset = [&](uint64_t target_vaddr, const elf_hex_highlighter::parsed_symbol *cur_sym) -> std::optional<size_t> {
+			if (is_elf) {
+				for (const auto &sec : elf.get_sections()) {
+					if (sec.addr > 0 && target_vaddr >= sec.addr && target_vaddr < sec.addr + sec.size) {
+						size_t off = static_cast<size_t>(sec.offset + (target_vaddr - sec.addr));
+						if (off >= start_offset && off < limit) {
+							return off;
+						}
+						return std::nullopt;
+					}
+				}
+				if (cur_sym && cur_sym->vaddr > 0 && target_vaddr >= cur_sym->vaddr) {
+					uint64_t rel = target_vaddr - cur_sym->vaddr;
+					if (rel <= file_data.size() - cur_sym->offset) {
+						size_t off = static_cast<size_t>(cur_sym->offset + rel);
+						if (off >= start_offset && off < limit) {
+							return off;
 						}
 					}
 				}
 			}
+			uint64_t base_addr = (args_.address != 0) ? args_.address : start_offset;
+			if (target_vaddr >= base_addr && (target_vaddr - base_addr) < (limit - start_offset)) {
+				return start_offset + static_cast<size_t>(target_vaddr - base_addr);
+			}
+			return std::nullopt;
+		};
 
-			size_t step = (line.length > 0) ? line.length : 1;
-			lines.push_back(std::move(line));
-			file_pos += step;
+		auto drain_worklist = [&]() {
+			while (!worklist.empty()) {
+				size_t file_pos = worklist.front();
+				worklist.pop_front();
+				if (file_pos < start_offset || file_pos >= limit || covered[file_pos - start_offset]) {
+					continue;
+				}
+
+				// Clamp Zydis buffer slice to the next already-decoded byte so gaps never overrun known basic blocks
+				size_t clamp_end = file_data.size();
+				for (size_t k = file_pos + 1; k < limit; ++k) {
+					if (covered[k - start_offset]) {
+						clamp_end = k;
+						break;
+					}
+				}
+
+				const auto *cur_sec = is_elf ? elf.find_section_at_offset(file_pos) : nullptr;
+				const auto *cur_sym = is_elf ? elf.find_symbol_at_offset(file_pos) : nullptr;
+				uint64_t runtime_addr = file_pos;
+				if (cur_sec && cur_sec->addr > 0) {
+					runtime_addr = cur_sec->addr + (file_pos - cur_sec->offset);
+				} else if (cur_sym && cur_sym->vaddr > 0) {
+					runtime_addr = cur_sym->vaddr + (file_pos - cur_sym->offset);
+				} else if (args_.address != 0) {
+					runtime_addr = args_.address + (file_pos - start_offset);
+				}
+
+				std::span<const uint8_t> clamped_buf(file_data.data(), clamp_end);
+				disasm_line line = disasm_line::decode_one(
+				    clamped_buf, file_pos, runtime_addr, effective_mode, args_.syntax, !is_elf || elf.is_64_bit());
+				if (cur_sym) {
+					line.has_symbol_context = true;
+					line.symbol_name = cur_sym->name;
+					line.symbol_offset = file_pos - cur_sym->offset;
+				}
+
+				if (is_elf && line.type == disasm_line_type::instruction) {
+					std::optional<uint64_t> target_vaddr = line.alt_next_address.has_value()
+					    ? line.alt_next_address
+					    : line.memory_target_address;
+					if (target_vaddr.has_value()) {
+						line.target_annotation = elf.resolve_target_annotation(
+						    file_data, *target_vaddr, line.is_rip_relative_mem, cur_sym, true);
+						if (!line.target_annotation.empty()) {
+							line.target_annotation = format_string_literal_annotation(
+							    line.target_annotation, *target_vaddr, string_literals);
+							if (line.is_call && (line.target_annotation.find("_Unwind_Resume") != std::string::npos ||
+							                     line.target_annotation.find("__cxa_throw") != std::string::npos ||
+							                     line.target_annotation.find("__cxa_rethrow") != std::string::npos ||
+							                     line.target_annotation.find("abort@plt") != std::string::npos ||
+							                     line.target_annotation.find("__assert_fail") != std::string::npos)) {
+								line.next_address = std::nullopt;
+							}
+						}
+					}
+				}
+
+				size_t step = (line.length > 0) ? line.length : 1;
+				for (size_t b = 0; b < step && (file_pos + b) < limit; ++b) {
+					covered[file_pos + b - start_offset] = true;
+				}
+
+				if (line.next_address.has_value()) {
+					if (auto next_off = vaddr_to_offset(*line.next_address, cur_sym)) {
+						enqueue_offset(*next_off);
+					}
+				}
+				if ((line.is_branch || line.is_call) && line.alt_next_address.has_value()) {
+					if (auto alt_off = vaddr_to_offset(*line.alt_next_address, cur_sym)) {
+						enqueue_offset(*alt_off);
+					}
+				}
+
+				lines.push_back(std::move(line));
+			}
+		};
+
+		// Phase 1: Seed entry offset and any known ELF function symbols in [start_offset, limit)
+		enqueue_offset(start_offset);
+		if (is_elf) {
+			for (const auto &sym : elf.get_symbols()) {
+				if (sym.offset >= start_offset && sym.offset < limit) {
+					enqueue_offset(sym.offset);
+				}
+			}
+		}
+		drain_worklist();
+
+		// Phase 2: Find uncovered gaps (e.g. switch/jump-table targets or exception landing pads) and disassemble them
+		for (size_t off = start_offset; off < limit; ++off) {
+			if (!covered[off - start_offset]) {
+				enqueue_offset(off);
+				drain_worklist();
+			}
 		}
 
-		// Sort lines by (address, type, sub_order) and render Markdown output
+		// Phase 3: Sort lines by (address, type, sub_order) and render Markdown output
 		std::ranges::stable_sort(lines);
 
 		std::string result;
@@ -363,13 +450,63 @@ std::string x86_disassemble_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	std::vector<disasm_line> lines;
-	size_t offset = 0;
-	while (offset < bytes.size()) {
-		disasm_line line = disasm_line::decode_one(
-		    bytes, offset, args_.address + offset, args_.mode, args_.syntax, args_.mode == "64");
-		size_t step = (line.length > 0) ? line.length : 1;
-		lines.push_back(std::move(line));
-		offset += step;
+	std::vector<bool> covered(bytes.size(), false);
+	std::deque<size_t> worklist;
+
+	auto enqueue_offset = [&](size_t off) {
+		if (off < bytes.size() && !covered[off]) {
+			worklist.push_back(off);
+		}
+	};
+
+	auto drain_worklist = [&]() {
+		while (!worklist.empty()) {
+			size_t offset = worklist.front();
+			worklist.pop_front();
+			if (offset >= bytes.size() || covered[offset]) {
+				continue;
+			}
+
+			size_t clamp_end = bytes.size();
+			for (size_t k = offset + 1; k < bytes.size(); ++k) {
+				if (covered[k]) {
+					clamp_end = k;
+					break;
+				}
+			}
+
+			std::span<const uint8_t> clamped_buf(bytes.data(), clamp_end);
+			disasm_line line = disasm_line::decode_one(
+			    clamped_buf, offset, args_.address + offset, args_.mode, args_.syntax, args_.mode == "64");
+			size_t step = (line.length > 0) ? line.length : 1;
+			for (size_t b = 0; b < step && (offset + b) < bytes.size(); ++b) {
+				covered[offset + b] = true;
+			}
+
+			if (line.next_address.has_value() && *line.next_address >= args_.address &&
+			    (*line.next_address - args_.address) < bytes.size()) {
+				enqueue_offset(static_cast<size_t>(*line.next_address - args_.address));
+			}
+			if ((line.is_branch || line.is_call) && line.alt_next_address.has_value() &&
+			    *line.alt_next_address >= args_.address &&
+			    (*line.alt_next_address - args_.address) < bytes.size()) {
+				enqueue_offset(static_cast<size_t>(*line.alt_next_address - args_.address));
+			}
+
+			lines.push_back(std::move(line));
+		}
+	};
+
+	// Phase 1: Recursive traversal from entry
+	enqueue_offset(0);
+	drain_worklist();
+
+	// Phase 2: Gap-fill any remaining uncovered bytes
+	for (size_t off = 0; off < bytes.size(); ++off) {
+		if (!covered[off]) {
+			enqueue_offset(off);
+			drain_worklist();
+		}
 	}
 
 	std::ranges::stable_sort(lines);

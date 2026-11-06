@@ -316,6 +316,22 @@ int main()
 #endif
 	}
 
+	// 11. Test recursive flow + bounded gap-fill with inline data byte before jump target
+	{
+		// 0x0: EB 01 (jmp 0x3)
+		// 0x2: E8    (1-byte inline data gap; linear disasm would misdecode E8 C3 90 90 90 as a 5-byte call eating 'ret'!)
+		// 0x3: C3    (ret - reached by jmp 0x3 in Phase 1)
+		// 0x4: 90 90 90 (nops in Phase 2 gap after ret)
+		std::string args = R"({"data": "eb 01 e8 c3 90 90 90", "format": "hex", "mode": "64", "syntax": "att"})";
+		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
+		std::cout << "Recursive + Gap-Fill Disassembly Result:\n" << res << std::endl;
+#ifdef HAVE_ZYDIS
+		assert(res.find("| `0x0` | eb 01 | jmp 0x3 |") != std::string::npos);
+		assert(res.find("| `0x2` | e8 | db 0xe8 |") != std::string::npos);
+		assert(res.find("| `0x3` | c3 | ret |") != std::string::npos);
+#endif
+	}
+
 	std::cout << "x86_disassemble tool verified successfully!" << std::endl;
 	return 0;
 }
