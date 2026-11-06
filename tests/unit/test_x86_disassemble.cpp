@@ -1,4 +1,4 @@
-// Tested source file: src/plugins/asm86/x86_disassemble/x86_disassemble_entry.cpp, src/plugins/asm86/x86_disassemble/x86_disassemble_security.cpp
+// Tested source file: src/plugins/asm86/x86_disassemble/disasm_line.cpp, src/plugins/asm86/x86_disassemble/x86_disassemble_entry.cpp, src/plugins/asm86/x86_disassemble/x86_disassemble_security.cpp
 #include "test_watchdog.h"
 #include <algorithm>
 #include <cassert>
@@ -11,8 +11,8 @@
 #include "agentlib/ai_agent.h"
 #include "agentlib/tool_registry.h"
 #include "config_manager.h"
+#include "plugins/asm86/x86_disassemble/disasm_line.h"
 #include "project_manager.h"
-
 using namespace agentlib;
 
 extern "C" void register_x86_disassemble(void);
@@ -278,6 +278,42 @@ int main()
 		assert(sys_prompt.find("activate_tool_family") != std::string::npos);
 		assert(sys_prompt.find("| Tool Family | When to Activate |") != std::string::npos);
 		assert(sys_prompt.find("| x86 | Activate when working with x86 assembly |") != std::string::npos);
+	}
+
+	// 10. Test disasm_line IR control-flow edges and deterministic same-address sorting
+	{
+#ifdef HAVE_ZYDIS
+		// 74 0C (jz +0xC), EB 04 (jmp +0x4), C3 (ret)
+		const std::vector<uint8_t> code_bytes = {0x74, 0x0C, 0xEB, 0x04, 0xC3};
+		auto cond_line = tools::disasm_line::decode_one(code_bytes, 0, 0x1000, "64", "att", true);
+		assert(cond_line.address == 0x1000);
+		assert(cond_line.length == 2);
+		assert(cond_line.is_branch && cond_line.is_conditional);
+		assert(cond_line.next_address.has_value() && *cond_line.next_address == 0x1002);
+		assert(cond_line.alt_next_address.has_value() && *cond_line.alt_next_address == 0x100E);
+
+		auto jmp_line = tools::disasm_line::decode_one(code_bytes, 2, 0x1002, "64", "att", true);
+		assert(jmp_line.address == 0x1002);
+		assert(jmp_line.length == 2);
+		assert(jmp_line.is_branch && !jmp_line.is_conditional);
+		assert(!jmp_line.next_address.has_value());
+		assert(jmp_line.alt_next_address.has_value() && *jmp_line.alt_next_address == 0x1008);
+
+		auto ret_line = tools::disasm_line::decode_one(code_bytes, 4, 0x1004, "64", "att", true);
+		assert(ret_line.is_return);
+		assert(!ret_line.next_address.has_value());
+		assert(!ret_line.alt_next_address.has_value());
+
+		std::vector<tools::disasm_line> seq = {
+		    ret_line,
+		    tools::disasm_line::make_label(0x1004, 4, ".L_ret"),
+		    tools::disasm_line::make_source_location(0x1004, 4, "src/foo.cpp:10"),
+		};
+		std::ranges::stable_sort(seq);
+		assert(seq[0].type == tools::disasm_line_type::source_location);
+		assert(seq[1].type == tools::disasm_line_type::block_label);
+		assert(seq[2].type == tools::disasm_line_type::instruction);
+#endif
 	}
 
 	std::cout << "x86_disassemble tool verified successfully!" << std::endl;

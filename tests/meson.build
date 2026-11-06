@@ -410,6 +410,7 @@ test('unit_test_activate_tool_family', test_activate_tool_family, suite: 'agent'
 
 test_x86_disassemble = executable('test_x86_disassemble',
   ['unit/test_x86_disassemble.cpp',
+   '../src/plugins/asm86/x86_disassemble/disasm_line.cpp',
    '../src/plugins/asm86/x86_disassemble/x86_disassemble_entry.cpp',
    '../src/plugins/asm86/x86_disassemble/x86_disassemble_security.cpp'],
   dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, sqlite3_dep],

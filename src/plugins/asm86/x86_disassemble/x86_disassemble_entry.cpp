@@ -8,12 +8,9 @@
 #include <vector>
 #include "fs_utils.h"
 #include "hex/elf.h"
+#include "plugins/asm86/x86_disassemble/disasm_line.h"
 #include "utf8.h"
 #include "x86_disassemble.h"
-
-#ifdef HAVE_ZYDIS
-#include <Zydis/Zydis.h>
-#endif
 
 namespace tools
 {
@@ -167,13 +164,6 @@ std::string x86_disassemble_tool::execute(agentlib::tool_context &ctx)
 	set_failure(ctx, "Zydis support is not enabled in this build.");
 	return "Error: Zydis disassembly library is not available in this build of Turbostar.";
 #else
-	ZydisMachineMode machine_mode = ZYDIS_MACHINE_MODE_LONG_64;
-	if (args_.mode == "32") {
-		machine_mode = ZYDIS_MACHINE_MODE_LEGACY_32;
-	} else if (args_.mode == "16") {
-		machine_mode = ZYDIS_MACHINE_MODE_LEGACY_16;
-	}
-
 	if (!args_.safe_path.empty()) {
 		auto vfs = ctx.fs_security.get_vfs();
 		if (vfs && vfs->is_local_path_available(args_.safe_path)) {
@@ -210,8 +200,9 @@ std::string x86_disassemble_tool::execute(agentlib::tool_context &ctx)
 
 		elf_hex_highlighter elf;
 		bool is_elf = elf.can_handle(file_data) && elf.parse(file_data);
+		std::string effective_mode = args_.mode;
 		if (is_elf && !args_.mode_specified) {
-			machine_mode = elf.is_64_bit() ? ZYDIS_MACHINE_MODE_LONG_64 : ZYDIS_MACHINE_MODE_LEGACY_32;
+			effective_mode = elf.is_64_bit() ? "64" : "32";
 		}
 
 		size_t start_offset = args_.offset;
@@ -263,16 +254,9 @@ std::string x86_disassemble_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		size_t limit = (disasm_size > file_data.size() - start_offset) ? file_data.size() : start_offset + disasm_size;
-		std::string result;
-		if (resolved_sym) {
-			result += std::format("### Disassembly: `{}` in {} [0x{:X} - 0x{:X}]\n\n",
-			                      resolved_sym->name, args_.requested_path, start_offset, limit);
-		} else {
-			result += std::format("### Disassembly: {} [0x{:X} - 0x{:X}]\n\n",
-			                      args_.requested_path, start_offset, limit);
-		}
-		result += "| Address | Bytes | Instruction |\n| --- | --- | --- |\n";
 
+		// Pass 1: Decode instructions into disasm_line IR and resolve ELF target annotations
+		std::vector<disasm_line> lines;
 		std::vector<referenced_string_literal> string_literals;
 		size_t file_pos = start_offset;
 		while (file_pos < limit) {
@@ -287,66 +271,54 @@ std::string x86_disassemble_tool::execute(agentlib::tool_context &ctx)
 				runtime_addr = args_.address + (file_pos - start_offset);
 			}
 
-			ZydisDisassembledInstruction instruction;
-			ZyanStatus status;
-			if (args_.syntax == "intel") {
-				status = ZydisDisassembleIntel(machine_mode, runtime_addr, file_data.data() + file_pos,
-				                               file_data.size() - file_pos, &instruction);
-			} else {
-				status = ZydisDisassembleATT(machine_mode, runtime_addr, file_data.data() + file_pos,
-				                             file_data.size() - file_pos, &instruction);
+			disasm_line line = disasm_line::decode_one(
+			    file_data, file_pos, runtime_addr, effective_mode, args_.syntax, !is_elf || elf.is_64_bit());
+			if (cur_sym) {
+				line.has_symbol_context = true;
+				line.symbol_name = cur_sym->name;
+				line.symbol_offset = file_pos - cur_sym->offset;
 			}
 
-			size_t length = 0;
-			std::string instr_text;
-			std::string target_annotation;
-			if (ZYAN_SUCCESS(status)) {
-				length = instruction.info.length;
-				instr_text = elf_hex_highlighter::shorten_hex(instruction.text);
-				if (is_elf) {
-					for (uint8_t op_idx = 0; op_idx < instruction.info.operand_count_visible; ++op_idx) {
-						const auto &op = instruction.operands[op_idx];
-						bool is_rel_imm = (op.type == ZYDIS_OPERAND_TYPE_IMMEDIATE && op.imm.is_relative);
-						bool is_rip_mem = (op.type == ZYDIS_OPERAND_TYPE_MEMORY &&
-						                   (op.mem.base == ZYDIS_REGISTER_RIP || op.mem.base == ZYDIS_REGISTER_EIP));
-						if (!is_rel_imm && !is_rip_mem) {
-							continue;
-						}
-						int64_t rel_disp = is_rel_imm ? op.imm.value.s : op.mem.disp.value;
-						uint64_t target_vaddr = static_cast<uint64_t>(static_cast<int64_t>(runtime_addr + length) + rel_disp);
-						if (!elf.is_64_bit()) {
-							target_vaddr &= 0xFFFFFFFFULL;
-						}
-						target_annotation = elf.resolve_target_annotation(file_data, target_vaddr, is_rip_mem, cur_sym, true);
-						if (!target_annotation.empty()) {
-							target_annotation = format_string_literal_annotation(target_annotation, target_vaddr, string_literals);
-							break;
+			if (is_elf && line.type == disasm_line_type::instruction) {
+				std::optional<uint64_t> target_vaddr = line.alt_next_address.has_value()
+				    ? line.alt_next_address
+				    : line.memory_target_address;
+				if (target_vaddr.has_value()) {
+					line.target_annotation = elf.resolve_target_annotation(
+					    file_data, *target_vaddr, line.is_rip_relative_mem, cur_sym, true);
+					if (!line.target_annotation.empty()) {
+						line.target_annotation = format_string_literal_annotation(
+						    line.target_annotation, *target_vaddr, string_literals);
+						if (line.is_call && (line.target_annotation.find("_Unwind_Resume") != std::string::npos ||
+						                     line.target_annotation.find("__cxa_throw") != std::string::npos ||
+						                     line.target_annotation.find("__cxa_rethrow") != std::string::npos ||
+						                     line.target_annotation.find("abort@plt") != std::string::npos ||
+						                     line.target_annotation.find("__assert_fail") != std::string::npos)) {
+							line.next_address = std::nullopt;
 						}
 					}
 				}
-			} else {
-				length = 1;
-				instr_text = std::format("db 0x{:02x}", file_data[file_pos]);
-			}
-			if (length == 0) {
-				length = 1;
 			}
 
-			size_t avail_len = std::min(length, file_data.size() - file_pos);
-			std::string bytes_str;
-			for (size_t i = 0; i < avail_len; ++i) {
-				if (i > 0) {
-					bytes_str += " ";
-				}
-				bytes_str += std::format("{:02x}", file_data[file_pos + i]);
-			}
+			size_t step = (line.length > 0) ? line.length : 1;
+			lines.push_back(std::move(line));
+			file_pos += step;
+		}
 
-			std::string addr_col = cur_sym
-			    ? std::format("`0x{:x}` `<+0x{:x}>`", runtime_addr, file_pos - cur_sym->offset)
-			    : std::format("`0x{:x}`", runtime_addr);
-			std::string full_instr = escape_markdown_pipes(instr_text + target_annotation);
-			result += std::format("| {} | {} | {} |\n", addr_col, bytes_str, full_instr);
-			file_pos += avail_len;
+		// Sort lines by (address, type, sub_order) and render Markdown output
+		std::ranges::stable_sort(lines);
+
+		std::string result;
+		if (resolved_sym) {
+			result += std::format("### Disassembly: `{}` in {} [0x{:X} - 0x{:X}]\n\n",
+			                      resolved_sym->name, args_.requested_path, start_offset, limit);
+		} else {
+			result += std::format("### Disassembly: {} [0x{:X} - 0x{:X}]\n\n",
+			                      args_.requested_path, start_offset, limit);
+		}
+		result += "| Address | Bytes | Instruction |\n| --- | --- | --- |\n";
+		for (const auto &line : lines) {
+			result += line.format_markdown_row();
 		}
 
 		if (!string_literals.empty()) {
@@ -390,46 +362,22 @@ std::string x86_disassemble_tool::execute(agentlib::tool_context &ctx)
 		return "Error parsing input: " + parse_error;
 	}
 
-	std::string result = "| Address | Bytes | Instruction |\n| --- | --- | --- |\n";
+	std::vector<disasm_line> lines;
 	size_t offset = 0;
-
 	while (offset < bytes.size()) {
-		ZydisDisassembledInstruction instruction;
-		ZyanStatus status;
-		if (args_.syntax == "intel") {
-			status = ZydisDisassembleIntel(machine_mode, args_.address + offset, bytes.data() + offset, bytes.size() - offset,
-						       &instruction);
-		} else {
-			status = ZydisDisassembleATT(machine_mode, args_.address + offset, bytes.data() + offset, bytes.size() - offset,
-						     &instruction);
-		}
-
-		size_t length = 0;
-		std::string instr_text;
-		if (ZYAN_SUCCESS(status)) {
-			length = instruction.info.length;
-			instr_text = elf_hex_highlighter::shorten_hex(instruction.text);
-		} else {
-			length = 1;
-			instr_text = std::format("db 0x{:02x}", bytes[offset]);
-		}
-		if (length == 0) {
-			length = 1;
-		}
-
-		std::string bytes_str;
-		for (size_t i = 0; i < length; ++i) {
-			if (i > 0) {
-				bytes_str += " ";
-			}
-			bytes_str += std::format("{:02x}", bytes[offset + i]);
-		}
-
-		std::string escaped_instr = escape_markdown_pipes(instr_text);
-		result += std::format("| `0x{:x}` | {} | {} |\n", args_.address + offset, bytes_str, escaped_instr);
-		offset += length;
+		disasm_line line = disasm_line::decode_one(
+		    bytes, offset, args_.address + offset, args_.mode, args_.syntax, args_.mode == "64");
+		size_t step = (line.length > 0) ? line.length : 1;
+		lines.push_back(std::move(line));
+		offset += step;
 	}
 
+	std::ranges::stable_sort(lines);
+
+	std::string result = "| Address | Bytes | Instruction |\n| --- | --- | --- |\n";
+	for (const auto &line : lines) {
+		result += line.format_markdown_row();
+	}
 	set_success(ctx, "Disassembled " + std::to_string(bytes.size()) + " bytes");
 	return result;
 #endif
