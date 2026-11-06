@@ -240,7 +240,7 @@ int main()
 		assert(res.find("### Disassembly: `my_func`") != std::string::npos);
 		assert(res.find("```asm\n") != std::string::npos);
 		assert(res.find("                                         my_func:\n") != std::string::npos);
-		assert(res.find("0x401000 <+0x0>:   74 0c                   jz 0x40100E <+0xE> (L1)\n") != std::string::npos);
+		assert(res.find("0x401000 <+0x0>:   74 0c                   jz L1 (0x40100E <+0xE>)\n") != std::string::npos);
 		assert(res.find("                                         L1: # from 0x401000\n") != std::string::npos);
 		assert(res.find("0x40100e <+0xe>:   90                      nop\n") != std::string::npos);
 		assert(res.find("<callee_func>") != std::string::npos);
@@ -341,7 +341,7 @@ int main()
 		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
 		std::cout << "Recursive + Gap-Fill Disassembly Result:\n" << res << std::endl;
 #ifdef HAVE_ZYDIS
-		assert(res.find("0x0:       eb 01                   jmp 0x3 <L1>\n") != std::string::npos);
+		assert(res.find("0x0:       eb 01                   jmp L1 (0x3)\n") != std::string::npos);
 		assert(res.find("0x2:       e8                      db 0xe8\n") != std::string::npos);
 		assert(res.find("                                 L1: # from 0x0\n") != std::string::npos);
 		assert(res.find("0x3:       c3                      ret\n") != std::string::npos);
@@ -359,10 +359,10 @@ int main()
 		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
 		std::cout << "Sequential Labels (L1, L2) Disassembly Result:\n" << res << std::endl;
 #ifdef HAVE_ZYDIS
-		assert(res.find("0x0:       74 04                   jz 0x6 <L2>\n") != std::string::npos);
+		assert(res.find("0x0:       74 04                   jz L2 (0x6)\n") != std::string::npos);
 		assert(res.find("                                 L1: # from 0x3\n") != std::string::npos);
 		assert(res.find("0x2:       90                      nop\n") != std::string::npos);
-		assert(res.find("0x3:       75 fd                   jnz 0x2 <L1>\n") != std::string::npos);
+		assert(res.find("0x3:       75 fd                   jnz L1 (0x2)\n") != std::string::npos);
 		assert(res.find("                                 L2: # from 0x0\n") != std::string::npos);
 		assert(res.find("0x6:       c3                      ret\n") != std::string::npos);
 		// Verify L1 appears before its target instruction at 0x2, and L2 appears before its target instruction at 0x6
@@ -370,5 +370,7 @@ int main()
 		assert(res.find("L2:") < res.find("0x6:       c3                      ret\n"));
 #endif
 	}
+
+	std::cout << "x86_disassemble tool verified successfully!" << std::endl;
 	return 0;
 }

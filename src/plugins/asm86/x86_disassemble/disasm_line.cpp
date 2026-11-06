@@ -205,12 +205,18 @@ void disasm_line::populate_control_flow_labels(std::vector<disasm_line> &lines)
 			lines[idx].branch_sources = sources;
 		}
 
-		// Decorate branching instructions with the resolved local label
+		// Rewrite branching instructions to use the local label as primary operand: "jmp L1 (0x... <+0x...>)"
 		for (auto &line : lines) {
 			if (line.is_branch && line.alt_next_address.has_value()) {
 				auto it = target_labels.find(*line.alt_next_address);
 				if (it != target_labels.end()) {
-					if (line.target_annotation.empty()) {
+					auto sp = line.text.find(' ');
+					if (sp != std::string::npos) {
+						std::string mnemonic = line.text.substr(0, sp);
+						std::string orig_target = line.text.substr(sp + 1);
+						line.text = std::format("{} {}", mnemonic, it->second);
+						line.target_annotation = std::format(" ({}{})", orig_target, line.target_annotation);
+					} else if (line.target_annotation.empty()) {
 						line.target_annotation = std::format(" <{}>", it->second);
 					} else {
 						line.target_annotation += std::format(" ({})", it->second);
@@ -218,7 +224,6 @@ void disasm_line::populate_control_flow_labels(std::vector<disasm_line> &lines)
 				}
 			}
 		}
-
 		// Insert synthetic block_label lines that share the target instruction's address and sort before it
 		for (const auto &[target_addr, sources] : target_to_sources) {
 			const auto &target_inst = lines[addr_to_index[target_addr]];
