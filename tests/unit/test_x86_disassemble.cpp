@@ -40,8 +40,9 @@ void write_u64_le(std::vector<uint8_t> &buf, size_t off, uint64_t val)
 }
 } // namespace
 
-int main()
+int main(int argc, char **argv)
 {
+	(void)argc;
 	test_watchdog::setup_watchdog(30);
 	register_x86_disassemble();
 	tool_registry::get_instance().register_tool_family("x86", "Activate when working with x86 assembly");
@@ -368,6 +369,21 @@ int main()
 		// Verify L1 appears before its target instruction at 0x2, and L2 appears before its target instruction at 0x6
 		assert(res.find("L1:") < res.find("0x2:       90                      nop\n"));
 		assert(res.find("L2:") < res.find("0x6:       c3                      ret\n"));
+#endif
+	}
+
+	// 13. Test DWARF source file:line anchor comments on real ELF binary (argv[0])
+	if (argv && argv[0] && std::filesystem::exists(argv[0])) {
+		std::string self_bin = std::filesystem::canonical(argv[0]).string();
+		ctx.fs_security.add_allowed_root(std::filesystem::path(self_bin).parent_path(), access_type::read);
+		std::string args = std::format(R"({{"path": "{}", "symbol": "write_u64_le"}})", self_bin);
+		std::string res = registry.execute_tool("x86_disassemble", args, ctx);
+		std::cout << "Self Binary DWARF Source Anchors Result:\n" << res << std::endl;
+#ifdef HAVE_ZYDIS
+		if (std::filesystem::exists("/usr/bin/addr2line") || std::filesystem::exists("/usr/bin/eu-addr2line")) {
+			assert(res.find("# ") != std::string::npos);
+			assert(res.find("test_x86_disassemble.cpp:") != std::string::npos);
+		}
 #endif
 	}
 

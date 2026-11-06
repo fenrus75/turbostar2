@@ -617,12 +617,7 @@ bool elf_hex_highlighter::parse(std::span<const uint8_t> data)
 								sym.vaddr = st_value;
 
 								if (sym_type == 2 && resolved) {
-									bool dup = std::ranges::any_of(symbols_, [&](const parsed_symbol &s) {
-										return s.offset == sym.offset;
-									});
-									if (!dup) {
-										symbols_.push_back(std::move(sym));
-									}
+									symbols_.push_back(std::move(sym));
 								} else if (sym_type == 1 && st_value > 0) {
 									object_symbols_.push_back(std::move(sym));
 								}
@@ -676,6 +671,9 @@ bool elf_hex_highlighter::parse(std::span<const uint8_t> data)
 		std::sort(symbols_.begin(), symbols_.end(), [](const parsed_symbol &a, const parsed_symbol &b) {
 			return a.offset < b.offset;
 		});
+		symbols_.erase(std::unique(symbols_.begin(), symbols_.end(), [](const parsed_symbol &a, const parsed_symbol &b) {
+			return a.offset == b.offset;
+		}), symbols_.end());
 	}
 
 	parsed_successfully_ = true;

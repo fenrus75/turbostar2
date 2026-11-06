@@ -14,7 +14,10 @@
   - Orders entries at the same `address` by `disasm_line_type` (`function_header` < `source_location` < `block_label` < `comment` < `instruction` < `data_byte`) and `sub_order`.
   - Allows synthetic entries (such as `L1:` basic-block labels or DWARF source line transitions) to be appended in any pass with the target instruction's `address` and sorted into place immediately before the instruction via `std::ranges::stable_sort`.
 - **Control-Flow Label Generation (`populate_control_flow_labels`)**:
-  - Identifies intra-range branch targets from `alt_next_address`, assigns sequential `L1`, `L2`, ... labels in ascending address order, records incoming `branch_sources` on target instructions, annotates branching instructions, and inserts `block_label` rows before target instructions.
+  - Identifies intra-range branch targets from `alt_next_address`, assigns sequential `L1`, `L2`, ... labels in ascending address order, records incoming `branch_sources` on target instructions, rewrites branching instructions so `L<N>` is the primary operand (`jz L1 (0x... <+0x...>)`), and inserts `function_header` (`my_func:`) and `block_label` (`L1:`) rows before target instructions.
+- **Batched DWARF Source Anchors with Early Bailout (`populate_source_locations`)**:
+  - Resolves DWARF `file:line` transitions in batches via `turbostar::address_lookup::resolve_addresses`, probing the first 16 instructions and bailing out early if `>= 80%` return `"??"` to avoid wasted work on binaries without debug coverage.
+
 ## Constraints & Security Considerations
 - **Bounded Instruction Bytes**: Caps copied instruction bytes to `std::min(length, 15)` and `buffer.size() - offset` to prevent buffer overreads on truncated inputs.
 - **Logical `indent_depth` Separated from Presentation (`format_markdown_row`)**: `indent_depth` is stored in abstract nesting levels (`0` for function headers and labels, `1` for top-level instructions, `2+` for nested loop/conditional bodies). At formatting time, every line shares the same fixed-width `Address` and `Bytes` columns on the left, while the `Code` column indents by `indent_depth * 2` spaces—aligning function (`my_func:`) and basic-block (`L1:`) labels at depth `0` of the code column and indenting instructions to the right of them.

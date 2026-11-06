@@ -185,9 +185,9 @@ std::string x86_disassemble_tool::execute(agentlib::tool_context &ctx)
 		std::streamsize file_size = file.tellg();
 		file.seekg(0, std::ios::beg);
 
-		if (file_size > 50 * 1024 * 1024) {
-			set_failure(ctx, "File is too large (>50MB).");
-			return "Error: File is too large (>50MB) to read.";
+		if (file_size > static_cast<std::streamsize>(256ULL * 1024 * 1024)) {
+			set_failure(ctx, "File is too large (>256MB).");
+			return "Error: File is too large (>256MB) to read.";
 		}
 
 		std::vector<uint8_t> file_data(static_cast<size_t>(file_size));
@@ -392,8 +392,12 @@ std::string x86_disassemble_tool::execute(agentlib::tool_context &ctx)
 			}
 		}
 
-		// Phase 3: Populate sequential branch target labels (L1, L2, ...), sort lines, and render Markdown output
+		// Phase 3: Populate sequential branch target labels (L1, L2, ...), DWARF source lines, and render output
 		disasm_line::populate_control_flow_labels(lines);
+		if (is_elf && (elf.find_section_by_name(".debug_line") != nullptr ||
+		               elf.find_section_by_name(".zdebug_line") != nullptr)) {
+			disasm_line::populate_source_locations(lines, args_.safe_path);
+		}
 		std::string result;
 		if (resolved_sym) {
 			result += std::format("### Disassembly: `{}` in {} [0x{:X} - 0x{:X}]\n\n",

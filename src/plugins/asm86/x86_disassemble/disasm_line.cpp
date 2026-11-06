@@ -2,8 +2,8 @@
 #include <algorithm>
 #include <format>
 #include <map>
+#include "address_lookup.h"
 #include "hex/elf.h"
-
 #ifdef HAVE_ZYDIS
 #include <Zydis/Zydis.h>
 #endif
@@ -244,6 +244,84 @@ void disasm_line::populate_control_flow_labels(std::vector<disasm_line> &lines)
 	}
 }
 
+void disasm_line::populate_source_locations(std::vector<disasm_line> &lines, std::string_view elf_path)
+{
+	if (lines.empty() || elf_path.empty()) {
+		return;
+	}
+
+	std::ranges::stable_sort(lines);
+
+	std::vector<size_t> inst_indices;
+	inst_indices.reserve(lines.size());
+	for (size_t i = 0; i < lines.size(); ++i) {
+		if (lines[i].is_instruction_or_data()) {
+			inst_indices.push_back(i);
+		}
+	}
+	if (inst_indices.empty()) {
+		return;
+	}
+
+	// For small functions (<= 64 instructions), resolve in a single batch to avoid spawning addr2line twice.
+	// For larger ranges (> 64 instructions), probe the first 16 instructions first and bail out early if >= 80% return "??".
+	constexpr size_t k_single_batch_threshold = 64;
+	constexpr size_t k_first_probe_size = 16;
+	constexpr size_t k_subsequent_batch_size = 512;
+
+	std::vector<disasm_line> source_lines;
+	std::string last_source_loc;
+	size_t cursor = 0;
+
+	while (cursor < inst_indices.size()) {
+		const size_t batch_limit = (cursor == 0 && inst_indices.size() > k_single_batch_threshold)
+		    ? k_first_probe_size
+		    : k_subsequent_batch_size;
+		const size_t count = std::min(batch_limit, inst_indices.size() - cursor);
+
+		std::vector<uintptr_t> batch_addrs;
+		batch_addrs.reserve(count);
+		for (size_t k = 0; k < count; ++k) {
+			batch_addrs.push_back(static_cast<uintptr_t>(lines[inst_indices[cursor + k]].address));
+		}
+
+		auto resolved = turbostar::address_lookup::resolve_addresses(batch_addrs, elf_path);
+		size_t unresolved_count = 0;
+
+		for (size_t k = 0; k < count && k < resolved.size(); ++k) {
+			const auto &res = resolved[k];
+			if (!res.file_path.empty() && res.file_path != "??" && res.line_number > 0) {
+				std::string loc = std::format("{}:{}", res.file_path, res.line_number);
+				auto &inst = lines[inst_indices[cursor + k]];
+				inst.source_location = loc;
+				if (loc != last_source_loc) {
+					last_source_loc = loc;
+					disasm_line src_line = make_source_location(inst.address, inst.file_offset, loc);
+					src_line.has_symbol_context = inst.has_symbol_context;
+					src_line.symbol_name = inst.symbol_name;
+					src_line.symbol_offset = inst.symbol_offset;
+					source_lines.push_back(std::move(src_line));
+				}
+			} else {
+				++unresolved_count;
+			}
+		}
+
+		cursor += count;
+
+		// Early bailout if too many addresses came back as "??" (>= 80% on a probe batch)
+		if (count >= 8 && unresolved_count * 5 >= count * 4) {
+			break;
+		}
+	}
+
+	if (!source_lines.empty()) {
+		lines.insert(lines.end(),
+		             std::make_move_iterator(source_lines.begin()),
+		             std::make_move_iterator(source_lines.end()));
+		std::ranges::stable_sort(lines);
+	}
+}
 std::string disasm_line::format_address_column() const
 {
 	if (!is_instruction_or_data()) {

@@ -113,6 +113,11 @@ class disasm_line
 	// insert function_header and block_label lines before target instructions, and sort deterministically.
 	static void populate_control_flow_labels(std::vector<disasm_line> &lines);
 
+	// Resolve DWARF file:line source anchors for instructions in `lines` in batches via address_lookup,
+	// bailing out early if the probe batch returns mostly "??", and insert source_location comment lines
+	// whenever the source line transitions.
+	static void populate_source_locations(std::vector<disasm_line> &lines, std::string_view elf_path);
+
 	constexpr bool is_instruction_or_data() const noexcept
 	{
 		return type == disasm_line_type::instruction || type == disasm_line_type::data_byte;
