@@ -431,6 +431,54 @@ void disasm_line::populate_source_locations(std::vector<disasm_line> &lines, std
 	}
 }
 
+bool disasm_line::is_noreturn_call_target(std::string_view target_annotation) noexcept
+{
+	while (!target_annotation.empty() && (target_annotation.front() == ' ' || target_annotation.front() == '<')) {
+		target_annotation.remove_prefix(1);
+	}
+	while (!target_annotation.empty() && (target_annotation.back() == ' ' || target_annotation.back() == '>')) {
+		target_annotation.remove_suffix(1);
+	}
+	if (target_annotation.ends_with("@plt")) {
+		target_annotation.remove_suffix(4);
+	}
+	if (target_annotation.starts_with("::")) {
+		target_annotation.remove_prefix(2);
+	}
+	if (target_annotation.starts_with("std::__throw_")) {
+		return true;
+	}
+	constexpr std::array<std::string_view, 21> k_noreturn_symbols = {
+	    "_Unwind_Resume",
+	    "__cxa_throw",
+	    "__cxa_rethrow",
+	    "__cxa_bad_cast",
+	    "__cxa_bad_typeid",
+	    "__cxa_pure_virtual",
+	    "__cxa_deleted_virtual",
+	    "__cxa_call_unexpected",
+	    "__cxa_throw_bad_array_new_length",
+	    "std::terminate",
+	    "std::unexpected",
+	    "abort",
+	    "__assert_fail",
+	    "__assert_perror_fail",
+	    "__stack_chk_fail",
+	    "exit",
+	    "_exit",
+	    "_Exit",
+	    "quick_exit",
+	    "pthread_exit",
+	    "longjmp",
+	};
+	for (std::string_view sym : k_noreturn_symbols) {
+		if (target_annotation == sym) {
+			return true;
+		}
+	}
+	return false;
+}
+
 std::string disasm_line::format_address_column() const
 {
 	if (!is_instruction_or_data()) {
@@ -484,11 +532,13 @@ std::string disasm_line::format_instruction_column(bool brief) const
 	case disasm_line_type::comment:
 		return std::format("# {}", text);
 	case disasm_line_type::instruction:
-	case disasm_line_type::data_byte:
+	case disasm_line_type::data_byte: {
+		std::string noreturn_suffix = (is_call && !next_address.has_value()) ? " # does not return" : "";
 		if (brief && (is_branch || is_call) && target_annotation.starts_with(" (")) {
-			return text + source_comment_suffix;
+			return text + source_comment_suffix + noreturn_suffix;
 		}
-		return text + target_annotation + source_comment_suffix;
+		return text + target_annotation + source_comment_suffix + noreturn_suffix;
+	}
 	}
 	return text;
 }

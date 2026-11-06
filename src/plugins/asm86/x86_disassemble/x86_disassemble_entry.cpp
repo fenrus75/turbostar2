@@ -342,11 +342,7 @@ std::string x86_disassemble_tool::execute(agentlib::tool_context &ctx)
 						if (!line.target_annotation.empty()) {
 							line.target_annotation = format_string_literal_annotation(
 							    line.target_annotation, *target_vaddr, string_literals);
-							if (line.is_call && (line.target_annotation.find("_Unwind_Resume") != std::string::npos ||
-							                     line.target_annotation.find("__cxa_throw") != std::string::npos ||
-							                     line.target_annotation.find("__cxa_rethrow") != std::string::npos ||
-							                     line.target_annotation.find("abort@plt") != std::string::npos ||
-							                     line.target_annotation.find("__assert_fail") != std::string::npos)) {
+							if (line.is_call && disasm_line::is_noreturn_call_target(line.target_annotation)) {
 								line.next_address = std::nullopt;
 							}
 						}

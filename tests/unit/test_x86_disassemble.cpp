@@ -411,6 +411,20 @@ int main(int argc, char **argv)
 			assert(brief_res.find("\n# Function ") != std::string::npos);
 			assert(brief_res.find("  call <::write_u32_le>\n") != std::string::npos);
 		}
+		assert(tools::disasm_line::is_noreturn_call_target(" <_Unwind_Resume@plt>"));
+		assert(tools::disasm_line::is_noreturn_call_target(" <__cxa_throw@plt>"));
+		assert(tools::disasm_line::is_noreturn_call_target(" <std::__throw_length_error>"));
+		assert(!tools::disasm_line::is_noreturn_call_target(" <__cxa_guard_abort@plt>"));
+
+		// Verify a non-returning call emits "# does not return" in both full and brief mode
+		tools::disasm_line call_line = tools::disasm_line::decode_one(
+		    std::vector<uint8_t>{0xE8, 0x09, 0x00, 0x00, 0x00}, 0, 0x401000, "64", "att", true);
+		call_line.target_annotation = " <_Unwind_Resume@plt>";
+		call_line.next_address = std::nullopt;
+		std::vector<tools::disasm_line> nr_lines = {call_line};
+		tools::disasm_line::populate_control_flow_labels(nr_lines);
+		assert(nr_lines[0].format_markdown_row(false).find("call <_Unwind_Resume@plt> (0x40100E) # does not return\n") != std::string::npos);
+		assert(nr_lines[0].format_markdown_row(true) == "  call <_Unwind_Resume@plt> # does not return\n");
 #endif
 	}
 

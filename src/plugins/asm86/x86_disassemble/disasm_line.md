@@ -7,7 +7,7 @@
 - **Instruction Decoding & Control Flow (`decode_one`)**:
   - Wraps Zydis instruction decoding (`ZydisDisassembleATT` / `ZydisDisassembleIntel`) and stores `address`, `file_offset`, `length`, raw `bytes`, and shortened hex instruction text.
   - Populates explicit control-flow edges:
-    - `next_address`: fallthrough instruction address (`std::nullopt` for non-fallthrough terminators such as unconditional `jmp`, `ret`, `ud2`, `hlt`, or non-returning calls).
+     - `next_address`: fallthrough instruction address (`std::nullopt` for non-fallthrough terminators such as unconditional `jmp`, `ret`, `ud2`, `hlt`, or non-returning calls recognized by `is_noreturn_call_target` which render a trailing `# does not return` comment).
     - `alt_next_address`: target virtual address for relative branches and calls (`Jcc`, `JMP`, `LOOP`, `CALL`).
     - `memory_target_address`: target virtual address for `RIP`/`EIP`-relative memory operands.
 - **Line Type Priority & Deterministic Sorting (`disasm_line_type`, `operator<=>`)**:

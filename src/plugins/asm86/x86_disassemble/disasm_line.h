@@ -121,6 +121,10 @@ class disasm_line
 	// "# <file>:<N>" suffix comments to instructions when the source line transitions.
 	static void populate_source_locations(std::vector<disasm_line> &lines, std::string_view elf_path);
 
+	// Returns true if the resolved target annotation refers to a known non-returning C/C++ runtime function
+	// (such as _Unwind_Resume, __cxa_throw, abort, __assert_fail, exit, std::terminate, or std::__throw_*).
+	static bool is_noreturn_call_target(std::string_view target_annotation) noexcept;
+
 	constexpr bool is_instruction_or_data() const noexcept
 	{
 		return type == disasm_line_type::instruction || type == disasm_line_type::data_byte;
