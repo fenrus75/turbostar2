@@ -100,7 +100,30 @@ __attribute__((constructor)) void turboperf_init(void)
 		return;
 	}
 
+	// Skip wrapper shells (bash/sh/dash) launched by command_runner so they pass
+	// TURBOSTAR_PERF_DIR down to the target binary without creating competing sample files.
+	char comm[64] = {0};
+	int comm_fd = open("/proc/self/comm", O_RDONLY);
+	if (comm_fd >= 0) {
+		ssize_t n = read(comm_fd, comm, sizeof(comm) - 1);
+		close(comm_fd);
+		if (n > 0) {
+			for (ssize_t i = 0; i < n; ++i) {
+				if (comm[i] == '\n' || comm[i] == '\r') {
+					comm[i] = '\0';
+					break;
+				}
+			}
+			if (strcmp(comm, "bash") == 0 || strcmp(comm, "sh") == 0 || strcmp(comm, "dash") == 0) {
+				return;
+			}
+		}
+	}
+
 	safe_strcpy(g_perf_dir, env_dir, sizeof(g_perf_dir));
+	// Prevent child processes spawned by the profiled binary (e.g. popen/clangd/git)
+	// from inheriting TURBOSTAR_PERF_DIR and overwriting or competing with the target profile.
+	unsetenv("TURBOSTAR_PERF_DIR");
 	mkdir(g_perf_dir, 0755);
 
 	unsigned long target_freq = 4000;
@@ -432,4 +455,19 @@ __attribute__((destructor)) void turboperf_shutdown(void)
 	close(g_perf_fd);
 	g_perf_fd = -1;
 	g_mmap_base = NULL;
+	g_perf_dir[0] = '\0';
+}
+
+void _exit(int status)
+{
+	turboperf_shutdown();
+	syscall(SYS_exit_group, status);
+	for (;;) {
+		syscall(SYS_exit, status);
+	}
+}
+
+void _Exit(int status)
+{
+	_exit(status);
 }

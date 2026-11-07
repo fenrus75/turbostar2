@@ -962,6 +962,7 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 	}
 
 	agentlib::start_app_result result;
+	static std::atomic<int> next_run_id{1000};
 
 	if (use_debugger) {
 		int port = find_free_port();
@@ -971,7 +972,6 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 		int app_h = (total_h * 2) / 3;
 		int gdb_h = total_h - app_h;
 
-		static std::atomic<int> next_run_id{1000};
 		int app_id = next_run_id.fetch_add(2);
 		int gdb_id = app_id + 1;
 
@@ -1048,7 +1048,7 @@ agentlib::start_app_result editor::start_app(std::string_view args, bool use_deb
 	} else {
 		int cols = COLS > 0 ? COLS : 80;
 		int lines = LINES > 0 ? LINES : 25;
-		int app_id = 1000 + static_cast<int>(windows_.size());
+		int app_id = next_run_id.fetch_add(1);
 		auto tw = std::make_unique<ui::terminal_window>(app_id, 0, 1, cols, lines - 2, "Run Output");
 		tw->set_display_priority(10);
 

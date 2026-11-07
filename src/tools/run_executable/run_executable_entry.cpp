@@ -90,10 +90,10 @@ std::string run_executable_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	std::string run_id_str = std::to_string(res.app_run_id);
-	auto report = turbostar::perf_manager::get_instance().get_profile_for_run(run_id_str);
+	std::string perf_dir = fs_utils::get_project_perf_dir();
+	auto report = turbostar::perf_manager::get_instance().parse_and_resolve(perf_dir, 0, run_id_str, true);
 	if (report.total_samples == 0) {
-		std::string perf_dir = fs_utils::get_project_perf_dir();
-		report = turbostar::perf_manager::get_instance().parse_and_resolve(perf_dir, 0, run_id_str, true);
+		report = turbostar::perf_manager::get_instance().get_profile_for_run(run_id_str);
 	}
 	if (report.total_samples > 0) {
 		output["profile_notification"] = std::format("Performance profile data is available ({} samples collected). Call "

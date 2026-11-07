@@ -59,10 +59,18 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 	}
 
 	if (samples_path.empty() || !fs::exists(samples_path)) {
+		uint64_t best_size = 0;
+		fs::file_time_type best_mtime{};
 		for (const auto &entry : fs::directory_iterator(perf_dir, ec)) {
 			std::string name = entry.path().filename().string();
 			if (name.starts_with("perf_samples_") && name.ends_with(".dat")) {
-				samples_path = entry.path();
+				uint64_t sz = entry.is_regular_file(ec) ? entry.file_size(ec) : 0;
+				auto mtime = entry.last_write_time(ec);
+				if (samples_path.empty() || sz > best_size || (sz == best_size && mtime > best_mtime)) {
+					samples_path = entry.path();
+					best_size = sz;
+					best_mtime = mtime;
+				}
 			}
 		}
 	}
@@ -310,9 +318,13 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 
 	if (cleanup_raw_files) {
 		std::error_code ec;
-		fs::remove(samples_path, ec);
-		if (!maps_path.empty()) {
-			fs::remove(maps_path, ec);
+		for (const auto &entry : fs::directory_iterator(perf_dir, ec)) {
+			std::string name = entry.path().filename().string();
+			if ((name.starts_with("perf_samples_") && name.ends_with(".dat")) ||
+			    (name.starts_with("perf_maps_") && name.ends_with(".txt")) ||
+			    (name.starts_with("perf_debug_") && name.ends_with(".txt"))) {
+				fs::remove(entry.path(), ec);
+			}
 		}
 	}
 
