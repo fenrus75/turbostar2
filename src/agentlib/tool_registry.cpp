@@ -287,17 +287,9 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 
 								   tool_context &ctx) const
 {
-	tool_preparation_result res;
 	auto prep_start = std::chrono::steady_clock::now();
-	struct prep_timer_guard {
-		std::chrono::steady_clock::time_point start;
-		uint64_t &out_us;
-		~prep_timer_guard() noexcept
-		{
-			auto end = std::chrono::steady_clock::now();
-			out_us = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
-		}
-	} timer_guard{prep_start, res.prepare_duration_us};
+	tool_preparation_result res = [&]() -> tool_preparation_result {
+		tool_preparation_result res;
 	validator_factory factory;
 	{
 		std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -384,6 +376,11 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 		return res;
 	}
 
+	return res;
+	}();
+	auto prep_end = std::chrono::steady_clock::now();
+	res.prepare_duration_us =
+	    static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(prep_end - prep_start).count());
 	return res;
 }
 

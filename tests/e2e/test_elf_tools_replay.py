@@ -40,7 +40,11 @@ def run_test():
     if "ELF Symbol Table" not in output:
         print("Failed to find ELF Symbol Table tool result in output.")
         sys.exit(1)
-        
+
+    if "=== Tool Execution Timing Summary ===" not in output:
+        print("Failed to find Tool Execution Timing Summary in output.")
+        sys.exit(1)
+
     print("Agent ELF Tools Replay E2E test passed successfully.")
 
 if __name__ == '__main__':
