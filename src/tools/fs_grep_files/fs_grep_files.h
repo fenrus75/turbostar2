@@ -1,15 +1,15 @@
 #pragma once
 
-#include <string>
-#include <vector>
-#include <optional>
 #include <memory>
-#include "pcre2_regex.h"
-#include "../../agentlib/llm_tool.h"
-#include "../../agentlib/tool_validator.h"
-#include "../../agentlib/interactions/tool_interaction.h"
-
+#include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
+#include "agentlib/interactions/tool_interaction.h"
+#include "agentlib/llm_tool.h"
+#include "agentlib/tool_validator.h"
 #include "lsp_manager.h"
+#include "pcre2_regex.h"
 
 namespace tools {
 
@@ -43,10 +43,14 @@ protected:
 
 private:
     fs_grep_files_args args_;
+    bool use_literal_match_{false};
     mutable std::unique_ptr<pcre2_regex> compiled_regex_;
+    mutable std::unique_ptr<pcre2_regex> compiled_multiline_regex_;
     mutable std::unique_ptr<pcre2_regex> compiled_exclude_regex_;
     std::shared_ptr<agentlib::interaction_fs_grep_files> interaction_;
-    
+
+    bool matches_line(std::string_view line) const;
+    bool matches_file_buffer(std::string_view file_view) const;
     std::string escape_markdown(const std::string& text) const;
 };
 

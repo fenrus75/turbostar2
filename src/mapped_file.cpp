@@ -1,6 +1,7 @@
 #include "mapped_file.h"
 #include "event_logger.h"
 #include <algorithm>
+#include <array>
 #include <cerrno>
 #include <condition_variable>
 #include <cstring>
@@ -120,9 +121,6 @@ class mapped_file_cache_manager
 		}
 
 		if (hit_file) {
-			if (populate && !hit_file->is_binary()) {
-				(void)hit_file->lines();
-			}
 			return hit_file;
 		}
 
@@ -499,8 +497,7 @@ mapped_file::mapped_file(mapped_file &&other) noexcept
       mtime_sec_(std::exchange(other.mtime_sec_, 0)),
       mtime_nsec_(std::exchange(other.mtime_nsec_, 0)),
       is_open_(std::exchange(other.is_open_, false)),
-      has_null_byte_(std::exchange(other.has_null_byte_, false)),
-      has_binary_control_byte_(std::exchange(other.has_binary_control_byte_, false)),
+      binary_flags_(other.binary_flags_.exchange(0, std::memory_order_acq_rel)),
       lines_(std::move(other.lines_)),
       lines_ready_(other.lines_ready_.exchange(false, std::memory_order_acq_rel))
 {
@@ -522,8 +519,8 @@ mapped_file &mapped_file::operator=(mapped_file &&other) noexcept
 		mtime_sec_ = std::exchange(other.mtime_sec_, 0);
 		mtime_nsec_ = std::exchange(other.mtime_nsec_, 0);
 		is_open_ = std::exchange(other.is_open_, false);
-		has_null_byte_ = std::exchange(other.has_null_byte_, false);
-		has_binary_control_byte_ = std::exchange(other.has_binary_control_byte_, false);
+		binary_flags_.store(other.binary_flags_.exchange(0, std::memory_order_acq_rel),
+		                    std::memory_order_release);
 		lines_ = std::move(other.lines_);
 		lines_ready_.store(other.lines_ready_.exchange(false, std::memory_order_acq_rel),
 		                   std::memory_order_release);
@@ -674,27 +671,41 @@ bool mapped_file::open(/* untrusted */ std::string_view path, std::string &out_e
 		is_open_ = true;
 	}
 
-	// Inspect the first 4,096 bytes in memory to classify binary vs. text (matching fs_basics.cpp)
-	const size_t check_len = std::min<size_t>(size_, 4096);
-	for (size_t i = 0; i < check_len; ++i) {
-		uint8_t b = data_[i];
-		if (b == 0) {
-			has_null_byte_ = true;
-		} else if ((b < 32 && b != 9 && b != 10 && b != 11 && b != 12 && b != 13 && b != 27) || b == 127) {
-			has_binary_control_byte_ = true;
-		}
-	}
-
-	if (populate && !is_binary(/*treat_null_as_binary=*/true)) {
-		try {
-			build_lines_locked();
-			lines_ready_.store(true, std::memory_order_release);
-		} catch (...) {
-			lines_.clear();
-		}
-	}
-
 	return true;
+}
+
+bool mapped_file::is_binary(bool treat_null_as_binary) const noexcept
+{
+	constexpr uint8_t k_flag_computed = 1;
+	constexpr uint8_t k_flag_has_null = 2;
+	constexpr uint8_t k_flag_has_ctrl = 4;
+
+	uint8_t flags = binary_flags_.load(std::memory_order_acquire);
+	if ((flags & k_flag_computed) == 0) {
+		static constexpr auto k_byte_table = []() constexpr {
+			std::array<uint8_t, 256> t{};
+			t[0] = k_flag_has_null;
+			for (size_t b = 1; b < 32; ++b) {
+				if (b != 9 && b != 10 && b != 11 && b != 12 && b != 13 && b != 27) {
+					t[b] = k_flag_has_ctrl;
+				}
+			}
+			t[127] = k_flag_has_ctrl;
+			return t;
+		}();
+
+		uint8_t acc = k_flag_computed;
+		if (data_ != nullptr && size_ > 0) {
+			const size_t check_len = std::min<size_t>(size_, 4096);
+			for (size_t i = 0; i < check_len; ++i) {
+				acc |= k_byte_table[data_[i]];
+			}
+		}
+		binary_flags_.store(acc, std::memory_order_release);
+		flags = acc;
+	}
+
+	return (flags & k_flag_has_ctrl) != 0 || (treat_null_as_binary && (flags & k_flag_has_null) != 0);
 }
 
 void mapped_file::close() noexcept
@@ -715,8 +726,7 @@ void mapped_file::close() noexcept
 	mtime_sec_ = 0;
 	mtime_nsec_ = 0;
 	is_open_ = false;
-	has_null_byte_ = false;
-	has_binary_control_byte_ = false;
+	binary_flags_.store(0, std::memory_order_release);
 }
 
 void mapped_file::build_lines_locked() const

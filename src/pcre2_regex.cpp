@@ -86,6 +86,28 @@ const std::string &pcre2_regex::error() const noexcept
 	return impl_->error_message;
 }
 
+namespace
+{
+struct thread_local_match_data {
+	pcre2_match_data *data = nullptr;
+	thread_local_match_data() : data(pcre2_match_data_create(1, nullptr)) {}
+	~thread_local_match_data()
+	{
+		if (data) {
+			pcre2_match_data_free(data);
+		}
+	}
+	thread_local_match_data(const thread_local_match_data &) = delete;
+	thread_local_match_data &operator=(const thread_local_match_data &) = delete;
+};
+
+pcre2_match_data *get_tls_match_data()
+{
+	thread_local thread_local_match_data tls;
+	return tls.data;
+}
+} // namespace
+
 bool pcre2_regex::partial_match(/* untrusted */ std::string_view subject) const
 {
 	if (!is_valid()) {
@@ -98,7 +120,7 @@ bool pcre2_regex::partial_match(/* untrusted */ std::string_view subject) const
 		pcre2_set_match_limit(mcontext, impl_->match_limit);
 	}
 
-	pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(impl_->code, nullptr);
+	pcre2_match_data *match_data = get_tls_match_data();
 	int rc = pcre2_match(
 		impl_->code,
 		reinterpret_cast<PCRE2_SPTR>(subject.data()),
@@ -109,7 +131,6 @@ bool pcre2_regex::partial_match(/* untrusted */ std::string_view subject) const
 		mcontext
 	);
 
-	pcre2_match_data_free(match_data);
 	if (mcontext) {
 		pcre2_match_context_free(mcontext);
 	}
@@ -129,7 +150,7 @@ bool pcre2_regex::full_match(/* untrusted */ std::string_view subject) const
 		pcre2_set_match_limit(mcontext, impl_->match_limit);
 	}
 
-	pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(impl_->code, nullptr);
+	pcre2_match_data *match_data = get_tls_match_data();
 	int rc = pcre2_match(
 		impl_->code,
 		reinterpret_cast<PCRE2_SPTR>(subject.data()),
@@ -140,7 +161,6 @@ bool pcre2_regex::full_match(/* untrusted */ std::string_view subject) const
 		mcontext
 	);
 
-	pcre2_match_data_free(match_data);
 	if (mcontext) {
 		pcre2_match_context_free(mcontext);
 	}

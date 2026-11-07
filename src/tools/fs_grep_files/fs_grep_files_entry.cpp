@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <fcntl.h>
 #include <filesystem>
 #include <format>
@@ -7,6 +8,7 @@
 #include <map>
 #include <set>
 #include <sstream>
+#include <strings.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -108,6 +110,92 @@ static bool contains_case_insensitive(const std::string &haystack, const std::st
 	auto it = std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(),
 			      [](char ch1, char ch2) { return std::toupper(ch1) == std::toupper(ch2); });
 	return it != haystack.end();
+}
+
+static bool is_literal_regex_pattern(std::string_view pat) noexcept
+{
+	for (char c : pat) {
+		switch (c) {
+			case '.':
+			case '^':
+			case '$':
+			case '*':
+			case '+':
+			case '?':
+			case '(':
+			case ')':
+			case '[':
+			case ']':
+			case '{':
+			case '}':
+			case '|':
+			case '\\':
+				return false;
+			default:
+				break;
+		}
+	}
+	return true;
+}
+
+static bool is_pure_ascii(std::string_view sv) noexcept
+{
+	for (unsigned char c : sv) {
+		if (c >= 128) {
+			return false;
+		}
+	}
+	return true;
+}
+
+static bool contains_literal_case_insensitive_ascii(std::string_view haystack, std::string_view needle) noexcept
+{
+	if (needle.empty()) {
+		return true;
+	}
+	if (haystack.size() < needle.size()) {
+		return false;
+	}
+	const char first_lo = static_cast<char>(std::tolower(static_cast<unsigned char>(needle[0])));
+	const char first_hi = static_cast<char>(std::toupper(static_cast<unsigned char>(needle[0])));
+	const char *p = haystack.data();
+	const char *limit = haystack.data() + (haystack.size() - needle.size() + 1);
+	const size_t nlen = needle.size();
+
+	if (first_lo == first_hi) {
+		while (p < limit) {
+			const void *found = ::memchr(p, static_cast<unsigned char>(first_lo), static_cast<size_t>(limit - p));
+			if (!found) {
+				return false;
+			}
+			const char *cand = static_cast<const char *>(found);
+			if (nlen == 1 || ::strncasecmp(cand + 1, needle.data() + 1, nlen - 1) == 0) {
+				return true;
+			}
+			p = cand + 1;
+		}
+		return false;
+	}
+
+	while (p < limit) {
+		size_t rem = static_cast<size_t>(limit - p);
+		const char *f_lo = static_cast<const char *>(::memchr(p, static_cast<unsigned char>(first_lo), rem));
+		const char *f_hi = static_cast<const char *>(::memchr(p, static_cast<unsigned char>(first_hi), rem));
+		const char *cand = nullptr;
+		if (f_lo && f_hi) {
+			cand = (f_lo < f_hi) ? f_lo : f_hi;
+		} else {
+			cand = f_lo ? f_lo : f_hi;
+		}
+		if (!cand) {
+			return false;
+		}
+		if (nlen == 1 || ::strncasecmp(cand + 1, needle.data() + 1, nlen - 1) == 0) {
+			return true;
+		}
+		p = cand + 1;
+	}
+	return false;
 }
 
 static bool is_source_extension(std::string_view ext)
@@ -262,6 +350,16 @@ fs_grep_files_tool::fs_grep_files_tool(fs_grep_files_args args) : args_(std::mov
 	std::string final_pattern = args_.is_regex ? args_.pattern : pcre2_regex::quote_meta(args_.pattern);
 	compiled_regex_ = std::make_unique<pcre2_regex>(final_pattern, options);
 
+	use_literal_match_ = !args_.is_regex || is_literal_regex_pattern(args_.pattern);
+	if (use_literal_match_ && args_.case_insensitive && !is_pure_ascii(args_.pattern)) {
+		use_literal_match_ = false;
+	}
+	if (!use_literal_match_ && args_.pattern.find('$') == std::string::npos) {
+		pcre2_regex::compile_options ml_options = options;
+		ml_options.multiline = true;
+		compiled_multiline_regex_ = std::make_unique<pcre2_regex>(final_pattern, ml_options);
+	}
+
 	if (args_.exclude_pattern && !args_.exclude_pattern->empty()) {
 		compiled_exclude_regex_ = std::make_unique<pcre2_regex>(*args_.exclude_pattern, options);
 	}
@@ -271,6 +369,32 @@ fs_grep_files_tool::fs_grep_files_tool(fs_grep_files_args args) : args_(std::mov
 		display_path = *args_.search_path;
 	}
 	interaction_ = std::make_shared<agentlib::interaction_fs_grep_files>(args_.pattern, display_path);
+}
+
+bool fs_grep_files_tool::matches_line(std::string_view line) const
+{
+	if (use_literal_match_) {
+		if (args_.pattern.empty()) {
+			return true;
+		}
+		if (!args_.case_insensitive) {
+			return line.size() >= args_.pattern.size() &&
+			       ::memmem(line.data(), line.size(), args_.pattern.data(), args_.pattern.size()) != nullptr;
+		}
+		return contains_literal_case_insensitive_ascii(line, args_.pattern);
+	}
+	return compiled_regex_->partial_match(line);
+}
+
+bool fs_grep_files_tool::matches_file_buffer(std::string_view file_view) const
+{
+	if (use_literal_match_) {
+		return matches_line(file_view);
+	}
+	if (compiled_multiline_regex_ && compiled_multiline_regex_->is_valid()) {
+		return compiled_multiline_regex_->partial_match(file_view);
+	}
+	return true;
 }
 
 std::string fs_grep_files_tool::escape_markdown(const std::string &text) const
@@ -526,7 +650,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 
 					std::vector<int> match_lines;
 					for (size_t i = 0; i < file_lines.size(); ++i) {
-						if (compiled_regex_->partial_match(file_lines[i])) {
+						if (matches_line(file_lines[i])) {
 							match_lines.push_back(static_cast<int>(i + 1));
 						}
 					}
@@ -547,20 +671,32 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 			if (!mf || mf->size() >= 50 * 1024 * 1024) {
 				return;
 			}
-			if (!args_.include_binary && mf->is_binary(/*treat_null_as_binary=*/true)) {
+
+			// For large files (> 256 KB), check binary classification up front (4 KB check)
+			// before scanning the full buffer. For smaller files, scanning the buffer directly
+			// via SIMD memmem is cheaper than running the 4 KB binary check first, so we defer
+			// the binary check until a match is actually found.
+			constexpr size_t k_small_file_binary_defer_threshold = 256ULL * 1024ULL;
+			if (!args_.include_binary && mf->size() > k_small_file_binary_defer_threshold &&
+			    mf->is_binary(/*treat_null_as_binary=*/true)) {
 				return;
 			}
 
 			files_scanned++;
 			bytes_scanned += mf->size();
-			if (mf->empty()) {
+			if (mf->empty() || !matches_file_buffer(mf->string_view())) {
+				return;
+			}
+
+			if (!args_.include_binary && mf->size() <= k_small_file_binary_defer_threshold &&
+			    mf->is_binary(/*treat_null_as_binary=*/true)) {
 				return;
 			}
 
 			auto all_lines = mf->lines();
 			std::vector<int> match_lines;
 			for (size_t i = 0; i < all_lines.size(); ++i) {
-				if (compiled_regex_->partial_match(all_lines[i])) {
+				if (matches_line(all_lines[i])) {
 					match_lines.push_back(static_cast<int>(i + 1));
 				}
 			}
@@ -614,14 +750,18 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 					continue;
 				}
 
-				std::string content = std::string((*handle)->view());
-				if (!args_.include_binary && fs_utils::is_binary_buffer(content, /*treat_null_as_binary=*/true)) {
+				std::string_view vfs_view = (*handle)->view();
+				if (!args_.include_binary && fs_utils::is_binary_buffer(vfs_view, /*treat_null_as_binary=*/true)) {
 					continue;
 				}
 
 				files_scanned++;
-				bytes_scanned += content.size();
+				bytes_scanned += vfs_view.size();
+				if (vfs_view.empty() || !matches_file_buffer(vfs_view)) {
+					continue;
+				}
 
+				std::string content(vfs_view);
 				std::vector<std::string> file_lines;
 				std::string line;
 				std::istringstream iss(content);
@@ -634,7 +774,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 
 				std::vector<int> match_lines;
 				for (size_t i = 0; i < file_lines.size(); ++i) {
-					if (compiled_regex_->partial_match(file_lines[i])) {
+					if (matches_line(file_lines[i])) {
 						match_lines.push_back(static_cast<int>(i + 1));
 					}
 				}

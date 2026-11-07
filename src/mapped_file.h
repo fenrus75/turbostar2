@@ -82,11 +82,8 @@ class mapped_file
 	[[nodiscard]] constexpr const uint8_t *data() const noexcept { return data_; }
 
 	// Returns true if the first 4,096 bytes contain binary control characters (or NUL bytes when
-	// `treat_null_as_binary` is true). Computed in-memory with zero extra syscalls.
-	[[nodiscard]] constexpr bool is_binary(bool treat_null_as_binary = true) const noexcept
-	{
-		return has_binary_control_byte_ || (treat_null_as_binary && has_null_byte_);
-	}
+	// `treat_null_as_binary` is true). Lazily computed once in-memory on first call with zero syscalls.
+	[[nodiscard]] bool is_binary(bool treat_null_as_binary = true) const noexcept;
 
 	[[nodiscard]] constexpr uint8_t operator[](size_t index) const noexcept { return data_[index]; }
 
@@ -153,8 +150,7 @@ class mapped_file
 	time_t mtime_sec_{0};
 	long mtime_nsec_{0};
 	bool is_open_{false};
-	bool has_null_byte_{false};
-	bool has_binary_control_byte_{false};
+	mutable std::atomic<uint8_t> binary_flags_{0};
 
 	/*
 	 * Protects lazy initialization of `lines_` and `lines_ready_`.
