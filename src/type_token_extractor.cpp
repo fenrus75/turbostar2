@@ -10,12 +10,35 @@ std::vector<source_token> type_token_extractor::extract_candidates(std::span<con
 	return languages::cpp::type_token_extractor::extract_candidates(lines, start_line);
 }
 
+std::vector<source_token> type_token_extractor::extract_candidates(std::span<const std::string_view> lines, int start_line)
+{
+	return languages::cpp::type_token_extractor::extract_candidates(lines, start_line);
+}
+
 std::vector<source_token> type_token_extractor::extract_candidates(std::string_view path, std::span<const std::string> lines, int start_line)
 {
 	if (!languages::cpp::supports_file(path)) {
 		return {};
 	}
 	return languages::cpp::type_token_extractor::extract_candidates(lines, start_line);
+}
+
+std::vector<source_token> type_token_extractor::extract_candidates(
+    std::string_view path, std::span<const std::string_view> lines, int start_line)
+{
+	if (!languages::cpp::supports_file(path)) {
+		return {};
+	}
+	return languages::cpp::type_token_extractor::extract_candidates(lines, start_line);
+}
+
+std::vector<source_token> type_token_extractor::extract_candidates_from_source(
+    std::string_view path, std::string_view source, int start_line)
+{
+	if (!languages::cpp::supports_file(path)) {
+		return {};
+	}
+	return languages::cpp::type_token_extractor::extract_candidates_from_source(source, start_line);
 }
 
 } // namespace tools

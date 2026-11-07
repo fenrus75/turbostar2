@@ -135,4 +135,19 @@ std::vector<source_token> type_token_extractor::extract_candidates(std::span<con
 	return extract_candidates_from_source(source, start_line);
 }
 
+std::vector<source_token> type_token_extractor::extract_candidates(std::span<const std::string_view> lines, int start_line)
+{
+	std::string source;
+	size_t total_size = 0;
+	for (std::string_view l : lines) {
+		total_size += l.size() + 1;
+	}
+	source.reserve(total_size);
+	for (std::string_view l : lines) {
+		source.append(l);
+		source.push_back('\n');
+	}
+	return extract_candidates_from_source(source, start_line);
+}
+
 } // namespace languages::cpp

@@ -1,10 +1,12 @@
 #include <algorithm>
+#include <charconv>
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
 #include <format>
 #include <fstream>
-#include <sstream>
+#include <iterator>
+#include <span>
 #include <string_view>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -28,10 +30,10 @@ namespace tools
 namespace
 {
 
-size_t count_max_consecutive_backticks(const std::vector<std::string> &lines)
+size_t count_max_consecutive_backticks(std::span<const std::string_view> lines)
 {
 	size_t max_count = 0;
-	for (const auto &line : lines) {
+	for (std::string_view line : lines) {
 		size_t current_count = 0;
 		for (char c : line) {
 			if (c == '`') {
@@ -45,7 +47,7 @@ size_t count_max_consecutive_backticks(const std::vector<std::string> &lines)
 	return max_count;
 }
 
-int determine_adjusted_end_line(int start, int requested_end, const std::vector<std::string> &lines, const std::string &path,
+int determine_adjusted_end_line(int start, int requested_end, std::span<const std::string_view> lines, const std::string &path,
 				agentlib::tool_context &ctx)
 {
 	int total_lines_read = static_cast<int>(lines.size());
@@ -148,7 +150,8 @@ file_read_result read_from_vfs(agentlib::virtual_file_system *vfs, const std::st
 		return result;
 	}
 
-	std::string_view view = view_opt.value()->view();
+	result.vfs_backing = std::move(*view_opt);
+	std::string_view view = result.vfs_backing->view();
 
 	// Calculate overall line count including any trailing content without a trailing newline.
 	result.total_file_lines = std::count(view.begin(), view.end(), '\n');
@@ -177,7 +180,7 @@ file_read_result read_from_vfs(agentlib::virtual_file_system *vfs, const std::st
 		    (end_pos == std::string_view::npos) ? view.substr(start_pos) : view.substr(start_pos, end_pos - start_pos);
 
 		if (current_line >= start && current_line <= end) {
-			result.lines.emplace_back(line);
+			result.lines.push_back(line);
 		} else if (current_line > end) {
 			break;
 		}
@@ -214,11 +217,14 @@ file_read_result read_from_document(agentlib::document_snapshot *doc, int start,
 	}
 
 	if (end_idx >= start_idx) {
-		result.lines.reserve(end_idx - start_idx + 1);
+		size_t count = static_cast<size_t>(end_idx - start_idx + 1);
+		result.owned_lines.reserve(count);
+		result.lines.reserve(count);
 	}
 
 	for (int i = start_idx; i <= end_idx; ++i) {
-		result.lines.emplace_back(doc->get_line_text(i));
+		result.owned_lines.emplace_back(doc->get_line_text(i));
+		result.lines.emplace_back(result.owned_lines.back());
 	}
 
 	result.success = true;
@@ -228,46 +234,48 @@ file_read_result read_from_document(agentlib::document_snapshot *doc, int start,
 file_read_result read_from_disk(const std::string &path, const std::string &requested_path, int start, int end, std::optional<int> tail)
 {
 	file_read_result result;
-	struct stat sb;
-	if (stat(path.c_str(), &sb) == -1) {
-		result.success = false;
-		if (errno == ENOENT) {
-			std::string alt = fs_utils::filename_suggest_alternative(requested_path);
-			if (!alt.empty()) {
-				result.error_message = std::format("Error: File does not exist: {}. Did you mean '{}'?", path, alt);
-			} else {
-				result.error_message = "Error: File does not exist: " + path;
-			}
-		} else {
-			result.error_message = "Error: File cannot be accessed (" + std::string(strerror(errno)) + "): " + path;
-		}
-		return result;
-	}
-
-	if (S_ISDIR(sb.st_mode)) {
-		result.success = false;
-		result.error_message = "Error: Path is a directory, not a regular file: " + path;
-		return result;
-	}
-
-	if (!S_ISREG(sb.st_mode)) {
-		result.success = false;
-		result.error_message = "Error: File is not a regular file (e.g. FIFO/device): " + path;
-		return result;
-	}
-
-	// Safety check to avoid loading extremely large files (e.g. logs/databases) that could deplete RAM.
-	if (sb.st_size > 50 * 1024 * 1024) {
-		result.success = false;
-		result.error_message = "Error: File is too large (>50MB) to read directly.";
-		return result;
-	}
-
 	std::string map_err;
 	auto mf = mapped_file::get_cached(path, map_err, /*populate=*/true);
 	if (!mf) {
 		result.success = false;
+		struct stat sb;
+		if (stat(path.c_str(), &sb) == -1) {
+			if (errno == ENOENT) {
+				std::string alt = fs_utils::filename_suggest_alternative(requested_path);
+				if (!alt.empty()) {
+					result.error_message = std::format("Error: File does not exist: {}. Did you mean '{}'?", path, alt);
+				} else {
+					result.error_message = std::format("Error: File does not exist: {}", path);
+				}
+			} else {
+				result.error_message = std::format("Error: File cannot be accessed ({}): {}", strerror(errno), path);
+			}
+			return result;
+		}
+
+		if (S_ISDIR(sb.st_mode)) {
+			result.error_message = std::format("Error: Path is a directory, not a regular file: {}", path);
+			return result;
+		}
+
+		if (!S_ISREG(sb.st_mode)) {
+			result.error_message = std::format("Error: File is not a regular file (e.g. FIFO/device): {}", path);
+			return result;
+		}
+
+		if (sb.st_size > 50 * 1024 * 1024) {
+			result.error_message = "Error: File is too large (>50MB) to read directly.";
+			return result;
+		}
+
 		result.error_message = "Error: Could not open file for reading.";
+		return result;
+	}
+
+	// Safety check to avoid loading extremely large files (e.g. logs/databases) that could deplete RAM.
+	if (mf->size() > 50 * 1024 * 1024) {
+		result.success = false;
+		result.error_message = "Error: File is too large (>50MB) to read directly.";
 		return result;
 	}
 
@@ -277,6 +285,10 @@ file_read_result read_from_disk(const std::string &path, const std::string &requ
 		result.error_message = "Error: File appears to be binary. Cannot read text lines.";
 		return result;
 	}
+
+	result.mapped_backing = mf;
+	const bool clean_prefix = mf->has_clean_text_prefix();
+	const char *file_base = reinterpret_cast<const char *>(mf->data());
 
 	auto all_lines = mf->lines();
 	result.total_file_lines = all_lines.size();
@@ -295,10 +307,38 @@ file_read_result read_from_disk(const std::string &path, const std::string &requ
 
 		for (size_t i = first_idx; i < last_idx; ++i) {
 			std::string_view raw_line = all_lines[i];
+			// Fast path: if the first 4,096 bytes of the file were already verified clean during
+			// `is_binary()` and this line ends within the first 4,096 bytes, no byte scan or copy is needed.
+			if (clean_prefix && file_base != nullptr &&
+			    static_cast<size_t>((raw_line.data() + raw_line.size()) - file_base) <= 4096) {
+				result.lines.push_back(raw_line);
+				continue;
+			}
+
 			bool truncated = false;
 			if (raw_line.size() > 4096) {
 				raw_line = raw_line.substr(0, 4096);
 				truncated = true;
+			}
+
+			bool needs_sanitize = truncated;
+			if (!needs_sanitize) {
+				for (unsigned char c : raw_line) {
+					if ((c < 32 && c != '\t') || c == 127) {
+						needs_sanitize = true;
+						break;
+					}
+				}
+			}
+
+			if (!needs_sanitize) {
+				result.lines.push_back(raw_line);
+				continue;
+			}
+
+			// Reserve owned_lines up front on the first dirty/truncated line so earlier string_views never dangle.
+			if (result.owned_lines.empty()) {
+				result.owned_lines.reserve(last_idx - first_idx);
 			}
 
 			// Sanitize ANSI escapes and control characters
@@ -327,7 +367,8 @@ file_read_result read_from_disk(const std::string &path, const std::string &requ
 				clean_line += "... (line truncated)";
 			}
 
-			result.lines.emplace_back(std::move(clean_line));
+			result.owned_lines.emplace_back(std::move(clean_line));
+			result.lines.emplace_back(result.owned_lines.back());
 		}
 	}
 
@@ -463,6 +504,14 @@ file_read_result read_file_lines(const std::string &safe_path, const std::string
 		read_res.lines.resize(keep_count);
 	}
 
+	if (!read_res.lines.empty() && read_res.owned_lines.empty() && (read_res.mapped_backing || read_res.vfs_backing)) {
+		const char *begin_ptr = read_res.lines.front().data();
+		const char *end_ptr = read_res.lines.back().data() + read_res.lines.back().size();
+		if (begin_ptr != nullptr && end_ptr >= begin_ptr) {
+			read_res.raw_range_view = std::string_view(begin_ptr, static_cast<size_t>(end_ptr - begin_ptr));
+		}
+	}
+
 	read_res.start_line = start;
 	read_res.end_line = adjusted_end;
 	return read_res;
@@ -483,16 +532,26 @@ std::string format_file_lines_markdown(const std::string &requested_path, const 
 	std::string fence(fence_len, '`');
 	std::string lang = mime::get_language_from_extension(requested_path);
 
-	std::stringstream ss;
-	ss << std::format("Code for lines {} - {} of {} (total {} lines):\n{}{}\n", read_res.start_line, read_res.end_line, requested_path,
-			  read_res.total_file_lines, fence, lang);
+	size_t content_est = !read_res.raw_range_view.empty() ? read_res.raw_range_view.size() : (read_res.lines.size() * 64);
+	std::string out;
+	out.reserve(128 + requested_path.size() + content_est + read_res.lines.size() * 10);
+	std::format_to(std::back_inserter(out), "Code for lines {} - {} of {} (total {} lines):\n{}{}\n", read_res.start_line,
+		       read_res.end_line, requested_path, read_res.total_file_lines, fence, lang);
+
+	char num_buf[16];
 	int current_line = read_res.start_line;
-	for (const auto &line : read_res.lines) {
-		ss << std::format("{}: {}\n", current_line, line);
+	for (std::string_view line : read_res.lines) {
+		auto [ptr, ec] = std::to_chars(num_buf, num_buf + sizeof(num_buf) - 2, current_line);
+		ptr[0] = ':';
+		ptr[1] = ' ';
+		out.append(num_buf, static_cast<size_t>((ptr - num_buf) + 2));
+		out.append(line);
+		out.push_back('\n');
 		current_line++;
 	}
-	ss << std::format("{}\n", fence);
-	return ss.str();
+	out.append(fence);
+	out.push_back('\n');
+	return out;
 }
 
 std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
@@ -507,7 +566,11 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 	// Early harvest: extract candidate type tokens from read range and dispatch async LSP queries
 	std::vector<source_token> candidate_types;
 	if (read_res.success && !read_res.lines.empty()) {
-		candidate_types = type_token_extractor::extract_candidates(args_.safe_path, read_res.lines, start);
+		if (!read_res.raw_range_view.empty()) {
+			candidate_types = type_token_extractor::extract_candidates_from_source(args_.safe_path, read_res.raw_range_view, start);
+		} else {
+			candidate_types = type_token_extractor::extract_candidates(args_.safe_path, read_res.lines, start);
+		}
 		std::string cand_names;
 		for (const auto &cand : candidate_types) {
 			if (!cand_names.empty()) {
@@ -542,8 +605,7 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 			custom_interaction->set_status(interaction_fs_read_lines::status::failure);
 		}
 	} else {
-		std::stringstream ss;
-		ss << format_file_lines_markdown(args_.requested_path, read_res);
+		result_text = format_file_lines_markdown(args_.requested_path, read_res);
 
 		// Codemap integration rules:
 		// Rule 1: If read_res reads whole implementation file (start == 1 && adjusted_end >= read_res.total_file_lines), skip
@@ -558,10 +620,11 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		if (!is_header && !read_whole_file) {
-			std::string class_preview =
-			    extract_class_context_preview(args_.safe_path, start, adjusted_end, read_res.lines, ctx);
+			std::string class_preview = extract_class_context_preview(args_.safe_path, start, adjusted_end, read_res.lines, ctx,
+										  read_res.raw_range_view);
 			if (!class_preview.empty()) {
-				ss << "\n" << class_preview;
+				result_text.push_back('\n');
+				result_text.append(class_preview);
 			}
 		}
 
@@ -577,9 +640,10 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 					event_logger::get_instance().log(std::format(
 					    "fs_read_lines: path='{}', range={}-{}, codemap generated {} symbols across sections",
 					    args_.safe_path, start, adjusted_end, selection.selected_symbols.size()));
-					ss << "\n"
-					   << format_codemap_table(args_.requested_path, selection.selected_symbols, /*total_file_lines=*/0,
-								   selection.total_symbols, selection.omitted_count, &ctx);
+					result_text.push_back('\n');
+					result_text.append(format_codemap_table(args_.requested_path, selection.selected_symbols,
+										/*total_file_lines=*/0, selection.total_symbols,
+										selection.omitted_count, &ctx));
 				}
 			}
 		}
@@ -594,10 +658,10 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 											    /*max_items=*/10);
 					if (!selection.selected_symbols.empty()) {
 						targets_surfaced += selection.selected_symbols.size();
-						ss << "\n"
-						   << format_codemap_table(ip.filename().string(), selection.selected_symbols,
-									   /*total_file_lines=*/0, selection.total_symbols,
-									   selection.omitted_count, &ctx);
+						result_text.push_back('\n');
+						result_text.append(format_codemap_table(ip.filename().string(), selection.selected_symbols,
+											/*total_file_lines=*/0, selection.total_symbols,
+											selection.omitted_count, &ctx));
 					}
 				}
 			}
@@ -645,7 +709,7 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 
 		if (!resolved_types.empty()) {
 			targets_surfaced += resolved_types.size();
-			ss << type_definition_cache::format_type_definition_table(resolved_types);
+			result_text.append(type_definition_cache::format_type_definition_table(resolved_types));
 			for (const auto &t : resolved_types) {
 				ctx.reported_type_definitions.insert(t.type_name);
 			}
@@ -655,15 +719,15 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 			auto now = std::chrono::steady_clock::now();
 			if (ctx.last_batch_read_tip_time.time_since_epoch().count() == 0 ||
 			    now - ctx.last_batch_read_tip_time >= std::chrono::minutes(5)) {
-				ss << std::format(
-					"\n*Tip: Fetch multiple symbols, line ranges, or class contexts from above in one turn using "
-					"fs_batch_read({}=[...]).*\n",
-					utf8::format_param_name("items"));
+				std::format_to(
+				    std::back_inserter(result_text),
+				    "\n*Tip: Fetch multiple symbols, line ranges, or class contexts from above in one turn using "
+				    "fs_batch_read({}=[...]).*\n",
+				    utf8::format_param_name("items"));
 				ctx.last_batch_read_tip_time = now;
 			}
 		}
 
-		result_text = ss.str();
 		if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_read_lines>(interaction_)) {
 			custom_interaction->set_status(interaction_fs_read_lines::status::success);
 		}

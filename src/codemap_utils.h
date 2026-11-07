@@ -1,6 +1,8 @@
 #pragma once
 
+#include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 #include "agentlib/tool_context.h"
 #include "lsp_manager.h"
@@ -141,7 +143,8 @@ bool extract_class_summary(const std::string &file_path, int line, int col,
 
 // Extract mini class definition preview (referenced member variables and called member methods)
 std::string extract_class_context_preview(const std::string &cpp_path, int start_line, int end_line,
-					  const std::vector<std::string> &read_lines, agentlib::tool_context &ctx);
+					  std::span<const std::string_view> read_lines, agentlib::tool_context &ctx,
+					  std::string_view raw_range_view = {});
 
 // Find the innermost symbol enclosing line_number in a list of codemap symbols
 const codemap_symbol_info *find_enclosing_symbol(const std::vector<codemap_symbol_info> &symbols, int line_number);

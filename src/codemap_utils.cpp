@@ -1571,7 +1571,8 @@ bool extract_class_summary(const std::string &file_path, int line, int col,
 }
 
 std::string extract_class_context_preview(const std::string &cpp_path, int start_line, int end_line,
-					  const std::vector<std::string> &read_lines, agentlib::tool_context &ctx)
+					  std::span<const std::string_view> read_lines, agentlib::tool_context &ctx,
+					  std::string_view raw_range_view)
 {
 	std::filesystem::path ip(cpp_path);
 	std::string ext = utf8::to_lower(ip.extension().string());
@@ -1611,7 +1612,7 @@ std::string extract_class_context_preview(const std::string &cpp_path, int start
 	}
 
 	if (simple_class_name.empty() || method_name.empty()) {
-		for (const auto &line : read_lines) {
+		for (std::string_view line : read_lines) {
 			if (auto m = ctre::search<R"(([A-Za-z_][A-Za-z0-9_]*)::([A-Za-z_][A-Za-z0-9_]*))">(line)) {
 				auto c_name = m.get<1>().to_view();
 				auto m_name = m.get<2>().to_view();
@@ -1639,10 +1640,11 @@ std::string extract_class_context_preview(const std::string &cpp_path, int start
 	std::string header_path;
 	int lsp_line = -1;
 	int lsp_col = -1;
+	std::string class_prefix = std::format("{}::", simple_class_name);
 
 	for (size_t i = 0; i < read_lines.size(); ++i) {
-		size_t pos = read_lines[i].find(simple_class_name + "::");
-		if (pos != std::string::npos) {
+		size_t pos = read_lines[i].find(class_prefix);
+		if (pos != std::string_view::npos) {
 			lsp_line = (start_line + static_cast<int>(i)) - 1;
 			lsp_col = static_cast<int>(pos);
 			break;
@@ -1666,7 +1668,7 @@ std::string extract_class_context_preview(const std::string &cpp_path, int start
 				}
 			}
 		}
-		size_t pos = line_content.find(simple_class_name + "::");
+		size_t pos = line_content.find(class_prefix);
 		if (pos != std::string::npos) {
 			lsp_line = enclosing->start_line - 1;
 			lsp_col = static_cast<int>(pos);
@@ -1698,10 +1700,19 @@ std::string extract_class_context_preview(const std::string &cpp_path, int start
 		return "";
 	}
 
-	std::string combined_read_text;
-	for (const auto &l : read_lines) {
-		combined_read_text += l;
-		combined_read_text += "\n";
+	std::string combined_read_text_buf;
+	std::string_view combined_read_view = raw_range_view;
+	if (combined_read_view.empty()) {
+		size_t total_len = 0;
+		for (std::string_view l : read_lines) {
+			total_len += l.size() + 1;
+		}
+		combined_read_text_buf.reserve(total_len);
+		for (std::string_view l : read_lines) {
+			combined_read_text_buf.append(l);
+			combined_read_text_buf.push_back('\n');
+		}
+		combined_read_view = combined_read_text_buf;
 	}
 
 	std::vector<class_member_info> used_fields;
@@ -1710,7 +1721,7 @@ std::string extract_class_context_preview(const std::string &cpp_path, int start
 	for (const auto &f : summary.fields) {
 		if (used_fields.size() >= 10)
 			break;
-		if (contains_identifier(combined_read_text, f.name)) {
+		if (contains_identifier(combined_read_view, f.name)) {
 			used_fields.push_back(f);
 		}
 	}
@@ -1724,7 +1735,7 @@ std::string extract_class_context_preview(const std::string &cpp_path, int start
 			continue;
 		}
 
-		if (contains_identifier(combined_read_text, m.name)) {
+		if (contains_identifier(combined_read_view, m.name)) {
 			used_methods.push_back(m);
 		}
 	}

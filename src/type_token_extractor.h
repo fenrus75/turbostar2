@@ -30,6 +30,7 @@ class type_token_extractor
 	 * @return List of candidate tokens with line and column positions.
 	 */
 	static std::vector<source_token> extract_candidates(std::span<const std::string> lines, int start_line);
+	static std::vector<source_token> extract_candidates(std::span<const std::string_view> lines, int start_line);
 
 	/**
 	 * @brief Extract candidate type identifiers when the file type is supported.
@@ -39,6 +40,8 @@ class type_token_extractor
 	 * @return List of candidate tokens, or empty vector if the file language is unsupported.
 	 */
 	static std::vector<source_token> extract_candidates(std::string_view path, std::span<const std::string> lines, int start_line);
+	static std::vector<source_token> extract_candidates(std::string_view path, std::span<const std::string_view> lines, int start_line);
+	static std::vector<source_token> extract_candidates_from_source(std::string_view path, std::string_view source, int start_line);
 };
 
 } // namespace tools

@@ -85,6 +85,11 @@ class mapped_file
 	// `treat_null_as_binary` is true). Lazily computed once in-memory on first call with zero syscalls.
 	[[nodiscard]] bool is_binary(bool treat_null_as_binary = true) const noexcept;
 
+	// Returns true if the first 4,096 bytes contain no NUL bytes, binary control characters, DEL (127),
+	// CR/VT/FF (11, 12, 13), or ESC (27) characters, meaning lines within the first 4,096 bytes require
+	// no control-character or ANSI-escape sanitization.
+	[[nodiscard]] bool has_clean_text_prefix() const noexcept;
+
 	[[nodiscard]] constexpr uint8_t operator[](size_t index) const noexcept { return data_[index]; }
 
 	[[nodiscard]] constexpr std::span<const uint8_t> bytes() const & noexcept { return {data_, size_}; }

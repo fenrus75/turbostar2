@@ -1,12 +1,17 @@
 #pragma once
+#include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 #include "agentlib/llm_tool.h"
+
+class mapped_file;
 
 namespace agentlib
 {
 class document_snapshot;
+class vfs_content_buffer;
 class virtual_file_system;
 struct tool_context;
 } // namespace agentlib
@@ -26,7 +31,11 @@ struct fs_read_lines_args {
 struct file_read_result {
 	bool success = false;
 	std::string error_message;
-	std::vector<std::string> lines;
+	std::shared_ptr<const mapped_file> mapped_backing;
+	std::shared_ptr<const agentlib::vfs_content_buffer> vfs_backing;
+	std::vector<std::string> owned_lines;
+	std::vector<std::string_view> lines;
+	std::string_view raw_range_view;
 	size_t total_file_lines = 0;
 	int start_line = 1;
 	int end_line = 1;

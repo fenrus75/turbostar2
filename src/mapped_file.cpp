@@ -808,6 +808,7 @@ bool mapped_file::is_binary(bool treat_null_as_binary) const noexcept
 	constexpr uint8_t k_flag_computed = 1;
 	constexpr uint8_t k_flag_has_null = 2;
 	constexpr uint8_t k_flag_has_ctrl = 4;
+	constexpr uint8_t k_flag_has_ansi_or_ctrl = 8;
 
 	uint8_t flags = binary_flags_.load(std::memory_order_acquire);
 	if ((flags & k_flag_computed) == 0) {
@@ -815,7 +816,9 @@ bool mapped_file::is_binary(bool treat_null_as_binary) const noexcept
 			std::array<uint8_t, 256> t{};
 			t[0] = k_flag_has_null;
 			for (size_t b = 1; b < 32; ++b) {
-				if (b != 9 && b != 10 && b != 11 && b != 12 && b != 13 && b != 27) {
+				if (b == 11 || b == 12 || b == 13 || b == 27) {
+					t[b] = k_flag_has_ansi_or_ctrl;
+				} else if (b != 9 && b != 10) {
 					t[b] = k_flag_has_ctrl;
 				}
 			}
@@ -835,6 +838,19 @@ bool mapped_file::is_binary(bool treat_null_as_binary) const noexcept
 	}
 
 	return (flags & k_flag_has_ctrl) != 0 || (treat_null_as_binary && (flags & k_flag_has_null) != 0);
+}
+
+bool mapped_file::has_clean_text_prefix() const noexcept
+{
+	constexpr uint8_t k_flag_computed = 1;
+	constexpr uint8_t k_flag_dirty_mask = 2 | 4 | 8;
+
+	uint8_t flags = binary_flags_.load(std::memory_order_acquire);
+	if ((flags & k_flag_computed) == 0) {
+		(void)is_binary(true);
+		flags = binary_flags_.load(std::memory_order_acquire);
+	}
+	return (flags & k_flag_dirty_mask) == 0;
 }
 
 void mapped_file::close() noexcept

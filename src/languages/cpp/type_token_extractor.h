@@ -28,6 +28,7 @@ class type_token_extractor
 	 * @return List of candidate tokens with line and column positions.
 	 */
 	static std::vector<source_token> extract_candidates(std::span<const std::string> lines, int start_line);
+	static std::vector<source_token> extract_candidates(std::span<const std::string_view> lines, int start_line);
 
 	/**
 	 * @brief Extract candidate type identifiers from contiguous C/C++ source text.

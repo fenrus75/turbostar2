@@ -59,7 +59,8 @@ std::string fs_batch_read_tool::execute_class_context(const batch_read_item &ite
 		return read_res.error_message;
 	}
 
-	std::string preview = extract_class_context_preview(item.safe_path, read_res.start_line, read_res.end_line, read_res.lines, ctx);
+	std::string preview = extract_class_context_preview(item.safe_path, read_res.start_line, read_res.end_line, read_res.lines, ctx,
+							    read_res.raw_range_view);
 	if (!preview.empty()) {
 		return preview;
 	}
