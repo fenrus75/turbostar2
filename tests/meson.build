@@ -1078,30 +1078,6 @@ test_clear_all_errors = executable('test_clear_all_errors',
   include_directories: inc)
 test('unit_test_clear_all_errors', test_clear_all_errors, suite: 'agent')
 
-test_code_get_definition = executable('test_code_get_definition',
-  ['unit/test_code_get_definition.cpp',
-   '../src/tools/code_get_definition/code_get_definition_entry.cpp',
-   '../src/tools/code_get_definition/code_get_definition_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, sqlite3_dep],
-  include_directories: inc)
-test('unit_test_code_get_definition', test_code_get_definition, suite: 'agent')
-
-test_code_get_references = executable('test_code_get_references',
-  ['unit/test_code_get_references.cpp',
-   '../src/tools/code_get_references/code_get_references_entry.cpp',
-   '../src/tools/code_get_references/code_get_references_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, sqlite3_dep],
-  include_directories: inc)
-test('unit_test_code_get_references', test_code_get_references, suite: 'agent')
-
-test_code_get_scope = executable('test_code_get_scope',
-  ['unit/test_code_get_scope.cpp',
-   '../src/tools/code_get_scope/code_get_scope_entry.cpp',
-   '../src/tools/code_get_scope/code_get_scope_security.cpp'],
-  dependencies : [agent_dep, core_dep, httplib_dep, nlohmann_json_dep, thread_dep, lsp_dep, sqlite3_dep],
-  include_directories: inc)
-test('unit_test_code_get_scope', test_code_get_scope, suite: 'agent')
-
 test_crashdump_get_info = executable('test_crashdump_get_info',
   ['unit/test_crashdump_get_info.cpp',
    '../src/tools/crashdump_get_info/crashdump_get_info_entry.cpp',
@@ -1598,7 +1574,6 @@ live_tool_tests = [
   { 'tool': 'git_status',          'prompt': 'Please use git_status to check repository status',                    'expect': '' },
   { 'tool': 'git_diff_unstaged',   'prompt': 'Please use git_diff_unstaged to show unstaged git changes',          'expect': '' },
   { 'tool': 'git_blame',           'prompt': 'Please use git_blame to view blame annotations for meson.build',      'expect': 'meson.build' },
-  { 'tool': 'code_get_definition', 'prompt': 'Please use code_get_definition to locate main in src/main.cpp',       'expect': 'main' },
   { 'tool': 'list_subagents',      'prompt': 'Please use list_subagents to list active subagents',                  'expect': '' },
 ]
 

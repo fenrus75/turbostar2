@@ -270,28 +270,7 @@ When running as an MCP server (`turbomcp`), `tools/list` can advertise parameter
 
 ## 5. Semantic Code Analysis (LSP)
 
-These tools provide semantic understanding of code by leveraging the Language Server Protocol (LSP). They are available for supported languages (currently C++ and Python).
-
-### `code_get_scope`
-*   **Description:** Returns the semantic hierarchy of code blocks (function, class, etc.) containing a specific location.
-*   **Arguments:**
-    *   `path` *(string, required)*: The file path.
-    *   `line` *(integer, required)*: The 1-based line number.
-    *   `character` *(integer, required)*: The 0-based character offset.
-
-### `code_get_definition`
-*   **Description:** Finds the definition(s) of a symbol at a specific location, potentially across multiple files.
-*   **Arguments:**
-    *   `path` *(string, required)*: The file path.
-    *   `line` *(integer, required)*: The 1-based line number.
-    *   `character` *(integer, required)*: The 0-based character offset.
-
-### `code_get_references`
-*   **Description:** Finds all references (usages) of a symbol across the project.
-*   **Arguments:**
-    *   `path` *(string, required)*: The file path.
-    *   `line` *(integer, required)*: The 1-based line number.
-    *   `character` *(integer, required)*: The 0-based character offset.
+Semantic code intelligence (symbol outlines, called dependencies, type definitions, class context previews, and LSP symbol definitions) is integrated directly into `fs_read_lines`, `fs_batch_read`, `fs_read_symbol`, `fs_file_codemap`, and `fs_grep_files`.
 
 ---
 

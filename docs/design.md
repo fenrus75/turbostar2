@@ -372,7 +372,7 @@ Turbostar provides a built-in project creation wizard (`ui_dialog_project`) and 
 
 ## Language Server Protocol (LSP) Architecture
 
-Turbostar integrates Language Server Protocol (LSP) intelligence across editor interactions (F3 definition jumps, F4 references, hovers, diagnostics) and LLM agent tools (`fs_read_symbol`, `code_get_definition`, `code_get_references`, `code_get_scope`, and `fs_file_codemap`).
+Turbostar integrates Language Server Protocol (LSP) intelligence across editor interactions (F3 definition jumps, F4 references, hovers, diagnostics) and LLM agent tools (`fs_read_symbol`, `fs_read_lines`, `fs_batch_read`, `fs_grep_files`, and `fs_file_codemap`).
 
 The LSP subsystem uses the **Strategy Pattern** to separate protocol abstraction from concrete language server backends:
 - **`lsp_backend` Interface** (`src/lsp_backend.h`): Abstract base class specifying virtual operations for document synchronization (`open_document`, `update_document`, `save_document`), interactive queries (`request_hover`, `request_document_highlight`, `request_selection_range`), symbol inspection (`query_definition`, `query_references`, `query_workspace_symbols`, `query_document_symbols`, `prefetch_document_symbols`), call & type hierarchies, and diagnostics.
