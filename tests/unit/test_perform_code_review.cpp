@@ -1,5 +1,6 @@
 // Tested source file: src/tools/perform_code_review/perform_code_review_entry.cpp
 #include "test_watchdog.h"
+#include "test_plugin_helper.h"
 #include <cassert>
 #include <filesystem>
 #include <fstream>

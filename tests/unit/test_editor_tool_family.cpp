@@ -1,4 +1,5 @@
 #include "test_watchdog.h"
+#include "test_plugin_helper.h"
 #include "../../src/agentlib/ai_agent.h"
 #include "../../src/agentlib/tool_registry.h"
 #include "../../src/agentlib/tool_validator.h"

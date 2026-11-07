@@ -1,4 +1,5 @@
 #include "test_watchdog.h"
+#include "test_plugin_helper.h"
 #include <cassert>
 #include <iostream>
 #include <nlohmann/json.hpp>
