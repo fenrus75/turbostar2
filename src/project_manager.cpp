@@ -39,6 +39,7 @@ project_manager &project_manager::get_instance()
 project_manager::project_manager()
 {
 	event_logger::get_instance(); // Force event_logger initialization first
+	fs_utils::set_project_root_provider([]() { return project_manager::get_instance().get_project_root(); });
 }
 
 project_manager::~project_manager()

@@ -1,7 +1,33 @@
 subdir('tools')
 
-core_sources = files(
+base_sources = files(
+  'utf8.cpp',
+  'mime.cpp',
+  'fs_basics.cpp',
+  'fs_utils.cpp',
+  'ansi.cpp',
+  'pcre2_regex.cpp',
+  'mapped_file.cpp',
+  'event_logger.cpp',
+  'event_queue.cpp',
+  'markdown_utils.cpp',
+  'tools/troff2md.cpp'
+)
+
+highlighter_sources = files(
   'line.cpp',
+  'syntax_color_manager.cpp',
+  'rendering_thread_guard.cpp',
+  'highlighter/highlighter_registry.cpp',
+  'languages/cpp/highlighter.cpp',
+  'highlighter/python_highlighter.cpp',
+  'highlighter/markdown_highlighter.cpp',
+  'highlighter/verilog_highlighter.cpp',
+  'highlighter/html_highlighter.cpp',
+  'highlighter/json_highlighter.cpp'
+)
+
+document_sources = files(
   'document.cpp',
   'binary_document.cpp',
   'document_nav.cpp',
@@ -9,14 +35,46 @@ core_sources = files(
   'document_selection.cpp',
   'document_edit.cpp',
   'document_search.cpp',
-  'pcre2_regex.cpp',
   'document_format.cpp',
   'document_highlight.cpp',
-  'document_multicursor.cpp',
-  'fs_utils.cpp',
-  'fs_basics.cpp',
-  'mapped_file.cpp',
-  'mime.cpp',
+  'document_multicursor.cpp'
+)
+
+hex_sources = files(
+  'hex/elf.cpp',
+  'hex/png.cpp',
+  'hex/jpeg.cpp',
+  'hex/zip.cpp',
+  'hex/pdf.cpp',
+  'hex/tar.cpp',
+  'hex/hex_highlighter_registry.cpp'
+)
+
+codeintel_sources = files(
+  'languages/cpp/language.cpp',
+  'languages/cpp/keywords.cpp',
+  'languages/cpp/type_token_extractor.cpp',
+  'languages/cpp/call_token_extractor.cpp',
+  'languages/cpp/symbol_extractor.cpp',
+  'languages/cpp/include_extractor.cpp',
+  'languages/cpp/builtin_signatures.cpp',
+  'languages/cpp/lexer.cpp',
+  'type_definition_cache.cpp',
+  'type_token_extractor.cpp',
+  'call_token_extractor.cpp'
+)
+
+inspector_sources = files(
+  'inspector/inspector_coordinator.cpp',
+  'inspector/inspector_helpers.cpp',
+  'inspector/fallback_provider.cpp',
+  'inspector/lsp_provider.cpp',
+  'inspector/man_page_provider.cpp',
+  'inspector/class_summary_provider.cpp',
+  'inspector/enclosing_class_provider.cpp'
+)
+
+core_sources = files(
   'config_manager.cpp',
   'session_manager.cpp',
   'statistics_manager.cpp',
@@ -28,8 +86,6 @@ core_sources = files(
   'lsp_manager.cpp',
   'project_manager.cpp',
   'project_template_manager.cpp',
-  'event_logger.cpp',
-  'event_queue.cpp',
   'gcc_log_parser.cpp',
   'build_error_manager.cpp',
   'crashdump_manager.cpp',
@@ -39,57 +95,19 @@ core_sources = files(
   'address_lookup.cpp',
   'perf_manager.cpp',
   'process_runner.cpp',
-  'markdown_utils.cpp',
   'command_runner.cpp',
-  'rendering_thread_guard.cpp',
-  'syntax_color_manager.cpp',
-  'languages/cpp/highlighter.cpp',
-  'highlighter/python_highlighter.cpp',
-  'highlighter/markdown_highlighter.cpp',
-  'highlighter/verilog_highlighter.cpp',
-  'highlighter/html_highlighter.cpp',
-  'highlighter/json_highlighter.cpp',
-  'highlighter/highlighter_registry.cpp',
-  'hex/elf.cpp',
-  'hex/png.cpp',
-  'hex/jpeg.cpp',
-  'hex/zip.cpp',
-  'hex/pdf.cpp',
-  'hex/tar.cpp',
-  'hex/hex_highlighter_registry.cpp',
+  'call_resolver.cpp',
+  'semcode_indexer.cpp',
   'history_manager.cpp',
   'input_history_manager.cpp',
-  'utf8.cpp',
-  'ansi.cpp',
   'pluginloader.cpp',
-  'images/image_manager.cpp',
-  'tools/troff2md.cpp',
-  'type_definition_cache.cpp',
-  'type_token_extractor.cpp',
-  'call_token_extractor.cpp',
-  'languages/cpp/language.cpp',
-  'languages/cpp/keywords.cpp',
-  'languages/cpp/type_token_extractor.cpp',
-  'languages/cpp/call_token_extractor.cpp',
-  'languages/cpp/symbol_extractor.cpp',
-  'languages/cpp/include_extractor.cpp',
-  'languages/cpp/builtin_signatures.cpp',
-  'languages/cpp/lexer.cpp',
-  'call_resolver.cpp',
-  'call_synthesizer.cpp',
-  'semcode_indexer.cpp',
-  'inspector/inspector_coordinator.cpp',
-  'inspector/inspector_helpers.cpp',
-  'inspector/fallback_provider.cpp',
-  'inspector/lsp_provider.cpp',
-  'inspector/man_page_provider.cpp',
-  'inspector/class_summary_provider.cpp',
-  'inspector/enclosing_class_provider.cpp'
+  'images/image_manager.cpp'
 )
 
 
 
 agentlib_sources = files(
+  'call_synthesizer.cpp',
   'filter_registry.cpp',
   'agentlib/command_registry.cpp',
   'agentlib/ai_agent.cpp',
@@ -141,13 +159,13 @@ agentlib_sources = files(
   'agentlib/data/turn_registry.cpp',
   'mcp/mcp_server.cpp',
   'mcp/mcp_manager.cpp',
-  'mcp/turbomcp_server.cpp',
   'a2a/a2a_server.cpp',
   'a2a/a2a_server_manager.cpp',
   'a2a/a2a_client.cpp'
 )
 
 ui_sources = files(
+  'mcp/turbomcp_server.cpp',
   'ui/menu_bar.cpp',
   'ui/status_bar.cpp',
   'editor.cpp',
@@ -291,16 +309,90 @@ project_templates_embedded_h = custom_target('project_templates_embedded.h',
 )
 
 # Define static libraries
+libturbostar_base = static_library('turbostar_base',
+  base_sources,
+  include_directories : inc,
+  dependencies : [nlohmann_json_dep, thread_dep, pcre2_dep, magic_dep, lsp_dep]
+)
+
+base_dep = declare_dependency(
+  link_with : libturbostar_base,
+  dependencies : [thread_dep, pcre2_dep, magic_dep, nlohmann_json_dep]
+)
+
+libturbostar_codeintel = static_library('turbostar_codeintel',
+  codeintel_sources,
+  include_directories : inc,
+  dependencies : [base_dep, ctre_dep]
+)
+
+codeintel_dep = declare_dependency(
+  link_with : [libturbostar_codeintel, libturbostar_base],
+  dependencies : [base_dep, ctre_dep]
+)
+
+libturbostar_highlighter = static_library('turbostar_highlighter',
+  highlighter_sources,
+  include_directories : inc,
+  dependencies : [codeintel_dep, base_dep, thread_dep, pcre2_dep, ctre_dep, ncurses]
+)
+
+highlighter_dep = declare_dependency(
+  link_with : [libturbostar_highlighter, libturbostar_codeintel, libturbostar_base],
+  dependencies : [codeintel_dep, base_dep, ctre_dep, pcre2_dep, ncurses]
+)
+
+libturbostar_hex = static_library('turbostar_hex',
+  hex_sources,
+  include_directories : inc,
+  dependencies : [highlighter_dep, base_dep, zydis_dep]
+)
+
+hex_dep = declare_dependency(
+  link_with : [libturbostar_hex, libturbostar_highlighter, libturbostar_codeintel, libturbostar_base],
+  dependencies : [highlighter_dep, base_dep, zydis_dep]
+)
+
+libturbostar_document = static_library('turbostar_document',
+  document_sources,
+  include_directories : inc,
+  dependencies : [highlighter_dep, base_dep, thread_dep, pcre2_dep, ctre_dep]
+)
+
+document_dep = declare_dependency(
+  link_with : [libturbostar_document, libturbostar_highlighter, libturbostar_codeintel, libturbostar_base],
+  dependencies : [highlighter_dep, codeintel_dep, base_dep, ctre_dep]
+)
+
+libturbostar_inspector = static_library('turbostar_inspector',
+  inspector_sources,
+  include_directories : inc,
+  dependencies : [codeintel_dep, highlighter_dep, base_dep, lsp_dep]
+)
+
+inspector_dep = declare_dependency(
+  link_with : [libturbostar_inspector, libturbostar_codeintel, libturbostar_highlighter, libturbostar_base],
+  dependencies : [codeintel_dep, highlighter_dep, base_dep, lsp_dep]
+)
+
 libturbostar_core = static_library('turbostar_core',
   core_sources + [project_templates_embedded_h],
   include_directories : inc,
   cpp_args : ['-DPLUGIN_DIR="@0@"'.format(plugin_dir), '-DTURBOCATCH_DIR="@0@"'.format(turbocatch_dir)],
-  dependencies : [nlohmann_json_dep, thread_dep, ctre_dep, pcre2_dep, lsp_dep, libunwind_dep, zydis_dep, magic_dep, sqlite3_dep, zlib_dep])
+  dependencies : [inspector_dep, document_dep, hex_dep, highlighter_dep, codeintel_dep, base_dep, nlohmann_json_dep, thread_dep, ctre_dep, pcre2_dep, lsp_dep, libunwind_dep, zydis_dep, magic_dep, sqlite3_dep, zlib_dep]
+)
+
+core_dep = declare_dependency(
+  link_with : [libturbostar_core, libturbostar_inspector, libturbostar_document, libturbostar_hex, libturbostar_highlighter, libturbostar_codeintel, libturbostar_base],
+  dependencies : [inspector_dep, document_dep, hex_dep, highlighter_dep, codeintel_dep, base_dep, libunwind_dep, zydis_dep, ncurses, sqlite3_dep, zlib_dep, pcre2_dep]
+)
 
 libagentlib = static_library('agentlib',
   agentlib_sources + [research_agent_h, self_agent_h],
   include_directories : inc,
-  dependencies : [httplib_dep, nlohmann_json_dep, thread_dep, ctre_dep, pcre2_dep, lsp_dep, curl_dep, openssl_dep, yaml_cpp_dep])
+  dependencies : [core_dep, httplib_dep, nlohmann_json_dep, thread_dep, ctre_dep, pcre2_dep, lsp_dep, curl_dep, openssl_dep, yaml_cpp_dep]
+)
+agent_dep = declare_dependency(link_whole : libagentlib, dependencies : [core_dep, curl_dep, openssl_dep, yaml_cpp_dep])
 
 tools_deps = [nlohmann_json_dep, ctre_dep, pcre2_dep, lsp_dep, zydis_dep, zlib_dep, magic_dep]
 if graphicsmagick_dep.found()
@@ -311,17 +403,14 @@ libtools = static_library('tools',
   tools_sources,
   include_directories : inc,
   dependencies : tools_deps)
+tools_dep = declare_dependency(link_whole : libtools, dependencies : tools_deps)
 
 libturbostar_ui = static_library('turbostar_ui',
   ui_sources + [help_text_h, default_movie_h, fs_compile_project_movie_h, run_shell_command_movie_h, run_python_movie_h, turbostar_movie_h],
   include_directories : inc,
-  dependencies : [ncurses, thread_dep, nlohmann_json_dep, lsp_dep, magic_dep])
+  dependencies : [agent_dep, core_dep, ncurses, thread_dep, nlohmann_json_dep, lsp_dep, magic_dep]
+)
 
-ui_dep = declare_dependency(link_whole : libturbostar_ui, dependencies : [magic_dep])
-
-# Expose dependencies for easy linking
-core_dep = declare_dependency(link_with : libturbostar_core, dependencies : [libunwind_dep, zydis_dep, ncurses, sqlite3_dep, zlib_dep, pcre2_dep])
-agent_dep = declare_dependency(link_whole : libagentlib, dependencies : [ui_dep, curl_dep, openssl_dep, yaml_cpp_dep])
-tools_dep = declare_dependency(link_whole : libtools, dependencies : tools_deps)
+ui_dep = declare_dependency(link_with : libturbostar_ui, dependencies : [agent_dep, core_dep, magic_dep])
 
 subdir('plugins')

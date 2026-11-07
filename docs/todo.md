@@ -20,9 +20,7 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
-- vcd plugin
-   3. FST Binary Trace Parser                           │                       Medium                        │      Critical for large industrial simulations      │ Recommended for mid-term roadmap
-   4. Glitch / Hazard Detector                          │                       Medium                        │           Specialized verification tasks            │ Consider for future verification tool
+- consider a btw feature
 
 - have a "non-agent" turbostar binary option in meson
 	- ideally, the mcp and others are still built WITH agent
@@ -252,6 +250,8 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # Done
+## 07-11-2026
+- Optimize build & link performance: split libturbostar_core into modular libraries (libturbostar_base, libturbostar_highlighter, libturbostar_codeintel, libturbostar_hex, libturbostar_document, libturbostar_inspector, libturbostar_core), decoupled test_watchdog.h and llm_types.h, configured lld linker integration (-fuse-ld=lld), and pruned test dependencies, cutting ninja rebuilt tasks by 48% and reducing wall-clock turnaround from 43.4s to 30.3s. (Completed)
 ## 03-11-2026
 - `hexdump` and `x86_disassemble` symbol size auto-resolution & ELF disassembly parity: added `get_size_by_name`, `find_symbol_by_name`, `find_symbol_at_offset`, `find_section_by_name`, `find_section_at_offset`, and public `resolve_target_annotation` to `elf_hex_highlighter` (`src/hex/elf.{h,cpp}`). Updated `hexdump` (`hexdump_tool.cpp`, `hexdump_validator.cpp`) and `x86_disassemble` (`x86_disassemble.{h,md}`, `x86_disassemble_entry.cpp`, `x86_disassemble_security.cpp`) to automatically resolve `size` from `.symtab` when `symbol`/`offset_by_name` is given without `size`, default `x86_disassemble` syntax to AT&T on Linux, include an `Address` column (`0x... <+0x...>`), resolve call targets, PLT stubs, global objects, local branch offsets (`<+0x...>`), and emit indexed `<str#N>` string literal tables. (Completed)
 ## 01-11-2026

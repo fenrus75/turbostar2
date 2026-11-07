@@ -40,6 +40,16 @@ After making a change, create a git commit for the change. Before committing, en
 
 - Turbostar uses C++, the C++23 language version
 - Turbostar uses the meson build system
+- **Modular Library Architecture**: To optimize build and link times across the 200+ test targets, codebase components are structured into modular static libraries:
+  - `libturbostar_base`: Foundational primitives with minimal dependencies (`utf8`, `fs_basics`, `fs_utils`, `mime`, `ansi`, `pcre2_regex`, `mapped_file`, `event_logger`, `event_queue`, `markdown_utils`).
+  - `libturbostar_highlighter`: Language syntax highlighters and syntax color management.
+  - `libturbostar_codeintel`: Language lexical and symbol extraction engines.
+  - `libturbostar_hex`: Binary file inspection highlighters (ELF, PNG, JPEG, ZIP, etc.).
+  - `libturbostar_document`: Core document buffer manipulation, undo, navigation, selection, and formatting.
+  - `libturbostar_inspector`: Symbol inspector companion windows and providers.
+  - `libturbostar_core`: System-level session, config, LSP, git, and process execution managers.
+  - `libagentlib`: LLM agent execution engine, tool registry, protocols, and data models.
+  - `libturbostar_ui`: TUI windowing system, widgets, and dialogs.
 - **Binary Invocation Targets**: The application can be invoked under two names: `turbostar` (which starts the standard TUI text editor layout) and `turboagent` (a symlink that launches the application in agent-first mode, immediately opening and focusing the AI Agent window, skipping the welcome screen and workspace restoration unless files are explicitly passed as arguments).
 - **Virtual Filesystem (`system://` VFS)**: Provides an in-process URI scheme (`system://`) for demand-loaded system prompts, language coding standards (`system://languages/cpp23.md`, `system://languages/python311.md`, `system://languages/c17.md`, `system://languages/rust2021.md`, `system://languages/typescript.md`, `system://languages/verilog.md`, `system://languages/systemverilog.md`), workflow guidelines (`system://workflows/code_review.md`, `system://workflows/plan_mode.md`), and dynamic runtime index generators (`system://agents.md`, `system://tools.md`, `system://toolcalls.md`, `system://toolcalls/<tool_name>/last_timing`, `system://mcp.md`). Static markdown files in `system/` are compiled into header constants (`src/system_docs_embedded.h`) via `scripts/embed_system_docs.py`. Supports root fallback aliases (e.g., `system://cpp23.md`), project/user overrides (`.turbostar/docs/`), and Turn 1 auto-injection based on the project's configured `primary_language` setting.
 - Each class gets its own .cpp file with a matching header file

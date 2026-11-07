@@ -20,6 +20,10 @@ add_project_arguments('-D_GLIBCXX_ASSERTIONS', language : 'cpp')
 
 cc = meson.get_compiler('cpp')
 
+if cc.has_link_argument('-fuse-ld=lld')
+  add_project_link_arguments('-fuse-ld=lld', language : ['c', 'cpp'])
+endif
+
 # src/document_format.cpp formats a std::thread::id directly; libstdc++ 13 lacks P2693.
 if not cc.compiles('''#include <version>
 #if !defined(__cpp_lib_formatters) || __cpp_lib_formatters < 202302L
@@ -221,7 +225,7 @@ turbostar_exe = executable('turbostar',
 turbostar_crashprocess_exe = executable('turbostar-crashprocess',
   ['src/crash_process.cpp', 'src/address_lookup.cpp'],
   dependencies : [nlohmann_json_dep, thread_dep],
-  link_with: libturbostar_core,
+  link_with: [libturbostar_core, libturbostar_inspector, libturbostar_codeintel, libturbostar_hex, libturbostar_document, libturbostar_base],
   include_directories: inc,
   install : true)
 

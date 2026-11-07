@@ -13,10 +13,12 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include "build_error_manager.h"
 #include "config_manager.h"
 #include "crashdump_manager.h"
 #include "event_logger.h"
 #include "fs_utils.h"
+#include "gcc_log_parser.h"
 #include "project_manager.h"
 #include "perf_manager.h"
 #include "rendering_thread_guard.h"
@@ -680,3 +682,69 @@ bool command_runner::should_continue() const
 	}
 	return true;
 }
+
+namespace fs_utils
+{
+
+class sync_compile_runner : public command_runner
+{
+      public:
+	sync_compile_runner() : output_line_num(0)
+	{
+	}
+
+	std::string full_output;
+	std::string line_buffer;
+	gcc_log_parser parser;
+	int output_line_num;
+
+      protected:
+	void on_output_chunk(const std::string &chunk) override
+	{
+		line_buffer += chunk;
+		size_t pos;
+		while ((pos = line_buffer.find('\n')) != std::string::npos) {
+			std::string line = line_buffer.substr(0, pos);
+			if (!line.empty() && line.back() == '\r')
+				line.pop_back();
+			on_output_line(line);
+			line_buffer = line_buffer.substr(pos + 1);
+		}
+	}
+
+	void on_output_line(const std::string &line) override
+	{
+		full_output += line + "\n";
+		std::vector<build_error> errs;
+		parser.parse_line(line, output_line_num++, errs);
+		for (const auto &e : errs) {
+			build_error_manager::get_instance().add_error(e);
+		}
+	}
+
+      public:
+	void flush()
+	{
+		if (!line_buffer.empty()) {
+			if (line_buffer.back() == '\r')
+				line_buffer.pop_back();
+			on_output_line(line_buffer);
+			line_buffer.clear();
+		}
+	}
+};
+
+std::string execute_command_sync(std::string_view cmd, int timeout_seconds)
+{
+	build_error_manager::get_instance().clear();
+	sync_compile_runner runner;
+	runner.apply_build_profile();
+	runner.set_bypass_crashdump_check(true);
+	runner.set_timeout(timeout_seconds);
+	int exit_code = runner.execute(std::string(cmd) + " 2>&1");
+	runner.flush();
+	runner.full_output += "\nProcess exited with code " + std::to_string(exit_code) + "\n";
+	return runner.full_output;
+}
+
+} // namespace fs_utils

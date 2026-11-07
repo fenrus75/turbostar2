@@ -18,6 +18,11 @@ namespace fs_utils
 void set_override_project_dir(std::string_view path);
 
 /**
+ * @brief Registers a dynamic provider for the active project directory (e.g. from project_manager).
+ */
+void set_project_root_provider(std::string (*provider)());
+
+/**
  * @brief Returns any explicitly set override project directory.
  */
 std::string get_override_project_dir();

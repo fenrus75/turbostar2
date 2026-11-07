@@ -30,21 +30,23 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <unordered_map>
-#include "build_error_manager.h"
-#include "command_runner.h"
 #include "event_logger.h"
-#include "gcc_log_parser.h"
 #include "mapped_file.h"
-#include "project_manager.h"
 
 namespace fs_utils
 {
 static std::string g_override_project_dir;
+static std::string (*g_project_root_provider)() = nullptr;
 
 void set_override_project_dir(std::string_view path)
 {
 	event_logger::get_instance().log("Override project directory set to '{}'", path);
 	g_override_project_dir = std::string(path);
+}
+
+void set_project_root_provider(std::string (*provider)())
+{
+	g_project_root_provider = provider;
 }
 
 std::string get_override_project_dir()
@@ -54,7 +56,13 @@ std::string get_override_project_dir()
 
 std::string get_project_dir()
 {
-	return !g_override_project_dir.empty() ? g_override_project_dir : project_manager::get_instance().get_project_root();
+	if (!g_override_project_dir.empty()) {
+		return g_override_project_dir;
+	}
+	if (g_project_root_provider) {
+		return g_project_root_provider();
+	}
+	return ".";
 }
 
 std::filesystem::path safe_absolute(const std::filesystem::path &p)
@@ -97,7 +105,7 @@ std::string system_header_to_include_uri(std::string_view path_str)
 
 	std::filesystem::path p(path_str);
 	if (p.is_relative()) {
-		std::string proj_root = project_manager::get_instance().get_project_root();
+		std::string proj_root = get_project_dir();
 		if (!proj_root.empty()) {
 			p = (std::filesystem::path(proj_root) / p).lexically_normal();
 		} else {
@@ -202,10 +210,6 @@ std::string make_relative_to_project(std::string_view path_str, std::string_view
 	}
 
 	std::vector<std::string> roots;
-	std::string proj_root = project_manager::get_instance().get_project_root();
-	if (!proj_root.empty()) {
-		roots.push_back(proj_root);
-	}
 	std::string proj_dir = get_project_dir();
 	if (!proj_dir.empty()) {
 		roots.push_back(proj_dir);
@@ -540,66 +544,6 @@ std::string get_compile_command_for_file(std::string_view filepath, std::string_
 	}
 }
 
-class sync_compile_runner : public command_runner
-{
-      public:
-	sync_compile_runner() : output_line_num(0)
-	{
-	}
-
-	std::string full_output;
-	std::string line_buffer;
-	gcc_log_parser parser;
-	int output_line_num;
-
-      protected:
-	void on_output_chunk(const std::string &chunk) override
-	{
-		line_buffer += chunk;
-		size_t pos;
-		while ((pos = line_buffer.find('\n')) != std::string::npos) {
-			std::string line = line_buffer.substr(0, pos);
-			if (!line.empty() && line.back() == '\r')
-				line.pop_back();
-			on_output_line(line);
-			line_buffer = line_buffer.substr(pos + 1);
-		}
-	}
-
-	void on_output_line(const std::string &line) override
-	{
-		full_output += line + "\n";
-		std::vector<build_error> errs;
-		parser.parse_line(line, output_line_num++, errs);
-		for (const auto &e : errs) {
-			build_error_manager::get_instance().add_error(e);
-		}
-	}
-
-      public:
-	void flush()
-	{
-		if (!line_buffer.empty()) {
-			if (line_buffer.back() == '\r')
-				line_buffer.pop_back();
-			on_output_line(line_buffer);
-			line_buffer.clear();
-		}
-	}
-};
-
-std::string execute_command_sync(std::string_view cmd, int timeout_seconds)
-{
-	build_error_manager::get_instance().clear();
-	sync_compile_runner runner;
-	runner.apply_build_profile();
-	runner.set_bypass_crashdump_check(true);
-	runner.set_timeout(timeout_seconds);
-	int exit_code = runner.execute(std::string(cmd) + " 2>&1");
-	runner.flush();
-	runner.full_output += "\nProcess exited with code " + std::to_string(exit_code) + "\n";
-	return runner.full_output;
-}
 std::string get_global_cache_dir()
 {
 	const char *override_dir = std::getenv("TURBOSTAR_CACHE_DIR");
@@ -788,7 +732,7 @@ std::string get_turbocatch_lib_path()
 		search_paths.push_back("/usr/lib64/libturbocatch.so");
 		search_paths.push_back("libturbocatch.so");
 
-		std::string proj_root = project_manager::get_instance().get_project_root();
+		std::string proj_root = get_project_dir();
 		if (!proj_root.empty()) {
 			search_paths.push_back((std::filesystem::path(proj_root) / "build" / "libturbocatch.so").string());
 		}
