@@ -12,3 +12,4 @@
 
 ## Lessons Learned
 - **Direct ELF Binary vs Memory Map File Disambiguation**: `eu-addr2line -M <path>` expects a `/proc/<pid>/maps` text file and fails if passed an ELF binary directly. Checking `parse_maps(maps_path).empty()` first ensures direct ELF binary lookups always use `-e <elf_path>`.
+- **Debloating Demangled C++ Symbols (`utf8::clean_cxx_type_noise`)**: `addr2line -C` and `eu-addr2line -C` emit full ABI template instantiations (`std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >`, `nlohmann::json_abi_v3_11_3::basic_json<...>`, default allocators/deleters). Normalizing `function_name` through `utf8::clean_cxx_type_noise` in `parse_addr2line_output` keeps crash backtraces and CPU profiling summaries concise and readable.

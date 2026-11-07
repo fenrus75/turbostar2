@@ -1,6 +1,7 @@
 #include "address_lookup.h"
 #include "event_logger.h"
 #include "fs_utils.h"
+#include "utf8.h"
 #include <algorithm>
 #include <cctype>
 
@@ -226,7 +227,8 @@ static std::unordered_map<uintptr_t, resolved_address> parse_addr2line_output(co
 		}
 
 		if (state == 1) {
-			current_res.function_name = (line == "??" || line.empty()) ? "" : line;
+			current_res.function_name =
+			    (line == "??" || line.empty()) ? "" : utf8::clean_cxx_type_noise(std::move(line));
 			state = 2;
 		} else if (state == 2) {
 			current_res.location = line;

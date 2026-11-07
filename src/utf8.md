@@ -19,6 +19,8 @@ The `utf8` namespace (`src/utf8.h`, `src/utf8.cpp`) provides foundational string
 - **Identifier Case Conversion (`to_snake_case`, `to_PascalCase`, `to_camelCase`)**:
   - Converts identifier strings across the three primary naming conventions: Linux kernel style (`snake_case`), Google/Antigravity style (`PascalCase`), and Microsoft/Copilot style (`camelCase`).
   - Handles multi-letter uppercase acronyms (e.g., `HTMLParser` -> `html_parser`, `URL` -> `url`) and digit-to-uppercase transitions (`utf8Char` -> `utf8_char`).
+- **C++ Demangled Symbol Type Cleanup (`clean_cxx_type_noise`, `replace_all_substrings`)**:
+  - Normalizes verbose C++ STL and third-party template instantiations (`std::__cxx11::basic_string<...>` -> `std::string`, `std::basic_string_view<...>` -> `std::string_view`, stream aliases, default `, std::allocator<...>` / `, std::default_delete<...>` arguments, and `nlohmann::json_abi_v3_11_3::basic_json<...>` -> `nlohmann::json`) across ELF tools, `address_lookup`, and CPU profiler reports.
 
 ## Lessons Learned
 - **Whole-Character Deletion in Trimming**: Trimming multibyte Unicode whitespace characters (such as U+00A0 NBSP or U+3000 CJK fullwidth space) cannot simply decrement byte counts. Trailing trimming must step backwards over UTF-8 continuation bytes (`(c & 0xC0) == 0x80`) to find the character lead byte, check `prev + char_len == end && is_space_at_byte(s, prev)`, and delete the whole multi-byte sequence to prevent slicing valid characters in half or corrupting preceding text.

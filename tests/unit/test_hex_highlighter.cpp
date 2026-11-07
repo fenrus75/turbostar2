@@ -212,7 +212,7 @@ void test_elf_highlighter()
 	inf = hl.get_info(data, 192);
 	assert(inf.type == hex_semantic_type::sect_header);
 	assert(inf.description.find("sh_name") != std::string::npos);
-	assert(inf.description.find(".text.std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string() [requires is_default_constructible]") != std::string::npos);
+	assert(inf.description.find(".text.std::string::basic_string() [requires is_default_constructible]") != std::string::npos);
 
 	// Test .text section body range: verify disassembly if HAVE_ZYDIS is defined
 	inf = hl.get_info(data, 450);
@@ -240,7 +240,7 @@ void test_elf_highlighter()
 	assert(inf_short.description.find("0x321") != std::string::npos);
 	assert(inf_short.description.find("0x0000") == std::string::npos);
 #else
-	assert(inf.description.find("Sec \".text.std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string() [requires is_default_constructible]\"") != std::string::npos);
+	assert(inf.description.find("Sec \".text.std::string::basic_string() [requires is_default_constructible]\"") != std::string::npos);
 #endif
 	// Test .shstrtab section body range (mapped range: offset 500 to 619)
 	inf = hl.get_info(data, 505);

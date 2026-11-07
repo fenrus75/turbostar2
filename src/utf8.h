@@ -309,4 +309,16 @@ std::string format_param_name(std::string_view snake_param);
  */
 std::string format_markdown_table_header(std::string_view header_line);
 
+/**
+ * @brief Replaces all occurrences of @p from with @p to in @p str.
+ */
+std::string replace_all_substrings(std::string str, std::string_view from, std::string_view to);
+
+/**
+ * @brief Simplifies verbose C++ template and ABI type noise in demangled symbol names
+ * (e.g. std::__cxx11::basic_string<...> -> std::string, default std::allocator / std::default_delete,
+ * and nlohmann::basic_json<...> -> nlohmann::json).
+ */
+std::string clean_cxx_type_noise(std::string s);
+
 } // namespace utf8

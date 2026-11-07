@@ -1460,6 +1460,28 @@ void test_utf8_is_delimiter()
 	assert(utf8::is_terminator_at_char(mixed, 11));
 }
 
+void test_utf8_clean_cxx_type_noise()
+{
+	assert(utf8::replace_all_substrings("foo::bar::foo", "foo", "baz") == "baz::bar::baz");
+	assert(utf8::replace_all_substrings("abc", "", "x") == "abc");
+
+	assert(utf8::clean_cxx_type_noise(
+	           "fs_grep_files(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::basic_string_view<char, std::char_traits<char> >)") ==
+	       "fs_grep_files(std::string const&, std::string_view)");
+
+	assert(utf8::clean_cxx_type_noise(
+	           "std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >::push_back(std::string const&)") ==
+	       "std::vector<std::string>::push_back(std::string const&)");
+
+	assert(utf8::clean_cxx_type_noise(
+	           "std::unique_ptr<window, std::default_delete<window> >::~unique_ptr()") ==
+	       "std::unique_ptr<window>::~unique_ptr()");
+
+	assert(utf8::clean_cxx_type_noise(
+	           "nlohmann::json_abi_v3_11_3::detail::json_sax_dom_parser<nlohmann::json_abi_v3_11_3::basic_json<std::map, std::vector, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, long, unsigned long, double, std::allocator, nlohmann::json_abi_v3_11_3::adl_serializer, std::vector<unsigned char, std::allocator<unsigned char> >, void> >::key(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&)") ==
+	       "nlohmann::detail::json_sax_dom_parser<nlohmann::json>::key(std::string&)");
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -1480,6 +1502,7 @@ int main()
 	test_utf8_is_alnum();
 	test_utf8_is_word_char();
 	test_utf8_is_delimiter();
+	test_utf8_clean_cxx_type_noise();
 
 	std::cout << "All UTF-8 unit tests passed!" << std::endl;
 	return 0;

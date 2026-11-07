@@ -2,6 +2,7 @@
 #include "address_lookup.h"
 #include "event_logger.h"
 #include "fs_utils.h"
+#include "utf8.h"
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -216,9 +217,14 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 			norm_file_path = fs_utils::make_relative_to_project(norm_file_path);
 		}
 
-		if (!res.function_name.empty() && res.function_name != "??") {
-			auto &f = func_map[res.function_name];
-			f.name = res.function_name;
+		std::string clean_func_name =
+		    (!res.function_name.empty() && res.function_name != "??")
+			? utf8::clean_cxx_type_noise(res.function_name)
+			: "";
+
+		if (!clean_func_name.empty()) {
+			auto &f = func_map[clean_func_name];
+			f.name = clean_func_name;
 			f.count += count;
 			if (!norm_file_path.empty() && norm_file_path != "??") {
 				f.file_counts[norm_file_path] += count;
@@ -237,8 +243,8 @@ perf_profile_report perf_manager::parse_and_resolve(const std::string &perf_dir,
 				l.column_number = res.column_number;
 			}
 			l.count += count;
-			if (!res.function_name.empty() && res.function_name != "??") {
-				l.func_counts[res.function_name] += count;
+			if (!clean_func_name.empty()) {
+				l.func_counts[clean_func_name] += count;
 			}
 		}
 	}

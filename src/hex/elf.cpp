@@ -1,5 +1,6 @@
 #include "hex/elf.h"
 #include "mime.h"
+#include "utf8.h"
 #include <algorithm>
 #include <format>
 
@@ -17,63 +18,6 @@
 namespace
 {
 
-std::string replace_all_substrings(std::string str, std::string_view from, std::string_view to)
-{
-	size_t pos = 0;
-	while ((pos = str.find(from, pos)) != std::string::npos) {
-		str.replace(pos, from.size(), to);
-		pos += to.size();
-	}
-	return str;
-}
-
-std::string clean_cxx_type_noise(std::string s)
-{
-	s = replace_all_substrings(std::move(s), "std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >", "std::string");
-	s = replace_all_substrings(std::move(s), "std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char>>", "std::string");
-	s = replace_all_substrings(std::move(s), "std::basic_string<char, std::char_traits<char>, std::allocator<char> >", "std::string");
-	s = replace_all_substrings(std::move(s), "std::basic_string<char, std::char_traits<char>, std::allocator<char>>", "std::string");
-	s = replace_all_substrings(std::move(s), "std::basic_string_view<char, std::char_traits<char> >", "std::string_view");
-	s = replace_all_substrings(std::move(s), "std::basic_string_view<char, std::char_traits<char>>", "std::string_view");
-	s = replace_all_substrings(std::move(s), "std::__cxx11::basic_stringstream<char, std::char_traits<char>, std::allocator<char> >", "std::stringstream");
-	s = replace_all_substrings(std::move(s), "std::__cxx11::basic_stringstream<char, std::char_traits<char>, std::allocator<char>>", "std::stringstream");
-	s = replace_all_substrings(std::move(s), "std::__cxx11::basic_ostringstream<char, std::char_traits<char>, std::allocator<char> >", "std::ostringstream");
-	s = replace_all_substrings(std::move(s), "std::__cxx11::basic_ostringstream<char, std::char_traits<char>, std::allocator<char>>", "std::ostringstream");
-	s = replace_all_substrings(std::move(s), "std::__cxx11::basic_istringstream<char, std::char_traits<char>, std::allocator<char> >", "std::istringstream");
-	s = replace_all_substrings(std::move(s), "std::__cxx11::basic_istringstream<char, std::char_traits<char>, std::allocator<char>>", "std::istringstream");
-	s = replace_all_substrings(std::move(s), "std::basic_ostream<char, std::char_traits<char> >", "std::ostream");
-	s = replace_all_substrings(std::move(s), "std::basic_ostream<char, std::char_traits<char>>", "std::ostream");
-	s = replace_all_substrings(std::move(s), "std::basic_istream<char, std::char_traits<char> >", "std::istream");
-	s = replace_all_substrings(std::move(s), "std::basic_istream<char, std::char_traits<char>>", "std::istream");
-	s = replace_all_substrings(std::move(s), "std::__cxx11::", "std::");
-
-	// Strip default `, std::allocator<...>` and `, std::default_delete<...>` template arguments
-	for (std::string_view marker : {", std::allocator<", ", std::default_delete<"}) {
-		size_t pos = 0;
-		while ((pos = s.find(marker, pos)) != std::string::npos) {
-			size_t cur = pos + marker.size();
-			int depth = 1;
-			while (cur < s.size() && depth > 0) {
-				if (s[cur] == '<') {
-					++depth;
-				} else if (s[cur] == '>') {
-					--depth;
-				}
-				++cur;
-			}
-			if (depth == 0) {
-				if (cur < s.size() && s[cur] == ' ' && cur + 1 < s.size() && s[cur + 1] == '>') {
-					++cur;
-				}
-				s.erase(pos, cur - pos);
-			} else {
-				pos += marker.size();
-			}
-		}
-	}
-	return s;
-}
-
 std::string demangle_symbol(const std::string &mangled)
 {
 #ifdef HAS_CXXABI
@@ -82,7 +26,7 @@ std::string demangle_symbol(const std::string &mangled)
 	if (status == 0 && demangled) {
 		std::string result(demangled);
 		std::free(demangled);
-		return clean_cxx_type_noise( std::move(result));
+		return utf8::clean_cxx_type_noise(std::move(result));
 	}
 
 	// Try progressively shorter prefixes to handle template constraints
@@ -93,7 +37,7 @@ std::string demangle_symbol(const std::string &mangled)
 			status = 0;
 			demangled = abi::__cxa_demangle(prefix.c_str(), nullptr, nullptr, &status);
 			if (status == 0 && demangled) {
-				std::string result = clean_cxx_type_noise(std::string(demangled));
+				std::string result = utf8::clean_cxx_type_noise(std::string(demangled));
 				std::free(demangled);
 				std::string suffix = mangled.substr(len);
 				if (suffix.starts_with('Q')) {
@@ -393,7 +337,7 @@ std::string shorten_hex_numbers(const std::string &input)
 std::string shorten_symbol_for_disasm(std::string_view raw_name, const elf_hex_highlighter::parsed_symbol *enclosing_sym)
 {
 	auto simplify_one = [](std::string_view input) {
-		std::string s = clean_cxx_type_noise(std::string(input));
+		std::string s = utf8::clean_cxx_type_noise(std::string(input));
 
 		std::string out;
 		out.reserve(s.size());
@@ -419,7 +363,7 @@ std::string shorten_symbol_for_disasm(std::string_view raw_name, const elf_hex_h
 	if (enclosing_sym) {
 		std::string short_enclosing = simplify_one(enclosing_sym->name);
 		if (!short_enclosing.empty()) {
-			short_target = replace_all_substrings(std::move(short_target), short_enclosing + "::", "");
+			short_target = utf8::replace_all_substrings(std::move(short_target), short_enclosing + "::", "");
 		}
 	}
 	return short_target;
