@@ -2,10 +2,10 @@
 #include <algorithm>
 #include <filesystem>
 #include <format>
-#include <fstream>
 #include <vector>
 #include "hex/hex_highlighter.h"
 #include "hex/hex_highlighter_registry.h"
+#include "mapped_file.h"
 #include "mime.h"
 #include "utf8.h"
 
@@ -55,30 +55,12 @@ std::string hexinspect_tool::execute(agentlib::tool_context &ctx)
 		args_.safe_path = vfs->get_local_path(args_.safe_path);
 	}
 
-	std::ifstream file(args_.safe_path, std::ios::binary);
-	if (!file.is_open()) {
-		set_failure(ctx, "Failed to open file.");
-		return "Error: Failed to open file for reading.";
+	mapped_file bytes;
+	std::string map_err;
+	if (!bytes.open(args_.safe_path, map_err)) {
+		set_failure(ctx, "Failed to open file: " + map_err);
+		return "Error: Failed to open file for reading: " + map_err;
 	}
-
-	file.seekg(0, std::ios::end);
-	std::streamsize file_size = file.tellg();
-	file.seekg(0, std::ios::beg);
-
-	if (file_size > 50 * 1024 * 1024) {
-		file.close();
-		set_failure(ctx, "File is too large (>50MB).");
-		return "Error: File is too large (>50MB) to read.";
-	}
-
-	std::vector<uint8_t> bytes(file_size);
-	if (file_size > 0 && !file.read(reinterpret_cast<char *>(bytes.data()), file_size)) {
-		file.close();
-		set_failure(ctx, "Failed to read file.");
-		return "Error: Failed to read file.";
-	}
-	file.close();
-
 	if (bytes.empty()) {
 		set_success(ctx, "Empty file.");
 		return "File is empty.";

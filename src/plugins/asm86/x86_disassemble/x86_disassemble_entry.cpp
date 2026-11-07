@@ -9,6 +9,7 @@
 #include <vector>
 #include "fs_utils.h"
 #include "hex/elf.h"
+#include "mapped_file.h"
 #include "plugins/asm86/x86_disassemble/disasm_line.h"
 #include "utf8.h"
 #include "x86_disassemble.h"
@@ -175,28 +176,12 @@ std::string x86_disassemble_tool::execute(agentlib::tool_context &ctx)
 			return "Error: File does not exist.";
 		}
 
-		std::ifstream file(args_.safe_path, std::ios::binary);
-		if (!file.is_open()) {
-			set_failure(ctx, "Failed to open file for reading.");
-			return "Error: Failed to open file for reading.";
+		mapped_file file_data;
+		std::string map_err;
+		if (!file_data.open(args_.safe_path, map_err)) {
+			set_failure(ctx, map_err);
+			return "Error: " + map_err;
 		}
-
-		file.seekg(0, std::ios::end);
-		std::streamsize file_size = file.tellg();
-		file.seekg(0, std::ios::beg);
-
-		if (file_size > static_cast<std::streamsize>(256ULL * 1024 * 1024)) {
-			set_failure(ctx, "File is too large (>256MB).");
-			return "Error: File is too large (>256MB) to read.";
-		}
-
-		std::vector<uint8_t> file_data(static_cast<size_t>(file_size));
-		if (file_size > 0 && !file.read(reinterpret_cast<char *>(file_data.data()), file_size)) {
-			file.close();
-			set_failure(ctx, "Failed to read file contents.");
-			return "Error: Failed to read file contents.";
-		}
-		file.close();
 
 		elf_hex_highlighter elf;
 		bool is_elf = elf.can_handle(file_data) && elf.parse(file_data);

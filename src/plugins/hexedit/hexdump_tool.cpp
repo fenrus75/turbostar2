@@ -1,10 +1,11 @@
 #include "plugins/hexedit/hexdump_tool.h"
 #include "hex/hex_highlighter.h"
 #include "hex/hex_highlighter_registry.h"
+#include "mapped_file.h"
 #include <algorithm>
 #include <filesystem>
 #include <format>
-#include <fstream>
+#include <span>
 #include <vector>
 
 namespace tools
@@ -36,44 +37,38 @@ std::string extract_hex_address_token(std::string_view inst_part)
 
 std::string compact_code_annotation(std::string_view desc, std::vector<referenced_string_literal> &string_literals)
 {
-	size_t sec_pos = desc.find(" | ELF Sec ");
-	if (sec_pos != std::string_view::npos) {
-		desc = desc.substr(0, sec_pos);
+	constexpr std::string_view marker = " (string: \"";
+	size_t marker_pos = desc.find(marker);
+	if (marker_pos == std::string_view::npos) {
+		return std::string(desc);
 	}
-	if (desc.ends_with(')')) {
-		size_t sym_pos = desc.rfind(" (in ");
-		if (sym_pos != std::string_view::npos) {
-			desc = desc.substr(0, sym_pos);
+	size_t val_start = marker_pos + marker.size();
+	size_t val_end = desc.rfind("\")");
+	if (val_end != std::string_view::npos && val_end >= val_start) {
+		std::string_view inst_part = desc.substr(0, marker_pos);
+		std::string_view str_val = desc.substr(val_start, val_end - val_start);
+		std::string addr = extract_hex_address_token(inst_part);
+
+		size_t assigned_id = 0;
+		for (const auto &entry : string_literals) {
+			if ((!addr.empty() && entry.address == addr) || (addr.empty() && entry.value == str_val)) {
+				assigned_id = entry.id;
+				break;
+			}
 		}
-	}
-	if (desc.ends_with("\">")) {
-		size_t lit_pos = desc.find(" <\"");
-		if (lit_pos != std::string_view::npos && lit_pos + 5 <= desc.size()) {
-			std::string_view inst_part = desc.substr(0, lit_pos);
-			std::string_view lit_val = desc.substr(lit_pos + 3, desc.size() - (lit_pos + 5));
-			std::string addr = extract_hex_address_token(inst_part);
-			size_t assigned_id = 0;
-			for (const auto &entry : string_literals) {
-				if (entry.value == lit_val && entry.address == addr) {
-					assigned_id = entry.id;
-					break;
-				}
-			}
-			if (assigned_id == 0) {
-				assigned_id = string_literals.size() + 1;
-				string_literals.push_back(referenced_string_literal{
-				    .id = assigned_id,
-				    .address = std::move(addr),
-				    .value = std::string(lit_val),
-				});
-			}
+		if (assigned_id == 0 && string_literals.size() < 256) {
+			assigned_id = string_literals.size() + 1;
+			string_literals.push_back(referenced_string_literal{
+			    .id = assigned_id, .address = std::move(addr), .value = std::string(str_val)});
+		}
+		if (assigned_id > 0) {
 			return std::format("{} <str#{}>", inst_part, assigned_id);
 		}
 	}
 	return std::string(desc);
 }
 
-std::string format_hexdump_row(const std::vector<uint8_t> &data,
+std::string format_hexdump_row(std::span<const uint8_t> data,
                                size_t row_start,
                                size_t read_start,
                                size_t read_limit,
@@ -162,30 +157,12 @@ std::string hexdump_tool::execute(agentlib::tool_context &ctx)
 		return "Error: File does not exist.";
 	}
 
-	std::ifstream file(args_.safe_path, std::ios::binary);
-	if (!file.is_open()) {
-		set_failure(ctx, "Failed to open file for reading.");
-		return "Error: Failed to open file for reading.";
+	mapped_file file_data;
+	std::string map_err;
+	if (!file_data.open(args_.safe_path, map_err)) {
+		set_failure(ctx, "Failed to open file for reading: " + map_err);
+		return "Error: Failed to open file for reading: " + map_err;
 	}
-
-	// Read full file bytes first to run structural highlighter properly
-	file.seekg(0, std::ios::end);
-	std::streamsize file_size = file.tellg();
-	file.seekg(0, std::ios::beg);
-
-	if (file_size > 50 * 1024 * 1024) {
-		set_failure(ctx, "File is too large (>50MB).");
-		return "Error: File is too large (>50MB) to read.";
-	}
-
-	std::vector<uint8_t> file_data(file_size);
-	if (file_size > 0 && !file.read(reinterpret_cast<char *>(file_data.data()), file_size)) {
-		file.close();
-		set_failure(ctx, "Failed to read file contents.");
-		return "Error: Failed to read file contents.";
-	}
-	file.close();
-
 	// Detect and parse using registry
 	auto &registry = hex_highlighter_registry::get_instance();
 	std::shared_ptr<hex_highlighter> highlighter = registry.detect_highlighter(file_data);

@@ -4,6 +4,7 @@
 #include <vector>
 #include "fs_utils.h"
 #include "hex/elf.h"
+#include "mapped_file.h"
 #include "elf_list_sections.h"
 
 namespace tools
@@ -39,29 +40,12 @@ std::string elf_list_sections_tool::execute(agentlib::tool_context &ctx)
 		return "Error: Target path is not a regular file: " + args_.requested_path;
 	}
 
-	std::ifstream file(args_.safe_path, std::ios::binary);
-	if (!file.is_open()) {
-		set_failure(ctx, "Failed to open file.");
-		return "Error: Failed to open file for reading.";
+	mapped_file bytes;
+	std::string map_err;
+	if (!bytes.open(args_.safe_path, map_err)) {
+		set_failure(ctx, map_err);
+		return "Error: " + map_err;
 	}
-
-	file.seekg(0, std::ios::end);
-	std::streamsize size = file.tellg();
-	file.seekg(0, std::ios::beg);
-
-	if (size > 52428800) {
-		file.close();
-		set_failure(ctx, "File exceeds 50MB size limit.");
-		return "Error: File exceeds maximum allowed size of 50MB.";
-	}
-
-	std::vector<uint8_t> bytes(size);
-	if (size > 0 && !file.read(reinterpret_cast<char *>(bytes.data()), size)) {
-		file.close();
-		set_failure(ctx, "Failed to read file.");
-		return "Error: Failed to read file.";
-	}
-	file.close();
 
 	elf_hex_highlighter parser;
 	if (!parser.can_handle(bytes)) {

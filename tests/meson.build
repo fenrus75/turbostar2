@@ -439,6 +439,11 @@ test_json_utils = executable('test_json_utils',
   include_directories: inc)
 test('unit_test_json_utils', test_json_utils, suite: 'unit')
 
+test_mapped_file = executable('test_mapped_file',
+  ['unit/test_mapped_file.cpp'],
+  dependencies : [agent_dep, core_dep, nlohmann_json_dep, thread_dep, dl_dep],
+  include_directories: inc)
+test('unit_test_mapped_file', test_mapped_file, suite: 'unit')
 test_turbomcp_server = executable('test_turbomcp_server',
   ['unit/test_turbomcp_server.cpp'],
   dependencies : [agent_dep, tools_dep, ui_dep, core_dep, nlohmann_json_dep, thread_dep, dl_dep],

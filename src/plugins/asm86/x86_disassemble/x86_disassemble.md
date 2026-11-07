@@ -6,7 +6,7 @@ The `x86_disassemble` tool decodes x86/x86-64 machine instructions using Zydis i
 - **Raw Bytes Mode (`data`)**: Disassembles hex or Base64 instruction snippets at an optional starting `address`.
 
 ## Constraints & Security Considerations
-- **Sandbox Validation**: When `path` is supplied, read access is validated through `file_security_manager::validate_access` before opening the file, and file reads are bounded to 50MB with disassembly slices capped at 4096 bytes.
+- **Sandbox Validation & Zero-Copy File Mapping**: When `path` is supplied, read access is validated through `file_security_manager::validate_access` before mapping the file read-only via `mapped_file` (`mmap(PROT_READ, MAP_PRIVATE)` with transparent heap fallback), with disassembly slices capped at 4096 bytes.
 - **Control Character Filtering**: Symbol names are validated via `fs_utils::is_safe_for_ui` to reject control sequences.
 - **Linux Default Syntax**: Defaults to AT&T syntax (`"att"`) to match `objdump -d` and `hexdump` conventions on Linux, while allowing `"intel"` when requested.
 
