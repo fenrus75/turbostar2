@@ -261,7 +261,7 @@ bool document::save_to_file(const std::string &filename)
 	lock.unlock();
 
 	git_manager::get_instance().request_status(filename);
-	project_manager::get_instance().lsp_save_document(filename, text_to_save);
+	project_manager::get_instance().notify_file_changed(filename, text_to_save);
 	notify_cursor_changed();
 	return true;
 }

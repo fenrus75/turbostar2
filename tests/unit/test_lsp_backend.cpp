@@ -1,12 +1,17 @@
 // Tested source file: src/lsp_backend.cpp src/standard_lsp_backend.cpp src/lsp_manager.cpp src/project_manager.cpp
 #include <cassert>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <memory>
+#include "codemap_cache.h"
 #include "lsp_backend.h"
 #include "lsp_manager.h"
+#include "perf_manager.h"
 #include "project_manager.h"
 #include "standard_lsp_backend.h"
 #include "test_watchdog.h"
+#include "type_definition_cache.h"
 
 namespace
 {
@@ -317,16 +322,79 @@ int main()
 		backend.stop();
 	}
 
-	// 5. Verify project_manager::lsp_save_document delegates to lsp_manager
+	// 5. Verify project_manager::notify_file_changed (and lsp_save_document) fans out to all per-file caches
 	{
 		auto mock = std::make_unique<mock_lsp_backend>();
 		auto *mock_ptr = mock.get();
 		project_manager::get_instance().set_lsp_backend_for_testing(std::move(mock));
 
-		project_manager::get_instance().lsp_save_document("test_save.cpp", "int x = 42;\n");
+		std::filesystem::path tmp_file = std::filesystem::temp_directory_path() / "test_notify_fanout.cpp";
+		{
+			std::ofstream out(tmp_file);
+			out << "struct FanoutWidget { int a; };\n";
+		}
+		std::string tmp_path = std::filesystem::canonical(tmp_file).string();
+
+		// Seed codemap_cache, type_definition_cache, and perf_manager for tmp_path
+		tools::codemap_symbol_info sym;
+		sym.name = "FanoutWidget";
+		sym.kind_str = "struct";
+		sym.start_line = 1;
+		sym.end_line = 1;
+		tools::codemap_cache::get_instance().put(tmp_path, {sym});
+		assert(tools::codemap_cache::get_instance().has_valid_entry(tmp_path));
+		assert(tools::type_definition_cache::get_instance().lookup("FanoutWidget").has_value());
+
+		turbostar::perf_profile_report report;
+		report.total_samples = 100;
+		turbostar::perf_line_sample sample;
+		sample.file_path = tmp_path;
+		sample.line_number = 1;
+		sample.count = 100;
+		sample.percentage = 100.0;
+		report.top_lines.push_back(sample);
+		turbostar::perf_manager::get_instance().set_active_profile(report, "fanout_test");
+		assert(turbostar::perf_manager::get_instance().is_file_profile_valid(tmp_path));
+
+		// Modify file on disk and call notify_file_changed with explicit new_content
+		std::string updated_text = "struct FanoutWidgetRenamed { int b; };\n";
+		{
+			std::ofstream out(tmp_path, std::ios::trunc);
+			out << updated_text;
+		}
+		project_manager::get_instance().notify_file_changed(tmp_path, updated_text);
+
 		assert(mock_ptr->save_doc_called);
-		assert(mock_ptr->last_filepath == "test_save.cpp");
-		assert(mock_ptr->last_saved_text == "int x = 42;\n");
+		assert(mock_ptr->last_filepath == tmp_path);
+		assert(mock_ptr->last_saved_text == updated_text);
+		assert(!tools::type_definition_cache::get_instance().lookup("FanoutWidget").has_value());
+		assert(!turbostar::perf_manager::get_instance().is_file_profile_valid(tmp_path));
+
+		// Verify notify_file_changed(tmp_path) without new_content on an unsupported file calls invalidate_symbol_cache
+		mock_ptr->save_doc_called = false;
+		mock_ptr->invalidate_symbol_called = false;
+		project_manager::get_instance().notify_file_changed(tmp_path);
+		assert(!mock_ptr->save_doc_called);
+		assert(mock_ptr->invalidate_symbol_called);
+
+		// Verify notify_file_changed(custom_path) without new_content on a supported file (.custom) reads fresh content from disk
+		std::filesystem::path custom_file = std::filesystem::temp_directory_path() / "test_notify_fanout.custom";
+		std::string third_text = "int x = 99;\n";
+		{
+			std::ofstream out(custom_file, std::ios::trunc);
+			out << third_text;
+		}
+		std::string custom_path = std::filesystem::canonical(custom_file).string();
+		mock_ptr->save_doc_called = false;
+		mock_ptr->last_saved_text.clear();
+		project_manager::get_instance().notify_file_changed(custom_path);
+		assert(mock_ptr->save_doc_called);
+		assert(mock_ptr->last_filepath == custom_path);
+		assert(mock_ptr->last_saved_text == third_text);
+
+		std::filesystem::remove(tmp_path);
+		std::filesystem::remove(custom_path);
+		turbostar::perf_manager::get_instance().clear_active_profile();
 	}
 
 	// 6. Verify non-blocking document operations in standard_lsp_backend

@@ -8,6 +8,7 @@
 #include "agentlib/tool_context.h"
 #include "filter_registry.h"
 #include "fs_utils.h"
+#include "project_manager.h"
 #include "web_fetch.h"
 
 namespace tools
@@ -240,6 +241,7 @@ std::string web_fetch_tool::execute(agentlib::tool_context &ctx)
 			if (desc.empty()) {
 				return "Error: Failed to write output to VFS path " + args_.output_path;
 			}
+			project_manager::get_instance().notify_file_changed(args_.safe_output_path, output);
 			return std::format("Success: Downloaded {} bytes and saved to {}.", output.size(), args_.output_path);
 		}
 
@@ -249,6 +251,7 @@ std::string web_fetch_tool::execute(agentlib::tool_context &ctx)
 		}
 		ofs.write(output.data(), output.size());
 		ofs.close();
+		project_manager::get_instance().notify_file_changed(args_.safe_output_path, output);
 		return std::format("Success: Downloaded {} bytes and saved to {}.", output.size(), args_.output_path);
 	}
 

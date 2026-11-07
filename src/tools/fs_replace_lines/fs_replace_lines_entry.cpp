@@ -746,7 +746,10 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 			}
 			revert_out.close();
 		}
-		mapped_file::notify_changed(path_to_use);
+		if (path_to_use != args_.safe_path) {
+			mapped_file::notify_changed(path_to_use);
+		}
+		project_manager::get_instance().notify_file_changed(args_.safe_path);
 		std::string err =
 		    "Error: Edit rejected (strict mode): it would leave unbalanced braces and was not applied.\n" + brace_warnings + "\n";
 		if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_replace_lines>(interaction_)) {
@@ -759,7 +762,9 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 		return err;
 	}
 
-	mapped_file::notify_changed(path_to_use);
+	if (path_to_use != args_.safe_path) {
+		mapped_file::notify_changed(path_to_use);
+	}
 	std::string saved_content;
 	size_t total_len = 0;
 	for (const auto &l : lines) {
@@ -770,7 +775,7 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 		saved_content.append(l);
 		saved_content.push_back('\n');
 	}
-	project_manager::get_instance().lsp_save_document(args_.safe_path, saved_content);
+	project_manager::get_instance().notify_file_changed(args_.safe_path, saved_content);
 	std::string edit_id = agentlib::update_file_health_state(ctx, args_.safe_path);
 	std::string result_msg =
 	    std::format("Successfully applied {} edits to {} [Edit ID: {}]\n\n", args_.edits.size(), args_.path, edit_id);

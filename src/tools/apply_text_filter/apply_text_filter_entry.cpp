@@ -69,7 +69,7 @@ std::string apply_text_filter_tool::execute(agentlib::tool_context &ctx)
 			if (desc.empty()) {
 				return "Error: Failed to write output to VFS path '" + args_.output_path + "'.";
 			}
-			project_manager::get_instance().lsp_save_document(args_.safe_output_path, result);
+			project_manager::get_instance().notify_file_changed(args_.safe_output_path, result);
 			return fs_utils::wrap_prompt_untrusted_data_tag("apply_text_filter_result", "Successfully applied filter '" + args_.filter + "' and wrote output to '" + args_.output_path + "'.");
 		}
 
@@ -82,8 +82,7 @@ std::string apply_text_filter_tool::execute(agentlib::tool_context &ctx)
 			return "Error: Failed to write filtered content to '" + args_.output_path + "'.";
 		}
 		out.close();
-		mapped_file::notify_changed(args_.safe_output_path);
-		project_manager::get_instance().lsp_save_document(args_.safe_output_path, result);
+		project_manager::get_instance().notify_file_changed(args_.safe_output_path, result);
 		return fs_utils::wrap_prompt_untrusted_data_tag("apply_text_filter_result", "Successfully applied filter '" + args_.filter + "' and wrote output to '" + args_.output_path + "'.");
 	}
 

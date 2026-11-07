@@ -1,5 +1,6 @@
 #include "fs_man.h"
 #include "fs_utils.h"
+#include "project_manager.h"
 #include "utf8.h"
 #include "tools/troff2md.h"
 #include <algorithm>
@@ -464,7 +465,9 @@ std::string fs_man_tool::execute(agentlib::tool_context& ctx) {
 				set_failure(ctx, err);
 				return err;
 			}
+			out.close();
 		}
+		project_manager::get_instance().notify_file_changed(args_.safe_output_path, md_content);
 		set_success(ctx, std::format("Successfully loaded man page for {} and wrote output to '{}'.", args_.name, args_.output_path));
 		return "Successfully wrote man page for " + args_.name + " to '" + args_.output_path + "'.";
 	}

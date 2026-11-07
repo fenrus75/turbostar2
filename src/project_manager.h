@@ -5,8 +5,10 @@
 #include <filesystem>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <shared_mutex>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <unordered_map>
 #include <utility>
@@ -125,6 +127,15 @@ class project_manager
 	void lsp_open_document(const std::string &filepath, const std::string &text);
 	void lsp_update_document(const std::string &filepath, const std::string &text);
 	void lsp_save_document(const std::string &filepath, const std::string &text);
+	/**
+	 * @brief Unified fan-out notification for on-disk file modifications.
+	 *
+	 * Invalidates all per-file caches (mapped_file, codemap_cache,
+	 * type_definition_cache, perf_manager), synchronizes the active LSP
+	 * backend (via save_document or invalidate_symbol_cache), and triggers
+	 * preemptive codemap symbol prefetching.
+	 */
+	void notify_file_changed(const std::string &filepath, std::optional<std::string_view> new_content = std::nullopt);
 	void lsp_request_hover(const std::string &filepath, int line, int character);
 	void lsp_request_document_highlight(const std::string &filepath, int line, int character);
 	void lsp_request_selection_range(const std::string &filepath, int line, int character);

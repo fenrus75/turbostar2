@@ -87,7 +87,7 @@ std::string fs_write_file_tool::execute(agentlib::tool_context &ctx)
 			if (ctx.trigger_ui_update)
 				ctx.trigger_ui_update();
 
-			project_manager::get_instance().lsp_save_document(args_.safe_path, final_content);
+			project_manager::get_instance().notify_file_changed(args_.safe_path, final_content);
 
 			return desc;
 		}
@@ -137,15 +137,9 @@ std::string fs_write_file_tool::execute(agentlib::tool_context &ctx)
 		out.close();
 
 		if (args_.append) {
-			std::string saved_content;
-			std::ifstream in(args_.safe_path, std::ios::binary);
-			if (in.is_open()) {
-				saved_content.assign((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-				in.close();
-			}
-			project_manager::get_instance().lsp_save_document(args_.safe_path, saved_content);
+			project_manager::get_instance().notify_file_changed(args_.safe_path);
 		} else {
-			project_manager::get_instance().lsp_save_document(args_.safe_path, args_.content);
+			project_manager::get_instance().notify_file_changed(args_.safe_path, args_.content);
 		}
 		agentlib::update_file_health_state(ctx, args_.safe_path);
 

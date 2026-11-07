@@ -21,6 +21,7 @@
 #include "fs_utils.h"
 #include "git_manager.h"
 #include "mapped_file.h"
+#include "perf_manager.h"
 #include "type_definition_cache.h"
 #include "utf8.h"
 namespace fs = std::filesystem;
@@ -257,11 +258,30 @@ void project_manager::lsp_update_document(const std::string &filepath, const std
 }
 void project_manager::lsp_save_document(const std::string &filepath, const std::string &text)
 {
-	if (lsp_manager_)
-		lsp_manager_->save_document(filepath, text);
+	notify_file_changed(filepath, text);
+}
+void project_manager::notify_file_changed(const std::string &filepath, std::optional<std::string_view> new_content)
+{
 	mapped_file::notify_changed(filepath);
 	tools::codemap_cache::get_instance().invalidate(filepath);
 	tools::type_definition_cache::get_instance().invalidate_file(filepath);
+	turbostar::perf_manager::get_instance().invalidate_file(filepath);
+
+	if (lsp_manager_) {
+		if (new_content.has_value()) {
+			lsp_manager_->save_document(filepath, std::string(*new_content));
+		} else if (lsp_manager_->is_supported_file(filepath)) {
+			std::string map_err;
+			if (auto mf = mapped_file::get_cached(filepath, map_err)) {
+				lsp_manager_->save_document(filepath, std::string(mf->string_view()));
+			} else {
+				lsp_manager_->invalidate_symbol_cache(filepath);
+			}
+		} else {
+			lsp_manager_->invalidate_symbol_cache(filepath);
+		}
+	}
+
 	tools::prefetch_document_codemap_symbols(filepath);
 }
 void project_manager::lsp_request_hover(const std::string &filepath, int line, int character)
@@ -345,6 +365,8 @@ void project_manager::lsp_invalidate_symbol_cache(const std::string &filepath)
 		lsp_manager_->invalidate_symbol_cache(filepath);
 	mapped_file::notify_changed(filepath);
 	tools::codemap_cache::get_instance().invalidate(filepath);
+	tools::type_definition_cache::get_instance().invalidate_file(filepath);
+	turbostar::perf_manager::get_instance().invalidate_file(filepath);
 }
 
 std::vector<lsp_manager::call_hierarchy_item> project_manager::lsp_query_call_hierarchy_outgoing(const std::string &filepath, int line,
