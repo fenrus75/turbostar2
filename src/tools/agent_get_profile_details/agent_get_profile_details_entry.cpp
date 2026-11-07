@@ -15,6 +15,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace tools
@@ -171,10 +172,82 @@ static std::vector<line_range> merge_line_ranges(const std::vector<int> &hot_lin
 	return merged;
 }
 
-static std::string resolve_file_path(const std::string &input_path, const agentlib::tool_context &ctx)
+static std::string extract_filename_view(std::string_view p)
+{
+	size_t colon = p.rfind(':');
+	if (colon != std::string_view::npos && colon + 1 < p.size()) {
+		bool all_digits = true;
+		for (size_t k = colon + 1; k < p.size(); ++k) {
+			if (!std::isdigit(static_cast<unsigned char>(p[k]))) {
+				all_digits = false;
+				break;
+			}
+		}
+		if (all_digits) {
+			p = p.substr(0, colon);
+		}
+	}
+	size_t slash = p.find_last_of("/\\");
+	std::string_view fname = (slash == std::string_view::npos) ? p : p.substr(slash + 1);
+	return utf8::to_lower(fname);
+}
+
+static bool is_ignored_scan_dir(std::string_view dir_name)
+{
+	if (dir_name.empty() || dir_name.front() == '.') {
+		return true;
+	}
+	return dir_name == "build" || dir_name == "builddir" || dir_name == "out" || dir_name == "cmake-build-debug" ||
+	       dir_name == "subprojects" || dir_name == "node_modules" || dir_name == "third_party" || dir_name == "vendor";
+}
+
+static const std::unordered_map<std::string, std::string> &get_project_basename_index(
+    const std::string &proj_root, std::unordered_map<std::string, std::string> &index_cache, bool &index_built)
+{
+	if (index_built || proj_root.empty()) {
+		return index_cache;
+	}
+	index_built = true;
+
+	std::error_code ec;
+	std::filesystem::recursive_directory_iterator it(
+	    proj_root, std::filesystem::directory_options::skip_permission_denied, ec);
+	std::filesystem::recursive_directory_iterator end;
+	while (!ec && it != end) {
+		const auto &entry = *it;
+		if (entry.is_directory(ec)) {
+			std::string dname = entry.path().filename().string();
+			if (is_ignored_scan_dir(dname)) {
+				it.disable_recursion_pending();
+			}
+		} else if (entry.is_regular_file(ec)) {
+			std::string fname = entry.path().filename().string();
+			if (!fname.empty() && !index_cache.contains(fname)) {
+				index_cache.emplace(std::move(fname), entry.path().string());
+			}
+		}
+		it.increment(ec);
+	}
+	return index_cache;
+}
+
+static std::string resolve_file_path(const std::string &input_path, const agentlib::tool_context &ctx,
+				     std::unordered_map<std::string, std::string> *resolved_cache = nullptr,
+				     std::unordered_map<std::string, std::string> *basename_index = nullptr,
+				     bool *basename_index_built = nullptr)
 {
 	if (input_path.empty() || input_path == "??") {
 		return "";
+	}
+	if (input_path.find("://") != std::string::npos) {
+		return input_path;
+	}
+
+	if (resolved_cache) {
+		auto it = resolved_cache->find(input_path);
+		if (it != resolved_cache->end()) {
+			return it->second;
+		}
 	}
 
 	std::string clean_path = input_path;
@@ -193,6 +266,15 @@ static std::string resolve_file_path(const std::string &input_path, const agentl
 	}
 
 	std::string norm_input = std::filesystem::path(clean_path).lexically_normal().string();
+	// Fast exit for external system/compiler build paths that are outside the project workspace
+	if (norm_input.starts_with("/usr/") || norm_input.starts_with("/lib/") || norm_input.starts_with("/lib64/") ||
+	    norm_input.starts_with("/build/") || norm_input.starts_with("malloc/")) {
+		if (resolved_cache) {
+			(*resolved_cache)[input_path] = norm_input;
+		}
+		return norm_input;
+	}
+
 	std::vector<std::string> raw_paths = {norm_input, clean_path};
 
 	std::string norm = norm_input;
@@ -267,31 +349,45 @@ static std::string resolve_file_path(const std::string &input_path, const agentl
 		std::string safe_path, err;
 		if (std::filesystem::exists(norm_p, ec) && !std::filesystem::is_directory(norm_p, ec)) {
 			if (ctx.fs_security.validate_access(norm_p.string(), agentlib::access_type::read, safe_path, err)) {
+				if (resolved_cache) {
+					(*resolved_cache)[input_path] = safe_path;
+				}
 				return safe_path;
 			}
 		}
 		if (std::filesystem::exists(cand, ec) && !std::filesystem::is_directory(cand, ec)) {
 			if (ctx.fs_security.validate_access(cand, agentlib::access_type::read, safe_path, err)) {
+				if (resolved_cache) {
+					(*resolved_cache)[input_path] = safe_path;
+				}
 				return safe_path;
 			}
 		}
 	}
 
-	// 2. Final fallback: Recursive scan of project root matching target filename
+	// 3. Final fallback: O(1) lookup against lazily built project basename index (skipping build/.git dirs)
 	std::string target_fname = std::filesystem::path(norm_input).filename().string();
 	if (!target_fname.empty() && target_fname != "??" && !proj_root.empty()) {
-		std::error_code ec;
-		for (const auto &entry : std::filesystem::recursive_directory_iterator(proj_root, ec)) {
-			if (ec) break;
-			if (entry.is_regular_file() && entry.path().filename().string() == target_fname) {
-				std::string safe_path, err;
-				if (ctx.fs_security.validate_access(entry.path().string(), agentlib::access_type::read, safe_path, err)) {
-					return safe_path;
+		std::unordered_map<std::string, std::string> local_index;
+		bool local_built = false;
+		const auto &idx = get_project_basename_index(
+		    proj_root, basename_index ? *basename_index : local_index,
+		    basename_index_built ? *basename_index_built : local_built);
+		auto found_it = idx.find(target_fname);
+		if (found_it != idx.end()) {
+			std::string safe_path, err;
+			if (ctx.fs_security.validate_access(found_it->second, agentlib::access_type::read, safe_path, err)) {
+				if (resolved_cache) {
+					(*resolved_cache)[input_path] = safe_path;
 				}
+				return safe_path;
 			}
 		}
 	}
 
+	if (resolved_cache) {
+		(*resolved_cache)[input_path] = norm_input;
+	}
 	return norm_input;
 }
 
@@ -334,22 +430,37 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 
 	// 1. Filter raw line samples based on file_path or function_name
 	std::vector<turbostar::perf_line_sample> matched_samples;
+	std::unordered_map<std::string, std::string> resolved_cache;
+	std::unordered_map<std::string, std::string> basename_index;
+	bool basename_index_built = false;
+
+	auto resolve_cached = [&](const std::string &p) -> std::string {
+		return resolve_file_path(p, ctx, &resolved_cache, &basename_index, &basename_index_built);
+	};
 
 	if (!args_.file_path.empty()) {
+		const std::string target_res_path = resolve_cached(args_.file_path);
+		const std::string target_fname = extract_filename_view(args_.file_path);
 		for (const auto &l : report.top_lines) {
-			std::string res_path = resolve_file_path(l.file_path, ctx);
-			std::string target_res_path = resolve_file_path(args_.file_path, ctx);
-			if (match_symbol_string(l.file_path, args_.file_path) ||
-			    (!res_path.empty() && res_path == target_res_path)) {
+			if (match_symbol_string(l.file_path, args_.file_path)) {
 				matched_samples.push_back(l);
+				continue;
+			}
+			if (!target_res_path.empty() && extract_filename_view(l.file_path) == target_fname) {
+				std::string res_path = resolve_cached(l.file_path);
+				if (res_path == target_res_path) {
+					matched_samples.push_back(l);
+				}
 			}
 		}
 		if (matched_samples.empty()) {
 			for (const auto &pair : report.line_samples_by_file) {
-				std::string res_path = resolve_file_path(pair.first, ctx);
-				std::string target_res_path = resolve_file_path(args_.file_path, ctx);
-				if (match_symbol_string(pair.first, args_.file_path) ||
-				    (!res_path.empty() && res_path == target_res_path)) {
+				bool file_matches = match_symbol_string(pair.first, args_.file_path);
+				if (!file_matches && !target_res_path.empty() && extract_filename_view(pair.first) == target_fname) {
+					std::string res_path = resolve_cached(pair.first);
+					file_matches = (res_path == target_res_path);
+				}
+				if (file_matches) {
 					for (const auto &ls : pair.second) {
 						matched_samples.push_back(ls);
 					}
@@ -365,12 +476,15 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 		for (const auto &f : report.top_functions) {
 			if (match_symbol_string(f.function_name, args_.function_name)) {
 				if (!f.file_path.empty()) {
+					const std::string res_func = resolve_cached(f.file_path);
+					const std::string func_fname = extract_filename_view(f.file_path);
 					for (const auto &pair : report.line_samples_by_file) {
-						std::string res_key = resolve_file_path(pair.first, ctx);
-						std::string res_func = resolve_file_path(f.file_path, ctx);
-						if (pair.first == f.file_path ||
-						    match_symbol_string(pair.first, f.file_path) ||
-						    (!res_key.empty() && res_key == res_func)) {
+						bool same_file = (pair.first == f.file_path) || match_symbol_string(pair.first, f.file_path);
+						if (!same_file && !res_func.empty() && extract_filename_view(pair.first) == func_fname) {
+							std::string res_key = resolve_cached(pair.first);
+							same_file = (res_key == res_func);
+						}
+						if (same_file) {
 							for (const auto &ls : pair.second) {
 								if (match_symbol_string(ls.function_name, args_.function_name) ||
 								    match_symbol_string(ls.function_name, f.function_name)) {
@@ -400,7 +514,7 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 	// Group samples by canonical resolved file_path
 	std::unordered_map<std::string, std::map<int, turbostar::perf_line_sample>> samples_by_file;
 	for (const auto &s : matched_samples) {
-		std::string resolved = resolve_file_path(s.file_path, ctx);
+		std::string resolved = resolve_cached(s.file_path);
 		std::string key = resolved.empty() ? s.file_path : resolved;
 		samples_by_file[key][s.line_number] = s;
 	}
@@ -421,7 +535,7 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 			hot_line_numbers.push_back(lp.first);
 		}
 
-		std::string resolved_path = resolve_file_path(file_path, ctx);
+		std::string resolved_path = resolve_cached(file_path);
 		std::string rel_file_path = make_relative_to_project(resolved_path.empty() ? file_path : resolved_path, ctx);
 
 		auto mf = read_mapped_file(resolved_path.empty() ? file_path : resolved_path);
@@ -474,16 +588,10 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 			}
 		}
 
+		std::unordered_set<int> emitted_lines;
 		for (const auto &r : ranges) {
 			for (int line_num = r.start_line; line_num <= r.end_line; ++line_num) {
-				bool exists = false;
-				for (const auto &ex : line_samples) {
-					if (ex["line_number"] == line_num) {
-						exists = true;
-						break;
-					}
-				}
-				if (exists) {
+				if (!emitted_lines.insert(line_num).second) {
 					continue;
 				}
 
@@ -542,7 +650,7 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 
 	std::string display_file_path;
 	if (!primary_file_path.empty()) {
-		std::string resolved_primary = resolve_file_path(primary_file_path, ctx);
+		std::string resolved_primary = resolve_cached(primary_file_path);
 		display_file_path = make_relative_to_project(resolved_primary.empty() ? primary_file_path : resolved_primary, ctx);
 	} else if (!args_.file_path.empty()) {
 		display_file_path = make_relative_to_project(args_.file_path, ctx);

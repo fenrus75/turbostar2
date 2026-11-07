@@ -1,11 +1,12 @@
+// Tested source file: src/tools/agent_get_profile_details/agent_get_profile_details_entry.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <nlohmann/json.hpp>
-#include "../../src/agentlib/tool_registry.h"
-#include "../../src/perf_manager.h"
-#include "../../src/project_manager.h"
-#include "../../src/fs_utils.h"
+#include "agentlib/tool_registry.h"
+#include "perf_manager.h"
+#include "project_manager.h"
+#include "fs_utils.h"
 
 using namespace agentlib;
 using namespace turbostar;
@@ -219,6 +220,43 @@ int main()
 			}
 		}
 		std::cout << "agent_get_profile_details (multi-function file scope filtering) verified successfully!" << std::endl;
+	}
+
+	// 8. Test agent_get_profile_details fallback when top_lines has virtual/external paths and target is only in line_samples_by_file
+	{
+		perf_profile_report run_e;
+		run_e.total_samples = 10000;
+		run_e.top_lines.push_back(
+			perf_line_sample{.file_path = "include://bits/basic_string.h", .line_number = 235, .function_name = "std::string::_M_data", .count = 4000, .percentage = 40.0});
+		run_e.top_lines.push_back(
+			perf_line_sample{.file_path = "/build/reproducible-path/glibc-2.43/sysdeps/x86_64/multiarch/memcmp-avx2-movbe.S", .line_number = 415, .function_name = "__memcmp_avx2_movbe", .count = 3000, .percentage = 30.0});
+
+		for (int i = 0; i < 50; ++i) {
+			std::string ext_file = "include://c++/14/bits/header_" + std::to_string(i) + ".h";
+			run_e.line_samples_by_file[ext_file].push_back(
+				perf_line_sample{.file_path = ext_file, .line_number = 10, .function_name = "std::helper", .count = 10, .percentage = 0.1});
+		}
+
+		std::string abs_lexer = project_manager::get_instance().get_project_root() + "/src/languages/cpp/lexer.cpp";
+		run_e.line_samples_by_file[abs_lexer].push_back(
+			perf_line_sample{.file_path = abs_lexer, .line_number = 25, .function_name = "cpp_lexer::tokenize", .count = 250, .percentage = 2.5});
+
+		perf_manager::get_instance().set_active_profile(run_e, "run_5");
+
+		auto prep = registry.prepare_tool("agent_get_profile_details", R"({"run_id": "run_5", "file_path": "src/languages/cpp/lexer.cpp", "format": "json"})", ctx);
+		assert(prep.tool != nullptr);
+		auto res = parse_tool_json(prep.tool->execute(ctx));
+		assert(res["total_samples"] == 10000);
+		assert(res["target_samples"] == 250);
+		assert(!res["line_samples"].empty());
+		bool found_line_25 = false;
+		for (const auto &ls : res["line_samples"]) {
+			if (ls["line_number"] == 25 && ls["count"] == 250) {
+				found_line_25 = true;
+			}
+		}
+		assert(found_line_25);
+		std::cout << "agent_get_profile_details (external URI/system path fast-skip + line_samples_by_file fallback) verified successfully!" << std::endl;
 	}
 
 	perf_manager::get_instance().clear_active_profile();
