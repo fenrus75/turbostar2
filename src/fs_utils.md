@@ -18,10 +18,14 @@ The `fs_utils` namespace serves as the primary security boundary and filesystem 
   - `is_binary_file(filepath, treat_null_as_binary)`: Heuristically checks if a file is binary by scanning up to 4KB. By default (`treat_null_as_binary = false`), null bytes alone yield `MAYBE` and are tolerated as non-binary for callers that support or prompt on null bytes (such as the interactive editor or UTF-16 text). When `treat_null_as_binary = true`, null bytes are strictly treated as binary (useful for tools like grep).
   - `is_binary_buffer(buffer, treat_null_as_binary)`: Performs the same null-byte and control-character heuristic inspection on in-memory buffers or VFS streams.
   - `get_buffer_file_type(buffer)` / `get_file_type(filepath)`: Classifies content into `ASCII`, `MAYBE` (null byte found, no other control chars), or `BINARY` (control characters found).
-- **File Health Tracking**:
+- **File Health Tracking & `compile_commands.json` Cache**:
   - Centralizes single-file syntax check generation (`get_compile_command_for_file`) using `-fsyntax-only` to attribute compiler errors to specific `Edit ID #N` changes.
+  - Caches parsed `compile_commands.json` entries in an in-memory hash table (`g_compile_commands_cache`) keyed by normalized absolute source path and guarded by `std::shared_mutex` + `(dev, ino, size, mtime)` validation so file write/edit health checks do not re-read and re-parse `compile_commands.json` on every edit.
 
 ## Lessons Learned
+- **Unmemoized `compile_commands.json` Parsing on Every File Edit (Fixed)**:
+  - Previously, `get_compile_command_for_file` (called via `update_file_health_state` on every `fs_write_file`, `fs_replace_content`, `fs_replace_lines`, and `fs_multi_replace_content` call) opened and parsed the entire ~1.2 MB `build/compile_commands.json` from scratch and invoked `safe_absolute` across all 700+ entries, adding ~40–80 ms of overhead even when editing `.md` or `.tmp` files.
+  - Memoizing the parsed entries in an `std::unordered_map` keyed by normalized absolute path and validated via `stat()` `(dev, ino, size, mtime)` under a `std::shared_mutex` reduces warm lookups to O(1) in-memory hash table queries.
 - **FIFO/Device Node Hangs**: Tools attempting to open or stat arbitrary files can block permanently if given paths like `/dev/stdin` or named FIFOs. Verifying `is_regular_file` upfront eliminates mysterious background tool hangs.
 - **Path Relativization in Prompts**: Presenting raw system paths (e.g. `/home/user/git/project/src/main.cpp`) consumes excessive tokens and confuses agents operating across differing host environments. Normalizing paths to project-relative roots (`src/main.cpp`) optimizes agent reasoning and LSP query alignment.
 - **Tag Breakout Prevention**: AI models can generate content containing closing tags (`</ask_user_result>`). Neutralizing closing delimiters inside wrapped payloads prevents prompt injection attacks.

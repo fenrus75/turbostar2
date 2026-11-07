@@ -136,14 +136,18 @@ std::string fs_write_file_tool::execute(agentlib::tool_context &ctx)
 		out << args_.content;
 		out.close();
 
-		std::string saved_content;
-		std::ifstream in(args_.safe_path, std::ios::binary);
-		if (in.is_open()) {
-			saved_content.assign((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-			in.close();
+		if (args_.append) {
+			std::string saved_content;
+			std::ifstream in(args_.safe_path, std::ios::binary);
+			if (in.is_open()) {
+				saved_content.assign((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+				in.close();
+			}
+			project_manager::get_instance().lsp_save_document(args_.safe_path, saved_content);
+		} else {
+			project_manager::get_instance().lsp_save_document(args_.safe_path, args_.content);
 		}
 		agentlib::update_file_health_state(ctx, args_.safe_path);
-		project_manager::get_instance().lsp_save_document(args_.safe_path, saved_content);
 
 		if (custom_interaction)
 			custom_interaction->set_status(agentlib::interaction_action::status::success);

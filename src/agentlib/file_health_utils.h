@@ -34,7 +34,7 @@ inline std::string update_file_health_state(tool_context &ctx, const std::string
 			    clean_output.find("Process exited with code 0") != std::string::npos);
 		event_logger::get_instance().log("[file_health] single-file compile check: is_clean={}, output_snippet='{}'",
 						 is_clean, clean_output.substr(0, std::min<size_t>(clean_output.length(), 200)));
-	} else {
+	} else if (project_manager::get_instance().lsp_is_supported_file(safe_path)) {
 		auto diags_opt = project_manager::get_instance().lsp_query_file_diagnostics(safe_path);
 		if (diags_opt.has_value()) {
 			has_health_data = true;

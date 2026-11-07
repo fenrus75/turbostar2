@@ -1,11 +1,13 @@
+// Tested source file: src/tools/fs_compile_file/fs_compile_file_entry.cpp
 #include "test_watchdog.h"
 #include <cassert>
 #include <iostream>
 #include <thread>
 #include <chrono>
-#include "../../src/agentlib/ai_agent.h"
-#include "../../src/agentlib/tool_registry.h"
-#include "../../src/project_manager.h"
+#include "agentlib/ai_agent.h"
+#include "agentlib/tool_registry.h"
+#include "fs_utils.h"
+#include "project_manager.h"
 
 using namespace agentlib;
 
@@ -28,11 +30,21 @@ int main()
 
 	std::cout << "Testing fs_compile_file..." << std::endl;
 	{
-		// 0. Verify -fsyntax-only is present when requested
+		// 0. Verify -fsyntax-only is present when requested and cached lookups match
 		{
 			std::string syntax_cmd = fs_utils::get_compile_command_for_file("src/main.cpp", "build", true);
 			std::cout << "Syntax-only compile command: " << syntax_cmd << std::endl;
 			assert(syntax_cmd.find("-fsyntax-only") != std::string::npos);
+
+			std::string syntax_cmd_cached = fs_utils::get_compile_command_for_file("src/main.cpp", "build", true);
+			assert(syntax_cmd_cached == syntax_cmd);
+
+			std::string raw_cmd = fs_utils::get_compile_command_for_file("src/main.cpp", "build", false);
+			assert(!raw_cmd.empty());
+			assert(raw_cmd.find("CCACHE_DISABLE=1") == std::string::npos);
+
+			std::string non_cpp_cmd = fs_utils::get_compile_command_for_file("docs/design.md", "build", true);
+			assert(non_cpp_cmd.empty());
 		}
 
 		// 1. Success case: compile src/main.cpp (sync)

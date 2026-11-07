@@ -24,14 +24,17 @@
 #include <lsp/json/json.h>
 #include <nlohmann/json.hpp>
 #include <pthread.h>
+#include <shared_mutex>
 #include <sstream>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <unordered_map>
 #include "build_error_manager.h"
 #include "command_runner.h"
 #include "event_logger.h"
 #include "gcc_log_parser.h"
+#include "mapped_file.h"
 #include "project_manager.h"
 
 namespace fs_utils
@@ -335,81 +338,206 @@ std::string count_lines_in_file(std::string_view filepath)
 	return std::to_string(lines);
 }
 
+namespace
+{
+
+struct compile_command_record {
+	std::string raw_command;
+	std::string syntax_only_command;
+};
+
+struct compile_commands_cache_state {
+	std::string cc_json_path;
+	dev_t dev{0};
+	ino_t ino{0};
+	off_t size{0};
+	time_t mtime_sec{0};
+	long mtime_nsec{0};
+	bool valid{false};
+	std::unordered_map<std::string, compile_command_record> by_abs_path;
+};
+
+/*
+ * Protects `g_compile_commands_cache`, which indexes parsed `compile_commands.json`
+ * entries by normalized absolute source path along with `(dev, ino, size, mtime)`
+ * validation metadata.
+ *
+ * Locking rules:
+ * - Concurrent callers acquire `std::shared_lock<std::shared_mutex>` after `stat()`ing
+ *   `compile_commands.json` to perform O(1) hash lookups without re-reading or re-parsing JSON.
+ * - On a cache miss or when `compile_commands.json` has changed on disk, the caller parses
+ *   the updated file into a local map outside the lock and acquires
+ *   `std::unique_lock<std::shared_mutex>` only to swap the new table into place.
+ */
+std::shared_mutex g_compile_commands_mutex;
+compile_commands_cache_state g_compile_commands_cache;
+
+std::string build_syntax_only_command(std::string cmd)
+{
+	if (cmd.empty()) {
+		return cmd;
+	}
+	if (cmd.find("-fsyntax-only") == std::string::npos) {
+		cmd += " -fsyntax-only";
+	}
+	size_t o_pos = cmd.find(" -o ");
+	if (o_pos != std::string::npos) {
+		size_t next_space = cmd.find(' ', o_pos + 4);
+		if (next_space != std::string::npos) {
+			cmd.replace(o_pos + 4, next_space - (o_pos + 4), "/dev/null");
+		} else {
+			cmd.replace(o_pos + 4, std::string::npos, "/dev/null");
+		}
+	}
+	// Strip dependency generation flags (-MF <file>, -MQ <target>, -MD, -MMD)
+	auto strip_flag = [&](std::string_view flag, bool has_arg) {
+		size_t pos = 0;
+		while ((pos = cmd.find(flag, pos)) != std::string::npos) {
+			size_t end_pos = pos + flag.length();
+			if (has_arg) {
+				while (end_pos < cmd.length() && cmd[end_pos] == ' ')
+					end_pos++;
+				size_t arg_end = cmd.find(' ', end_pos);
+				if (arg_end == std::string::npos)
+					end_pos = cmd.length();
+				else
+					end_pos = arg_end;
+			}
+			cmd.erase(pos, end_pos - pos);
+		}
+	};
+	strip_flag(" -MF ", true);
+	strip_flag(" -MQ ", true);
+	strip_flag(" -MD", false);
+	strip_flag(" -MMD", false);
+	return cmd;
+}
+
+} // namespace
+
 std::string get_compile_command_for_file(std::string_view filepath, std::string_view build_dir, bool syntax_only)
 {
 	std::filesystem::path cc_json = std::filesystem::path(build_dir) / "compile_commands.json";
-	if (!std::filesystem::exists(cc_json)) {
-		cc_json = std::filesystem::path("compile_commands.json");
-		if (!std::filesystem::exists(cc_json)) {
-			return "";
+	struct stat st{};
+	if (stat(cc_json.c_str(), &st) != 0) {
+		std::string proj = get_project_dir();
+		if (!proj.empty() && cc_json.is_relative()) {
+			cc_json = std::filesystem::path(proj) / build_dir / "compile_commands.json";
+		}
+		if (stat(cc_json.c_str(), &st) != 0) {
+			cc_json = std::filesystem::path("compile_commands.json");
+			if (stat(cc_json.c_str(), &st) != 0) {
+				return "";
+			}
 		}
 	}
 
-	std::ifstream f(cc_json);
-	if (!f.is_open())
-		return "";
-	std::stringstream buffer;
-	buffer << f.rdbuf();
-	std::string json_str = buffer.str();
+	std::string target_abs;
+	if (filepath.starts_with('/') && filepath.find("/../") == std::string_view::npos &&
+	    filepath.find("/./") == std::string_view::npos && !filepath.ends_with('/')) {
+		target_abs.assign(filepath);
+	} else {
+		target_abs = safe_absolute(std::filesystem::path(filepath)).lexically_normal().string();
+	}
+
+	std::string cc_json_str = cc_json.string();
+	{
+		std::shared_lock<std::shared_mutex> rlock(g_compile_commands_mutex);
+		if (g_compile_commands_cache.valid && g_compile_commands_cache.cc_json_path == cc_json_str &&
+		    g_compile_commands_cache.dev == st.st_dev && g_compile_commands_cache.ino == st.st_ino &&
+		    g_compile_commands_cache.size == st.st_size && g_compile_commands_cache.mtime_sec == st.st_mtim.tv_sec &&
+		    g_compile_commands_cache.mtime_nsec == st.st_mtim.tv_nsec) {
+			auto it = g_compile_commands_cache.by_abs_path.find(target_abs);
+			if (it == g_compile_commands_cache.by_abs_path.end()) {
+				return "";
+			}
+			return syntax_only ? it->second.syntax_only_command : it->second.raw_command;
+		}
+	}
+
+	std::string json_storage;
+	std::string_view json_view;
+	std::string map_err;
+	auto mf = mapped_file::get_cached(cc_json_str, map_err);
+	if (mf) {
+		json_view = mf->string_view();
+	} else {
+		std::ifstream f(cc_json);
+		if (!f.is_open()) {
+			return "";
+		}
+		std::stringstream buffer;
+		buffer << f.rdbuf();
+		json_storage = buffer.str();
+		json_view = json_storage;
+	}
 
 	try {
-		lsp::json::Value val = lsp::json::parse(json_str);
-		if (val.isArray()) {
-			std::string target_abs = safe_absolute(std::filesystem::path(filepath)).lexically_normal().string();
-			for (auto &entry_val : val.array()) {
-				if (entry_val.isObject()) {
-					auto &obj = entry_val.object();
-					if (obj.contains("file") && obj.contains("command") && obj.contains("directory")) {
-						std::string dir = obj.get("directory").string();
-						std::string file = obj.get("file").string();
-						std::string abs_path =
-						    safe_absolute(std::filesystem::path(dir) / file).lexically_normal().string();
-						if (abs_path == target_abs) {
-							// Found it! Run the command in the directory specified
-							std::string cmd = obj.get("command").string();
-							if (syntax_only && !cmd.empty()) {
-								if (cmd.find("-fsyntax-only") == std::string::npos) {
-									cmd += " -fsyntax-only";
-								}
-								size_t o_pos = cmd.find(" -o ");
-								if (o_pos != std::string::npos) {
-									size_t next_space = cmd.find(' ', o_pos + 4);
-									if (next_space != std::string::npos) {
-										cmd.replace(o_pos + 4, next_space - (o_pos + 4), "/dev/null");
-									} else {
-										cmd.replace(o_pos + 4, std::string::npos, "/dev/null");
-									}
-								}
-								// Strip dependency generation flags (-MF <file>, -MQ <target>, -MD, -MMD)
-								auto strip_flag = [&](const std::string &flag, bool has_arg) {
-									size_t pos = 0;
-									while ((pos = cmd.find(flag, pos)) != std::string::npos) {
-										size_t end_pos = pos + flag.length();
-										if (has_arg) {
-											while (end_pos < cmd.length() && cmd[end_pos] == ' ') end_pos++;
-											size_t arg_end = cmd.find(' ', end_pos);
-											if (arg_end == std::string::npos) end_pos = cmd.length();
-											else end_pos = arg_end;
-										}
-										cmd.erase(pos, end_pos - pos);
-									}
-								};
-								strip_flag(" -MF ", true);
-								strip_flag(" -MQ ", true);
-								strip_flag(" -MD", false);
-								strip_flag(" -MMD", false);
-							}
-							std::string prefix = syntax_only ? "export CCACHE_DISABLE=1 && cd " : "cd ";
-							return std::format("{}{} && {}", prefix, dir, cmd);
-						}
-					}
-				}
-			}
+		lsp::json::Value val = lsp::json::parse(json_view);
+		if (!val.isArray()) {
+			return "";
 		}
+
+		std::unordered_map<std::string, compile_command_record> new_map;
+		new_map.reserve(val.array().size());
+		std::unordered_map<std::string, std::filesystem::path> dir_norm_cache;
+
+		for (auto &entry_val : val.array()) {
+			if (!entry_val.isObject()) {
+				continue;
+			}
+			auto &obj = entry_val.object();
+			if (!obj.contains("file") || !obj.contains("command") || !obj.contains("directory")) {
+				continue;
+			}
+			std::string dir = obj.get("directory").string();
+			std::string file = obj.get("file").string();
+
+			auto dir_it = dir_norm_cache.find(dir);
+			if (dir_it == dir_norm_cache.end()) {
+				std::filesystem::path dp(dir);
+				std::filesystem::path resolved_dp =
+				    dp.is_absolute() ? dp.lexically_normal() : safe_absolute(dp).lexically_normal();
+				dir_it = dir_norm_cache.emplace(dir, std::move(resolved_dp)).first;
+			}
+
+			std::filesystem::path fp(file);
+			std::string abs_path =
+			    fp.is_absolute() ? fp.lexically_normal().string() : (dir_it->second / fp).lexically_normal().string();
+
+			if (new_map.contains(abs_path)) {
+				continue;
+			}
+
+			std::string cmd = obj.get("command").string();
+			std::string syntax_cmd = build_syntax_only_command(cmd);
+			compile_command_record rec{
+			    .raw_command = std::format("cd {} && {}", dir, cmd),
+			    .syntax_only_command = std::format("export CCACHE_DISABLE=1 && cd {} && {}", dir, syntax_cmd),
+			};
+			new_map.emplace(std::move(abs_path), std::move(rec));
+		}
+
+		std::string result;
+		if (auto it = new_map.find(target_abs); it != new_map.end()) {
+			result = syntax_only ? it->second.syntax_only_command : it->second.raw_command;
+		}
+
+		{
+			std::unique_lock<std::shared_mutex> wlock(g_compile_commands_mutex);
+			g_compile_commands_cache.cc_json_path = std::move(cc_json_str);
+			g_compile_commands_cache.dev = st.st_dev;
+			g_compile_commands_cache.ino = st.st_ino;
+			g_compile_commands_cache.size = st.st_size;
+			g_compile_commands_cache.mtime_sec = st.st_mtim.tv_sec;
+			g_compile_commands_cache.mtime_nsec = st.st_mtim.tv_nsec;
+			g_compile_commands_cache.valid = true;
+			g_compile_commands_cache.by_abs_path = std::move(new_map);
+		}
+		return result;
 	} catch (...) {
 		return "";
 	}
-	return "";
 }
 
 class sync_compile_runner : public command_runner
