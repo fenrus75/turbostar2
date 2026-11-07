@@ -1,5 +1,6 @@
 // Tested source file: src/agentlib/protocols/openai_completion_connection.cpp
 #include "test_watchdog.h"
+#include "fs_basics.h"
 #include <cassert>
 #include <fstream>
 #include <iostream>

@@ -1,0 +1,315 @@
+#include "llm_types.h"
+#include "../fs_utils.h"
+#include <unordered_map>
+#include <string_view>
+
+namespace agentlib
+{
+
+void to_json(nlohmann::json &j, const tool_call &p)
+{
+	std::string type_val = p.type.empty() ? "function" : p.type;
+	function_call fc = p.function;
+	fc.arguments = fs_utils::repair_json_string(fc.arguments);
+	j = nlohmann::json{{"id", p.id}, {"type", type_val}, {"function", fc}};
+	if (p.signature)
+		j["signature"] = *p.signature;
+}
+
+void from_json(const nlohmann::json &j, tool_call &p)
+{
+	if (j.contains("id") && !j["id"].is_null())
+		p.id = j["id"].get<std::string>();
+	if (j.contains("type") && !j["type"].is_null() && !j["type"].get<std::string>().empty())
+		p.type = j["type"].get<std::string>();
+	else
+		p.type = "function";
+	if (j.contains("function") && !j["function"].is_null())
+		p.function = j["function"].get<function_call>();
+	if (j.contains("signature") && !j["signature"].is_null())
+		p.signature = j["signature"].get<std::string>();
+}
+
+void to_json(nlohmann::json &j, const message &p)
+{
+	j = nlohmann::json{{"role", p.role}, {"content", p.content}};
+	if (p.reasoning_content)
+		j["reasoning_content"] = *p.reasoning_content;
+	if (p.name)
+		j["name"] = *p.name;
+	if (p.tool_call_id)
+		j["tool_call_id"] = *p.tool_call_id;
+	if (p.tool_calls)
+		j["tool_calls"] = *p.tool_calls;
+	if (!p.episode_id.empty()) {
+		j["episode_id"] = p.episode_id;
+		j["episode_level"] = p.episode_level;
+	}
+	if (p.timestamp != 0)
+		j["timestamp"] = p.timestamp;
+	if (p.duration_ms != 0)
+		j["duration_ms"] = p.duration_ms;
+}
+
+void from_json(const nlohmann::json &j, message &p)
+{
+	j.at("role").get_to(p.role);
+	if (j.contains("content") && !j["content"].is_null()) {
+		j.at("content").get_to(p.content);
+	}
+	if (j.contains("reasoning_content") && !j["reasoning_content"].is_null()) {
+		p.reasoning_content = j["reasoning_content"].get<std::string>();
+	}
+	if (j.contains("name"))
+		p.name = j.at("name").get<std::string>();
+	if (j.contains("tool_call_id"))
+		p.tool_call_id = j.at("tool_call_id").get<std::string>();
+	if (j.contains("tool_calls"))
+		p.tool_calls = j.at("tool_calls").get<std::vector<tool_call>>();
+	if (j.contains("episode_id")) {
+		p.episode_id = j.at("episode_id").get<std::string>();
+		p.episode_level = j.value("episode_level", -1);
+	} else {
+		p.episode_id = "";
+		p.episode_level = -1;
+	}
+	p.timestamp = j.value("timestamp", 0LL);
+	p.duration_ms = j.value("duration_ms", 0LL);
+}
+
+void normalize_tool_call(tool_call &call)
+{
+	if (call.type.empty()) {
+		call.type = "function";
+	}
+
+	if (call.function.name.starts_with("mcp__")) {
+		std::string res = call.function.name;
+		size_t pos = 3; // skip "mcp"
+		while ((pos = res.find("__", pos)) != std::string::npos) {
+			res.replace(pos, 2, ":");
+			pos += 1;
+		}
+		call.function.name = res;
+	}
+
+	std::string alias = call.function.name;
+
+	// Normalize name
+	static const std::unordered_map<std::string_view, std::string_view> tool_name_aliases = {
+		{"read_file", "fs_read_lines"},
+		{"view_file", "fs_read_lines"},
+		{"cat", "fs_read_lines"},
+		{"fs_read_file", "fs_read_lines"},
+		{"grep", "fs_grep_files"},
+		{"search_grep", "fs_grep_files"},
+		{"find_in_files", "fs_grep_files"},
+		{"grep_search", "fs_grep_files"},
+		{"list_dir", "fs_list_dir"},
+		{"glob", "fs_glob"},
+		{"find_files", "fs_glob"},
+		{"mkdir", "fs_mkdir"},
+		{"create_directory", "fs_mkdir"},
+		{"replace_content", "fs_replace_content"},
+		{"edit_content", "fs_replace_content"},
+		{"run_tests", "fs_run_tests"},
+		{"git_diff", "git_diff_unstaged"},
+		{"man", "fs_man"},
+		{"man_page", "fs_man"},
+		{"manual", "fs_man"},
+		{"create_agent", "invoke_subagent"},
+		{"list_agents", "list_subagents"},
+		{"agent_list", "list_subagents"},
+		{"agent_status", "get_subagent_status"},
+		{"message_agent", "send_message"},
+		{"wait_for_agent", "wait_for_subagent"},
+		{"agent_get_output", "get_subagent_output"},
+		{"agent_report_final_result", "report_final_result"},
+		{"end_agent", "kill_subagent"},
+		{"agent_end", "kill_subagent"}
+	};
+
+	std::string official_name = alias;
+	if (auto it = tool_name_aliases.find(alias); it != tool_name_aliases.end()) {
+		official_name = std::string(it->second);
+	}
+
+	if (official_name == alias) {
+		return; // No normalization needed
+	}
+
+	call.function.name = official_name;
+
+	// Parse arguments JSON
+	try {
+		nlohmann::json args = nlohmann::json::parse(call.function.arguments);
+		if (!args.is_object()) {
+			return;
+		}
+
+		if (official_name == "fs_read_lines") {
+			// Find a path key and map it to "path"
+			std::string path_val;
+			for (const auto &key : {"file", "file_path", "filepath", "filename", "path"}) {
+				if (args.contains(key) && args[key].is_string()) {
+					path_val = args[key].get<std::string>();
+					break;
+				}
+			}
+			nlohmann::json new_args = nlohmann::json::object();
+			if (!path_val.empty()) {
+				new_args["path"] = path_val;
+			} else {
+				// preserve whatever was there if none found
+				new_args = args;
+			}
+			if (args.contains("start_line"))
+				new_args["start_line"] = args["start_line"];
+			if (args.contains("end_line"))
+				new_args["end_line"] = args["end_line"];
+			args = new_args;
+		} else if (official_name == "fs_grep_files") {
+			std::string pattern_val;
+			for (const auto &key : {"pattern", "query", "search_query", "regex", "text", "Query", "Pattern"}) {
+				if (args.contains(key) && args[key].is_string()) {
+					pattern_val = args[key].get<std::string>();
+					break;
+				}
+			}
+			std::string dir_path_val;
+			// 'search_path' is the canonical argument name that fs_grep_files_validator reads.
+			// It is listed first here so that if the LLM already uses the canonical name it is
+			// preserved, with the remaining entries accepted as legacy/alias input names.
+			for (const auto &key : {"search_path", "path", "dir_path", "dir", "directory", "SearchPath", "Path"}) {
+				if (args.contains(key) && args[key].is_string()) {
+					dir_path_val = args[key].get<std::string>();
+					break;
+				}
+			}
+			nlohmann::json new_args = nlohmann::json::object();
+			if (!pattern_val.empty()) {
+				new_args["pattern"] = pattern_val;
+			}
+			if (!dir_path_val.empty()) {
+				new_args["search_path"] = dir_path_val;
+			}
+			for (const auto &k : {"include_ext", "limit", "context_lines", "exclude_path", "exclude_ext", "exclude_pattern", "is_regex", "case_insensitive"}) {
+				if (args.contains(k)) {
+					new_args[k] = args[k];
+				}
+			}
+			if (!new_args.contains("case_insensitive") && args.contains("CaseInsensitive")) {
+				new_args["case_insensitive"] = args["CaseInsensitive"];
+			}
+			if (!new_args.contains("is_regex") && args.contains("IsRegex")) {
+				new_args["is_regex"] = args["IsRegex"];
+			}
+			if (!new_args.contains("include_ext")) {
+				if (args.contains("Includes") && args["Includes"].is_array() && !args["Includes"].empty() && args["Includes"][0].is_string()) {
+					std::string inc = args["Includes"][0].get<std::string>();
+					if (size_t dot_pos = inc.rfind('.'); dot_pos != std::string::npos) {
+						new_args["include_ext"] = inc.substr(dot_pos);
+					}
+				}
+			}
+			args = new_args;
+		} else if (official_name == "fs_list_dir" || official_name == "fs_mkdir" || official_name == "git_diff_unstaged" || official_name == "git_diff_staged" || official_name == "git_blame") {
+			std::string path_val;
+			for (const auto &key : {"path", "file", "file_path", "filepath", "filename", "dir", "directory", "dir_path"}) {
+				if (args.contains(key) && args[key].is_string()) {
+					path_val = args[key].get<std::string>();
+					break;
+				}
+			}
+			nlohmann::json new_args = nlohmann::json::object();
+			if (!path_val.empty()) {
+				new_args["path"] = path_val;
+			} else if (official_name == "git_diff_unstaged" || official_name == "git_diff_staged") {
+				new_args["path"] = "."; // default for git_diff
+			}
+			args = new_args;
+		} else if (official_name == "fs_glob") {
+			std::string pattern_val;
+			for (const auto &key : {"pattern", "file_pattern", "query", "glob"}) {
+				if (args.contains(key) && args[key].is_string()) {
+					pattern_val = args[key].get<std::string>();
+					break;
+				}
+			}
+			nlohmann::json new_args = nlohmann::json::object();
+			if (!pattern_val.empty()) {
+				new_args["pattern"] = pattern_val;
+			} else {
+				new_args = args;
+			}
+			args = new_args;
+		} else if (official_name == "fs_replace_content") {
+			std::string path_val;
+			for (const auto &key : {"path", "file", "file_path", "filepath"}) {
+				if (args.contains(key) && args[key].is_string()) {
+					path_val = args[key].get<std::string>();
+					break;
+				}
+			}
+			std::string target_val;
+			for (const auto &key : {"target_content", "target", "original_text", "old_text"}) {
+				if (args.contains(key) && args[key].is_string()) {
+					target_val = args[key].get<std::string>();
+					break;
+				}
+			}
+			std::string replace_val;
+			for (const auto &key : {"replacement_content", "replacement", "replace_with", "new_text"}) {
+				if (args.contains(key) && args[key].is_string()) {
+					replace_val = args[key].get<std::string>();
+					break;
+				}
+			}
+			nlohmann::json new_args = nlohmann::json::object();
+			if (!path_val.empty())
+				new_args["path"] = path_val;
+			if (!target_val.empty())
+				new_args["target_content"] = target_val;
+			if (!replace_val.empty())
+				new_args["replacement_content"] = replace_val;
+			if (args.contains("line_hint"))
+				new_args["line_hint"] = args["line_hint"];
+			args = new_args;
+		} else if (official_name == "fs_man") {
+			std::string name_val;
+			for (const auto &key : {"name", "command", "function", "cmd", "query"}) {
+				if (args.contains(key) && args[key].is_string()) {
+					name_val = args[key].get<std::string>();
+					break;
+				}
+			}
+			std::string section_val;
+			for (const auto &key : {"section", "sec"}) {
+				if (args.contains(key)) {
+					if (args[key].is_string()) {
+						section_val = args[key].get<std::string>();
+					} else if (args[key].is_number_integer()) {
+						section_val = std::to_string(args[key].get<int>());
+					}
+					break;
+				}
+			}
+			nlohmann::json new_args = nlohmann::json::object();
+			if (!name_val.empty()) {
+				new_args["name"] = name_val;
+			} else {
+				new_args = args;
+			}
+			if (!section_val.empty()) {
+				new_args["section"] = section_val;
+			}
+			args = new_args;
+		}
+
+		call.function.arguments = args.dump();
+	} catch (...) {
+		// Ignore parse failures, let validator handle bad JSON format
+	}
+}
+
+} // namespace agentlib
