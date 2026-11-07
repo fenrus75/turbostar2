@@ -1,9 +1,8 @@
 #include "codemap_fallbacks.h"
 
 #include <algorithm>
+#include <cstring>
 #include <filesystem>
-#include <fstream>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <unordered_set>
@@ -11,6 +10,7 @@
 #include <ctre.hpp>
 #include "fs_utils.h"
 #include "languages/cpp/symbol_extractor.h"
+#include "mapped_file.h"
 #include "project_manager.h"
 #include "utf8.h"
 
@@ -23,16 +23,20 @@ bool is_markdown_file(const std::string_view path) noexcept
 	return ext == ".md" || ext == ".markdown" || ext == ".mdown" || ext == ".mkd";
 }
 
-void fallback_find_symbols_markdown(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out)
+namespace
+{
+
+template <typename LineT>
+void fallback_find_symbols_markdown_impl(std::span<const LineT> lines, int min_lines, std::vector<codemap_symbol_info> &out)
 {
 	std::vector<codemap_symbol_info> headings;
 	std::vector<int> stack; // heading levels forming the current ancestor chain
 
 	for (size_t i = 0; i < lines.size(); ++i) {
 		int line_no = static_cast<int>(i + 1);
-		const std::string &line_text = lines[i];
+		std::string_view line_text = lines[i];
 		size_t first = line_text.find_first_not_of(" \t");
-		if (first == std::string::npos || line_text[first] != '#') {
+		if (first == std::string_view::npos || line_text[first] != '#') {
 			continue;
 		}
 		// Count consecutive '#' to determine heading level.
@@ -74,7 +78,7 @@ void fallback_find_symbols_markdown(std::span<const std::string> lines, int min_
 			}
 		}
 		if (heading.empty()) {
-			heading = line_text.substr(first, level);
+			heading = std::string(line_text.substr(first, level));
 		}
 
 		// Compute depth as the heading level nested under shallower ancestors.
@@ -86,7 +90,7 @@ void fallback_find_symbols_markdown(std::span<const std::string> lines, int min_
 
 		headings.push_back({
 		    .name = heading,
-		    .display_name = (depth == 0) ? heading : std::string(depth * 4, ' ') + heading,
+		    .display_name = (depth == 0) ? heading : std::string(stack.size() - 1 > 0 ? depth * 4 : 0, ' ') + heading,
 		    .kind_str = "Heading",
 		    .start_line = line_no,
 		    .end_line = line_no,
@@ -111,23 +115,8 @@ void fallback_find_symbols_markdown(std::span<const std::string> lines, int min_
 	}
 }
 
-void fallback_find_symbols_markdown(std::span<const std::string> lines, std::vector<codemap_symbol_info> &out)
-{
-	fallback_find_symbols_markdown(lines, 1, out);
-}
-
-void parse_markdown_headings(const std::string &content, int min_lines, std::vector<codemap_symbol_info> &out)
-{
-	std::vector<std::string> lines;
-	std::istringstream ss(content);
-	std::string line;
-	while (std::getline(ss, line)) {
-		lines.push_back(line);
-	}
-	fallback_find_symbols_markdown(lines, min_lines, out);
-}
-
-void fallback_find_symbols_python(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out)
+template <typename LineT>
+void fallback_find_symbols_python_impl(std::span<const LineT> lines, int min_lines, std::vector<codemap_symbol_info> &out)
 {
 	for (size_t i = 0; i < lines.size(); ++i) {
 		if ((i & 63) == 0 && project_manager::get_instance().is_exiting()) {
@@ -135,9 +124,10 @@ void fallback_find_symbols_python(std::span<const std::string> lines, int min_li
 		}
 		int line_num = static_cast<int>(i + 1);
 		std::string name;
-		if (auto m = ctre::search<R"(^\s*class\s+([a-zA-Z_]\w*))">(lines[i])) {
+		std::string_view line_sv = lines[i];
+		if (auto m = ctre::search<R"(^\s*class\s+([a-zA-Z_]\w*))">(line_sv)) {
 			name = std::string(m.get<1>().to_view());
-		} else if (auto m2 = ctre::search<R"(^\s*def\s+([a-zA-Z_]\w*)\s*\()">(lines[i])) {
+		} else if (auto m2 = ctre::search<R"(^\s*def\s+([a-zA-Z_]\w*)\s*\()">(line_sv)) {
 			name = std::string(m2.get<1>().to_view());
 		}
 		if (!name.empty()) {
@@ -148,12 +138,8 @@ void fallback_find_symbols_python(std::span<const std::string> lines, int min_li
 	}
 }
 
-void fallback_find_symbols_python(std::span<const std::string> lines, std::vector<codemap_symbol_info> &out)
-{
-	fallback_find_symbols_python(lines, 1, out);
-}
-
-void fallback_find_symbols_verilog(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out)
+template <typename LineT>
+void fallback_find_symbols_verilog_impl(std::span<const LineT> lines, int min_lines, std::vector<codemap_symbol_info> &out)
 {
 	for (size_t i = 0; i < lines.size(); ++i) {
 		if ((i & 63) == 0 && project_manager::get_instance().is_exiting()) {
@@ -163,30 +149,31 @@ void fallback_find_symbols_verilog(std::span<const std::string> lines, int min_l
 		std::string name;
 		std::string kind;
 		std::string end_kw;
+		std::string_view line_sv = lines[i];
 
-		if (auto m = ctre::search<R"(^\s*+(?:extern\s++)?+module\s++([a-zA-Z_]\w*+))">(lines[i])) {
+		if (auto m = ctre::search<R"(^\s*+(?:extern\s++)?+module\s++([a-zA-Z_]\w*+))">(line_sv)) {
 			name = std::string(m.get<1>().to_view());
 			kind = "Module";
 			end_kw = "endmodule";
-		} else if (auto m = ctre::search<R"(^\s*+(?:extern\s++)?+interface\s++([a-zA-Z_]\w*+))">(lines[i])) {
+		} else if (auto m = ctre::search<R"(^\s*+(?:extern\s++)?+interface\s++([a-zA-Z_]\w*+))">(line_sv)) {
 			name = std::string(m.get<1>().to_view());
 			kind = "Interface";
 			end_kw = "endinterface";
-		} else if (auto m = ctre::search<R"(^\s*+package\s++([a-zA-Z_]\w*+))">(lines[i])) {
+		} else if (auto m = ctre::search<R"(^\s*+package\s++([a-zA-Z_]\w*+))">(line_sv)) {
 			name = std::string(m.get<1>().to_view());
 			kind = "Package";
 			end_kw = "endpackage";
-		} else if (auto m = ctre::search<R"(^\s*+(?:virtual\s++)?+class\s++([a-zA-Z_]\w*+))">(lines[i])) {
+		} else if (auto m = ctre::search<R"(^\s*+(?:virtual\s++)?+class\s++([a-zA-Z_]\w*+))">(line_sv)) {
 			name = std::string(m.get<1>().to_view());
 			kind = "Class";
 			end_kw = "endclass";
-		} else if (auto m = ctre::search<R"(^\s*+(?:(?:pure\s++virtual|virtual|static|local|protected)\s++)*+function\s++([^(;]++)[\(;])">(lines[i])) {
+		} else if (auto m = ctre::search<R"(^\s*+(?:(?:pure\s++virtual|virtual|static|local|protected)\s++)*+function\s++([^(;]++)[\(;])">(line_sv)) {
 			if (auto nm = ctre::search<R"((?:^|\s)([a-zA-Z_]\w*+)\s*+$)">(m.get<1>().to_view())) {
 				name = std::string(nm.get<1>().to_view());
 				kind = "Function";
 				end_kw = "endfunction";
 			}
-		} else if (auto m = ctre::search<R"(^\s*+(?:(?:pure\s++virtual|virtual|static|local|protected)\s++)*+task\s++([^(;]++)[\(;])">(lines[i])) {
+		} else if (auto m = ctre::search<R"(^\s*+(?:(?:pure\s++virtual|virtual|static|local|protected)\s++)*+task\s++([^(;]++)[\(;])">(line_sv)) {
 			if (auto nm = ctre::search<R"((?:^|\s)([a-zA-Z_]\w*+)\s*+$)">(m.get<1>().to_view())) {
 				name = std::string(nm.get<1>().to_view());
 				kind = "Task";
@@ -196,7 +183,8 @@ void fallback_find_symbols_verilog(std::span<const std::string> lines, int min_l
 		if (!name.empty()) {
 			int end_line = line_num;
 			for (size_t j = i + 1; j < lines.size(); ++j) {
-				if (lines[j].find(end_kw) != std::string::npos) {
+				std::string_view next_sv = lines[j];
+				if (next_sv.find(end_kw) != std::string_view::npos) {
 					end_line = static_cast<int>(j + 1);
 					break;
 				}
@@ -209,9 +197,72 @@ void fallback_find_symbols_verilog(std::span<const std::string> lines, int min_l
 	}
 }
 
+} // namespace
+
+void fallback_find_symbols_markdown(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out)
+{
+	fallback_find_symbols_markdown_impl(lines, min_lines, out);
+}
+
+void fallback_find_symbols_markdown(std::span<const std::string> lines, std::vector<codemap_symbol_info> &out)
+{
+	fallback_find_symbols_markdown_impl(lines, 1, out);
+}
+
+void fallback_find_symbols_markdown(std::span<const std::string_view> lines, int min_lines, std::vector<codemap_symbol_info> &out)
+{
+	fallback_find_symbols_markdown_impl(lines, min_lines, out);
+}
+
+void parse_markdown_headings(std::string_view content, int min_lines, std::vector<codemap_symbol_info> &out)
+{
+	std::vector<std::string_view> lines;
+	const char *p = content.data();
+	const char *end = p + content.size();
+	while (p < end) {
+		const char *nl = static_cast<const char *>(std::memchr(p, '\n', static_cast<size_t>(end - p)));
+		const char *line_end = (nl != nullptr) ? nl : end;
+		size_t len = static_cast<size_t>(line_end - p);
+		if (len > 0 && p[len - 1] == '\r') {
+			--len;
+		}
+		lines.emplace_back(p, len);
+		if (nl == nullptr) {
+			break;
+		}
+		p = nl + 1;
+	}
+	fallback_find_symbols_markdown(lines, min_lines, out);
+}
+
+void fallback_find_symbols_python(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out)
+{
+	fallback_find_symbols_python_impl(lines, min_lines, out);
+}
+
+void fallback_find_symbols_python(std::span<const std::string> lines, std::vector<codemap_symbol_info> &out)
+{
+	fallback_find_symbols_python_impl(lines, 1, out);
+}
+
+void fallback_find_symbols_python(std::span<const std::string_view> lines, int min_lines, std::vector<codemap_symbol_info> &out)
+{
+	fallback_find_symbols_python_impl(lines, min_lines, out);
+}
+
+void fallback_find_symbols_verilog(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out)
+{
+	fallback_find_symbols_verilog_impl(lines, min_lines, out);
+}
+
 void fallback_find_symbols_verilog(std::span<const std::string> lines, std::vector<codemap_symbol_info> &out)
 {
-	fallback_find_symbols_verilog(lines, 1, out);
+	fallback_find_symbols_verilog_impl(lines, 1, out);
+}
+
+void fallback_find_symbols_verilog(std::span<const std::string_view> lines, int min_lines, std::vector<codemap_symbol_info> &out)
+{
+	fallback_find_symbols_verilog_impl(lines, min_lines, out);
 }
 
 void fallback_find_symbols_cpp(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out)
@@ -227,28 +278,24 @@ void fallback_find_symbols_cpp(std::span<const std::string> lines, std::vector<c
 void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vector<codemap_symbol_info> &out)
 {
 	std::string abs_path = fs_utils::safe_absolute(safe_path).string();
-	std::ifstream in(abs_path);
-	if (!in.is_open()) {
-		in.open(safe_path);
-		if (!in.is_open())
+	std::string map_err;
+	auto mf = mapped_file::get_cached(abs_path, map_err, /*populate=*/true);
+	if (!mf) {
+		mf = mapped_file::get_cached(safe_path, map_err, /*populate=*/true);
+		if (!mf) {
 			return;
-	}
-
-	std::vector<std::string> lines;
-	std::string l;
-	while (std::getline(in, l)) {
-		lines.push_back(l);
+		}
 	}
 
 	std::string ext = utf8::to_lower(std::filesystem::path(safe_path).extension().string());
 	if (is_markdown_file(safe_path)) {
-		fallback_find_symbols_markdown(lines, min_lines, out);
+		fallback_find_symbols_markdown(mf->lines(), min_lines, out);
 	} else if (ext == ".py") {
-		fallback_find_symbols_python(lines, min_lines, out);
+		fallback_find_symbols_python(mf->lines(), min_lines, out);
 	} else if (ext == ".sv" || ext == ".svh" || ext == ".v" || ext == ".vh") {
-		fallback_find_symbols_verilog(lines, min_lines, out);
+		fallback_find_symbols_verilog(mf->lines(), min_lines, out);
 	} else {
-		fallback_find_symbols_cpp(lines, min_lines, out);
+		languages::cpp::symbol_extractor::extract_symbols_from_source(mf->string_view(), min_lines, out);
 	}
 }
 

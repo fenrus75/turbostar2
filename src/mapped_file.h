@@ -103,13 +103,16 @@ class mapped_file
 	constexpr operator std::span<const uint8_t>() const & noexcept { return bytes(); }
 	constexpr operator std::string_view() const & noexcept { return string_view(); }
 
+	// Returns a zero-copy string_view spanning the 1-based inclusive line range [start_line, end_line].
+	[[nodiscard]] std::string_view line_range_view(size_t start_line, size_t end_line) const &;
+
 	// Prevent binding non-owning views to a temporary mapped_file
 	void bytes() const && = delete;
 	void string_view() const && = delete;
 	void lines() const && = delete;
+	void line_range_view(size_t, size_t) const && = delete;
 	operator std::span<const uint8_t>() const && = delete;
 	operator std::string_view() const && = delete;
-
 	[[nodiscard]] constexpr dev_t st_dev() const noexcept { return dev_; }
 	[[nodiscard]] constexpr ino_t st_ino() const noexcept { return ino_; }
 	[[nodiscard]] constexpr time_t mtime_sec() const noexcept { return mtime_sec_; }

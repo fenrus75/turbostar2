@@ -162,6 +162,9 @@ int main()
 		auto c3 = mapped_file::get_cached(cached_path.string(), err);
 		assert(c3 != nullptr && c3 != c1);
 		assert(c3->lines().size() == 3);
+		assert(c3->line_range_view(2, 3) == "line 2\nline 3");
+		assert(c3->line_range_view(1, 1) == "line 1");
+		assert(c3->line_range_view(4, 5).empty());
 		// Old shared_ptr `c1` remains valid and readable while held!
 		assert(c1->lines().size() == 2);
 

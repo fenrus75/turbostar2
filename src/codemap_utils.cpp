@@ -33,8 +33,8 @@
 #include <unordered_set>
 #include "config_manager.h"
 #include "fs_utils.h"
+#include "mapped_file.h"
 #include "project_manager.h"
-
 namespace tools
 {
 
@@ -203,6 +203,7 @@ static std::vector<codemap_symbol_info> get_document_codemap_symbols_impl(const 
 
 	// Read document content if VFS URI, open in doc_provider, else disk
 	std::string content;
+	std::shared_ptr<const mapped_file> disk_mf;
 	if (is_vfs && ctx) {
 		auto vfs = ctx->fs_security.get_vfs();
 		if (vfs) {
@@ -220,17 +221,19 @@ static std::vector<codemap_symbol_info> get_document_codemap_symbols_impl(const 
 				content += doc_snapshot->get_line_text(i) + "\n";
 			}
 		} else {
-			std::ifstream file(safe_path, std::ios::binary);
-			if (file.is_open()) {
-				content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-			}
+			std::string map_err;
+			disk_mf = mapped_file::get_cached(safe_path, map_err, /*populate=*/true);
 		}
 	}
 
 	// For Markdown, use our internal heading "mini-LSP" and skip the heavier generic
 	// LSP machinery entirely (there is typically no Markdown language server installed).
 	if (is_markdown_file(safe_path)) {
-		parse_markdown_headings(content, 1, raw_symbols);
+		if (disk_mf) {
+			fallback_find_symbols_markdown(disk_mf->lines(), 1, raw_symbols);
+		} else {
+			parse_markdown_headings(content, 1, raw_symbols);
+		}
 		std::sort(raw_symbols.begin(), raw_symbols.end(),
 			  [](const codemap_symbol_info &a, const codemap_symbol_info &b) { return a.start_line < b.start_line; });
 		if (!is_vfs && !is_dirty_in_doc && !raw_symbols.empty()) {
@@ -247,6 +250,10 @@ static std::vector<codemap_symbol_info> get_document_codemap_symbols_impl(const 
 			return filtered;
 		}
 		return raw_symbols;
+	}
+
+	if (disk_mf && content.empty()) {
+		content.assign(disk_mf->string_view().data(), disk_mf->string_view().size());
 	}
 
 	// Synchronize buffer with LSP
@@ -314,6 +321,7 @@ void prefetch_document_codemap_symbols(const std::string &safe_path, agentlib::t
 
 	// Skip redundant LSP prefetch if codemap_cache already holds a valid, unchanged entry
 	if (safe_path.find("://") == std::string::npos) {
+		mapped_file::prefetch(safe_path);
 		if (codemap_cache::get_instance().has_valid_entry(safe_path)) {
 			return;
 		}
@@ -339,9 +347,9 @@ void prefetch_document_codemap_symbols(const std::string &safe_path, agentlib::t
 				content += doc_snapshot->get_line_text(i) + "\n";
 			}
 		} else {
-			std::ifstream file(safe_path, std::ios::binary);
-			if (file.is_open()) {
-				content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+			std::string map_err;
+			if (auto mf = mapped_file::get_cached(safe_path, map_err, /*populate=*/true)) {
+				content.assign(mf->string_view().data(), mf->string_view().size());
 			}
 		}
 	}
@@ -386,14 +394,24 @@ void shutdown_outgoing_calls_threads()
 
 static std::pair<int, int> get_symbol_location(const std::string &file_path, int start_line, int end_line, std::string_view sym_name = "")
 {
-	std::ifstream file(file_path);
-	if (!file.is_open()) {
+	if (start_line <= 0) {
+		return {0, 0};
+	}
+
+	std::string map_err;
+	auto mf = mapped_file::get_cached(file_path, map_err);
+	if (!mf) {
 		return {start_line - 1, 0};
 	}
 
-	std::string line;
-	int current_line = 1;
+	auto file_lines = mf->lines();
+	size_t start_idx = static_cast<size_t>(start_line - 1);
+	if (start_idx >= file_lines.size()) {
+		return {start_line - 1, 0};
+	}
+
 	int max_scan_line = (end_line >= start_line) ? std::min(end_line, start_line + 5) : (start_line + 5);
+	size_t end_idx = std::min(file_lines.size(), static_cast<size_t>(std::max(start_line, max_scan_line)));
 
 	// Strip class/namespace prefix if any (e.g. MyClass::my_func -> my_func)
 	size_t colon_pos = sym_name.rfind("::");
@@ -402,40 +420,38 @@ static std::pair<int, int> get_symbol_location(const std::string &file_path, int
 	int fallback_line = start_line - 1;
 	int fallback_col = 0;
 
-	while (std::getline(file, line) && current_line <= max_scan_line) {
-		if (current_line >= start_line) {
-			if (!short_name.empty()) {
-				size_t pos = line.find(short_name);
-				if (pos != std::string::npos) {
-					bool left_ok = (pos == 0 || !utf8::is_alnum(line[pos - 1], "_"));
-					size_t after = pos + short_name.size();
-					bool right_ok = (after >= line.size() || !utf8::is_alnum(line[after], "_"));
-					if (left_ok && right_ok) {
-						return {current_line - 1, static_cast<int>(pos)};
-					}
-				}
-			}
-			if (current_line == start_line) {
-				size_t paren_pos = line.find('(');
-				if (paren_pos != std::string::npos && paren_pos > 0) {
-					size_t col = paren_pos - 1;
-					while (col > 0 && std::isspace(static_cast<unsigned char>(line[col]))) {
-						col--;
-					}
-					fallback_col = static_cast<int>(col);
-				} else {
-					size_t first_non_space = line.find_first_not_of(" \t");
-					if (first_non_space != std::string::npos) {
-						fallback_col = static_cast<int>(first_non_space);
-					}
+	for (size_t idx = start_idx; idx < end_idx; ++idx) {
+		std::string_view line = file_lines[idx];
+		int current_line = static_cast<int>(idx + 1);
+		if (!short_name.empty()) {
+			size_t pos = line.find(short_name);
+			if (pos != std::string_view::npos) {
+				bool left_ok = (pos == 0 || !utf8::is_alnum(line[pos - 1], "_"));
+				size_t after = pos + short_name.size();
+				bool right_ok = (after >= line.size() || !utf8::is_alnum(line[after], "_"));
+				if (left_ok && right_ok) {
+					return {current_line - 1, static_cast<int>(pos)};
 				}
 			}
 		}
-		current_line++;
+		if (current_line == start_line) {
+			size_t paren_pos = line.find('(');
+			if (paren_pos != std::string_view::npos && paren_pos > 0) {
+				size_t col = paren_pos - 1;
+				while (col > 0 && std::isspace(static_cast<unsigned char>(line[col]))) {
+					col--;
+				}
+				fallback_col = static_cast<int>(col);
+			} else {
+				size_t first_non_space = line.find_first_not_of(" \t");
+				if (first_non_space != std::string_view::npos) {
+					fallback_col = static_cast<int>(first_non_space);
+				}
+			}
+		}
 	}
 	return {fallback_line, fallback_col};
 }
-
 static bool is_project_file(std::string_view path)
 {
 	return call_resolver::is_project_file(path);
@@ -1179,23 +1195,28 @@ bool extract_class_members_from_header(const std::string &safe_header_path,
 	}
 
 	std::vector<std::string> header_lines;
+	std::string header_content;
 	if (ctx && ctx->doc_provider && ctx->doc_provider->get_open_document(safe_header_path)) {
 		auto doc = ctx->doc_provider->get_open_document(safe_header_path);
 		size_t count = doc->get_line_count();
 		header_lines.reserve(count);
 		for (size_t i = 0; i < count; ++i) {
-			header_lines.push_back(doc->get_line_text(i));
+			std::string l = doc->get_line_text(i);
+			header_content += l;
+			header_content += "\n";
+			header_lines.push_back(std::move(l));
 		}
 	} else {
-		std::ifstream f(safe_header_path);
-		if (!f.is_open())
+		std::string map_err;
+		auto mf = mapped_file::get_cached(safe_header_path, map_err, /*populate=*/true);
+		if (!mf)
 			return false;
-		std::string l;
-		while (std::getline(f, l)) {
-			if (!l.empty() && l.back() == '\r')
-				l.pop_back();
-			header_lines.push_back(l);
+		auto file_lines = mf->lines();
+		header_lines.reserve(file_lines.size());
+		for (std::string_view sv : file_lines) {
+			header_lines.emplace_back(sv);
 		}
+		header_content.assign(mf->string_view().data(), mf->string_view().size());
 	}
 
 	if (header_lines.empty()) {
@@ -1205,11 +1226,6 @@ bool extract_class_members_from_header(const std::string &safe_header_path,
 	std::vector<class_member_info> candidate_fields;
 	std::vector<class_member_info> candidate_methods;
 
-	std::string header_content;
-	for (const auto &l : header_lines) {
-		header_content += l;
-		header_content += "\n";
-	}
 	project_manager::get_instance().lsp_open_document(safe_header_path, header_content);
 	auto root_symbols = project_manager::get_instance().lsp_query_document_symbols(safe_header_path);
 	const lsp_manager::symbol_node *class_node = find_class_symbol_node(root_symbols, simple_class_name);
@@ -1415,15 +1431,13 @@ bool extract_enclosing_class_summary(const std::string &file_path, int line,
 				line_content = doc->get_line_text(line);
 			}
 		} else {
-			std::ifstream f(file_path);
-			std::string l;
-			int cur = 0;
-			while (cur <= line && std::getline(f, l)) {
-				if (cur == line) {
-					line_content = l;
-					break;
+			std::string map_err;
+			if (auto mf = mapped_file::get_cached(file_path, map_err)) {
+				auto file_lines = mf->lines();
+				size_t idx = static_cast<size_t>(line);
+				if (idx < file_lines.size()) {
+					line_content.assign(file_lines[idx]);
 				}
-				cur++;
 			}
 		}
 		if (auto m = ctre::search<R"(([A-Za-z_][A-Za-z0-9_]*)::([A-Za-z_][A-Za-z0-9_]*))">(line_content)) {
@@ -1643,15 +1657,13 @@ std::string extract_class_context_preview(const std::string &cpp_path, int start
 				line_content = doc->get_line_text(enclosing->start_line - 1);
 			}
 		} else {
-			std::ifstream f(cpp_path);
-			std::string l;
-			int cur = 1;
-			while (cur <= enclosing->start_line && std::getline(f, l)) {
-				if (cur == enclosing->start_line) {
-					line_content = l;
-					break;
+			std::string map_err;
+			if (auto mf = mapped_file::get_cached(cpp_path, map_err)) {
+				auto file_lines = mf->lines();
+				size_t idx = static_cast<size_t>(enclosing->start_line - 1);
+				if (idx < file_lines.size()) {
+					line_content.assign(file_lines[idx]);
 				}
-				cur++;
 			}
 		}
 		size_t pos = line_content.find(simple_class_name + "::");
@@ -2020,25 +2032,21 @@ std::optional<function_signature_query_result> resolve_function_signature(
 	std::string decl_loc;
 	std::string sig_str;
 	auto defs = project_manager::get_instance().lsp_query_definition(safe_path, line, col);
-	if (!defs.empty()) {
+	if (!defs.empty() && defs[0].range.start_y >= 0) {
 		decl_loc = std::format("{}:{}", defs[0].path, defs[0].range.start_y + 1);
-		std::ifstream f(defs[0].path);
-		if (f.is_open()) {
-			std::string l;
-			int cur_l = 0;
-			while (std::getline(f, l)) {
-				if (cur_l >= defs[0].range.start_y && cur_l <= defs[0].range.start_y + 4) {
-					if (!sig_str.empty())
-						sig_str += " ";
-					sig_str += utf8::trim(l);
-					if (sig_str.find(')') != std::string::npos || sig_str.find('{') != std::string::npos ||
-					    sig_str.find(';') != std::string::npos) {
-						break;
-					}
-				}
-				cur_l++;
-				if (cur_l > defs[0].range.start_y + 4)
+		std::string map_err;
+		if (auto mf = mapped_file::get_cached(defs[0].path, map_err)) {
+			auto file_lines = mf->lines();
+			size_t start_idx = static_cast<size_t>(defs[0].range.start_y);
+			size_t end_idx = std::min(file_lines.size(), start_idx + 5);
+			for (size_t idx = start_idx; idx < end_idx; ++idx) {
+				if (!sig_str.empty())
+					sig_str += " ";
+				sig_str += utf8::trim(file_lines[idx]);
+				if (sig_str.find(')') != std::string::npos || sig_str.find('{') != std::string::npos ||
+				    sig_str.find(';') != std::string::npos) {
 					break;
+				}
 			}
 		}
 	}
@@ -2049,23 +2057,21 @@ std::optional<function_signature_query_result> resolve_function_signature(
 		for (const auto &sym : ws_symbols) {
 			if (sym.name == token && (sym.kind == 11 || sym.kind == 12 || sym.kind == 6 || sym.kind == 9)) {
 				decl_loc = std::format("{}:{}", sym.location.path, sym.location.range.start_y + 1);
-				std::ifstream f(sym.location.path);
-				if (f.is_open()) {
-					std::string l;
-					int cur_l = 0;
-					while (std::getline(f, l)) {
-						if (cur_l >= sym.location.range.start_y && cur_l <= sym.location.range.start_y + 4) {
+				if (sym.location.range.start_y >= 0) {
+					std::string map_err;
+					if (auto mf = mapped_file::get_cached(sym.location.path, map_err)) {
+						auto file_lines = mf->lines();
+						size_t start_idx = static_cast<size_t>(sym.location.range.start_y);
+						size_t end_idx = std::min(file_lines.size(), start_idx + 5);
+						for (size_t idx = start_idx; idx < end_idx; ++idx) {
 							if (!sig_str.empty())
 								sig_str += " ";
-							sig_str += utf8::trim(l);
+							sig_str += utf8::trim(file_lines[idx]);
 							if (sig_str.find(')') != std::string::npos || sig_str.find('{') != std::string::npos ||
 							    sig_str.find(';') != std::string::npos) {
 								break;
 							}
 						}
-						cur_l++;
-						if (cur_l > sym.location.range.start_y + 4)
-							break;
 					}
 				}
 				if (!sig_str.empty())
@@ -2073,7 +2079,6 @@ std::optional<function_signature_query_result> resolve_function_signature(
 			}
 		}
 	}
-
 	if (sig_str.empty()) {
 		return std::nullopt;
 	}

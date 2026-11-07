@@ -759,6 +759,22 @@ std::span<const std::string_view> mapped_file::lines() const &
 	return lines_;
 }
 
+std::string_view mapped_file::line_range_view(size_t start_line, size_t end_line) const &
+{
+	auto all_lines = lines();
+	if (all_lines.empty() || end_line < 1 || start_line > end_line || start_line > all_lines.size()) {
+		return {};
+	}
+	size_t first_idx = (start_line > 1) ? (start_line - 1) : 0;
+	size_t last_idx = std::min(end_line, all_lines.size()) - 1;
+	const char *begin_ptr = all_lines[first_idx].data();
+	const char *end_ptr = all_lines[last_idx].data() + all_lines[last_idx].size();
+	if (begin_ptr == nullptr || end_ptr < begin_ptr) {
+		return {};
+	}
+	return std::string_view(begin_ptr, static_cast<size_t>(end_ptr - begin_ptr));
+}
+
 std::shared_ptr<const mapped_file> mapped_file::get_cached(
     /* untrusted */ std::string_view path, std::string &out_error, bool populate) noexcept
 {

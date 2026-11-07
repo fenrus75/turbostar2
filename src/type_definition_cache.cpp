@@ -6,9 +6,9 @@
 #include "codemap_utils.h"
 #include "event_logger.h"
 #include "fs_utils.h"
+#include "mapped_file.h"
 #include "project_manager.h"
 #include "utf8.h"
-
 namespace tools
 {
 
@@ -187,45 +187,33 @@ void type_definition_cache::request_async(std::string_view type_name, const std:
 				def_end = def_start;
 				// If underlying_type is empty (e.g. indexer provided typedef kind but not the alias),
 				// read the source line at def_start to extract the alias (e.g. typedef s64 ktime_t -> s64).
-				if (underlying_type.empty()) {
-					std::ifstream file(abs_path);
-					if (file.is_open()) {
-						std::string line_content;
-						int current_line = 1;
-						while (std::getline(file, line_content)) {
-							if (current_line >= def_start && current_line <= def_start + 3) {
-								extract_typedef_or_alias(line_content, t_name, kind, underlying_type);
-								if (!underlying_type.empty()) {
-									break;
-								}
-							}
-							if (current_line > def_start + 3) {
+				if (underlying_type.empty() && def_start > 0) {
+					std::string map_err;
+					if (auto mf = mapped_file::get_cached(abs_path, map_err)) {
+						auto file_lines = mf->lines();
+						size_t start_idx = static_cast<size_t>(def_start - 1);
+						size_t end_idx = std::min(file_lines.size(), static_cast<size_t>(def_start + 3));
+						for (size_t idx = start_idx; idx < end_idx; ++idx) {
+							extract_typedef_or_alias(file_lines[idx], t_name, kind, underlying_type);
+							if (!underlying_type.empty()) {
 								break;
 							}
-							++current_line;
 						}
 					}
 				}
 			} else {
 				expand_range_to_symbol_bounds(abs_path, t_name, def_start, def_end, kind);
 				// Check if the symbol at def_start is actually a typedef or type alias
-				if (kind != "typedef" && underlying_type.empty() && fs_utils::is_regular_file(abs_path)) {
-					std::ifstream file(abs_path);
-					if (file.is_open()) {
-						std::string line_content;
-						int current_line = 1;
-						while (std::getline(file, line_content)) {
-							if (current_line == def_start) {
-								extract_typedef_or_alias(line_content, t_name, kind, underlying_type);
-								if (kind == "typedef") {
-									def_end = def_start;
-								}
-								break;
+				if (kind != "typedef" && underlying_type.empty() && def_start > 0) {
+					std::string map_err;
+					if (auto mf = mapped_file::get_cached(abs_path, map_err)) {
+						auto file_lines = mf->lines();
+						size_t idx = static_cast<size_t>(def_start - 1);
+						if (idx < file_lines.size()) {
+							extract_typedef_or_alias(file_lines[idx], t_name, kind, underlying_type);
+							if (kind == "typedef") {
+								def_end = def_start;
 							}
-							if (current_line > def_start) {
-								break;
-							}
-							++current_line;
 						}
 					}
 				}
@@ -278,49 +266,51 @@ void type_definition_cache::clear()
 
 int type_definition_cache::find_closing_brace_line(const std::string &file_path, int start_line, int max_scan_lines)
 {
-	if (!fs_utils::is_regular_file(file_path) || start_line <= 0) {
+	if (start_line <= 0) {
 		return start_line;
 	}
 
-	std::ifstream file(file_path);
-	if (!file.is_open()) {
+	std::string map_err;
+	auto mf = mapped_file::get_cached(file_path, map_err);
+	if (!mf) {
 		return start_line;
 	}
 
-	std::string line_content;
-	int current_line = 1;
+	auto file_lines = mf->lines();
+	size_t start_idx = static_cast<size_t>(start_line - 1);
+	if (start_idx >= file_lines.size()) {
+		return start_line;
+	}
+
 	int depth = 0;
 	bool started = false;
 	int scanned_end = start_line;
+	size_t end_idx = std::min(file_lines.size(), static_cast<size_t>(start_line + std::max(0, max_scan_lines)));
 
-	while (std::getline(file, line_content)) {
-		if (current_line >= start_line) {
-			if (!started) {
-				// If a semicolon occurs before any opening brace '{', this is a typedef,
-				// type alias, or forward declaration that has no brace body.
-				size_t open_brace = line_content.find('{');
-				size_t semi = line_content.find(';');
-				if (semi != std::string::npos && (open_brace == std::string::npos || semi < open_brace)) {
-					return start_line;
-				}
-			}
-			for (char c : line_content) {
-				if (c == '{') {
-					depth++;
-					started = true;
-				} else if (c == '}') {
-					depth--;
-				}
-			}
-			if (started && depth <= 0) {
-				scanned_end = current_line;
-				break;
+	for (size_t idx = start_idx; idx < end_idx; ++idx) {
+		std::string_view line_content = file_lines[idx];
+		int current_line = static_cast<int>(idx + 1);
+		if (!started) {
+			// If a semicolon occurs before any opening brace '{', this is a typedef,
+			// type alias, or forward declaration that has no brace body.
+			size_t open_brace = line_content.find('{');
+			size_t semi = line_content.find(';');
+			if (semi != std::string_view::npos && (open_brace == std::string_view::npos || semi < open_brace)) {
+				return start_line;
 			}
 		}
-		if (current_line > start_line + max_scan_lines) {
+		for (char c : line_content) {
+			if (c == '{') {
+				depth++;
+				started = true;
+			} else if (c == '}') {
+				depth--;
+			}
+		}
+		if (started && depth <= 0) {
+			scanned_end = current_line;
 			break;
 		}
-		++current_line;
 	}
 
 	if (started && scanned_end > start_line) {
@@ -328,7 +318,6 @@ int type_definition_cache::find_closing_brace_line(const std::string &file_path,
 	}
 	return start_line;
 }
-
 std::string type_definition_cache::format_type_definition_table(const std::vector<type_definition_entry> &types)
 {
 	if (types.empty()) {

@@ -9,8 +9,8 @@
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "languages/cpp/include_extractor.h"
+#include "mapped_file.h"
 #include "project_manager.h"
-
 namespace tools
 {
 
@@ -442,29 +442,24 @@ std::vector<outgoing_call_reference> call_resolver::extract_calls_from_slice(
 	std::unordered_map<std::string, std::vector<codemap_symbol_info>> &symbols_cache,
 	std::chrono::steady_clock::time_point deadline)
 {
-	std::ifstream in(safe_path);
-	if (!in.is_open()) {
+	if (end_line < 1 || start_line > end_line) {
 		return {};
 	}
 
-	std::vector<std::string> slice_lines;
-	std::string current_line_text;
-	int current_line_num = 1;
-	while (std::getline(in, current_line_text)) {
-		if (current_line_num >= start_line && current_line_num <= end_line) {
-			slice_lines.push_back(current_line_text);
-		}
-		if (current_line_num > end_line) {
-			break;
-		}
-		++current_line_num;
-	}
-
-	if (slice_lines.empty()) {
+	std::string map_err;
+	auto mf = mapped_file::get_cached(safe_path, map_err);
+	if (!mf) {
 		return {};
 	}
 
-	auto candidates = call_token_extractor::extract_candidates(safe_path, slice_lines, start_line);
+	int clamped_start = std::max(1, start_line);
+	std::string_view slice_view = mf->line_range_view(
+	    static_cast<size_t>(clamped_start), static_cast<size_t>(end_line));
+	if (slice_view.empty()) {
+		return {};
+	}
+
+	auto candidates = call_token_extractor::extract_candidates_from_source(safe_path, slice_view, clamped_start);
 	if (candidates.empty()) {
 		return {};
 	}

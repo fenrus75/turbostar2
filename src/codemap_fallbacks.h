@@ -25,7 +25,7 @@ namespace tools
  * @param min_lines Minimum span of lines for a section to be included.
  * @param out Output symbol vector to append parsed headings into.
  */
-void parse_markdown_headings(const std::string &content, int min_lines, std::vector<codemap_symbol_info> &out);
+void parse_markdown_headings(std::string_view content, int min_lines, std::vector<codemap_symbol_info> &out);
 
 /**
  * @brief Fallback symbol parser for Markdown document lines.
@@ -38,6 +38,7 @@ void parse_markdown_headings(const std::string &content, int min_lines, std::vec
  */
 void fallback_find_symbols_markdown(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out);
 void fallback_find_symbols_markdown(std::span<const std::string> lines, std::vector<codemap_symbol_info> &out);
+void fallback_find_symbols_markdown(std::span<const std::string_view> lines, int min_lines, std::vector<codemap_symbol_info> &out);
 
 /**
  * @brief Fallback symbol parser for C and C++ source code lines.
@@ -63,6 +64,7 @@ void fallback_find_symbols_cpp(std::span<const std::string> lines, std::vector<c
  */
 void fallback_find_symbols_python(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out);
 void fallback_find_symbols_python(std::span<const std::string> lines, std::vector<codemap_symbol_info> &out);
+void fallback_find_symbols_python(std::span<const std::string_view> lines, int min_lines, std::vector<codemap_symbol_info> &out);
 
 /**
  * @brief Fallback symbol parser for Verilog and SystemVerilog source code lines.
@@ -76,6 +78,7 @@ void fallback_find_symbols_python(std::span<const std::string> lines, std::vecto
  */
 void fallback_find_symbols_verilog(std::span<const std::string> lines, int min_lines, std::vector<codemap_symbol_info> &out);
 void fallback_find_symbols_verilog(std::span<const std::string> lines, std::vector<codemap_symbol_info> &out);
+void fallback_find_symbols_verilog(std::span<const std::string_view> lines, int min_lines, std::vector<codemap_symbol_info> &out);
 
 /**
  * @brief Top-level router for regex/heuristic fallback symbol parsing from a disk file.

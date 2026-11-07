@@ -18,4 +18,13 @@ std::vector<source_token> call_token_extractor::extract_candidates(std::string_v
 	return languages::cpp::call_token_extractor::extract_candidates(lines, start_line);
 }
 
+std::vector<source_token> call_token_extractor::extract_candidates_from_source(
+    std::string_view path, std::string_view source, int start_line)
+{
+	if (!languages::cpp::supports_file(path)) {
+		return {};
+	}
+	return languages::cpp::call_token_extractor::extract_candidates_from_source(source, start_line);
+}
+
 } // namespace tools

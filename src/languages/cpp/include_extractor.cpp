@@ -1,7 +1,7 @@
 #include "languages/cpp/include_extractor.h"
-#include <fstream>
 #include <ctre.hpp>
 #include "languages/cpp/lexer.h"
+#include "mapped_file.h"
 
 namespace languages::cpp
 {
@@ -36,18 +36,19 @@ std::vector<include_info> include_extractor::extract_includes(std::span<const st
 
 std::vector<include_info> include_extractor::extract_includes_from_file(const std::string &filepath, size_t max_lines)
 {
-	std::ifstream file(filepath);
-	if (!file.is_open()) {
+	if (max_lines == 0) {
 		return {};
 	}
 
-	std::string source;
-	std::string line;
-	size_t line_count = 0;
-	while (line_count < max_lines && std::getline(file, line)) {
-		source += line;
-		source += '\n';
-		++line_count;
+	std::string map_err;
+	auto mf = mapped_file::get_cached(filepath, map_err, /*populate=*/false);
+	if (!mf) {
+		return {};
+	}
+
+	std::string_view source = mf->line_range_view(1, max_lines);
+	if (source.empty()) {
+		return {};
 	}
 
 	std::vector<include_info> result;
