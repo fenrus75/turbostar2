@@ -1,20 +1,21 @@
+// Tested source file: src/tools/fs_run_tests/fs_run_tests_entry.cpp
 #include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <fstream>
 #include <iostream>
 #include <thread>
-#include "../../src/agentlib/ai_agent.h"
-#include "../../src/agentlib/compaction_engine.h"
-#include "../../src/agentlib/tool_registry.h"
-#include "../../src/agentlib/virtual_file_system.h"
-#include "../../src/config_manager.h"
-#include "../../src/event_queue.h"
-#include "../../src/fs_utils.h"
-#include "../../src/git_manager.h"
-#include "../../src/images/image_manager.h"
-#include "../../src/project_manager.h"
+#include "agentlib/ai_agent.h"
+#include "agentlib/compaction_engine.h"
+#include "agentlib/tool_registry.h"
+#include "agentlib/virtual_file_system.h"
+#include "config_manager.h"
+#include "event_queue.h"
 #include "filter_registry.h"
+#include "fs_utils.h"
+#include "git_manager.h"
+#include "images/image_manager.h"
+#include "project_manager.h"
 #include "test_watchdog.h"
 #include "type_definition_cache.h"
 
@@ -75,11 +76,19 @@ int main()
 	    registry.execute_tool("fs_run_tests", R"({"test_names": ["unit_event_logger"], "verbose": true})", ctx);
 	assert(verbose_run_result.find(" -v ") != std::string::npos || verbose_run_result.find(" -v '") != std::string::npos);
 
-	// Test verbose=false suppresses both -v and --print-errorlogs
+	// Test verbose=false suppresses -v while keeping --print-errorlogs
 	std::string quiet_run_result =
 	    registry.execute_tool("fs_run_tests", R"({"test_names": ["unit_event_logger"], "verbose": false})", ctx);
 	assert(quiet_run_result.find(" -v ") == std::string::npos);
-	assert(quiet_run_result.find("--print-errorlogs") == std::string::npos);
+	assert(quiet_run_result.find("--print-errorlogs") != std::string::npos);
+
+	// Test multi-test vector with both resolved and unresolved test names:
+	// runs the resolved test (--print-errorlogs included even for multiple tests) and prints unresolved at the end
+	std::string partial_vec_result = registry.execute_tool(
+	    "fs_run_tests", R"({"test_names": ["unit_event_logger", "nonexistent_test_xyz_999"]})", ctx);
+	assert(partial_vec_result.find("meson test --print-errorlogs") != std::string::npos);
+	assert(partial_vec_result.find("unit_event_logger") != std::string::npos);
+	assert(partial_vec_result.find("Warning: The following requested test name(s) did not match any available test and were not run: 'nonexistent_test_xyz_999'") != std::string::npos);
 
 	// Test invalid verbose value is rejected by validator
 	std::string invalid_verbose_result =

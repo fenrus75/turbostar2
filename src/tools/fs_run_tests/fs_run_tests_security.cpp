@@ -122,6 +122,9 @@ std::vector<agentlib::tool_example> fs_run_tests_validator::get_examples() const
 	return {{"Targeted Test Execution by Exact Name", nlohmann::json{{"test_names", nlohmann::json::array({"unit_fs_grep_files"})}},
 		 "Full Flow: 1) Call fs_read_lines(path='system://project/testlist.md?search=fs_grep') to discover exact test target names "
 		 "-> 2) Call fs_run_tests(test_names=['unit_fs_grep_files']) to execute."},
+		{"Batch Execution of Multiple Related Tests",
+		 nlohmann::json{{"test_names", nlohmann::json::array({"unit_lsp_backend", "unit_fs_replace_lines", "unit_profile_tools"})}},
+		 "Pass multiple test names in a single array to compile and run all of them in one batch without build lock contention."},
 		{"Run Single Test with Full Verbose Output",
 		 nlohmann::json{{"test_names", nlohmann::json::array({"unit_event_logger"})}, {"verbose", true}},
 		 "Runs a single test and displays full stdout and stderr output regardless of pass or fail."},

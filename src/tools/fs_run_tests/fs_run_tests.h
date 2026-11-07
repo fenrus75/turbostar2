@@ -56,7 +56,9 @@ class fs_run_tests_validator : public agentlib::tool_validator
 	}
 	std::string get_description() const override
 	{
-		return "Runs the project's test suite and returns console output. Catch crashes and dumps backtraces. To discover test "
+		return "Runs the project's test suite and returns console output. Catch crashes and dumps backtraces. You can pass multiple "
+		       "test names in 'test_names' (e.g. [\"unit_foo\", \"unit_bar\"]) to build and run them together in a single batch—prefer "
+		       "passing a list of tests in one call rather than making multiple parallel fs_run_tests calls. To discover test "
 		       "names, read system://project/testlist.md (or system://project/testlist.md?search=<query>) with fs_read_lines "
 		       "instead of running 'meson test --list' in a shell command.";
 	}
@@ -66,14 +68,15 @@ class fs_run_tests_validator : public agentlib::tool_validator
 		return {{"type", "object"},
 			{"properties",
 			 {{"test_names",
-			   {{"description", "Optional test name(s) to run (string or array of strings). If omitted, runs all tests. Full "
+			   {{"description", "Optional test name or array of test names to run (e.g. [\"unit_foo\", \"unit_bar\"]). Pass multiple "
+					    "test names in a single array to batch-run them in one invocation. If omitted, runs all tests. Full "
 					    "test names can be discovered in system://project/testlist.md; a substring name (e.g. "
 					    "\"run_shell_command\") is expanded to all matching tests."}}},
 			  {"timeout", {{"type", "integer"}, {"description", "Optional timeout in seconds. Default is 300."}}},
 			  {"verbose",
 			   {{"description",
-			     "Optional verbosity mode: 'auto' (default: compact on pass, full output on failure for single tests), 'true' "
-			     "(always full output), or 'false' (always compact output). Accepts string or boolean."}}},
+			     "Optional verbosity mode: 'auto'/'false' (default: compact summary on pass, error logs always printed on failure), "
+			     "or 'true' (always print full stdout/stderr even for passing tests). Accepts string or boolean."}}},
 			  {"build_dir",
 			   {{"type", "string"},
 			    {"description", "Optional build directory path relative to project root (e.g. 'build' or 'build-asan'). "

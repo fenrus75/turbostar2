@@ -212,11 +212,11 @@ When running as an MCP server (`turbomcp`), `tools/list` can advertise parameter
 ## 3. Compilation & Diagnostics
 
 ### `fs_run_tests`
-*   **Description:** Runs the project's test suite and returns console output. Catches crashes and dumps backtraces. To discover test names, read system://project/testlist.md (or system://project/testlist.md?search=<query>) with fs_read_lines instead of running `meson test --list` in a shell command.
+*   **Description:** Runs the project's test suite and returns console output. Catches crashes and dumps backtraces. Multiple test names can be passed in `test_names` (e.g. `["unit_foo", "unit_bar"]`) to compile and execute them together in a single batch without parallel build lock contention. To discover test names, read system://project/testlist.md (or system://project/testlist.md?search=<query>) with fs_read_lines instead of running `meson test --list` in a shell command.
 *   **Arguments:**
-    *   `test_names` *(string or array of strings, optional)*: Specific test name(s) or substrings to execute. If omitted, runs the full test suite. (Aliases: `test_name`, `tests`, `test`.)
+    *   `test_names` *(string or array of strings, optional)*: Specific test name(s) or substrings to execute (e.g. `["unit_foo", "unit_bar"]`). If some requested names resolve and others do not, the resolved tests are executed and the unresolved names (with fuzzy suggestions if any) are reported at the end. If omitted, runs the full test suite. (Aliases: `test_name`, `tests`, `test`.)
     *   `timeout` *(integer, optional)*: Optional execution timeout in seconds. Defaults to 300.
-    *   `verbose` *(string or boolean, optional)*: Controls output verbosity. Accepts `"auto"` (default), `"true"` / `true`, or `"false"` / `false`. In `"auto"` mode on a single targeted test, passing tests output a compact summary, while failing tests surface the full verbose logs (stdout/stderr). Explicitly setting `true` always surfaces verbose output, and `false` suppresses verbose logs.
+    *   `verbose` *(string or boolean, optional)*: Controls output verbosity. Accepts `"auto"` (default), `"true"` / `true`, or `"false"` / `false`. Error logs (`--print-errorlogs` / `--output-on-failure`) are always enabled so failing tests always surface their failure logs. Setting `true` additionally passes `-v` / `-V` to print full stdout/stderr even for passing tests.
     *   `build_dir` *(string, optional)*: Optional build directory path relative to project root (e.g. `"build"` or `"build-asan"`). Defaults to the configured project build directory. (Aliases: `build_directory`, `builddir`.)
 
 ### `fs_compile_project`

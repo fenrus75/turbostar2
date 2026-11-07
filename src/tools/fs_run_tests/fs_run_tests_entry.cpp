@@ -210,11 +210,11 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 	if (!test_names_.empty()) {
 		auto available = project_manager::get_instance().get_available_tests(build_dir_);
 		res = resolve_test_names_detailed(test_names_, available);
-		// If nothing resolved, the in-memory test list may be stale (e.g. tests were added to
-		// meson.build after the editor populated the cache). Invalidate the cache so the next
-		// get_available_tests() forces a real refresh, then retry the resolution once before
-		// giving up. This makes newly-registered tests discoverable without an editor restart.
-		if (res.resolved_names.empty() && res.suggestions.empty()) {
+		// If any requested test failed to resolve, the in-memory test list may be stale (e.g. tests
+		// were added to meson.build after the editor populated the cache). Invalidate the cache so
+		// the next get_available_tests() forces a real refresh, then retry resolution once before
+		// reporting unresolved names. This makes newly-registered tests discoverable without a restart.
+		if (!res.unresolved_queries.empty()) {
 			project_manager::get_instance().invalidate_available_tests_cache();
 			available = project_manager::get_instance().get_available_tests(build_dir_);
 			res = resolve_test_names_detailed(test_names_, available);
@@ -222,27 +222,22 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 	}
 	const auto &resolved = res.resolved_names;
 	bool did_substring_expand = res.did_substring_expand;
-	bool is_single_test = (resolved.size() == 1);
 
 	std::string cmd;
 
 	if (build_system == "meson") {
-		cmd = "CCACHE_DISABLE=1 MESON_TESTTHREADS=2 meson test -C " + build_path.string();
+		cmd = "CCACHE_DISABLE=1 MESON_TESTTHREADS=2 meson test --print-errorlogs -C " + build_path.string();
 		if (verbose_ == "true") {
 			cmd += " -v";
-		} else if (verbose_ == "auto" && is_single_test) {
-			cmd += " --print-errorlogs";
 		}
 
 		for (const auto &t : resolved) {
 			cmd += " " + fs_utils::escape_shell_arg(t);
 		}
 	} else if (build_system == "cmake") {
-		cmd = "ctest --test-dir " + build_path.string();
+		cmd = "ctest --output-on-failure --test-dir " + build_path.string();
 		if (verbose_ == "true") {
 			cmd += " -V";
-		} else if (verbose_ == "auto" && is_single_test) {
-			cmd += " --output-on-failure";
 		}
 		if (!resolved.empty()) {
 			cmd += " -R \"^(";
@@ -327,8 +322,27 @@ std::string fs_run_tests_tool::execute(agentlib::tool_context &ctx)
 		notes_prefix += "\n";
 	}
 
+	std::string unresolved_suffix;
+	if (!res.unresolved_queries.empty()) {
+		std::string names;
+		for (size_t i = 0; i < res.unresolved_queries.size(); ++i) {
+			if (i > 0)
+				names += ", ";
+			names += "'" + res.unresolved_queries[i] + "'";
+		}
+		unresolved_suffix =
+		    "\nWarning: The following requested test name(s) did not match any available test and were not run: " + names + ".\n";
+		if (!res.suggestions.empty()) {
+			unresolved_suffix += "Did you mean one of these?\n";
+			for (const auto &s : res.suggestions) {
+				unresolved_suffix += std::format("  - {}\n", s);
+			}
+		}
+		unresolved_suffix += "Read system://project/testlist.md to discover valid test names.\n";
+	}
+
 	return fs_utils::wrap_prompt_untrusted_data_tag("fs_run_tests_result",
-							notes_prefix + "```bash\n$ " + cmd + "\n" + output + "\n```");
+							notes_prefix + "```bash\n$ " + cmd + "\n" + output + "\n```" + unresolved_suffix);
 }
 
 } // namespace tools
