@@ -8,6 +8,7 @@
 #include <deque>
 #include <fcntl.h>
 #include <format>
+#include <shared_mutex>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <thread>
@@ -44,9 +45,44 @@ struct cache_entry {
 	size_t size{0};
 	time_t mtime_sec{0};
 	long mtime_nsec{0};
-	uint64_t last_access_tick{0};
+	mutable std::atomic<uint64_t> last_access_tick{0};
 	bool from_prefetch{false};
-	bool accessed_by_consumer{false};
+	mutable std::atomic<bool> accessed_by_consumer{false};
+
+	cache_entry() noexcept = default;
+	cache_entry(const cache_entry &) = delete;
+	cache_entry &operator=(const cache_entry &) = delete;
+
+	cache_entry(cache_entry &&other) noexcept
+	    : file(std::move(other.file)),
+	      dev(other.dev),
+	      ino(other.ino),
+	      size(other.size),
+	      mtime_sec(other.mtime_sec),
+	      mtime_nsec(other.mtime_nsec),
+	      last_access_tick(other.last_access_tick.load(std::memory_order_relaxed)),
+	      from_prefetch(other.from_prefetch),
+	      accessed_by_consumer(other.accessed_by_consumer.load(std::memory_order_relaxed))
+	{
+	}
+
+	cache_entry &operator=(cache_entry &&other) noexcept
+	{
+		if (this != &other) {
+			file = std::move(other.file);
+			dev = other.dev;
+			ino = other.ino;
+			size = other.size;
+			mtime_sec = other.mtime_sec;
+			mtime_nsec = other.mtime_nsec;
+			last_access_tick.store(other.last_access_tick.load(std::memory_order_relaxed),
+			                       std::memory_order_relaxed);
+			from_prefetch = other.from_prefetch;
+			accessed_by_consumer.store(other.accessed_by_consumer.load(std::memory_order_relaxed),
+			                           std::memory_order_relaxed);
+		}
+		return *this;
+	}
 };
 
 std::atomic<bool> g_cache_destroyed{false};
@@ -82,7 +118,7 @@ class mapped_file_cache_manager
 		if (::stat(safe_path.c_str(), &st) != 0) {
 			int err = errno;
 			{
-				std::lock_guard<std::mutex> lock(mutex_);
+				std::unique_lock<std::shared_mutex> lock(mutex_);
 				erase_entry_locked(safe_path);
 			}
 			out_error = std::format("Failed to stat file: {}", std::strerror(err));
@@ -96,33 +132,67 @@ class mapped_file_cache_manager
 
 		std::shared_ptr<const mapped_file> hit_file;
 		{
-			std::lock_guard<std::mutex> lock(mutex_);
+			std::shared_lock<std::shared_mutex> read_lock(mutex_);
 			auto it = entries_.find(safe_path);
 			if (it != entries_.end()) {
-				cache_entry &entry = it->second;
+				const cache_entry &entry = it->second;
 				if (entry.dev == st.st_dev && entry.ino == st.st_ino &&
 				    entry.size == static_cast<size_t>(st.st_size) &&
 				    entry.mtime_sec == st.st_mtim.tv_sec &&
 				    entry.mtime_nsec == st.st_mtim.tv_nsec) {
-					++stats_.hits;
-					if (entry.from_prefetch && !entry.accessed_by_consumer) {
-						++stats_.prefetch_hits;
+					uint64_t hits = stats_hits_.fetch_add(1, std::memory_order_relaxed) + 1;
+					if (entry.from_prefetch &&
+					    !entry.accessed_by_consumer.exchange(true, std::memory_order_relaxed)) {
+						stats_prefetch_hits_.fetch_add(1, std::memory_order_relaxed);
+					} else {
+						entry.accessed_by_consumer.store(true, std::memory_order_relaxed);
 					}
-					entry.accessed_by_consumer = true;
-					entry.last_access_tick = ++access_tick_;
+					entry.last_access_tick.store(
+					    access_tick_.fetch_add(1, std::memory_order_relaxed) + 1,
+					    std::memory_order_relaxed);
 					hit_file = entry.file;
-					maybe_log_stats_locked();
+					maybe_log_stats_locked(hits + stats_misses_.load(std::memory_order_relaxed));
+				}
+			}
+		}
+
+		if (hit_file) {
+			return hit_file;
+		}
+
+		// Cold miss or stale entry: upgrade to unique lock to update miss/stale state
+		{
+			std::unique_lock<std::shared_mutex> write_lock(mutex_);
+			auto it = entries_.find(safe_path);
+			if (it != entries_.end()) {
+				const cache_entry &entry = it->second;
+				if (entry.dev == st.st_dev && entry.ino == st.st_ino &&
+				    entry.size == static_cast<size_t>(st.st_size) &&
+				    entry.mtime_sec == st.st_mtim.tv_sec &&
+				    entry.mtime_nsec == st.st_mtim.tv_nsec) {
+					uint64_t hits = stats_hits_.fetch_add(1, std::memory_order_relaxed) + 1;
+					if (entry.from_prefetch &&
+					    !entry.accessed_by_consumer.exchange(true, std::memory_order_relaxed)) {
+						stats_prefetch_hits_.fetch_add(1, std::memory_order_relaxed);
+					} else {
+						entry.accessed_by_consumer.store(true, std::memory_order_relaxed);
+					}
+					entry.last_access_tick.store(
+					    access_tick_.fetch_add(1, std::memory_order_relaxed) + 1,
+					    std::memory_order_relaxed);
+					hit_file = entry.file;
+					maybe_log_stats_locked(hits + stats_misses_.load(std::memory_order_relaxed));
 				} else {
 					++stats_.stale_evictions;
 					erase_entry_locked(it);
 				}
 			}
 			if (!hit_file) {
-				++stats_.misses;
+				uint64_t misses = stats_misses_.fetch_add(1, std::memory_order_relaxed) + 1;
 				// Cancel any pending prefetch for this path since the consumer is opening it now
 				prefetch_queued_set_.erase(safe_path);
 				in_flight_paths_.insert(safe_path);
-				maybe_log_stats_locked();
+				maybe_log_stats_locked(stats_hits_.load(std::memory_order_relaxed) + misses);
 			}
 		}
 
@@ -135,20 +205,20 @@ class mapped_file_cache_manager
 		try {
 			new_file = std::make_shared<mapped_file>();
 		} catch (...) {
-			std::lock_guard<std::mutex> lock(mutex_);
+			std::unique_lock<std::shared_mutex> lock(mutex_);
 			in_flight_paths_.erase(safe_path);
 			out_error = "Out of memory allocating mapped_file.";
 			return nullptr;
 		}
 
 		if (!new_file->open(safe_path, out_error, populate)) {
-			std::lock_guard<std::mutex> lock(mutex_);
+			std::unique_lock<std::shared_mutex> lock(mutex_);
 			in_flight_paths_.erase(safe_path);
 			return nullptr;
 		}
 
 		{
-			std::lock_guard<std::mutex> lock(mutex_);
+			std::unique_lock<std::shared_mutex> lock(mutex_);
 			in_flight_paths_.erase(safe_path);
 			if (new_file->size() <= k_max_cacheable_file_size) {
 				insert_entry_locked(safe_path, new_file, /*from_prefetch=*/false, /*accessed=*/true);
@@ -166,7 +236,7 @@ class mapped_file_cache_manager
 		std::string safe_path(path);
 		bool should_rewarm = false;
 		{
-			std::lock_guard<std::mutex> lock(mutex_);
+			std::unique_lock<std::shared_mutex> lock(mutex_);
 			++stats_.notify_invalidations;
 			auto it = entries_.find(safe_path);
 			if (it != entries_.end()) {
@@ -191,7 +261,7 @@ class mapped_file_cache_manager
 		std::string safe_path(path);
 		bool queued = false;
 		{
-			std::lock_guard<std::mutex> lock(mutex_);
+			std::unique_lock<std::shared_mutex> lock(mutex_);
 			if (!is_shutting_down_) {
 				queued = enqueue_prefetch_locked(safe_path, /*front=*/false);
 			}
@@ -208,7 +278,7 @@ class mapped_file_cache_manager
 		}
 		bool any_queued = false;
 		{
-			std::lock_guard<std::mutex> lock(mutex_);
+			std::unique_lock<std::shared_mutex> lock(mutex_);
 			if (is_shutting_down_) {
 				return;
 			}
@@ -229,8 +299,11 @@ class mapped_file_cache_manager
 
 	mapped_file::cache_stats get_stats() noexcept
 	{
-		std::lock_guard<std::mutex> lock(mutex_);
+		std::shared_lock<std::shared_mutex> lock(mutex_);
 		mapped_file::cache_stats snap = stats_;
+		snap.hits = stats_hits_.load(std::memory_order_relaxed);
+		snap.misses = stats_misses_.load(std::memory_order_relaxed);
+		snap.prefetch_hits = stats_prefetch_hits_.load(std::memory_order_relaxed);
 		snap.current_entries = entries_.size();
 		snap.current_bytes = current_bytes_;
 		return snap;
@@ -238,13 +311,16 @@ class mapped_file_cache_manager
 
 	void clear() noexcept
 	{
-		std::lock_guard<std::mutex> lock(mutex_);
+		std::unique_lock<std::shared_mutex> lock(mutex_);
 		entries_.clear();
 		prefetch_queue_.clear();
 		prefetch_queued_set_.clear();
 		in_flight_paths_.clear();
 		current_bytes_ = 0;
-		access_tick_ = 0;
+		access_tick_.store(0, std::memory_order_relaxed);
+		stats_hits_.store(0, std::memory_order_relaxed);
+		stats_misses_.store(0, std::memory_order_relaxed);
+		stats_prefetch_hits_.store(0, std::memory_order_relaxed);
 		stats_ = {};
 	}
 
@@ -252,7 +328,7 @@ class mapped_file_cache_manager
 	{
 		std::thread worker_to_join;
 		{
-			std::lock_guard<std::mutex> lock(mutex_);
+			std::unique_lock<std::shared_mutex> lock(mutex_);
 			is_shutting_down_ = true;
 			prefetch_queue_.clear();
 			prefetch_queued_set_.clear();
@@ -293,27 +369,31 @@ class mapped_file_cache_manager
 			// Prefer evicting the oldest entry that has already been consumed; only evict an
 			// unconsumed prefetched entry if all cached entries are unconsumed prefetches.
 			auto victim_it = entries_.end();
+			uint64_t victim_tick = UINT64_MAX;
 			for (auto it = entries_.begin(); it != entries_.end(); ++it) {
-				if (!it->second.accessed_by_consumer && it->second.from_prefetch) {
+				if (!it->second.accessed_by_consumer.load(std::memory_order_relaxed) && it->second.from_prefetch) {
 					continue;
 				}
-				if (victim_it == entries_.end() ||
-				    it->second.last_access_tick < victim_it->second.last_access_tick) {
+				uint64_t t = it->second.last_access_tick.load(std::memory_order_relaxed);
+				if (victim_it == entries_.end() || t < victim_tick) {
 					victim_it = it;
+					victim_tick = t;
 				}
 			}
 			if (victim_it == entries_.end()) {
 				for (auto it = entries_.begin(); it != entries_.end(); ++it) {
-					if (victim_it == entries_.end() ||
-					    it->second.last_access_tick < victim_it->second.last_access_tick) {
+					uint64_t t = it->second.last_access_tick.load(std::memory_order_relaxed);
+					if (victim_it == entries_.end() || t < victim_tick) {
 						victim_it = it;
+						victim_tick = t;
 					}
 				}
 			}
 			if (victim_it == entries_.end()) {
 				break;
 			}
-			if (victim_it->second.from_prefetch && !victim_it->second.accessed_by_consumer) {
+			if (victim_it->second.from_prefetch &&
+			    !victim_it->second.accessed_by_consumer.load(std::memory_order_relaxed)) {
 				++stats_.unused_prefetch_evictions;
 			}
 			++stats_.capacity_evictions;
@@ -328,7 +408,7 @@ class mapped_file_cache_manager
 	{
 		auto existing = entries_.find(safe_path);
 		if (existing != entries_.end()) {
-			if (from_prefetch && existing->second.accessed_by_consumer) {
+			if (from_prefetch && existing->second.accessed_by_consumer.load(std::memory_order_relaxed)) {
 				// A synchronous consumer already populated this entry while prefetch was in flight.
 				return;
 			}
@@ -345,9 +425,10 @@ class mapped_file_cache_manager
 			entry.size = file->size();
 			entry.mtime_sec = file->mtime_sec();
 			entry.mtime_nsec = file->mtime_nsec();
-			entry.last_access_tick = ++access_tick_;
+			entry.last_access_tick.store(
+			    access_tick_.fetch_add(1, std::memory_order_relaxed) + 1, std::memory_order_relaxed);
 			entry.from_prefetch = from_prefetch;
-			entry.accessed_by_consumer = accessed;
+			entry.accessed_by_consumer.store(accessed, std::memory_order_relaxed);
 
 			entries_.emplace(safe_path, std::move(entry));
 			current_bytes_ += file->size();
@@ -401,7 +482,7 @@ class mapped_file_cache_manager
 		while (true) {
 			std::string target_path;
 			{
-				std::unique_lock<std::mutex> lock(mutex_);
+				std::unique_lock<std::shared_mutex> lock(mutex_);
 				cv_.wait(lock, [this]() { return !prefetch_queue_.empty() || is_shutting_down_; });
 				if (is_shutting_down_) {
 					break;
@@ -446,7 +527,7 @@ class mapped_file_cache_manager
 			}
 
 			{
-				std::lock_guard<std::mutex> lock(mutex_);
+				std::shared_lock<std::shared_mutex> lock(mutex_);
 				if (is_shutting_down_) {
 					break;
 				}
@@ -473,7 +554,7 @@ class mapped_file_cache_manager
 			}
 
 			{
-				std::lock_guard<std::mutex> lock(mutex_);
+				std::unique_lock<std::shared_mutex> lock(mutex_);
 				if (is_shutting_down_) {
 					break;
 				}
@@ -483,9 +564,8 @@ class mapped_file_cache_manager
 		}
 	}
 
-	void maybe_log_stats_locked() noexcept
+	void maybe_log_stats_locked(uint64_t total_lookups) noexcept
 	{
-		uint64_t total_lookups = stats_.hits + stats_.misses;
 		if (total_lookups > 0 && (total_lookups % 1024) == 0) {
 			try {
 				event_logger::get_instance().log(std::format(
@@ -493,9 +573,9 @@ class mapped_file_cache_manager
 				    "stale_evict={} notify_inv={} rewarms={} cap_evict={} unused_pf_evict={} "
 				    "entries={} bytes={}",
 				    total_lookups,
-				    stats_.hits,
-				    stats_.misses,
-				    stats_.prefetch_hits,
+				    stats_hits_.load(std::memory_order_relaxed),
+				    stats_misses_.load(std::memory_order_relaxed),
+				    stats_prefetch_hits_.load(std::memory_order_relaxed),
 				    stats_.prefetch_completed,
 				    stats_.stale_evictions,
 				    stats_.notify_invalidations,
@@ -510,15 +590,18 @@ class mapped_file_cache_manager
 		}
 	}
 
-	std::mutex mutex_;
-	std::condition_variable cv_;
+	std::shared_mutex mutex_;
+	std::condition_variable_any cv_;
 	std::unordered_map<std::string, cache_entry> entries_;
 	std::deque<std::string> prefetch_queue_;
 	std::unordered_set<std::string> prefetch_queued_set_;
 	std::unordered_set<std::string> in_flight_paths_;
 	std::thread worker_thread_;
 	size_t current_bytes_{0};
-	uint64_t access_tick_{0};
+	std::atomic<uint64_t> access_tick_{0};
+	std::atomic<uint64_t> stats_hits_{0};
+	std::atomic<uint64_t> stats_misses_{0};
+	std::atomic<uint64_t> stats_prefetch_hits_{0};
 	mapped_file::cache_stats stats_{};
 	bool worker_started_{false};
 	bool is_shutting_down_{false};
