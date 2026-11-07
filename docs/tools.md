@@ -325,6 +325,8 @@ Tool discovery, skill discovery, and workspace diagnostic summaries are performe
 *   `system://skills.md` (or `system://skills.md?search=pattern`): Reads a Markdown table of all available agent skills, URIs, and descriptions (replacing `list_skills`).
 *   `system://project/diagnostics.md` (or `system://project/summary.md`, `system://diagnostics.md`): Reads a Markdown summary of compiler errors, compiler warnings, and LSP diagnostics across workspace files (replacing `fs_compile_summary`).
 *   `system://project/info.md` (or `system://project/overview.md`): Reads project workspace overview details, including root path, build system type, and instruction files (`GEMINI.md`, `AGENTS.md`).
+*   `system://toolcalls.md` (or `system://toolcalls/summary.md`): Reads live per-tool execution timing statistics (calls, errors, last duration, total prepare/execute duration, average/max duration) and `mapped_file` cache telemetry for the current session.
+*   `system://toolcalls/<tool_name>/last_timing`: Reads detailed timing breakdown (`prepare_duration_us`, `execute_duration_us`, `total_duration_us`), `mapped_file` cache deltas, and arguments for the most recent invocation of `<tool_name>`, plus session aggregates.
 
 ### `run_python`
 *   **Description:** Executes Python code in a sandboxed environment. You MUST use print() statements to see output, as the script runs headlessly. Provide either `code` (direct execution) OR `path` (to run an existing script file). Optionally provide an array of PyPI `dependencies` to be temporarily installed via `uv`. Dynamically indicates whether script execution is strictly offline or has network access enabled.

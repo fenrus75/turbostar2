@@ -9,6 +9,7 @@
 #include "mcp/mcp_manager.h"
 #include "system_docs_embedded.h"
 #include "fs_utils.h"
+#include "mapped_file.h"
 #include "config_manager.h"
 #include "utf8.h"
 #include <algorithm>
@@ -338,6 +339,106 @@ static std::string generate_subagent_transcript(int id, const std::string &query
 		ss << "### Turn " << (i + 1) << "\n";
 		ss << raw << "\n\n";
 	}
+
+	return ss.str();
+}
+
+static std::string generate_toolcalls_summary(const std::string &query)
+{
+	auto stats = agentlib::tool_registry::get_instance().get_timing_stats();
+	std::stringstream ss;
+	ss << "# Tool Call Execution Timing Summary\n\n";
+
+	struct row {
+		std::string name;
+		agentlib::tool_registry::tool_timing_stats data;
+		uint64_t total_us{0};
+	};
+	std::vector<row> rows;
+	uint64_t grand_calls = 0;
+	uint64_t grand_prep_us = 0;
+	uint64_t grand_exec_us = 0;
+
+	for (const auto &[name, st] : stats) {
+		if (!query.empty() && !contains_case_insensitive(name, query)) {
+			continue;
+		}
+		uint64_t tot = st.total_prepare_us + st.total_execute_us;
+		rows.push_back({name, st, tot});
+		grand_calls += st.calls;
+		grand_prep_us += st.total_prepare_us;
+		grand_exec_us += st.total_execute_us;
+	}
+
+	std::sort(rows.begin(), rows.end(), [](const row &a, const row &b) { return a.total_us > b.total_us; });
+
+	if (rows.empty()) {
+		ss << "_(No matching tool calls recorded in this session yet.)_\n\n";
+	} else {
+		ss << "| Tool | Calls | Errors | Last Total (us) | Prep Total (us) | Exec Total (us) | Total (us) | Avg (us) | Max (us) |\n";
+		ss << "| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |\n";
+		for (const auto &r : rows) {
+			uint64_t avg_us = r.data.calls > 0 ? (r.total_us / r.data.calls) : 0;
+			uint64_t last_tot_us = r.data.last_prepare_us + r.data.last_execute_us;
+			ss << std::format("| `{}` | {} | {} | {} | {} | {} | {} | {} | {} |\n",
+					  r.name, r.data.calls, r.data.errors, last_tot_us,
+					  r.data.total_prepare_us, r.data.total_execute_us,
+					  r.total_us, avg_us, r.data.max_total_us);
+		}
+		uint64_t grand_tot_us = grand_prep_us + grand_exec_us;
+		uint64_t grand_avg_us = grand_calls > 0 ? (grand_tot_us / grand_calls) : 0;
+		ss << std::format("| **TOTAL** | **{}** | - | - | **{}** | **{}** | **{}** | **{}** | - |\n\n",
+				  grand_calls, grand_prep_us, grand_exec_us, grand_tot_us, grand_avg_us);
+	}
+
+	auto mf = mapped_file::get_cache_stats();
+	ss << "## `mapped_file` Cache Telemetry\n\n";
+	ss << std::format("- **Current Entries**: {} / {}\n", mf.current_entries, mapped_file::k_max_cache_entries);
+	ss << std::format("- **Current Bytes Mapped**: {} bytes\n", mf.current_bytes);
+	ss << std::format("- **Cache Hits**: {}\n", mf.hits);
+	ss << std::format("- **Cache Misses**: {}\n", mf.misses);
+	ss << std::format("- **Evictions**: {} (capacity: {}, stale: {})\n",
+			  mf.capacity_evictions + mf.stale_evictions, mf.capacity_evictions, mf.stale_evictions);
+	ss << std::format("- **Prefetches**: enqueued={}, completed={}, prefetch_hits={}, unused_evictions={}\n",
+			  mf.prefetch_enqueued, mf.prefetch_completed, mf.prefetch_hits, mf.unused_prefetch_evictions);
+
+	return ss.str();
+}
+
+static std::string generate_toolcall_last_timing(const std::string &tool_name)
+{
+	auto stats = agentlib::tool_registry::get_instance().get_timing_stats();
+	auto it = stats.find(tool_name);
+	std::stringstream ss;
+	ss << std::format("# Tool Timing: `{}`\n\n", tool_name);
+
+	if (it == stats.end() || it->second.calls == 0) {
+		ss << std::format("_(Tool `{}` has not been invoked in this session yet.)_\n", tool_name);
+		return ss.str();
+	}
+
+	const auto &st = it->second;
+	uint64_t last_total_us = st.last_prepare_us + st.last_execute_us;
+	uint64_t total_us = st.total_prepare_us + st.total_execute_us;
+	uint64_t avg_us = st.calls > 0 ? (total_us / st.calls) : 0;
+
+	ss << "## Last Invocation\n";
+	ss << std::format("- **Prepare Duration**: {} us ({:.3f} ms)\n", st.last_prepare_us, st.last_prepare_us / 1000.0);
+	ss << std::format("- **Execute Duration**: {} us ({:.3f} ms)\n", st.last_execute_us, st.last_execute_us / 1000.0);
+	ss << std::format("- **Total Duration**: {} us ({:.3f} ms)\n", last_total_us, last_total_us / 1000.0);
+	ss << std::format("- **Status**: {}\n", st.last_failed ? "Failed" : "Success");
+	ss << std::format("- **`mapped_file` Cache Delta (this call)**: hits=+{}, misses=+{}, evictions=+{}, prefetches=+{}\n",
+			  st.last_cache_hits_delta, st.last_cache_misses_delta,
+			  st.last_cache_evictions_delta, st.last_cache_prefetches_delta);
+	ss << "\n### Last Arguments\n```json\n" << st.last_args_json << "\n```\n\n";
+
+	ss << "## Session Aggregate\n";
+	ss << std::format("- **Total Calls**: {} (errors: {})\n", st.calls, st.errors);
+	ss << std::format("- **Total Prepare Time**: {} us ({:.3f} ms)\n", st.total_prepare_us, st.total_prepare_us / 1000.0);
+	ss << std::format("- **Total Execute Time**: {} us ({:.3f} ms)\n", st.total_execute_us, st.total_execute_us / 1000.0);
+	ss << std::format("- **Total Time**: {} us ({:.3f} ms)\n", total_us, total_us / 1000.0);
+	ss << std::format("- **Average Total Time**: {} us ({:.3f} ms)\n", avg_us, avg_us / 1000.0);
+	ss << std::format("- **Max Total Time**: {} us ({:.3f} ms)\n", st.max_total_us, st.max_total_us / 1000.0);
 
 	return ss.str();
 }
@@ -703,7 +804,12 @@ system_vfs_provider::system_vfs_provider()
 	register_description("workflows", "Directory containing subagent and system workflow guidelines.");
 	register_description("tool-families", "Directory containing tool family activation guides and member tool specifications.");
 	register_description("project", "Directory containing project-level build status, diagnostics, and workspace information.");
+	register_description("toolcalls.md", "Read to inspect live tool call timing summary and mapped_file cache statistics.");
+	register_description("toolcalls", "Directory containing live per-tool timing and mapped_file cache telemetry (e.g. system://toolcalls/<tool>/last_timing).");
 
+	register_generator("toolcalls.md", [](const std::string &query) {
+		return generate_toolcalls_summary(query);
+	});
 	register_generator("tool-families.md", [](const std::string &query) {
 		return generate_tool_families_index(query);
 	});
@@ -831,6 +937,27 @@ std::string system_vfs_provider::resolve_path(const std::string &uri, std::strin
 		}
 		return "tool-families/" + sub;
 	}
+	if (path == "toolcalls" || path == "toolcalls.md" || path == "toolcalls/summary" || path == "toolcalls/summary.md") {
+		return "toolcalls.md";
+	}
+	if (path.starts_with("toolcalls/")) {
+		std::string sub = path.substr(10);
+		if (sub.empty()) {
+			return "toolcalls/";
+		}
+		size_t slash = sub.find('/');
+		if (slash != std::string::npos) {
+			std::string tool_part = sub.substr(0, slash);
+			std::string file_part = sub.substr(slash + 1);
+			if (file_part.empty()) {
+				return "toolcalls/" + tool_part + "/";
+			}
+			if (file_part == "last_timing" || file_part == "last_timing.md") {
+				return "toolcalls/" + tool_part + "/last_timing";
+			}
+		}
+		return "toolcalls/" + sub;
+	}
 
 	return path;
 }
@@ -856,11 +983,12 @@ bool system_vfs_provider::exists(const std::string &uri) const
 		path = path.substr(0, path.length() - 1);
 	}
 
-	if (path.empty() || path == "tool-families" || path == "subagents" || path == "subagents.md") {
+	if (path.empty() || path == "tool-families" || path == "subagents" || path == "subagents.md" ||
+	    path == "toolcalls" || path == "toolcalls.md") {
 		return true;
 	}
 
-	if (path.starts_with("subagents/")) {
+	if (path.starts_with("subagents/") || path.starts_with("toolcalls/")) {
 		return true;
 	}
 
@@ -939,6 +1067,20 @@ std::optional<agentlib::vfs_file_handle> system_vfs_provider::read_file(const st
 				return std::make_shared<agentlib::string_content_buffer>(std::move(content));
 			} catch (...) {}
 		}
+	}
+	if (path == "toolcalls.md" || path == "toolcalls/summary.md") {
+		std::string content = generate_toolcalls_summary(query);
+		return std::make_shared<agentlib::string_content_buffer>(std::move(content));
+	}
+	if (path.starts_with("toolcalls/")) {
+		std::string sub = path.substr(10);
+		size_t slash = sub.find('/');
+		std::string tool_name = (slash != std::string::npos) ? sub.substr(0, slash) : sub;
+		if (tool_name.ends_with(".md")) {
+			tool_name = tool_name.substr(0, tool_name.length() - 3);
+		}
+		std::string content = generate_toolcall_last_timing(tool_name);
+		return std::make_shared<agentlib::string_content_buffer>(std::move(content));
 	}
 
 	// Check dynamic generators first
@@ -1093,6 +1235,47 @@ std::optional<agentlib::vfs_file_info> system_vfs_provider::get_file_info(const 
 				return info;
 			} catch (...) {}
 		}
+	}
+
+	if (clean_path == "toolcalls") {
+		agentlib::vfs_file_info info;
+		info.uri = "system://toolcalls/";
+		info.type = 'D';
+		info.details = "Directory containing live tool execution timing and mapped_file cache statistics.";
+		return info;
+	}
+	if (clean_path == "toolcalls.md") {
+		std::string content = generate_toolcalls_summary("");
+		agentlib::vfs_file_info info;
+		info.uri = "system://toolcalls.md";
+		info.type = 'F';
+		info.size = content.size();
+		info.size_in_lines = std::count(content.begin(), content.end(), '\n') + 1;
+		info.details = "Read to inspect live tool call timing summary and mapped_file cache statistics.";
+		return info;
+	}
+	if (clean_path.starts_with("toolcalls/")) {
+		std::string sub = clean_path.substr(10);
+		size_t slash = sub.find('/');
+		std::string tool_name = (slash != std::string::npos) ? sub.substr(0, slash) : sub;
+		if (tool_name.ends_with(".md")) {
+			tool_name = tool_name.substr(0, tool_name.length() - 3);
+		}
+		if (slash == std::string::npos && !sub.ends_with(".md")) {
+			agentlib::vfs_file_info info;
+			info.uri = "system://toolcalls/" + tool_name + "/";
+			info.type = 'D';
+			info.details = "Directory containing timing telemetry for tool " + tool_name;
+			return info;
+		}
+		std::string content = generate_toolcall_last_timing(tool_name);
+		agentlib::vfs_file_info info;
+		info.uri = "system://toolcalls/" + tool_name + "/last_timing";
+		info.type = 'F';
+		info.size = content.size();
+		info.size_in_lines = std::count(content.begin(), content.end(), '\n') + 1;
+		info.details = "Last call timing & cache stats for " + tool_name;
+		return info;
 	}
 
 	std::string dir_prefix = clean_path.empty() ? "" : (clean_path + "/");
@@ -1255,6 +1438,44 @@ std::vector<agentlib::vfs_file_info> system_vfs_provider::list_directory(const s
 
 			return results;
 		} catch (...) {}
+	}
+
+	if (norm_prefix == "toolcalls/") {
+		std::vector<agentlib::vfs_file_info> results;
+		auto stats = agentlib::tool_registry::get_instance().get_timing_stats();
+		for (const auto &[tname, st] : stats) {
+			agentlib::vfs_file_info dir_info;
+			dir_info.uri = "system://toolcalls/" + tname + "/";
+			dir_info.type = 'D';
+			dir_info.details = std::format("Timing telemetry for {} ({} calls, last={} us)",
+						       tname, st.calls, st.last_prepare_us + st.last_execute_us);
+			results.push_back(dir_info);
+
+			std::string content = generate_toolcall_last_timing(tname);
+			agentlib::vfs_file_info file_info;
+			file_info.uri = "system://toolcalls/" + tname + "/last_timing";
+			file_info.type = 'F';
+			file_info.size = content.size();
+			file_info.size_in_lines = std::count(content.begin(), content.end(), '\n') + 1;
+			file_info.details = std::format("Last call timing & cache stats for {}", tname);
+			results.push_back(file_info);
+		}
+		return results;
+	}
+
+	if (norm_prefix.starts_with("toolcalls/")) {
+		std::string sub = norm_prefix.substr(10);
+		if (sub.ends_with("/")) sub = sub.substr(0, sub.length() - 1);
+		std::vector<agentlib::vfs_file_info> results;
+		std::string content = generate_toolcall_last_timing(sub);
+		agentlib::vfs_file_info info;
+		info.uri = "system://toolcalls/" + sub + "/last_timing";
+		info.type = 'F';
+		info.size = content.size();
+		info.size_in_lines = std::count(content.begin(), content.end(), '\n') + 1;
+		info.details = "Last call timing & cache stats for " + sub;
+		results.push_back(info);
+		return results;
 	}
 
 	std::vector<agentlib::vfs_file_info> results;

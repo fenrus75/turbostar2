@@ -76,10 +76,20 @@ class tool_registry
 		uint64_t total_prepare_us{0};
 		uint64_t total_execute_us{0};
 		uint64_t max_total_us{0};
+		uint64_t last_prepare_us{0};
+		uint64_t last_execute_us{0};
+		bool last_failed{false};
+		std::string last_args_json;
+		uint64_t last_cache_hits_delta{0};
+		uint64_t last_cache_misses_delta{0};
+		uint64_t last_cache_evictions_delta{0};
+		uint64_t last_cache_prefetches_delta{0};
 	};
 
 	// Records and retrieves in-memory per-tool timing statistics for benchmarking and replay analysis
-	void record_tool_timing(std::string_view name, uint64_t prepare_us, uint64_t execute_us, bool failed = false) const;
+	void record_tool_timing(std::string_view name, std::string_view args_json, uint64_t prepare_us, uint64_t execute_us,
+				bool failed = false, uint64_t hits_delta = 0, uint64_t misses_delta = 0,
+				uint64_t evictions_delta = 0, uint64_t prefetches_delta = 0) const;
 	std::map<std::string, tool_timing_stats> get_timing_stats() const;
 	void reset_timing_stats() const;
 

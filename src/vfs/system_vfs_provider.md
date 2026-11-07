@@ -8,6 +8,7 @@ It provides:
    - `system://tools.md` & `system://tools_detailed.md`: Live directory and schemas of registered agent tools, supporting `?search=<term>` filtering.
    - `system://agents.md` & `system://subagents/`: Active subagents, transcripts, and final results.
    - `system://tool_families.md`: Active and available tool families.
+   - `system://toolcalls.md` & `system://toolcalls/<tool_name>/last_timing`: Live tool call execution timing summary and detailed last-invocation timing/cache telemetry.
    - `system://project/testlist.md`: Discovered test targets.
    - `system://mcp.md`: Configured and active MCP servers.
 3. **Directory Listing & Metadata**: Supports `list_directory`, `exists`, and `get_file_info` over both static and dynamic resources.

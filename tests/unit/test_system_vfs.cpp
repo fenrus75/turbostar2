@@ -299,6 +299,40 @@ int main()
 	}
 	assert(found_sub999_dir);
 
+	// Test system://toolcalls endpoints
+	tool_registry::get_instance().record_tool_timing(
+		"fs_read_lines", R"({"path":"src/main.cpp"})", 120, 3450, false, 4, 1, 0, 2);
+
+	assert(vfs.exists("system://toolcalls.md"));
+	assert(vfs.exists("system://toolcalls/summary.md"));
+	assert(vfs.exists("system://toolcalls/fs_read_lines/last_timing"));
+
+	auto tc_summary_doc = vfs.read_file("system://toolcalls.md");
+	assert(tc_summary_doc.has_value());
+	std::string tc_summary_text = std::string((*tc_summary_doc)->view());
+	std::cout << "\nsystem://toolcalls.md content:\n" << tc_summary_text << std::endl;
+	assert(tc_summary_text.find("Tool Call Execution Timing Summary") != std::string::npos);
+	assert(tc_summary_text.find("fs_read_lines") != std::string::npos);
+
+	auto tc_last_doc = vfs.read_file("system://toolcalls/fs_read_lines/last_timing");
+	assert(tc_last_doc.has_value());
+	std::string tc_last_text = std::string((*tc_last_doc)->view());
+	std::cout << "\nsystem://toolcalls/fs_read_lines/last_timing content:\n" << tc_last_text << std::endl;
+	assert(tc_last_text.find("Tool Timing: `fs_read_lines`") != std::string::npos);
+	assert(tc_last_text.find("Prepare Duration") != std::string::npos);
+	assert(tc_last_text.find("Execute Duration") != std::string::npos);
+	assert(tc_last_text.find("src/main.cpp") != std::string::npos);
+
+	auto tc_dir_list = vfs.list_directory("system://toolcalls/");
+	assert(!tc_dir_list.empty());
+	bool found_tc_item = false;
+	for (const auto &item : tc_dir_list) {
+		if (item.uri == "system://toolcalls/fs_read_lines/last_timing") {
+			found_tc_item = true;
+		}
+	}
+	assert(found_tc_item);
+
 	std::cout << "test_system_vfs passed successfully!" << std::endl;
 	return 0;
 }
