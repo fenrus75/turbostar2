@@ -297,6 +297,18 @@ int main()
 		d1.range = {.start_y = 2, .start_x = 5, .end_y = 2, .end_x = 10};
 
 		backend.store_file_diagnostics("sample.cpp", {d1});
+		assert(backend.query_file_diagnostics("sample.cpp").has_value());
+		assert(backend.query_file_diagnostics("sample.cpp")->size() == 1);
+
+		// Saving or updating the document must invalidate stale pre-edit diagnostics
+		backend.save_document("sample.cpp", "int fixed = 0;\n");
+		assert(!backend.query_file_diagnostics("sample.cpp").has_value());
+
+		backend.store_file_diagnostics("sample.cpp", {d1});
+		assert(backend.query_file_diagnostics("sample.cpp").has_value());
+		backend.update_document("sample.cpp", "int fixed2 = 0;\n");
+		assert(!backend.query_file_diagnostics("sample.cpp").has_value());
+
 		// Unsupported file query returns nullopt
 		assert(!backend.query_file_diagnostics("readme.txt").has_value());
 

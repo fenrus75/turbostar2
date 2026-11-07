@@ -734,10 +734,6 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 	total_drift += turn_abs_shift;
 	bool show_shift_zones = (total_drift < 15);
 
-	std::string edit_id = agentlib::update_file_health_state(ctx, args_.safe_path);
-	type_definition_cache::get_instance().invalidate_file(args_.safe_path);
-	std::string result_msg =
-	    std::format("Successfully applied {} edits to {} [Edit ID: {}]\n\n", args_.edits.size(), args_.path, edit_id);
 	std::string brace_warnings = check_brace_warnings(args_.safe_path, before_lines, lines, args_.edits);
 
 	// Strict mode: if the edit left braces unbalanced, revert the disk file to its original
@@ -764,6 +760,20 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 	}
 
 	mapped_file::notify_changed(path_to_use);
+	std::string saved_content;
+	size_t total_len = 0;
+	for (const auto &l : lines) {
+		total_len += l.size() + 1;
+	}
+	saved_content.reserve(total_len);
+	for (const auto &l : lines) {
+		saved_content.append(l);
+		saved_content.push_back('\n');
+	}
+	project_manager::get_instance().lsp_save_document(args_.safe_path, saved_content);
+	std::string edit_id = agentlib::update_file_health_state(ctx, args_.safe_path);
+	std::string result_msg =
+	    std::format("Successfully applied {} edits to {} [Edit ID: {}]\n\n", args_.edits.size(), args_.path, edit_id);
 
 	if (!brace_warnings.empty()) {
 		result_msg += brace_warnings + "\n";

@@ -185,4 +185,5 @@ class standard_lsp_backend : public lsp_backend
 	[[nodiscard]] std::optional<std::string> get_cached_hover(const std::string &key) const;
 	void set_cached_hover(const std::string &key, std::string payload);
 	void invalidate_hover_cache(const std::string &filepath);
+	void invalidate_file_diagnostics(const std::string &filepath);
 };

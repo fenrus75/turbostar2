@@ -490,6 +490,7 @@ void standard_lsp_backend::update_document(const std::string &filepath, const st
 	}
 	invalidate_hover_cache(filepath);
 	invalidate_symbol_cache(filepath);
+	invalidate_file_diagnostics(filepath);
 
 	ensure_worker_started();
 	{
@@ -506,6 +507,7 @@ void standard_lsp_backend::save_document(const std::string &filepath, const std:
 	}
 	invalidate_hover_cache(filepath);
 	invalidate_symbol_cache(filepath);
+	invalidate_file_diagnostics(filepath);
 
 	ensure_worker_started();
 	{
@@ -1620,28 +1622,36 @@ void standard_lsp_backend::store_file_diagnostics(const std::string &filepath, c
 	file_diagnostics_[filepath] = diags;
 }
 
+void standard_lsp_backend::invalidate_file_diagnostics(const std::string &filepath)
+{
+	std::lock_guard<std::mutex> lock(diagnostics_mutex_);
+	file_diagnostics_.erase(filepath);
+	std::error_code ec;
+	auto abs_p = std::filesystem::absolute(filepath, ec);
+	if (!ec) {
+		file_diagnostics_.erase(abs_p.string());
+	}
+}
+
 std::optional<std::vector<diagnostic_info>> standard_lsp_backend::query_file_diagnostics(const std::string &filepath)
 {
 	if (!is_supported_file(filepath)) {
 		return std::nullopt;
 	}
 
-	{
-		std::lock_guard<std::mutex> lock(diagnostics_mutex_);
-		std::string abs_path = std::filesystem::absolute(filepath).string();
-		auto it = file_diagnostics_.find(abs_path);
+	std::lock_guard<std::mutex> lock(diagnostics_mutex_);
+	std::error_code ec;
+	auto abs_p = std::filesystem::absolute(filepath, ec);
+	if (!ec) {
+		auto it = file_diagnostics_.find(abs_p.string());
 		if (it != file_diagnostics_.end()) {
 			return it->second;
 		}
-		it = file_diagnostics_.find(filepath);
-		if (it != file_diagnostics_.end()) {
-			return it->second;
-		}
+	}
+	auto it = file_diagnostics_.find(filepath);
+	if (it != file_diagnostics_.end()) {
+		return it->second;
 	}
 
-	auto server = get_server_for_file(filepath, /*start_if_needed=*/false);
-	if (server && server->is_running.load()) {
-		return std::vector<diagnostic_info>{};
-	}
 	return std::nullopt;
 }

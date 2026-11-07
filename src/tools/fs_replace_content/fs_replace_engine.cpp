@@ -561,8 +561,8 @@ replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, co
 	}
 
 	mapped_file::notify_changed(path_to_use);
-	std::string edit_id = agentlib::update_file_health_state(ctx, args.safe_path);
 	project_manager::get_instance().lsp_save_document(args.safe_path, work_content);
+	std::string edit_id = agentlib::update_file_health_state(ctx, args.safe_path);
 	if (res.chunks_applied == 1 && !edited_ranges_0based.empty()) {
 		res.result_text = std::format("Successfully replaced target_content in {} starting at line {} [Edit ID: {}].", args.path,
 					      edited_ranges_0based[0].first + 1, edit_id);

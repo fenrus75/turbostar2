@@ -14,3 +14,4 @@ The `fs_replace_lines` tool enables surgical line-based file modifications. It s
 
 ## Lessons Learned
 - **Single-Edit Ergonomics**: In common coding sessions, agents frequently attempt to replace a single line or range of lines using direct parameters (`start_line`, `end_line`, `new_content`) rather than wrapping the request into a nested `edits` array with explicit `original_text`. Automatically synthesizing a single-edit operation and populating `original_text` from the file range eliminates frequent schema validation failures and streamline code edits.
+- **LSP & Codemap Cache Synchronization on Disk Edits**: `execute_disk_fallback` must invoke `project_manager::get_instance().lsp_save_document(args_.safe_path, saved_content)` after verifying strict-mode brace balance and before running `update_file_health_state` so `codemap_cache`, `type_definition_cache`, `mapped_file`, and LSP diagnostics are invalidated and updated on every disk edit.

@@ -9,7 +9,10 @@
 #include "agentlib/tool_context.h"
 #include "agentlib/tool_registry.h"
 #include "agentlib/virtual_file_system.h"
+#include "codemap_cache.h"
 #include "fs_utils.h"
+#include "lsp_backend.h"
+#include "project_manager.h"
 #include "test_watchdog.h"
 #include "tools/fs_replace_lines/fs_replace_lines.h"
 
@@ -406,6 +409,70 @@ int main()
 		assert(content == "Line 1\nReplaced Block 2-3\nLine 4\n");
 
 		std::remove(single_file.c_str());
+	}
+
+	// Verify fs_replace_lines calls project_manager::lsp_save_document (which also invalidates codemap_cache)
+	{
+		struct mock_save_tracker_backend : public lsp_backend {
+			bool save_called{false};
+			std::string saved_path;
+			std::string saved_text;
+			void start(event_queue &) override {}
+			void stop() override {}
+			void open_document(const std::string &, const std::string &) override {}
+			void update_document(const std::string &, const std::string &) override {}
+			void save_document(const std::string &filepath, const std::string &text) override
+			{
+				save_called = true;
+				saved_path = filepath;
+				saved_text = text;
+			}
+			void request_hover(const std::string &, int, int) override {}
+			void request_document_highlight(const std::string &, int, int) override {}
+			void request_selection_range(const std::string &, int, int) override {}
+			bool is_supported_file(const std::string &) const override { return true; }
+			std::vector<text_range> query_selection_ranges(const std::string &, int, int) override { return {}; }
+			std::vector<location_info> query_definition(const std::string &, int, int) override { return {}; }
+			std::vector<location_info> query_type_definition(const std::string &, int, int) override { return {}; }
+			std::vector<location_info> query_references(const std::string &, int, int) override { return {}; }
+			std::vector<symbol_info> query_workspace_symbols(const std::string &) override { return {}; }
+			std::vector<symbol_node> query_document_symbols(const std::string &) override { return {}; }
+			void prefetch_document_symbols(const std::string &) override {}
+			void invalidate_symbol_cache(const std::string &) override {}
+			std::vector<call_hierarchy_item> query_call_hierarchy_outgoing(const std::string &, int, int) override { return {}; }
+			std::vector<outgoing_call_item> query_call_hierarchy_outgoing_batch(
+			    const std::string &, const std::vector<std::pair<int, int>> &, std::chrono::steady_clock::time_point) override
+			{
+				return {};
+			}
+			std::vector<type_hierarchy_item> query_type_hierarchy_supertypes(const std::string &, int, int) override { return {}; }
+			std::optional<std::vector<diagnostic_info>> query_file_diagnostics(const std::string &) override { return std::nullopt; }
+			void store_file_diagnostics(const std::string &, const std::vector<diagnostic_info> &) override {}
+		};
+
+		auto mock = std::make_unique<mock_save_tracker_backend>();
+		auto *mock_ptr = mock.get();
+		project_manager::get_instance().set_lsp_backend_for_testing(std::move(mock));
+
+		std::string cache_test_file = "test_replace_lines_cache.cpp";
+		{
+			std::ofstream out(cache_test_file);
+			out << "int old_func() {\n    return 1;\n}\n";
+			out.close();
+		}
+
+		nlohmann::json edit_args = {
+		    {"path", cache_test_file},
+		    {"start_line", 1},
+		    {"end_line", 3},
+		    {"new_content", "int new_func() {\n    return 2;\n}"}};
+		std::string res = registry.execute_tool("fs_replace_lines", edit_args.dump(), ctx);
+		assert(res.find("Successfully applied") != std::string::npos);
+		assert(mock_ptr->save_called);
+		assert(mock_ptr->saved_path.find("test_replace_lines_cache.cpp") != std::string::npos);
+		assert(mock_ptr->saved_text == "int new_func() {\n    return 2;\n}\n");
+
+		std::remove(cache_test_file.c_str());
 	}
 
 	std::remove(test_file.c_str());
