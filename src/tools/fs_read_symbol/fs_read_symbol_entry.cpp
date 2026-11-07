@@ -132,12 +132,11 @@ std::string fs_read_symbol_tool::execute(agentlib::tool_context &ctx)
 			}
 		}
 	} else {
-		std::ifstream file(args_.safe_path, std::ios::binary);
-		if (file.is_open()) {
-			content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+		std::string map_err;
+		if (auto mf = mapped_file::get_cached(args_.safe_path, map_err, /*populate=*/true)) {
+			content.assign(mf->string_view().data(), mf->string_view().size());
 		}
 	}
-
 	// 2. Open document in LSP server to synchronize buffer
 	project_manager::get_instance().lsp_open_document(args_.safe_path, content);
 

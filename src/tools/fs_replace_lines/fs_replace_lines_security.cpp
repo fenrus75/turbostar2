@@ -1,14 +1,11 @@
 #include <algorithm>
 #include <format>
-#include <fstream>
 #include <nlohmann/json.hpp>
-#include "../../agentlib/tool_registry.h"
+#include "agentlib/ai_agent.h"
+#include "agentlib/json_utils.h"
+#include "agentlib/tool_registry.h"
 #include "fs_replace_lines.h"
-
-#include "../../agentlib/ai_agent.h"
-
-#include "../../agentlib/json_utils.h"
-
+#include "mapped_file.h"
 namespace tools
 {
 
@@ -81,24 +78,20 @@ bool fs_replace_lines_validator::validate_args_impl(const nlohmann::json &raw_js
 		}
 
 		// Read file lines lazily if needed to auto-populate original_text from line numbers
-		std::vector<std::string> file_lines;
-		auto load_file_lines = [&]() {
-			if (!file_lines.empty())
-				return;
-			std::string path_to_read = canonical_path;
-			auto *vfs = ctx.fs_security.get_vfs();
-			if (vfs && vfs->is_local_path_available(canonical_path)) {
-				path_to_read = vfs->get_local_path(canonical_path);
-			}
-			std::ifstream in(path_to_read);
-			if (in.is_open()) {
-				std::string line;
-				while (std::getline(in, line)) {
-					if (!line.empty() && line.back() == '\r')
-						line.pop_back();
-					file_lines.push_back(line);
+		std::shared_ptr<const mapped_file> cached_mf;
+		bool mf_attempted = false;
+		auto load_file_lines = [&]() -> std::span<const std::string_view> {
+			if (!mf_attempted) {
+				mf_attempted = true;
+				std::string path_to_read = canonical_path;
+				auto *vfs = ctx.fs_security.get_vfs();
+				if (vfs && vfs->is_local_path_available(canonical_path)) {
+					path_to_read = vfs->get_local_path(canonical_path);
 				}
+				std::string map_err;
+				cached_mf = mapped_file::get_cached(path_to_read, map_err, /*populate=*/true);
 			}
+			return cached_mf ? cached_mf->lines() : std::span<const std::string_view>{};
 		};
 
 		std::vector<edit_operation> parsed_edits;
@@ -152,18 +145,17 @@ bool fs_replace_lines_validator::validate_args_impl(const nlohmann::json &raw_js
 			}
 
 			if (orig_text.empty() && (edit.type == "remove" || edit.type == "replace")) {
-				load_file_lines();
+				auto file_lines = load_file_lines();
 				if (!file_lines.empty() && line_number >= 1 && line_number <= static_cast<int>(file_lines.size())) {
 					int actual_end = std::min(end_line, static_cast<int>(file_lines.size()));
 					actual_end = std::max(line_number, actual_end);
 					for (int l = line_number; l <= actual_end; ++l) {
 						if (!orig_text.empty())
 							orig_text += "\n";
-						orig_text += file_lines[l - 1];
+						orig_text.append(file_lines[l - 1]);
 					}
 				}
 			}
-
 			// Strictly enforce original_text presence for remove/replace
 			if (edit.type == "remove" || edit.type == "replace") {
 				if (orig_text.empty()) {

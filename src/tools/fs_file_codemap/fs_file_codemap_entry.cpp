@@ -1,8 +1,8 @@
 #include "fs_file_codemap.h"
 #include "codemap_utils.h"
 #include "fs_utils.h"
+#include "mapped_file.h"
 
-#include <fstream>
 #include <iostream>
 #include <format>
 
@@ -62,13 +62,11 @@ std::string fs_file_codemap_tool::execute(agentlib::tool_context &ctx)
 	} else if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path)) {
 		total_lines = ctx.doc_provider->get_open_document(args_.safe_path)->get_line_count();
 	} else {
-		std::ifstream file(args_.safe_path);
-		std::string line;
-		while (std::getline(file, line)) {
-			total_lines++;
+		std::string map_err;
+		if (auto mf = mapped_file::get_cached(args_.safe_path, map_err, /*populate=*/true)) {
+			total_lines = mf->lines().size();
 		}
 	}
-
 	auto symbols = get_document_codemap_symbols(args_.safe_path, ctx, args_.min_lines);
 	if (symbols.empty()) {
 		return "No functions, classes, or symbols found in " + args_.requested_path + ".";

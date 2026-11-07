@@ -354,22 +354,14 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context &ctx, 
 		return false;
 	}
 
-	// 2. Read file content
-	std::vector<std::string> lines;
-	std::ifstream in(path_to_use);
-	if (!in.is_open()) {
+	// 2. Read file content via mapped_file cache
+	std::string map_err;
+	auto mf = mapped_file::get_cached(path_to_use, map_err, /*populate=*/true);
+	if (!mf) {
 		out_error = "Error: Could not open file for reading during verification.";
 		return false;
 	}
-
-	std::string line_content;
-	while (std::getline(in, line_content)) {
-		if (!line_content.empty() && line_content.back() == '\r') {
-			line_content.pop_back();
-		}
-		lines.push_back(line_content);
-	}
-	in.close();
+	auto lines = mf->lines();
 
 	// 3. Track original order
 	bool originally_out_of_order = false;
@@ -442,7 +434,7 @@ bool fs_replace_lines_tool::validate_runtime(const agentlib::tool_context &ctx, 
 		}
 
 		if (matching_lines.empty()) {
-			std::string actual_content = (idx >= 0 && idx < static_cast<int>(lines.size())) ? lines[idx] : "(Out of bounds)";
+			std::string actual_content = (idx >= 0 && idx < static_cast<int>(lines.size())) ? std::string(lines[idx]) : "(Out of bounds)";
 			mismatch_errors.push_back(
 			    std::format("Verification Error at line {}. \nExpected starting with: '{}'\nActual content: '{}'",
 					edit.line_number, expected_lines[0], actual_content));
@@ -603,21 +595,18 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 
 	std::vector<std::string> lines;
 
-	// 1. Read file into memory
-	std::ifstream in(path_to_use);
-	if (!in.is_open()) {
+	// 1. Read file into memory via mapped_file cache
+	std::string map_err;
+	auto mf = mapped_file::get_cached(path_to_use, map_err, /*populate=*/true);
+	if (!mf) {
 		return "Error: Could not open file for reading during execution.";
 	}
 
-	std::string line_content;
-	while (std::getline(in, line_content)) {
-		if (!line_content.empty() && line_content.back() == '\r') {
-			line_content.pop_back();
-		}
-		lines.push_back(line_content);
+	auto cached_lines = mf->lines();
+	lines.reserve(cached_lines.size());
+	for (std::string_view sv : cached_lines) {
+		lines.emplace_back(sv);
 	}
-	in.close();
-
 	std::vector<std::string> before_lines = lines;
 
 	// 2. Apply edits with explicit bounds checks

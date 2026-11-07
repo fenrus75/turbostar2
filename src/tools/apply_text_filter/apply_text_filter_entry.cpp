@@ -3,6 +3,7 @@
 #include "agentlib/virtual_file_system.h"
 #include "filter_registry.h"
 #include "fs_utils.h"
+#include "mapped_file.h"
 #include "project_manager.h"
 #include <filesystem>
 #include <fstream>
@@ -32,18 +33,23 @@ std::string apply_text_filter_tool::execute(agentlib::tool_context &ctx)
 	std::string input_text = args_.text;
 	if (input_text.empty() && !args_.safe_path.empty()) {
 		if (fs_utils::is_regular_file(args_.safe_path)) {
-			std::error_code ec;
-			auto file_sz = std::filesystem::file_size(args_.safe_path, ec);
-			if (!ec && file_sz > 10485760) {
+			std::string map_err;
+			auto mf = mapped_file::get_cached(args_.safe_path, map_err, /*populate=*/true);
+			if (!mf) {
+				return "Error: Failed to open input file '" + args_.path + "' for reading.";
+			}
+			if (mf->size() > 10485760) {
 				return "Error: Input file '" + args_.path + "' exceeds maximum allowed size of 10MB.";
 			}
+			input_text.assign(mf->string_view().data(), mf->string_view().size());
+		} else {
+			std::ifstream ifs(args_.safe_path, std::ios::binary);
+			if (!ifs.is_open()) {
+				return "Error: Failed to open input file '" + args_.path + "' for reading.";
+			}
+			input_text = std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+			ifs.close();
 		}
-		std::ifstream ifs(args_.safe_path, std::ios::binary);
-		if (!ifs.is_open()) {
-			return "Error: Failed to open input file '" + args_.path + "' for reading.";
-		}
-		input_text = std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-		ifs.close();
 	}
 
 	bool success = false;
@@ -75,6 +81,8 @@ std::string apply_text_filter_tool::execute(agentlib::tool_context &ctx)
 		if (out.fail()) {
 			return "Error: Failed to write filtered content to '" + args_.output_path + "'.";
 		}
+		out.close();
+		mapped_file::notify_changed(args_.safe_output_path);
 		project_manager::get_instance().lsp_save_document(args_.safe_output_path, result);
 		return fs_utils::wrap_prompt_untrusted_data_tag("apply_text_filter_result", "Successfully applied filter '" + args_.filter + "' and wrote output to '" + args_.output_path + "'.");
 	}

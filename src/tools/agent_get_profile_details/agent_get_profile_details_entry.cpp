@@ -2,6 +2,7 @@
 #include "config_manager.h"
 #include "fs_utils.h"
 #include "lsp_manager.h"
+#include "mapped_file.h"
 #include "perf_manager.h"
 #include "project_manager.h"
 #include "codemap_utils.h"
@@ -94,21 +95,21 @@ static bool find_matching_symbol(const lsp_manager::symbol_node &node, const std
 
 
 
-static symbol_bounds tighten_symbol_bounds(symbol_bounds bounds, const std::vector<std::string> &file_lines)
+static symbol_bounds tighten_symbol_bounds(symbol_bounds bounds, std::span<const std::string_view> file_lines)
 {
 
 	int start_idx = std::max(0, bounds.start_line - 1);
 	int end_idx = std::min(static_cast<int>(file_lines.size()) - 1, bounds.end_line - 1);
 
-	auto is_comment_or_blank = [](const std::string &line) -> bool {
+	auto is_comment_or_blank = [](std::string_view line) -> bool {
 		size_t first = line.find_first_not_of(" \t\r\n");
-		if (first == std::string::npos) {
+		if (first == std::string_view::npos) {
 			return true;
 		}
-		if (line.compare(first, 2, "//") == 0) {
+		if (line.substr(first).starts_with("//")) {
 			return true;
 		}
-		if (line.compare(first, 2, "/*") == 0) {
+		if (line.substr(first).starts_with("/*")) {
 			return true;
 		}
 		return false;
@@ -294,24 +295,13 @@ static std::string resolve_file_path(const std::string &input_path, const agentl
 	return norm_input;
 }
 
-static std::vector<std::string> read_file_lines(const std::string &resolved_path)
+static std::shared_ptr<const mapped_file> read_mapped_file(const std::string &resolved_path)
 {
-	std::vector<std::string> lines;
 	if (resolved_path.empty()) {
-		return lines;
+		return nullptr;
 	}
-	std::ifstream in(resolved_path);
-	if (!in.is_open()) {
-		return lines;
-	}
-	std::string line;
-	while (std::getline(in, line)) {
-		if (!line.empty() && line.back() == '\r') {
-			line.pop_back();
-		}
-		lines.push_back(line);
-	}
-	return lines;
+	std::string map_err;
+	return mapped_file::get_cached(resolved_path, map_err, /*populate=*/true);
 }
 
 static std::string make_relative_to_project(const std::string &path_str, const agentlib::tool_context &ctx)
@@ -434,7 +424,8 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 		std::string resolved_path = resolve_file_path(file_path, ctx);
 		std::string rel_file_path = make_relative_to_project(resolved_path.empty() ? file_path : resolved_path, ctx);
 
-		auto file_lines = read_file_lines(resolved_path.empty() ? file_path : resolved_path);
+		auto mf = read_mapped_file(resolved_path.empty() ? file_path : resolved_path);
+		auto file_lines = mf ? mf->lines() : std::span<const std::string_view>{};
 		int total_lines = static_cast<int>(file_lines.size());
 
 		int representative_line = hot_line_numbers.empty() ? 0 : hot_line_numbers.front();
@@ -500,7 +491,7 @@ std::string agent_get_profile_details_tool::execute(agentlib::tool_context &ctx)
 				entry["line_number"] = line_num;
 
 				if (line_num >= 1 && line_num <= total_lines) {
-					entry["code"] = file_lines[line_num - 1];
+					entry["code"] = std::string(file_lines[line_num - 1]);
 				} else {
 					entry["code"] = nullptr;
 				}

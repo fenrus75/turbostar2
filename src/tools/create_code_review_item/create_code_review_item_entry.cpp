@@ -3,6 +3,7 @@
 #include "agentlib/ai_agent.h"
 #include "agentlib/interactions/action.h"
 #include "codereview_manager.h"
+#include "mapped_file.h"
 #include <format>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -73,16 +74,12 @@ std::string create_code_review_item_tool::execute(agentlib::tool_context &ctx)
 				}
 			}
 		} else {
-			std::ifstream f(args_.safe_path);
-			if (f.is_open()) {
-				std::string line;
-				int current = 1;
-				while (std::getline(f, line)) {
-					if (current == args_.line_number) {
-						line_content = line;
-						break;
-					}
-					current++;
+			std::string map_err;
+			auto mf = mapped_file::get_cached(args_.safe_path, map_err);
+			if (mf) {
+				auto lines = mf->lines();
+				if (static_cast<size_t>(args_.line_number) <= lines.size()) {
+					line_content = std::string(lines[args_.line_number - 1]);
 				}
 			}
 		}

@@ -1,5 +1,6 @@
-#include "../../fs_utils.h"
+#include "fs_utils.h"
 #include "git_blame.h"
+#include "mapped_file.h"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -81,22 +82,17 @@ static std::string sanitize_table_cell(std::string_view text, size_t max_len = 2
 std::string git_blame_tool::execute(agentlib::tool_context &ctx)
 {
 	// Read file lines for grounding and bounds validation
-	std::vector<std::string> file_lines;
-	{
-		std::string real_read_path = args_.safe_path;
-		if (real_read_path.find("file://") == 0) {
-			real_read_path = real_read_path.substr(7);
-		}
-		std::ifstream infile(real_read_path);
-		if (!infile.is_open()) {
-			set_failure(ctx, "Failed to open file");
-			return "Failed to open file: " + args_.requested_path;
-		}
-		std::string line;
-		while (std::getline(infile, line)) {
-			file_lines.push_back(line);
-		}
+	std::string real_read_path = args_.safe_path;
+	if (real_read_path.find("file://") == 0) {
+		real_read_path = real_read_path.substr(7);
 	}
+	std::string map_err;
+	auto mf = mapped_file::get_cached(real_read_path, map_err, /*populate=*/true);
+	if (!mf) {
+		set_failure(ctx, "Failed to open file");
+		return "Failed to open file: " + args_.requested_path;
+	}
+	auto file_lines = mf->lines();
 
 	if (file_lines.empty()) {
 		set_success(ctx, "Empty file");
@@ -270,7 +266,7 @@ std::string git_blame_tool::execute(agentlib::tool_context &ctx)
 
 		std::string grounding_code;
 		if (group.start_line >= 1 && group.start_line <= total_lines) {
-			grounding_code = file_lines[group.start_line - 1];
+			grounding_code = std::string(file_lines[group.start_line - 1]);
 		}
 
 		std::string escaped_code = sanitize_table_cell(grounding_code, 200);

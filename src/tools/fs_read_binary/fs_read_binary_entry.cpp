@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include "fs_read_binary.h"
 #include "fs_utils.h"
+#include "mapped_file.h"
 #include "mime.h"
 
 namespace tools
@@ -72,26 +73,20 @@ std::string fs_read_binary_tool::execute(agentlib::tool_context &ctx)
 		return fs_utils::wrap_prompt_untrusted_data_tag("fs_read_binary_result", "Error: File is too large (>50MB) to read directly.");
 	}
 
-	std::ifstream file(resolved_path, std::ios::binary);
-	if (!file.is_open()) {
+	std::string map_err;
+	auto mf = mapped_file::get_cached(resolved_path, map_err, /*populate=*/false);
+	if (!mf) {
 		return fs_utils::wrap_prompt_untrusted_data_tag("fs_read_binary_result", "Error: Could not open file for reading.");
 	}
 
-	if (args_.offset > 0) {
-		file.seekg(args_.offset);
-		if (file.fail()) {
-			return fs_utils::wrap_prompt_untrusted_data_tag("fs_read_binary_result", "Error: offset is out of bounds.");
-		}
-	}
-
-	// Determine how much to read
-	std::streamsize bytes_to_read = sb.st_size - args_.offset;
-	if (bytes_to_read < 0) {
+	auto file_bytes = mf->bytes();
+	if (args_.offset < 0 || static_cast<size_t>(args_.offset) > file_bytes.size()) {
 		return fs_utils::wrap_prompt_untrusted_data_tag("fs_read_binary_result", "Error: offset is out of bounds.");
 	}
 
-	if (args_.size >= 0 && args_.size < bytes_to_read) {
-		bytes_to_read = args_.size;
+	size_t bytes_to_read = file_bytes.size() - static_cast<size_t>(args_.offset);
+	if (args_.size >= 0 && static_cast<size_t>(args_.size) < bytes_to_read) {
+		bytes_to_read = static_cast<size_t>(args_.size);
 	}
 
 	// Hard limit on bytes to read (e.g. 50MB)
@@ -100,19 +95,14 @@ std::string fs_read_binary_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	if (bytes_to_read == 0) {
-		return fs_utils::wrap_prompt_untrusted_data_tag("fs_read_binary_result", "");
-	}
-
-	std::vector<unsigned char> buffer(bytes_to_read);
-	file.read(reinterpret_cast<char *>(buffer.data()), bytes_to_read);
-	std::streamsize bytes_read = file.gcount();
-
-	if (bytes_read == 0) {
+		if (args_.size == 0) {
+			return fs_utils::wrap_prompt_untrusted_data_tag("fs_read_binary_result", "");
+		}
 		return fs_utils::wrap_prompt_untrusted_data_tag("fs_read_binary_result", "Requested range is empty or past the end of the file.");
 	}
 
 	std::string format = args_.format;
-	std::string res = fs_utils::format_binary_output(std::span<const unsigned char>(buffer.data(), bytes_read), format,
+	std::string res = fs_utils::format_binary_output(file_bytes.subspan(static_cast<size_t>(args_.offset), bytes_to_read), format,
 						       mime::detect_file_type(resolved_path));
 	return fs_utils::wrap_prompt_untrusted_data_tag("fs_read_binary_result", res);
 }

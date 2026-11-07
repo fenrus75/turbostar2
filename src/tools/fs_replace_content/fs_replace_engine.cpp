@@ -10,6 +10,7 @@
 #include "agentlib/file_health_utils.h"
 #include "agentlib/virtual_file_system.h"
 #include "codemap_utils.h"
+#include "mapped_file.h"
 #include "mime.h"
 #include "project_manager.h"
 #include "type_definition_cache.h"
@@ -259,17 +260,19 @@ replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, co
 		return res;
 	}
 
-	std::string file_content;
-	{
-		std::ifstream in(path_to_use, std::ios::binary);
-		if (!in.is_open()) {
-			res.error_message = "Error: Could not open file for reading.";
-			return res;
-		}
-		file_content.assign((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+	std::string map_err;
+	auto mf = mapped_file::get_cached(path_to_use, map_err, /*populate=*/true);
+	if (!mf) {
+		res.error_message = "Error: Could not open file for reading.";
+		return res;
 	}
-
-	std::vector<std::string> current_lines = split_lines(file_content);
+	std::string file_content(mf->string_view());
+	std::vector<std::string> current_lines;
+	auto cached_lines = mf->lines();
+	current_lines.reserve(cached_lines.size());
+	for (std::string_view sv : cached_lines) {
+		current_lines.emplace_back(sv);
+	}
 	res.before_lines = current_lines;
 
 	std::vector<std::pair<int, int>> edited_ranges_0based;
@@ -557,6 +560,7 @@ replace_engine_result fs_replace_engine::execute(agentlib::tool_context &ctx, co
 		out.close();
 	}
 
+	mapped_file::notify_changed(path_to_use);
 	std::string edit_id = agentlib::update_file_health_state(ctx, args.safe_path);
 	project_manager::get_instance().lsp_save_document(args.safe_path, work_content);
 	if (res.chunks_applied == 1 && !edited_ranges_0based.empty()) {
