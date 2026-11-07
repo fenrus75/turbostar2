@@ -61,7 +61,8 @@ void fallback_find_symbols(const std::string &safe_path, int min_lines, std::vec
 // Select and prioritize top N codemap symbols for a file read range based on scope, search history, position, and deduplication
 codemap_selection_result select_prioritized_codemap_symbols(const std::vector<codemap_symbol_info> &all_symbols, int read_start,
 							    int read_end, const std::string &safe_path, agentlib::tool_context &ctx,
-							    size_t max_items = 10);
+							    size_t max_items = 10,
+							    std::string_view preloaded_companion_header = {});
 
 // Format codemap symbols into Markdown table
 // Always 4 columns (| Symbol | start_line | end_line | lines |)
@@ -144,7 +145,9 @@ bool extract_class_summary(const std::string &file_path, int line, int col,
 // Extract mini class definition preview (referenced member variables and called member methods)
 std::string extract_class_context_preview(const std::string &cpp_path, int start_line, int end_line,
 					  std::span<const std::string_view> read_lines, agentlib::tool_context &ctx,
-					  std::string_view raw_range_view = {});
+					  std::string_view raw_range_view = {},
+					  const std::vector<codemap_symbol_info> *preloaded_symbols = nullptr,
+					  std::string_view preloaded_header_path = {});
 
 // Find the innermost symbol enclosing line_number in a list of codemap symbols
 const codemap_symbol_info *find_enclosing_symbol(const std::vector<codemap_symbol_info> &symbols, int line_number);

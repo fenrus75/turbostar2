@@ -48,7 +48,8 @@ size_t count_max_consecutive_backticks(std::span<const std::string_view> lines)
 }
 
 int determine_adjusted_end_line(int start, int requested_end, std::span<const std::string_view> lines, const std::string &path,
-				agentlib::tool_context &ctx)
+				agentlib::tool_context &ctx, std::vector<codemap_symbol_info> *out_symbols = nullptr,
+				bool *out_symbols_loaded = nullptr)
 {
 	int total_lines_read = static_cast<int>(lines.size());
 	int file_end_line = start + total_lines_read - 1;
@@ -59,7 +60,12 @@ int determine_adjusted_end_line(int start, int requested_end, std::span<const st
 	}
 
 	// Fetch exact document symbols from central codemap infrastructure
-	std::vector<codemap_symbol_info> symbols = get_document_codemap_symbols(path, ctx, 1);
+	std::vector<codemap_symbol_info> local_symbols;
+	std::vector<codemap_symbol_info> &symbols = out_symbols ? *out_symbols : local_symbols;
+	symbols = get_document_codemap_symbols(path, ctx, 1);
+	if (out_symbols_loaded) {
+		*out_symbols_loaded = true;
+	}
 	if (!symbols.empty()) {
 		// If requested_end is already exactly at the end boundary of any symbol, do not extend!
 		for (const auto &sym : symbols) {
@@ -449,7 +455,8 @@ bool fs_read_lines_tool::validate_runtime(const agentlib::tool_context & /*ctx*/
 }
 
 file_read_result read_file_lines(const std::string &safe_path, const std::string &requested_path, int start_line, int end_line,
-				 std::optional<int> tail, agentlib::tool_context &ctx, bool adjust_boundaries)
+				 std::optional<int> tail, agentlib::tool_context &ctx, bool adjust_boundaries,
+				 std::vector<codemap_symbol_info> *out_symbols, bool *out_symbols_loaded)
 {
 	// Reset the drift tracker for this file since the LLM has read it.
 	ctx.file_drift_tracker.erase(safe_path);
@@ -494,7 +501,8 @@ file_read_result read_file_lines(const std::string &safe_path, const std::string
 	}
 	int adjusted_end = requested_end;
 	if (adjust_boundaries && !tail.has_value() && read_res.success && !read_res.lines.empty()) {
-		adjusted_end = determine_adjusted_end_line(start, requested_end, read_res.lines, safe_path, ctx);
+		adjusted_end = determine_adjusted_end_line(start, requested_end, read_res.lines, safe_path, ctx, out_symbols,
+							   out_symbols_loaded);
 	}
 	int keep_count = adjusted_end - start + 1;
 	if (keep_count < 0) {
@@ -556,8 +564,10 @@ std::string format_file_lines_markdown(const std::string &requested_path, const 
 
 std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 {
+	std::vector<codemap_symbol_info> doc_symbols;
+	bool symbols_loaded = false;
 	file_read_result read_res = read_file_lines(args_.safe_path, args_.requested_path, args_.start_line, args_.end_line, args_.tail,
-						    ctx, /*adjust_boundaries=*/!args_.length.has_value());
+						    ctx, /*adjust_boundaries=*/!args_.length.has_value(), &doc_symbols, &symbols_loaded);
 	args_.start_line = read_res.start_line;
 	args_.end_line = read_res.end_line;
 	int start = args_.start_line;
@@ -619,9 +629,15 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 			is_header = true;
 		}
 
+		std::string companion_header = is_header ? "" : find_matching_header_file(args_.safe_path, ctx);
+		if (!read_whole_file && !symbols_loaded) {
+			doc_symbols = get_document_codemap_symbols(args_.safe_path, ctx, /*min_lines=*/1);
+			symbols_loaded = true;
+		}
+
 		if (!is_header && !read_whole_file) {
 			std::string class_preview = extract_class_context_preview(args_.safe_path, start, adjusted_end, read_res.lines, ctx,
-										  read_res.raw_range_view);
+										  read_res.raw_range_view, &doc_symbols, companion_header);
 			if (!class_preview.empty()) {
 				result_text.push_back('\n');
 				result_text.append(class_preview);
@@ -631,10 +647,9 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		size_t targets_surfaced = 0;
 
 		if (!read_whole_file) {
-			auto symbols = get_document_codemap_symbols(args_.safe_path, ctx, /*min_lines=*/1);
-			if (!symbols.empty()) {
-				auto selection = select_prioritized_codemap_symbols(symbols, start, adjusted_end, args_.safe_path, ctx,
-										    /*max_items=*/10);
+			if (!doc_symbols.empty()) {
+				auto selection = select_prioritized_codemap_symbols(doc_symbols, start, adjusted_end, args_.safe_path, ctx,
+										    /*max_items=*/10, companion_header);
 				if (!selection.selected_symbols.empty()) {
 					targets_surfaced += selection.selected_symbols.size();
 					event_logger::get_instance().log(std::format(
@@ -668,7 +683,6 @@ std::string fs_read_lines_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		// Type Definitions: gather candidate types that have resolved in the cache
-		std::string companion_header = is_header ? "" : find_matching_header_file(args_.safe_path, ctx);
 		std::vector<type_definition_entry> resolved_types;
 		size_t pending_count = 0;
 		size_t excluded_file_count = 0;

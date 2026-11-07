@@ -26,6 +26,7 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <iterator>
 #include <map>
 #include <ctre.hpp>
 #include <set>
@@ -770,7 +771,7 @@ std::vector<outgoing_call_reference> get_outgoing_calls_for_symbol(const std::st
 
 codemap_selection_result select_prioritized_codemap_symbols(const std::vector<codemap_symbol_info> &all_symbols, int read_start,
 							    int read_end, const std::string &safe_path, agentlib::tool_context &ctx,
-							    size_t max_items)
+							    size_t max_items, std::string_view preloaded_companion_header)
 {
 	codemap_selection_result res;
 	res.total_symbols = all_symbols.size();
@@ -804,7 +805,9 @@ codemap_selection_result select_prioritized_codemap_symbols(const std::vector<co
 		enclosing_sym = find_enclosing_symbol(all_symbols, read_end);
 	}
 
-	if (enclosing_sym) {
+	if (enclosing_sym && enclosing_sym->kind_str != "Namespace" && enclosing_sym->kind_str != "Class" &&
+	    enclosing_sym->kind_str != "Struct" && enclosing_sym->kind_str != "Class/Struct" &&
+	    (enclosing_sym->start_line < read_start || enclosing_sym->end_line > read_end)) {
 		auto enclosing_calls =
 		    get_outgoing_calls_in_range(safe_path, enclosing_sym->start_line, enclosing_sym->end_line, all_symbols, &ctx, deadline);
 		for (const auto &call : enclosing_calls) {
@@ -813,7 +816,11 @@ codemap_selection_result select_prioritized_codemap_symbols(const std::vector<co
 	}
 
 	for (const auto &call : direct_outgoing_calls) {
-		direct_call_targets.insert(call.target_name);
+		if (call.is_direct_read_call) {
+			direct_call_targets.insert(call.target_name);
+		} else {
+			enclosing_call_targets.insert(call.target_name);
+		}
 	}
 
 	struct scored_symbol {
@@ -824,6 +831,16 @@ codemap_selection_result select_prioritized_codemap_symbols(const std::vector<co
 
 	std::vector<scored_symbol> scored;
 	scored.reserve(all_symbols.size());
+
+	const bool has_call_targets = !direct_call_targets.empty() || !enclosing_call_targets.empty();
+	std::vector<std::string> lower_grep_patterns;
+	if (!ctx.recent_grep_patterns.empty()) {
+		lower_grep_patterns.reserve(ctx.recent_grep_patterns.size());
+		for (const auto &pattern : ctx.recent_grep_patterns) {
+			lower_grep_patterns.push_back(pattern.empty() ? std::string{} : utf8::to_lower(pattern));
+		}
+	}
+	const auto now = std::chrono::steady_clock::now();
 
 	for (size_t idx = 0; idx < all_symbols.size(); ++idx) {
 		const auto &sym = all_symbols[idx];
@@ -851,28 +868,31 @@ codemap_selection_result select_prioritized_codemap_symbols(const std::vector<co
 		}
 
 		// 2. Outgoing Call Boost (+30.0 for direct read calls, +15.0 for enclosing scope calls)
-		size_t double_colon = sym.name.rfind("::");
-		std::string short_sym_name = (double_colon != std::string::npos) ? sym.name.substr(double_colon + 2) : sym.name;
+		if (has_call_targets) {
+			size_t double_colon = sym.name.rfind("::");
+			std::string short_sym_name = (double_colon != std::string::npos) ? sym.name.substr(double_colon + 2) : sym.name;
 
-		if (direct_call_targets.contains(sym.name) || direct_call_targets.contains(short_sym_name)) {
-			score += 30.0;
-		} else if (enclosing_call_targets.contains(sym.name) || enclosing_call_targets.contains(short_sym_name)) {
-			score += 15.0;
+			if (direct_call_targets.contains(sym.name) || direct_call_targets.contains(short_sym_name)) {
+				score += 30.0;
+			} else if (enclosing_call_targets.contains(sym.name) || enclosing_call_targets.contains(short_sym_name)) {
+				score += 15.0;
+			}
 		}
 
 		// 3. Search Relevance (recent grep patterns)
-		double grep_weight = 5.0;
-		for (const auto &pattern : ctx.recent_grep_patterns) {
-			if (!pattern.empty()) {
-				std::string name_lower = utf8::to_lower(sym.name);
-				std::string pat_lower = utf8::to_lower(pattern);
-
-				if (name_lower.find(pat_lower) != std::string::npos || pat_lower.find(name_lower) != std::string::npos) {
-					score += grep_weight;
-					break;
+		if (!lower_grep_patterns.empty()) {
+			double grep_weight = 5.0;
+			std::string name_lower = utf8::to_lower(sym.name);
+			for (const auto &pat_lower : lower_grep_patterns) {
+				if (!pat_lower.empty()) {
+					if (name_lower.find(pat_lower) != std::string::npos ||
+					    pat_lower.find(name_lower) != std::string::npos) {
+						score += grep_weight;
+						break;
+					}
 				}
+				grep_weight /= 2.0; // Decaying weight for older search terms
 			}
-			grep_weight /= 2.0; // Decaying weight for older search terms
 		}
 
 		// 4. Short symbol penalty (getters/setters < 3 lines)
@@ -887,7 +907,6 @@ codemap_selection_result select_prioritized_codemap_symbols(const std::vector<co
 		// Symbols never reported before (or reported >= 3600s ago) receive the full +0.5 bonus,
 		// while recently reported symbols receive near 0.0 bonus. This cleanly breaks ties
 		// in favor of never/least-recently seen items without altering major category ranks.
-		auto now = std::chrono::steady_clock::now();
 		auto it = history.reported_symbols.find(sym.name);
 		double delta_seconds = 3600.0;
 		if (it != history.reported_symbols.end()) {
@@ -916,10 +935,9 @@ codemap_selection_result select_prioritized_codemap_symbols(const std::vector<co
 	size_t take_count = std::min(primary_max, scored.size());
 	res.selected_symbols.reserve(take_count + 10);
 
-	auto report_time = std::chrono::steady_clock::now();
 	for (size_t i = 0; i < take_count; ++i) {
 		res.selected_symbols.push_back(*scored[i].info);
-		history.reported_symbols[scored[i].info->name] = report_time;
+		history.reported_symbols[scored[i].info->name] = now;
 	}
 
 	// Re-sort primary file symbols by start_line ascending for document order display
@@ -928,41 +946,44 @@ codemap_selection_result select_prioritized_codemap_symbols(const std::vector<co
 
 	// Append up to 10 cross-file outgoing dependency call symbols under Option D
 	size_t cross_file_count = 0;
-	std::unordered_set<std::string> added_cross_file_keys;
-	std::unordered_set<std::string> added_cross_file_symbols;
-	std::string norm_safe_path = fs_utils::make_relative_to_project(safe_path);
-	std::string companion_header = find_matching_header_file(safe_path, ctx);
-	bool caller_is_test = is_test_file_path(norm_safe_path);
+	if (!direct_outgoing_calls.empty()) {
+		std::unordered_set<std::string> added_cross_file_keys;
+		std::unordered_set<std::string> added_cross_file_symbols;
+		std::string norm_safe_path = fs_utils::make_relative_to_project(safe_path);
+		std::string companion_header = !preloaded_companion_header.empty() ? std::string(preloaded_companion_header)
+										   : find_matching_header_file(safe_path, ctx);
+		bool caller_is_test = is_test_file_path(norm_safe_path);
 
-	for (const auto &call : direct_outgoing_calls) {
-		if (cross_file_count >= 10)
-			break;
+		for (const auto &call : direct_outgoing_calls) {
+			if (cross_file_count >= 10)
+				break;
 
-		if (!call.target_file.empty() && call.target_start_line > 0 && is_project_file(call.target_file)) {
-			std::string norm_target = fs_utils::make_relative_to_project(call.target_file);
-			if (norm_target == norm_safe_path || (!companion_header.empty() && norm_target == companion_header))
-				continue;
-			if (!caller_is_test && is_test_file_path(norm_target))
-				continue;
+			if (!call.target_file.empty() && call.target_start_line > 0 && is_project_file(call.target_file)) {
+				std::string norm_target = fs_utils::make_relative_to_project(call.target_file);
+				if (norm_target == norm_safe_path || (!companion_header.empty() && norm_target == companion_header))
+					continue;
+				if (!caller_is_test && is_test_file_path(norm_target))
+					continue;
 
-			std::string key = norm_target + ":" + call.target_name;
-			if (added_cross_file_keys.contains(key) || added_cross_file_symbols.contains(call.target_name))
-				continue;
-			added_cross_file_keys.insert(key);
-			added_cross_file_symbols.insert(call.target_name);
+				std::string key = std::format("{}:{}", norm_target, call.target_name);
+				if (added_cross_file_keys.contains(key) || added_cross_file_symbols.contains(call.target_name))
+					continue;
+				added_cross_file_keys.insert(std::move(key));
+				added_cross_file_symbols.insert(call.target_name);
 
-			codemap_symbol_info dep_sym;
-			dep_sym.name = call.target_name;
-			dep_sym.display_name = call.target_name;
-			dep_sym.kind_str = call.target_kind.empty() ? "Function" : call.target_kind;
-			dep_sym.start_line = call.target_start_line;
-			dep_sym.end_line = call.target_end_line;
-			dep_sym.line_count = std::max(1, call.target_end_line - call.target_start_line + 1);
-			dep_sym.depth = 0;
-			dep_sym.source_file = norm_target;
+				codemap_symbol_info dep_sym;
+				dep_sym.name = call.target_name;
+				dep_sym.display_name = call.target_name;
+				dep_sym.kind_str = call.target_kind.empty() ? "Function" : call.target_kind;
+				dep_sym.start_line = call.target_start_line;
+				dep_sym.end_line = call.target_end_line;
+				dep_sym.line_count = std::max(1, call.target_end_line - call.target_start_line + 1);
+				dep_sym.depth = 0;
+				dep_sym.source_file = std::move(norm_target);
 
-			res.selected_symbols.push_back(dep_sym);
-			cross_file_count++;
+				res.selected_symbols.push_back(std::move(dep_sym));
+				cross_file_count++;
+			}
 		}
 	}
 
@@ -985,16 +1006,21 @@ std::string format_codemap_table(const std::string &display_path, const std::vec
 	}
 
 	// Separate primary file symbols from cross-file dependency symbols (Option D)
-	std::vector<codemap_symbol_info> primary_symbols;
-	std::map<std::string, std::vector<codemap_symbol_info>> dependency_symbols;
+	std::vector<const codemap_symbol_info *> primary_symbols;
+	primary_symbols.reserve(symbols.size());
+	std::map<std::string, std::vector<const codemap_symbol_info *>> dependency_symbols;
 	std::string norm_primary = fs_utils::make_relative_to_project(display_path);
 
 	for (const auto &sym : symbols) {
+		if (sym.source_file.empty()) {
+			primary_symbols.push_back(&sym);
+			continue;
+		}
 		std::string norm_source = fs_utils::make_relative_to_project(sym.source_file);
 		if (norm_source.empty() || norm_source == norm_primary) {
-			primary_symbols.push_back(sym);
+			primary_symbols.push_back(&sym);
 		} else {
-			dependency_symbols[norm_source].push_back(sym);
+			dependency_symbols[norm_source].push_back(&sym);
 		}
 	}
 
@@ -1007,64 +1033,69 @@ std::string format_codemap_table(const std::string &display_path, const std::vec
 	// the output as "Full" -- always use the "(Top X of M symbols)" wording.
 	bool show_full = full && effective_total <= primary_symbols.size() && pruned_count == 0;
 
-	std::stringstream ss;
+	std::string out;
+	out.reserve(256 + symbols.size() * 64);
 	if (!primary_symbols.empty()) {
 		if (pruned_count > 0) {
 			size_t raw_total = (raw_total_symbols > 0) ? raw_total_symbols : (primary_symbols.size() + pruned_count);
 			if (total_file_lines > 0) {
-				ss << std::format("### Codemap for `{}` ({}/{} symbols ({} pruned), {} lines):\n\n", display_path,
-						  primary_symbols.size(), raw_total, pruned_count, total_file_lines);
+				std::format_to(std::back_inserter(out), "### Codemap for `{}` ({}/{} symbols ({} pruned), {} lines):\n\n",
+					       display_path, primary_symbols.size(), raw_total, pruned_count, total_file_lines);
 			} else {
-				ss << std::format("### Codemap for `{}` ({}/{} symbols ({} pruned)):\n\n", display_path,
-						  primary_symbols.size(), raw_total, pruned_count);
+				std::format_to(std::back_inserter(out), "### Codemap for `{}` ({}/{} symbols ({} pruned)):\n\n",
+					       display_path, primary_symbols.size(), raw_total, pruned_count);
 			}
 		} else if (total_file_lines > 0) {
 			if (!show_full) {
-				ss << std::format("### Codemap for `{}` (Top {} of {} symbols, {} lines):\n\n", display_path,
-						  primary_symbols.size(), effective_total, total_file_lines);
+				std::format_to(std::back_inserter(out), "### Codemap for `{}` (Top {} of {} symbols, {} lines):\n\n",
+					       display_path, primary_symbols.size(), effective_total, total_file_lines);
 			} else {
-				ss << std::format("### Codemap for `{}` (Full {} symbols, {} lines):\n\n", display_path, effective_total,
-						  total_file_lines);
+				std::format_to(std::back_inserter(out), "### Codemap for `{}` (Full {} symbols, {} lines):\n\n",
+					       display_path, effective_total, total_file_lines);
 			}
 		} else {
 			if (!show_full) {
-				ss << std::format("### Codemap for `{}` (Top {} of {} symbols):\n\n", display_path, primary_symbols.size(),
-						  effective_total);
+				std::format_to(std::back_inserter(out), "### Codemap for `{}` (Top {} of {} symbols):\n\n", display_path,
+					       primary_symbols.size(), effective_total);
 			} else {
-				ss << std::format("### Codemap for `{}` (Full {} symbols):\n\n", display_path, effective_total);
+				std::format_to(std::back_inserter(out), "### Codemap for `{}` (Full {} symbols):\n\n", display_path,
+					       effective_total);
 			}
 		}
-		ss << utf8::format_markdown_table_header("| Symbol | start_line | end_line | lines |\n");
-		ss << "| :--- | :---: | :---: | :---: |\n";
-		for (const auto &sym : primary_symbols) {
-			ss << std::format("| `{}` | {} | {} | {} |\n", sym.display_name, sym.start_line, sym.end_line, sym.line_count);
+		out.append(utf8::format_markdown_table_header("| Symbol | start_line | end_line | lines |\n"));
+		out.append("| :--- | :---: | :---: | :---: |\n");
+		for (const auto *sym : primary_symbols) {
+			std::format_to(std::back_inserter(out), "| `{}` | {} | {} | {} |\n", sym->display_name, sym->start_line,
+				       sym->end_line, sym->line_count);
 		}
 	}
 
 	if (omitted_count > 0) {
 		if (ctx && !ctx->has_hinted_fs_file_codemap) {
-			ss << std::format("*... [{} other symbols omitted (use fs_file_codemap if full symbol table is needed)]*\n",
-					  omitted_count);
+			std::format_to(std::back_inserter(out),
+				       "*... [{} other symbols omitted (use fs_file_codemap if full symbol table is needed)]*\n",
+				       omitted_count);
 			ctx->has_hinted_fs_file_codemap = true;
 		} else {
-			ss << std::format("*... [{} other symbols omitted]*\n", omitted_count);
+			std::format_to(std::back_inserter(out), "*... [{} other symbols omitted]*\n", omitted_count);
 		}
 	}
 
 	// Render Option D secondary dependency codemap section as a single consolidated table
 	if (!dependency_symbols.empty()) {
-		ss << "\n### Called Dependencies:\n\n";
-		ss << utf8::format_markdown_table_header("| Symbol | path | start_line | end_line |\n");
-		ss << "| :--- | :--- | :---: | :---: |\n";
+		out.append("\n### Called Dependencies:\n\n");
+		out.append(utf8::format_markdown_table_header("| Symbol | path | start_line | end_line |\n"));
+		out.append("| :--- | :--- | :---: | :---: |\n");
 		for (const auto &[dep_path, dep_syms] : dependency_symbols) {
-			for (const auto &sym : dep_syms) {
-				ss << std::format("| `{}` | `{}` | {} | {} |\n", sym.display_name, dep_path, sym.start_line, sym.end_line);
+			for (const auto *sym : dep_syms) {
+				std::format_to(std::back_inserter(out), "| `{}` | `{}` | {} | {} |\n", sym->display_name, dep_path,
+					       sym->start_line, sym->end_line);
 			}
 		}
 	}
 
-	ss << "\n";
-	return ss.str();
+	out.push_back('\n');
+	return out;
 }
 
 std::string find_matching_impl_file(const std::string &header_path)
@@ -1182,6 +1213,24 @@ static const lsp_manager::symbol_node *find_class_symbol_node(const std::vector<
 	return nullptr;
 }
 
+struct class_summary_cache_entry {
+	dev_t dev{0};
+	ino_t ino{0};
+	size_t size{0};
+	time_t mtime_sec{0};
+	long mtime_nsec{0};
+	bool had_lsp{false};
+	class_summary_info summary;
+};
+
+/*
+ * Protects g_class_summary_cache.
+ * Locking rules: Short-lived locks only for cache lookup/insert; must never be held during
+ * file I/O or LSP queries.
+ */
+static std::mutex g_class_summary_cache_mutex;
+static std::unordered_map<std::string, class_summary_cache_entry> g_class_summary_cache;
+
 bool extract_class_members_from_header(const std::string &safe_header_path,
 				       const std::string &simple_class_name,
 				       class_summary_info &out_summary,
@@ -1194,9 +1243,31 @@ bool extract_class_members_from_header(const std::string &safe_header_path,
 		return false;
 	}
 
+	const bool has_lsp = project_manager::get_instance().has_lsp_backend();
+	const bool is_open_in_doc = (ctx && ctx->doc_provider && ctx->doc_provider->get_open_document(safe_header_path));
+	std::shared_ptr<const mapped_file> disk_mf;
+	std::string cache_key;
+
+	if (!is_open_in_doc) {
+		std::string map_err;
+		disk_mf = mapped_file::get_cached(safe_header_path, map_err, /*populate=*/true);
+		if (!disk_mf) {
+			return false;
+		}
+		cache_key = std::format("{}::{}", safe_header_path, simple_class_name);
+		std::lock_guard<std::mutex> lock(g_class_summary_cache_mutex);
+		auto it = g_class_summary_cache.find(cache_key);
+		if (it != g_class_summary_cache.end() && it->second.dev == disk_mf->st_dev() && it->second.ino == disk_mf->st_ino() &&
+		    it->second.size == disk_mf->size() && it->second.mtime_sec == disk_mf->mtime_sec() &&
+		    it->second.mtime_nsec == disk_mf->mtime_nsec() && (it->second.had_lsp || !has_lsp)) {
+			out_summary = it->second.summary;
+			return true;
+		}
+	}
+
 	std::vector<std::string> header_lines;
 	std::string header_content;
-	if (ctx && ctx->doc_provider && ctx->doc_provider->get_open_document(safe_header_path)) {
+	if (is_open_in_doc) {
 		auto doc = ctx->doc_provider->get_open_document(safe_header_path);
 		size_t count = doc->get_line_count();
 		header_lines.reserve(count);
@@ -1207,16 +1278,12 @@ bool extract_class_members_from_header(const std::string &safe_header_path,
 			header_lines.push_back(std::move(l));
 		}
 	} else {
-		std::string map_err;
-		auto mf = mapped_file::get_cached(safe_header_path, map_err, /*populate=*/true);
-		if (!mf)
-			return false;
-		auto file_lines = mf->lines();
+		auto file_lines = disk_mf->lines();
 		header_lines.reserve(file_lines.size());
 		for (std::string_view sv : file_lines) {
 			header_lines.emplace_back(sv);
 		}
-		header_content.assign(mf->string_view().data(), mf->string_view().size());
+		header_content.assign(disk_mf->string_view().data(), disk_mf->string_view().size());
 	}
 
 	if (header_lines.empty()) {
@@ -1381,6 +1448,17 @@ bool extract_class_members_from_header(const std::string &safe_header_path,
 	out_summary.header_lines = std::move(header_lines);
 	out_summary.fields = std::move(candidate_fields);
 	out_summary.methods = std::move(candidate_methods);
+
+	if (disk_mf && !cache_key.empty()) {
+		std::lock_guard<std::mutex> lock(g_class_summary_cache_mutex);
+		if (g_class_summary_cache.size() >= 128) {
+			g_class_summary_cache.clear();
+		}
+		g_class_summary_cache[cache_key] = {disk_mf->st_dev(),      disk_mf->st_ino(),      disk_mf->size(),
+						    disk_mf->mtime_sec(),   disk_mf->mtime_nsec(),  has_lsp,
+						    out_summary};
+	}
+
 	return true;
 }
 
@@ -1572,7 +1650,9 @@ bool extract_class_summary(const std::string &file_path, int line, int col,
 
 std::string extract_class_context_preview(const std::string &cpp_path, int start_line, int end_line,
 					  std::span<const std::string_view> read_lines, agentlib::tool_context &ctx,
-					  std::string_view raw_range_view)
+					  std::string_view raw_range_view,
+					  const std::vector<codemap_symbol_info> *preloaded_symbols,
+					  std::string_view preloaded_header_path)
 {
 	std::filesystem::path ip(cpp_path);
 	std::string ext = utf8::to_lower(ip.extension().string());
@@ -1583,7 +1663,12 @@ std::string extract_class_context_preview(const std::string &cpp_path, int start
 		return "";
 	}
 
-	auto symbols = get_document_codemap_symbols(cpp_path, ctx, 1);
+	std::vector<codemap_symbol_info> local_symbols;
+	if (!preloaded_symbols) {
+		local_symbols = get_document_codemap_symbols(cpp_path, ctx, 1);
+	}
+	const std::vector<codemap_symbol_info> &symbols = preloaded_symbols ? *preloaded_symbols : local_symbols;
+
 	const codemap_symbol_info *enclosing = find_enclosing_symbol(symbols, start_line);
 	if (!enclosing && end_line > start_line) {
 		enclosing = find_enclosing_symbol(symbols, end_line);
@@ -1688,7 +1773,7 @@ std::string extract_class_context_preview(const std::string &cpp_path, int start
 	}
 
 	if (header_path.empty()) {
-		header_path = find_matching_header_file(cpp_path, ctx);
+		header_path = !preloaded_header_path.empty() ? std::string(preloaded_header_path) : find_matching_header_file(cpp_path, ctx);
 	}
 
 	if (header_path.empty() || !is_project_file(header_path) || !fs_utils::is_regular_file(header_path)) {
@@ -1750,18 +1835,24 @@ std::string extract_class_context_preview(const std::string &cpp_path, int start
 		  [](const class_member_info &a, const class_member_info &b) { return a.start_line < b.start_line; });
 
 	std::string display_header_path = fs_utils::make_relative_to_project(summary.header_path);
-	std::stringstream ss;
-	ss << std::format("### Class Context: `{}` (extracted from `{}` for referenced members):\n", simple_class_name,
-			  display_header_path);
-	ss << "```cpp\n";
+	std::string out;
+	out.reserve(256 + (used_fields.size() + used_methods.size()) * 64);
+	std::format_to(std::back_inserter(out), "### Class Context: `{}` (extracted from `{}` for referenced members):\n```cpp\n",
+		       simple_class_name, display_header_path);
 
+	char num_buf[16];
 	if (!used_fields.empty()) {
-		ss << "// Referenced member variables:\n";
+		out.append("// Referenced member variables:\n");
 		std::set<int> emitted_lines;
 		for (const auto &f : used_fields) {
 			for (int ln = f.start_line; ln <= f.end_line && ln <= static_cast<int>(summary.header_lines.size()); ++ln) {
 				if (emitted_lines.insert(ln).second) {
-					ss << std::format("{}: {}\n", ln, summary.header_lines[ln - 1]);
+					auto [ptr, ec] = std::to_chars(num_buf, num_buf + sizeof(num_buf) - 2, ln);
+					ptr[0] = ':';
+					ptr[1] = ' ';
+					out.append(num_buf, static_cast<size_t>((ptr - num_buf) + 2));
+					out.append(summary.header_lines[ln - 1]);
+					out.push_back('\n');
 				}
 			}
 		}
@@ -1769,22 +1860,27 @@ std::string extract_class_context_preview(const std::string &cpp_path, int start
 
 	if (!used_methods.empty()) {
 		if (!used_fields.empty()) {
-			ss << "\n";
+			out.push_back('\n');
 		}
-		ss << "// Referenced member functions:\n";
+		out.append("// Referenced member functions:\n");
 		std::set<int> emitted_lines;
 		for (const auto &m : used_methods) {
 			int max_l = std::min(m.end_line, m.start_line + 2);
 			for (int ln = m.start_line; ln <= max_l && ln <= static_cast<int>(summary.header_lines.size()); ++ln) {
 				if (emitted_lines.insert(ln).second) {
-					ss << std::format("{}: {}\n", ln, summary.header_lines[ln - 1]);
+					auto [ptr, ec] = std::to_chars(num_buf, num_buf + sizeof(num_buf) - 2, ln);
+					ptr[0] = ':';
+					ptr[1] = ' ';
+					out.append(num_buf, static_cast<size_t>((ptr - num_buf) + 2));
+					out.append(summary.header_lines[ln - 1]);
+					out.push_back('\n');
 				}
 			}
 		}
 	}
 
-	ss << "```\n";
-	return ss.str();
+	out.append("```\n");
+	return out;
 }
 
 const codemap_symbol_info *find_enclosing_symbol(const std::vector<codemap_symbol_info> &symbols, int line_number)

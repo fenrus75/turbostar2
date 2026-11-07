@@ -19,6 +19,8 @@ struct tool_context;
 namespace tools
 {
 
+struct codemap_symbol_info;
+
 struct fs_read_lines_args {
 	std::string requested_path;
 	int start_line; // 1-based index
@@ -44,7 +46,8 @@ struct file_read_result {
 // Reads lines from a file (supporting VFS, open document snapshots, or local disk),
 // optionally applying boundary heuristics.
 file_read_result read_file_lines(const std::string &safe_path, const std::string &requested_path, int start_line, int end_line,
-				 std::optional<int> tail, agentlib::tool_context &ctx, bool adjust_boundaries = true);
+				 std::optional<int> tail, agentlib::tool_context &ctx, bool adjust_boundaries = true,
+				 std::vector<codemap_symbol_info> *out_symbols = nullptr, bool *out_symbols_loaded = nullptr);
 
 // Formats file_read_result as standard markdown fenced code block with line numbers.
 std::string format_file_lines_markdown(const std::string &requested_path, const file_read_result &read_res);
