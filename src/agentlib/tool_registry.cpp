@@ -1,5 +1,6 @@
 #include "tool_registry.h"
 #include "agentlib/tool_tracer.h"
+#include <chrono>
 #include <iostream>
 #include "ai_agent.h"
 #include "statistics_manager.h"
@@ -287,6 +288,16 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 								   tool_context &ctx) const
 {
 	tool_preparation_result res;
+	auto prep_start = std::chrono::steady_clock::now();
+	struct prep_timer_guard {
+		std::chrono::steady_clock::time_point start;
+		uint64_t &out_us;
+		~prep_timer_guard() noexcept
+		{
+			auto end = std::chrono::steady_clock::now();
+			out_us = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+		}
+	} timer_guard{prep_start, res.prepare_duration_us};
 	validator_factory factory;
 	{
 		std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -376,34 +387,71 @@ tool_registry::tool_preparation_result tool_registry::prepare_tool(const std::st
 	return res;
 }
 
+void tool_registry::record_tool_timing(std::string_view name, uint64_t prepare_us, uint64_t execute_us, bool failed) const
+{
+	std::lock_guard<std::mutex> lock(timing_mutex_);
+	auto &entry = timing_stats_[std::string(name)];
+	entry.calls++;
+	if (failed) {
+		entry.errors++;
+	}
+	entry.total_prepare_us += prepare_us;
+	entry.total_execute_us += execute_us;
+	uint64_t total_us = prepare_us + execute_us;
+	if (total_us > entry.max_total_us) {
+		entry.max_total_us = total_us;
+	}
+}
+
+std::map<std::string, tool_registry::tool_timing_stats> tool_registry::get_timing_stats() const
+{
+	std::lock_guard<std::mutex> lock(timing_mutex_);
+	return timing_stats_;
+}
+
+void tool_registry::reset_timing_stats() const
+{
+	std::lock_guard<std::mutex> lock(timing_mutex_);
+	timing_stats_.clear();
+}
+
 std::string tool_registry::execute_prepared_tool(const std::string &name, const std::string &args_json_string, const tool_preparation_result &prep, tool_context &ctx) const
 {
 	if (!prep.error_message.empty()) {
 		std::string err = prep.error_message;
-		tool_tracer::get_instance().trace_tool_call(name, args_json_string, err);
+		record_tool_timing(name, prep.prepare_duration_us, 0, /*failed=*/true);
+		tool_tracer::get_instance().trace_tool_call(name, args_json_string, err, prep.prepare_duration_us, 0);
 		return err;
 	}
 
 	// Increment persistent statistics for the tool execution count
 	statistics_manager::get_instance().increment_stat(std::format("toolcall:{}", name));
 
+	auto exec_start = std::chrono::steady_clock::now();
+
 	if (ctx.doc_provider) {
 		ctx.doc_provider->save_all_documents();
 	}
 
 	std::string result;
+	bool exec_failed = false;
 	// Execution
 	try {
 		result = prep.tool->execute(ctx);
 	} catch (const std::exception &e) {
 		result = "Execution Error: " + std::string(e.what());
+		exec_failed = true;
 	}
 
 	if (ctx.doc_provider) {
 		ctx.doc_provider->check_files_changed();
 	}
 
-	tool_tracer::get_instance().trace_tool_call(name, args_json_string, result);
+	auto exec_end = std::chrono::steady_clock::now();
+	uint64_t exec_us = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(exec_end - exec_start).count());
+
+	record_tool_timing(name, prep.prepare_duration_us, exec_us, exec_failed);
+	tool_tracer::get_instance().trace_tool_call(name, args_json_string, result, prep.prepare_duration_us, exec_us);
 
 	return result;
 }

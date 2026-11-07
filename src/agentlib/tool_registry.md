@@ -11,7 +11,7 @@ The `tool_registry` class serves as the central registration, schema export, val
   - `prepare_tool`:
     - *Stage 1 (Syntactic)*: Validates argument JSON types and required fields against the registered schema. Normalizes snake_case / PascalCase parameter variations.
     - *Stage 2 (Contextual)*: Verifies dynamic runtime preconditions (e.g., file existence, path sandboxing via `file_security_manager`).
-  - `execute_prepared_tool`: Executes the validated tool with centralized document auto-saving, execution statistics tracking, exception containment, and tool call tracing (`tool_tracer`).
+  - `execute_prepared_tool`: Executes the validated tool with centralized document auto-saving, execution statistics tracking, microsecond timing (`prepare_duration_us` and `execute_duration_us`), exception containment, and tool call tracing (`tool_tracer`).
 - **Tool Families & Permissions**:
   - Maps tools to tool families (`base`, MCP server names, custom plugin families).
   - Filters active tools based on agent properties, mutation capabilities (`is_mutation_possible`), and user configuration.

@@ -8,8 +8,8 @@ The `tool_tracer` class provides sequential on-disk execution logging of all LLM
   - Increments an atomic counter `std::atomic<size_t> counter_` to assign monotonic sequential IDs across concurrent subagent tool invocations.
   - File I/O is synchronized with `std::mutex mutex_` to prevent interleaved log writes.
 - **Diagnostics & Reproducibility**:
-  - Writes the tool name, request JSON, and raw result string verbatim.
-  - Provides ground-truth input/output data for debugging tool validation failures, prompt injections, and compiler attribution errors.
+  - Writes the tool name, request JSON, timing metrics (`prepare_duration_us`, `execute_duration_us`, `total_duration_us`), and raw result string verbatim.
+  - Provides ground-truth input/output and latency data for debugging tool validation failures, prompt injections, compiler attribution errors, and performance bottlenecks.
 
 ## Lessons Learned
 - **Zero Overhead When Inactive**: Checking `is_enabled()` via an inline atomic check ensures that tool call performance in regular editing sessions is unaffected by tracing infrastructure.

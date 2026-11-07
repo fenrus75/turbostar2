@@ -1,8 +1,10 @@
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 #include <mutex>
 #include <string>
+#include <string_view>
 
 namespace agentlib {
 
@@ -25,8 +27,11 @@ class tool_tracer {
 	 * @param tool_name The name of the executed tool.
 	 * @param args_json_string The JSON parameters requested by the LLM.
 	 * @param output_result The exact output string returned to the LLM.
+	 * @param prepare_duration_us Microseconds spent in prepare_tool (Stage 1 & Stage 2 validation).
+	 * @param execute_duration_us Microseconds spent executing the tool.
 	 */
-	void trace_tool_call(const std::string &tool_name, const std::string &args_json_string, const std::string &output_result);
+	void trace_tool_call(std::string_view tool_name, std::string_view args_json_string, std::string_view output_result,
+			     uint64_t prepare_duration_us = 0, uint64_t execute_duration_us = 0);
 
       private:
 	tool_tracer() = default;

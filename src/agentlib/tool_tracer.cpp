@@ -27,7 +27,8 @@ void tool_tracer::reset() noexcept
 	counter_ = 0;
 }
 
-void tool_tracer::trace_tool_call(const std::string &tool_name, const std::string &args_json_string, const std::string &output_result)
+void tool_tracer::trace_tool_call(std::string_view tool_name, std::string_view args_json_string, std::string_view output_result,
+				  uint64_t prepare_duration_us, uint64_t execute_duration_us)
 {
 	if (!enabled_) {
 		return;
@@ -51,8 +52,11 @@ void tool_tracer::trace_tool_call(const std::string &tool_name, const std::strin
 			call_obj["arguments"] = nlohmann::json::object();
 		}
 	} catch (...) {
-		call_obj["arguments"] = args_json_string;
+		call_obj["arguments"] = std::string(args_json_string);
 	}
+	call_obj["prepare_duration_us"] = prepare_duration_us;
+	call_obj["execute_duration_us"] = execute_duration_us;
+	call_obj["total_duration_us"] = prepare_duration_us + execute_duration_us;
 
 	out << call_obj.dump(2) << "\n---\n" << output_result;
 }

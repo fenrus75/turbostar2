@@ -29,21 +29,24 @@ int main()
 	tracer.set_enabled(true);
 	assert(tracer.is_enabled());
 
-	// Trace tool call 0
-	tracer.trace_tool_call("fs_read_lines", R"({"path":"src/main.cpp","start_line":1})", "1: #include <filesystem>");
+	// Trace tool call 0 with explicit prepare and execute durations
+	tracer.trace_tool_call("fs_read_lines", R"({"path":"src/main.cpp","start_line":1})", "1: #include <filesystem>", 120, 380);
 	assert(fs::exists("toolcall.0"));
 
-	// Verify file 0 contents
+	// Verify file 0 contents including prepare, execute, and total durations
 	{
 		std::ifstream in("toolcall.0");
 		std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
 		assert(content.find("\"name\": \"fs_read_lines\"") != std::string::npos);
 		assert(content.find("\"path\": \"src/main.cpp\"") != std::string::npos);
+		assert(content.find("\"prepare_duration_us\": 120") != std::string::npos);
+		assert(content.find("\"execute_duration_us\": 380") != std::string::npos);
+		assert(content.find("\"total_duration_us\": 500") != std::string::npos);
 		assert(content.find("\n---\n") != std::string::npos);
 		assert(content.find("1: #include <filesystem>") != std::string::npos);
 	}
 
-	// Trace tool call 1 (with raw string fallback for invalid json)
+	// Trace tool call 1 (with raw string fallback for invalid json and default 0 durations)
 	tracer.trace_tool_call("run_shell_command", "invalid_raw_json_string", "Execution Error: Invalid Json");
 	assert(fs::exists("toolcall.1"));
 
@@ -53,6 +56,9 @@ int main()
 		std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
 		assert(content.find("\"name\": \"run_shell_command\"") != std::string::npos);
 		assert(content.find("invalid_raw_json_string") != std::string::npos);
+		assert(content.find("\"prepare_duration_us\": 0") != std::string::npos);
+		assert(content.find("\"execute_duration_us\": 0") != std::string::npos);
+		assert(content.find("\"total_duration_us\": 0") != std::string::npos);
 		assert(content.find("\n---\n") != std::string::npos);
 		assert(content.find("Execution Error: Invalid Json") != std::string::npos);
 	}

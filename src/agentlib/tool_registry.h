@@ -1,6 +1,8 @@
 #pragma once
+#include <cstdint>
 #include <functional>
 #include <map>
+#include <string_view>
 #include <memory>
 #include <mutex>
 #include <nlohmann/json.hpp>
@@ -46,6 +48,7 @@ class tool_registry
 	struct tool_preparation_result {
 		std::unique_ptr<llm_tool> tool;
 		std::string error_message; // If non-empty, preparation failed
+		uint64_t prepare_duration_us{0};
 	};
 
 	// Performs parsing, Stage 1, and Stage 2 validation without executing
@@ -67,11 +70,31 @@ class tool_registry
 	std::string get_tool_family_guidance(const std::string &name) const;
 	bool has_tool_family(const std::string &name) const;
 
+	struct tool_timing_stats {
+		uint64_t calls{0};
+		uint64_t errors{0};
+		uint64_t total_prepare_us{0};
+		uint64_t total_execute_us{0};
+		uint64_t max_total_us{0};
+	};
+
+	// Records and retrieves in-memory per-tool timing statistics for benchmarking and replay analysis
+	void record_tool_timing(std::string_view name, uint64_t prepare_us, uint64_t execute_us, bool failed = false) const;
+	std::map<std::string, tool_timing_stats> get_timing_stats() const;
+	void reset_timing_stats() const;
+
       private:
 	tool_registry();
 	std::map<std::string, validator_factory> validator_factories_;
 	std::map<std::string, std::string> family_reasons_;
 	std::map<std::string, std::string> family_guidances_;
+	mutable std::map<std::string, tool_timing_stats> timing_stats_;
+
+	/*
+	 * timing_mutex_ protects the timing_stats_ map across concurrent tool executions.
+	 * Locking guidelines: Acquire briefly at the end of execute_prepared_tool or when reading/resetting stats.
+	 */
+	mutable std::mutex timing_mutex_;
 
 	/*
 	 * mutex_ protects the validator_factories_ map, family_reasons_ map, and family_guidances_ map.
