@@ -17,6 +17,7 @@
 #include "event_logger.h"
 #include "fs_grep_files.h"
 #include "fs_utils.h"
+#include "mapped_file.h"
 #include "mime.h"
 #include "project_manager.h"
 #include "utf8.h"
@@ -193,28 +194,19 @@ static std::string extract_symbol_snippet(const std::string &safe_path, const st
 			}
 		}
 	} else {
-		if (!fs_utils::is_regular_file(safe_path)) {
+		std::string map_err;
+		auto mf = mapped_file::get_cached(safe_path, map_err, /*populate=*/true);
+		if (!mf || mf->is_binary(/*treat_null_as_binary=*/true)) {
 			return "";
 		}
-		std::ifstream file(safe_path, std::ios::binary);
-		if (!file.is_open()) {
-			return "";
-		}
-		std::string line;
-		int cur_line = 1;
-		int max_l = std::min(start_line + 2, end_line);
-		while (cur_line < start_line && std::getline(file, line)) {
-			cur_line++;
-		}
-		while (cur_line <= max_l && std::getline(file, line)) {
-			if (!line.empty() && line.back() == '\r') {
-				line.pop_back();
-			}
-			raw_lines.push_back(line);
-			if (line.find(';') != std::string::npos || line.find('{') != std::string::npos) {
+		auto all_lines = mf->lines();
+		int max_l = std::min({start_line + 2, end_line, static_cast<int>(all_lines.size())});
+		for (int cur_line = start_line; cur_line <= max_l; ++cur_line) {
+			std::string_view l = all_lines[static_cast<size_t>(cur_line - 1)];
+			raw_lines.emplace_back(l);
+			if (l.find(';') != std::string_view::npos || l.find('{') != std::string_view::npos) {
 				break;
 			}
-			cur_line++;
 		}
 	}
 
@@ -493,85 +485,96 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 	std::set<std::string> overflow_files;
 
 	try {
-		auto process_file = [&](const fs::path &path) {
+		auto is_candidate_path = [&](const fs::path &path, std::string &out_rel_path) -> bool {
 			std::string abs_path_str = path.string();
 			std::string safe_file_path;
 			std::string access_err;
 			if (!ctx.fs_security.validate_access(abs_path_str, agentlib::access_type::read, safe_file_path, access_err)) {
-				return;
+				return false;
 			}
 
-			std::string rel_path_str = fs::relative(path, root_path).string();
+			out_rel_path = fs::relative(path, root_path).string();
 
-			if (is_file_excluded(path, rel_path_str)) {
-				return;
+			if (is_file_excluded(path, out_rel_path)) {
+				return false;
 			}
 
 			if (args_.include_ext && path.extension().string() != *args_.include_ext) {
-				return;
+				return false;
 			}
+			return true;
+		};
 
-			std::vector<std::string> file_lines;
-			bool read_success = false;
+		auto process_candidate_file = [&](const fs::path &path, const std::string &rel_path_str) {
+			std::string abs_path_str = path.string();
 			bool is_open_buffer = open_files.contains(abs_path_str);
 
 			// 1. Check if the file is an open editor buffer
 			if (is_open_buffer && ctx.doc_provider) {
 				auto snapshot = ctx.doc_provider->get_open_document(abs_path_str);
 				if (snapshot) {
+					std::vector<std::string> file_lines;
+					file_lines.reserve(snapshot->get_line_count());
 					size_t open_bytes = 0;
 					for (size_t i = 0; i < snapshot->get_line_count(); ++i) {
 						std::string text = snapshot->get_line_text(i);
 						open_bytes += text.size() + 1;
 						file_lines.push_back(std::move(text));
 					}
-					read_success = true;
 					files_scanned++;
 					bytes_scanned += open_bytes;
-				}
-			}
-			// 2. Fallback to direct disk read
-			else if (args_.include_binary || !fs_utils::is_binary_file(abs_path_str, /*treat_null_as_binary=*/true)) {
-				struct stat sb;
-				if (stat(abs_path_str.c_str(), &sb) == 0 && sb.st_size >= 0 && sb.st_size < 50 * 1024 * 1024) {
-					if (sb.st_size == 0) {
-						files_scanned++;
-					} else {
-						std::ifstream file(abs_path_str, std::ios::binary);
-						if (file) {
-							std::string buffer(sb.st_size, ' ');
-							if (file.read(buffer.data(), sb.st_size)) {
-								files_scanned++;
-								bytes_scanned += sb.st_size;
-								std::string line;
-								std::istringstream iss(buffer);
-								while (std::getline(iss, line)) {
-									if (!line.empty() && line.back() == '\r') {
-										line.pop_back();
-									}
-									file_lines.push_back(line);
-								}
-								read_success = true;
-							}
+
+					std::vector<int> match_lines;
+					for (size_t i = 0; i < file_lines.size(); ++i) {
+						if (compiled_regex_->partial_match(file_lines[i])) {
+							match_lines.push_back(static_cast<int>(i + 1));
 						}
 					}
+
+					if (!match_lines.empty()) {
+						total_match_count += match_lines.size();
+						int tier = calculate_file_priority_tier(path, is_open_buffer);
+						raw_matches.push_back({tier, rel_path_str, std::move(match_lines), std::move(file_lines)});
+						prefetch_document_codemap_symbols(abs_path_str, &ctx);
+					}
+					return;
 				}
 			}
 
-			if (read_success) {
-				std::vector<int> match_lines;
-				for (size_t i = 0; i < file_lines.size(); ++i) {
-					if (compiled_regex_->partial_match(file_lines[i])) {
-						match_lines.push_back(static_cast<int>(i + 1));
-					}
-				}
+			// 2. Fallback to cached mapped_file read (zero heap allocations for non-matching files)
+			std::string map_err;
+			auto mf = mapped_file::get_cached(abs_path_str, map_err, /*populate=*/true);
+			if (!mf || mf->size() >= 50 * 1024 * 1024) {
+				return;
+			}
+			if (!args_.include_binary && mf->is_binary(/*treat_null_as_binary=*/true)) {
+				return;
+			}
 
-				if (!match_lines.empty()) {
-					total_match_count += match_lines.size();
-					int tier = calculate_file_priority_tier(path, is_open_buffer);
-					raw_matches.push_back({tier, rel_path_str, std::move(match_lines), std::move(file_lines)});
-					prefetch_document_codemap_symbols(abs_path_str, &ctx);
+			files_scanned++;
+			bytes_scanned += mf->size();
+			if (mf->empty()) {
+				return;
+			}
+
+			auto all_lines = mf->lines();
+			std::vector<int> match_lines;
+			for (size_t i = 0; i < all_lines.size(); ++i) {
+				if (compiled_regex_->partial_match(all_lines[i])) {
+					match_lines.push_back(static_cast<int>(i + 1));
 				}
+			}
+
+			if (!match_lines.empty()) {
+				total_match_count += match_lines.size();
+				std::vector<std::string> file_lines;
+				file_lines.reserve(all_lines.size());
+				for (std::string_view lv : all_lines) {
+					file_lines.emplace_back(lv);
+				}
+				int tier = calculate_file_priority_tier(path, is_open_buffer);
+				raw_matches.push_back({tier, rel_path_str, std::move(match_lines), std::move(file_lines)});
+				prefetch_document_codemap_symbols(abs_path_str, &ctx);
 			}
 		};
 
@@ -644,8 +647,17 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				}
 			}
 		} else if (fs::is_regular_file(search_path)) {
-			process_file(search_path);
+			std::string rel_path_str;
+			if (is_candidate_path(search_path, rel_path_str)) {
+				process_candidate_file(search_path, rel_path_str);
+			}
 		} else if (fs::is_directory(search_path)) {
+			struct candidate_entry {
+				fs::path path;
+				std::string rel_path_str;
+			};
+			std::vector<candidate_entry> candidates;
+
 			for (auto it = fs::recursive_directory_iterator(search_path, fs::directory_options::skip_permission_denied);
 			     it != fs::recursive_directory_iterator(); ++it) {
 
@@ -670,7 +682,28 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 					continue;
 				}
 
-				process_file(path);
+				std::string rel_path_str;
+				if (is_candidate_path(path, rel_path_str)) {
+					candidates.push_back({path, std::move(rel_path_str)});
+				}
+			}
+
+			// Seed bounded readahead window (never exceeding k_max_prefetch_window so the
+			// readahead worker cannot overrun the 64-entry LRU cache before consumption).
+			const size_t initial_window = std::min<size_t>(candidates.size(), mapped_file::k_max_prefetch_window);
+			std::vector<std::string> initial_prefetch;
+			initial_prefetch.reserve(initial_window);
+			for (size_t i = 0; i < initial_window; ++i) {
+				initial_prefetch.push_back(candidates[i].path.string());
+			}
+			mapped_file::prefetch(initial_prefetch);
+
+			for (size_t i = 0; i < candidates.size(); ++i) {
+				const size_t lookahead_idx = i + mapped_file::k_max_prefetch_window;
+				if (lookahead_idx < candidates.size()) {
+					mapped_file::prefetch(candidates[lookahead_idx].path.string());
+				}
+				process_candidate_file(candidates[i].path, candidates[i].rel_path_str);
 			}
 		} else {
 			std::string requested_display = args_.search_path ? *args_.search_path : search_path.string();

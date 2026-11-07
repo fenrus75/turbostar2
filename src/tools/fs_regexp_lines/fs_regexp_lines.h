@@ -1,8 +1,9 @@
 #pragma once
-#include <string>
 #include <memory>
+#include <string>
+#include <string_view>
+#include "agentlib/llm_tool.h"
 #include "pcre2_regex.h"
-#include "../../agentlib/llm_tool.h"
 
 namespace tools {
 
@@ -24,8 +25,8 @@ private:
     fs_regexp_lines_args args_;
     mutable std::unique_ptr<pcre2_regex> compiled_regex_;
 
-    std::string format_line(size_t line_number, const std::string& content) const;
-    std::string escape_markdown(const std::string& text) const;
+    std::string format_line(size_t line_number, /* untrusted */ std::string_view content) const;
+    std::string escape_markdown(/* untrusted */ std::string_view text) const;
 };
 
 } // namespace tools

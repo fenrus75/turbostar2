@@ -11,8 +11,8 @@
 #include "project_manager.h"
 #include "fs_read_symbol.h"
 #include "fs_utils.h"
+#include "mapped_file.h"
 #include "utf8.h"
-
 namespace tools
 {
 
@@ -75,22 +75,9 @@ size_t count_total_lines(const std::string &path, agentlib::tool_context &ctx)
 		}
 		return 0;
 	}
-	std::ifstream file(path, std::ios::binary);
-	if (file.is_open()) {
-		size_t total = std::count(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), '\n');
-		file.clear();
-		file.seekg(0, std::ios::end);
-		auto size = file.tellg();
-		if (size > 0) {
-			file.clear();
-			file.seekg(-1, std::ios_base::end);
-			char last_char;
-			file.get(last_char);
-			if (last_char != '\n') {
-				total++;
-			}
-		}
-		return total;
+	std::string map_err;
+	if (auto mf = mapped_file::get_cached(path, map_err, /*populate=*/true)) {
+		return mf->lines().size();
 	}
 	return 0;
 }
@@ -118,8 +105,12 @@ bool fs_read_symbol_tool::validate_runtime(const agentlib::tool_context & /*ctx*
 
 std::string fs_read_symbol_tool::execute(agentlib::tool_context &ctx)
 {
-	if (args_.safe_path.find("://") == std::string::npos && fs_utils::is_binary_file(args_.safe_path)) {
-		return "Error: Cannot read symbols from binary file: " + args_.requested_path;
+	if (args_.safe_path.find("://") == std::string::npos) {
+		std::string map_err;
+		auto mf = mapped_file::get_cached(args_.safe_path, map_err, /*populate=*/true);
+		if (mf && mf->is_binary(/*treat_null_as_binary=*/true)) {
+			return "Error: Cannot read symbols from binary file: " + args_.requested_path;
+		}
 	}
 
 	ctx.file_drift_tracker.erase(args_.safe_path);
@@ -288,19 +279,16 @@ std::vector<std::string> fs_read_symbol_tool::read_lines(const std::string &path
 		return lines;
 	}
 
-	std::ifstream file(path, std::ios::binary);
-	if (file.is_open()) {
-		std::string line;
-		int current_line = 1;
-		while (current_line < start && std::getline(file, line)) {
-			current_line++;
-		}
-		while (current_line <= end && std::getline(file, line)) {
-			if (!line.empty() && line.back() == '\r') {
-				line.pop_back();
+	std::string map_err;
+	if (auto mf = mapped_file::get_cached(path, map_err, /*populate=*/true)) {
+		auto all_lines = mf->lines();
+		if (end >= start && start >= 1 && static_cast<size_t>(start) <= all_lines.size()) {
+			size_t first_idx = static_cast<size_t>(start - 1);
+			size_t last_idx = std::min<size_t>(static_cast<size_t>(end), all_lines.size());
+			lines.reserve(last_idx - first_idx);
+			for (size_t i = first_idx; i < last_idx; ++i) {
+				lines.emplace_back(all_lines[i]);
 			}
-			lines.push_back(line);
-			current_line++;
 		}
 	}
 	return lines;

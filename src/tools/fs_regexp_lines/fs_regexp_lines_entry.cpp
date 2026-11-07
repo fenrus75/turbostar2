@@ -2,12 +2,13 @@
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
-#include <fstream>
+#include <format>
 #include <sstream>
 #include <sys/stat.h>
 #include <unistd.h>
 #include "fs_regexp_lines.h"
-#include "../../fs_utils.h"
+#include "fs_utils.h"
+#include "mapped_file.h"
 
 namespace tools
 {
@@ -30,9 +31,10 @@ bool fs_regexp_lines_tool::validate_runtime(const agentlib::tool_context & /*ctx
 	return true;
 }
 
-std::string fs_regexp_lines_tool::escape_markdown(const std::string &text) const
+std::string fs_regexp_lines_tool::escape_markdown(/* untrusted */ std::string_view text) const
 {
 	std::string result;
+	result.reserve(text.size());
 	for (size_t i = 0; i < text.size(); ++i) {
 		unsigned char c = static_cast<unsigned char>(text[i]);
 		if (c == 0x1b) {
@@ -51,17 +53,16 @@ std::string fs_regexp_lines_tool::escape_markdown(const std::string &text) const
 		} else if (c == 127) {
 			// Strip DEL
 		} else {
-			result += c;
+			result += static_cast<char>(c);
 		}
 	}
 	return result;
 }
 
-std::string fs_regexp_lines_tool::format_line(size_t line_number, const std::string &content) const
+std::string fs_regexp_lines_tool::format_line(size_t line_number, /* untrusted */ std::string_view content) const
 {
-	return "| " + std::to_string(line_number) + " | " + escape_markdown(content) + " |\n";
+	return std::format("| {} | {} |\n", line_number, escape_markdown(content));
 }
-
 std::string fs_regexp_lines_tool::execute(agentlib::tool_context &ctx)
 {
 	if (!compiled_regex_)
@@ -141,13 +142,12 @@ std::string fs_regexp_lines_tool::execute(agentlib::tool_context &ctx)
 			std::string_view line_view =
 			    (end_pos == std::string_view::npos) ? view.substr(start_pos) : view.substr(start_pos, end_pos - start_pos);
 
-			std::string line(line_view);
-			if (!line.empty() && line.back() == '\r') {
-				line.pop_back();
+			if (!line_view.empty() && line_view.back() == '\r') {
+				line_view.remove_suffix(1);
 			}
 
-			if (compiled_regex_->partial_match(line)) {
-				ss << format_line(current_line, line);
+			if (compiled_regex_->partial_match(line_view)) {
+				ss << format_line(current_line, line_view);
 				match_count++;
 				if (match_count >= MAX_MATCHES)
 					break;
@@ -166,7 +166,7 @@ std::string fs_regexp_lines_tool::execute(agentlib::tool_context &ctx)
 		return fs_utils::wrap_prompt_untrusted_data_tag("regex_matches", final_output);
 	}
 
-	// 3. Fallback to direct disk access
+	// 3. Fallback to direct disk access via cached mapped_file
 	if (!fs_utils::is_regular_file(args_.safe_path)) {
 		return "Error: Path does not exist or is not a regular file.";
 	}
@@ -176,31 +176,26 @@ std::string fs_regexp_lines_tool::execute(agentlib::tool_context &ctx)
 		return "Error: File is too large (>50MB) to read directly.";
 	}
 
-	if (fs_utils::is_binary_file(args_.safe_path)) {
-		return "Error: File appears to be binary. Cannot run regex on binary data.";
-	}
-
-	std::ifstream file(args_.safe_path, std::ios::binary);
-	if (!file.is_open()) {
+	std::string map_err;
+	auto mf = mapped_file::get_cached(args_.safe_path, map_err, /*populate=*/true);
+	if (!mf) {
 		return "Error: Could not open file for reading.";
 	}
 
-	std::string line;
-	size_t current_line = 1;
+	if (mf->is_binary(/*treat_null_as_binary=*/true)) {
+		return "Error: File appears to be binary. Cannot run regex on binary data.";
+	}
 
-	while (std::getline(file, line)) {
-		if (!line.empty() && line.back() == '\r') {
-			line.pop_back();
-		}
-		if (compiled_regex_->partial_match(line)) {
-			ss << format_line(current_line, line);
+	auto all_lines = mf->lines();
+	for (size_t i = 0; i < all_lines.size(); ++i) {
+		std::string_view line_view = all_lines[i];
+		if (compiled_regex_->partial_match(line_view)) {
+			ss << format_line(i + 1, line_view);
 			match_count++;
 			if (match_count >= MAX_MATCHES)
 				break;
 		}
-		current_line++;
 	}
-
 	if (match_count == 0)
 		return "No matches found.";
 	if (match_count >= MAX_MATCHES)

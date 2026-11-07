@@ -12,6 +12,7 @@
 #include "event_logger.h"
 #include "fs_read_lines.h"
 #include "fs_utils.h"
+#include "mapped_file.h"
 #include "mime.h"
 #include "type_definition_cache.h"
 #include "type_token_extractor.h"
@@ -262,31 +263,23 @@ file_read_result read_from_disk(const std::string &path, const std::string &requ
 		return result;
 	}
 
-	// Verify that the file does not contain binary patterns that are unsafe/unreadable as lines.
-	if (fs_utils::is_binary_file(path)) {
-		result.success = false;
-		result.error_message = "Error: File appears to be binary. Cannot read text lines.";
-		return result;
-	}
-
-	std::ifstream file(path, std::ios::binary);
-	if (!file.is_open()) {
+	std::string map_err;
+	auto mf = mapped_file::get_cached(path, map_err, /*populate=*/true);
+	if (!mf) {
 		result.success = false;
 		result.error_message = "Error: Could not open file for reading.";
 		return result;
 	}
 
-	// Fast line counting using standard buffer scan.
-	result.total_file_lines = std::count(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), '\n');
-	if (sb.st_size > 0) {
-		file.clear();
-		file.seekg(-1, std::ios_base::end);
-		char last_char;
-		file.get(last_char);
-		if (last_char != '\n') {
-			result.total_file_lines++;
-		}
+	// Verify that the file does not contain binary patterns that are unsafe/unreadable as lines.
+	if (mf->is_binary(/*treat_null_as_binary=*/true)) {
+		result.success = false;
+		result.error_message = "Error: File appears to be binary. Cannot read text lines.";
+		return result;
 	}
+
+	auto all_lines = mf->lines();
+	result.total_file_lines = all_lines.size();
 
 	if (tail.has_value()) {
 		start = std::max(1, static_cast<int>(result.total_file_lines) - *tail + 1);
@@ -295,53 +288,47 @@ file_read_result read_from_disk(const std::string &path, const std::string &requ
 	result.start_line = start;
 	result.end_line = end;
 
-	file.clear();
-	file.seekg(0);
+	if (end >= start && start >= 1 && static_cast<size_t>(start) <= all_lines.size()) {
+		size_t first_idx = static_cast<size_t>(start - 1);
+		size_t last_idx = std::min<size_t>(static_cast<size_t>(end), all_lines.size());
+		result.lines.reserve(last_idx - first_idx);
 
-	std::string line;
-	int current_line = 1;
+		for (size_t i = first_idx; i < last_idx; ++i) {
+			std::string_view raw_line = all_lines[i];
+			bool truncated = false;
+			if (raw_line.size() > 4096) {
+				raw_line = raw_line.substr(0, 4096);
+				truncated = true;
+			}
 
-	while (current_line < start && std::getline(file, line)) {
-		current_line++;
-	}
-
-	if (end >= start) {
-		result.lines.reserve(end - start + 1);
-	}
-
-	while (current_line <= end && std::getline(file, line)) {
-		if (!line.empty() && line.back() == '\r') {
-			line.pop_back();
-		}
-		if (line.size() > 4096) {
-			line = line.substr(0, 4096) + "... (line truncated)";
-		}
-
-		// Sanitize ANSI escapes and control characters
-		std::string clean_line;
-		clean_line.reserve(line.size());
-		for (size_t idx = 0; idx < line.size(); ++idx) {
-			unsigned char c = static_cast<unsigned char>(line[idx]);
-			if (c == 0x1b) {
-				if (idx + 1 < line.size() && line[idx + 1] == '[') {
-					idx += 2;
-					while (idx < line.size() && (line[idx] < 0x40 || line[idx] > 0x7e)) {
-						idx++;
+			// Sanitize ANSI escapes and control characters
+			std::string clean_line;
+			clean_line.reserve(raw_line.size() + (truncated ? 20 : 0));
+			for (size_t idx = 0; idx < raw_line.size(); ++idx) {
+				unsigned char c = static_cast<unsigned char>(raw_line[idx]);
+				if (c == 0x1b) {
+					if (idx + 1 < raw_line.size() && raw_line[idx + 1] == '[') {
+						idx += 2;
+						while (idx < raw_line.size() && (raw_line[idx] < 0x40 || raw_line[idx] > 0x7e)) {
+							idx++;
+						}
 					}
+					continue;
 				}
-				continue;
+				if (c < 32 && c != '\t') {
+					// skip control chars
+				} else if (c == 127) {
+					// skip DEL
+				} else {
+					clean_line += static_cast<char>(c);
+				}
 			}
-			if (c < 32 && c != '\t') {
-				// skip control chars
-			} else if (c == 127) {
-				// skip DEL
-			} else {
-				clean_line += c;
+			if (truncated) {
+				clean_line += "... (line truncated)";
 			}
-		}
 
-		result.lines.emplace_back(clean_line);
-		current_line++;
+			result.lines.emplace_back(std::move(clean_line));
+		}
 	}
 
 	result.success = true;

@@ -18,8 +18,8 @@ The Turbostar editor leverages a multi-threaded architecture to decouple heavy I
 | **MCP Tool Generation Worker** | `mcp_manager` | App runtime | Mutex + `std::condition_variable` + exiting flag |
 | **MCP Subprocess Reader (STDOUT/STDERR)** | `mcp_server` | Subprocess runtime | Process kill (`SIGKILL`) + pipe close + join |
 | **Process Run PTY Reader** | `process_runner` | Subprocess runtime | Process kill (`SIGKILL`) + pipe close + join |
+| **Mapped File Readahead Worker** | `mapped_file` | Lazy start to `project_manager::shutdown()` | Mutex + `std::condition_variable` + `shutdown_cache()` join |
 | **Asynchronous Tool Execution** | Various tool entries | One-off execution | Detached threads |
-
 ---
 
 ## 1.1 The Distinction Between `is_running_` and `is_exiting()`

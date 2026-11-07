@@ -4,14 +4,14 @@
 #include <format>
 #include <fstream>
 #include <sstream>
-#include "../../agentlib/file_health_utils.h"
-#include "../../fs_utils.h"
-#include "../../mime.h"
-#include "../../project_manager.h"
-#include "../../type_definition_cache.h"
-#include "../../utf8.h"
+#include "agentlib/file_health_utils.h"
 #include "fs_replace_lines.h"
-
+#include "fs_utils.h"
+#include "mapped_file.h"
+#include "mime.h"
+#include "project_manager.h"
+#include "type_definition_cache.h"
+#include "utf8.h"
 namespace tools
 {
 
@@ -761,6 +761,7 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 			}
 			revert_out.close();
 		}
+		mapped_file::notify_changed(path_to_use);
 		std::string err =
 		    "Error: Edit rejected (strict mode): it would leave unbalanced braces and was not applied.\n" + brace_warnings + "\n";
 		if (auto custom_interaction = std::dynamic_pointer_cast<interaction_fs_replace_lines>(interaction_)) {
@@ -772,6 +773,8 @@ std::string fs_replace_lines_tool::execute_disk_fallback(agentlib::tool_context 
 		}
 		return err;
 	}
+
+	mapped_file::notify_changed(path_to_use);
 
 	if (!brace_warnings.empty()) {
 		result_msg += brace_warnings + "\n";

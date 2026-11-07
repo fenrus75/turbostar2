@@ -20,9 +20,9 @@
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "git_manager.h"
+#include "mapped_file.h"
 #include "type_definition_cache.h"
 #include "utf8.h"
-
 namespace fs = std::filesystem;
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(text_range, start_y, start_x, end_y, end_x);
@@ -259,6 +259,7 @@ void project_manager::lsp_save_document(const std::string &filepath, const std::
 {
 	if (lsp_manager_)
 		lsp_manager_->save_document(filepath, text);
+	mapped_file::notify_changed(filepath);
 	tools::codemap_cache::get_instance().invalidate(filepath);
 	tools::type_definition_cache::get_instance().invalidate_file(filepath);
 	tools::prefetch_document_codemap_symbols(filepath);
@@ -342,6 +343,7 @@ void project_manager::lsp_invalidate_symbol_cache(const std::string &filepath)
 {
 	if (lsp_manager_)
 		lsp_manager_->invalidate_symbol_cache(filepath);
+	mapped_file::notify_changed(filepath);
 	tools::codemap_cache::get_instance().invalidate(filepath);
 }
 
@@ -649,6 +651,7 @@ void project_manager::shutdown()
 	}
 	tools::shutdown_outgoing_calls_threads();
 	tools::codemap_cache::get_instance().shutdown();
+	mapped_file::shutdown_cache();
 }
 
 std::vector<std::string> project_manager::detect_executable_candidates()
