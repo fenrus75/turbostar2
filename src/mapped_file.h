@@ -54,8 +54,8 @@ class mapped_file
 		size_t current_bytes{0};
 	};
 
-	static constexpr size_t k_max_cache_entries = 64;
-	static constexpr size_t k_max_prefetch_window = 24;
+	static constexpr size_t k_max_cache_entries = 1024;
+	static constexpr size_t k_max_prefetch_window = 32;
 
 	mapped_file() noexcept = default;
 	~mapped_file() noexcept;

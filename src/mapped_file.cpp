@@ -20,6 +20,9 @@ namespace
 {
 // Maximum file size allowed when falling back from mmap() to heap allocation (256 MB)
 constexpr size_t k_max_fallback_read_size = 256ULL * 1024ULL * 1024ULL;
+// Files at or below 1 page (4096 bytes) bypass mmap()/munmap() and read directly into a
+// heap buffer to avoid kernel VMA maple-tree setup/teardown and TLB shootdown overhead.
+constexpr size_t k_small_read_threshold = 4096ULL;
 // Maximum virtual mapping size (4 GB) to guard against runaway mappings on corrupted filesystems
 constexpr size_t k_max_mmap_size = 4ULL * 1024ULL * 1024ULL * 1024ULL;
 // Maximum file size for synchronous MAP_POPULATE prefaulting (64 MB)
@@ -116,6 +119,9 @@ class mapped_file_cache_manager
 			}
 			if (!hit_file) {
 				++stats_.misses;
+				// Cancel any pending prefetch for this path since the consumer is opening it now
+				prefetch_queued_set_.erase(safe_path);
+				in_flight_paths_.insert(safe_path);
 				maybe_log_stats_locked();
 			}
 		}
@@ -129,17 +135,24 @@ class mapped_file_cache_manager
 		try {
 			new_file = std::make_shared<mapped_file>();
 		} catch (...) {
+			std::lock_guard<std::mutex> lock(mutex_);
+			in_flight_paths_.erase(safe_path);
 			out_error = "Out of memory allocating mapped_file.";
 			return nullptr;
 		}
 
 		if (!new_file->open(safe_path, out_error, populate)) {
+			std::lock_guard<std::mutex> lock(mutex_);
+			in_flight_paths_.erase(safe_path);
 			return nullptr;
 		}
 
-		if (new_file->size() <= k_max_cacheable_file_size) {
+		{
 			std::lock_guard<std::mutex> lock(mutex_);
-			insert_entry_locked(safe_path, new_file, /*from_prefetch=*/false, /*accessed=*/true);
+			in_flight_paths_.erase(safe_path);
+			if (new_file->size() <= k_max_cacheable_file_size) {
+				insert_entry_locked(safe_path, new_file, /*from_prefetch=*/false, /*accessed=*/true);
+			}
 		}
 
 		return new_file;
@@ -229,6 +242,7 @@ class mapped_file_cache_manager
 		entries_.clear();
 		prefetch_queue_.clear();
 		prefetch_queued_set_.clear();
+		in_flight_paths_.clear();
 		current_bytes_ = 0;
 		access_tick_ = 0;
 		stats_ = {};
@@ -347,7 +361,8 @@ class mapped_file_cache_manager
 		if (is_shutting_down_) {
 			return false;
 		}
-		if (entries_.contains(safe_path) || prefetch_queued_set_.contains(safe_path)) {
+		if (entries_.contains(safe_path) || prefetch_queued_set_.contains(safe_path) ||
+		    in_flight_paths_.contains(safe_path)) {
 			return false;
 		}
 		if (!front && prefetch_queue_.size() >= k_max_prefetch_queue_size) {
@@ -391,9 +406,37 @@ class mapped_file_cache_manager
 				if (is_shutting_down_) {
 					break;
 				}
-				target_path = std::move(prefetch_queue_.front());
-				prefetch_queue_.pop_front();
-				prefetch_queued_set_.erase(target_path);
+				// Trim any front entries that were already cancelled/consumed by get_cached()
+				// or are currently in flight, then pick the midpoint of the remaining queue so
+				// the prefetcher works ahead of the advancing consumer instead of colliding on
+				// the very next element.
+				while (!prefetch_queue_.empty()) {
+					while (!prefetch_queue_.empty()) {
+						const std::string &f = prefetch_queue_.front();
+						if (!prefetch_queued_set_.contains(f) || in_flight_paths_.contains(f) ||
+						    entries_.contains(f)) {
+							prefetch_queued_set_.erase(f);
+							prefetch_queue_.pop_front();
+						} else {
+							break;
+						}
+					}
+					if (prefetch_queue_.empty()) {
+						break;
+					}
+					const size_t mid = prefetch_queue_.size() / 2;
+					std::string candidate = std::move(prefetch_queue_[mid]);
+					prefetch_queue_.erase(prefetch_queue_.begin() + static_cast<std::ptrdiff_t>(mid));
+					if (prefetch_queued_set_.erase(candidate) == 0 ||
+					    in_flight_paths_.contains(candidate) || entries_.contains(candidate)) {
+						continue;
+					}
+					target_path = std::move(candidate);
+					break;
+				}
+				if (target_path.empty()) {
+					continue;
+				}
 			}
 
 			struct stat st{};
@@ -443,7 +486,7 @@ class mapped_file_cache_manager
 	void maybe_log_stats_locked() noexcept
 	{
 		uint64_t total_lookups = stats_.hits + stats_.misses;
-		if (total_lookups > 0 && (total_lookups % 64) == 0) {
+		if (total_lookups > 0 && (total_lookups % 1024) == 0) {
 			try {
 				event_logger::get_instance().log(std::format(
 				    "mapped_file_cache: lookups={} hits={} misses={} prefetch_hits={}/{} "
@@ -472,6 +515,7 @@ class mapped_file_cache_manager
 	std::unordered_map<std::string, cache_entry> entries_;
 	std::deque<std::string> prefetch_queue_;
 	std::unordered_set<std::string> prefetch_queued_set_;
+	std::unordered_set<std::string> in_flight_paths_;
 	std::thread worker_thread_;
 	size_t current_bytes_{0};
 	uint64_t access_tick_{0};
@@ -589,24 +633,26 @@ bool mapped_file::open(/* untrusted */ std::string_view path, std::string &out_e
 		return false;
 	}
 
-	int base_flags = MAP_PRIVATE;
-	if (populate && file_size <= k_max_populate_size) {
-#ifdef MAP_POPULATE
-		base_flags |= MAP_POPULATE;
-#endif
-	}
-
 	void *mapped = MAP_FAILED;
-#ifdef MAP_HUGETLB
-	if (file_size >= k_hugepage_threshold) {
-		mapped = ::mmap(nullptr, file_size, PROT_READ, base_flags | MAP_HUGETLB, fd, 0);
-	}
+	if (file_size > k_small_read_threshold) {
+		int base_flags = MAP_PRIVATE;
+		if (populate && file_size <= k_max_populate_size) {
+#ifdef MAP_POPULATE
+			base_flags |= MAP_POPULATE;
 #endif
-	if (mapped == MAP_FAILED) {
-		mapped = ::mmap(nullptr, file_size, PROT_READ, base_flags, fd, 0);
-	}
-	if (mapped == MAP_FAILED && base_flags != MAP_PRIVATE) {
-		mapped = ::mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+		}
+
+#ifdef MAP_HUGETLB
+		if (file_size >= k_hugepage_threshold) {
+			mapped = ::mmap(nullptr, file_size, PROT_READ, base_flags | MAP_HUGETLB, fd, 0);
+		}
+#endif
+		if (mapped == MAP_FAILED) {
+			mapped = ::mmap(nullptr, file_size, PROT_READ, base_flags, fd, 0);
+		}
+		if (mapped == MAP_FAILED && base_flags != MAP_PRIVATE) {
+			mapped = ::mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+		}
 	}
 
 	if (mapped != MAP_FAILED) {
