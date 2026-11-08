@@ -86,6 +86,7 @@ void test_verilog_logic_depth_execution()
 		assert(result.find("## Inputs") != std::string::npos);
 		assert(result.find("## Outputs") != std::string::npos);
 		assert(result.find("Worst Combinational Paths") != std::string::npos);
+		assert(result.find("**Critical Path Summary**:") != std::string::npos);
 		assert(result.find("Updated timing sidecar written to") != std::string::npos);
 
 		// Verify sidecar was written to disk
@@ -96,6 +97,25 @@ void test_verilog_logic_depth_execution()
 		assert(content.find("| `clk` | 1 | - | Clock |") != std::string::npos);
 
 		std::filesystem::remove(test_sidecar, ec);
+
+		if (std::filesystem::exists("examples/test8008/sv/alu/alu.sv")) {
+			nlohmann::json alu_args = {
+				{"module", "alu_mod"},
+				{"file", "examples/test8008/sv/alu/alu.sv"},
+				{"top_k", 4},
+				{"write_sidecar", false}
+			};
+			bool alu_ok = validator.validate_args(alu_args, ctx, err);
+			assert(alu_ok);
+			auto alu_tool = validator.create_tool(alu_args);
+			assert(alu_tool != nullptr);
+			std::string alu_res = alu_tool->execute(ctx);
+			std::cout << "=== ALU LOGIC DEPTH OUTPUT ===\n" << alu_res << std::endl;
+			assert(alu_res.find("**Critical Path Summary**:") != std::string::npos);
+			assert(alu_res.find("alu.sv:") != std::string::npos);
+			assert(alu_res.find("flags[") != std::string::npos);
+			assert(alu_res.find("Shared bottleneck") != std::string::npos);
+		}
 	}
 }
 

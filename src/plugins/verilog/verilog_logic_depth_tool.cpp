@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <format>
+#include <set>
 
 namespace tools
 {
@@ -93,6 +94,28 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 	std::string paths_md;
 	if (!worst_paths.empty()) {
 		paths_md += "\n## Worst Combinational Paths\n\n";
+
+		// One-line Critical Path Summary at top
+		const auto &top = worst_paths.front();
+		std::string top_cat_str;
+		switch (top.category) {
+		case verilog::path_category::reg_to_reg:
+			top_cat_str = "Reg -> Reg";
+			break;
+		case verilog::path_category::in_to_reg:
+			top_cat_str = "In -> Reg";
+			break;
+		case verilog::path_category::reg_to_out:
+			top_cat_str = "Reg -> Out";
+			break;
+		case verilog::path_category::in_to_out:
+			top_cat_str = "In -> Out";
+			break;
+		}
+		std::string unit_str = (args_.target_mode == "Generic Gates") ? "gates" : "LUTs";
+		paths_md += std::format("**Critical Path Summary**: {}, {} {} (from `{}` to `{}`)\n\n",
+		                        top_cat_str, top.depth, unit_str, top.startpoint, top.endpoint);
+
 		for (size_t i = 0; i < worst_paths.size(); ++i) {
 			const auto &p = worst_paths[i];
 			std::string cat_str;
@@ -111,21 +134,100 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 				break;
 			}
 
-			paths_md += std::format("### Path #{} [{}] Depth: {} {}\n", i + 1, cat_str, p.depth,
-			                        (args_.target_mode == "Generic Gates") ? "gates" : "LUTs");
+			paths_md += std::format("### Path #{} [{}] Depth: {} {}\n", i + 1, cat_str, p.depth, unit_str);
 			paths_md += std::format("- **Start**: `{}` {}\n", p.startpoint,
-			                        p.start_src.empty() ? "" : std::format("({})", p.start_src));
+			                        p.start_src.empty() ? "" : std::format("(`{}`)", p.start_src));
 
-			for (size_t h_idx = 0; h_idx < p.hops.size(); ++h_idx) {
-				const auto &hop = p.hops[h_idx];
-				paths_md += std::format("  {}. `{}` `{}` {} -> net `{}`\n",
-				                        h_idx + 1, hop.cell_type, hop.cell_name,
-				                        hop.src_location.empty() ? "" : std::format("({})", hop.src_location),
-				                        hop.net_name);
+			// Collapse consecutive hops with the same source location
+			struct collapsed_stage {
+				std::string src_location;
+				size_t count{0};
+				std::vector<std::string> input_hints;
+				std::string out_net;
+			};
+			std::vector<collapsed_stage> stages;
+
+			for (const auto &hop : p.hops) {
+				if (!stages.empty() && !hop.src_location.empty() && stages.back().src_location == hop.src_location) {
+					stages.back().count++;
+					if (!hop.input_hints.empty()) {
+						stages.back().input_hints.push_back(hop.input_hints);
+					}
+					if (!hop.net_name.empty()) {
+						stages.back().out_net = hop.net_name;
+					}
+				} else {
+					collapsed_stage st;
+					st.src_location = hop.src_location;
+					st.count = 1;
+					if (!hop.input_hints.empty()) {
+						st.input_hints.push_back(hop.input_hints);
+					}
+					st.out_net = hop.net_name;
+					stages.push_back(std::move(st));
+				}
 			}
 
-			paths_md += std::format("- **End**: `{}` {}\n\n", p.endpoint,
-			                        p.end_src.empty() ? "" : std::format("({})", p.end_src));
+			for (size_t s_idx = 0; s_idx < stages.size(); ++s_idx) {
+				const auto &st = stages[s_idx];
+				std::string stage_units;
+				if (args_.target_mode == "Generic Gates") {
+					stage_units = (st.count == 1) ? "1 gate" : std::format("{} gates", st.count);
+				} else {
+					stage_units = (st.count == 1) ? "1 LUT" : std::format("{} LUTs", st.count);
+				}
+
+				std::string loc_str = st.src_location.empty() ? "[logic]" : std::format("`{}`", st.src_location);
+				std::string hint_str;
+				if (!st.input_hints.empty()) {
+					std::set<std::string> unique_hints;
+					for (const auto &h : st.input_hints) {
+						size_t pos = 0;
+						while (pos < h.size()) {
+							size_t comma = h.find(',', pos);
+							std::string sub = (comma == std::string::npos) ? h.substr(pos) : h.substr(pos, comma - pos);
+							while (!sub.empty() && sub.front() == ' ') {
+								sub.erase(sub.begin());
+							}
+							while (!sub.empty() && sub.back() == ' ') {
+								sub.pop_back();
+							}
+							if (!sub.empty()) {
+								unique_hints.insert(sub);
+							}
+							if (comma == std::string::npos) {
+								break;
+							}
+							pos = comma + 1;
+						}
+					}
+					if (!unique_hints.empty()) {
+						std::string joined;
+						for (const auto &uh : unique_hints) {
+							if (!joined.empty()) {
+								joined += ", ";
+							}
+							joined += std::format("`{}`", uh);
+						}
+						hint_str = std::format(", from {}", joined);
+					}
+				}
+
+				std::string out_str;
+				if (!st.out_net.empty() && st.out_net.find('$') == std::string::npos &&
+				    !st.out_net.starts_with("new_n") && !st.out_net.starts_with("wire_")) {
+					out_str = std::format(" -> `{}`", st.out_net);
+				}
+
+				paths_md += std::format("  {}. {} ({}{}){}\n", s_idx + 1, loc_str, stage_units, hint_str, out_str);
+			}
+
+			paths_md += std::format("- **End**: `{}` {}\n", p.endpoint,
+			                        p.end_src.empty() ? "" : std::format("(`{}`)", p.end_src));
+			if (!p.note.empty()) {
+				paths_md += std::format("  > Note: {}\n", p.note);
+			}
+			paths_md += "\n";
 		}
 	}
 

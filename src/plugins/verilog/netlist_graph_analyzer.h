@@ -47,6 +47,7 @@ struct path_hop {
 	std::string cell_type;
 	std::string net_name;
 	std::string src_location; // "file.sv:line"
+	std::string input_hints;  // comma-separated signal names, e.g. "input1[0], input2[0]"
 };
 
 struct timing_path {
@@ -58,6 +59,7 @@ struct timing_path {
 	std::string endpoint;
 	endpoint_kind end_kind{endpoint_kind::register_cell};
 	std::string end_src;
+	std::string note; // optional note (e.g. shared bottleneck)
 	std::vector<path_hop> hops;
 };
 
@@ -113,6 +115,8 @@ class netlist_graph_analyzer
 		std::string name;
 		std::string type;
 		std::string src_raw;
+		std::string register_name;
+		std::string register_src;
 		bool is_sequential{false};
 		std::map<std::string, std::vector<int>> input_conns;  // port -> bit IDs
 		std::map<std::string, std::vector<int>> output_conns; // port -> bit IDs
@@ -172,6 +176,8 @@ class netlist_graph_analyzer
 	std::map<int, std::vector<cell_pin_ref>> bit_loads_;
 	std::map<int, std::vector<std::string>> bit_output_port_loads_; // bit_id -> output port names
 	std::map<int, std::string> bit_to_net_name_;
+	std::map<int, std::string> bit_to_src_loc_;
+	std::map<int, std::string> bit_to_user_name_;
 	std::map<int, downstream_cache_entry> memo_downstream_;
 	std::set<int> recursion_stack_;
 	std::map<int, upstream_cache_entry> memo_upstream_;

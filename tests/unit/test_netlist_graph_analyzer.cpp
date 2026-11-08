@@ -185,6 +185,12 @@ void test_synthetic_register_module()
 	assert(worst[0].depth == 2); // bypass path has depth 2
 	assert(worst[0].hops.size() == 2);
 
+	auto reg_worst = analyzer.get_worst_paths(verilog::path_category::reg_to_reg, 3);
+	assert(!reg_worst.empty());
+	assert(reg_worst[0].depth == 1);
+	assert(reg_worst[0].startpoint == "value[0]");
+	assert(reg_worst[0].endpoint == "value[0]");
+
 	// Test markdown sidecar formatting
 	std::string md = analyzer.generate_timing_markdown("Generic LUT4");
 	assert(md.find("# Timing: `test_reg`") != std::string::npos);

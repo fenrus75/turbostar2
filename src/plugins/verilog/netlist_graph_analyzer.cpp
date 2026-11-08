@@ -12,6 +12,35 @@
 namespace verilog
 {
 
+static std::string format_src_loc(std::string_view raw_src)
+{
+	std::string cleaned = yosys_netlist_reader::clean_src_location(raw_src);
+	if (cleaned.empty()) {
+		return "";
+	}
+	size_t colon = cleaned.rfind(':');
+	if (colon != std::string::npos) {
+		std::string file_part = cleaned.substr(0, colon);
+		std::string line_part = cleaned.substr(colon);
+		std::filesystem::path fp(file_part);
+		return fp.filename().string() + line_part;
+	}
+	std::filesystem::path fp(cleaned);
+	return fp.filename().string();
+}
+
+static std::string join_strings(std::span<const std::string> items, std::string_view delim)
+{
+	std::string res;
+	for (size_t i = 0; i < items.size(); ++i) {
+		if (i > 0) {
+			res += delim;
+		}
+		res += items[i];
+	}
+	return res;
+}
+
 bool netlist_graph_analyzer::is_sequential_cell_type(std::string_view type) noexcept
 {
 	if (type.empty()) {
@@ -165,6 +194,8 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 	bit_loads_.clear();
 	bit_output_port_loads_.clear();
 	bit_to_net_name_.clear();
+	bit_to_src_loc_.clear();
+	bit_to_user_name_.clear();
 	input_ports_.clear();
 	output_ports_.clear();
 	memo_downstream_.clear();
@@ -177,15 +208,83 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 	all_in_to_out_paths_.clear();
 	max_reg_to_reg_depth_ = 0;
 
-	// 1. Parse netnames to map bit IDs to human-readable names
+	// 1. Parse netnames
 	if (mod_obj.contains("netnames") && mod_obj["netnames"].is_object()) {
+		// Pass 1: user-defined nets (hide_name == 0)
 		for (const auto &[net_name, net_obj] : mod_obj["netnames"].items()) {
-			if (net_obj.contains("bits") && net_obj["bits"].is_array()) {
-				for (const auto &b : net_obj["bits"]) {
-					if (b.is_number_integer()) {
-						int bit_id = b.get<int>();
-						if (!bit_to_net_name_.contains(bit_id)) {
-							bit_to_net_name_[bit_id] = net_name;
+			if (net_obj.value("hide_name", 0) == 0 && net_obj.contains("bits") && net_obj["bits"].is_array()) {
+				const auto &bits = net_obj["bits"];
+				std::string raw_src;
+				if (net_obj.contains("attributes") && net_obj["attributes"].is_object()) {
+					raw_src = net_obj["attributes"].value("src", "");
+				}
+				std::string clean_src = format_src_loc(raw_src);
+				for (size_t i = 0; i < bits.size(); ++i) {
+					if (bits[i].is_number_integer()) {
+						int bit_id = bits[i].get<int>();
+						if (bit_id > 0) {
+							std::string bit_lbl = (bits.size() > 1) ? std::format("{}[{}]", net_name, i) : net_name;
+							if (!bit_to_user_name_.contains(bit_id)) {
+								bit_to_user_name_[bit_id] = bit_lbl;
+							}
+							if (!bit_to_net_name_.contains(bit_id)) {
+								bit_to_net_name_[bit_id] = bit_lbl;
+							}
+							if (!clean_src.empty() && !bit_to_src_loc_.contains(bit_id)) {
+								bit_to_src_loc_[bit_id] = clean_src;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Pass 2: internal / dressed nets (hide_name != 0)
+		for (const auto &[net_name, net_obj] : mod_obj["netnames"].items()) {
+			if (net_obj.value("hide_name", 0) != 0 && net_obj.contains("bits") && net_obj["bits"].is_array()) {
+				const auto &bits = net_obj["bits"];
+				std::string clean_n = net_name;
+				if (clean_n.starts_with("$abc$")) {
+					size_t p = clean_n.find('$', 5);
+					if (p != std::string::npos && p + 1 < clean_n.size()) {
+						clean_n = clean_n.substr(p + 1);
+					}
+				}
+				std::string raw_src;
+				if (net_obj.contains("attributes") && net_obj["attributes"].is_object()) {
+					raw_src = net_obj["attributes"].value("src", "");
+				}
+				if (raw_src.empty()) {
+					size_t sv_pos = net_name.find(".sv:");
+					if (sv_pos == std::string::npos) {
+						sv_pos = net_name.find(".v:");
+					}
+					if (sv_pos != std::string::npos) {
+						size_t start_p = net_name.rfind('$', sv_pos);
+						if (start_p == std::string::npos) {
+							start_p = 0;
+						} else {
+							start_p++;
+						}
+						size_t end_p = net_name.find('$', sv_pos);
+						if (end_p == std::string::npos) {
+							end_p = net_name.size();
+						}
+						raw_src = net_name.substr(start_p, end_p - start_p);
+					}
+				}
+				std::string clean_src = format_src_loc(raw_src);
+				for (size_t i = 0; i < bits.size(); ++i) {
+					if (bits[i].is_number_integer()) {
+						int bit_id = bits[i].get<int>();
+						if (bit_id > 0) {
+							std::string bit_lbl = (bits.size() > 1) ? std::format("{}[{}]", clean_n, i) : clean_n;
+							if (!bit_to_net_name_.contains(bit_id)) {
+								bit_to_net_name_[bit_id] = bit_lbl;
+							}
+							if (!clean_src.empty() && !bit_to_src_loc_.contains(bit_id)) {
+								bit_to_src_loc_[bit_id] = clean_src;
+							}
 						}
 					}
 				}
@@ -222,7 +321,8 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 						bit_driver drv;
 						drv.type = bit_driver::driver_type::primary_input;
 						drv.name = port_name;
-						drv.pin_name = std::format("{}[{}]", port_name, i);
+						drv.pin_name = (bits.size() > 1) ? std::format("{}[{}]", port_name, i) : port_name;
+						drv.src = bit_to_src_loc_.contains(bit_id) ? bit_to_src_loc_[bit_id] : "";
 						bit_drivers_[bit_id] = std::move(drv);
 					}
 				}
@@ -302,6 +402,49 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 				}
 			}
 
+			// If sequential cell, resolve human register name and declaration line
+			if (c.is_sequential) {
+				c.register_src = format_src_loc(c.src_raw);
+				for (const auto &[pname, con_bits] : c.output_conns) {
+					if (is_sequential_source_pin(c.type, pname)) {
+						for (int b : con_bits) {
+							if (b > 0 && bit_to_user_name_.contains(b)) {
+								c.register_name = bit_to_user_name_[b];
+								if (c.register_src.empty() && bit_to_src_loc_.contains(b)) {
+									c.register_src = bit_to_src_loc_[b];
+								}
+								break;
+							}
+						}
+						if (!c.register_name.empty()) {
+							break;
+						}
+					}
+				}
+				if (c.register_name.empty()) {
+					for (const auto &[pname, con_bits] : c.output_conns) {
+						for (int b : con_bits) {
+							if (b > 0 && bit_to_net_name_.contains(b)) {
+								const auto &n = bit_to_net_name_[b];
+								if (!n.starts_with("$") && !n.starts_with("new_n")) {
+									c.register_name = n;
+									if (c.register_src.empty() && bit_to_src_loc_.contains(b)) {
+										c.register_src = bit_to_src_loc_[b];
+									}
+									break;
+								}
+							}
+						}
+						if (!c.register_name.empty()) {
+							break;
+						}
+					}
+				}
+				if (c.register_name.empty()) {
+					c.register_name = c.name;
+				}
+			}
+
 			size_t cell_idx = cells_.size();
 			cells_.push_back(std::move(c));
 
@@ -313,18 +456,22 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 					int bit_id = con_bits[pin_idx];
 					if (bit_id > 0) {
 						bit_driver drv;
-						drv.name = stored_cell.name;
 						drv.pin_name = pname;
-						drv.src = yosys_netlist_reader::clean_src_location(stored_cell.src_raw);
 						drv.cell_idx = cell_idx;
 						if (stored_cell.is_sequential) {
 							if (is_sequential_source_pin(stored_cell.type, pname)) {
 								drv.type = bit_driver::driver_type::cell_q;
+								drv.name = stored_cell.register_name.empty() ? stored_cell.name : stored_cell.register_name;
+								drv.src = stored_cell.register_src.empty() ? format_src_loc(stored_cell.src_raw) : stored_cell.register_src;
 							} else {
 								drv.type = bit_driver::driver_type::cell_comb;
+								drv.name = stored_cell.name;
+								drv.src = format_src_loc(stored_cell.src_raw);
 							}
 						} else {
 							drv.type = bit_driver::driver_type::cell_comb;
+							drv.name = stored_cell.name;
+							drv.src = format_src_loc(stored_cell.src_raw);
 						}
 						bit_drivers_[bit_id] = std::move(drv);
 					}
@@ -399,23 +546,47 @@ netlist_graph_analyzer::downstream_cache_entry netlist_graph_analyzer::compute_d
 					// Sequential data/enable/reset sink reached
 					if (0 > res.worst_reg.depth) {
 						res.worst_reg.depth = 0;
-						res.worst_reg.endpoint_name = std::format("{}.{}", c.name, ref.port_name);
+						res.worst_reg.endpoint_name = c.register_name.empty() ? std::format("{}.{}", c.name, ref.port_name) : c.register_name;
 						res.worst_reg.end_kind = endpoint_kind::register_cell;
-						res.worst_reg.end_src = yosys_netlist_reader::clean_src_location(c.src_raw);
+						res.worst_reg.end_src = c.register_src.empty() ? format_src_loc(c.src_raw) : c.register_src;
 					}
 				}
 			} else {
 				// Combinational cell: propagate forward through all output bits of c
 				path_hop hop;
-				hop.cell_name = c.name;
-				hop.cell_type = c.type;
-				hop.net_name = bit_to_net_name_.contains(bit_id) ? bit_to_net_name_[bit_id] : std::format("wire_{}", bit_id);
-				hop.src_location = yosys_netlist_reader::clean_src_location(c.src_raw);
+				hop.cell_name = "";
+				hop.cell_type = (c.type == "$lut") ? "LUT" : c.type;
+
+				std::set<std::string> hint_set;
+				for (int in_b : c.all_input_bits) {
+					if (in_b > 0 && bit_to_user_name_.contains(in_b)) {
+						hint_set.insert(bit_to_user_name_[in_b]);
+					}
+				}
+				if (!hint_set.empty()) {
+					std::vector<std::string> hint_vec(hint_set.begin(), hint_set.end());
+					hop.input_hints = join_strings(hint_vec, ", ");
+				}
 
 				for (int out_bit : c.all_output_bits) {
 					if (out_bit <= 0) {
 						continue;
 					}
+					hop.net_name = bit_to_net_name_.contains(out_bit) ? bit_to_net_name_[out_bit] : std::format("wire_{}", out_bit);
+					if (bit_to_src_loc_.contains(out_bit)) {
+						hop.src_location = bit_to_src_loc_[out_bit];
+					} else {
+						hop.src_location = format_src_loc(c.src_raw);
+						if (hop.src_location.empty()) {
+							for (int in_b : c.all_input_bits) {
+								if (in_b > 0 && bit_to_src_loc_.contains(in_b)) {
+									hop.src_location = bit_to_src_loc_[in_b];
+									break;
+								}
+							}
+						}
+					}
+
 					auto next_down = compute_downstream(out_bit);
 					if (next_down.reaches_clock) {
 						res.reaches_clock = true;
@@ -485,17 +656,39 @@ netlist_graph_analyzer::upstream_cache_entry netlist_graph_analyzer::compute_ups
 			res.worst_in.start_kind = endpoint_kind::input_port;
 		} else if (drv.type == bit_driver::driver_type::cell_q) {
 			res.worst_reg.depth = 0;
-			res.worst_reg.startpoint_name = std::format("{}.{}", drv.name, drv.pin_name);
+			res.worst_reg.startpoint_name = drv.name;
 			res.worst_reg.start_kind = endpoint_kind::register_cell;
 			res.worst_reg.start_src = drv.src;
 		} else if (drv.type == bit_driver::driver_type::cell_comb) {
 			if (drv.cell_idx < cells_.size()) {
 				const auto &c = cells_[drv.cell_idx];
 				path_hop hop;
-				hop.cell_name = c.name;
-				hop.cell_type = c.type;
+				hop.cell_name = "";
+				hop.cell_type = (c.type == "$lut") ? "LUT" : c.type;
 				hop.net_name = bit_to_net_name_.contains(bit_id) ? bit_to_net_name_[bit_id] : std::format("wire_{}", bit_id);
-				hop.src_location = yosys_netlist_reader::clean_src_location(c.src_raw);
+				if (bit_to_src_loc_.contains(bit_id)) {
+					hop.src_location = bit_to_src_loc_[bit_id];
+				} else {
+					hop.src_location = format_src_loc(c.src_raw);
+					if (hop.src_location.empty()) {
+						for (int in_b : c.all_input_bits) {
+							if (in_b > 0 && bit_to_src_loc_.contains(in_b)) {
+								hop.src_location = bit_to_src_loc_[in_b];
+								break;
+							}
+						}
+					}
+				}
+				std::set<std::string> hint_set;
+				for (int in_b : c.all_input_bits) {
+					if (in_b > 0 && bit_to_user_name_.contains(in_b)) {
+						hint_set.insert(bit_to_user_name_[in_b]);
+					}
+				}
+				if (!hint_set.empty()) {
+					std::vector<std::string> hint_vec(hint_set.begin(), hint_set.end());
+					hop.input_hints = join_strings(hint_vec, ", ");
+				}
 
 				for (int in_bit : c.all_input_bits) {
 					if (in_bit <= 0) {
@@ -546,10 +739,14 @@ void netlist_graph_analyzer::analyze_paths()
 		int worst_reg_depth = -1;
 		std::string reg_sink_name;
 		std::string reg_sink_src;
+		std::string reg_start_name;
+		std::string reg_start_src;
 		std::vector<path_hop> worst_reg_hops;
 
 		int worst_out_depth = -1;
 		std::string out_sink_name;
+		std::string out_start_name;
+		std::string out_start_src;
 		std::vector<path_hop> worst_out_hops;
 
 		bool connects_to_clock = false;
@@ -564,11 +761,15 @@ void netlist_graph_analyzer::analyze_paths()
 					worst_reg_depth = down.worst_reg.depth;
 					reg_sink_name = down.worst_reg.endpoint_name;
 					reg_sink_src = down.worst_reg.end_src;
+					reg_start_name = drv.pin_name.empty() ? pin.name : drv.pin_name;
+					reg_start_src = drv.src;
 					worst_reg_hops = down.worst_reg.hops;
 				}
 				if (down.worst_out.depth > worst_out_depth) {
 					worst_out_depth = down.worst_out.depth;
 					out_sink_name = down.worst_out.endpoint_name;
+					out_start_name = drv.pin_name.empty() ? pin.name : drv.pin_name;
+					out_start_src = drv.src;
 					worst_out_hops = down.worst_out.hops;
 				}
 			}
@@ -583,8 +784,9 @@ void netlist_graph_analyzer::analyze_paths()
 			timing_path tp;
 			tp.category = path_category::in_to_reg;
 			tp.depth = worst_reg_depth;
-			tp.startpoint = pin.name;
+			tp.startpoint = reg_start_name;
 			tp.start_kind = endpoint_kind::input_port;
+			tp.start_src = reg_start_src;
 			tp.endpoint = reg_sink_name;
 			tp.end_kind = endpoint_kind::register_cell;
 			tp.end_src = reg_sink_src;
@@ -606,8 +808,9 @@ void netlist_graph_analyzer::analyze_paths()
 			timing_path tp;
 			tp.category = path_category::in_to_out;
 			tp.depth = worst_out_depth;
-			tp.startpoint = pin.name;
+			tp.startpoint = out_start_name;
 			tp.start_kind = endpoint_kind::input_port;
+			tp.start_src = out_start_src;
 			tp.endpoint = out_sink_name;
 			tp.end_kind = endpoint_kind::output_port;
 			tp.hops = worst_out_hops;
@@ -634,16 +837,16 @@ void netlist_graph_analyzer::analyze_paths()
 				}
 
 				auto down = compute_downstream(q_bit);
-				std::string q_pin_name = std::format("{}.{}[{}]", c.name, pname, pin_idx);
-				std::string q_src = yosys_netlist_reader::clean_src_location(c.src_raw);
+				std::string reg_name = c.register_name.empty() ? std::format("{}.{}[{}]", c.name, pname, pin_idx) : c.register_name;
+				std::string reg_src = c.register_src.empty() ? format_src_loc(c.src_raw) : c.register_src;
 
 				if (down.worst_reg.depth >= 0) {
 					timing_path tp;
 					tp.category = path_category::reg_to_reg;
 					tp.depth = down.worst_reg.depth;
-					tp.startpoint = q_pin_name;
+					tp.startpoint = reg_name;
 					tp.start_kind = endpoint_kind::register_cell;
-					tp.start_src = q_src;
+					tp.start_src = reg_src;
 					tp.endpoint = down.worst_reg.endpoint_name;
 					tp.end_kind = endpoint_kind::register_cell;
 					tp.end_src = down.worst_reg.end_src;
@@ -764,11 +967,30 @@ std::vector<timing_path> netlist_graph_analyzer::get_worst_paths(std::optional<p
 	append_filtered(all_in_to_out_paths_);
 
 	std::sort(candidates.begin(), candidates.end(), [](const timing_path &a, const timing_path &b) {
-		return a.depth > b.depth;
+		if (a.depth != b.depth) {
+			return a.depth > b.depth;
+		}
+		if (a.category != b.category) {
+			return static_cast<int>(a.category) < static_cast<int>(b.category);
+		}
+		return a.startpoint < b.startpoint;
 	});
 
 	if (candidates.size() > top_k) {
 		candidates.resize(top_k);
+	}
+
+	// Detect and annotate shared bottlenecks among returned paths
+	for (size_t i = 1; i < candidates.size(); ++i) {
+		for (size_t j = 0; j < i; ++j) {
+			if (candidates[i].endpoint == candidates[j].endpoint &&
+			    candidates[i].depth == candidates[j].depth &&
+			    !candidates[i].endpoint.empty()) {
+				candidates[i].note = std::format("Shared bottleneck with Path #{} (converging on `{}`)",
+				                                 j + 1, candidates[i].endpoint);
+				break;
+			}
+		}
 	}
 	return candidates;
 }
@@ -883,7 +1105,7 @@ bool netlist_graph_analyzer::synthesize_and_load(std::string_view module_name, s
 		}
 	} else if (target_mode == "Generic LUT6") {
 		std::string top_arg = module_name.empty() ? "-auto-top" : std::format("-top {}", module_name);
-		synth_pipeline = std::format("hierarchy -check {}; proc; opt; flatten; opt; fsm; opt; memory -nomap; opt; techmap; abc -lut 6; write_json {}",
+		synth_pipeline = std::format("hierarchy -check {}; proc; opt; flatten; opt; fsm; opt; memory -nomap; opt; techmap; abc -lut 6 -dress; write_json {}",
 		                             top_arg, tmp_json);
 	} else if (target_mode == "Generic Gates") {
 		std::string top_arg = module_name.empty() ? "-auto-top" : std::format("-top {}", module_name);
@@ -892,7 +1114,7 @@ bool netlist_graph_analyzer::synthesize_and_load(std::string_view module_name, s
 	} else {
 		// Default: Generic LUT4
 		std::string top_arg = module_name.empty() ? "-auto-top" : std::format("-top {}", module_name);
-		synth_pipeline = std::format("hierarchy -check {}; proc; opt; flatten; opt; fsm; opt; memory -nomap; opt; techmap; abc -lut 4; write_json {}",
+		synth_pipeline = std::format("hierarchy -check {}; proc; opt; flatten; opt; fsm; opt; memory -nomap; opt; techmap; abc -lut 4 -dress; write_json {}",
 		                             top_arg, tmp_json);
 	}
 
