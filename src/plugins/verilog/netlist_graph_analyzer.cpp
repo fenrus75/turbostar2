@@ -1154,7 +1154,7 @@ std::string netlist_graph_analyzer::compact_signal_names(std::span<const std::st
 
 	std::string res;
 	for (auto &grp : groups) {
-		std::sort(grp.indices.begin(), grp.indices.end());
+		std::sort(grp.indices.rbegin(), grp.indices.rend());
 		grp.indices.erase(std::unique(grp.indices.begin(), grp.indices.end()), grp.indices.end());
 
 		if (grp.is_scalar && grp.indices.empty()) {
@@ -1167,7 +1167,7 @@ std::string netlist_graph_analyzer::compact_signal_names(std::span<const std::st
 			size_t start_i = 0;
 			while (start_i < n) {
 				size_t end_i = start_i;
-				while (end_i + 1 < n && grp.indices[end_i + 1] == grp.indices[end_i] + 1) {
+				while (end_i + 1 < n && grp.indices[end_i + 1] == grp.indices[end_i] - 1) {
 					end_i++;
 				}
 				if (!res.empty()) {
@@ -1176,7 +1176,7 @@ std::string netlist_graph_analyzer::compact_signal_names(std::span<const std::st
 				if (start_i == end_i) {
 					res += std::format("`{}[{}]`", grp.base, grp.indices[start_i]);
 				} else {
-					res += std::format("`{}[{}..{}]`", grp.base, grp.indices[start_i], grp.indices[end_i]);
+					res += std::format("`{}[{}:{}]`", grp.base, grp.indices[start_i], grp.indices[end_i]);
 				}
 				start_i = end_i + 1;
 			}
@@ -1252,7 +1252,7 @@ std::string netlist_graph_analyzer::format_source_ranges(std::span<const source_
 
 	std::string res;
 	for (auto &grp : groups) {
-		std::sort(grp.indices.begin(), grp.indices.end());
+		std::sort(grp.indices.rbegin(), grp.indices.rend());
 		grp.indices.erase(std::unique(grp.indices.begin(), grp.indices.end()), grp.indices.end());
 
 		std::string loc_str = grp.src_location.empty() ? "" : std::format(" (`{}`)", grp.src_location);
@@ -1267,7 +1267,7 @@ std::string netlist_graph_analyzer::format_source_ranges(std::span<const source_
 			size_t start_i = 0;
 			while (start_i < n) {
 				size_t end_i = start_i;
-				while (end_i + 1 < n && grp.indices[end_i + 1] == grp.indices[end_i] + 1) {
+				while (end_i + 1 < n && grp.indices[end_i + 1] == grp.indices[end_i] - 1) {
 					end_i++;
 				}
 				if (!res.empty()) {
@@ -1276,7 +1276,7 @@ std::string netlist_graph_analyzer::format_source_ranges(std::span<const source_
 				if (start_i == end_i) {
 					res += std::format("`{}[{}]`{}", grp.base, grp.indices[start_i], loc_str);
 				} else {
-					res += std::format("`{}[{}..{}]`{}", grp.base, grp.indices[start_i], grp.indices[end_i], loc_str);
+					res += std::format("`{}[{}:{}]`{}", grp.base, grp.indices[start_i], grp.indices[end_i], loc_str);
 				}
 				start_i = end_i + 1;
 			}

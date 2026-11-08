@@ -245,8 +245,8 @@ void test_compact_signal_formatting()
 	using verilog::netlist_graph_analyzer;
 	std::vector<std::string> sigs = {"input1[0]", "input1[1]", "input1[2]", "input1[4]", "input1[5]", "carry_in"};
 	std::string compacted = netlist_graph_analyzer::compact_signal_names(sigs);
-	assert(compacted.find("`input1[0..2]`") != std::string::npos);
-	assert(compacted.find("`input1[4..5]`") != std::string::npos);
+	assert(compacted.find("`input1[2:0]`") != std::string::npos);
+	assert(compacted.find("`input1[5:4]`") != std::string::npos);
 	assert(compacted.find("`carry_in`") != std::string::npos);
 
 	std::vector<verilog::source_signal_info> srcs = {
@@ -256,7 +256,7 @@ void test_compact_signal_formatting()
 		{"carry_in", "alu.sv:19-24", verilog::path_category::reg_to_reg}
 	};
 	std::string formatted = netlist_graph_analyzer::format_source_ranges(srcs);
-	assert(formatted.find("`input1[0..2]` (`alu.sv:4`)") != std::string::npos);
+	assert(formatted.find("`input1[2:0]` (`alu.sv:4`)") != std::string::npos);
 	assert(formatted.find("`carry_in` (`alu.sv:19-24`)") != std::string::npos);
 }
 
