@@ -557,6 +557,50 @@ void test_verilog_pnr_timing_tool()
 	assert(res.find("Critical Path Summary") != std::string::npos);
 }
 
+void test_verilog_pnr_timing_on_demand()
+{
+	tools::verilog_pnr_timing_validator validator;
+	agentlib::tool_context ctx;
+	ctx.fs_security.add_allowed_root(std::filesystem::current_path(), agentlib::access_type::write);
+
+	// Create temporary project configured for test8008
+	std::string tmp_dir = std::format("tests/unit/tmp_pnr_ondemand_{}", (long)getpid());
+	std::filesystem::create_directories(tmp_dir);
+
+	verilog::fpga_target_config cfg;
+	cfg.target = "ice40";
+	cfg.device = "hx8k";
+	cfg.package = "cb132";
+	cfg.top_module = "main";
+	cfg.freq_mhz = 60.0;
+	cfg.pcf_file = std::filesystem::canonical("examples/test8008/pcf/cu.pcf").string();
+	cfg.sv_path = "sv";
+
+	std::string path_used;
+	std::string err;
+	verilog::fpga_project_settings::save_to_project(tmp_dir, cfg, path_used, err);
+
+	std::error_code ec_sym;
+	std::filesystem::create_directory_symlink(std::filesystem::canonical("examples/test8008/sv"),
+	                                         std::filesystem::path(tmp_dir) / "sv", ec_sym);
+
+	ctx.fs_security.set_working_directory(tmp_dir);
+
+	nlohmann::json args = nlohmann::json::object();
+	assert(validator.validate_args(args, ctx, err));
+	auto tool = validator.create_tool(args);
+	assert(tool != nullptr);
+
+	std::string res = tool->execute(ctx);
+	std::filesystem::remove_all(tmp_dir, ec_sym);
+
+
+	// The bug produces "Can't guess frontend for input file" / "Yosys synthesis failed"
+	assert(res.find("Can't guess frontend") == std::string::npos);
+	assert(res.find("Yosys synthesis failed") == std::string::npos);
+	assert(res.find("Clock Domain & Frequency Timing") != std::string::npos);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog();
@@ -572,6 +616,7 @@ int main()
 	test_verilog_project_settings_tool();
 	test_nextpnr_timing_analyzer();
 	test_verilog_pnr_timing_tool();
+	test_verilog_pnr_timing_on_demand();
 
 	std::cout << "All verilog timing tool tests passed successfully!" << std::endl;
 	return 0;

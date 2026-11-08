@@ -459,32 +459,28 @@ bool nextpnr_timing_analyzer::synthesize_and_route(const fpga_target_config &cfg
 		return false;
 	}
 
-	std::string sources_arg;
-	for (const auto &src : rtl_sources) {
-		sources_arg += " " + fs_utils::escape_shell_arg(src);
-	}
-
 	std::string top_mod = cfg.top_module.empty() ? "main" : cfg.top_module;
 
-	// 1. Run Yosys
-	std::string yosys_cmd;
+	// 1. Run Yosys with each source file passed as a separate argument
+	std::string synth_pass;
 	if (cfg.target == "ice40") {
-		std::string synth_pass = "synth_ice40";
+		synth_pass = "synth_ice40";
 		if (!cfg.yosys_synth_args.empty()) {
 			synth_pass += " " + cfg.yosys_synth_args;
 		} else {
 			synth_pass += " -abc9";
 		}
-		synth_pass += " -top " + fs_utils::escape_shell_arg(top_mod) + " -json " + fs_utils::escape_shell_arg(synth_json.string());
-		yosys_cmd = fs_utils::format_command("yosys -p {} {}", synth_pass, sources_arg);
+		synth_pass += " -top " + top_mod + " -json " + synth_json.string();
 	} else if (cfg.target == "ecp5") {
-		std::string synth_pass = "synth_ecp5 -top " + fs_utils::escape_shell_arg(top_mod) + " -json " + fs_utils::escape_shell_arg(synth_json.string());
-		yosys_cmd = fs_utils::format_command("yosys -p {} {}", synth_pass, sources_arg);
+		synth_pass = "synth_ecp5 -top " + top_mod + " -json " + synth_json.string();
 	} else {
 		// Generic
-		std::string script = fs_utils::format_command("read_verilog -sv {}; synth -top {}; write_json {}",
-		                                              sources_arg, top_mod, synth_json.string());
-		yosys_cmd = fs_utils::format_command("yosys -p {}", script);
+		synth_pass = "synth -top " + top_mod + "; write_json " + synth_json.string();
+	}
+
+	std::string yosys_cmd = "yosys -p " + fs_utils::escape_shell_arg(synth_pass);
+	for (const auto &src : rtl_sources) {
+		yosys_cmd += " " + fs_utils::escape_shell_arg(src);
 	}
 
 	std::string y_out = fs_utils::execute_command_sync(yosys_cmd);
