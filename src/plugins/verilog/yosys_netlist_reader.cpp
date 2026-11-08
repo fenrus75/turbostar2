@@ -78,27 +78,167 @@ std::string yosys_netlist_reader::normalize_net_name(std::string_view raw_net)
 	if (raw_net.empty()) return "";
 
 	std::string s(raw_net);
-	std::string bit_suffix;
 
-	size_t bracket = s.rfind('[');
-	if (bracket != std::string::npos && s.ends_with(']')) {
-		bit_suffix = s.substr(bracket);
-		s = s.substr(0, bracket);
-	}
-
-	for (const auto &marker : {"_SB_", "$SB_", "$sb_"}) {
+	// Find the earliest synthetic techmap or function-inlining marker.
+	// Note: Any trailing [i] appearing *after* _SB_ (e.g. D_reg.load_SB_LUT4_O_I2[3])
+	// is a cells_map.v LUT input port index (A[3:0]), NOT a bit index of the RTL signal.
+	// Any real bit index appearing *before* $SB_ (e.g. LED[3]$SB_IO_OUT) is naturally preserved.
+	size_t best_pos = std::string::npos;
+	for (const auto &marker : {"_SB_", "$SB_", "$sb_", "$func$"}) {
 		size_t pos = s.find(marker);
 		if (pos != std::string::npos && pos > 0) {
-			s = s.substr(0, pos);
-			break;
+			if (best_pos == std::string::npos || pos < best_pos) {
+				best_pos = pos;
+			}
 		}
+	}
+
+	if (best_pos != std::string::npos) {
+		s = s.substr(0, best_pos);
 	}
 
 	while (s.size() > 1 && (s.back() == '_' || s.back() == '.')) {
 		s.pop_back();
 	}
 
-	return s + bit_suffix;
+	return s;
+}
+
+std::string yosys_netlist_reader::infer_register_from_src(std::string_view raw_src, std::string_view raw_cell_name, std::string_view base_dir)
+{
+	std::string cell_str(raw_cell_name);
+	for (const auto &sfx : {"_DFFLC", "_LC", "_RAM", "$sb_io"}) {
+		if (cell_str.ends_with(sfx)) {
+			cell_str.resize(cell_str.size() - std::string_view(sfx).size());
+			break;
+		}
+	}
+
+	std::string norm_base = normalize_net_name(cell_str);
+	size_t last_dot = norm_base.rfind('.');
+	std::string scope = (last_dot != std::string::npos) ? norm_base.substr(0, last_dot) : "";
+	std::string leaf = (last_dot != std::string::npos) ? norm_base.substr(last_dot + 1) : norm_base;
+
+	// Extract first non-library source segment e.g. "sv/alu/alu.sv:19.2-24.5"
+	std::string_view clean_seg;
+	size_t start = 0;
+	while (start < raw_src.size()) {
+		size_t bar = raw_src.find('|', start);
+		std::string_view seg = (bar == std::string_view::npos) ? raw_src.substr(start) : raw_src.substr(start, bar - start);
+		if (!seg.empty() && !is_library_source(seg) && !seg.ends_with(":0.0-0.0")) {
+			clean_seg = seg;
+			break;
+		}
+		if (bar == std::string_view::npos) break;
+		start = bar + 1;
+	}
+
+	std::set<std::string> lhs_idents;
+	if (!clean_seg.empty()) {
+		size_t colon = clean_seg.rfind(':');
+		if (colon != std::string_view::npos && colon > 0 && colon + 1 < clean_seg.size()) {
+			std::string file_part(clean_seg.substr(0, colon));
+			std::string_view range_part = clean_seg.substr(colon + 1);
+			size_t dash = range_part.find('-');
+			auto parse_line = [](std::string_view tok) -> int {
+				size_t dot = tok.find('.');
+				std::string s(dot != std::string_view::npos ? tok.substr(0, dot) : tok);
+				try { return std::stoi(s); } catch (...) { return 0; }
+			};
+			int sline = parse_line(dash != std::string_view::npos ? range_part.substr(0, dash) : range_part);
+			int eline = (dash != std::string_view::npos) ? parse_line(range_part.substr(dash + 1)) : sline;
+
+			if (sline > 0 && eline >= sline) {
+				std::filesystem::path resolved_path;
+				std::vector<std::filesystem::path> search_Attempt = { std::filesystem::path(file_part) };
+				if (!base_dir.empty()) {
+					std::filesystem::path bp(base_dir);
+					search_Attempt.push_back(bp / file_part);
+					if (bp.has_parent_path()) {
+						search_Attempt.push_back(bp.parent_path() / file_part);
+						if (bp.parent_path().has_parent_path()) {
+							search_Attempt.push_back(bp.parent_path().parent_path() / file_part);
+						}
+					}
+				}
+				for (const auto &cand_p : search_Attempt) {
+					std::error_code ec;
+					if (std::filesystem::exists(cand_p, ec) && std::filesystem::is_regular_file(cand_p, ec)) {
+						resolved_path = cand_p;
+						break;
+					}
+				}
+
+				if (!resolved_path.empty()) {
+					std::ifstream ifs(resolved_path);
+					std::string line;
+					int cur_line = 0;
+					while (cur_line < eline && std::getline(ifs, line)) {
+						cur_line++;
+						if (cur_line < sline) continue;
+						size_t cmt = line.find("//");
+						if (cmt != std::string::npos) line.resize(cmt);
+
+						size_t pos = 0;
+						while ((pos = line.find("<=", pos)) != std::string::npos) {
+							// Check balanced parentheses before '<=' on this line to skip 'if (a <= b)'
+							int paren_depth = 0;
+							for (size_t i = 0; i < pos; ++i) {
+								if (line[i] == '(') paren_depth++;
+								else if (line[i] == ')' && paren_depth > 0) paren_depth--;
+							}
+							if (paren_depth == 0 && pos > 0) {
+								size_t p = pos;
+								while (p > 0 && (line[p - 1] == ' ' || line[p - 1] == '\t')) p--;
+								// Skip any array/bit indexing [ ... ] on the LHS
+								while (p > 0 && line[p - 1] == ']') {
+									int brk = 1;
+									p--;
+									while (p > 0 && brk > 0) {
+										p--;
+										if (line[p] == ']') brk++;
+										else if (line[p] == '[') brk--;
+									}
+									while (p > 0 && (line[p - 1] == ' ' || line[p - 1] == '\t')) p--;
+								}
+								size_t id_end = p;
+								while (p > 0 && (std::isalnum(static_cast<unsigned char>(line[p - 1])) || line[p - 1] == '_')) {
+									p--;
+								}
+								if (id_end > p) {
+									std::string ident = line.substr(p, id_end - p);
+									if (!ident.empty() && !std::isdigit(static_cast<unsigned char>(ident[0]))) {
+										lhs_idents.insert(std::move(ident));
+									}
+								}
+							}
+							pos += 2;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (lhs_idents.size() == 1) {
+		const std::string &reg = *lhs_idents.begin();
+		return scope.empty() ? reg : std::format("{}.{}", scope, reg);
+	}
+
+	if (leaf.starts_with("next_") && leaf.size() > 5) {
+		std::string cand_reg = leaf.substr(5);
+		size_t sb_pos = cell_str.find("_SB_");
+		bool direct_dff = (sb_pos != std::string::npos && std::string_view(cell_str).substr(sb_pos).starts_with("_SB_DFF"));
+		if (lhs_idents.contains(cand_reg) || (lhs_idents.empty() && direct_dff)) {
+			return scope.empty() ? cand_reg : std::format("{}.{}", scope, cand_reg);
+		}
+	}
+
+	if (!leaf.empty() && lhs_idents.contains(leaf)) {
+		return scope.empty() ? leaf : std::format("{}.{}", scope, leaf);
+	}
+
+	return "";
 }
 
 std::string yosys_netlist_reader::clean_display_location(std::string_view loc)
@@ -111,7 +251,6 @@ std::string yosys_netlist_reader::clean_display_location(std::string_view loc)
 	}
 	return std::string(loc);
 }
-
 std::string yosys_netlist_reader::clean_src_location(std::string_view raw_src)
 {
 	if (raw_src.empty()) return "";

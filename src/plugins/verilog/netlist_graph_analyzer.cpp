@@ -106,6 +106,10 @@ bool netlist_graph_analyzer::is_sequential_source_pin(std::string_view cell_type
 bool netlist_graph_analyzer::load_from_file(std::string_view untrusted_path, std::string &out_error, std::string_view module_name)
 {
 	std::string safe_path(untrusted_path);
+	std::error_code ec;
+	auto abs_p = std::filesystem::absolute(safe_path, ec);
+	netlist_dir_ = (!ec && abs_p.has_parent_path()) ? abs_p.parent_path().string() : std::filesystem::path(safe_path).parent_path().string();
+
 	std::ifstream f(safe_path);
 	if (!f.is_open()) {
 		out_error = std::format("Failed to open file: {}", safe_path);
@@ -197,6 +201,7 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 	bit_to_net_name_.clear();
 	bit_to_src_loc_.clear();
 	bit_to_user_name_.clear();
+	net_alias_map_.clear();
 	input_ports_.clear();
 	output_ports_.clear();
 	memo_downstream_.clear();
@@ -209,52 +214,169 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 	all_in_to_out_paths_.clear();
 	max_reg_to_reg_depth_ = 0;
 
-	// 1. Parse netnames
-	if (mod_obj.contains("netnames") && mod_obj["netnames"].is_object()) {
-		// Pass 1: user-defined nets (hide_name == 0)
-		for (const auto &[net_name, net_obj] : mod_obj["netnames"].items()) {
-			if (net_obj.value("hide_name", 0) == 0 && net_obj.contains("bits") && net_obj["bits"].is_array()) {
-				const auto &bits = net_obj["bits"];
-				std::string raw_src;
-				if (net_obj.contains("attributes") && net_obj["attributes"].is_object()) {
-					raw_src = net_obj["attributes"].value("src", "");
-				}
-				std::string clean_src = format_src_loc(raw_src);
-				for (size_t i = 0; i < bits.size(); ++i) {
-					if (bits[i].is_number_integer()) {
-						int bit_id = bits[i].get<int>();
-						if (bit_id > 0) {
-							std::string bit_lbl = (bits.size() > 1) ? std::format("{}[{}]", net_name, i) : net_name;
-							std::string norm_lbl = nextpnr_timing_analyzer::normalize_net_name(bit_lbl);
-							if (!bit_to_user_name_.contains(bit_id)) {
-								bit_to_user_name_[bit_id] = norm_lbl;
-							}
-							if (!bit_to_net_name_.contains(bit_id)) {
-								bit_to_net_name_[bit_id] = norm_lbl;
-							}
-							if (!clean_src.empty() && !bit_to_src_loc_.contains(bit_id)) {
-								bit_to_src_loc_[bit_id] = clean_src;
+	// Pre-scan cells to identify which RTL source file drives each bit ID
+	std::map<int, std::string> bit_driver_file;
+	if (mod_obj.contains("cells") && mod_obj["cells"].is_object()) {
+		for (const auto &[cname, cobj] : mod_obj["cells"].items()) {
+			std::string csrc;
+			if (cobj.contains("attributes") && cobj["attributes"].is_object()) {
+				csrc = format_src_loc(cobj["attributes"].value("src", ""));
+			}
+			if (csrc.empty() || yosys_netlist_reader::is_library_source(csrc)) continue;
+			size_t colon = csrc.find(':');
+			std::string cfile = (colon != std::string::npos) ? csrc.substr(0, colon) : csrc;
+			if (cobj.contains("connections") && cobj["connections"].is_object()) {
+				for (const auto &[pname, conn_arr] : cobj["connections"].items()) {
+					if ((pname == "Q" || pname == "q" || pname == "Y" || pname == "y" || pname == "O" || pname == "CO" || pname == "COUT") && conn_arr.is_array()) {
+						for (const auto &b : conn_arr) {
+							if (b.is_number_integer() && b.get<int>() > 0) {
+								bit_driver_file[b.get<int>()] = cfile;
 							}
 						}
 					}
 				}
 			}
 		}
+	}
 
-		// Pass 2: internal / dressed nets (hide_name != 0)
+	auto resolve_alias = [this](std::string_view name) -> std::string {
+		std::string s(name);
+		size_t brk = s.rfind('[');
+		std::string base = (brk != std::string::npos && s.ends_with(']')) ? s.substr(0, brk) : s;
+		std::string sfx = (brk != std::string::npos && s.ends_with(']')) ? s.substr(brk) : "";
+		auto it = net_alias_map_.find(base);
+		if (it != net_alias_map_.end()) {
+			return it->second + sfx;
+		}
+		return s;
+	};
+
+	// 1. Parse netnames
+	if (mod_obj.contains("netnames") && mod_obj["netnames"].is_object()) {
+		struct user_net_cand {
+			std::string name;
+			std::string file;
+			std::string clean_src;
+			std::vector<int> bits;
+		};
+		std::vector<user_net_cand> user_nets;
+		std::map<std::vector<int>, std::vector<size_t>> by_bits;
+
+		// Pass 1: true user-defined RTL nets (hide_name == 0, not _SB_ or cells_map.v)
 		for (const auto &[net_name, net_obj] : mod_obj["netnames"].items()) {
-			if (net_obj.value("hide_name", 0) != 0 && net_obj.contains("bits") && net_obj["bits"].is_array()) {
+			if (net_obj.value("hide_name", 0) == 0 && net_obj.contains("bits") && net_obj["bits"].is_array()) {
+				std::string raw_src;
+				if (net_obj.contains("attributes") && net_obj["attributes"].is_object()) {
+					raw_src = net_obj["attributes"].value("src", "");
+				}
+				if (net_name.find("_SB_") != std::string::npos || net_name.find("$SB_") != std::string::npos ||
+				    net_name.find("$sb_") != std::string::npos || net_name.find("$func$") != std::string::npos ||
+				    yosys_netlist_reader::is_library_source(raw_src)) {
+					continue;
+				}
+				std::string clean_src = format_src_loc(raw_src);
+				size_t colon = clean_src.find(':');
+				std::string nfile = (colon != std::string::npos) ? clean_src.substr(0, colon) : clean_src;
+
+				std::vector<int> bvec;
+				for (const auto &b : net_obj["bits"]) {
+					bvec.push_back(b.is_number_integer() ? b.get<int>() : -1);
+				}
+
+				size_t idx = user_nets.size();
+				user_nets.push_back({net_name, nfile, clean_src, bvec});
+				if (!bvec.empty()) {
+					by_bits[bvec].push_back(idx);
+				}
+			}
+		}
+
+		// For each equivalence class of user nets sharing identical bits, select the best canonical net
+		for (const auto &[bvec, indices] : by_bits) {
+			std::set<std::string> drv_files;
+			for (int b : bvec) {
+				auto it = bit_driver_file.find(b);
+				if (it != bit_driver_file.end() && !it->second.empty()) {
+					drv_files.insert(it->second);
+				}
+			}
+
+			// Collect leaf names of nets declared in the driving module's file
+			std::set<std::string> drv_leaf_names;
+			for (size_t idx : indices) {
+				const auto &un = user_nets[idx];
+				if (!un.file.empty() && drv_files.contains(un.file)) {
+					size_t dot = un.name.rfind('.');
+					drv_leaf_names.insert(dot != std::string::npos ? un.name.substr(dot + 1) : un.name);
+				}
+			}
+
+			auto score_cand = [&](const user_net_cand &un) {
+				size_t dot = un.name.rfind('.');
+				std::string leaf = (dot != std::string::npos) ? un.name.substr(dot + 1) : un.name;
+				bool matches_drv = (!un.file.empty() && drv_files.contains(un.file)) || drv_leaf_names.contains(leaf);
+				int drv_rank = matches_drv ? 0 : 1;
+				int dot_count = static_cast<int>(std::count(un.name.begin(), un.name.end(), '.'));
+				return std::make_tuple(drv_rank, dot_count, un.name);
+			};
+
+			size_t best_idx = indices.front();
+			for (size_t idx : indices) {
+				if (score_cand(user_nets[idx]) < score_cand(user_nets[best_idx])) {
+					best_idx = idx;
+				}
+			}
+
+			const auto &best_un = user_nets[best_idx];
+			for (size_t idx : indices) {
+				if (user_nets[idx].name != best_un.name) {
+					net_alias_map_[user_nets[idx].name] = best_un.name;
+				}
+			}
+		}
+
+		// Populate bit_to_user_name_ and bit_to_net_name_ using canonical user nets
+		for (const auto &un : user_nets) {
+			std::string canon_base = net_alias_map_.contains(un.name) ? net_alias_map_[un.name] : un.name;
+			for (size_t i = 0; i < un.bits.size(); ++i) {
+				int bit_id = un.bits[i];
+				if (bit_id > 0) {
+					std::string bit_lbl = (un.bits.size() > 1) ? std::format("{}[{}]", canon_base, i) : canon_base;
+					if (!bit_to_user_name_.contains(bit_id)) {
+						bit_to_user_name_[bit_id] = bit_lbl;
+					} else {
+						int cur_dots = static_cast<int>(std::count(bit_to_user_name_[bit_id].begin(), bit_to_user_name_[bit_id].end(), '.'));
+						int new_dots = static_cast<int>(std::count(bit_lbl.begin(), bit_lbl.end(), '.'));
+						if (new_dots < cur_dots) {
+							bit_to_user_name_[bit_id] = bit_lbl;
+						}
+					}
+					bit_to_net_name_[bit_id] = bit_to_user_name_[bit_id];
+					if (!un.clean_src.empty() && !bit_to_src_loc_.contains(bit_id)) {
+						bit_to_src_loc_[bit_id] = un.clean_src;
+					}
+				}
+			}
+		}
+
+		// Pass 2: internal / dressed / techmapped nets
+		for (const auto &[net_name, net_obj] : mod_obj["netnames"].items()) {
+			if (net_obj.contains("bits") && net_obj["bits"].is_array()) {
 				const auto &bits = net_obj["bits"];
+				std::string raw_src;
+				if (net_obj.contains("attributes") && net_obj["attributes"].is_object()) {
+					raw_src = net_obj["attributes"].value("src", "");
+				}
+				// Skip cells_map.v multi-bit LUT input vectors (A[3:0]), as their bits are unrelated LUT inputs
+				if (bits.size() > 1 && raw_src.find("cells_map.v") != std::string::npos) {
+					continue;
+				}
 				std::string clean_n = net_name;
 				if (clean_n.starts_with("$abc$")) {
 					size_t p = clean_n.find('$', 5);
 					if (p != std::string::npos && p + 1 < clean_n.size()) {
 						clean_n = clean_n.substr(p + 1);
 					}
-				}
-				std::string raw_src;
-				if (net_obj.contains("attributes") && net_obj["attributes"].is_object()) {
-					raw_src = net_obj["attributes"].value("src", "");
 				}
 				if (raw_src.empty()) {
 					size_t sv_pos = net_name.find(".sv:");
@@ -276,12 +398,13 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 					}
 				}
 				std::string clean_src = format_src_loc(raw_src);
+				bool is_sb_net = (clean_n.find("_SB_") != std::string::npos || clean_n.find("$SB_") != std::string::npos);
 				for (size_t i = 0; i < bits.size(); ++i) {
 					if (bits[i].is_number_integer()) {
 						int bit_id = bits[i].get<int>();
 						if (bit_id > 0) {
-							std::string bit_lbl = (bits.size() > 1) ? std::format("{}[{}]", clean_n, i) : clean_n;
-							std::string norm_lbl = nextpnr_timing_analyzer::normalize_net_name(bit_lbl);
+							std::string bit_lbl = (bits.size() > 1 && !is_sb_net) ? std::format("{}[{}]", clean_n, i) : clean_n;
+							std::string norm_lbl = resolve_alias(nextpnr_timing_analyzer::normalize_net_name(bit_lbl));
 							if (!bit_to_net_name_.contains(bit_id)) {
 								bit_to_net_name_[bit_id] = norm_lbl;
 							}
@@ -425,6 +548,12 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 					}
 				}
 				if (c.register_name.empty()) {
+					std::string inferred = yosys_netlist_reader::infer_register_from_src(c.src_raw, c.name, netlist_dir_);
+					if (!inferred.empty()) {
+						c.register_name = inferred;
+					}
+				}
+				if (c.register_name.empty()) {
 					for (const auto &[pname, con_bits] : c.output_conns) {
 						for (int b : con_bits) {
 							if (b > 0 && bit_to_net_name_.contains(b)) {
@@ -446,9 +575,28 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 				if (c.register_name.empty()) {
 					c.register_name = c.name;
 				}
-				c.register_name = nextpnr_timing_analyzer::normalize_net_name(c.register_name);
+				c.register_name = resolve_alias(nextpnr_timing_analyzer::normalize_net_name(c.register_name));
+				for (const auto &[pname, con_bits] : c.output_conns) {
+					if (is_sequential_source_pin(c.type, pname)) {
+						for (int b : con_bits) {
+							if (b > 0) {
+								if (!bit_to_user_name_.contains(b)) {
+									bit_to_user_name_[b] = c.register_name;
+								}
+								bit_to_net_name_[b] = c.register_name;
+							}
+						}
+					}
+				}
+			} else {
+				for (const auto &[pname, con_bits] : c.output_conns) {
+					for (int b : con_bits) {
+						if (b > 0 && !bit_to_net_name_.contains(b)) {
+							bit_to_net_name_[b] = resolve_alias(nextpnr_timing_analyzer::normalize_net_name(c.name));
+						}
+					}
+				}
 			}
-
 			size_t cell_idx = cells_.size();
 			cells_.push_back(std::move(c));
 

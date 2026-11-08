@@ -728,11 +728,11 @@ void test_net_fanout_and_distance_attribution()
 	using verilog::nextpnr_timing_analyzer;
 
 	// 1. Test normalize_net_name
-	assert(nextpnr_timing_analyzer::normalize_net_name("cpu8008.A_reg.load_SB_LUT4_O_I0[0]") == "cpu8008.A_reg.load[0]");
-	assert(nextpnr_timing_analyzer::normalize_net_name("cpu8008.B_reg.load_SB_LUT4_O_I2[1]") == "cpu8008.B_reg.load[1]");
+	assert(nextpnr_timing_analyzer::normalize_net_name("cpu8008.A_reg.load_SB_LUT4_O_I0[0]") == "cpu8008.A_reg.load");
+	assert(nextpnr_timing_analyzer::normalize_net_name("cpu8008.B_reg.load_SB_LUT4_O_I2[1]") == "cpu8008.B_reg.load");
+	assert(nextpnr_timing_analyzer::normalize_net_name("LED[1]$SB_IO_OUT") == "LED[1]");
 	assert(nextpnr_timing_analyzer::normalize_net_name("mem_write_data[7]") == "mem_write_data[7]");
 	assert(nextpnr_timing_analyzer::normalize_net_name("carry_bit") == "carry_bit");
-
 	// 2. Netlist with fanout tracking
 	nlohmann::json netlist_json = {
 		{"modules", {

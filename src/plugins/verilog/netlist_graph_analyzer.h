@@ -187,6 +187,7 @@ class netlist_graph_analyzer
 	};
 
 	std::string module_name_;
+	std::string netlist_dir_;
 	std::vector<port_timing_info> input_ports_;
 	std::vector<port_timing_info> output_ports_;
 	size_t max_reg_to_reg_depth_{0};
@@ -202,11 +203,11 @@ class netlist_graph_analyzer
 	std::map<int, std::string> bit_to_net_name_;
 	std::map<int, std::string> bit_to_src_loc_;
 	std::map<int, std::string> bit_to_user_name_;
+	std::map<std::string, std::string> net_alias_map_;
 	std::map<int, downstream_cache_entry> memo_downstream_;
 	std::set<int> recursion_stack_;
 	std::map<int, upstream_cache_entry> memo_upstream_;
 	std::set<int> upstream_recursion_stack_;
-
 	void build_graph(const nlohmann::json &mod_obj);
 	void analyze_paths();
 	downstream_cache_entry compute_downstream(int bit_id);

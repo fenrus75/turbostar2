@@ -63,6 +63,9 @@ public:
 	// Clean and normalize synthetic net names (e.g. cpu8008.A_reg.load_SB_LUT4... -> cpu8008.A_reg.load)
 	static std::string normalize_net_name(std::string_view raw_net);
 
+	// Infer the true RTL register name for a techmapped flip-flop cell from its always_ff source location and cell name
+	static std::string infer_register_from_src(std::string_view raw_src, std::string_view raw_cell_name, std::string_view base_dir = "");
+
 	// Format source location for concise display (strips techmap line numbers e.g. cells_map.v:26-27 -> cells_map.v)
 	static std::string clean_display_location(std::string_view loc);
 

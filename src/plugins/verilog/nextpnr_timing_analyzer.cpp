@@ -17,6 +17,7 @@ namespace fs = std::filesystem;
 
 bool nextpnr_timing_analyzer::load_from_files(std::string_view timing_json_path, std::string_view netlist_json_path, std::string &out_error)
 {
+	netlist_dir_.clear();
 	std::ifstream t_file{std::string(timing_json_path)};
 	if (!t_file.is_open()) {
 		out_error = std::format("Failed to open timing report '{}'", timing_json_path);
@@ -32,6 +33,7 @@ bool nextpnr_timing_analyzer::load_from_files(std::string_view timing_json_path,
 	}
 
 	if (!netlist_json_path.empty()) {
+		netlist_dir_ = fs::path(netlist_json_path).parent_path().string();
 		std::ifstream n_file{std::string(netlist_json_path)};
 		if (n_file.is_open()) {
 			try {
@@ -50,6 +52,7 @@ bool nextpnr_timing_analyzer::load_from_files(std::string_view timing_json_path,
 
 bool nextpnr_timing_analyzer::load_from_json_strings(std::string_view timing_json_content, std::string_view netlist_json_content, std::string &out_error)
 {
+	netlist_dir_.clear();
 	nlohmann::json t_json;
 	try {
 		t_json = nlohmann::json::parse(timing_json_content);
@@ -75,6 +78,7 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 {
 	netlist_cells_.clear();
 	netlist_nets_.clear();
+	net_alias_map_.clear();
 	netlist_ports_.clear();
 	bit_sink_counts_.clear();
 	net_fanouts_.clear();
@@ -109,6 +113,20 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 		}
 	}
 
+	std::map<int, std::string> bit_driver_file;
+	auto extract_src_file = [](std::string_view raw) -> std::string {
+		if (raw.empty()) {
+			return "";
+		}
+		size_t bar = raw.find('|');
+		std::string_view first = (bar != std::string_view::npos) ? raw.substr(0, bar) : raw;
+		size_t colon = first.rfind(':');
+		if (colon != std::string_view::npos) {
+			return std::string(first.substr(0, colon));
+		}
+		return std::string(first);
+	};
+
 	if (mod_obj->contains("cells") && (*mod_obj)["cells"].is_object()) {
 		for (const auto &[cname, cdata] : (*mod_obj)["cells"].items()) {
 			cell_info ci;
@@ -116,6 +134,8 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 			if (cdata.contains("attributes") && cdata["attributes"].is_object()) {
 				ci.src_raw = cdata["attributes"].value("src", "");
 			}
+			std::string c_file = extract_src_file(ci.src_raw);
+			bool valid_c_file = !c_file.empty() && !yosys_netlist_reader::is_library_source(c_file);
 			netlist_cells_[cname] = std::move(ci);
 
 			// Track input port connections to compute net sink fanout
@@ -138,12 +158,16 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 						is_input = (pname != "Y" && pname != "Q" && pname != "O" && pname != "CO" && pname != "COUT");
 					}
 
-					if (is_input && conn_val.is_array()) {
+					if (conn_val.is_array()) {
 						for (const auto &b_val : conn_val) {
 							if (b_val.is_number_integer()) {
 								int b = b_val.get<int>();
 								if (b >= 0) {
-									bit_sink_counts_[b]++;
+									if (is_input) {
+										bit_sink_counts_[b]++;
+									} else if (valid_c_file) {
+										bit_driver_file[b] = c_file;
+									}
 								}
 							}
 						}
@@ -153,9 +177,11 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 		}
 	}
 
+	std::map<std::vector<int>, std::vector<std::pair<std::string, std::string>>> bits_to_user_nets;
 	if (mod_obj->contains("netnames") && (*mod_obj)["netnames"].is_object()) {
 		for (const auto &[nname, ndata] : (*mod_obj)["netnames"].items()) {
 			net_info ni;
+			int hide_name = ndata.value("hide_name", 0);
 			if (ndata.contains("attributes") && ndata["attributes"].is_object()) {
 				ni.src_raw = ndata["attributes"].value("src", "");
 			}
@@ -173,7 +199,42 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 				}
 				net_fanouts_[nname] = total_fanout;
 			}
+			bool is_synth = (nname.find("_SB_") != std::string::npos ||
+			                 nname.find("$SB_") != std::string::npos ||
+			                 nname.find("$sb_") != std::string::npos ||
+			                 nname.find("$func$") != std::string::npos);
+			std::string src_file = extract_src_file(ni.src_raw);
+			bool is_lib = yosys_netlist_reader::is_library_source(src_file);
+			if (hide_name == 0 && !nname.starts_with("$") && !nname.starts_with("new_n") && !is_synth && !is_lib && !ni.bits.empty()) {
+				bits_to_user_nets[ni.bits].emplace_back(nname, src_file);
+			}
 			netlist_nets_[nname] = std::move(ni);
+		}
+	}
+
+	for (const auto &[bits, candidates] : bits_to_user_nets) {
+		if (candidates.size() <= 1) {
+			continue;
+		}
+		std::string drv_file;
+		for (int b : bits) {
+			if (b > 0 && bit_driver_file.contains(b)) {
+				drv_file = bit_driver_file[b];
+				break;
+			}
+		}
+		auto score_cand = [&](const std::pair<std::string, std::string> &cand) {
+			int driver_match = (!drv_file.empty() && cand.second == drv_file) ? 0 : 1;
+			size_t dots = static_cast<size_t>(std::count(cand.first.begin(), cand.first.end(), '.'));
+			return std::make_tuple(driver_match, dots, cand.first.size(), cand.first);
+		};
+		auto best_it = std::min_element(candidates.begin(), candidates.end(),
+			[&](const auto &a, const auto &b) {
+				return score_cand(a) < score_cand(b);
+			});
+		const std::string &best_name = best_it->first;
+		for (const auto &[cand_name, cand_file] : candidates) {
+			net_alias_map_[cand_name] = best_name;
 		}
 	}
 }
@@ -390,6 +451,27 @@ size_t nextpnr_timing_analyzer::get_net_fanout(std::string_view net_name) const
 	return best_fanout;
 }
 
+std::string nextpnr_timing_analyzer::resolve_alias(std::string_view net_name) const
+{
+	if (net_name.empty()) {
+		return "";
+	}
+	std::string s(net_name);
+	auto it = net_alias_map_.find(s);
+	if (it != net_alias_map_.end()) {
+		return it->second;
+	}
+	size_t bracket = s.rfind('[');
+	if (bracket != std::string::npos && s.ends_with(']')) {
+		std::string base = s.substr(0, bracket);
+		auto it_base = net_alias_map_.find(base);
+		if (it_base != net_alias_map_.end()) {
+			return it_base->second + s.substr(bracket);
+		}
+	}
+	return s;
+}
+
 std::string nextpnr_timing_analyzer::resolve_cell_src(std::string_view raw_cell, std::string &out_hint) const
 {
 	std::string cand = normalize_cell_name(raw_cell);
@@ -438,15 +520,26 @@ std::string nextpnr_timing_analyzer::resolve_cell_src(std::string_view raw_cell,
 	if (!matched_cell.empty()) {
 		const auto &ci = netlist_cells_.at(matched_cell);
 		src = yosys_netlist_reader::clean_src_location(ci.src_raw);
+		if (ci.type.find("DFF") != std::string::npos) {
+			std::string inferred = yosys_netlist_reader::infer_register_from_src(ci.src_raw, cand, netlist_dir_);
+			if (!inferred.empty()) {
+				out_hint = resolve_alias(normalize_net_name(inferred));
+				return src;
+			}
+		}
 	}
 
-	// Netname prefix lookup
+	// Netname prefix lookup (prefer clean user nets, skip synthetic LUT/techmap intermediates)
 	size_t best_len = 0;
 	std::string best_net;
 	std::string net_src;
 	for (const auto &[nname, ndata] : netlist_nets_) {
 		std::string cleaned_n_src = yosys_netlist_reader::clean_src_location(ndata.src_raw);
-		if (cleaned_n_src.empty()) continue;
+		if (cleaned_n_src.empty() || yosys_netlist_reader::is_library_source(cleaned_n_src)) continue;
+		if (nname.find("_SB_") != std::string::npos || nname.find("$SB_") != std::string::npos ||
+		    nname.find("$sb_") != std::string::npos || nname.find("$func$") != std::string::npos) {
+			continue;
+		}
 
 		if (cand.starts_with(nname) && nname.size() > best_len) {
 			if (cand.size() == nname.size() || cand[nname.size()] == '_' || cand[nname.size()] == '.') {
@@ -458,12 +551,12 @@ std::string nextpnr_timing_analyzer::resolve_cell_src(std::string_view raw_cell,
 	}
 
 	if (!best_net.empty()) {
-		out_hint = best_net;
+		out_hint = resolve_alias(normalize_net_name(best_net));
 		if (src.empty() || (yosys_netlist_reader::is_library_source(src) && !yosys_netlist_reader::is_library_source(net_src))) {
 			src = net_src;
 		}
 	} else if (!matched_cell.empty()) {
-		out_hint = matched_cell;
+		out_hint = resolve_alias(normalize_net_name(matched_cell));
 	}
 
 	return src;
@@ -500,24 +593,24 @@ void nextpnr_timing_analyzer::correlate_paths()
 		if (!hint.empty() && hint != normalize_cell_name(cp.startpoint)) {
 			cp.startpoint = hint;
 		}
-		cp.startpoint = normalize_net_name(cp.startpoint);
+		cp.startpoint = resolve_alias(normalize_net_name(cp.startpoint));
 
 		cp.end_src = resolve_cell_src(cp.endpoint, hint);
 		if (!hint.empty() && hint != normalize_cell_name(cp.endpoint)) {
 			cp.endpoint = hint;
 		}
-		cp.endpoint = normalize_net_name(cp.endpoint);
+		cp.endpoint = resolve_alias(normalize_net_name(cp.endpoint));
 
 		for (auto &h : cp.hops) {
 			h.cell_src_location = resolve_cell_src(h.to_cell.empty() ? h.from_cell : h.to_cell, h.cell_hint);
-			h.cell_hint = normalize_net_name(h.cell_hint);
+			h.cell_hint = resolve_alias(normalize_net_name(h.cell_hint));
 			h.net_src_location = resolve_net_src(h.net_name);
 			if ((h.cell_src_location.empty() || yosys_netlist_reader::is_library_source(h.cell_src_location)) &&
 			    !h.net_src_location.empty() && !yosys_netlist_reader::is_library_source(h.net_src_location)) {
 				h.cell_src_location = h.net_src_location;
 			}
 			if (h.type == "routing" && !h.net_name.empty()) {
-				h.clean_net = normalize_net_name(h.net_name);
+				h.clean_net = resolve_alias(normalize_net_name(h.net_name));
 				h.fanout = get_net_fanout(h.net_name);
 			}
 		}

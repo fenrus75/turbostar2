@@ -238,6 +238,23 @@ void test_real_netlist_files()
 		std::string md = analyzer.generate_timing_markdown("Generic LUT4");
 		assert(md.find("# Timing: `main`") != std::string::npos);
 	}
+	if (std::filesystem::exists("examples/test8008/synth/main.json")) {
+		verilog::netlist_graph_analyzer ice_analyzer;
+		bool ok = ice_analyzer.load_from_file("examples/test8008/synth/main.json", err);
+		assert(ok);
+		auto bnecks = ice_analyzer.get_worst_bottlenecks(std::nullopt, 5);
+		assert(!bnecks.empty());
+		for (const auto &b : bnecks) {
+			// Should not have fabricated multi-bit slices on 1-bit load signal
+			std::string src_ranges = verilog::netlist_graph_analyzer::format_source_ranges(b.sources);
+			assert(src_ranges.find("load[") == std::string::npos);
+			// Register in register.sv:20-26 should resolve to value_reg, not .load
+			assert(!b.endpoint.ends_with(".load"));
+			for (const auto &h : b.hops) {
+				assert(h.net_name.find("A_reg.load_value") == std::string::npos);
+			}
+		}
+	}
 }
 
 void test_compact_signal_formatting()
@@ -259,17 +276,20 @@ void test_compact_signal_formatting()
 	assert(formatted.find("`input1[2:0]` (`alu.sv:4`)") != std::string::npos);
 	assert(formatted.find("`carry_in` (`alu.sv:19-24`)") != std::string::npos);
 
-	// Test demangling of synthetic / techmapped signal names in compact_signal_names
+	// Test demangling of synthetic / techmapped signal names in compact_signal_names:
+	// Trailing [i] after _SB_ is a cells_map.v LUT input pin index, NOT a bit slice of the base signal.
+	// Real bit slices appear before $SB_ (e.g. LED[0]$SB_IO_OUT).
 	std::vector<std::string> mangled_sigs = {
-		"alu.carry_SB_DFFER_D_E_SB_DFFER_E_2_Q[0]",
-		"alu.carry_SB_DFFER_D_E_SB_DFFER_E_3_Q[1]",
-		"alu.carry_SB_DFFER_D_E_SB_DFFER_E_4_Q[2]",
-		"A_reg.load_value_SB_LUT4_O_1_I1_SB_LUT4_O_1_I1_SB_LUT4_O_1_I3_SB_LUT4_O_I2_SB_LUT4_I2_I3_SB_LUT4_I2_I3[0]",
-		"A_reg.load_value_SB_LUT4_O_1_I1_SB_LUT4_O_1_I1_SB_LUT4_O_1_I3_SB_LUT4_O_I2_SB_LUT4_I2_I3_SB_LUT4_I2_I3[1]"
+		"D_reg.load_SB_LUT4_O_I2[0]",
+		"D_reg.load_SB_LUT4_O_I2[1]",
+		"D_reg.load_SB_LUT4_O_I2[2]",
+		"LED[0]$SB_IO_OUT",
+		"LED[1]$SB_IO_OUT"
 	};
 	std::string compacted_mangled = netlist_graph_analyzer::compact_signal_names(mangled_sigs);
-	assert(compacted_mangled.find("`alu.carry[2:0]`") != std::string::npos);
-	assert(compacted_mangled.find("`A_reg.load_value[1:0]`") != std::string::npos);
+	assert(compacted_mangled.find("`D_reg.load`") != std::string::npos);
+	assert(compacted_mangled.find("D_reg.load[") == std::string::npos);
+	assert(compacted_mangled.find("`LED[1:0]`") != std::string::npos);
 	assert(compacted_mangled.find("SB_") == std::string::npos);
 
 	// Test demangling of synthetic / techmapped source signals in format_source_ranges
@@ -279,7 +299,8 @@ void test_compact_signal_formatting()
 		{"alu.carry_SB_DFFER_D_E_SB_DFFER_E_4_Q[2]", "alu.sv:45", verilog::path_category::reg_to_reg}
 	};
 	std::string formatted_mangled = netlist_graph_analyzer::format_source_ranges(mangled_srcs);
-	assert(formatted_mangled.find("`alu.carry[2:0]` (`alu.sv:45`)") != std::string::npos);
+	assert(formatted_mangled.find("`alu.carry` (`alu.sv:45`)") != std::string::npos);
+	assert(formatted_mangled.find("alu.carry[") == std::string::npos);
 	assert(formatted_mangled.find("SB_") == std::string::npos);
 }
 

@@ -151,8 +151,10 @@ private:
 
 	std::string resolve_cell_src(std::string_view raw_cell, std::string &out_hint) const;
 	std::string resolve_net_src(std::string_view raw_net) const;
+	std::string resolve_alias(std::string_view net_name) const;
 	static std::string normalize_cell_name(std::string_view raw_cell);
 
+	std::string netlist_dir_;
 	std::vector<clock_domain_timing> clock_domains_;
 	std::vector<device_resource_utilization> utilization_;
 	std::vector<timing_critical_path> critical_paths_;
@@ -169,6 +171,7 @@ private:
 	std::string top_module_name_;
 	std::map<std::string, cell_info> netlist_cells_;
 	std::map<std::string, net_info> netlist_nets_;
+	std::map<std::string, std::string> net_alias_map_;
 	std::map<std::string, std::string> netlist_ports_; // port_name -> direction
 	std::map<int, size_t> bit_sink_counts_;
 	std::map<std::string, size_t> net_fanouts_;
