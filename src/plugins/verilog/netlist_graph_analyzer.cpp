@@ -787,6 +787,29 @@ std::string netlist_graph_analyzer::generate_timing_markdown(std::string_view ta
 	return md;
 }
 
+bool netlist_graph_analyzer::is_synthesis_source_file(const std::filesystem::path &p)
+{
+	std::string fname = p.filename().string();
+	if (fname.ends_with('~') || fname.ends_with(".bak") || fname.ends_with(".org") ||
+	    fname.ends_with(".twoport") || fname.ends_with(".orig") || fname.starts_with(".#") ||
+	    fname.starts_with('.')) {
+		return false;
+	}
+	if (fname.starts_with("tb_") || fname.ends_with("_tb.sv") || fname.ends_with("_tb.v") ||
+	    fname.find("testbench") != std::string::npos) {
+		return false;
+	}
+	for (const auto &part : p) {
+		std::string s = part.string();
+		if (s == ".git" || s == ".antigravitycli" || s == ".turbostar" || s == "build" ||
+		    s == "obj_dir" || s == "tb" || s == "testbench" || s == "templates") {
+			return false;
+		}
+	}
+	auto ext = p.extension().string();
+	return (ext == ".sv" || ext == ".v");
+}
+
 bool netlist_graph_analyzer::synthesize_and_load(std::string_view module_name, std::span<const std::string> source_files,
                                                  std::string_view target_mode, std::string &out_error)
 {
@@ -802,24 +825,15 @@ bool netlist_graph_analyzer::synthesize_and_load(std::string_view module_name, s
 			files_to_use.push_back(f);
 		}
 	} else {
-		// Discover all .sv and .v files in project dir or current dir
+		// Discover synthesizable .sv and .v files in project dir or current dir
 		std::string proj_dir = fs_utils::get_project_dir();
 		if (proj_dir.empty()) {
 			proj_dir = ".";
 		}
 		try {
 			for (const auto &entry : std::filesystem::recursive_directory_iterator(proj_dir)) {
-				if (entry.is_regular_file()) {
-					std::string fname = entry.path().filename().string();
-					if (fname.ends_with('~') || fname.ends_with(".bak") || fname.ends_with(".org") ||
-					    fname.ends_with(".twoport") || fname.ends_with(".orig") || fname.starts_with(".#") ||
-					    fname.starts_with('.')) {
-						continue;
-					}
-					auto ext = entry.path().extension().string();
-					if (ext == ".sv" || ext == ".v") {
-						files_to_use.push_back(entry.path().string());
-					}
+				if (entry.is_regular_file() && is_synthesis_source_file(entry.path())) {
+					files_to_use.push_back(entry.path().string());
 				}
 			}
 		} catch (const std::exception &e) {

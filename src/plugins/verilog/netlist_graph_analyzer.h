@@ -98,6 +98,9 @@ class netlist_graph_analyzer
 	// Helper to check if a pin is a sequential source pin (Q, etc.)
 	static bool is_sequential_source_pin(std::string_view cell_type, std::string_view port_name) noexcept;
 
+	// Helper to check if a file is a synthesizable source file (excluding testbenches, backups, etc.)
+	static bool is_synthesis_source_file(const std::filesystem::path &p);
+
       private:
 	struct cell_pin_ref {
 		size_t cell_idx{0};

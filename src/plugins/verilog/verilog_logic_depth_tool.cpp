@@ -36,7 +36,23 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 	} else {
 		std::vector<std::string> sources;
 		if (!args_.safe_file.empty()) {
-			sources.push_back(args_.safe_file);
+			std::filesystem::path fp(args_.safe_file);
+			// Gather synthesizable sibling RTL files from the enclosing directory tree
+			std::filesystem::path scan_root = fp.parent_path();
+			if (scan_root.has_parent_path() && scan_root.filename() != "sv") {
+				scan_root = scan_root.parent_path();
+			}
+			try {
+				for (const auto &entry : std::filesystem::recursive_directory_iterator(scan_root)) {
+					if (entry.is_regular_file() && verilog::netlist_graph_analyzer::is_synthesis_source_file(entry.path())) {
+						sources.push_back(entry.path().string());
+					}
+				}
+			} catch (...) {
+			}
+			if (sources.empty()) {
+				sources.push_back(args_.safe_file);
+			}
 		}
 
 		loaded = analyzer.synthesize_and_load(args_.requested_module, sources, args_.target_mode, err);
