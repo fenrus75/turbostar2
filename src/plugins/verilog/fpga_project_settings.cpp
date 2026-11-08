@@ -224,6 +224,15 @@ bool fpga_project_settings::save_to_project(std::string_view project_root, const
 	return true;
 }
 
+bool fpga_project_settings::save_to_project(std::string_view project_root, fpga_target_config &cfg, std::string &out_path_used, std::string &out_error)
+{
+	bool ok = save_to_project(project_root, static_cast<const fpga_target_config &>(cfg), out_path_used, out_error);
+	if (ok) {
+		cfg.active_config_file = out_path_used;
+	}
+	return ok;
+}
+
 bool fpga_project_settings::is_complete(const fpga_target_config &cfg, std::vector<std::string> &out_missing_fields)
 {
 	out_missing_fields.clear();

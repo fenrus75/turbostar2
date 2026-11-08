@@ -65,6 +65,8 @@ std::string verilog_project_settings_tool::execute(agentlib::tool_context &ctx)
 			return std::format("Error saving project settings: {}", save_err);
 		}
 
+		cfg.active_config_file = path_used;
+
 		set_success(ctx);
 		std::string out = std::format("Successfully saved FPGA project configuration to `{}`.\n\n", path_used);
 		out += verilog::fpga_project_settings::format_summary(cfg, sys_tools, pcfs);

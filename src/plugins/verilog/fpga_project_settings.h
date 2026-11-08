@@ -57,7 +57,7 @@ public:
 
 	// Save or update configuration in project_root with 2-space formatted JSON
 	static bool save_to_project(std::string_view project_root, const fpga_target_config &cfg, std::string &out_path_used, std::string &out_error);
-
+	static bool save_to_project(std::string_view project_root, fpga_target_config &cfg, std::string &out_path_used, std::string &out_error);
 	// Check if all mandatory fields for PNR are present
 	static bool is_complete(const fpga_target_config &cfg, std::vector<std::string> &out_missing_fields);
 

@@ -8,3 +8,4 @@
 ## Lessons Learned
 
 - **Automatic Single PCF Selection**: When saving settings and no PCF is specified, if exactly one `.pcf` exists in the repository, auto-associating it saves the user from redundant manual entry.
+- **Active Config File Tracking Post-Save**: When saving FPGA target configuration, updating `cfg.active_config_file` with the written path (`path_used`) before rendering `format_summary` prevents the summary header from claiming `Config File: None (not configured)` immediately after a successful write.

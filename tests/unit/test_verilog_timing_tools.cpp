@@ -384,7 +384,7 @@ void test_fpga_project_settings()
 	assert(save_ok);
 	assert(path_used.find("turbostar.json") != std::string::npos);
 	assert(std::filesystem::exists(path_used));
-
+	assert(cfg.active_config_file == path_used);
 	verilog::fpga_target_config loaded_cfg;
 	bool load_ok = verilog::fpga_project_settings::load_from_project(tmp_dir, loaded_cfg, err);
 	assert(load_ok);
@@ -450,8 +450,9 @@ void test_verilog_project_settings_tool()
 	auto set_tool = validator.create_tool(set_args);
 	std::string set_out = set_tool->execute(ctx);
 	assert(set_out.find("Successfully saved FPGA project configuration") != std::string::npos);
+	assert(set_out.find("- **Config File**: *None (not configured)*") == std::string::npos);
+	assert(set_out.find("- **Config File**: `") != std::string::npos);
 	assert(std::filesystem::exists(tmp_dir + "/turbostar.json"));
-
 	// 3. Second GET shows configured status without missing guidance
 	auto tool2 = validator.create_tool(get_args);
 	std::string get_out2 = tool2->execute(ctx);
