@@ -20,6 +20,9 @@ struct clock_domain_timing {
 	std::string domain_name;
 	double constraint_mhz{0.0};
 	double achieved_mhz{0.0};
+	double min_achieved_mhz{0.0};
+	double max_achieved_mhz{0.0};
+	size_t seed_count{1};
 	double slack_ns{0.0};
 	bool met{true};
 };

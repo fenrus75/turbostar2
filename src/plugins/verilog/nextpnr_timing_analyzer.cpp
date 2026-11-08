@@ -7,10 +7,10 @@
 #include <format>
 #include <algorithm>
 #include <charconv>
+#include <chrono>
 #include <regex>
 #include <map>
 #include <set>
-
 namespace verilog {
 
 namespace fs = std::filesystem;
@@ -886,7 +886,6 @@ bool nextpnr_timing_analyzer::synthesize_and_route(const fpga_target_config &cfg
 {
 	std::string tmp_dir = fs_utils::get_project_tmp_dir();
 	fs::path synth_json = fs::path(tmp_dir) / "pnr_synth.json";
-	fs::path timing_json = fs::path(tmp_dir) / "pnr_timing.json";
 	fs::path asc_file = fs::path(tmp_dir) / "pnr_out.asc";
 
 	std::vector<std::string> rtl_sources;
@@ -929,12 +928,11 @@ bool nextpnr_timing_analyzer::synthesize_and_route(const fpga_target_config &cfg
 		return false;
 	}
 
-	// 2. Run nextpnr
+	// 2. Run nextpnr (adaptive multi-seed execution when individual runs are fast)
 	std::string pnr_tool = (cfg.target == "ice40") ? "nextpnr-ice40" :
 	                       (cfg.target == "ecp5") ? "nextpnr-ecp5" : "nextpnr-generic";
 
 	std::string pnr_args = "--json " + fs_utils::escape_shell_arg(synth_json.string()) +
-	                       " --report " + fs_utils::escape_shell_arg(timing_json.string()) +
 	                       " --detailed-timing-report";
 
 	if (cfg.target == "ice40") {
@@ -972,14 +970,116 @@ bool nextpnr_timing_analyzer::synthesize_and_route(const fpga_target_config &cfg
 		}
 	}
 
-	std::string full_pnr_cmd = pnr_tool + " " + pnr_args;
+	struct seed_run {
+		int seed{1};
+		fs::path timing_path;
+		double primary_fmax{0.0};
+		std::map<std::string, double> domain_fmax;
+	};
+	std::vector<seed_run> seed_runs;
+
+	auto parse_seed_fmax = [](int seed, const fs::path &t_path, seed_run &out_run) -> bool {
+		std::ifstream ifs(t_path);
+		if (!ifs.is_open()) return false;
+		try {
+			nlohmann::json j;
+			ifs >> j;
+			out_run.seed = seed;
+			out_run.timing_path = t_path;
+			if (j.contains("fmax") && j["fmax"].is_object()) {
+				for (const auto &[dom, f_obj] : j["fmax"].items()) {
+					if (f_obj.is_object() && f_obj.contains("achieved") && f_obj["achieved"].is_number()) {
+						double f = f_obj["achieved"].get<double>();
+						out_run.domain_fmax[dom] = f;
+						if (out_run.primary_fmax <= 0.0) {
+							out_run.primary_fmax = f;
+						}
+					}
+				}
+			}
+			return true;
+		} catch (...) {
+			return false;
+		}
+	};
+
+	fs::path seed1_timing = fs::path(tmp_dir) / "pnr_timing_seed1.json";
+	std::error_code ec_rm;
+	fs::remove(seed1_timing, ec_rm);
+
+	auto t_start = std::chrono::steady_clock::now();
+	std::string full_pnr_cmd = std::format("{} {} --seed 1 --report {}",
+	                                       pnr_tool, pnr_args, fs_utils::escape_shell_arg(seed1_timing.string()));
 	std::string p_out = fs_utils::execute_command_sync(full_pnr_cmd);
-	if (!fs::exists(timing_json)) {
+	auto t_end = std::chrono::steady_clock::now();
+	double last_seed_sec = std::chrono::duration<double>(t_end - t_start).count();
+	double total_pnr_sec = last_seed_sec;
+
+	if (!fs::exists(seed1_timing)) {
 		out_error = std::format("nextpnr place-and-route failed to generate timing report:\n{}", p_out);
 		return false;
 	}
 
-	return load_from_files(timing_json.string(), synth_json.string(), out_error);
+	seed_run sr1;
+	if (parse_seed_fmax(1, seed1_timing, sr1)) {
+		seed_runs.push_back(std::move(sr1));
+	}
+
+	// Run additional seeds (up to 5 total) as long as we are well within a 10-second budget
+	for (int seed = 2; seed <= 5; ++seed) {
+		if (total_pnr_sec >= 10.0 || (total_pnr_sec + last_seed_sec) >= 10.0) {
+			break;
+		}
+		fs::path seed_timing = fs::path(tmp_dir) / std::format("pnr_timing_seed{}.json", seed);
+		fs::remove(seed_timing, ec_rm);
+
+		auto s_start = std::chrono::steady_clock::now();
+		std::string seed_cmd = std::format("{} {} --seed {} --report {}",
+		                                   pnr_tool, pnr_args, seed, fs_utils::escape_shell_arg(seed_timing.string()));
+		fs_utils::execute_command_sync(seed_cmd);
+		auto s_end = std::chrono::steady_clock::now();
+		last_seed_sec = std::chrono::duration<double>(s_end - s_start).count();
+		total_pnr_sec += last_seed_sec;
+
+		if (fs::exists(seed_timing)) {
+			seed_run sr;
+			if (parse_seed_fmax(seed, seed_timing, sr)) {
+				seed_runs.push_back(std::move(sr));
+			}
+		}
+	}
+
+	if (seed_runs.empty()) {
+		return load_from_files(seed1_timing.string(), synth_json.string(), out_error);
+	}
+
+	std::sort(seed_runs.begin(), seed_runs.end(), [](const seed_run &a, const seed_run &b) {
+		return a.primary_fmax < b.primary_fmax;
+	});
+
+	const auto &median_run = seed_runs[seed_runs.size() / 2];
+	if (!load_from_files(median_run.timing_path.string(), synth_json.string(), out_error)) {
+		return false;
+	}
+
+	if (seed_runs.size() > 1) {
+		for (auto &cd : clock_domains_) {
+			double min_f = cd.achieved_mhz;
+			double max_f = cd.achieved_mhz;
+			for (const auto &sr : seed_runs) {
+				auto it = sr.domain_fmax.find(cd.domain_name);
+				if (it != sr.domain_fmax.end()) {
+					min_f = std::min(min_f, it->second);
+					max_f = std::max(max_f, it->second);
+				}
+			}
+			cd.min_achieved_mhz = min_f;
+			cd.max_achieved_mhz = max_f;
+			cd.seed_count = seed_runs.size();
+		}
+	}
+
+	return true;
 }
 
 std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_only, bool group_by_sink, size_t top_k, bool collapse) const
@@ -994,8 +1094,12 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 		for (const auto &cd : clock_domains_) {
 			std::string status = cd.met ? "**MET**" : "**VIOLATED**";
 			std::string slack_str = (cd.slack_ns >= 0.0) ? std::format("+{:.3f} ns", cd.slack_ns) : std::format("{:.3f} ns", cd.slack_ns);
-			md += std::format("| `{}` | {:.2f} MHz | **{:.2f} MHz** | {} | {} |\n",
-			                  cd.domain_name, cd.constraint_mhz, cd.achieved_mhz, slack_str, status);
+			std::string fmax_str = (cd.seed_count > 1)
+				? std::format("**{:.2f} MHz** (median of {} seeds: {:.2f}–{:.2f} MHz)",
+				              cd.achieved_mhz, cd.seed_count, cd.min_achieved_mhz, cd.max_achieved_mhz)
+				: std::format("**{:.2f} MHz**", cd.achieved_mhz);
+			md += std::format("| `{}` | {:.2f} MHz | {} | {} | {} |\n",
+			                  cd.domain_name, cd.constraint_mhz, fmax_str, slack_str, status);
 		}
 		md += "\n";
 	}

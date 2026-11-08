@@ -730,6 +730,8 @@ void test_verilog_pnr_timing_on_demand()
 	assert(res.find("Can't guess frontend") == std::string::npos);
 	assert(res.find("Yosys synthesis failed") == std::string::npos);
 	assert(res.find("Clock Domain & Frequency Timing") != std::string::npos);
+	assert(res.find("median of ") != std::string::npos);
+	assert(res.find("seeds:") != std::string::npos);
 }
 
 void test_net_fanout_and_distance_attribution()
