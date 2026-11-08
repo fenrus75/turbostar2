@@ -75,6 +75,8 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 	netlist_cells_.clear();
 	netlist_nets_.clear();
 	netlist_ports_.clear();
+	bit_sink_counts_.clear();
+	net_fanouts_.clear();
 	top_module_name_.clear();
 
 	if (!j.contains("modules") || !j["modules"].is_object()) {
@@ -114,6 +116,39 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 				ci.src_raw = cdata["attributes"].value("src", "");
 			}
 			netlist_cells_[cname] = std::move(ci);
+
+			// Track input port connections to compute net sink fanout
+			std::map<std::string, std::string> pdirs;
+			if (cdata.contains("port_directions") && cdata["port_directions"].is_object()) {
+				for (const auto &[pname, pdir] : cdata["port_directions"].items()) {
+					if (pdir.is_string()) {
+						pdirs[pname] = pdir.get<std::string>();
+					}
+				}
+			}
+
+			if (cdata.contains("connections") && cdata["connections"].is_object()) {
+				for (const auto &[pname, conn_val] : cdata["connections"].items()) {
+					bool is_input = false;
+					auto it_dir = pdirs.find(pname);
+					if (it_dir != pdirs.end()) {
+						is_input = (it_dir->second == "input");
+					} else {
+						is_input = (pname != "Y" && pname != "Q" && pname != "O" && pname != "CO" && pname != "COUT");
+					}
+
+					if (is_input && conn_val.is_array()) {
+						for (const auto &b_val : conn_val) {
+							if (b_val.is_number_integer()) {
+								int b = b_val.get<int>();
+								if (b >= 0) {
+									bit_sink_counts_[b]++;
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -122,6 +157,20 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 			net_info ni;
 			if (ndata.contains("attributes") && ndata["attributes"].is_object()) {
 				ni.src_raw = ndata["attributes"].value("src", "");
+			}
+			if (ndata.contains("bits") && ndata["bits"].is_array()) {
+				size_t total_fanout = 0;
+				for (const auto &b_val : ndata["bits"]) {
+					if (b_val.is_number_integer()) {
+						int b = b_val.get<int>();
+						ni.bits.push_back(b);
+						auto it = bit_sink_counts_.find(b);
+						if (it != bit_sink_counts_.end()) {
+							total_fanout += it->second;
+						}
+					}
+				}
+				net_fanouts_[nname] = total_fanout;
 			}
 			netlist_nets_[nname] = std::move(ni);
 		}
@@ -209,6 +258,23 @@ void nextpnr_timing_analyzer::parse_timing_json(const nlohmann::json &j)
 						h.to_port = hop_obj["to"].value("port", "");
 					}
 
+					if (hop_obj.contains("from") && hop_obj["from"].is_object() &&
+					    hop_obj.contains("to") && hop_obj["to"].is_object()) {
+						const auto &f_obj = hop_obj["from"];
+						const auto &t_obj = hop_obj["to"];
+						if (f_obj.contains("loc") && f_obj["loc"].is_array() && f_obj["loc"].size() == 2 &&
+						    t_obj.contains("loc") && t_obj["loc"].is_array() && t_obj["loc"].size() == 2) {
+							if (f_obj["loc"][0].is_number_integer() && f_obj["loc"][1].is_number_integer() &&
+							    t_obj["loc"][0].is_number_integer() && t_obj["loc"][1].is_number_integer()) {
+								int x1 = f_obj["loc"][0].get<int>();
+								int y1 = f_obj["loc"][1].get<int>();
+								int x2 = t_obj["loc"][0].get<int>();
+								int y2 = t_obj["loc"][1].get<int>();
+								h.distance = std::abs(x1 - x2) + std::abs(y1 - y2);
+							}
+						}
+					}
+
 					cp.total_delay_ns += h.delay_ns;
 					if (h.type == "logic") {
 						cp.logic_delay_ns += h.delay_ns;
@@ -252,6 +318,97 @@ std::string nextpnr_timing_analyzer::normalize_cell_name(std::string_view raw_ce
 		}
 	}
 	return s;
+}
+
+std::string nextpnr_timing_analyzer::normalize_net_name(std::string_view raw_net)
+{
+	if (raw_net.empty()) return "";
+
+	std::string s(raw_net);
+	std::string bit_suffix;
+
+	size_t bracket = s.rfind('[');
+	if (bracket != std::string::npos && s.ends_with(']')) {
+		bit_suffix = s.substr(bracket);
+		s = s.substr(0, bracket);
+	}
+
+	for (const auto &marker : {"_SB_", "$SB_", "$sb_"}) {
+		size_t pos = s.find(marker);
+		if (pos != std::string::npos) {
+			s = s.substr(0, pos);
+			break;
+		}
+	}
+
+	return s + bit_suffix;
+}
+
+size_t nextpnr_timing_analyzer::get_net_fanout(std::string_view net_name) const
+{
+	if (net_name.empty()) return 0;
+
+	// Exact match
+	auto it = net_fanouts_.find(std::string(net_name));
+	if (it != net_fanouts_.end()) {
+		return it->second;
+	}
+
+	// Bit index lookup e.g. "my_signal[2]"
+	size_t bracket = net_name.rfind('[');
+	if (bracket != std::string_view::npos && net_name.ends_with(']')) {
+		std::string base(net_name.substr(0, bracket));
+		std::string idx_str(net_name.substr(bracket + 1, net_name.size() - bracket - 2));
+		try {
+			size_t idx = std::stoul(idx_str);
+			auto it_net = netlist_nets_.find(base);
+			if (it_net != netlist_nets_.end() && idx < it_net->second.bits.size()) {
+				int bit_id = it_net->second.bits[idx];
+				auto it_bit = bit_sink_counts_.find(bit_id);
+				if (it_bit != bit_sink_counts_.end()) {
+					return it_bit->second;
+				}
+			}
+		} catch (...) {
+		}
+	}
+
+	// Normalized / base name lookup
+	std::string norm = normalize_net_name(net_name);
+	if (norm != net_name) {
+		auto it_norm = net_fanouts_.find(norm);
+		if (it_norm != net_fanouts_.end()) {
+			return it_norm->second;
+		}
+		size_t norm_bracket = norm.rfind('[');
+		if (norm_bracket != std::string::npos && norm.ends_with(']')) {
+			std::string norm_base = norm.substr(0, norm_bracket);
+			std::string norm_idx_str = norm.substr(norm_bracket + 1, norm.size() - norm_bracket - 2);
+			try {
+				size_t idx = std::stoul(norm_idx_str);
+				auto it_net = netlist_nets_.find(norm_base);
+				if (it_net != netlist_nets_.end() && idx < it_net->second.bits.size()) {
+					int bit_id = it_net->second.bits[idx];
+					auto it_bit = bit_sink_counts_.find(bit_id);
+					if (it_bit != bit_sink_counts_.end()) {
+						return it_bit->second;
+					}
+				}
+			} catch (...) {
+			}
+		}
+	}
+
+	// Prefix lookup against netlist_nets_
+	size_t best_len = 0;
+	size_t best_fanout = 0;
+	for (const auto &[nname, fanout] : net_fanouts_) {
+		if (net_name.starts_with(nname) && nname.size() > best_len) {
+			best_len = nname.size();
+			best_fanout = fanout;
+		}
+	}
+	return best_fanout;
 }
 
 std::string nextpnr_timing_analyzer::resolve_cell_src(std::string_view raw_cell, std::string &out_hint) const
@@ -376,6 +533,10 @@ void nextpnr_timing_analyzer::correlate_paths()
 			if ((h.cell_src_location.empty() || yosys_netlist_reader::is_library_source(h.cell_src_location)) &&
 			    !h.net_src_location.empty() && !yosys_netlist_reader::is_library_source(h.net_src_location)) {
 				h.cell_src_location = h.net_src_location;
+			}
+			if (h.type == "routing" && !h.net_name.empty()) {
+				h.clean_net = normalize_net_name(h.net_name);
+				h.fanout = get_net_fanout(h.net_name);
 			}
 		}
 	}
@@ -586,6 +747,8 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 			double routing_delay{0.0};
 			size_t luts{0};
 			std::string out_net;
+			size_t fanout{0};
+			int distance{0};
 		};
 		std::vector<stage> stages;
 
@@ -604,7 +767,11 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 					stages.back().luts++;
 				} else if (h.type == "routing") {
 					stages.back().routing_delay += h.delay_ns;
-					if (!h.net_name.empty()) stages.back().out_net = h.net_name;
+					if (!h.net_name.empty()) {
+						stages.back().out_net = h.clean_net.empty() ? h.net_name : h.clean_net;
+						stages.back().fanout = h.fanout;
+						stages.back().distance = std::max(stages.back().distance, h.distance);
+					}
 				}
 			} else {
 				stage st;
@@ -615,7 +782,9 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 					st.luts = 1;
 				} else if (h.type == "routing") {
 					st.routing_delay = h.delay_ns;
-					st.out_net = h.net_name;
+					st.out_net = h.clean_net.empty() ? h.net_name : h.clean_net;
+					st.fanout = h.fanout;
+					st.distance = h.distance;
 				}
 				stages.push_back(std::move(st));
 			}
@@ -626,13 +795,59 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 			const auto &st = stages[s_idx];
 			std::string loc_str = st.src_location.empty() ? "[interconnect]" : std::format("`{}`", st.src_location);
 			std::string hint_str = st.hint.empty() ? "" : std::format(" ({})", st.hint);
-			std::string out_str = (!st.out_net.empty() && st.out_net.find('$') == std::string::npos) ? std::format(" -> `{}`", st.out_net) : "";
+			std::string out_str;
+			if (!st.out_net.empty() && st.out_net.find('$') == std::string::npos) {
+				out_str = std::format(" -> `{}`", st.out_net);
+				if (st.fanout > 0 || st.distance > 0) {
+					std::string meta;
+					if (st.fanout > 0) {
+						meta += std::format("{} sink{}", st.fanout, st.fanout == 1 ? "" : "s");
+					}
+					if (st.distance > 0) {
+						if (!meta.empty()) meta += ", ";
+						meta += std::format("span: {} tile{}", st.distance, st.distance == 1 ? "" : "s");
+					}
+					out_str += std::format(" [{}]", meta);
+				}
+			}
 
 			chain_md += std::format("  {}. {}{} — **{:.3f} ns** ({:.3f} ns logic, {:.3f} ns routing){}\n",
 			                        s_idx + 1, loc_str, hint_str,
 			                        st.logic_delay + st.routing_delay, st.logic_delay, st.routing_delay, out_str);
 		}
 		return chain_md;
+	};
+
+	auto format_dominant_routing = [](std::span<const timing_hop> hops) -> std::string {
+		std::vector<const timing_hop *> routing_hops;
+		for (const auto &h : hops) {
+			if (h.type == "routing" && h.delay_ns > 0.05 && !h.net_name.empty()) {
+				routing_hops.push_back(&h);
+			}
+		}
+		if (routing_hops.empty()) return "";
+
+		std::sort(routing_hops.begin(), routing_hops.end(), [](const timing_hop *a, const timing_hop *b) {
+			return a->delay_ns > b->delay_ns;
+		});
+
+		std::string res = "- **Dominant Routing Delays**:\n";
+		size_t count = std::min<size_t>(3, routing_hops.size());
+		for (size_t i = 0; i < count; ++i) {
+			const auto *rh = routing_hops[i];
+			std::string n = rh->clean_net.empty() ? rh->net_name : rh->clean_net;
+			std::string meta;
+			if (rh->fanout > 0) {
+				meta += std::format("{} sink{}", rh->fanout, rh->fanout == 1 ? "" : "s");
+			}
+			if (rh->distance > 0) {
+				if (!meta.empty()) meta += ", ";
+				meta += std::format("span: {} tile{}", rh->distance, rh->distance == 1 ? "" : "s");
+			}
+			std::string meta_str = meta.empty() ? "" : std::format(" ({})", meta);
+			res += std::format("  - **{:.3f} ns** routing via `{}`{}\n", rh->delay_ns, n, meta_str);
+		}
+		return res;
 	};
 
 	if (group_by_sink) {
@@ -669,6 +884,7 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 
 				md += "- **Chain**:\n";
 				md += format_hops_chain(b.representative_hops);
+				md += format_dominant_routing(b.representative_hops);
 				md += std::format("- **End**: `{}` {}\n\n", b.endpoint, b.end_src.empty() ? "" : std::format("(`{}`)", b.end_src));
 			}
 		} else {
@@ -697,6 +913,7 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 				md += std::format("- **Start**: `{}` {}\n", p.startpoint, p.start_src.empty() ? "" : std::format("(`{}`)", p.start_src));
 				md += "- **Chain**:\n";
 				md += format_hops_chain(p.hops);
+				md += format_dominant_routing(p.hops);
 				md += std::format("- **End**: `{}` {}\n\n", p.endpoint, p.end_src.empty() ? "" : std::format("(`{}`)", p.end_src));
 			}
 		} else {

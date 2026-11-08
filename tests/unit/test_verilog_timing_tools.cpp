@@ -524,6 +524,8 @@ void test_nextpnr_timing_analyzer()
 	assert(md.find("Physical Critical Paths") != std::string::npos);
 	assert(md.find("decode_mod.sv") != std::string::npos);
 	assert(md.find("register.sv") != std::string::npos);
+	assert(md.find("Dominant Routing Delays") != std::string::npos);
+	assert(md.find("sinks") != std::string::npos);
 }
 
 void test_src_location_techmap_filtering()
@@ -670,6 +672,92 @@ void test_verilog_pnr_timing_on_demand()
 	assert(res.find("Clock Domain & Frequency Timing") != std::string::npos);
 }
 
+void test_net_fanout_and_distance_attribution()
+{
+	using verilog::nextpnr_timing_analyzer;
+
+	// 1. Test normalize_net_name
+	assert(nextpnr_timing_analyzer::normalize_net_name("cpu8008.A_reg.load_SB_LUT4_O_I0[0]") == "cpu8008.A_reg.load[0]");
+	assert(nextpnr_timing_analyzer::normalize_net_name("cpu8008.B_reg.load_SB_LUT4_O_I2[1]") == "cpu8008.B_reg.load[1]");
+	assert(nextpnr_timing_analyzer::normalize_net_name("mem_write_data[7]") == "mem_write_data[7]");
+	assert(nextpnr_timing_analyzer::normalize_net_name("carry_bit") == "carry_bit");
+
+	// 2. Netlist with fanout tracking
+	nlohmann::json netlist_json = {
+		{"modules", {
+			{"top", {
+				{"cells", {
+					{"sink_cell_1", {
+						{"type", "ICESTORM_LC"},
+						{"port_directions", {{"I0", "input"}}},
+						{"connections", {{"I0", {42}}}}
+					}},
+					{"sink_cell_2", {
+						{"type", "ICESTORM_LC"},
+						{"port_directions", {{"I1", "input"}}},
+						{"connections", {{"I1", {42}}}}
+					}},
+					{"sink_cell_3", {
+						{"type", "ICESTORM_LC"},
+						{"port_directions", {{"I2", "input"}}},
+						{"connections", {{"I2", {42}}}}
+					}}
+				}},
+				{"netnames", {
+					{"my_signal", {
+						{"bits", {42}},
+						{"attributes", {{"src", "sv/core/core.sv:50.5-50.20"}}}
+					}}
+				}}
+			}}
+		}}
+	};
+
+	nlohmann::json timing_json = {
+		{"fmax", {{"clk", {{"achieved", 50.0}, {"constraint", 40.0}}}}},
+		{"utilization", {{"LUT4", {{"used", 3}, {"available", 100}}}}},
+		{"critical_paths", nlohmann::json::array({
+			nlohmann::json::object({
+				{"from", "posedge clk"},
+				{"to", "posedge clk"},
+				{"path", nlohmann::json::array({
+					nlohmann::json::object({
+						{"type", "logic"},
+						{"delay", 0.5},
+						{"from", {{"cell", "drv_0"}, {"loc", {2, 3}}, {"port", "O"}}},
+						{"to", {{"cell", "drv_0"}, {"loc", {2, 3}}, {"port", "O"}}}
+					}),
+					nlohmann::json::object({
+						{"type", "routing"},
+						{"delay", 1.8},
+						{"net", "my_signal"},
+						{"from", {{"cell", "drv_0"}, {"loc", {2, 3}}, {"port", "O"}}},
+						{"to", {{"cell", "sink_cell_1"}, {"loc", {5, 7}}, {"port", "I0"}}}
+					})
+				})}
+			})
+		})}
+	};
+
+	nextpnr_timing_analyzer analyzer;
+	std::string err;
+	assert(analyzer.load_from_json_strings(timing_json.dump(), netlist_json.dump(), err));
+	assert(analyzer.get_net_fanout("my_signal") == 3);
+
+	const auto &paths = analyzer.critical_paths();
+	assert(!paths.empty());
+	assert(paths.front().hops.size() == 2);
+	const auto &route_hop = paths.front().hops[1];
+	assert(route_hop.type == "routing");
+	assert(route_hop.distance == 7); // |2-5| + |3-7| = 3 + 4 = 7
+	assert(route_hop.fanout == 3);
+
+	std::string md = analyzer.generate_timing_markdown(false, false, 5);
+	assert(md.find("3 sinks") != std::string::npos);
+	assert(md.find("span: 7 tiles") != std::string::npos);
+	assert(md.find("Dominant Routing Delays") != std::string::npos);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog();
@@ -685,6 +773,7 @@ int main()
 	test_verilog_project_settings_tool();
 	test_nextpnr_timing_analyzer();
 	test_src_location_techmap_filtering();
+	test_net_fanout_and_distance_attribution();
 	test_verilog_pnr_timing_tool();
 	test_verilog_pnr_timing_on_demand();
 

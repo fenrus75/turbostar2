@@ -56,10 +56,13 @@ struct timing_hop {
 	std::string to_port;
 	std::string net_name;
 
-	// Correlated RTL locations
+	// Correlated RTL locations & physical properties
 	std::string cell_src_location;
 	std::string cell_hint;
 	std::string net_src_location;
+	std::string clean_net;
+	int distance{0};
+	size_t fanout{0};
 };
 
 /**
@@ -114,6 +117,12 @@ public:
 	bool synthesize_and_route(const fpga_target_config &cfg, std::span<const std::string> sources, std::string &out_error);
 
 	// Access parsed metrics
+	// Clean and normalize synthetic net names (e.g. cpu8008.A_reg.load_SB_LUT4... -> cpu8008.A_reg.load)
+	static std::string normalize_net_name(std::string_view raw_net);
+
+	// Get fanout (sink count) of a net or bit
+	size_t get_net_fanout(std::string_view net_name) const;
+
 	const std::vector<clock_domain_timing> &clock_domains() const { return clock_domains_; }
 	const std::vector<device_resource_utilization> &utilization() const { return utilization_; }
 	const std::vector<timing_critical_path> &critical_paths() const { return critical_paths_; }
@@ -148,11 +157,14 @@ private:
 	};
 	struct net_info {
 		std::string src_raw;
+		std::vector<int> bits;
 	};
 	std::string top_module_name_;
 	std::map<std::string, cell_info> netlist_cells_;
 	std::map<std::string, net_info> netlist_nets_;
 	std::map<std::string, std::string> netlist_ports_; // port_name -> direction
+	std::map<int, size_t> bit_sink_counts_;
+	std::map<std::string, size_t> net_fanouts_;
 };
 
 } // namespace verilog
