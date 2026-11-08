@@ -1,5 +1,6 @@
 #include "plugins/verilog/netlist_graph_analyzer.h"
 #include "plugins/verilog/yosys_netlist_reader.h"
+#include "plugins/verilog/nextpnr_timing_analyzer.h"
 #include "fs_utils.h"
 
 #include <algorithm>
@@ -224,11 +225,12 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 						int bit_id = bits[i].get<int>();
 						if (bit_id > 0) {
 							std::string bit_lbl = (bits.size() > 1) ? std::format("{}[{}]", net_name, i) : net_name;
+							std::string norm_lbl = nextpnr_timing_analyzer::normalize_net_name(bit_lbl);
 							if (!bit_to_user_name_.contains(bit_id)) {
-								bit_to_user_name_[bit_id] = bit_lbl;
+								bit_to_user_name_[bit_id] = norm_lbl;
 							}
 							if (!bit_to_net_name_.contains(bit_id)) {
-								bit_to_net_name_[bit_id] = bit_lbl;
+								bit_to_net_name_[bit_id] = norm_lbl;
 							}
 							if (!clean_src.empty() && !bit_to_src_loc_.contains(bit_id)) {
 								bit_to_src_loc_[bit_id] = clean_src;
@@ -279,8 +281,9 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 						int bit_id = bits[i].get<int>();
 						if (bit_id > 0) {
 							std::string bit_lbl = (bits.size() > 1) ? std::format("{}[{}]", clean_n, i) : clean_n;
+							std::string norm_lbl = nextpnr_timing_analyzer::normalize_net_name(bit_lbl);
 							if (!bit_to_net_name_.contains(bit_id)) {
-								bit_to_net_name_[bit_id] = bit_lbl;
+								bit_to_net_name_[bit_id] = norm_lbl;
 							}
 							if (!clean_src.empty() && !bit_to_src_loc_.contains(bit_id)) {
 								bit_to_src_loc_[bit_id] = clean_src;
@@ -443,6 +446,7 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 				if (c.register_name.empty()) {
 					c.register_name = c.name;
 				}
+				c.register_name = nextpnr_timing_analyzer::normalize_net_name(c.register_name);
 			}
 
 			size_t cell_idx = cells_.size();
@@ -546,7 +550,8 @@ netlist_graph_analyzer::downstream_cache_entry netlist_graph_analyzer::compute_d
 					// Sequential data/enable/reset sink reached
 					if (0 > res.worst_reg.depth) {
 						res.worst_reg.depth = 0;
-						res.worst_reg.endpoint_name = c.register_name.empty() ? std::format("{}.{}", c.name, ref.port_name) : c.register_name;
+						std::string ep_reg = c.register_name.empty() ? std::format("{}.{}", c.name, ref.port_name) : c.register_name;
+						res.worst_reg.endpoint_name = nextpnr_timing_analyzer::normalize_net_name(ep_reg);
 						res.worst_reg.end_kind = endpoint_kind::register_cell;
 						res.worst_reg.end_src = c.register_src.empty() ? format_src_loc(c.src_raw) : c.register_src;
 					}
@@ -837,7 +842,8 @@ void netlist_graph_analyzer::analyze_paths()
 				}
 
 				auto down = compute_downstream(q_bit);
-				std::string reg_name = c.register_name.empty() ? std::format("{}.{}[{}]", c.name, pname, pin_idx) : c.register_name;
+				std::string raw_reg_name = c.register_name.empty() ? std::format("{}.{}[{}]", c.name, pname, pin_idx) : c.register_name;
+				std::string reg_name = nextpnr_timing_analyzer::normalize_net_name(raw_reg_name);
 				std::string reg_src = c.register_src.empty() ? format_src_loc(c.src_raw) : c.register_src;
 
 				if (down.worst_reg.depth >= 0) {
@@ -1110,13 +1116,23 @@ std::string netlist_graph_analyzer::compact_signal_names(std::span<const std::st
 	std::vector<entry> groups;
 
 	for (const auto &name : names) {
-		size_t b_open = name.find('[');
-		size_t b_close = name.rfind(']');
-		int idx = -1;
-		std::string base = name;
+		std::string norm_name = nextpnr_timing_analyzer::normalize_net_name(name);
+		if (norm_name.empty()) {
+			continue;
+		}
+		if (norm_name.starts_with('$') || norm_name.starts_with("wire_") ||
+		    norm_name.starts_with("new_n") || norm_name.starts_with("SB_") ||
+		    norm_name.starts_with("_SB_")) {
+			continue;
+		}
 
-		if (b_open != std::string::npos && b_close == name.size() - 1 && b_close > b_open + 1) {
-			std::string idx_str = name.substr(b_open + 1, b_close - b_open - 1);
+		size_t b_open = norm_name.find('[');
+		size_t b_close = norm_name.rfind(']');
+		int idx = -1;
+		std::string base = norm_name;
+
+		if (b_open != std::string::npos && b_close == norm_name.size() - 1 && b_close > b_open + 1) {
+			std::string idx_str = norm_name.substr(b_open + 1, b_close - b_open - 1);
 			bool all_digits = !idx_str.empty();
 			for (char c : idx_str) {
 				if (c < '0' || c > '9') {
@@ -1126,7 +1142,7 @@ std::string netlist_graph_analyzer::compact_signal_names(std::span<const std::st
 			}
 			if (all_digits) {
 				idx = std::stoi(idx_str);
-				base = name.substr(0, b_open);
+				base = norm_name.substr(0, b_open);
 			}
 		}
 
@@ -1207,13 +1223,19 @@ std::string netlist_graph_analyzer::format_source_ranges(std::span<const source_
 	std::vector<group_info> groups;
 
 	for (const auto &s : sources) {
-		size_t b_open = s.name.find('[');
-		size_t b_close = s.name.rfind(']');
-		int idx = -1;
-		std::string base = s.name;
+		std::string norm_name = nextpnr_timing_analyzer::normalize_net_name(s.name);
+		if (norm_name.empty()) {
+			continue;
+		}
+		std::string norm_src = nextpnr_timing_analyzer::clean_display_location(s.src_location);
 
-		if (b_open != std::string::npos && b_close == s.name.size() - 1 && b_close > b_open + 1) {
-			std::string idx_str = s.name.substr(b_open + 1, b_close - b_open - 1);
+		size_t b_open = norm_name.find('[');
+		size_t b_close = norm_name.rfind(']');
+		int idx = -1;
+		std::string base = norm_name;
+
+		if (b_open != std::string::npos && b_close == norm_name.size() - 1 && b_close > b_open + 1) {
+			std::string idx_str = norm_name.substr(b_open + 1, b_close - b_open - 1);
 			bool all_digits = !idx_str.empty();
 			for (char c : idx_str) {
 				if (c < '0' || c > '9') {
@@ -1223,18 +1245,18 @@ std::string netlist_graph_analyzer::format_source_ranges(std::span<const source_
 			}
 			if (all_digits) {
 				idx = std::stoi(idx_str);
-				base = s.name.substr(0, b_open);
+				base = norm_name.substr(0, b_open);
 			}
 		}
 
 		auto it = std::find_if(groups.begin(), groups.end(), [&](const group_info &g) {
-			return g.base == base && g.src_location == s.src_location;
+			return g.base == base && g.src_location == norm_src;
 		});
 
 		if (it == groups.end()) {
 			group_info g;
 			g.base = base;
-			g.src_location = s.src_location;
+			g.src_location = norm_src;
 			if (idx >= 0) {
 				g.indices.push_back(idx);
 			} else {

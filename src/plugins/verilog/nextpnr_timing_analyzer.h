@@ -1,6 +1,7 @@
 #pragma once
 
 #include "plugins/verilog/fpga_project_settings.h"
+#include "plugins/verilog/yosys_netlist_reader.h"
 
 #include <string>
 #include <string_view>
@@ -118,9 +119,13 @@ public:
 
 	// Access parsed metrics
 	// Clean and normalize synthetic net names (e.g. cpu8008.A_reg.load_SB_LUT4... -> cpu8008.A_reg.load)
-	static std::string normalize_net_name(std::string_view raw_net);
+	static std::string normalize_net_name(std::string_view raw_net) {
+		return yosys_netlist_reader::normalize_net_name(raw_net);
+	}
 	// Format source location for concise display (strips techmap line numbers e.g. cells_map.v:26-27 -> cells_map.v)
-	static std::string clean_display_location(std::string_view loc);
+	static std::string clean_display_location(std::string_view loc) {
+		return yosys_netlist_reader::clean_display_location(loc);
+	}
 
 	// Get fanout (sink count) of a net or bit
 	size_t get_net_fanout(std::string_view net_name) const;

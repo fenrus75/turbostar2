@@ -178,7 +178,12 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 						while (!sub.empty() && sub.front() == ' ') sub.erase(sub.begin());
 						while (!sub.empty() && sub.back() == ' ') sub.pop_back();
 						if (!sub.empty()) {
-							token_hints.push_back(sub);
+							std::string norm_sub = verilog::nextpnr_timing_analyzer::normalize_net_name(sub);
+							if (!norm_sub.empty() && norm_sub.find('$') == std::string::npos &&
+							    !norm_sub.starts_with("wire_") && !norm_sub.starts_with("new_n") &&
+							    !norm_sub.starts_with("SB_") && !norm_sub.starts_with("_SB_")) {
+								token_hints.push_back(norm_sub);
+							}
 						}
 						if (comma == std::string::npos) break;
 						pos = comma + 1;
@@ -217,35 +222,43 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 			std::string top_unit = (args_.target_mode == "Generic Gates") ? ((top.depth == 1) ? "gate" : "gates") : ((top.depth == 1) ? "LUT" : "LUTs");
 			if (top.sources.size() > 1) {
 				paths_md += std::format("**Critical Path Summary**: {}, {} {} (converging on `{}` from {} source signals)\n\n",
-				                        top_cats, top.depth, top_unit, top.endpoint, top.sources.size());
+				                        top_cats, top.depth, top_unit,
+				                        verilog::nextpnr_timing_analyzer::normalize_net_name(top.endpoint),
+				                        top.sources.size());
 			} else if (top.sources.size() == 1) {
 				paths_md += std::format("**Critical Path Summary**: {}, {} {} (from `{}` to `{}`)\n\n",
-				                        top_cats, top.depth, top_unit, top.sources.front().name, top.endpoint);
+				                        top_cats, top.depth, top_unit,
+				                        verilog::nextpnr_timing_analyzer::normalize_net_name(top.sources.front().name),
+				                        verilog::nextpnr_timing_analyzer::normalize_net_name(top.endpoint));
 			}
 
 			for (size_t i = 0; i < bottlenecks.size(); ++i) {
 				const auto &b = bottlenecks[i];
 				std::string cat_str = format_cats(b.categories);
 				std::string depth_unit = (args_.target_mode == "Generic Gates") ? ((b.depth == 1) ? "gate" : "gates") : ((b.depth == 1) ? "LUT" : "LUTs");
+				std::string norm_b_endpoint = verilog::nextpnr_timing_analyzer::normalize_net_name(b.endpoint);
 
 				if (b.sources.size() > 1) {
 					paths_md += std::format("### Path #{} [{}] Depth: {} {} — Converging on `{}`\n",
-					                        i + 1, cat_str, b.depth, depth_unit, b.endpoint);
+					                        i + 1, cat_str, b.depth, depth_unit, norm_b_endpoint);
 					std::string src_list = verilog::netlist_graph_analyzer::format_source_ranges(b.sources);
 					paths_md += std::format("- **Sources** ({} source bits, all converge here): {}\n",
 					                        b.sources.size(), src_list);
 				} else if (b.sources.size() == 1) {
 					paths_md += std::format("### Path #{} [{}] Depth: {} {}\n", i + 1, cat_str, b.depth, depth_unit);
-					paths_md += std::format("- **Start**: `{}` {}\n", b.sources.front().name,
-					                        b.sources.front().src_location.empty() ? "" : std::format("(`{}`)", b.sources.front().src_location));
+					std::string start_src = verilog::nextpnr_timing_analyzer::clean_display_location(b.sources.front().src_location);
+					paths_md += std::format("- **Start**: `{}` {}\n",
+					                        verilog::nextpnr_timing_analyzer::normalize_net_name(b.sources.front().name),
+					                        start_src.empty() ? "" : std::format("(`{}`)", start_src));
 				} else {
 					paths_md += std::format("### Path #{} [{}] Depth: {} {}\n", i + 1, cat_str, b.depth, depth_unit);
 				}
 
 				paths_md += format_hops_chain(b.hops);
 
-				paths_md += std::format("- **End**: `{}` {}\n", b.endpoint,
-				                        b.end_src.empty() ? "" : std::format("(`{}`)", b.end_src));
+				std::string end_src = verilog::nextpnr_timing_analyzer::clean_display_location(b.end_src);
+				paths_md += std::format("- **End**: `{}` {}\n", norm_b_endpoint,
+				                        end_src.empty() ? "" : std::format("(`{}`)", end_src));
 				if (!b.note.empty()) {
 					paths_md += std::format("  > Note: {}\n", b.note);
 				}
@@ -261,21 +274,28 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 			std::string top_cat_str = format_cat(top.category);
 			std::string top_unit = (args_.target_mode == "Generic Gates") ? ((top.depth == 1) ? "gate" : "gates") : ((top.depth == 1) ? "LUT" : "LUTs");
 			paths_md += std::format("**Critical Path Summary**: {}, {} {} (from `{}` to `{}`)\n\n",
-			                        top_cat_str, top.depth, top_unit, top.startpoint, top.endpoint);
+			                        top_cat_str, top.depth, top_unit,
+			                        verilog::nextpnr_timing_analyzer::normalize_net_name(top.startpoint),
+			                        verilog::nextpnr_timing_analyzer::normalize_net_name(top.endpoint));
 
 			for (size_t i = 0; i < worst_paths.size(); ++i) {
 				const auto &p = worst_paths[i];
 				std::string cat_str = format_cat(p.category);
 				std::string depth_unit = (args_.target_mode == "Generic Gates") ? ((p.depth == 1) ? "gate" : "gates") : ((p.depth == 1) ? "LUT" : "LUTs");
 
+				std::string norm_start = verilog::nextpnr_timing_analyzer::normalize_net_name(p.startpoint);
+				std::string norm_end = verilog::nextpnr_timing_analyzer::normalize_net_name(p.endpoint);
+				std::string start_src = verilog::nextpnr_timing_analyzer::clean_display_location(p.start_src);
+				std::string end_src = verilog::nextpnr_timing_analyzer::clean_display_location(p.end_src);
+
 				paths_md += std::format("### Path #{} [{}] Depth: {} {}\n", i + 1, cat_str, p.depth, depth_unit);
-				paths_md += std::format("- **Start**: `{}` {}\n", p.startpoint,
-				                        p.start_src.empty() ? "" : std::format("(`{}`)", p.start_src));
+				paths_md += std::format("- **Start**: `{}` {}\n", norm_start,
+				                        start_src.empty() ? "" : std::format("(`{}`)", start_src));
 
 				paths_md += format_hops_chain(p.hops);
 
-				paths_md += std::format("- **End**: `{}` {}\n", p.endpoint,
-				                        p.end_src.empty() ? "" : std::format("(`{}`)", p.end_src));
+				paths_md += std::format("- **End**: `{}` {}\n", norm_end,
+				                        end_src.empty() ? "" : std::format("(`{}`)", end_src));
 				if (!p.note.empty()) {
 					paths_md += std::format("  > Note: {}\n", p.note);
 				}

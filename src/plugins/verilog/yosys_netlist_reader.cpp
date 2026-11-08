@@ -1,4 +1,5 @@
 #include "yosys_netlist_reader.h"
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <format>
@@ -70,6 +71,45 @@ bool yosys_netlist_reader::is_library_source(std::string_view s)
 	       s.find("techmap.v") != std::string_view::npos ||
 	       s.find("simlib.v") != std::string_view::npos ||
 	       s.find("simcells.v") != std::string_view::npos;
+}
+
+std::string yosys_netlist_reader::normalize_net_name(std::string_view raw_net)
+{
+	if (raw_net.empty()) return "";
+
+	std::string s(raw_net);
+	std::string bit_suffix;
+
+	size_t bracket = s.rfind('[');
+	if (bracket != std::string::npos && s.ends_with(']')) {
+		bit_suffix = s.substr(bracket);
+		s = s.substr(0, bracket);
+	}
+
+	for (const auto &marker : {"_SB_", "$SB_", "$sb_"}) {
+		size_t pos = s.find(marker);
+		if (pos != std::string::npos && pos > 0) {
+			s = s.substr(0, pos);
+			break;
+		}
+	}
+
+	while (s.size() > 1 && (s.back() == '_' || s.back() == '.')) {
+		s.pop_back();
+	}
+
+	return s + bit_suffix;
+}
+
+std::string yosys_netlist_reader::clean_display_location(std::string_view loc)
+{
+	if (loc.empty()) return "";
+	if (is_library_source(loc)) {
+		size_t colon = loc.find(':');
+		std::string_view file_part = (colon != std::string_view::npos) ? loc.substr(0, colon) : loc;
+		return std::filesystem::path(file_part).filename().string();
+	}
+	return std::string(loc);
 }
 
 std::string yosys_netlist_reader::clean_src_location(std::string_view raw_src)

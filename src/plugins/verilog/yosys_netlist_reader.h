@@ -60,6 +60,12 @@ public:
 	// Returns true if a location points to internal techmap or cell library sources (e.g. cells_map.v)
 	static bool is_library_source(std::string_view s);
 
+	// Clean and normalize synthetic net names (e.g. cpu8008.A_reg.load_SB_LUT4... -> cpu8008.A_reg.load)
+	static std::string normalize_net_name(std::string_view raw_net);
+
+	// Format source location for concise display (strips techmap line numbers e.g. cells_map.v:26-27 -> cells_map.v)
+	static std::string clean_display_location(std::string_view loc);
+
 	// Format trace as a token-efficient markdown block for LLMs
 	static std::string format_trace_summary(const signal_source_trace &trace);
 

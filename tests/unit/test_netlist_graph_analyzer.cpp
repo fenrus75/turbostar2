@@ -258,6 +258,29 @@ void test_compact_signal_formatting()
 	std::string formatted = netlist_graph_analyzer::format_source_ranges(srcs);
 	assert(formatted.find("`input1[2:0]` (`alu.sv:4`)") != std::string::npos);
 	assert(formatted.find("`carry_in` (`alu.sv:19-24`)") != std::string::npos);
+
+	// Test demangling of synthetic / techmapped signal names in compact_signal_names
+	std::vector<std::string> mangled_sigs = {
+		"alu.carry_SB_DFFER_D_E_SB_DFFER_E_2_Q[0]",
+		"alu.carry_SB_DFFER_D_E_SB_DFFER_E_3_Q[1]",
+		"alu.carry_SB_DFFER_D_E_SB_DFFER_E_4_Q[2]",
+		"A_reg.load_value_SB_LUT4_O_1_I1_SB_LUT4_O_1_I1_SB_LUT4_O_1_I3_SB_LUT4_O_I2_SB_LUT4_I2_I3_SB_LUT4_I2_I3[0]",
+		"A_reg.load_value_SB_LUT4_O_1_I1_SB_LUT4_O_1_I1_SB_LUT4_O_1_I3_SB_LUT4_O_I2_SB_LUT4_I2_I3_SB_LUT4_I2_I3[1]"
+	};
+	std::string compacted_mangled = netlist_graph_analyzer::compact_signal_names(mangled_sigs);
+	assert(compacted_mangled.find("`alu.carry[2:0]`") != std::string::npos);
+	assert(compacted_mangled.find("`A_reg.load_value[1:0]`") != std::string::npos);
+	assert(compacted_mangled.find("SB_") == std::string::npos);
+
+	// Test demangling of synthetic / techmapped source signals in format_source_ranges
+	std::vector<verilog::source_signal_info> mangled_srcs = {
+		{"alu.carry_SB_DFFER_D_E_SB_DFFER_E_2_Q[0]", "alu.sv:45", verilog::path_category::reg_to_reg},
+		{"alu.carry_SB_DFFER_D_E_SB_DFFER_E_3_Q[1]", "alu.sv:45", verilog::path_category::reg_to_reg},
+		{"alu.carry_SB_DFFER_D_E_SB_DFFER_E_4_Q[2]", "alu.sv:45", verilog::path_category::reg_to_reg}
+	};
+	std::string formatted_mangled = netlist_graph_analyzer::format_source_ranges(mangled_srcs);
+	assert(formatted_mangled.find("`alu.carry[2:0]` (`alu.sv:45`)") != std::string::npos);
+	assert(formatted_mangled.find("SB_") == std::string::npos);
 }
 
 int main()

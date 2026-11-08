@@ -321,44 +321,7 @@ std::string nextpnr_timing_analyzer::normalize_cell_name(std::string_view raw_ce
 	return s;
 }
 
-std::string nextpnr_timing_analyzer::normalize_net_name(std::string_view raw_net)
-{
-	if (raw_net.empty()) return "";
 
-	std::string s(raw_net);
-	std::string bit_suffix;
-
-	size_t bracket = s.rfind('[');
-	if (bracket != std::string::npos && s.ends_with(']')) {
-		bit_suffix = s.substr(bracket);
-		s = s.substr(0, bracket);
-	}
-
-	for (const auto &marker : {"_SB_", "$SB_", "$sb_"}) {
-		size_t pos = s.find(marker);
-		if (pos != std::string::npos) {
-			s = s.substr(0, pos);
-			break;
-		}
-	}
-
-	while (s.size() > 1 && (s.back() == '_' || s.back() == '.')) {
-		s.pop_back();
-	}
-
-	return s + bit_suffix;
-}
-
-std::string nextpnr_timing_analyzer::clean_display_location(std::string_view loc)
-{
-	if (loc.empty()) return "";
-	if (yosys_netlist_reader::is_library_source(loc)) {
-		size_t colon = loc.find(':');
-		std::string_view file_part = (colon != std::string_view::npos) ? loc.substr(0, colon) : loc;
-		return std::filesystem::path(file_part).filename().string();
-	}
-	return std::string(loc);
-}
 
 size_t nextpnr_timing_analyzer::get_net_fanout(std::string_view net_name) const
 {
