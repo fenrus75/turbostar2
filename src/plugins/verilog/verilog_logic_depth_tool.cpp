@@ -116,10 +116,39 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 		return s;
 	};
 
+	auto is_carry_cell = [](std::string_view cell_type) -> bool {
+		return cell_type.find("CARRY") != std::string_view::npos ||
+		       cell_type.find("CCU2") != std::string_view::npos;
+	};
+
+	auto format_depth_breakdown = [&](size_t depth, std::span<const verilog::path_hop> hops) -> std::string {
+		if (target_mode == "Generic Gates") {
+			return (depth == 1) ? "1 gate" : std::format("{} gates", depth);
+		}
+		size_t carry_hops = 0;
+		size_t lut_hops = 0;
+		for (const auto &h : hops) {
+			if (is_carry_cell(h.cell_type)) {
+				carry_hops++;
+			} else {
+				lut_hops++;
+			}
+		}
+		if (carry_hops > 0 && lut_hops > 0) {
+			return std::format("{} ({} {} + {} carry)", depth, lut_hops, (lut_hops == 1) ? "LUT" : "LUTs", carry_hops);
+		}
+		if (carry_hops > 0) {
+			return std::format("{} ({} carry)", depth, carry_hops);
+		}
+		return (depth == 1) ? "1 LUT" : std::format("{} LUTs", depth);
+	};
+
 	auto format_hops_chain = [&](std::span<const verilog::path_hop> hops) -> std::string {
 		struct collapsed_stage {
 			std::string src_location;
 			size_t count{0};
+			size_t lut_count{0};
+			size_t carry_count{0};
 			std::vector<std::string> input_hints;
 			std::string out_net;
 		};
@@ -127,6 +156,7 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 
 		for (const auto &hop : hops) {
 			std::string hop_loc = verilog::nextpnr_timing_analyzer::clean_display_location(hop.src_location);
+			bool is_carry = is_carry_cell(hop.cell_type);
 			bool can_merge = false;
 			if (!stages.empty()) {
 				if (!hop_loc.empty() && stages.back().src_location == hop_loc) {
@@ -138,6 +168,11 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 
 			if (can_merge) {
 				stages.back().count++;
+				if (is_carry) {
+					stages.back().carry_count++;
+				} else {
+					stages.back().lut_count++;
+				}
 				if (!hop.input_hints.empty()) {
 					stages.back().input_hints.push_back(hop.input_hints);
 				}
@@ -148,6 +183,11 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 				collapsed_stage st;
 				st.src_location = hop_loc;
 				st.count = 1;
+				if (is_carry) {
+					st.carry_count = 1;
+				} else {
+					st.lut_count = 1;
+				}
 				if (!hop.input_hints.empty()) {
 					st.input_hints.push_back(hop.input_hints);
 				}
@@ -160,8 +200,12 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 		for (size_t s_idx = 0; s_idx < stages.size(); ++s_idx) {
 			const auto &st = stages[s_idx];
 			std::string stage_units;
-			if (args_.target_mode == "Generic Gates") {
+			if (target_mode == "Generic Gates") {
 				stage_units = (st.count == 1) ? "1 gate" : std::format("{} gates", st.count);
+			} else if (st.carry_count > 0 && st.lut_count > 0) {
+				stage_units = std::format("{} {} + {} carry", st.lut_count, (st.lut_count == 1) ? "LUT" : "LUTs", st.carry_count);
+			} else if (st.carry_count > 0) {
+				stage_units = std::format("{} carry", st.carry_count);
 			} else {
 				stage_units = (st.count == 1) ? "1 LUT" : std::format("{} LUTs", st.count);
 			}
@@ -210,7 +254,6 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 	};
 
 	std::string paths_md;
-	std::string unit_str = (args_.target_mode == "Generic Gates") ? "gates" : "LUTs";
 
 	if (args_.group_by_sink) {
 		auto bottlenecks = analyzer.get_worst_bottlenecks(std::nullopt, args_.top_k);
@@ -219,15 +262,15 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 
 			const auto &top = bottlenecks.front();
 			std::string top_cats = format_cats(top.categories);
-			std::string top_unit = (args_.target_mode == "Generic Gates") ? ((top.depth == 1) ? "gate" : "gates") : ((top.depth == 1) ? "LUT" : "LUTs");
+			std::string top_depth_str = format_depth_breakdown(top.depth, top.hops);
 			if (top.sources.size() > 1) {
-				paths_md += std::format("**Critical Path Summary**: {}, {} {} (converging on `{}` from {} source signals)\n\n",
-				                        top_cats, top.depth, top_unit,
+				paths_md += std::format("**Critical Path Summary**: {}, {} (converging on `{}` from {} source signals)\n\n",
+				                        top_cats, top_depth_str,
 				                        verilog::nextpnr_timing_analyzer::normalize_net_name(top.endpoint),
 				                        top.sources.size());
 			} else if (top.sources.size() == 1) {
-				paths_md += std::format("**Critical Path Summary**: {}, {} {} (from `{}` to `{}`)\n\n",
-				                        top_cats, top.depth, top_unit,
+				paths_md += std::format("**Critical Path Summary**: {}, {} (from `{}` to `{}`)\n\n",
+				                        top_cats, top_depth_str,
 				                        verilog::nextpnr_timing_analyzer::normalize_net_name(top.sources.front().name),
 				                        verilog::nextpnr_timing_analyzer::normalize_net_name(top.endpoint));
 			}
@@ -235,23 +278,23 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 			for (size_t i = 0; i < bottlenecks.size(); ++i) {
 				const auto &b = bottlenecks[i];
 				std::string cat_str = format_cats(b.categories);
-				std::string depth_unit = (args_.target_mode == "Generic Gates") ? ((b.depth == 1) ? "gate" : "gates") : ((b.depth == 1) ? "LUT" : "LUTs");
+				std::string depth_str = format_depth_breakdown(b.depth, b.hops);
 				std::string norm_b_endpoint = verilog::nextpnr_timing_analyzer::normalize_net_name(b.endpoint);
 
 				if (b.sources.size() > 1) {
-					paths_md += std::format("### Path #{} [{}] Depth: {} {} — Converging on `{}`\n",
-					                        i + 1, cat_str, b.depth, depth_unit, norm_b_endpoint);
+					paths_md += std::format("### Path #{} [{}] Depth: {} — Converging on `{}`\n",
+					                        i + 1, cat_str, depth_str, norm_b_endpoint);
 					std::string src_list = verilog::netlist_graph_analyzer::format_source_ranges(b.sources);
 					paths_md += std::format("- **Sources** ({} source bits, all converge here): {}\n",
 					                        b.sources.size(), src_list);
 				} else if (b.sources.size() == 1) {
-					paths_md += std::format("### Path #{} [{}] Depth: {} {}\n", i + 1, cat_str, b.depth, depth_unit);
+					paths_md += std::format("### Path #{} [{}] Depth: {}\n", i + 1, cat_str, depth_str);
 					std::string start_src = verilog::nextpnr_timing_analyzer::clean_display_location(b.sources.front().src_location);
 					paths_md += std::format("- **Start**: `{}` {}\n",
 					                        verilog::nextpnr_timing_analyzer::normalize_net_name(b.sources.front().name),
 					                        start_src.empty() ? "" : std::format("(`{}`)", start_src));
 				} else {
-					paths_md += std::format("### Path #{} [{}] Depth: {} {}\n", i + 1, cat_str, b.depth, depth_unit);
+					paths_md += std::format("### Path #{} [{}] Depth: {}\n", i + 1, cat_str, depth_str);
 				}
 
 				paths_md += format_hops_chain(b.hops);
@@ -272,23 +315,23 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 
 			const auto &top = worst_paths.front();
 			std::string top_cat_str = format_cat(top.category);
-			std::string top_unit = (args_.target_mode == "Generic Gates") ? ((top.depth == 1) ? "gate" : "gates") : ((top.depth == 1) ? "LUT" : "LUTs");
-			paths_md += std::format("**Critical Path Summary**: {}, {} {} (from `{}` to `{}`)\n\n",
-			                        top_cat_str, top.depth, top_unit,
+			std::string top_depth_str = format_depth_breakdown(top.depth, top.hops);
+			paths_md += std::format("**Critical Path Summary**: {}, {} (from `{}` to `{}`)\n\n",
+			                        top_cat_str, top_depth_str,
 			                        verilog::nextpnr_timing_analyzer::normalize_net_name(top.startpoint),
 			                        verilog::nextpnr_timing_analyzer::normalize_net_name(top.endpoint));
 
 			for (size_t i = 0; i < worst_paths.size(); ++i) {
 				const auto &p = worst_paths[i];
 				std::string cat_str = format_cat(p.category);
-				std::string depth_unit = (args_.target_mode == "Generic Gates") ? ((p.depth == 1) ? "gate" : "gates") : ((p.depth == 1) ? "LUT" : "LUTs");
+				std::string depth_str = format_depth_breakdown(p.depth, p.hops);
 
 				std::string norm_start = verilog::nextpnr_timing_analyzer::normalize_net_name(p.startpoint);
 				std::string norm_end = verilog::nextpnr_timing_analyzer::normalize_net_name(p.endpoint);
 				std::string start_src = verilog::nextpnr_timing_analyzer::clean_display_location(p.start_src);
 				std::string end_src = verilog::nextpnr_timing_analyzer::clean_display_location(p.end_src);
 
-				paths_md += std::format("### Path #{} [{}] Depth: {} {}\n", i + 1, cat_str, p.depth, depth_unit);
+				paths_md += std::format("### Path #{} [{}] Depth: {}\n", i + 1, cat_str, depth_str);
 				paths_md += std::format("- **Start**: `{}` {}\n", norm_start,
 				                        start_src.empty() ? "" : std::format("(`{}`)", start_src));
 

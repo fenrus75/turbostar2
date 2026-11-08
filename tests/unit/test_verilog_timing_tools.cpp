@@ -155,6 +155,8 @@ void test_verilog_logic_depth_execution()
 			std::string res_def = tool_def->execute(ctx_def);
 			assert(res_def.find("# Timing: `main`") != std::string::npos);
 			assert(res_def.find("iCE40") != std::string::npos);
+			assert(res_def.find("LUTs + ") != std::string::npos);
+			assert(res_def.find("carry)") != std::string::npos);
 
 			std::filesystem::remove_all(tmp_prj, ec_sym);
 		}
