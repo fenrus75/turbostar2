@@ -1,8 +1,9 @@
-// Tested source file: src/plugins/verilog/verilog_logic_depth_tool.cpp, src/plugins/verilog/verilog_update_timing_tool.cpp
+// Tested source file: src/plugins/verilog/verilog_logic_depth_tool.cpp, src/plugins/verilog/verilog_update_timing_tool.cpp, src/plugins/verilog/verilog_module_scanner.cpp
 #include "plugins/verilog/verilog_logic_depth_tool.h"
 #include "plugins/verilog/verilog_logic_depth_validator.h"
 #include "plugins/verilog/verilog_update_timing_tool.h"
 #include "plugins/verilog/verilog_update_timing_validator.h"
+#include "plugins/verilog/verilog_module_scanner.h"
 #include "fs_utils.h"
 #include "unit/test_watchdog.h"
 
@@ -240,15 +241,97 @@ void test_verilog_update_timing_execution()
 	std::filesystem::remove_all(tmp_dir, ec);
 }
 
+void test_verilog_module_scanner()
+{
+	using verilog::verilog_module_scanner;
+	// Ignored file test
+	assert(verilog_module_scanner::is_ignored_file("foo.sv~"));
+	assert(verilog_module_scanner::is_ignored_file("foo.sv.bak"));
+	assert(verilog_module_scanner::is_ignored_file("tb_top.sv"));
+	assert(verilog_module_scanner::is_ignored_file("alu_tb.v"));
+	assert(verilog_module_scanner::is_ignored_file("tests/testbench/my_mod.sv"));
+	assert(!verilog_module_scanner::is_ignored_file("src/alu.sv"));
+	assert(!verilog_module_scanner::is_ignored_file("core.v"));
+
+	// Comment stripping test
+	std::string code = "module my_mod; // line comment\n"
+	                   "/* block\ncomment */\n"
+	                   "string s = \"// not a comment /* neither */\";\n"
+	                   "endmodule";
+	std::string stripped = verilog_module_scanner::strip_comments(code);
+	assert(stripped.find("line comment") == std::string::npos);
+	assert(stripped.find("block") == std::string::npos);
+	assert(stripped.find("// not a comment") != std::string::npos);
+
+	// Test module discovery
+	std::string tmp_dir = std::format("tests/unit/tmp_test_mod_scan_{}", (long)getpid());
+	std::filesystem::create_directories(tmp_dir);
+	std::string sv_file = tmp_dir + "/sample.sv";
+	{
+		std::ofstream ofs(sv_file);
+		ofs << "// module commented_out(input a);\n";
+		ofs << "module alpha(input a, output b); endmodule\n";
+		ofs << "module beta(input c, output d); endmodule\n";
+	}
+
+	std::vector<std::string> files = {sv_file};
+	auto mods = verilog_module_scanner::discover_modules_in_files(files);
+	assert(mods.size() == 2);
+	assert(mods[0].module_name == "alpha");
+	assert(mods[0].sidecar_path == tmp_dir + "/alpha.timing.md");
+	assert(mods[1].module_name == "beta");
+	assert(mods[1].sidecar_path == tmp_dir + "/beta.timing.md");
+
+	std::vector<std::string> out_files;
+	auto scanned = verilog_module_scanner::scan(tmp_dir, out_files);
+	assert(scanned.size() == 2);
+	assert(out_files.size() == 1);
+
+	std::error_code ec;
+	std::filesystem::remove_all(tmp_dir, ec);
+}
+
+void test_standalone_verilog_update_timing_cli()
+{
+	std::string cli_bin = "build/turbostar-verilog-update-timing";
+	if (!std::filesystem::exists(cli_bin)) {
+		return;
+	}
+	// Test --help
+	std::string help_out = fs_utils::execute_command_sync(cli_bin + " --help");
+	assert(help_out.find("TurboStar Verilog Timing Sidecar Updater") != std::string::npos);
+
+	// Test dry-run on synthetic directory
+	std::string tmp_dir = std::format("tests/unit/tmp_test_vut_cli_{}", (long)getpid());
+	std::filesystem::create_directories(tmp_dir);
+	std::string sv_file = tmp_dir + "/simple_mod.sv";
+	{
+		std::ofstream ofs(sv_file);
+		ofs << "module simple_mod(input clk, input d, output reg q);\n"
+		       "  always @(posedge clk) q <= d;\n"
+		       "endmodule\n";
+	}
+
+	std::string run_cmd = std::format("{} {} --dry-run", cli_bin, tmp_dir);
+	std::string out = fs_utils::execute_command_sync(run_cmd);
+	assert(out.find("simple_mod") != std::string::npos);
+	assert(out.find("DRY-RUN") != std::string::npos);
+
+	std::error_code ec;
+	std::filesystem::remove_all(tmp_dir, ec);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog();
 	std::cout << "Testing verilog logic depth and update timing tools..." << std::endl;
 
+	test_verilog_module_scanner();
 	test_verilog_logic_depth_validator();
 	test_verilog_logic_depth_execution();
 	test_verilog_update_timing_validator();
 	test_verilog_update_timing_execution();
+	test_standalone_verilog_update_timing_cli();
 
 	std::cout << "All verilog timing tool tests passed successfully!" << std::endl;
 	return 0;

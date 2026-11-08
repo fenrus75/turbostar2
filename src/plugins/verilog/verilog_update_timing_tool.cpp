@@ -1,8 +1,8 @@
 #include "plugins/verilog/verilog_update_timing_tool.h"
 #include "plugins/verilog/netlist_graph_analyzer.h"
+#include "plugins/verilog/verilog_module_scanner.h"
 #include "fs_utils.h"
 
-#include <ctre.hpp>
 #include <filesystem>
 #include <fstream>
 #include <format>
@@ -10,110 +10,6 @@
 
 namespace tools
 {
-
-struct module_discovery_entry {
-	std::string module_name;
-	std::string source_file;
-};
-
-static bool is_ignored_file(const std::filesystem::path &p)
-{
-	std::string fname = p.filename().string();
-	if (fname.ends_with('~') || fname.ends_with(".bak") || fname.ends_with(".org") ||
-	    fname.ends_with(".twoport") || fname.ends_with(".orig") || fname.starts_with(".#") ||
-	    fname.starts_with('.')) {
-		return true;
-	}
-	for (const auto &part : p) {
-		std::string s = part.string();
-		if (s == ".git" || s == ".antigravitycli" || s == ".turbostar" || s == "build" || s == "obj_dir") {
-			return true;
-		}
-	}
-	return false;
-}
-
-static std::string strip_comments(std::string_view code)
-{
-	std::string out;
-	out.reserve(code.size());
-	bool in_line_comment = false;
-	bool in_block_comment = false;
-	bool in_string = false;
-
-	for (size_t i = 0; i < code.size(); ++i) {
-		char c = code[i];
-		char next = (i + 1 < code.size()) ? code[i + 1] : '\0';
-
-		if (in_line_comment) {
-			if (c == '\n') {
-				in_line_comment = false;
-				out.push_back('\n');
-			}
-		} else if (in_block_comment) {
-			if (c == '*' && next == '/') {
-				in_block_comment = false;
-				++i;
-				out.push_back(' ');
-			} else if (c == '\n') {
-				out.push_back('\n');
-			}
-		} else if (in_string) {
-			out.push_back(c);
-			if (c == '\\' && next != '\0') {
-				out.push_back(next);
-				++i;
-			} else if (c == '"') {
-				in_string = false;
-			}
-		} else {
-			if (c == '/' && next == '/') {
-				in_line_comment = true;
-				++i;
-			} else if (c == '/' && next == '*') {
-				in_block_comment = true;
-				++i;
-			} else if (c == '"') {
-				in_string = true;
-				out.push_back(c);
-			} else {
-				out.push_back(c);
-			}
-		}
-	}
-	return out;
-}
-
-static std::vector<module_discovery_entry> discover_modules_in_files(const std::vector<std::string> &files)
-{
-	std::vector<module_discovery_entry> results;
-	for (const auto &fpath : files) {
-		std::ifstream ifs(fpath);
-		if (!ifs.is_open()) {
-			continue;
-		}
-
-		std::string raw_content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-		std::string clean_content = strip_comments(raw_content);
-
-		// Search for module <name>
-		const char *start = clean_content.data();
-		const char *end = clean_content.data() + clean_content.size();
-
-		while (start < end) {
-			auto match = ctre::search<R"(\bmodule\s+([a-zA-Z_][a-zA-Z_0-9]*)\b)">(start, end);
-			if (!match) {
-				break;
-			}
-			std::string mod_name = match.get<1>().to_string();
-			if (mod_name != "endmodule" && mod_name != "begin" && mod_name != "task" && mod_name != "function") {
-				results.push_back({std::move(mod_name), fpath});
-			}
-			start = match.data() + match.size();
-		}
-	}
-	return results;
-}
 
 verilog_update_timing_tool::verilog_update_timing_tool(verilog_update_timing_args args)
 	: agentlib::llm_tool_action(std::format("Updating timing sidecars in {}", args.requested_path)),
@@ -130,24 +26,7 @@ std::string verilog_update_timing_tool::execute(agentlib::tool_context &ctx)
 {
 	std::vector<std::string> sv_files;
 	try {
-		std::filesystem::path root(args_.safe_path);
-		if (std::filesystem::is_regular_file(root)) {
-			if (!is_ignored_file(root)) {
-				sv_files.push_back(args_.safe_path);
-			}
-		} else if (std::filesystem::is_directory(root)) {
-			for (const auto &entry : std::filesystem::recursive_directory_iterator(root)) {
-				if (entry.is_regular_file()) {
-					if (is_ignored_file(entry.path())) {
-						continue;
-					}
-					auto ext = entry.path().extension().string();
-					if (ext == ".sv" || ext == ".v") {
-						sv_files.push_back(entry.path().string());
-					}
-				}
-			}
-		}
+		sv_files = verilog::verilog_module_scanner::find_synthesizable_files(args_.safe_path);
 	} catch (const std::exception &e) {
 		set_failure(ctx, e.what());
 		return std::format("Error scanning directory '{}': {}", args_.safe_path, e.what());
@@ -158,7 +37,7 @@ std::string verilog_update_timing_tool::execute(agentlib::tool_context &ctx)
 		return std::format("No Verilog/SystemVerilog files found in '{}'", args_.safe_path);
 	}
 
-	auto declared_modules = discover_modules_in_files(sv_files);
+	auto declared_modules = verilog::verilog_module_scanner::discover_modules_in_files(sv_files);
 	if (declared_modules.empty()) {
 		set_failure(ctx);
 		return std::format("No module declarations found in {} scanned files in '{}'", sv_files.size(), args_.safe_path);
@@ -189,11 +68,7 @@ std::string verilog_update_timing_tool::execute(agentlib::tool_context &ctx)
 
 		update_stat st;
 		st.module_name = decl.module_name;
-
-		// Sidecar path in same directory as declaration
-		std::filesystem::path src_p(decl.source_file);
-		std::filesystem::path sidecar_p = src_p.parent_path() / (decl.module_name + ".timing.md");
-		st.sidecar_path = sidecar_p.string();
+		st.sidecar_path = decl.sidecar_path;
 
 		if (!loaded) {
 			st.success = false;

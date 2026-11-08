@@ -111,6 +111,7 @@ Turbostar installs multi-call symlinks in `bin/` (`turboagent`, `turboserver`, `
       - `testrun/turbomcp --help` (Stdio MCP server protocol mode)
       - `build/turbostar-crashprocess --help` (Out-of-process crash reporting daemon)
       - `build/turbostar-semcode-indexer --help` (Semantic code indexer)
+      - `build/turbostar-verilog-update-timing --help` (Verilog timing sidecar updater)
 
 ---
 
@@ -177,6 +178,7 @@ Coverage data is collected from `build_acov` (ASAN + gcov):
       - `usr/local/bin/turbomcp` (symlink -> `turbostar`)
       - `usr/local/bin/turbostar-crashprocess`
       - `usr/local/bin/turbostar-semcode-indexer`
+      - `usr/local/bin/turbostar-verilog-update-timing`
       - `usr/local/libexec/turbostar/libturbocatch.so`
       ```bash
       rm -rf "$TMP_DEST"
