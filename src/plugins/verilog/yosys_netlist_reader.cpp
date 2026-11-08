@@ -93,6 +93,14 @@ std::string yosys_netlist_reader::normalize_net_name(std::string_view raw_net)
 		}
 	}
 
+	size_t bram_pos = s.find(".0.");
+	if (bram_pos != std::string::npos && bram_pos > 0 && bram_pos + 3 < s.size() &&
+	    std::isdigit(static_cast<unsigned char>(s[bram_pos + 3]))) {
+		if (best_pos == std::string::npos || bram_pos < best_pos) {
+			best_pos = bram_pos;
+		}
+	}
+
 	if (best_pos != std::string::npos) {
 		s = s.substr(0, best_pos);
 	}

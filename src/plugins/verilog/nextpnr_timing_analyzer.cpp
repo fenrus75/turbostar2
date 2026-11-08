@@ -79,6 +79,8 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 	netlist_cells_.clear();
 	netlist_nets_.clear();
 	net_alias_map_.clear();
+	lut_to_packed_dff_.clear();
+	dff_to_reg_name_.clear();
 	netlist_ports_.clear();
 	bit_sink_counts_.clear();
 	net_fanouts_.clear();
@@ -114,6 +116,9 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 	}
 
 	std::map<int, std::string> bit_driver_file;
+	std::map<int, std::string> bit_to_dff_d;
+	std::map<std::string, std::vector<int>> dff_q_bits;
+	std::map<std::string, int> lut_o_bit;
 	auto extract_src_file = [](std::string_view raw) -> std::string {
 		if (raw.empty()) {
 			return "";
@@ -136,6 +141,8 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 			}
 			std::string c_file = extract_src_file(ci.src_raw);
 			bool valid_c_file = !c_file.empty() && !yosys_netlist_reader::is_library_source(c_file);
+			bool is_dff = (ci.type.find("DFF") != std::string::npos);
+			bool is_lut = (ci.type.find("LUT") != std::string::npos);
 			netlist_cells_[cname] = std::move(ci);
 
 			// Track input port connections to compute net sink fanout
@@ -165,8 +172,18 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 								if (b >= 0) {
 									if (is_input) {
 										bit_sink_counts_[b]++;
-									} else if (valid_c_file) {
-										bit_driver_file[b] = c_file;
+										if (is_dff && pname == "D") {
+											bit_to_dff_d[b] = cname;
+										}
+									} else {
+										if (valid_c_file) {
+											bit_driver_file[b] = c_file;
+										}
+										if (is_dff && pname == "Q") {
+											dff_q_bits[cname].push_back(b);
+										} else if (is_lut && pname == "O") {
+											lut_o_bit[cname] = b;
+										}
 									}
 								}
 							}
@@ -212,10 +229,8 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 		}
 	}
 
+	std::map<int, std::string> bit_to_user_net;
 	for (const auto &[bits, candidates] : bits_to_user_nets) {
-		if (candidates.size() <= 1) {
-			continue;
-		}
 		std::string drv_file;
 		for (int b : bits) {
 			if (b > 0 && bit_driver_file.contains(b)) {
@@ -233,8 +248,30 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 				return score_cand(a) < score_cand(b);
 			});
 		const std::string &best_name = best_it->first;
-		for (const auto &[cand_name, cand_file] : candidates) {
-			net_alias_map_[cand_name] = best_name;
+		if (candidates.size() > 1) {
+			for (const auto &[cand_name, cand_file] : candidates) {
+				net_alias_map_[cand_name] = best_name;
+			}
+		}
+		for (int b : bits) {
+			if (b > 0 && !bit_to_user_net.contains(b)) {
+				bit_to_user_net[b] = best_name;
+			}
+		}
+	}
+
+	for (const auto &[dff_name, q_bits] : dff_q_bits) {
+		for (int b : q_bits) {
+			if (b > 0 && bit_to_user_net.contains(b)) {
+				dff_to_reg_name_[dff_name] = bit_to_user_net[b];
+				break;
+			}
+		}
+	}
+
+	for (const auto &[lut_name, o_bit] : lut_o_bit) {
+		if (o_bit > 0 && bit_sink_counts_[o_bit] == 1 && bit_to_dff_d.contains(o_bit)) {
+			lut_to_packed_dff_[lut_name] = bit_to_dff_d[o_bit];
 		}
 	}
 }
@@ -244,6 +281,7 @@ void nextpnr_timing_analyzer::parse_timing_json(const nlohmann::json &j)
 	clock_domains_.clear();
 	utilization_.clear();
 	critical_paths_.clear();
+	detailed_endpoints_.clear();
 
 	// Parse fmax
 	if (j.contains("fmax") && j["fmax"].is_object()) {
@@ -368,6 +406,56 @@ void nextpnr_timing_analyzer::parse_timing_json(const nlohmann::json &j)
 			critical_paths_.push_back(std::move(cp));
 		}
 	}
+
+	double default_setup_ns = 0.0;
+	for (const auto &cp : critical_paths_) {
+		if (cp.path_type == timing_path_type::reg_to_reg && cp.setup_delay_ns > 0.0) {
+			default_setup_ns = cp.setup_delay_ns;
+			break;
+		}
+	}
+
+	// Parse detailed_net_timings for multi-endpoint Top-K visibility
+	if (j.contains("detailed_net_timings") && j["detailed_net_timings"].is_array()) {
+		for (const auto &item : j["detailed_net_timings"]) {
+			if (!item.is_object()) continue;
+			std::string drv_cell = (item.contains("driver") && item["driver"].is_string()) ? item["driver"].get<std::string>() : "";
+			std::string net_name = (item.contains("net") && item["net"].is_string()) ? item["net"].get<std::string>() : "";
+			std::string net_event = (item.contains("event") && item["event"].is_string()) ? item["event"].get<std::string>() : "";
+			if (!item.contains("endpoints") || !item["endpoints"].is_array()) continue;
+
+			for (const auto &ep : item["endpoints"]) {
+				if (!ep.is_object()) continue;
+				std::string ep_cell = (ep.contains("cell") && ep["cell"].is_string()) ? ep["cell"].get<std::string>() : "";
+				std::string ep_port = (ep.contains("port") && ep["port"].is_string()) ? ep["port"].get<std::string>() : "";
+				std::string ep_event = (ep.contains("event") && ep["event"].is_string()) ? ep["event"].get<std::string>() : net_event;
+				double arrival_ns = 0.0;
+				if (ep.contains("delay")) {
+					if (ep["delay"].is_number()) {
+						arrival_ns = ep["delay"].get<double>();
+					} else if (ep["delay"].is_array()) {
+						for (const auto &d_val : ep["delay"]) {
+							if (d_val.is_number()) {
+								arrival_ns = std::max(arrival_ns, d_val.get<double>());
+							}
+						}
+					}
+				}
+				if (ep_cell.empty() || arrival_ns <= 0.0) continue;
+
+				bool to_clk = ep_event.starts_with("posedge ") || ep_event.starts_with("negedge ");
+				timing_endpoint_summary tes;
+				tes.raw_endpoint_cell = ep_cell;
+				tes.raw_driver_cell = drv_cell;
+				tes.raw_net_name = net_name;
+				tes.port = ep_port;
+				tes.path_type = to_clk ? timing_path_type::reg_to_reg : timing_path_type::reg_to_out;
+				tes.total_delay_ns = arrival_ns + (to_clk ? default_setup_ns : 0.0);
+				tes.implied_fmax_mhz = (tes.total_delay_ns > 0.0) ? (1000.0 / tes.total_delay_ns) : 0.0;
+				detailed_endpoints_.push_back(std::move(tes));
+			}
+		}
+	}
 }
 
 std::string nextpnr_timing_analyzer::normalize_cell_name(std::string_view raw_cell)
@@ -472,7 +560,7 @@ std::string nextpnr_timing_analyzer::resolve_alias(std::string_view net_name) co
 	return s;
 }
 
-std::string nextpnr_timing_analyzer::resolve_cell_src(std::string_view raw_cell, std::string &out_hint) const
+std::string nextpnr_timing_analyzer::resolve_cell_src(std::string_view raw_cell, std::string &out_hint, bool is_endpoint) const
 {
 	std::string cand = normalize_cell_name(raw_cell);
 	out_hint = cand;
@@ -516,10 +604,19 @@ std::string nextpnr_timing_analyzer::resolve_cell_src(std::string_view raw_cell,
 		}
 	}
 
+	if (is_endpoint && !matched_cell.empty() && lut_to_packed_dff_.contains(matched_cell)) {
+		matched_cell = lut_to_packed_dff_.at(matched_cell);
+		cand = matched_cell;
+	}
+
 	std::string src;
 	if (!matched_cell.empty()) {
 		const auto &ci = netlist_cells_.at(matched_cell);
 		src = yosys_netlist_reader::clean_src_location(ci.src_raw);
+		if (dff_to_reg_name_.contains(matched_cell)) {
+			out_hint = resolve_alias(normalize_net_name(dff_to_reg_name_.at(matched_cell)));
+			return src;
+		}
 		if (ci.type.find("DFF") != std::string::npos) {
 			std::string inferred = yosys_netlist_reader::infer_register_from_src(ci.src_raw, cand, netlist_dir_);
 			if (!inferred.empty()) {
@@ -589,20 +686,20 @@ void nextpnr_timing_analyzer::correlate_paths()
 {
 	for (auto &cp : critical_paths_) {
 		std::string hint;
-		cp.start_src = resolve_cell_src(cp.startpoint, hint);
+		cp.start_src = resolve_cell_src(cp.startpoint, hint, /*is_endpoint=*/false);
 		if (!hint.empty() && hint != normalize_cell_name(cp.startpoint)) {
 			cp.startpoint = hint;
 		}
 		cp.startpoint = resolve_alias(normalize_net_name(cp.startpoint));
 
-		cp.end_src = resolve_cell_src(cp.endpoint, hint);
+		cp.end_src = resolve_cell_src(cp.endpoint, hint, /*is_endpoint=*/true);
 		if (!hint.empty() && hint != normalize_cell_name(cp.endpoint)) {
 			cp.endpoint = hint;
 		}
 		cp.endpoint = resolve_alias(normalize_net_name(cp.endpoint));
 
 		for (auto &h : cp.hops) {
-			h.cell_src_location = resolve_cell_src(h.to_cell.empty() ? h.from_cell : h.to_cell, h.cell_hint);
+			h.cell_src_location = resolve_cell_src(h.to_cell.empty() ? h.from_cell : h.to_cell, h.cell_hint, /*is_endpoint=*/false);
 			h.cell_hint = resolve_alias(normalize_net_name(h.cell_hint));
 			h.net_src_location = resolve_net_src(h.net_name);
 			if ((h.cell_src_location.empty() || yosys_netlist_reader::is_library_source(h.cell_src_location)) &&
@@ -614,6 +711,27 @@ void nextpnr_timing_analyzer::correlate_paths()
 				h.fanout = get_net_fanout(h.net_name);
 			}
 		}
+	}
+
+	for (auto &tes : detailed_endpoints_) {
+		std::string hint;
+		tes.end_src = resolve_cell_src(tes.raw_endpoint_cell, hint, /*is_endpoint=*/true);
+		if (!hint.empty() && hint != normalize_cell_name(tes.raw_endpoint_cell)) {
+			tes.endpoint = hint;
+		} else {
+			tes.endpoint = tes.raw_endpoint_cell;
+		}
+		tes.endpoint = resolve_alias(normalize_net_name(tes.endpoint));
+
+		std::string drv_hint;
+		tes.driver_src = resolve_cell_src(tes.raw_driver_cell, drv_hint, /*is_endpoint=*/false);
+		std::string n_src = resolve_net_src(tes.raw_net_name);
+		if ((tes.driver_src.empty() || yosys_netlist_reader::is_library_source(tes.driver_src)) &&
+		    !n_src.empty() && !yosys_netlist_reader::is_library_source(n_src)) {
+			tes.driver_src = n_src;
+		}
+		tes.clean_net = resolve_alias(normalize_net_name(tes.raw_net_name));
+		tes.fanout = get_net_fanout(tes.raw_net_name);
 	}
 }
 
@@ -679,6 +797,88 @@ std::vector<timing_bottleneck_group> nextpnr_timing_analyzer::get_sink_grouped_b
 	if (result.size() > top_k) {
 		result.resize(top_k);
 	}
+	return result;
+}
+
+std::vector<timing_endpoint_summary> nextpnr_timing_analyzer::get_top_endpoint_timings(bool reg_to_reg_only, bool group_by_sink, size_t top_k) const
+{
+	std::vector<timing_endpoint_summary> sorted_eps;
+	for (const auto &ep : detailed_endpoints_) {
+		if (reg_to_reg_only && ep.path_type != timing_path_type::reg_to_reg) {
+			continue;
+		}
+		sorted_eps.push_back(ep);
+	}
+
+	std::sort(sorted_eps.begin(), sorted_eps.end(), [](const timing_endpoint_summary &a, const timing_endpoint_summary &b) {
+		if (std::abs(a.total_delay_ns - b.total_delay_ns) > 1e-6) {
+			return a.total_delay_ns > b.total_delay_ns;
+		}
+		return a.endpoint < b.endpoint;
+	});
+
+	auto strip_bit = [](std::string_view s) -> std::string {
+		size_t b = s.rfind('[');
+		if (b != std::string_view::npos && s.ends_with(']')) {
+			return std::string(s.substr(0, b));
+		}
+		return std::string(s);
+	};
+
+	auto leaf_name = [](std::string_view s) -> std::string {
+		size_t d = s.rfind('.');
+		return (d != std::string_view::npos) ? std::string(s.substr(d + 1)) : std::string(s);
+	};
+
+	std::vector<timing_endpoint_summary> result;
+	if (group_by_sink) {
+		std::set<std::string> seen_endpoints;
+		for (auto &ep : sorted_eps) {
+			std::string base_ep = strip_bit(ep.endpoint);
+			if (seen_endpoints.contains(base_ep)) {
+				continue;
+			}
+			seen_endpoints.insert(base_ep);
+			ep.endpoint = base_ep;
+
+			// Check if an existing result entry represents a sibling submodule instance
+			// (same RTL source declaration and same leaf register name and same driving net base)
+			bool merged_sibling = false;
+			if (!ep.end_src.empty() && !yosys_netlist_reader::is_library_source(ep.end_src)) {
+				std::string ep_leaf = leaf_name(ep.endpoint);
+				std::string ep_net_base = strip_bit(ep.clean_net);
+				for (auto &existing : result) {
+					if (existing.end_src == ep.end_src &&
+					    leaf_name(existing.endpoint) == ep_leaf &&
+					    strip_bit(existing.clean_net) == ep_net_base) {
+						existing.sibling_endpoints.push_back(ep.endpoint);
+						merged_sibling = true;
+						break;
+					}
+				}
+			}
+
+			if (!merged_sibling) {
+				result.push_back(std::move(ep));
+				if (result.size() >= top_k) {
+					break;
+				}
+			}
+		}
+	} else {
+		std::set<std::string> seen_cells;
+		for (auto &ep : sorted_eps) {
+			if (seen_cells.contains(ep.raw_endpoint_cell)) {
+				continue;
+			}
+			seen_cells.insert(ep.raw_endpoint_cell);
+			result.push_back(std::move(ep));
+			if (result.size() >= top_k) {
+				break;
+			}
+		}
+	}
+
 	return result;
 }
 
@@ -1058,6 +1258,49 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 		return res;
 	};
 
+	auto append_additional_endpoints = [&](size_t start_num, std::set<std::string> &printed_endpoints) {
+		if (start_num >= top_k) return;
+		auto extra_eps = get_top_endpoint_timings(reg_to_reg_only, group_by_sink, top_k + start_num);
+		size_t path_num = start_num;
+		for (const auto &ep : extra_eps) {
+			if (path_num >= top_k) break;
+			if (printed_endpoints.contains(ep.endpoint)) continue;
+			printed_endpoints.insert(ep.endpoint);
+			path_num++;
+
+			std::string sib_str;
+			if (!ep.sibling_endpoints.empty()) {
+				sib_str = " (+ ";
+				for (size_t s = 0; s < ep.sibling_endpoints.size(); ++s) {
+					if (s > 0) sib_str += ", ";
+					sib_str += std::format("`{}`", ep.sibling_endpoints[s]);
+				}
+				sib_str += ")";
+			}
+
+			md += std::format("### Path #{} [Reg -> Reg] Delay: **{:.3f} ns** (Implied Fmax: **{:.2f} MHz**) — Converging on `{}`{}\n",
+			                  path_num, ep.total_delay_ns, ep.implied_fmax_mhz, ep.endpoint, sib_str);
+			if (!ep.clean_net.empty()) {
+				std::string drv_loc = clean_display_location(ep.driver_src);
+				std::string meta;
+				if (!drv_loc.empty()) meta += std::format("`{}`", drv_loc);
+				if (ep.fanout > 0) {
+					if (!meta.empty()) meta += ", ";
+					meta += std::format("{} sink{}", ep.fanout, ep.fanout == 1 ? "" : "s");
+				}
+				md += std::format("- **Final Net**: `{}`{}\n", ep.clean_net, meta.empty() ? "" : std::format(" ({})", meta));
+			}
+			std::string ep_loc = clean_display_location(ep.end_src);
+			std::string end_meta;
+			if (!ep_loc.empty()) end_meta += std::format("`{}`", ep_loc);
+			if (!ep.port.empty()) {
+				if (!end_meta.empty()) end_meta += ", ";
+				end_meta += std::format("port `{}`", ep.port);
+			}
+			md += std::format("- **End**: `{}`{}\n\n", ep.endpoint, end_meta.empty() ? "" : std::format(" ({})", end_meta));
+		}
+	};
+
 	if (group_by_sink) {
 		auto bottlenecks = get_sink_grouped_bottlenecks(reg_to_reg_only, top_k);
 		if (!bottlenecks.empty()) {
@@ -1071,8 +1314,10 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 			                  top.worst_delay_ns, top.worst_logic_delay_ns, logic_pct, top.worst_routing_delay_ns, routing_pct,
 			                  top.endpoint, top.sources.size());
 
+			std::set<std::string> printed_endpoints;
 			for (size_t i = 0; i < bottlenecks.size(); ++i) {
 				const auto &b = bottlenecks[i];
+				printed_endpoints.insert(b.endpoint);
 				double b_l_pct = (b.worst_delay_ns > 0.0) ? (b.worst_logic_delay_ns / b.worst_delay_ns) * 100.0 : 0.0;
 				double b_r_pct = (b.worst_delay_ns > 0.0) ? (b.worst_routing_delay_ns / b.worst_delay_ns) * 100.0 : 0.0;
 
@@ -1096,6 +1341,7 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 				std::string b_end_src = clean_display_location(b.end_src);
 				md += std::format("- **End**: `{}` {}\n\n", b.endpoint, b_end_src.empty() ? "" : std::format("(`{}`)", b_end_src));
 			}
+			append_additional_endpoints(bottlenecks.size(), printed_endpoints);
 		} else {
 			md += "*No paths found matching filter criteria.*\n";
 		}
@@ -1112,8 +1358,10 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 			                  top.total_delay_ns, top.logic_delay_ns, logic_pct, top.routing_delay_ns, routing_pct,
 			                  top.startpoint, top.endpoint);
 
+			std::set<std::string> printed_endpoints;
 			for (size_t i = 0; i < paths.size(); ++i) {
 				const auto &p = paths[i];
+				printed_endpoints.insert(p.endpoint);
 				double p_l_pct = (p.total_delay_ns > 0.0) ? (p.logic_delay_ns / p.total_delay_ns) * 100.0 : 0.0;
 				double p_r_pct = (p.total_delay_ns > 0.0) ? (p.routing_delay_ns / p.total_delay_ns) * 100.0 : 0.0;
 
@@ -1127,6 +1375,7 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 				std::string p_end_src = clean_display_location(p.end_src);
 				md += std::format("- **End**: `{}` {}\n\n", p.endpoint, p_end_src.empty() ? "" : std::format("(`{}`)", p_end_src));
 			}
+			append_additional_endpoints(paths.size(), printed_endpoints);
 		} else {
 			md += "*No paths found matching filter criteria.*\n";
 		}

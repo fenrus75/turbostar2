@@ -98,6 +98,25 @@ struct timing_bottleneck_group {
 };
 
 /**
+ * @brief Summary of an additional sequential endpoint bottleneck from detailed_net_timings.
+ */
+struct timing_endpoint_summary {
+	std::string raw_endpoint_cell;
+	std::string endpoint;
+	std::string end_src;
+	std::vector<std::string> sibling_endpoints;
+	std::string raw_driver_cell;
+	std::string driver_src;
+	std::string raw_net_name;
+	std::string clean_net;
+	std::string port;
+	timing_path_type path_type{timing_path_type::reg_to_reg};
+	double total_delay_ns{0.0};
+	double implied_fmax_mhz{0.0};
+	size_t fanout{0};
+};
+
+/**
  * @brief Analyzer for nextpnr place-and-route timing and utilization reports.
  *
  * Correlates physical cells and nets in timing.json against Yosys netlist JSON
@@ -140,6 +159,9 @@ public:
 	// Group paths by bottleneck sink endpoint
 	std::vector<timing_bottleneck_group> get_sink_grouped_bottlenecks(bool reg_to_reg_only = true, size_t top_k = 5) const;
 
+	// Get top distinct endpoint bottlenecks from detailed_net_timings
+	std::vector<timing_endpoint_summary> get_top_endpoint_timings(bool reg_to_reg_only = true, bool group_by_sink = true, size_t top_k = 5) const;
+
 	// Format complete timing analysis report in Markdown
 	std::string generate_timing_markdown(bool reg_to_reg_only = true, bool group_by_sink = true, size_t top_k = 5, bool collapse = true) const;
 
@@ -149,7 +171,7 @@ private:
 	void parse_netlist_json(const nlohmann::json &j);
 	void correlate_paths();
 
-	std::string resolve_cell_src(std::string_view raw_cell, std::string &out_hint) const;
+	std::string resolve_cell_src(std::string_view raw_cell, std::string &out_hint, bool is_endpoint = false) const;
 	std::string resolve_net_src(std::string_view raw_net) const;
 	std::string resolve_alias(std::string_view net_name) const;
 	static std::string normalize_cell_name(std::string_view raw_cell);
@@ -158,6 +180,7 @@ private:
 	std::vector<clock_domain_timing> clock_domains_;
 	std::vector<device_resource_utilization> utilization_;
 	std::vector<timing_critical_path> critical_paths_;
+	std::vector<timing_endpoint_summary> detailed_endpoints_;
 
 	// Netlist cache for correlation
 	struct cell_info {
@@ -172,6 +195,8 @@ private:
 	std::map<std::string, cell_info> netlist_cells_;
 	std::map<std::string, net_info> netlist_nets_;
 	std::map<std::string, std::string> net_alias_map_;
+	std::map<std::string, std::string> lut_to_packed_dff_;
+	std::map<std::string, std::string> dff_to_reg_name_;
 	std::map<std::string, std::string> netlist_ports_; // port_name -> direction
 	std::map<int, size_t> bit_sink_counts_;
 	std::map<std::string, size_t> net_fanouts_;

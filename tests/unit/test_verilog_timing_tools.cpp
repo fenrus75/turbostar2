@@ -556,11 +556,18 @@ void test_nextpnr_timing_analyzer()
 	assert(bottlenecks.size() == 1);
 	assert(bottlenecks.front().endpoint.find("C_reg") != std::string::npos);
 
-	// 5. Generate Markdown
-	std::string md = analyzer.generate_timing_markdown(true, true, 3);
+	// 5. Generate Markdown (with top_k = 5, should include Path #2 .. #5 from detailed_net_timings)
+	std::string md = analyzer.generate_timing_markdown(true, true, 5);
 	assert(md.find("Clock Domain & Frequency Timing") != std::string::npos);
 	assert(md.find("Hardware Resource Utilization") != std::string::npos);
 	assert(md.find("Physical Critical Paths") != std::string::npos);
+	assert(md.find("### Path #1") != std::string::npos);
+	assert(md.find("### Path #2") != std::string::npos);
+	assert(md.find("### Path #3") != std::string::npos);
+	assert(md.find("### Path #4") != std::string::npos);
+	assert(md.find("### Path #5") != std::string::npos);
+	assert(md.find("flags") != std::string::npos);
+	assert(md.find("current_ip") != std::string::npos);
 	assert(md.find("decode_mod.sv") != std::string::npos);
 	assert(md.find("register.sv") != std::string::npos);
 	assert(md.find("Dominant Routing Delays") != std::string::npos);
