@@ -11,3 +11,4 @@ Key capabilities:
 ## Lessons Learned
 - In multi-turn agent debugging sessions, setting signal labels once drastically reduces token redundancy in subsequent `vcd_wave` invocations while keeping waveform tables readable.
 - Centralizing signal pattern matching via `vcd_label_manager::signal_pattern_matches()` allows both `find_label()` and validation tools (`vcd_signal_labels`) to share identical matching semantics for leaf names, hierarchy wildcards (`uut.*.A_val`), and suffix matching.
+- Agents frequently re-register broader or narrower glob patterns (e.g. `*opcode*` after `*opcode`) when refining decodings mid-session. Removing conflicting hex value keys from overlapping patterns on registration and ranking matching patterns by literal specificity prevents stale earlier bindings from shadowing newer labels.

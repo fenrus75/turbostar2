@@ -1429,6 +1429,48 @@ int main()
 		assert(cache.size() == 0);
 	}
 
+	// 20. Test overlapping label pattern override (*opcode vs *opcode*) and stale VCD warning
+	{
+		auto &lbl_mgr = verilog::vcd_label_manager::get_instance();
+		lbl_mgr.clear_all();
+
+		std::string tmp_dir = std::format("tests/fixtures/tmp_stale_vcd_{}", (long)getpid());
+		std::filesystem::create_directories(tmp_dir);
+		std::string stale_vcd = tmp_dir + "/dump.vcd";
+		std::filesystem::copy_file(vcd_path, stale_vcd, std::filesystem::copy_options::overwrite_existing);
+
+		bool saved = false;
+		std::string msg;
+		lbl_mgr.set_labels(stale_vcd, "*opcode", {{"0x36", "LDI"}}, false, saved, msg);
+		assert(lbl_mgr.find_label(stale_vcd, "tb_main.uut.opcode", "0x36") == "LDI");
+
+		// Register broader overlapping pattern *opcode* with updated label for 0x36
+		lbl_mgr.set_labels(stale_vcd, "*opcode*", {{"0x36", "LLI"}}, false, saved, msg);
+		assert(lbl_mgr.find_label(stale_vcd, "tb_main.uut.opcode", "0x36") == "LLI");
+
+		// Backdate VCD mtime by 60 seconds and create a newer .sv file in the same directory
+		auto now_ft = std::filesystem::file_time_type::clock::now();
+		std::filesystem::last_write_time(stale_vcd, now_ft - std::chrono::seconds(60));
+		std::string newer_sv = tmp_dir + "/alu.sv";
+		{
+			std::ofstream ofs(newer_sv);
+			ofs << "module alu; endmodule\n";
+		}
+
+		tools::vcd_file_info_validator info_val;
+		nlohmann::json stale_args = {{"path", stale_vcd}};
+		std::string err;
+		assert(info_val.validate_args(stale_args, global_ctx, err));
+		auto stale_tool = info_val.create_tool(stale_args);
+		std::string stale_out = stale_tool->execute(global_ctx);
+		assert(stale_out.find("[!WARNING]") != std::string::npos);
+		assert(stale_out.find("alu.sv") != std::string::npos);
+
+		std::error_code ec_rm;
+		std::filesystem::remove_all(tmp_dir, ec_rm);
+		lbl_mgr.clear_all();
+	}
+
 	// Clean up any test sidecars created during tests
 	std::filesystem::remove(vcd_path + ".labels.json");
 	std::filesystem::remove("tests/fixtures/test_dump_org.vcd.labels.json");

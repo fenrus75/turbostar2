@@ -84,4 +84,66 @@ size_t vcd_parser_cache::size() const
 	return entries_.size();
 }
 
+std::string vcd_parser_cache::check_stale_rtl_warning(std::string_view safe_vcd_path, std::string_view display_vcd_path)
+{
+	std::error_code ec;
+	auto vcd_mtime = std::filesystem::last_write_time(safe_vcd_path, ec);
+	if (ec) {
+		return "";
+	}
+
+	std::filesystem::path vcd_p(safe_vcd_path);
+	std::filesystem::path parent_dir = vcd_p.parent_path();
+	if (parent_dir.empty()) {
+		parent_dir = ".";
+	}
+
+	std::vector<std::filesystem::path> scan_dirs = {parent_dir};
+	if (std::filesystem::exists(parent_dir / "sv", ec) && std::filesystem::is_directory(parent_dir / "sv", ec)) {
+		scan_dirs.push_back(parent_dir / "sv");
+	}
+	if (parent_dir.has_parent_path()) {
+		auto sib_sv = parent_dir.parent_path() / "sv";
+		if (std::filesystem::exists(sib_sv, ec) && std::filesystem::is_directory(sib_sv, ec)) {
+			scan_dirs.push_back(sib_sv);
+		}
+	}
+
+	std::filesystem::file_time_type newest_mtime = vcd_mtime;
+	std::string newest_rtl;
+
+	for (const auto &dir : scan_dirs) {
+		std::filesystem::recursive_directory_iterator it(
+			dir, std::filesystem::directory_options::skip_permission_denied, ec);
+		std::filesystem::recursive_directory_iterator end;
+		while (!ec && it != end) {
+			if (it.depth() > 2) {
+				it.disable_recursion_pending();
+			} else if (it->is_directory(ec)) {
+				std::string dname = it->path().filename().string();
+				if (dname.starts_with(".") || dname == "build" || dname == "subprojects") {
+					it.disable_recursion_pending();
+				}
+			} else if (it->is_regular_file(ec)) {
+				auto ext = it->path().extension().string();
+				if (ext == ".sv" || ext == ".v") {
+					auto f_mtime = it->last_write_time(ec);
+					if (!ec && f_mtime > newest_mtime) {
+						newest_mtime = f_mtime;
+						newest_rtl = it->path().filename().string();
+					}
+				}
+			}
+			it.increment(ec);
+		}
+	}
+
+	if (!newest_rtl.empty()) {
+		std::string shown_vcd = display_vcd_path.empty() ? vcd_p.filename().string() : std::string(display_vcd_path);
+		return std::format("> [!WARNING] Stale VCD: RTL source file `{}` was modified more recently than `{}`. Re-run simulation to update the waveform.\n\n",
+		                   newest_rtl, shown_vcd);
+	}
+	return "";
+}
+
 } // namespace verilog

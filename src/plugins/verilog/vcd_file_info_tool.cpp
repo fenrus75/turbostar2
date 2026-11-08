@@ -29,6 +29,7 @@ std::string vcd_file_info_tool::execute(agentlib::tool_context &ctx)
 	const auto &parser = *parser_ptr;
 
 	std::ostringstream ss;
+	ss << verilog::vcd_parser_cache::check_stale_rtl_warning(args_.safe_path, args_.requested_path);
 	ss << std::format("### VCD File Information: `{}`\n\n", args_.requested_path);
 	if (!parser.get_version().empty()) {
 		ss << std::format("- **Generator / Version**: {}\n", parser.get_version());

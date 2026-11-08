@@ -399,18 +399,32 @@ std::string vcd_label_manager::find_label(
 		if (!res.empty()) return res;
 	}
 
-	// 2. Try matching by leaf short name, suffix, or glob wildcard pattern (e.g. "module1.*.opcode" or "*opcode")
+	// 2. Try matching by leaf short name, suffix, or glob wildcard pattern (e.g. "module1.*.opcode" or "*opcode"),
+	// preferring more specific patterns (more non-wildcard characters)
+	std::string best_label;
+	size_t best_specificity = 0;
+	bool found_any = false;
 	for (const auto &[reg_sig, val_map] : sig_map) {
 		if (reg_sig == signal_name) {
 			continue; // Already checked exact match
 		}
 		if (signal_pattern_matches(reg_sig, signal_name)) {
 			std::string res = match_in_val_map(val_map);
-			if (!res.empty()) return res;
+			if (!res.empty()) {
+				size_t spec = 0;
+				for (char c : reg_sig) {
+					if (c != '*' && c != '?') spec++;
+				}
+				if (!found_any || spec > best_specificity) {
+					best_label = std::move(res);
+					best_specificity = spec;
+					found_any = true;
+				}
+			}
 		}
 	}
 
-	return "";
+	return best_label;
 }
 
 bool vcd_label_manager::set_labels(
@@ -435,11 +449,36 @@ bool vcd_label_manager::set_labels(
 			out_msg = std::format("Cleared labels for signal '{}'.", signal_name);
 		}
 	} else {
+		std::map<std::string, std::string> norm_updates;
 		for (const auto &[val_raw, label] : val_to_label) {
 			std::string norm = normalize_hex_key(val_raw);
 			path_labels_[p][std::string(signal_name)][norm] = label;
+			norm_updates[norm] = label;
 		}
+
+		// If signal_name is a pattern that encompasses an existing pattern (e.g. "*opcode*" registered after "*opcode"),
+		// propagate conflicting hex key updates into the encompassed pattern so it does not shadow the newer mapping.
+		size_t updated_overlapping = 0;
+		for (auto &[existing_sig, existing_map] : path_labels_[p]) {
+			if (existing_sig == signal_name) continue;
+			if (signal_pattern_matches(signal_name, existing_sig)) {
+				bool touched = false;
+				for (const auto &[norm_k, new_lbl] : norm_updates) {
+					if (existing_map.contains(norm_k)) {
+						existing_map[norm_k] = new_lbl;
+						touched = true;
+					}
+				}
+				if (touched) {
+					updated_overlapping++;
+				}
+			}
+		}
+
 		out_msg = std::format("Registered {} label(s) for signal '{}'.", val_to_label.size(), signal_name);
+		if (updated_overlapping > 0) {
+			out_msg += std::format(" Updated {} overlapping pattern(s).", updated_overlapping);
+		}
 	}
 
 	// Attempt sidecar save

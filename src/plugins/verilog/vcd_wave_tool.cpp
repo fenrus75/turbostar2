@@ -64,6 +64,7 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	std::ostringstream ss;
+	ss << verilog::vcd_parser_cache::check_stale_rtl_warning(args_.safe_path, args_.requested_path);
 	ss << std::format("### VCD Waveform: `{}`\n", args_.requested_path);
 	if (total_cycles != samples.size()) {
 		ss << std::format("Sampled on: `{}` ({}) | Timescale: {} | Rows: {} (representing {} cycles)\n\n",

@@ -12,3 +12,4 @@ Key capabilities:
 ## Lessons Learned
 - AI agent debugging workflows naturally involve multi-turn sequences: querying metadata, searching for triggers, and multiple waveform samplings. Without in-memory caching, each turn in the conversation re-parses the identical multi-megabyte VCD file from disk from scratch.
 - Sizing the LRU cache at 2 entries perfectly serves both single-file deep dive workflows and dual-file differential verification (`vcd_compare`) without noticeable memory overhead.
+- During iterative RTL optimization, agents sometimes inspect an existing `.vcd` waveform after editing `.sv`/`.v` sources without re-running simulation first. Checking RTL source modification timestamps against the VCD file's mtime (`check_stale_rtl_warning`) surfaces an immediate warning banner in `vcd_file_info`, `vcd_wave`, and `vcd_search`.

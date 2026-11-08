@@ -185,8 +185,8 @@ std::string vcd_search_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
+	ss << verilog::vcd_parser_cache::check_stale_rtl_warning(args_.safe_path, args_.requested_path);
 	ss << std::format("### VCD Search: {} in `{}`\n\n", cond_summary, args_.requested_path);
-
 	if (all_intervals.empty()) {
 		ss << std::format("*No clock cycles matched {} in the specified window.*\n", cond_summary);
 		set_success(ctx);

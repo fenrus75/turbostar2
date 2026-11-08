@@ -38,12 +38,15 @@ class vcd_parser_cache
 	// Returns the current number of cached entries
 	size_t size() const;
 
+	// Checks if any RTL source file (.sv / .v) in the VCD's enclosing directory (or sibling sv/ directory)
+	// has a newer modification time than the VCD file itself. Returns a Markdown warning banner if stale.
+	static std::string check_stale_rtl_warning(std::string_view safe_vcd_path, std::string_view display_vcd_path = "");
+
       private:
 	vcd_parser_cache() = default;
 	~vcd_parser_cache() = default;
 	vcd_parser_cache(const vcd_parser_cache &) = delete;
 	vcd_parser_cache &operator=(const vcd_parser_cache &) = delete;
-
 	// mutex_ protects entries_:
 	// (1) Protects the entries_ vector against concurrent reads, inserts, and LRU reorderings.
 	// (2) Locking rules: Locks are acquired briefly to lookup, promote, or insert cache entries.
