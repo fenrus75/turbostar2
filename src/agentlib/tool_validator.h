@@ -57,8 +57,8 @@ namespace agentlib
 | vcd_search_validator         | src/plugins/verilog/vcd_search_validator.h                    |
 | vcd_signal_qualifier_validator | src/plugins/verilog/vcd_signal_qualifier_validator.h         |
 | vcd_signal_to_code_validator  | src/plugins/verilog/vcd_signal_to_code_validator.h           |
-
-
+| verilog_logic_depth_validator | src/plugins/verilog/verilog_logic_depth_validator.h          |
+| verilog_update_timing_validator | src/plugins/verilog/verilog_update_timing_validator.h      |
 */
 
 struct tool_example {

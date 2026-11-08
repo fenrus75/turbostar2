@@ -3,9 +3,11 @@
 #include "fs_utils.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <format>
 #include <iostream>
+#include <unistd.h>
 
 namespace verilog
 {
@@ -15,13 +17,14 @@ bool netlist_graph_analyzer::is_sequential_cell_type(std::string_view type) noex
 	if (type.empty()) {
 		return false;
 	}
-	if (type.starts_with("$_DFF_") || type.starts_with("$_DLATCH_")) {
+	if (type.starts_with("$_") &&
+	    (type.find("FF") != std::string_view::npos || type.find("LATCH") != std::string_view::npos)) {
 		return true;
 	}
 	if (type.starts_with("$dff") || type.starts_with("$adff") || type.starts_with("$sdff") ||
 	    type.starts_with("$aldff") || type.starts_with("$dffe") || type.starts_with("$adffe") ||
 	    type.starts_with("$sdffe") || type.starts_with("$dlatch") || type.starts_with("$adlatch") ||
-	    type.starts_with("$sdffce")) {
+	    type.starts_with("$sdffce") || type.starts_with("$ff")) {
 		return true;
 	}
 	if (type.starts_with("SB_DFF")) {
@@ -679,6 +682,98 @@ std::string netlist_graph_analyzer::generate_timing_markdown(std::string_view ta
 	}
 
 	return md;
+}
+
+bool netlist_graph_analyzer::synthesize_and_load(std::string_view module_name, std::span<const std::string> source_files,
+                                                 std::string_view target_mode, std::string &out_error)
+{
+	std::string yosys_bin = fs_utils::find_executable("yosys");
+	if (yosys_bin.empty()) {
+		out_error = "yosys executable not found in PATH";
+		return false;
+	}
+
+	std::vector<std::string> files_to_use;
+	if (!source_files.empty()) {
+		for (const auto &f : source_files) {
+			files_to_use.push_back(f);
+		}
+	} else {
+		// Discover all .sv and .v files in project dir or current dir
+		std::string proj_dir = fs_utils::get_project_dir();
+		if (proj_dir.empty()) {
+			proj_dir = ".";
+		}
+		try {
+			for (const auto &entry : std::filesystem::recursive_directory_iterator(proj_dir)) {
+				if (entry.is_regular_file()) {
+					auto ext = entry.path().extension().string();
+					if (ext == ".sv" || ext == ".v") {
+						files_to_use.push_back(entry.path().string());
+					}
+				}
+			}
+		} catch (const std::exception &e) {
+			out_error = std::format("Error scanning for Verilog files: {}", e.what());
+			return false;
+		}
+	}
+
+	if (files_to_use.empty()) {
+		out_error = "No Verilog/SystemVerilog source files found to synthesize";
+		return false;
+	}
+
+	std::string file_args;
+	for (const auto &f : files_to_use) {
+		file_args += " " + f;
+	}
+
+	std::string proj_root = fs_utils::get_project_dir();
+	if (proj_root.empty()) {
+		proj_root = ".";
+	}
+	std::error_code abs_ec;
+	std::string abs_proj = std::filesystem::absolute(proj_root, abs_ec).string();
+	std::string tmp_json = std::format("{}/.turbostar_yosys_{}_{}.json", abs_proj,
+	                                   module_name.empty() ? "top" : module_name, (long)getpid());
+
+	std::string synth_pipeline;
+	if (target_mode == "iCE40") {
+		if (module_name.empty()) {
+			synth_pipeline = std::format("synth_ice40 -json {}", tmp_json);
+		} else {
+			synth_pipeline = std::format("synth_ice40 -top {} -json {}", module_name, tmp_json);
+		}
+	} else if (target_mode == "Generic LUT6") {
+		std::string top_arg = module_name.empty() ? "-auto-top" : std::format("-top {}", module_name);
+		synth_pipeline = std::format("hierarchy -check {}; proc; opt; fsm; opt; memory; opt; techmap; abc -lut 6; write_json {}",
+		                             top_arg, tmp_json);
+	} else if (target_mode == "Generic Gates") {
+		std::string top_arg = module_name.empty() ? "-auto-top" : std::format("-top {}", module_name);
+		synth_pipeline = std::format("hierarchy -check {}; proc; opt; fsm; opt; memory; opt; techmap; write_json {}",
+		                             top_arg, tmp_json);
+	} else {
+		// Default: Generic LUT4
+		std::string top_arg = module_name.empty() ? "-auto-top" : std::format("-top {}", module_name);
+		synth_pipeline = std::format("hierarchy -check {}; proc; opt; fsm; opt; memory; opt; techmap; abc -lut 4; write_json {}",
+		                             top_arg, tmp_json);
+	}
+
+	std::string script = std::format("read_verilog -sv{}; {}", file_args, synth_pipeline);
+	std::string cmd = std::format("{} -q -p {} 2>&1", fs_utils::escape_shell_arg(yosys_bin), fs_utils::escape_shell_arg(script));
+
+	std::string yosys_out = fs_utils::execute_command_sync(cmd, 60);
+
+	if (!std::filesystem::exists(tmp_json)) {
+		out_error = std::format("Yosys synthesis failed to produce netlist JSON. Output:\n{}", yosys_out);
+		return false;
+	}
+
+	bool load_ok = load_from_file(tmp_json, out_error, module_name);
+	std::error_code ec;
+	std::filesystem::remove(tmp_json, ec);
+	return load_ok;
 }
 
 } // namespace verilog

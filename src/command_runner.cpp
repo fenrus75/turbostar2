@@ -105,9 +105,9 @@ void command_runner::apply_build_profile()
 	network_access_ = true;
 	home_access_ = home_access_t::read_only;
 	project_dir_ = fs_utils::get_project_dir();
-	if (project_dir_.empty()) {
+	if (project_dir_.empty() || !std::filesystem::path(project_dir_).is_absolute()) {
 		std::error_code ec;
-		project_dir_ = std::filesystem::current_path(ec).string();
+		project_dir_ = std::filesystem::absolute(project_dir_.empty() ? "." : project_dir_, ec).string();
 	}
 	project_hash_ = std::to_string(std::hash<std::string>{}(project_dir_));
 
@@ -120,9 +120,9 @@ void command_runner::apply_strict_agent_profile()
 	network_access_ = false;
 	home_access_ = home_access_t::hidden;
 	project_dir_ = fs_utils::get_project_dir();
-	if (project_dir_.empty()) {
+	if (project_dir_.empty() || !std::filesystem::path(project_dir_).is_absolute()) {
 		std::error_code ec;
-		project_dir_ = std::filesystem::current_path(ec).string();
+		project_dir_ = std::filesystem::absolute(project_dir_.empty() ? "." : project_dir_, ec).string();
 	}
 	project_hash_ = std::to_string(std::hash<std::string>{}(project_dir_));
 

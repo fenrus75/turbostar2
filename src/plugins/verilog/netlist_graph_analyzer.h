@@ -69,6 +69,10 @@ class netlist_graph_analyzer
 	bool load_from_json_string(std::string_view untrusted_json, std::string &out_error, std::string_view module_name = "");
 	bool load_from_json(const nlohmann::json &j, std::string &out_error, std::string_view module_name = "");
 
+	// Synthesize with Yosys on-the-fly and load resulting netlist
+	bool synthesize_and_load(std::string_view module_name, std::span<const std::string> source_files,
+	                         std::string_view target_mode, std::string &out_error);
+
 	// Queries
 	const std::string &get_module_name() const noexcept { return module_name_; }
 	const std::vector<port_timing_info> &get_input_ports() const noexcept { return input_ports_; }

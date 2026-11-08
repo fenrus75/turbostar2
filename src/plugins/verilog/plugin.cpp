@@ -27,6 +27,10 @@ void register_vcd_signal_to_code(void);
 void unregister_vcd_signal_to_code(void);
 void register_vcd_compare(void);
 void unregister_vcd_compare(void);
+void register_verilog_logic_depth(void);
+void unregister_verilog_logic_depth(void);
+void register_verilog_update_timing(void);
+void unregister_verilog_update_timing(void);
 
 /*
  * Plugin dynamic entry point invoked when loaded by plugin_loader.
@@ -39,6 +43,8 @@ void plugin_run(void)
 	register_vcd_search();
 	register_vcd_signal_qualifier();
 	register_vcd_compare();
+	register_verilog_logic_depth();
+	register_verilog_update_timing();
 
 	bool has_yosys = !fs_utils::find_executable("yosys").empty();
 	if (has_yosys) {
@@ -81,6 +87,14 @@ To debug a digital design without blowing your context window, follow this workf
 6. **Trace Signal to Source RTL (`vcd_signal_to_code`)**:
    Map a simulation signal back to its source file declarations across the hierarchy, its driving cell/port, and downstream consumers:
    `vcd_signal_to_code(signal="tb_main.uut.cpu8008.A_val")`
+
+7. **Analyze Logic Depth & Timing Feasibility (`verilog_logic_depth`)**:
+   Evaluate pre-place-and-route timing boundaries (In->Reg, Reg->Out, Reg->Reg, In->Out) and top critical paths:
+   `verilog_logic_depth(module="alu", top_k=3)`
+
+8. **Batch Update Timing Sidecars (`verilog_update_timing`)**:
+   Scan project modules and update all `<module>.timing.md` interface contract sidecars in batch:
+   `verilog_update_timing(path="sv", target="Generic LUT4")`
 )"
 	);
 }
@@ -97,6 +111,8 @@ void plugin_unload(void)
 	unregister_vcd_signal_qualifier();
 	unregister_vcd_signal_to_code();
 	unregister_vcd_compare();
+	unregister_verilog_logic_depth();
+	unregister_verilog_update_timing();
 
 	agentlib::tool_registry::get_instance().unregister_tool_family("verilog");
 }

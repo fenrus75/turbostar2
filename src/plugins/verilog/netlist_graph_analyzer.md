@@ -20,3 +20,5 @@
 - In Yosys JSON netlists, port connections can reference constant strings (`"0"`, `"1"`, `"x"`, `"z"`) in addition to integer bit IDs; the bit parser must treat non-integer tokens safely as constant drivers/sinks.
 - Multi-bit ports often have individual bits with varying logic depths. Timing analysis must report the worst-case (maximum) depth across all bits of a port to reflect setup/hold constraints.
 - DFF clock inputs (`CLK`, `C`) must be distinguished from sequential data/enable/reset sinks so that primary clock ports are classified as `Clock` rather than `Register`.
+- Yosys maps synchronous reset DFFs and latches to gate-level primitives such as `$_SDFF_PP0_`, `$_DFFE_PP_`, etc. during `techmap`/`simplemap`. Sequential cell type detection must recognize all `$_*FF*` and `$_*LATCH*` variants to avoid misinterpreting flip-flops as combinational logic.
+- Under systemd-based sandboxed command execution, `/tmp` is isolated via `PrivateTmp=true`. Any temporary netlist files produced during on-the-fly synthesis must reside inside the sandbox-accessible project directory rather than `/tmp`.
