@@ -52,6 +52,14 @@ void test_synthetic_register_module()
         "bypass_out": {
           "direction": "output",
           "bits": [ 12 ]
+        },
+        "dangling_out": {
+          "direction": "output",
+          "bits": [ 99 ]
+        },
+        "const_out": {
+          "direction": "output",
+          "bits": [ "0" ]
         }
       },
       "cells": {
@@ -138,7 +146,7 @@ void test_synthetic_register_module()
 
 	// Verify output ports
 	const auto &outps = analyzer.get_output_ports();
-	assert(outps.size() == 2);
+	assert(outps.size() == 4);
 
 	// value -> Register (depth 0, direct from Q)
 	auto it_val = std::find_if(outps.begin(), outps.end(), [](const auto &p) { return p.name == "value"; });
@@ -153,6 +161,20 @@ void test_synthetic_register_module()
 	assert(it_bpo->endpoint == verilog::endpoint_kind::input_port);
 	assert(it_bpo->endpoint_desc == "Input");
 	assert(it_bpo->layers == 2);
+
+	// dangling_out -> Floating (no driver)
+	auto it_dangling = std::find_if(outps.begin(), outps.end(), [](const auto &p) { return p.name == "dangling_out"; });
+	assert(it_dangling != outps.end());
+	assert(it_dangling->endpoint == verilog::endpoint_kind::floating);
+	assert(it_dangling->endpoint_desc == "Floating");
+	assert(it_dangling->layers == -1);
+
+	// const_out -> Constant
+	auto it_const = std::find_if(outps.begin(), outps.end(), [](const auto &p) { return p.name == "const_out"; });
+	assert(it_const != outps.end());
+	assert(it_const->endpoint == verilog::endpoint_kind::constant);
+	assert(it_const->endpoint_desc == "Constant");
+	assert(it_const->layers == 0);
 
 	// Internal Reg -> Reg depth (dff_val_0 Q -> mux_load_0 -> dff_val_0 D = 1 layer)
 	assert(analyzer.get_max_reg_to_reg_depth() == 1);
@@ -173,6 +195,8 @@ void test_synthetic_register_module()
 	assert(md.find("| `bypass_in` | 1 | 2 | Output |") != std::string::npos);
 	assert(md.find("| `value` | 2 | 0 | Register |") != std::string::npos);
 	assert(md.find("| `bypass_out` | 1 | 2 | Input |") != std::string::npos);
+	assert(md.find("| `dangling_out` | 1 | - | Floating |") != std::string::npos);
+	assert(md.find("| `const_out` | 1 | 0 | Constant |") != std::string::npos);
 }
 
 void test_real_netlist_files()

@@ -726,9 +726,22 @@ void netlist_graph_analyzer::analyze_paths()
 			tp.hops = in_hops;
 			all_in_to_out_paths_.push_back(std::move(tp));
 		} else {
-			pout.layers = 0;
-			pout.endpoint = endpoint_kind::constant;
-			pout.endpoint_desc = "Constant";
+			bool is_floating = false;
+			for (int bit_id : pout.bit_ids) {
+				if (bit_id > 0 && !bit_drivers_.contains(bit_id)) {
+					is_floating = true;
+					break;
+				}
+			}
+			if (is_floating) {
+				pout.layers = -1;
+				pout.endpoint = endpoint_kind::floating;
+				pout.endpoint_desc = "Floating";
+			} else {
+				pout.layers = 0;
+				pout.endpoint = endpoint_kind::constant;
+				pout.endpoint_desc = "Constant";
+			}
 		}
 	}
 }
@@ -870,16 +883,16 @@ bool netlist_graph_analyzer::synthesize_and_load(std::string_view module_name, s
 		}
 	} else if (target_mode == "Generic LUT6") {
 		std::string top_arg = module_name.empty() ? "-auto-top" : std::format("-top {}", module_name);
-		synth_pipeline = std::format("hierarchy -check {}; proc; opt; flatten; opt; fsm; opt; memory; opt; techmap; abc -lut 6; write_json {}",
+		synth_pipeline = std::format("hierarchy -check {}; proc; opt; flatten; opt; fsm; opt; memory -nomap; opt; techmap; abc -lut 6; write_json {}",
 		                             top_arg, tmp_json);
 	} else if (target_mode == "Generic Gates") {
 		std::string top_arg = module_name.empty() ? "-auto-top" : std::format("-top {}", module_name);
-		synth_pipeline = std::format("hierarchy -check {}; proc; opt; flatten; opt; fsm; opt; memory; opt; techmap; write_json {}",
+		synth_pipeline = std::format("hierarchy -check {}; proc; opt; flatten; opt; fsm; opt; memory -nomap; opt; techmap; write_json {}",
 		                             top_arg, tmp_json);
 	} else {
 		// Default: Generic LUT4
 		std::string top_arg = module_name.empty() ? "-auto-top" : std::format("-top {}", module_name);
-		synth_pipeline = std::format("hierarchy -check {}; proc; opt; flatten; opt; fsm; opt; memory; opt; techmap; abc -lut 4; write_json {}",
+		synth_pipeline = std::format("hierarchy -check {}; proc; opt; flatten; opt; fsm; opt; memory -nomap; opt; techmap; abc -lut 4; write_json {}",
 		                             top_arg, tmp_json);
 	}
 

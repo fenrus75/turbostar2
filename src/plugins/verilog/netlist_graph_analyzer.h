@@ -20,7 +20,8 @@ enum class endpoint_kind {
 	output_port,
 	clock,
 	constant,
-	unconnected
+	unconnected,
+	floating
 };
 
 enum class path_category {
@@ -34,9 +35,9 @@ struct port_timing_info {
 	std::string name;
 	std::string direction; // "input" or "output"
 	size_t bit_width{1};
-	int layers{0}; // -1 if clock or unconnected
+	int layers{0}; // -1 if clock, unconnected, or floating
 	endpoint_kind endpoint{endpoint_kind::unconnected};
-	std::string endpoint_desc; // "Register", "Output", "Input", "Clock", "Constant", "Unconnected"
+	std::string endpoint_desc; // "Register", "Output", "Input", "Clock", "Constant", "Unconnected", "Floating"
 	std::string bound_signal_or_cell; // e.g. "value_reg" or "next_flags"
 	std::vector<int> bit_ids;
 };

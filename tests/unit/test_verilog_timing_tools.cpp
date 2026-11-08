@@ -160,6 +160,13 @@ void test_verilog_update_timing_execution()
 	     << "endmodule\n";
 	ofs2.close();
 
+	// Create a module with an unassigned (floating) output port to verify "Floating" classification
+	std::string mod_flt_path = tmp_dir + "/floating_mod.sv";
+	std::ofstream ofs_flt(mod_flt_path);
+	ofs_flt << "module floating_mod(input logic clk, output logic [3:0] unassigned_out);\n"
+	        << "endmodule\n";
+	ofs_flt.close();
+
 	tools::verilog_update_timing_validator validator;
 	std::string err;
 
@@ -199,6 +206,14 @@ void test_verilog_update_timing_execution()
 		std::string top_content((std::istreambuf_iterator<char>(top_ifs)), std::istreambuf_iterator<char>());
 		assert(top_content.find("# Timing: `top_wrapper`") != std::string::npos);
 		assert(top_content.find("| `count_out` | 4 | 0 | Register |") != std::string::npos);
+
+		// Verify floating_mod marks unassigned_out as Floating
+		std::string flt_sidecar = tmp_dir + "/floating_mod.timing.md";
+		assert(std::filesystem::exists(flt_sidecar));
+		std::ifstream flt_ifs(flt_sidecar);
+		std::string flt_content((std::istreambuf_iterator<char>(flt_ifs)), std::istreambuf_iterator<char>());
+		assert(flt_content.find("# Timing: `floating_mod`") != std::string::npos);
+		assert(flt_content.find("| `unassigned_out` | 4 | - | Floating |") != std::string::npos);
 	}
 
 	std::error_code ec;
