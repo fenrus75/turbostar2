@@ -342,8 +342,29 @@ void test_standalone_verilog_update_timing_cli()
 	assert(out.find("simple_mod") != std::string::npos);
 	assert(out.find("DRY-RUN") != std::string::npos);
 
+	// Test auto-detection of sv_path and target from turbostar.json when no path is provided
+	std::string cfg_dir = std::format("tests/unit/tmp_test_vut_cfg_{}", (long)getpid());
+	std::filesystem::create_directories(cfg_dir + "/hdl");
+	{
+		std::ofstream c_ofs(cfg_dir + "/turbostar.json");
+		c_ofs << "{\n  \"fpga\": {\n    \"target\": \"ice40\",\n    \"sv_path\": \"hdl\"\n  }\n}\n";
+	}
+	{
+		std::ofstream s_ofs(cfg_dir + "/hdl/cfg_mod.sv");
+		s_ofs << "module cfg_mod(input clk, input d, output reg q);\n"
+		         "  always @(posedge clk) q <= d;\n"
+		         "endmodule\n";
+	}
+
+	std::string abs_cli_bin = std::filesystem::canonical(cli_bin).string();
+	std::string cfg_cmd = std::format("cd {} && {} --dry-run", cfg_dir, abs_cli_bin);
+	std::string cfg_out = fs_utils::execute_command_sync(cfg_cmd);
+	assert(cfg_out.find("cfg_mod") != std::string::npos);
+	assert(cfg_out.find("Target: iCE40") != std::string::npos);
+
 	std::error_code ec;
 	std::filesystem::remove_all(tmp_dir, ec);
+	std::filesystem::remove_all(cfg_dir, ec);
 }
 
 void test_fpga_project_settings()

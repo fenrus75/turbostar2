@@ -278,7 +278,8 @@ turbostar_verilog_update_timing_exe = executable('turbostar-verilog-update-timin
   ['src/verilog_update_timing_main.cpp',
    'src/plugins/verilog/verilog_module_scanner.cpp',
    'src/plugins/verilog/netlist_graph_analyzer.cpp',
-   'src/plugins/verilog/yosys_netlist_reader.cpp'],
+   'src/plugins/verilog/yosys_netlist_reader.cpp',
+   'src/plugins/verilog/fpga_project_settings.cpp'],
   dependencies : [core_dep, nlohmann_json_dep, ctre_dep],
   include_directories: inc,
   install : true)

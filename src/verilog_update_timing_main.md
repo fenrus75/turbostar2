@@ -16,3 +16,4 @@
 
 - **Decoupling from Agent Environment**: By factoring out module discovery into `verilog_module_scanner` and keeping `netlist_graph_analyzer` pure C++ standard library, the timing analyzer is shared seamlessly between MCP tools and build pipelines.
 - **Dry-run Mode**: Having `--dry-run` allows users and scripts to quickly verify timing numbers in stdout without dirtying git working trees.
+- **Project Configuration Integration**: When executed without explicit `-p` or `-t` arguments, `turbostar-verilog-update-timing` automatically inspects `turbostar.json` via `fpga_project_settings`. If configured, it defaults to the project's `sv_path` directory (skipping testbenches) and architecture target (e.g. `iCE40`), providing complete consistency between the standalone CLI utility and LLM agent tool calls.

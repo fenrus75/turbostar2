@@ -1,5 +1,6 @@
 #include "plugins/verilog/netlist_graph_analyzer.h"
 #include "plugins/verilog/verilog_module_scanner.h"
+#include "plugins/verilog/fpga_project_settings.h"
 #include "fs_utils.h"
 
 #include <CLI11.hpp>
@@ -14,21 +15,42 @@ int main(int argc, char **argv)
 {
 	CLI::App app{"TurboStar Verilog Timing Sidecar Updater - synthesizes and updates module .timing.md sidecars"};
 
-	std::string untrusted_path = ".";
-	std::string untrusted_target = "Generic LUT4";
+	std::string untrusted_path;
+	std::string untrusted_target;
 	std::string untrusted_netlist;
 	bool dry_run = false;
 	bool quiet = false;
 	bool verbose = false;
 
-	app.add_option("path,-p,--path", untrusted_path, "Root directory or file to scan for Verilog modules (default: '.')");
-	app.add_option("-t,--target", untrusted_target, "Synthesis target ('Generic LUT4', 'Generic LUT6', 'iCE40', 'Generic Gates') (default: 'Generic LUT4')");
+	app.add_option("path,-p,--path", untrusted_path, "Root directory or file to scan for Verilog modules (default: from turbostar.json or '.')");
+	app.add_option("-t,--target", untrusted_target, "Synthesis target ('Generic LUT4', 'Generic LUT6', 'iCE40', 'Generic Gates') (default: from turbostar.json or 'Generic LUT4')");
 	app.add_option("-n,--netlist", untrusted_netlist, "Path to pre-synthesized JSON netlist file (optional)");
 	app.add_flag("-d,--dry-run", dry_run, "Dry run: analyze without writing sidecar files");
 	app.add_flag("-q,--quiet", quiet, "Quiet mode: suppress informational output");
 	app.add_flag("-v,--verbose", verbose, "Verbose mode: print detailed analysis and synthesis log on failure");
 
 	CLI11_PARSE(app, argc, argv);
+
+	// Load FPGA project settings from current directory if present
+	verilog::fpga_target_config cfg;
+	std::string cfg_err;
+	bool has_cfg = verilog::fpga_project_settings::load_from_project(".", cfg, cfg_err);
+
+	if (untrusted_path.empty()) {
+		if (has_cfg && !cfg.sv_path.empty()) {
+			untrusted_path = cfg.sv_path;
+		} else {
+			untrusted_path = ".";
+		}
+	}
+
+	if (untrusted_target.empty()) {
+		if (has_cfg && cfg.target == "ice40") {
+			untrusted_target = "iCE40";
+		} else {
+			untrusted_target = "Generic LUT4";
+		}
+	}
 
 	// Validate target mode
 	std::string safe_target = untrusted_target;
