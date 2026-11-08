@@ -25,6 +25,7 @@ void test_verilog_logic_depth_validator()
 	assert(schema["properties"].contains("target"));
 	assert(schema["properties"].contains("top_k"));
 	assert(schema["properties"].contains("write_sidecar"));
+	assert(schema["properties"].contains("group_by_sink"));
 
 	agentlib::tool_context ctx;
 	ctx.fs_security.add_allowed_root(std::filesystem::current_path(), agentlib::access_type::write);
@@ -100,22 +101,40 @@ void test_verilog_logic_depth_execution()
 		std::filesystem::remove(test_sidecar, ec);
 
 		if (std::filesystem::exists("examples/test8008/sv/alu/alu.sv")) {
+			// Test grouped by sink (default)
 			nlohmann::json alu_args = {
 				{"module", "alu_mod"},
 				{"file", "examples/test8008/sv/alu/alu.sv"},
 				{"top_k", 4},
-				{"write_sidecar", false}
+				{"write_sidecar", false},
+				{"group_by_sink", true}
 			};
 			bool alu_ok = validator.validate_args(alu_args, ctx, err);
 			assert(alu_ok);
 			auto alu_tool = validator.create_tool(alu_args);
 			assert(alu_tool != nullptr);
 			std::string alu_res = alu_tool->execute(ctx);
-			std::cout << "=== ALU LOGIC DEPTH OUTPUT ===\n" << alu_res << std::endl;
+			std::cout << "=== ALU LOGIC DEPTH OUTPUT (GROUPED) ===\n" << alu_res << std::endl;
 			assert(alu_res.find("**Critical Path Summary**:") != std::string::npos);
 			assert(alu_res.find("alu.sv:") != std::string::npos);
 			assert(alu_res.find("flags[") != std::string::npos);
-			assert(alu_res.find("Shared bottleneck") != std::string::npos);
+			assert(alu_res.find("Converging on") != std::string::npos);
+			assert(alu_res.find("all converge here") != std::string::npos);
+			assert(alu_res.find("alu_out[7]") != std::string::npos); // Distinct bottleneck 2 now visible!
+
+			// Test raw paths (group_by_sink: false)
+			nlohmann::json raw_args = {
+				{"module", "alu_mod"},
+				{"file", "examples/test8008/sv/alu/alu.sv"},
+				{"top_k", 4},
+				{"write_sidecar", false},
+				{"group_by_sink", false}
+			};
+			bool raw_ok = validator.validate_args(raw_args, ctx, err);
+			assert(raw_ok);
+			auto raw_tool = validator.create_tool(raw_args);
+			std::string raw_res = raw_tool->execute(ctx);
+			assert(raw_res.find("Shared bottleneck") != std::string::npos);
 		}
 	}
 }

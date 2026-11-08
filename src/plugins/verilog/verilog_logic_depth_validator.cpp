@@ -38,6 +38,10 @@ nlohmann::json verilog_logic_depth_validator::get_parameters_schema() const
 			{"write_sidecar", {
 				{"type", "boolean"},
 				{"description", "Optional. If true, writes or updates the <module>.timing.md sidecar file next to the source file (default false)."}
+			}},
+			{"group_by_sink", {
+				{"type", "boolean"},
+				{"description", "Optional. Group redundant paths sharing the same sink register/output into a single bottleneck entry (default true)."}
 			}}
 		}}
 	};
@@ -103,6 +107,12 @@ bool verilog_logic_depth_validator::validate_args_impl(const nlohmann::json &raw
 		args_.write_sidecar = raw_json["write_sidecar"].get<bool>();
 	} else if (raw_json.contains("WriteSidecar") && raw_json["WriteSidecar"].is_boolean()) {
 		args_.write_sidecar = raw_json["WriteSidecar"].get<bool>();
+	}
+
+	if (raw_json.contains("group_by_sink") && raw_json["group_by_sink"].is_boolean()) {
+		args_.group_by_sink = raw_json["group_by_sink"].get<bool>();
+	} else if (raw_json.contains("GroupBySink") && raw_json["GroupBySink"].is_boolean()) {
+		args_.group_by_sink = raw_json["GroupBySink"].get<bool>();
 	}
 
 	return true;

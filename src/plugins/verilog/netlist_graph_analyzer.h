@@ -63,6 +63,23 @@ struct timing_path {
 	std::vector<path_hop> hops;
 };
 
+struct source_signal_info {
+	std::string name;
+	std::string src_location;
+	path_category category{path_category::reg_to_reg};
+};
+
+struct bottleneck_group {
+	std::string endpoint;
+	endpoint_kind end_kind{endpoint_kind::register_cell};
+	std::string end_src;
+	size_t depth{0};
+	std::vector<path_category> categories;
+	std::vector<source_signal_info> sources;
+	std::vector<path_hop> hops;
+	std::string note;
+};
+
 class netlist_graph_analyzer
 {
       public:
@@ -85,6 +102,13 @@ class netlist_graph_analyzer
 
 	// Extract worst paths across the module (sorted descending by depth)
 	std::vector<timing_path> get_worst_paths(std::optional<path_category> category = std::nullopt, size_t top_k = 3) const;
+
+	// Extract worst bottleneck groups (merging paths that converge on the same sink endpoint)
+	std::vector<bottleneck_group> get_worst_bottlenecks(std::optional<path_category> category = std::nullopt, size_t top_k = 3) const;
+
+	// Helpers for compact signal/bit formatting
+	static std::string format_source_ranges(std::span<const source_signal_info> sources);
+	static std::string compact_signal_names(std::span<const std::string> names);
 
 	// Format sidecar markdown (.timing.md)
 	std::string generate_timing_markdown(std::string_view target_mode = "Generic LUT4") const;

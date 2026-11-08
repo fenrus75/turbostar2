@@ -995,6 +995,302 @@ std::vector<timing_path> netlist_graph_analyzer::get_worst_paths(std::optional<p
 	return candidates;
 }
 
+std::vector<bottleneck_group> netlist_graph_analyzer::get_worst_bottlenecks(std::optional<path_category> category, size_t top_k) const
+{
+	std::vector<timing_path> candidates;
+
+	auto append_filtered = [&](const std::vector<timing_path> &paths) {
+		for (const auto &p : paths) {
+			if (!category.has_value() || p.category == category.value()) {
+				candidates.push_back(p);
+			}
+		}
+	};
+
+	append_filtered(all_reg_to_reg_paths_);
+	append_filtered(all_in_to_reg_paths_);
+	append_filtered(all_reg_to_out_paths_);
+	append_filtered(all_in_to_out_paths_);
+
+	// Group candidates by endpoint
+	std::map<std::string, std::vector<timing_path>> by_endpoint;
+	for (auto &p : candidates) {
+		if (p.endpoint.empty()) {
+			continue;
+		}
+		by_endpoint[p.endpoint].push_back(std::move(p));
+	}
+
+	std::vector<bottleneck_group> groups;
+	groups.reserve(by_endpoint.size());
+
+	for (auto &[endpoint, paths] : by_endpoint) {
+		if (paths.empty()) {
+			continue;
+		}
+
+		size_t max_depth = 0;
+		for (const auto &p : paths) {
+			if (p.depth > max_depth) {
+				max_depth = p.depth;
+			}
+		}
+
+		bottleneck_group grp;
+		grp.endpoint = endpoint;
+		grp.end_kind = paths.front().end_kind;
+		grp.end_src = paths.front().end_src;
+		grp.depth = max_depth;
+
+		std::vector<path_category> seen_cats;
+		std::vector<source_signal_info> unique_sources;
+		const timing_path *rep_path = nullptr;
+
+		for (const auto &p : paths) {
+			if (p.depth == max_depth) {
+				if (!rep_path) {
+					rep_path = &p;
+				}
+				if (std::find(seen_cats.begin(), seen_cats.end(), p.category) == seen_cats.end()) {
+					seen_cats.push_back(p.category);
+				}
+				bool found_src = false;
+				for (const auto &s : unique_sources) {
+					if (s.name == p.startpoint) {
+						found_src = true;
+						break;
+					}
+				}
+				if (!found_src && !p.startpoint.empty()) {
+					unique_sources.push_back({p.startpoint, p.start_src, p.category});
+				}
+			}
+		}
+
+		if (rep_path) {
+			grp.hops = rep_path->hops;
+		}
+
+		grp.categories = std::move(seen_cats);
+		grp.sources = std::move(unique_sources);
+
+		groups.push_back(std::move(grp));
+	}
+
+	// Sort groups: depth descending, then source count descending, then endpoint ascending
+	std::sort(groups.begin(), groups.end(), [](const bottleneck_group &a, const bottleneck_group &b) {
+		if (a.depth != b.depth) {
+			return a.depth > b.depth;
+		}
+		if (a.sources.size() != b.sources.size()) {
+			return a.sources.size() > b.sources.size();
+		}
+		return a.endpoint < b.endpoint;
+	});
+
+	if (groups.size() > top_k) {
+		groups.resize(top_k);
+	}
+
+	return groups;
+}
+
+std::string netlist_graph_analyzer::compact_signal_names(std::span<const std::string> names)
+{
+	if (names.empty()) {
+		return "";
+	}
+
+	struct entry {
+		std::string base;
+		std::vector<int> indices;
+		bool is_scalar{false};
+	};
+
+	std::vector<entry> groups;
+
+	for (const auto &name : names) {
+		size_t b_open = name.find('[');
+		size_t b_close = name.rfind(']');
+		int idx = -1;
+		std::string base = name;
+
+		if (b_open != std::string::npos && b_close == name.size() - 1 && b_close > b_open + 1) {
+			std::string idx_str = name.substr(b_open + 1, b_close - b_open - 1);
+			bool all_digits = !idx_str.empty();
+			for (char c : idx_str) {
+				if (c < '0' || c > '9') {
+					all_digits = false;
+					break;
+				}
+			}
+			if (all_digits) {
+				idx = std::stoi(idx_str);
+				base = name.substr(0, b_open);
+			}
+		}
+
+		auto it = std::find_if(groups.begin(), groups.end(), [&](const entry &e) {
+			return e.base == base;
+		});
+
+		if (it == groups.end()) {
+			entry e;
+			e.base = base;
+			if (idx >= 0) {
+				e.indices.push_back(idx);
+			} else {
+				e.is_scalar = true;
+			}
+			groups.push_back(std::move(e));
+		} else {
+			if (idx >= 0) {
+				it->indices.push_back(idx);
+			} else {
+				it->is_scalar = true;
+			}
+		}
+	}
+
+	std::string res;
+	for (auto &grp : groups) {
+		std::sort(grp.indices.begin(), grp.indices.end());
+		grp.indices.erase(std::unique(grp.indices.begin(), grp.indices.end()), grp.indices.end());
+
+		if (grp.is_scalar && grp.indices.empty()) {
+			if (!res.empty()) {
+				res += ", ";
+			}
+			res += std::format("`{}`", grp.base);
+		} else if (!grp.indices.empty()) {
+			size_t n = grp.indices.size();
+			size_t start_i = 0;
+			while (start_i < n) {
+				size_t end_i = start_i;
+				while (end_i + 1 < n && grp.indices[end_i + 1] == grp.indices[end_i] + 1) {
+					end_i++;
+				}
+				if (!res.empty()) {
+					res += ", ";
+				}
+				if (start_i == end_i) {
+					res += std::format("`{}[{}]`", grp.base, grp.indices[start_i]);
+				} else {
+					res += std::format("`{}[{}..{}]`", grp.base, grp.indices[start_i], grp.indices[end_i]);
+				}
+				start_i = end_i + 1;
+			}
+			if (grp.is_scalar) {
+				if (!res.empty()) {
+					res += ", ";
+				}
+				res += std::format("`{}`", grp.base);
+			}
+		}
+	}
+	return res;
+}
+
+std::string netlist_graph_analyzer::format_source_ranges(std::span<const source_signal_info> sources)
+{
+	if (sources.empty()) {
+		return "";
+	}
+
+	struct group_info {
+		std::string base;
+		std::string src_location;
+		std::vector<int> indices;
+		bool is_scalar{false};
+	};
+
+	std::vector<group_info> groups;
+
+	for (const auto &s : sources) {
+		size_t b_open = s.name.find('[');
+		size_t b_close = s.name.rfind(']');
+		int idx = -1;
+		std::string base = s.name;
+
+		if (b_open != std::string::npos && b_close == s.name.size() - 1 && b_close > b_open + 1) {
+			std::string idx_str = s.name.substr(b_open + 1, b_close - b_open - 1);
+			bool all_digits = !idx_str.empty();
+			for (char c : idx_str) {
+				if (c < '0' || c > '9') {
+					all_digits = false;
+					break;
+				}
+			}
+			if (all_digits) {
+				idx = std::stoi(idx_str);
+				base = s.name.substr(0, b_open);
+			}
+		}
+
+		auto it = std::find_if(groups.begin(), groups.end(), [&](const group_info &g) {
+			return g.base == base && g.src_location == s.src_location;
+		});
+
+		if (it == groups.end()) {
+			group_info g;
+			g.base = base;
+			g.src_location = s.src_location;
+			if (idx >= 0) {
+				g.indices.push_back(idx);
+			} else {
+				g.is_scalar = true;
+			}
+			groups.push_back(std::move(g));
+		} else {
+			if (idx >= 0) {
+				it->indices.push_back(idx);
+			} else {
+				it->is_scalar = true;
+			}
+		}
+	}
+
+	std::string res;
+	for (auto &grp : groups) {
+		std::sort(grp.indices.begin(), grp.indices.end());
+		grp.indices.erase(std::unique(grp.indices.begin(), grp.indices.end()), grp.indices.end());
+
+		std::string loc_str = grp.src_location.empty() ? "" : std::format(" (`{}`)", grp.src_location);
+
+		if (grp.is_scalar && grp.indices.empty()) {
+			if (!res.empty()) {
+				res += ", ";
+			}
+			res += std::format("`{}`{}", grp.base, loc_str);
+		} else if (!grp.indices.empty()) {
+			size_t n = grp.indices.size();
+			size_t start_i = 0;
+			while (start_i < n) {
+				size_t end_i = start_i;
+				while (end_i + 1 < n && grp.indices[end_i + 1] == grp.indices[end_i] + 1) {
+					end_i++;
+				}
+				if (!res.empty()) {
+					res += ", ";
+				}
+				if (start_i == end_i) {
+					res += std::format("`{}[{}]`{}", grp.base, grp.indices[start_i], loc_str);
+				} else {
+					res += std::format("`{}[{}..{}]`{}", grp.base, grp.indices[start_i], grp.indices[end_i], loc_str);
+				}
+				start_i = end_i + 1;
+			}
+			if (grp.is_scalar) {
+				if (!res.empty()) {
+					res += ", ";
+				}
+				res += std::format("`{}`{}", grp.base, loc_str);
+			}
+		}
+	}
+	return res;
+}
+
 std::string netlist_graph_analyzer::generate_timing_markdown(std::string_view target_mode) const
 {
 	std::string md;

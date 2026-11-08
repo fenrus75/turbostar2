@@ -225,14 +225,39 @@ void test_real_netlist_files()
 			assert(it_clk->endpoint == verilog::endpoint_kind::clock);
 		}
 
-		// Check worst paths
+		// Check worst paths and bottlenecks
 		auto worst = analyzer.get_worst_paths(verilog::path_category::reg_to_reg, 3);
 		assert(!worst.empty());
 		assert(analyzer.get_max_reg_to_reg_depth() > 0);
 
+		auto bottlenecks = analyzer.get_worst_bottlenecks(std::nullopt, 3);
+		assert(!bottlenecks.empty());
+		assert(!bottlenecks[0].endpoint.empty());
+		assert(bottlenecks[0].depth > 0);
+
 		std::string md = analyzer.generate_timing_markdown("Generic LUT4");
 		assert(md.find("# Timing: `main`") != std::string::npos);
 	}
+}
+
+void test_compact_signal_formatting()
+{
+	using verilog::netlist_graph_analyzer;
+	std::vector<std::string> sigs = {"input1[0]", "input1[1]", "input1[2]", "input1[4]", "input1[5]", "carry_in"};
+	std::string compacted = netlist_graph_analyzer::compact_signal_names(sigs);
+	assert(compacted.find("`input1[0..2]`") != std::string::npos);
+	assert(compacted.find("`input1[4..5]`") != std::string::npos);
+	assert(compacted.find("`carry_in`") != std::string::npos);
+
+	std::vector<verilog::source_signal_info> srcs = {
+		{"input1[0]", "alu.sv:4", verilog::path_category::in_to_reg},
+		{"input1[1]", "alu.sv:4", verilog::path_category::in_to_reg},
+		{"input1[2]", "alu.sv:4", verilog::path_category::in_to_reg},
+		{"carry_in", "alu.sv:19-24", verilog::path_category::reg_to_reg}
+	};
+	std::string formatted = netlist_graph_analyzer::format_source_ranges(srcs);
+	assert(formatted.find("`input1[0..2]` (`alu.sv:4`)") != std::string::npos);
+	assert(formatted.find("`carry_in` (`alu.sv:19-24`)") != std::string::npos);
 }
 
 int main()
@@ -242,6 +267,7 @@ int main()
 
 	test_synthetic_register_module();
 	test_real_netlist_files();
+	test_compact_signal_formatting();
 
 	std::cout << "All netlist_graph_analyzer tests passed successfully!" << std::endl;
 	return 0;

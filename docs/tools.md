@@ -1023,6 +1023,7 @@ Tools in this family assist in digital ASIC and FPGA hardware engineering, simul
     *   `target` *(string, optional)*: Synthesis target mode when synthesizing on-the-fly (`"Generic LUT4"`, `"Generic LUT6"`, `"Generic Gates"`, or `"iCE40"`).
     *   `top_k` *(integer, optional)*: Number of worst-case critical paths to report (default: `3`).
     *   `write_sidecar` *(boolean, optional)*: Whether to write or update the `<module>.timing.md` sidecar file (default: `false`).
+    *   `group_by_sink` *(boolean, optional)*: Whether to group redundant paths converging on the same sink register/output into a single bottleneck entry with compacted source signal ranges (default: `true`).
 
 ### `verilog_update_timing` (Family: `verilog`)
 *   **Description:** Scans a directory or project workspace for Verilog/SystemVerilog modules, synthesizes them using Yosys against the selected target architecture, and creates or updates `<module>.timing.md` interface timing contract sidecars. Only registered when `yosys` is present in system PATH.

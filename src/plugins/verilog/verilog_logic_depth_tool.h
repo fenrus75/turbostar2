@@ -18,6 +18,7 @@ struct verilog_logic_depth_args {
 	std::string target_mode{"Generic LUT4"};
 	size_t top_k{3};
 	bool write_sidecar{false};
+	bool group_by_sink{true};
 };
 
 class verilog_logic_depth_tool : public agentlib::llm_tool_action
