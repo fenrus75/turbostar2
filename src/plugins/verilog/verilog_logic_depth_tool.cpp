@@ -65,30 +65,6 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 
 	std::string md_tables = analyzer.generate_timing_markdown(args_.target_mode);
 
-	std::string sidecar_note;
-	if (args_.write_sidecar) {
-		std::string sidecar_path;
-		if (!args_.safe_file.empty()) {
-			std::filesystem::path p(args_.safe_file);
-			sidecar_path = p.replace_extension(".timing.md").string();
-		} else {
-			std::string mod_name = analyzer.get_module_name().empty() ? "module" : analyzer.get_module_name();
-			sidecar_path = std::format("{}.timing.md", mod_name);
-		}
-
-		std::string safe_write_path;
-		std::string sec_err;
-		if (ctx.fs_security.validate_access(sidecar_path, agentlib::access_type::write, safe_write_path, sec_err)) {
-			std::ofstream ofs(safe_write_path);
-			if (ofs.is_open()) {
-				ofs << md_tables;
-				sidecar_note = std::format("\n> [!TIP]\n> Updated timing sidecar written to `{}`.\n\n", sidecar_path);
-			} else {
-				sidecar_note = std::format("\n> [!WARNING]\n> Failed to write timing sidecar to `{}`.\n\n", sidecar_path);
-			}
-		}
-	}
-
 	auto format_cat = [](verilog::path_category cat) -> std::string {
 		switch (cat) {
 		case verilog::path_category::reg_to_reg: return "Reg -> Reg";
@@ -266,7 +242,7 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	set_success(ctx);
-	return md_tables + sidecar_note + paths_md;
+	return md_tables + paths_md;
 }
 
 } // namespace tools

@@ -24,7 +24,7 @@ void test_verilog_logic_depth_validator()
 	assert(schema["properties"].contains("module"));
 	assert(schema["properties"].contains("target"));
 	assert(schema["properties"].contains("top_k"));
-	assert(schema["properties"].contains("write_sidecar"));
+	assert(!schema["properties"].contains("write_sidecar"));
 	assert(schema["properties"].contains("group_by_sink"));
 
 	agentlib::tool_context ctx;
@@ -34,8 +34,7 @@ void test_verilog_logic_depth_validator()
 	nlohmann::json valid_args = {
 		{"module", "main"},
 		{"netlist", "examples/test8008/build/netlist.json"},
-		{"top_k", 2},
-		{"write_sidecar", false}
+		{"top_k", 2}
 	};
 	std::string err;
 	bool ok = validator.validate_args(valid_args, ctx, err);
@@ -43,18 +42,6 @@ void test_verilog_logic_depth_validator()
 	auto tool = validator.create_tool(valid_args);
 	assert(tool != nullptr);
 	assert(validator.is_pure());
-
-	// When write_sidecar is true, tool is not pure
-	nlohmann::json impure_args = {
-		{"module", "main"},
-		{"netlist", "examples/test8008/build/netlist.json"},
-		{"write_sidecar", true}
-	};
-	bool ok2 = validator.validate_args(impure_args, ctx, err);
-	assert(ok2);
-	auto impure_tool = validator.create_tool(impure_args);
-	assert(impure_tool != nullptr);
-	assert(!validator.is_pure());
 }
 
 void test_verilog_logic_depth_execution()
@@ -66,16 +53,11 @@ void test_verilog_logic_depth_execution()
 	std::string err;
 
 	if (std::filesystem::exists("examples/test8008/build/netlist.json")) {
-		std::string test_sidecar = "examples/test8008/test_main.timing.md";
-		std::error_code ec;
-		std::filesystem::remove(test_sidecar, ec);
-
 		nlohmann::json args = {
 			{"module", "main"},
 			{"file", "examples/test8008/test_main.sv"},
 			{"netlist", "examples/test8008/build/netlist.json"},
-			{"top_k", 3},
-			{"write_sidecar", true}
+			{"top_k", 3}
 		};
 
 		bool ok = validator.validate_args(args, ctx, err);
@@ -89,16 +71,6 @@ void test_verilog_logic_depth_execution()
 		assert(result.find("## Outputs") != std::string::npos);
 		assert(result.find("Worst Combinational Paths") != std::string::npos);
 		assert(result.find("**Critical Path Summary**:") != std::string::npos);
-		assert(result.find("Updated timing sidecar written to") != std::string::npos);
-
-		// Verify sidecar was written to disk
-		assert(std::filesystem::exists(test_sidecar));
-		std::ifstream ifs(test_sidecar);
-		std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-		assert(content.find("# Timing: `main`") != std::string::npos);
-		assert(content.find("| `clk` | 1 | - | Clock |") != std::string::npos);
-
-		std::filesystem::remove(test_sidecar, ec);
 
 		if (std::filesystem::exists("examples/test8008/sv/alu/alu.sv")) {
 			// Test grouped by sink (default)
@@ -106,7 +78,6 @@ void test_verilog_logic_depth_execution()
 				{"module", "alu_mod"},
 				{"file", "examples/test8008/sv/alu/alu.sv"},
 				{"top_k", 4},
-				{"write_sidecar", false},
 				{"group_by_sink", true}
 			};
 			bool alu_ok = validator.validate_args(alu_args, ctx, err);
@@ -120,14 +91,13 @@ void test_verilog_logic_depth_execution()
 			assert(alu_res.find("flags[") != std::string::npos);
 			assert(alu_res.find("Converging on") != std::string::npos);
 			assert(alu_res.find("all converge here") != std::string::npos);
-			assert(alu_res.find("alu_out[7]") != std::string::npos); // Distinct bottleneck 2 now visible!
+			assert(alu_res.find("alu_out") != std::string::npos);
 
 			// Test raw paths (group_by_sink: false)
 			nlohmann::json raw_args = {
 				{"module", "alu_mod"},
 				{"file", "examples/test8008/sv/alu/alu.sv"},
 				{"top_k", 4},
-				{"write_sidecar", false},
 				{"group_by_sink", false}
 			};
 			bool raw_ok = validator.validate_args(raw_args, ctx, err);

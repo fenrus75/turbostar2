@@ -4,7 +4,7 @@
 - Validates parameter inputs for the `verilog_logic_depth` tool.
 - Enforces sandboxed file access validation (`ctx.fs_security.validate_access`) on both input files and pre-generated netlists.
 - Registers and unregisters cleanly in `agentlib::tool_registry` under the `verilog` tool family.
-- Dynamically classifies purity based on `write_sidecar` (`is_pure() == !args_.write_sidecar`).
+- Unconditionally pure (`is_pure() == true`), enabling read-only subagents to run timing queries safely.
 
 ## Lessons Learned
-- When `write_sidecar` is false, the tool is pure (read-only analysis), enabling read-only subagents to run timing queries safely. When `write_sidecar` is true, it requires write permission to create the `.timing.md` file.
+- Removing `write_sidecar` in favor of the dedicated `verilog_update_timing` tool makes `verilog_logic_depth` statically pure, simplifying agent permission rules and removing write side-effects from read-only workflows.

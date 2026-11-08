@@ -12,7 +12,7 @@ class verilog_logic_depth_validator : public agentlib::tool_validator
 	verilog_logic_depth_validator() = default;
 	~verilog_logic_depth_validator() override = default;
 
-	bool is_pure() const override { return !args_.write_sidecar; }
+	bool is_pure() const override { return true; }
 	std::string get_name() const override { return "verilog_logic_depth"; }
 	std::string get_description() const override;
 	std::string get_family() const override { return "verilog"; }

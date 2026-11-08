@@ -35,10 +35,6 @@ nlohmann::json verilog_logic_depth_validator::get_parameters_schema() const
 				{"type", "integer"},
 				{"description", "Optional. Maximum number of worst critical paths to report (default 3)."}
 			}},
-			{"write_sidecar", {
-				{"type", "boolean"},
-				{"description", "Optional. If true, writes or updates the <module>.timing.md sidecar file next to the source file (default false)."}
-			}},
 			{"group_by_sink", {
 				{"type", "boolean"},
 				{"description", "Optional. Group redundant paths sharing the same sink register/output into a single bottleneck entry (default true)."}
@@ -101,12 +97,6 @@ bool verilog_logic_depth_validator::validate_args_impl(const nlohmann::json &raw
 	} else if (raw_json.contains("TopK") && raw_json["TopK"].is_number_integer()) {
 		int k = raw_json["TopK"].get<int>();
 		args_.top_k = (k > 0) ? (size_t)k : 3;
-	}
-
-	if (raw_json.contains("write_sidecar") && raw_json["write_sidecar"].is_boolean()) {
-		args_.write_sidecar = raw_json["write_sidecar"].get<bool>();
-	} else if (raw_json.contains("WriteSidecar") && raw_json["WriteSidecar"].is_boolean()) {
-		args_.write_sidecar = raw_json["WriteSidecar"].get<bool>();
 	}
 
 	if (raw_json.contains("group_by_sink") && raw_json["group_by_sink"].is_boolean()) {

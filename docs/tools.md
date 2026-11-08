@@ -1022,7 +1022,6 @@ Tools in this family assist in digital ASIC and FPGA hardware engineering, simul
     *   `netlist` *(string, optional)*: Pre-synthesized Yosys JSON netlist path. If omitted, triggers on-the-fly synthesis via Yosys.
     *   `target` *(string, optional)*: Synthesis target mode when synthesizing on-the-fly (`"Generic LUT4"`, `"Generic LUT6"`, `"Generic Gates"`, or `"iCE40"`).
     *   `top_k` *(integer, optional)*: Number of worst-case critical paths to report (default: `3`).
-    *   `write_sidecar` *(boolean, optional)*: Whether to write or update the `<module>.timing.md` sidecar file (default: `false`).
     *   `group_by_sink` *(boolean, optional)*: Whether to group redundant paths converging on the same sink register/output into a single bottleneck entry with compacted source signal ranges (default: `true`).
 
 ### `verilog_update_timing` (Family: `verilog`)
