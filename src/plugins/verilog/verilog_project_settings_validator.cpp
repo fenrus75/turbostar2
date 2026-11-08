@@ -47,6 +47,14 @@ nlohmann::json verilog_project_settings_validator::get_parameters_schema() const
 				{"type", "string"},
 				{"description", "Path to physical pin constraint file (*.pcf), e.g. 'pcf/cu.pcf'."}
 			}},
+			{"sv_path", {
+				{"type", "string"},
+				{"description", "Root directory for synthesizable SystemVerilog/Verilog sources (e.g. 'sv', 'rtl', or 'src')."}
+			}},
+			{"default_sv_path", {
+				{"type", "string"},
+				{"description", "Alias for sv_path."}
+			}},
 			{"yosys_synth_args", {
 				{"type", "string"},
 				{"description", "Optional extra synthesis arguments for Yosys (e.g. '-abc9')."}
@@ -88,6 +96,11 @@ bool verilog_project_settings_validator::validate_args_impl(const nlohmann::json
 	}
 	if (untrusted_args.contains("pcf_file") && untrusted_args["pcf_file"].is_string()) {
 		args_.pcf_file = untrusted_args["pcf_file"].get<std::string>();
+	}
+	if (untrusted_args.contains("sv_path") && untrusted_args["sv_path"].is_string()) {
+		args_.sv_path = untrusted_args["sv_path"].get<std::string>();
+	} else if (untrusted_args.contains("default_sv_path") && untrusted_args["default_sv_path"].is_string()) {
+		args_.sv_path = untrusted_args["default_sv_path"].get<std::string>();
 	}
 	if (untrusted_args.contains("yosys_synth_args") && untrusted_args["yosys_synth_args"].is_string()) {
 		args_.yosys_synth_args = untrusted_args["yosys_synth_args"].get<std::string>();

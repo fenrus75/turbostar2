@@ -8,4 +8,4 @@
 
 ## Lessons Learned
 
-- **Filtering Testbenches**: When scanning workspace RTL for on-demand synthesis, automatically filtering out `tb_*.sv` and `*_tb.sv` testbench files prevents top-level duplicate module collisions in Yosys.
+- **Filtering Testbenches**: When scanning workspace RTL for on-demand synthesis, automatically respecting `sv_path` and using `verilog_module_scanner::find_synthesizable_files` prevents top-level duplicate module collisions in Yosys from testbench files.

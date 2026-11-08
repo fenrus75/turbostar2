@@ -31,6 +31,32 @@ fpga_system_tools fpga_project_settings::detect_system_tools()
 	return tools;
 }
 
+std::string fpga_project_settings::detect_sv_path(std::string_view project_root)
+{
+	fs::path root(project_root.empty() ? "." : project_root);
+	std::error_code ec;
+
+	auto has_verilog_files = [](const fs::path &dir) -> bool {
+		std::error_code ec;
+		if (!fs::exists(dir, ec) || !fs::is_directory(dir, ec)) return false;
+		for (const auto &entry : fs::directory_iterator(dir, fs::directory_options::skip_permission_denied, ec)) {
+			if (entry.is_regular_file(ec)) {
+				auto ext = entry.path().extension();
+				if (ext == ".sv" || ext == ".v") return true;
+			}
+		}
+		return false;
+	};
+
+	for (const auto &cand : {"sv", "rtl", "src"}) {
+		fs::path p = root / cand;
+		if (has_verilog_files(p)) {
+			return cand;
+		}
+	}
+	return "";
+}
+
 std::vector<std::string> fpga_project_settings::scan_pcf_files(std::string_view project_root)
 {
 	std::vector<std::string> pcf_files;
@@ -127,6 +153,20 @@ bool fpga_project_settings::load_from_project(std::string_view project_root, fpg
 		out_cfg.pcf_file = fpga.value("pcf", "");
 	}
 
+	if (fpga.contains("sv_path")) {
+		out_cfg.sv_path = fpga.value("sv_path", "");
+	} else if (fpga.contains("default_sv_path")) {
+		out_cfg.sv_path = fpga.value("default_sv_path", "");
+	} else if (fpga.contains("source_dir")) {
+		out_cfg.sv_path = fpga.value("source_dir", "");
+	} else if (fpga.contains("rtl_dir")) {
+		out_cfg.sv_path = fpga.value("rtl_dir", "");
+	}
+
+	if (out_cfg.sv_path.empty()) {
+		out_cfg.sv_path = detect_sv_path(project_root);
+	}
+
 	out_cfg.yosys_synth_args = fpga.value("yosys_synth_args", "");
 	return true;
 }
@@ -168,6 +208,7 @@ bool fpga_project_settings::save_to_project(std::string_view project_root, const
 	if (!cfg.top_module.empty()) fpga_obj["top_module"] = cfg.top_module;
 	if (cfg.freq_mhz > 0.0) fpga_obj["freq_mhz"] = cfg.freq_mhz;
 	if (!cfg.pcf_file.empty()) fpga_obj["pcf_file"] = cfg.pcf_file;
+	if (!cfg.sv_path.empty()) fpga_obj["sv_path"] = cfg.sv_path;
 	if (!cfg.yosys_synth_args.empty()) fpga_obj["yosys_synth_args"] = cfg.yosys_synth_args;
 
 	j["fpga"] = fpga_obj;
@@ -204,6 +245,7 @@ std::string fpga_project_settings::format_summary(const fpga_target_config &cfg,
 	md += std::format("- **Top Module**: {}\n", cfg.top_module.empty() ? "*Unset*" : std::format("`{}`", cfg.top_module));
 	md += std::format("- **Clock Frequency**: {}\n", cfg.freq_mhz > 0.0 ? std::format("{:.1f} MHz", cfg.freq_mhz) : "*Unset*");
 	md += std::format("- **PCF Pin Constraints**: {}\n", cfg.pcf_file.empty() ? "*None*" : std::format("`{}`", cfg.pcf_file));
+	md += std::format("- **RTL Source Directory**: {}\n", cfg.sv_path.empty() ? "*Auto-detect (*.sv)*" : std::format("`{}`", cfg.sv_path));
 	if (!cfg.yosys_synth_args.empty()) {
 		md += std::format("- **Synthesis Args**: `{}`\n", cfg.yosys_synth_args);
 	}
@@ -306,6 +348,9 @@ std::string fpga_project_settings::format_guidance(std::string_view /*project_ro
 	}
 	md += std::format("  \"top_module\": \"{}\",\n", cfg.top_module.empty() ? "main" : cfg.top_module);
 	md += std::format("  \"freq_mhz\": {},\n", cfg.freq_mhz > 0.0 ? cfg.freq_mhz : 60.0);
+	if (!cfg.sv_path.empty()) {
+		md += std::format("  \"sv_path\": \"{}\",\n", cfg.sv_path);
+	}
 	if (!cfg.pcf_file.empty()) {
 		md += std::format("  \"pcf_file\": \"{}\"\n", cfg.pcf_file);
 	} else if (pcf_files.size() == 1) {

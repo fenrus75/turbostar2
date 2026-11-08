@@ -2,9 +2,9 @@
 
 ## Goals & Constraints
 
-- **Purpose**: Manages FPGA hardware project settings (`target`, `device`, `package`, `top_module`, `freq_mhz`, `pcf_file`, `yosys_synth_args`), enabling seamless automated synthesis and place-and-route timing analysis without user micromanagement.
+- **Purpose**: Manages FPGA hardware project settings (`target`, `device`, `package`, `top_module`, `freq_mhz`, `pcf_file`, `sv_path`, `yosys_synth_args`), enabling seamless automated synthesis and place-and-route timing analysis without user micromanagement.
 - **File Precedence**: Checks for `turbostar.json` first, then falls back to vendor-neutral `project.json` in the project root. When writing, updates existing files or creates `turbostar.json` formatted with 2-space indentation.
-- **Smart Discovery**: Automatically discovers installed nextpnr and Yosys binaries on PATH and scans the workspace directory tree for pin constraint files (`*.pcf`). If exactly one `.pcf` file exists, it can be automatically suggested or utilized.
+- **Smart Discovery**: Automatically discovers installed nextpnr and Yosys binaries on PATH, auto-detects synthesizable RTL directories (`sv`, `rtl`, `src`), and scans the workspace directory tree for pin constraint files (`*.pcf`). If exactly one `.pcf` file exists, it can be automatically suggested or utilized.
 - **Contextual Guidance**: If mandatory settings are missing, generates structured markdown guidance paragraphs explaining what is missing, how the LLM can resolve it from Makefiles or board specs, and provides the exact remediation command.
 
 ## Lessons Learned

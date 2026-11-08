@@ -14,6 +14,7 @@ struct verilog_project_settings_args {
 	std::string top_module;    // "main"
 	double freq_mhz{0.0};
 	std::string pcf_file;
+	std::string sv_path;
 	std::string yosys_synth_args;
 };
 

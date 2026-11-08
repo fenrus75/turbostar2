@@ -2,7 +2,7 @@
 
 ## Goals & Constraints
 
-- **Purpose**: Implements the `verilog_project_settings` tool action, allowing agents to query or configure FPGA target parameters (`target`, `device`, `package`, `top_module`, `freq_mhz`, `pcf_file`, `yosys_synth_args`) persisted in `turbostar.json` or `project.json`.
+- **Purpose**: Implements the `verilog_project_settings` tool action, allowing agents to query or configure FPGA target parameters (`target`, `device`, `package`, `top_module`, `freq_mhz`, `pcf_file`, `sv_path`, `yosys_synth_args`) persisted in `turbostar.json` or `project.json`.
 - **Informative Reporting**: When queried or partially configured, reports discovered EDA tool binaries, detected pin constraints, current configuration, and actionable guidance for missing parameters.
 
 ## Lessons Learned

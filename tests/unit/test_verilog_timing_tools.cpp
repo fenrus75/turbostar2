@@ -111,6 +111,35 @@ void test_verilog_logic_depth_execution()
 			auto raw_tool = validator.create_tool(raw_args);
 			std::string raw_res = raw_tool->execute(ctx);
 			assert(raw_res.find("Shared bottleneck") != std::string::npos);
+
+			// Test zero-arg / default invocation using turbostar.json
+			std::string tmp_prj = std::format("tests/unit/tmp_ld_prj_{}", (long)getpid());
+			std::filesystem::create_directories(tmp_prj);
+			std::string cfg_path;
+			verilog::fpga_target_config def_cfg;
+			def_cfg.target = "ice40";
+			def_cfg.top_module = "main";
+			def_cfg.sv_path = "sv";
+			verilog::fpga_project_settings::save_to_project(tmp_prj, def_cfg, cfg_path, err);
+
+			std::error_code ec_sym;
+			std::filesystem::create_directory_symlink(std::filesystem::canonical("examples/test8008/sv"),
+			                                         std::filesystem::path(tmp_prj) / "sv", ec_sym);
+
+			agentlib::tool_context ctx_def;
+			ctx_def.fs_security.add_allowed_root(std::filesystem::current_path(), agentlib::access_type::write);
+			ctx_def.fs_security.set_working_directory(tmp_prj);
+
+			nlohmann::json empty_args = nlohmann::json::object();
+			bool ok_def = validator.validate_args(empty_args, ctx_def, err);
+			assert(ok_def);
+			auto tool_def = validator.create_tool(empty_args);
+			assert(tool_def != nullptr);
+			std::string res_def = tool_def->execute(ctx_def);
+			assert(res_def.find("# Timing: `main`") != std::string::npos);
+			assert(res_def.find("iCE40") != std::string::npos);
+
+			std::filesystem::remove_all(tmp_prj, ec_sym);
 		}
 	}
 }
@@ -333,6 +362,9 @@ void test_fpga_project_settings()
 	}
 	assert(found_cu);
 
+	// Detect sv_path
+	assert(verilog::fpga_project_settings::detect_sv_path("examples/test8008") == "sv");
+
 	// 3. Save and load from temporary project directory
 	std::string tmp_dir = std::format("tests/unit/tmp_fpga_cfg_{}", (long)getpid());
 	std::filesystem::create_directories(tmp_dir);
@@ -344,6 +376,7 @@ void test_fpga_project_settings()
 	cfg.top_module = "main";
 	cfg.freq_mhz = 60.0;
 	cfg.pcf_file = "pcf/cu.pcf";
+	cfg.sv_path = "sv";
 
 	std::string path_used;
 	std::string err;
@@ -361,6 +394,7 @@ void test_fpga_project_settings()
 	assert(loaded_cfg.top_module == "main");
 	assert(loaded_cfg.freq_mhz == 60.0);
 	assert(loaded_cfg.pcf_file == "pcf/cu.pcf");
+	assert(loaded_cfg.sv_path == "sv");
 
 	std::vector<std::string> missing;
 	assert(verilog::fpga_project_settings::is_complete(loaded_cfg, missing));
@@ -409,7 +443,8 @@ void test_verilog_project_settings_tool()
 		{"package", "cb132"},
 		{"top_module", "main"},
 		{"freq_mhz", 60.0},
-		{"pcf_file", "pcf/cu.pcf"}
+		{"pcf_file", "pcf/cu.pcf"},
+		{"default_sv_path", "sv"}
 	};
 	assert(validator.validate_args(set_args, ctx, err));
 	auto set_tool = validator.create_tool(set_args);
@@ -423,6 +458,7 @@ void test_verilog_project_settings_tool()
 	assert(get_out2.find("Missing FPGA Project Configuration") == std::string::npos);
 	assert(get_out2.find("`ice40`") != std::string::npos);
 	assert(get_out2.find("60.0 MHz") != std::string::npos);
+	assert(get_out2.find("`sv`") != std::string::npos);
 
 	std::error_code ec;
 	std::filesystem::remove_all(tmp_dir, ec);

@@ -1,6 +1,7 @@
 #include "plugins/verilog/verilog_pnr_timing_tool.h"
 #include "plugins/verilog/nextpnr_timing_analyzer.h"
 #include "plugins/verilog/netlist_graph_analyzer.h"
+#include "plugins/verilog/verilog_module_scanner.h"
 #include "plugins/verilog/fpga_project_settings.h"
 #include "fs_utils.h"
 
@@ -69,31 +70,19 @@ std::string verilog_pnr_timing_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	// Gather synthesizable RTL files
-	std::vector<std::string> sources;
 	fs::path scan_root;
 	if (!args_.safe_file.empty()) {
 		scan_root = fs::path(args_.safe_file).parent_path();
 		if (scan_root.has_parent_path() && scan_root.filename() != "sv") {
 			scan_root = scan_root.parent_path();
 		}
+	} else if (!cfg.sv_path.empty()) {
+		scan_root = fs::path(project_root) / cfg.sv_path;
 	} else {
 		scan_root = fs::path(project_root);
 	}
 
-	try {
-		std::error_code ec;
-		for (const auto &entry : fs::recursive_directory_iterator(scan_root, fs::directory_options::skip_permission_denied, ec)) {
-			if (entry.is_regular_file(ec) && verilog::netlist_graph_analyzer::is_synthesis_source_file(entry.path())) {
-				// Don't include testbenches
-				std::string filename = entry.path().filename().string();
-				if (!filename.starts_with("tb_") && filename.find("_tb.") == std::string::npos) {
-					sources.push_back(entry.path().string());
-				}
-			}
-		}
-	} catch (...) {
-	}
-
+	std::vector<std::string> sources = verilog::verilog_module_scanner::find_synthesizable_files(scan_root);
 	if (sources.empty() && !args_.safe_file.empty()) {
 		sources.push_back(args_.safe_file);
 	}

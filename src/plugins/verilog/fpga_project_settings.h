@@ -18,6 +18,7 @@ struct fpga_target_config {
 	std::string top_module;       // Synthesizable top-level module name, e.g. "main"
 	double freq_mhz{0.0};         // Target clock frequency in MHz, e.g. 60.0
 	std::string pcf_file;         // Physical constraints file path, e.g. "pcf/cu.pcf"
+	std::string sv_path;          // Root directory for synthesizable RTL, e.g. "sv" or "src"
 	std::string yosys_synth_args; // Additional synthesis args, e.g. "-abc9"
 	std::string active_config_file; // Source file path loaded from or written to
 };
@@ -44,6 +45,9 @@ class fpga_project_settings {
 public:
 	// Detect EDA tool binaries installed on PATH
 	static fpga_system_tools detect_system_tools();
+
+	// Auto-detect synthesizable RTL directory (checks "sv", "rtl", "src", or ".")
+	static std::string detect_sv_path(std::string_view project_root);
 
 	// Scan project directory for *.pcf constraint files
 	static std::vector<std::string> scan_pcf_files(std::string_view project_root);

@@ -1,6 +1,7 @@
 #include "plugins/verilog/verilog_update_timing_tool.h"
 #include "plugins/verilog/netlist_graph_analyzer.h"
 #include "plugins/verilog/verilog_module_scanner.h"
+#include "plugins/verilog/fpga_project_settings.h"
 #include "fs_utils.h"
 
 #include <filesystem>
@@ -24,23 +25,47 @@ bool verilog_update_timing_tool::validate_runtime(const agentlib::tool_context &
 
 std::string verilog_update_timing_tool::execute(agentlib::tool_context &ctx)
 {
+	std::string project_root = ctx.fs_security.get_working_directory().string();
+	if (project_root.empty()) {
+		project_root = ".";
+	}
+
+	verilog::fpga_target_config cfg;
+	std::string load_err;
+	verilog::fpga_project_settings::load_from_project(project_root, cfg, load_err);
+
+	std::string scan_dir = args_.safe_path;
+	if ((args_.requested_path.empty() || args_.requested_path == ".") && !cfg.sv_path.empty()) {
+		std::string cand = (std::filesystem::path(project_root) / cfg.sv_path).string();
+		std::string safe_cand;
+		std::string sec_err;
+		if (ctx.fs_security.validate_access(cand, agentlib::access_type::read, safe_cand, sec_err)) {
+			scan_dir = safe_cand;
+		}
+	}
+
+	std::string target_mode = args_.target_mode;
+	if (target_mode == "Generic LUT4" && cfg.target == "ice40") {
+		target_mode = "iCE40";
+	}
+
 	std::vector<std::string> sv_files;
 	try {
-		sv_files = verilog::verilog_module_scanner::find_synthesizable_files(args_.safe_path);
+		sv_files = verilog::verilog_module_scanner::find_synthesizable_files(scan_dir);
 	} catch (const std::exception &e) {
 		set_failure(ctx, e.what());
-		return std::format("Error scanning directory '{}': {}", args_.safe_path, e.what());
+		return std::format("Error scanning directory '{}': {}", scan_dir, e.what());
 	}
 
 	if (sv_files.empty()) {
 		set_failure(ctx);
-		return std::format("No Verilog/SystemVerilog files found in '{}'", args_.safe_path);
+		return std::format("No Verilog/SystemVerilog files found in '{}'", scan_dir);
 	}
 
 	auto declared_modules = verilog::verilog_module_scanner::discover_modules_in_files(sv_files);
 	if (declared_modules.empty()) {
 		set_failure(ctx);
-		return std::format("No module declarations found in {} scanned files in '{}'", sv_files.size(), args_.safe_path);
+		return std::format("No module declarations found in {} scanned files in '{}'", sv_files.size(), scan_dir);
 	}
 
 	struct update_stat {
@@ -63,7 +88,7 @@ std::string verilog_update_timing_tool::execute(agentlib::tool_context &ctx)
 		if (!args_.safe_netlist.empty()) {
 			loaded = analyzer.load_from_file(args_.safe_netlist, err, decl.module_name);
 		} else {
-			loaded = analyzer.synthesize_and_load(decl.module_name, sv_files, args_.target_mode, err);
+			loaded = analyzer.synthesize_and_load(decl.module_name, sv_files, target_mode, err);
 		}
 
 		update_stat st;
@@ -78,7 +103,7 @@ std::string verilog_update_timing_tool::execute(agentlib::tool_context &ctx)
 			st.inputs = analyzer.get_input_ports().size();
 			st.outputs = analyzer.get_output_ports().size();
 
-			std::string md_content = analyzer.generate_timing_markdown(args_.target_mode);
+			std::string md_content = analyzer.generate_timing_markdown(target_mode);
 
 			std::string safe_out_path;
 			std::string sec_err;

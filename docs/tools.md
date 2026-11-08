@@ -1017,18 +1017,18 @@ Tools in this family assist in digital ASIC and FPGA hardware engineering, simul
 ### `verilog_logic_depth` (Family: `verilog`)
 *   **Description:** Analyzes pre-place-and-route structural logic depth ("layers of logic") for a Verilog/SystemVerilog module. Evaluates In->Reg, Reg->Out, Reg->Reg, and In->Out timing boundaries, renders the sidecar contract table, and traces the top $K$ worst critical combinational paths with cell types, interconnect nets, and source coordinates (`file.sv:line`). Only registered when `yosys` is present in system PATH.
 *   **Arguments:**
-    *   `module` *(string, required)*: Target module name to analyze.
-    *   `file` *(string, optional)*: Source RTL file containing the module (used to locate the `<module>.timing.md` sidecar path).
+    *   `module` *(string, optional)*: Target module name to analyze. If omitted, defaults to `top_module` configured in `turbostar.json`.
+    *   `file` *(string, optional)*: Source RTL file containing the module. If omitted, scans synthesizable RTL files under `sv_path` (or auto-detected `sv/`, `rtl/`, `src/`).
     *   `netlist` *(string, optional)*: Pre-synthesized Yosys JSON netlist path. If omitted, triggers on-the-fly synthesis via Yosys.
-    *   `target` *(string, optional)*: Synthesis target mode when synthesizing on-the-fly (`"Generic LUT4"`, `"Generic LUT6"`, `"Generic Gates"`, or `"iCE40"`).
+    *   `target` *(string, optional)*: Synthesis target mode when synthesizing on-the-fly (`"Generic LUT4"`, `"Generic LUT6"`, `"Generic Gates"`, or `"iCE40"`). If omitted, defaults to project `target` (e.g. `"iCE40"`) or `"Generic LUT4"`.
     *   `top_k` *(integer, optional)*: Number of worst-case critical paths to report (default: `3`).
     *   `group_by_sink` *(boolean, optional)*: Whether to group redundant paths converging on the same sink register/output into a single bottleneck entry with compacted source signal ranges (default: `true`).
 
 ### `verilog_update_timing` (Family: `verilog`)
 *   **Description:** Scans a directory or project workspace for Verilog/SystemVerilog modules, synthesizes them using Yosys against the selected target architecture, and creates or updates `<module>.timing.md` interface timing contract sidecars. Only registered when `yosys` is present in system PATH.
 *   **Arguments:**
-    *   `path` *(string, optional)*: Directory path to scan for Verilog modules (defaults to project directory).
-    *   `target` *(string, optional)*: Synthesis target mode (`"Generic LUT4"`, `"Generic LUT6"`, `"Generic Gates"`, or `"iCE40"`). Defaults to `"Generic LUT4"`.
+    *   `path` *(string, optional)*: Directory path to scan for Verilog modules (defaults to `sv_path` from project settings, or auto-detected `sv/`, `rtl/`, `src/`).
+    *   `target` *(string, optional)*: Synthesis target mode (`"Generic LUT4"`, `"Generic LUT6"`, `"Generic Gates"`, or `"iCE40"`). Defaults to project target architecture or `"Generic LUT4"`.
 
 ### `verilog_project_settings` (Family: `verilog`)
 *   **Description:** Inspects or updates FPGA hardware project configuration (persisted in `turbostar.json` or `project.json`). When called without parameters or with `action='get'`, reports current settings, detected EDA tools (`nextpnr-ice40`, `nextpnr-generic`, `yosys`), discovered `.pcf` pin constraint files, and missing parameter guidance. When called with configuration parameters or `action='set'`, updates and saves the project settings.
@@ -1040,6 +1040,7 @@ Tools in this family assist in digital ASIC and FPGA hardware engineering, simul
     *   `top_module` *(string, optional)*: Synthesizable top-level SystemVerilog module name (e.g. `'main'` or `'top'`).
     *   `freq_mhz` *(number, optional)*: Target clock frequency in MHz (e.g. `60.0`).
     *   `pcf_file` *(string, optional)*: Path to physical pin constraint file (`*.pcf`), e.g. `'pcf/cu.pcf'`.
+    *   `sv_path` *(string, optional)*: Root directory for synthesizable RTL sources (e.g. `'sv'`, `'rtl'`, `'src'`). Auto-detected if not specified.
     *   `yosys_synth_args` *(string, optional)*: Optional extra synthesis arguments for Yosys (e.g. `'-abc9'`).
 
 ### `verilog_pnr_timing` (Family: `verilog`)

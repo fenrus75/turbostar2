@@ -1,5 +1,7 @@
 #include "plugins/verilog/verilog_logic_depth_tool.h"
 #include "plugins/verilog/netlist_graph_analyzer.h"
+#include "plugins/verilog/verilog_module_scanner.h"
+#include "plugins/verilog/fpga_project_settings.h"
 #include "fs_utils.h"
 
 #include <filesystem>
@@ -28,6 +30,8 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 	std::string err;
 	bool loaded = false;
 
+	std::string target_mode = args_.target_mode;
+
 	if (!args_.safe_netlist.empty()) {
 		loaded = analyzer.load_from_file(args_.safe_netlist, err, args_.requested_module);
 		if (!loaded) {
@@ -35,6 +39,29 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 			return std::format("Error loading netlist '{}': {}", args_.safe_netlist, err);
 		}
 	} else {
+		std::string project_root = ctx.fs_security.get_working_directory().string();
+		if (project_root.empty()) {
+			project_root = ".";
+		}
+
+		verilog::fpga_target_config cfg;
+		std::string load_err;
+		verilog::fpga_project_settings::load_from_project(project_root, cfg, load_err);
+
+		if (args_.requested_module.empty()) {
+			if (!cfg.top_module.empty()) {
+				args_.requested_module = cfg.top_module;
+			} else {
+				set_failure(ctx, "No module name specified and no top_module configured in project settings");
+				return "Error: No module name specified and no top_module configured in turbostar.json. "
+				       "Please pass 'module' parameter or configure 'top_module' via verilog_project_settings.";
+			}
+		}
+
+		if (target_mode == "Generic LUT4" && cfg.target == "ice40") {
+			target_mode = "iCE40";
+		}
+
 		std::vector<std::string> sources;
 		if (!args_.safe_file.empty()) {
 			std::filesystem::path fp(args_.safe_file);
@@ -43,27 +70,31 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 			if (scan_root.has_parent_path() && scan_root.filename() != "sv") {
 				scan_root = scan_root.parent_path();
 			}
-			try {
-				for (const auto &entry : std::filesystem::recursive_directory_iterator(scan_root)) {
-					if (entry.is_regular_file() && verilog::netlist_graph_analyzer::is_synthesis_source_file(entry.path())) {
-						sources.push_back(entry.path().string());
-					}
-				}
-			} catch (...) {
-			}
+			sources = verilog::verilog_module_scanner::find_synthesizable_files(scan_root);
 			if (sources.empty()) {
 				sources.push_back(args_.safe_file);
 			}
+		} else {
+			std::filesystem::path scan_root = project_root;
+			if (!cfg.sv_path.empty()) {
+				scan_root = std::filesystem::path(project_root) / cfg.sv_path;
+			}
+			sources = verilog::verilog_module_scanner::find_synthesizable_files(scan_root);
 		}
 
-		loaded = analyzer.synthesize_and_load(args_.requested_module, sources, args_.target_mode, err);
+		if (sources.empty()) {
+			set_failure(ctx, "No synthesizable RTL source files found");
+			return "Error: No synthesizable SystemVerilog/Verilog source files found in workspace.";
+		}
+
+		loaded = analyzer.synthesize_and_load(args_.requested_module, sources, target_mode, err);
 		if (!loaded) {
 			set_failure(ctx, err);
 			return std::format("Synthesis/analysis failed for module '{}': {}", args_.requested_module, err);
 		}
 	}
 
-	std::string md_tables = analyzer.generate_timing_markdown(args_.target_mode);
+	std::string md_tables = analyzer.generate_timing_markdown(target_mode);
 
 	auto format_cat = [](verilog::path_category cat) -> std::string {
 		switch (cat) {
