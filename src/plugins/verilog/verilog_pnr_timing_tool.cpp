@@ -47,7 +47,7 @@ std::string verilog_pnr_timing_tool::execute(agentlib::tool_context &ctx)
 
 	verilog::fpga_target_config cfg;
 	std::string load_err;
-	bool has_cfg = verilog::fpga_project_settings::load_from_project(project_root, cfg, load_err);
+	verilog::fpga_project_settings::load_from_project(project_root, cfg, load_err);
 
 	auto sys_tools = verilog::fpga_project_settings::detect_system_tools();
 	auto pcfs = verilog::fpga_project_settings::scan_pcf_files(project_root);
