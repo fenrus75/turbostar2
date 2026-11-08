@@ -31,6 +31,10 @@ void register_verilog_logic_depth(void);
 void unregister_verilog_logic_depth(void);
 void register_verilog_update_timing(void);
 void unregister_verilog_update_timing(void);
+void register_verilog_project_settings(void);
+void unregister_verilog_project_settings(void);
+void register_verilog_pnr_timing(void);
+void unregister_verilog_pnr_timing(void);
 
 /*
  * Plugin dynamic entry point invoked when loaded by plugin_loader.
@@ -45,6 +49,8 @@ void plugin_run(void)
 	register_vcd_compare();
 	register_verilog_logic_depth();
 	register_verilog_update_timing();
+	register_verilog_project_settings();
+	register_verilog_pnr_timing();
 
 	bool has_yosys = !fs_utils::find_executable("yosys").empty();
 	if (has_yosys) {
@@ -95,6 +101,14 @@ To debug a digital design without blowing your context window, follow this workf
 8. **Batch Update Timing Sidecars (`verilog_update_timing`)**:
    Scan project modules and update all `<module>.timing.md` interface contract sidecars in batch:
    `verilog_update_timing(path="sv", target="Generic LUT4")`
+
+9. **Configure Project FPGA Settings (`verilog_project_settings`)**:
+   Query or configure target hardware architecture, device, package, clock frequency, and pin constraints:
+   `verilog_project_settings(target="ice40", device="hx8k", package="cb132", top_module="main", freq_mhz=60.0)`
+
+10. **Analyze Physical Place-and-Route Timing (`verilog_pnr_timing`)**:
+   Pinpoint post-route physical timing bottlenecks and Fmax, decomposed into logic vs wire routing delay:
+   `verilog_pnr_timing(top_k=3)`
 )"
 	);
 }
@@ -113,6 +127,8 @@ void plugin_unload(void)
 	unregister_vcd_compare();
 	unregister_verilog_logic_depth();
 	unregister_verilog_update_timing();
+	unregister_verilog_project_settings();
+	unregister_verilog_pnr_timing();
 
 	agentlib::tool_registry::get_instance().unregister_tool_family("verilog");
 }

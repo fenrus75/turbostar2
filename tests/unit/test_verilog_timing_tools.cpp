@@ -1,9 +1,15 @@
-// Tested source file: src/plugins/verilog/verilog_logic_depth_tool.cpp, src/plugins/verilog/verilog_update_timing_tool.cpp, src/plugins/verilog/verilog_module_scanner.cpp
+// Tested source file: src/plugins/verilog/verilog_logic_depth_tool.cpp, src/plugins/verilog/verilog_update_timing_tool.cpp, src/plugins/verilog/verilog_module_scanner.cpp, src/plugins/verilog/fpga_project_settings.cpp, src/plugins/verilog/nextpnr_timing_analyzer.cpp, src/plugins/verilog/verilog_project_settings_tool.cpp, src/plugins/verilog/verilog_pnr_timing_tool.cpp
 #include "plugins/verilog/verilog_logic_depth_tool.h"
 #include "plugins/verilog/verilog_logic_depth_validator.h"
 #include "plugins/verilog/verilog_update_timing_tool.h"
 #include "plugins/verilog/verilog_update_timing_validator.h"
 #include "plugins/verilog/verilog_module_scanner.h"
+#include "plugins/verilog/fpga_project_settings.h"
+#include "plugins/verilog/nextpnr_timing_analyzer.h"
+#include "plugins/verilog/verilog_project_settings_tool.h"
+#include "plugins/verilog/verilog_project_settings_validator.h"
+#include "plugins/verilog/verilog_pnr_timing_tool.h"
+#include "plugins/verilog/verilog_pnr_timing_validator.h"
 #include "fs_utils.h"
 #include "unit/test_watchdog.h"
 
@@ -310,6 +316,211 @@ void test_standalone_verilog_update_timing_cli()
 	std::filesystem::remove_all(tmp_dir, ec);
 }
 
+void test_fpga_project_settings()
+{
+	// 1. Detect tools
+	auto sys_tools = verilog::fpga_project_settings::detect_system_tools();
+	assert(!sys_tools.yosys_path.empty());
+	assert(!sys_tools.nextpnr_ice40_path.empty());
+	assert(std::find(sys_tools.available_targets.begin(), sys_tools.available_targets.end(), "ice40") != sys_tools.available_targets.end());
+
+	// 2. Scan PCF in test8008
+	auto pcfs = verilog::fpga_project_settings::scan_pcf_files("examples/test8008");
+	assert(!pcfs.empty());
+	bool found_cu = false;
+	for (const auto &p : pcfs) {
+		if (p.find("cu.pcf") != std::string::npos) found_cu = true;
+	}
+	assert(found_cu);
+
+	// 3. Save and load from temporary project directory
+	std::string tmp_dir = std::format("tests/unit/tmp_fpga_cfg_{}", (long)getpid());
+	std::filesystem::create_directories(tmp_dir);
+
+	verilog::fpga_target_config cfg;
+	cfg.target = "ice40";
+	cfg.device = "hx8k";
+	cfg.package = "cb132";
+	cfg.top_module = "main";
+	cfg.freq_mhz = 60.0;
+	cfg.pcf_file = "pcf/cu.pcf";
+
+	std::string path_used;
+	std::string err;
+	bool save_ok = verilog::fpga_project_settings::save_to_project(tmp_dir, cfg, path_used, err);
+	assert(save_ok);
+	assert(path_used.find("turbostar.json") != std::string::npos);
+	assert(std::filesystem::exists(path_used));
+
+	verilog::fpga_target_config loaded_cfg;
+	bool load_ok = verilog::fpga_project_settings::load_from_project(tmp_dir, loaded_cfg, err);
+	assert(load_ok);
+	assert(loaded_cfg.target == "ice40");
+	assert(loaded_cfg.device == "hx8k");
+	assert(loaded_cfg.package == "cb132");
+	assert(loaded_cfg.top_module == "main");
+	assert(loaded_cfg.freq_mhz == 60.0);
+	assert(loaded_cfg.pcf_file == "pcf/cu.pcf");
+
+	std::vector<std::string> missing;
+	assert(verilog::fpga_project_settings::is_complete(loaded_cfg, missing));
+
+	// Test missing guidance
+	verilog::fpga_target_config partial_cfg;
+	assert(!verilog::fpga_project_settings::is_complete(partial_cfg, missing));
+	assert(missing.size() == 4); // target, device, top_module, freq_mhz
+	std::string guidance = verilog::fpga_project_settings::format_guidance(tmp_dir, partial_cfg, sys_tools, pcfs);
+	assert(guidance.find("Missing FPGA Project Configuration") != std::string::npos);
+	assert(guidance.find("Target Architecture") != std::string::npos);
+	assert(guidance.find("Device & Package") != std::string::npos);
+
+	std::error_code ec;
+	std::filesystem::remove_all(tmp_dir, ec);
+}
+
+void test_verilog_project_settings_tool()
+{
+	tools::verilog_project_settings_validator validator;
+	assert(validator.get_name() == "verilog_project_settings");
+	assert(!validator.is_pure());
+
+	std::string tmp_dir = std::format("tests/unit/tmp_vps_tool_{}", (long)getpid());
+	std::filesystem::create_directories(tmp_dir);
+
+	agentlib::tool_context ctx;
+	ctx.fs_security.add_allowed_root(std::filesystem::current_path(), agentlib::access_type::write);
+	ctx.fs_security.set_working_directory(tmp_dir);
+
+	// 1. Initial GET should show guidance for missing settings
+	nlohmann::json get_args = {{"action", "get"}};
+	std::string err;
+	assert(validator.validate_args(get_args, ctx, err));
+	auto tool = validator.create_tool(get_args);
+	assert(tool != nullptr);
+	std::string get_out = tool->execute(ctx);
+	assert(get_out.find("FPGA Project Settings") != std::string::npos);
+	assert(get_out.find("Missing FPGA Project Configuration") != std::string::npos);
+
+	// 2. SET action creates turbostar.json
+	nlohmann::json set_args = {
+		{"action", "set"},
+		{"target", "ice40"},
+		{"device", "hx8k"},
+		{"package", "cb132"},
+		{"top_module", "main"},
+		{"freq_mhz", 60.0},
+		{"pcf_file", "pcf/cu.pcf"}
+	};
+	assert(validator.validate_args(set_args, ctx, err));
+	auto set_tool = validator.create_tool(set_args);
+	std::string set_out = set_tool->execute(ctx);
+	assert(set_out.find("Successfully saved FPGA project configuration") != std::string::npos);
+	assert(std::filesystem::exists(tmp_dir + "/turbostar.json"));
+
+	// 3. Second GET shows configured status without missing guidance
+	auto tool2 = validator.create_tool(get_args);
+	std::string get_out2 = tool2->execute(ctx);
+	assert(get_out2.find("Missing FPGA Project Configuration") == std::string::npos);
+	assert(get_out2.find("`ice40`") != std::string::npos);
+	assert(get_out2.find("60.0 MHz") != std::string::npos);
+
+	std::error_code ec;
+	std::filesystem::remove_all(tmp_dir, ec);
+}
+
+void test_nextpnr_timing_analyzer()
+{
+	std::string timing_file = "examples/test8008/synth/timing.json";
+	std::string netlist_file = "examples/test8008/synth/main.json";
+
+	if (!std::filesystem::exists(timing_file) || !std::filesystem::exists(netlist_file)) {
+		return;
+	}
+
+	verilog::nextpnr_timing_analyzer analyzer;
+	std::string err;
+	bool ok = analyzer.load_from_files(timing_file, netlist_file, err);
+	assert(ok);
+
+	// 1. Clock domains
+	const auto &domains = analyzer.clock_domains();
+	assert(!domains.empty());
+	assert(domains.front().achieved_mhz > 60.0);
+	assert(domains.front().met);
+
+	// 2. Hardware utilization
+	const auto &util = analyzer.utilization();
+	assert(!util.empty());
+	bool found_lc = false;
+	for (const auto &u : util) {
+		if (u.resource_name == "ICESTORM_LC") {
+			found_lc = true;
+			assert(u.used == 795);
+			assert(u.available == 7680);
+		}
+	}
+	assert(found_lc);
+
+	// 3. Filtered Reg -> Reg paths
+	auto reg_paths = analyzer.get_filtered_paths(true, 5);
+	assert(reg_paths.size() == 1);
+	const auto &top_p = reg_paths.front();
+	assert(top_p.path_type == verilog::timing_path_type::reg_to_reg);
+	assert(top_p.total_delay_ns > 14.0 && top_p.total_delay_ns < 15.0);
+	assert(top_p.logic_delay_ns > 4.0);
+	assert(top_p.routing_delay_ns > 9.0);
+
+	// Check RTL anchors
+	assert(top_p.start_src.find("decode_mod.sv") != std::string::npos);
+	assert(top_p.end_src.find("register.sv") != std::string::npos);
+
+	// 4. Sink-grouped bottlenecks
+	auto bottlenecks = analyzer.get_sink_grouped_bottlenecks(true, 5);
+	assert(bottlenecks.size() == 1);
+	assert(bottlenecks.front().endpoint.find("C_reg") != std::string::npos);
+
+	// 5. Generate Markdown
+	std::string md = analyzer.generate_timing_markdown(true, true, 3);
+	assert(md.find("Clock Domain & Frequency Timing") != std::string::npos);
+	assert(md.find("Hardware Resource Utilization") != std::string::npos);
+	assert(md.find("Physical Critical Paths") != std::string::npos);
+	assert(md.find("decode_mod.sv") != std::string::npos);
+	assert(md.find("register.sv") != std::string::npos);
+}
+
+void test_verilog_pnr_timing_tool()
+{
+	tools::verilog_pnr_timing_validator validator;
+	assert(validator.get_name() == "verilog_pnr_timing");
+	assert(validator.is_pure());
+
+	std::string timing_file = "examples/test8008/synth/timing.json";
+	std::string netlist_file = "examples/test8008/synth/main.json";
+	if (!std::filesystem::exists(timing_file)) {
+		return;
+	}
+
+	agentlib::tool_context ctx;
+	ctx.fs_security.add_allowed_root(std::filesystem::current_path(), agentlib::access_type::read);
+
+	nlohmann::json args = {
+		{"timing_report", timing_file},
+		{"netlist", netlist_file},
+		{"top_k", 2},
+		{"path_filter", "reg_to_reg"}
+	};
+
+	std::string err;
+	assert(validator.validate_args(args, ctx, err));
+	auto tool = validator.create_tool(args);
+	assert(tool != nullptr);
+
+	std::string res = tool->execute(ctx);
+	assert(res.find("Clock Domain & Frequency Timing") != std::string::npos);
+	assert(res.find("Hardware Resource Utilization") != std::string::npos);
+	assert(res.find("Critical Path Summary") != std::string::npos);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog();
@@ -321,6 +532,10 @@ int main()
 	test_verilog_update_timing_validator();
 	test_verilog_update_timing_execution();
 	test_standalone_verilog_update_timing_cli();
+	test_fpga_project_settings();
+	test_verilog_project_settings_tool();
+	test_nextpnr_timing_analyzer();
+	test_verilog_pnr_timing_tool();
 
 	std::cout << "All verilog timing tool tests passed successfully!" << std::endl;
 	return 0;

@@ -1029,3 +1029,25 @@ Tools in this family assist in digital ASIC and FPGA hardware engineering, simul
 *   **Arguments:**
     *   `path` *(string, optional)*: Directory path to scan for Verilog modules (defaults to project directory).
     *   `target` *(string, optional)*: Synthesis target mode (`"Generic LUT4"`, `"Generic LUT6"`, `"Generic Gates"`, or `"iCE40"`). Defaults to `"Generic LUT4"`.
+
+### `verilog_project_settings` (Family: `verilog`)
+*   **Description:** Inspects or updates FPGA hardware project configuration (persisted in `turbostar.json` or `project.json`). When called without parameters or with `action='get'`, reports current settings, detected EDA tools (`nextpnr-ice40`, `nextpnr-generic`, `yosys`), discovered `.pcf` pin constraint files, and missing parameter guidance. When called with configuration parameters or `action='set'`, updates and saves the project settings.
+*   **Arguments:**
+    *   `action` *(string, optional)*: Action to perform: `'get'` (default) or `'set'`.
+    *   `target` *(string, optional)*: Target FPGA architecture (e.g. `'ice40'`, `'generic'`, `'ecp5'`).
+    *   `device` *(string, optional)*: FPGA device part or flag (e.g. `'hx8k'`, `'lp8k'`, `'--hx8k'`).
+    *   `package` *(string, optional)*: FPGA package type or flag (e.g. `'cb132'`, `'sg48'`, `'--package cb132'`).
+    *   `top_module` *(string, optional)*: Synthesizable top-level SystemVerilog module name (e.g. `'main'` or `'top'`).
+    *   `freq_mhz` *(number, optional)*: Target clock frequency in MHz (e.g. `60.0`).
+    *   `pcf_file` *(string, optional)*: Path to physical pin constraint file (`*.pcf`), e.g. `'pcf/cu.pcf'`.
+    *   `yosys_synth_args` *(string, optional)*: Optional extra synthesis arguments for Yosys (e.g. `'-abc9'`).
+
+### `verilog_pnr_timing` (Family: `verilog`)
+*   **Description:** Analyzes physical place-and-route timing (`nextpnr` report), reporting achieved $F_{\max}$, clock domain slack, hardware device utilization, and critical paths decomposed into logic delay vs. routing wire delay. Correlates physical cells and nets back to original SystemVerilog `file:line` anchors. Focuses on Reg -> Reg clock-limiting paths by default. Accepts pre-existing reports (`timing.json`) or runs automated on-demand synthesis + P&R using `turbostar.json` settings.
+*   **Arguments:**
+    *   `timing_report` *(string, optional)*: Optional path to pre-generated nextpnr timing report (e.g. `'synth/timing.json'`). If omitted, runs automated on-demand synthesis and P&R.
+    *   `netlist` *(string, optional)*: Optional path to Yosys synthesis netlist JSON (e.g. `'synth/main.json'`) for cell-to-RTL correlation.
+    *   `file` *(string, optional)*: Optional RTL source file in the design to anchor on-demand synthesis scan (e.g. `'sv/main.sv'`).
+    *   `top_k` *(integer, optional)*: Maximum number of worst critical paths or bottlenecks to display (default: `3`).
+    *   `group_by_sink` *(boolean, optional)*: Whether to collapse redundant paths converging on the same bottleneck sink into single entries (default: `true`).
+    *   `path_filter` *(string, optional)*: Path category filter: `'reg_to_reg'` to focus exclusively on internal clock-limiting register paths (default), or `'all'` to include async IO pads.

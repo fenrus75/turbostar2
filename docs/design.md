@@ -366,6 +366,13 @@ To eliminate redundant full-file heap reads (`std::ifstream` / `std::getline`) a
 Turbostar supports dynamic plugin loading to extend the editor's capabilities at runtime.
 For details on dynamic loading architecture, C-linkage entry points, dynamic symbol linkage, tool registration lifecycles, and unit test lifecycle initialization, refer to `docs/design-plugin.md`.
 
+### Verilog & FPGA Hardware Design Subsystem
+The `verilog` plugin provides simulation and physical implementation intelligence:
+- **Simulation Waveform Inspection**: Fast binary VCD stream parsing (`vcd_parser`), multi-bit bus rendering (`vcd_wave`), wildcard value label substitutions (`vcd_signal_labels`), valid/strobe masking qualifiers (`vcd_signal_qualifier`), synchronous multi-condition edge searches (`vcd_search`), and cycle-accurate golden trace differential comparisons (`vcd_compare`).
+- **Structural Logic Depth & Interface Contracts**: Analyzes pre-PNR layers of logic (`netlist_graph_analyzer`, `verilog_logic_depth`) across timing boundaries, generating and batch-updating interface timing sidecars (`<module>.timing.md`) with standard Verilog bit-range compaction.
+- **Physical Place-and-Route Timing Analysis (`nextpnr_timing_analyzer`, `verilog_pnr_timing`)**: Correlates post-route nextpnr timing reports (`timing.json`) against Yosys netlists (`main.json`), normalizing physical logic cell names (`_LC`, `_DFFLC`, `_RAM`, `$sb_io`) and performing netname prefix matching to attribute timing delays back to original SystemVerilog `file:line` anchors. Delays are decomposed into logic vs. routing wire contributions, focusing strictly on synchronous Reg -> Reg bottlenecks determining clock frequency ($F_{\max}$).
+- **FPGA Project Settings (`fpga_project_settings`, `verilog_project_settings`)**: Manages target hardware parameters (`target`, `device`, `package`, `top_module`, `freq_mhz`, `pcf_file`) persisted in `turbostar.json` (or `project.json`). Automatically scans for single `.pcf` constraint files and installed nextpnr EDA toolchains, providing actionable remediation guidance when settings are missing.
+
 ## Project Templates
 Turbostar provides a built-in project creation wizard (`ui_dialog_project`) and template engine (`project_template_manager`).
 - **Template Embedding**: Template files in `templates/` are embedded at build time into `src/project_templates_embedded.h` via `scripts/embed_templates.py`. This ensures TurboStar can instantiate new projects without runtime dependency on external filesystem assets.
