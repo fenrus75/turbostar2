@@ -323,7 +323,7 @@ std::string nextpnr_timing_analyzer::resolve_cell_src(std::string_view raw_cell,
 
 	if (!best_net.empty()) {
 		out_hint = best_net;
-		if (src.empty()) {
+		if (src.empty() || (yosys_netlist_reader::is_library_source(src) && !yosys_netlist_reader::is_library_source(net_src))) {
 			src = net_src;
 		}
 	} else if (!matched_cell.empty()) {
@@ -373,6 +373,10 @@ void nextpnr_timing_analyzer::correlate_paths()
 		for (auto &h : cp.hops) {
 			h.cell_src_location = resolve_cell_src(h.to_cell.empty() ? h.from_cell : h.to_cell, h.cell_hint);
 			h.net_src_location = resolve_net_src(h.net_name);
+			if ((h.cell_src_location.empty() || yosys_netlist_reader::is_library_source(h.cell_src_location)) &&
+			    !h.net_src_location.empty() && !yosys_netlist_reader::is_library_source(h.net_src_location)) {
+				h.cell_src_location = h.net_src_location;
+			}
 		}
 	}
 }
@@ -589,7 +593,8 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 			if (h.type == "source" || h.type == "setup") continue;
 
 			std::string loc = h.cell_src_location;
-			if (loc.empty() && !h.net_src_location.empty()) {
+			if ((loc.empty() || yosys_netlist_reader::is_library_source(loc)) &&
+			    !h.net_src_location.empty() && !yosys_netlist_reader::is_library_source(h.net_src_location)) {
 				loc = h.net_src_location;
 			}
 

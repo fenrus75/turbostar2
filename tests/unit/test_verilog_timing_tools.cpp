@@ -10,6 +10,7 @@
 #include "plugins/verilog/verilog_project_settings_validator.h"
 #include "plugins/verilog/verilog_pnr_timing_tool.h"
 #include "plugins/verilog/verilog_pnr_timing_validator.h"
+#include "plugins/verilog/yosys_netlist_reader.h"
 #include "fs_utils.h"
 #include "unit/test_watchdog.h"
 
@@ -525,6 +526,73 @@ void test_nextpnr_timing_analyzer()
 	assert(md.find("register.sv") != std::string::npos);
 }
 
+void test_src_location_techmap_filtering()
+{
+	// clean_src_location should prefer user RTL over techmap library templates in piped locations
+	std::string piped1 = "/usr/share/yosys/ice40/cells_map.v:26.33-27.52|sv/alu/alu.sv:45.10-45.25";
+	std::string cleaned1 = verilog::yosys_netlist_reader::clean_src_location(piped1);
+	assert(cleaned1 == "sv/alu/alu.sv:45");
+
+	std::string piped2 = "sv/alu/alu.sv:12.1-15.10|/usr/share/yosys/ice40/arith_map.v:10.1-20.1";
+	std::string cleaned2 = verilog::yosys_netlist_reader::clean_src_location(piped2);
+	assert(cleaned2 == "sv/alu/alu.sv:12-15");
+
+	// Fallback to library source when no user RTL is available
+	std::string lib_only = "/usr/share/yosys/ice40/cells_map.v:26.33-27.52";
+	std::string cleaned3 = verilog::yosys_netlist_reader::clean_src_location(lib_only);
+	assert(cleaned3.find("cells_map.v") != std::string::npos);
+
+	// Verify nextpnr_timing_analyzer resolves net RTL source over cell techmap source
+	nlohmann::json netlist_json = {
+		{"modules", {
+			{"top", {
+				{"cells", {
+					{"alu_gate_0", {
+						{"type", "ICESTORM_LC"},
+						{"attributes", {
+							{"src", "/usr/share/yosys/ice40/cells_map.v:26.33-27.52"}
+						}}
+					}}
+				}},
+				{"netnames", {
+					{"alu_gate", {
+						{"attributes", {
+							{"src", "sv/alu/alu.sv:100.5-100.20"}
+						}}
+					}}
+				}}
+			}}
+		}}
+	};
+
+	nlohmann::json timing_json = {
+		{"fmax", {{"clk", {{"achieved", 50.0}, {"constraint", 40.0}}}}},
+		{"utilization", {{"LUT4", {{"used", 1}, {"available", 100}}}}},
+		{"critical_paths", nlohmann::json::array({
+			nlohmann::json::object({
+				{"from", "posedge clk"},
+				{"to", "posedge clk"},
+				{"path", nlohmann::json::array({
+					nlohmann::json::object({
+						{"type", "logic"},
+						{"delay", 1.5},
+						{"from", {{"cell", "alu_gate_0"}, {"port", "I0"}}},
+						{"to", {{"cell", "alu_gate_0"}, {"port", "O"}}}
+					})
+				})}
+			})
+		})}
+	};
+
+	verilog::nextpnr_timing_analyzer analyzer;
+	std::string err;
+	assert(analyzer.load_from_json_strings(timing_json.dump(), netlist_json.dump(), err));
+	assert(!analyzer.critical_paths().empty());
+	assert(analyzer.critical_paths().front().hops.front().cell_src_location == "sv/alu/alu.sv:100");
+
+	std::string md = analyzer.generate_timing_markdown(false, false, 5);
+	assert(md.find("sv/alu/alu.sv:100") != std::string::npos);
+}
 void test_verilog_pnr_timing_tool()
 {
 	tools::verilog_pnr_timing_validator validator;
@@ -616,6 +684,7 @@ int main()
 	test_fpga_project_settings();
 	test_verilog_project_settings_tool();
 	test_nextpnr_timing_analyzer();
+	test_src_location_techmap_filtering();
 	test_verilog_pnr_timing_tool();
 	test_verilog_pnr_timing_on_demand();
 

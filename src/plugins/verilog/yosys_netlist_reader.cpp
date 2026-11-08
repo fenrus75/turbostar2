@@ -58,6 +58,20 @@ std::string extract_module_prefix(std::string_view name)
 
 } // anonymous namespace
 
+bool yosys_netlist_reader::is_library_source(std::string_view s)
+{
+	if (s.empty()) return false;
+	return s.find("cells_map.v") != std::string_view::npos ||
+	       s.find("cells_sim.v") != std::string_view::npos ||
+	       s.find("arith_map.v") != std::string_view::npos ||
+	       s.find("brams_map.v") != std::string_view::npos ||
+	       s.find("lutrams_map.v") != std::string_view::npos ||
+	       s.find("share/yosys") != std::string_view::npos ||
+	       s.find("techmap.v") != std::string_view::npos ||
+	       s.find("simlib.v") != std::string_view::npos ||
+	       s.find("simcells.v") != std::string_view::npos;
+}
+
 std::string yosys_netlist_reader::clean_src_location(std::string_view raw_src)
 {
 	if (raw_src.empty()) return "";
@@ -76,11 +90,23 @@ std::string yosys_netlist_reader::clean_src_location(std::string_view raw_src)
 	}
 
 	std::string_view chosen = segments.front();
+	std::string_view non_lib_choice;
+	std::string_view any_valid_choice;
 	for (const auto &seg : segments) {
 		if (seg.find(":0.0-0.0") == std::string_view::npos && seg.find(":0") == std::string_view::npos) {
-			chosen = seg;
-			break;
+			if (any_valid_choice.empty()) {
+				any_valid_choice = seg;
+			}
+			if (!is_library_source(seg)) {
+				non_lib_choice = seg;
+				break;
+			}
 		}
+	}
+	if (!non_lib_choice.empty()) {
+		chosen = non_lib_choice;
+	} else if (!any_valid_choice.empty()) {
+		chosen = any_valid_choice;
 	}
 
 	// Format: file.sv:start_line.start_col-end_line.end_col

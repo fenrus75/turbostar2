@@ -57,6 +57,9 @@ public:
 	// Clean Yosys src string "file.sv:24.9-31.12" -> "file.sv:24-31" or "file.sv:24"
 	static std::string clean_src_location(std::string_view raw_src);
 
+	// Returns true if a location points to internal techmap or cell library sources (e.g. cells_map.v)
+	static bool is_library_source(std::string_view s);
+
 	// Format trace as a token-efficient markdown block for LLMs
 	static std::string format_trace_summary(const signal_source_trace &trace);
 
