@@ -119,6 +119,8 @@ public:
 	// Access parsed metrics
 	// Clean and normalize synthetic net names (e.g. cpu8008.A_reg.load_SB_LUT4... -> cpu8008.A_reg.load)
 	static std::string normalize_net_name(std::string_view raw_net);
+	// Format source location for concise display (strips techmap line numbers e.g. cells_map.v:26-27 -> cells_map.v)
+	static std::string clean_display_location(std::string_view loc);
 
 	// Get fanout (sink count) of a net or bit
 	size_t get_net_fanout(std::string_view net_name) const;
@@ -134,7 +136,7 @@ public:
 	std::vector<timing_bottleneck_group> get_sink_grouped_bottlenecks(bool reg_to_reg_only = true, size_t top_k = 5) const;
 
 	// Format complete timing analysis report in Markdown
-	std::string generate_timing_markdown(bool reg_to_reg_only = true, bool group_by_sink = true, size_t top_k = 5) const;
+	std::string generate_timing_markdown(bool reg_to_reg_only = true, bool group_by_sink = true, size_t top_k = 5, bool collapse = true) const;
 
 private:
 	// Helpers for netlist correlation

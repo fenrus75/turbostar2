@@ -99,6 +99,22 @@ void test_verilog_logic_depth_execution()
 			assert(alu_res.find("Converging on") != std::string::npos);
 			assert(alu_res.find("all converge here") != std::string::npos);
 			assert(alu_res.find("alu_out") != std::string::npos);
+			assert(alu_res.find("[logic] (3 LUTs)") != std::string::npos);
+
+			// Test uncollapsed logic depth (collapse: false)
+			nlohmann::json uncollapsed_args = {
+				{"module", "alu_mod"},
+				{"file", "examples/test8008/sv/alu/alu.sv"},
+				{"top_k", 4},
+				{"collapse", false}
+			};
+			bool uncol_ok = validator.validate_args(uncollapsed_args, ctx, err);
+			assert(uncol_ok);
+			auto uncol_tool = validator.create_tool(uncollapsed_args);
+			assert(uncol_tool != nullptr);
+			std::string uncol_res = uncol_tool->execute(ctx);
+			assert(uncol_res.find("[logic] (3 LUTs)") == std::string::npos);
+			assert(uncol_res.find("[logic] (1 LUT)") != std::string::npos);
 
 			// Test raw paths (group_by_sink: false)
 			nlohmann::json raw_args = {
@@ -647,6 +663,20 @@ void test_verilog_pnr_timing_tool()
 	assert(res.find("Clock Domain & Frequency Timing") != std::string::npos);
 	assert(res.find("Hardware Resource Utilization") != std::string::npos);
 	assert(res.find("Critical Path Summary") != std::string::npos);
+
+	// Also test with collapse: false
+	nlohmann::json args_uncol = {
+		{"timing_report", timing_file},
+		{"netlist", netlist_file},
+		{"top_k", 2},
+		{"path_filter", "reg_to_reg"},
+		{"collapse", false}
+	};
+	assert(validator.validate_args(args_uncol, ctx, err));
+	auto tool_uncol = validator.create_tool(args_uncol);
+	assert(tool_uncol != nullptr);
+	std::string res_uncol = tool_uncol->execute(ctx);
+	assert(res_uncol.find("Critical Path Summary") != std::string::npos);
 }
 
 void test_verilog_pnr_timing_on_demand()
@@ -779,6 +809,98 @@ void test_net_fanout_and_distance_attribution()
 	assert(md.find("Dominant Routing Delays") != std::string::npos);
 }
 
+void test_timing_chain_collapsing_and_demangling()
+{
+	using verilog::nextpnr_timing_analyzer;
+
+	// Netlist with carry chain nets
+	nlohmann::json netlist_json = {
+		{"modules", {
+			{"top", {
+				{"cells", {
+					{"carry_0", {
+						{"type", "ICESTORM_LC"},
+						{"attributes", {{"src", "/usr/share/yosys/ice40/cells_map.v:26.33-27.52"}}}
+					}},
+					{"carry_1", {
+						{"type", "ICESTORM_LC"},
+						{"attributes", {{"src", "/usr/share/yosys/ice40/cells_map.v:26.33-27.52"}}}
+					}},
+					{"carry_2", {
+						{"type", "ICESTORM_LC"},
+						{"attributes", {{"src", "/usr/share/yosys/ice40/cells_map.v:26.33-27.52"}}}
+					}}
+				}},
+				{"netnames", {
+					{"cpu8008.alu.carry", {
+						{"bits", {10, 11, 12}},
+						{"attributes", {{"src", "sv/alu/alu.sv:45.10-45.20"}}}
+					}}
+				}}
+			}}
+		}}
+	};
+
+	// Path with 3 carry hops having mangled techmap names
+	nlohmann::json timing_json = {
+		{"fmax", {{"clk", {{"achieved", 50.0}, {"constraint", 40.0}}}}},
+		{"utilization", {{"LUT4", {{"used", 3}, {"available", 100}}}}},
+		{"critical_paths", nlohmann::json::array({
+			nlohmann::json::object({
+				{"from", "posedge clk"},
+				{"to", "posedge clk"},
+				{"path", nlohmann::json::array({
+					nlohmann::json::object({
+						{"type", "logic"},
+						{"delay", 0.3},
+						{"from", {{"cell", "carry_0"}, {"loc", {10, 5}}, {"port", "I0"}}},
+						{"to", {{"cell", "carry_0"}, {"loc", {10, 5}}, {"port", "O"}}}
+					}),
+					nlohmann::json::object({
+						{"type", "routing"},
+						{"delay", 0.8},
+						{"net", "cpu8008.alu.carry_SB_LUT4_O_I2_SB_LUT4_O_1_I2_SB_CARRY_CO_CI_SB_CARRY_CO_I0[1]"},
+						{"from", {{"cell", "carry_0"}, {"loc", {10, 5}}, {"port", "O"}}},
+						{"to", {{"cell", "carry_1"}, {"loc", {10, 6}}, {"port", "I0"}}}
+					}),
+					nlohmann::json::object({
+						{"type", "logic"},
+						{"delay", 0.3},
+						{"from", {{"cell", "carry_1"}, {"loc", {10, 6}}, {"port", "I0"}}},
+						{"to", {{"cell", "carry_1"}, {"loc", {10, 6}}, {"port", "O"}}}
+					}),
+					nlohmann::json::object({
+						{"type", "routing"},
+						{"delay", 0.9},
+						{"net", "cpu8008.alu.carry_SB_LUT4_O_I1_SB_CARRY_CO_CI_SB_LUT4_I3_O[2]"},
+						{"from", {{"cell", "carry_1"}, {"loc", {10, 6}}, {"port", "O"}}},
+						{"to", {{"cell", "carry_2"}, {"loc", {10, 8}}, {"port", "I0"}}}
+					})
+				})}
+			})
+		})}
+	};
+
+	nextpnr_timing_analyzer analyzer;
+	std::string err;
+	assert(analyzer.load_from_json_strings(timing_json.dump(), netlist_json.dump(), err));
+
+	// Test collapsed markdown (default collapse = true)
+	std::string md_collapsed = analyzer.generate_timing_markdown(false, false, 5, /*collapse=*/true);
+	// Should demangle noisy names completely
+	assert(md_collapsed.find("SB_LUT4") == std::string::npos);
+	assert(md_collapsed.find("SB_CARRY") == std::string::npos);
+	// Should collapse carry chain into a single compact stage
+	assert(md_collapsed.find("cpu8008.alu.carry") != std::string::npos);
+	assert(md_collapsed.find("carry/LUT hops") != std::string::npos);
+	// Should strip line numbers from techmap library templates
+	assert(md_collapsed.find("cells_map.v:26") == std::string::npos);
+
+	// Test uncollapsed markdown (collapse = false)
+	std::string md_uncollapsed = analyzer.generate_timing_markdown(false, false, 5, /*collapse=*/false);
+	assert(md_uncollapsed.find("carry/LUT hops") == std::string::npos);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog();
@@ -795,6 +917,7 @@ int main()
 	test_nextpnr_timing_analyzer();
 	test_src_location_techmap_filtering();
 	test_net_fanout_and_distance_attribution();
+	test_timing_chain_collapsing_and_demangling();
 	test_verilog_pnr_timing_tool();
 	test_verilog_pnr_timing_on_demand();
 

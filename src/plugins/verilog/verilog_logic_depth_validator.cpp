@@ -38,6 +38,10 @@ nlohmann::json verilog_logic_depth_validator::get_parameters_schema() const
 			{"group_by_sink", {
 				{"type", "boolean"},
 				{"description", "Optional. Group redundant paths sharing the same sink register/output into a single bottleneck entry (default true)."}
+			}},
+			{"collapse", {
+				{"type", "boolean"},
+				{"description", "Optional. Collapse consecutive unlabeled logic hops into single stages and demangle noisy signal names (default true)."}
 			}}
 		}}
 	};
@@ -103,6 +107,12 @@ bool verilog_logic_depth_validator::validate_args_impl(const nlohmann::json &raw
 		args_.group_by_sink = raw_json["group_by_sink"].get<bool>();
 	} else if (raw_json.contains("GroupBySink") && raw_json["GroupBySink"].is_boolean()) {
 		args_.group_by_sink = raw_json["GroupBySink"].get<bool>();
+	}
+
+	if (raw_json.contains("collapse") && raw_json["collapse"].is_boolean()) {
+		args_.collapse = raw_json["collapse"].get<bool>();
+	} else if (raw_json.contains("Collapse") && raw_json["Collapse"].is_boolean()) {
+		args_.collapse = raw_json["Collapse"].get<bool>();
 	}
 
 	return true;

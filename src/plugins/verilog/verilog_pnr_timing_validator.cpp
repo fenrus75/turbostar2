@@ -43,6 +43,10 @@ nlohmann::json verilog_pnr_timing_validator::get_parameters_schema() const
 				{"type", "string"},
 				{"enum", {"reg_to_reg", "all"}},
 				{"description", "Path category filter: 'reg_to_reg' to focus exclusively on internal clock-limiting register paths (default), or 'all' to include async IO pads."}
+			}},
+			{"collapse", {
+				{"type", "boolean"},
+				{"description", "Whether to collapse noisy multi-hop carry chains and intermediate techmap routing hops into concise stages with logic/routing breakdown (default: true)."}
 			}}
 		}},
 		{"required", nlohmann::json::array()}
@@ -100,6 +104,10 @@ bool verilog_pnr_timing_validator::validate_args_impl(const nlohmann::json &untr
 
 	if (untrusted_args.contains("group_by_sink") && untrusted_args["group_by_sink"].is_boolean()) {
 		args_.group_by_sink = untrusted_args["group_by_sink"].get<bool>();
+	}
+
+	if (untrusted_args.contains("collapse") && untrusted_args["collapse"].is_boolean()) {
+		args_.collapse = untrusted_args["collapse"].get<bool>();
 	}
 
 	if (untrusted_args.contains("path_filter") && untrusted_args["path_filter"].is_string()) {

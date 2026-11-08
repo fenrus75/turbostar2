@@ -2,6 +2,7 @@
 #include "plugins/verilog/netlist_graph_analyzer.h"
 #include "plugins/verilog/verilog_module_scanner.h"
 #include "plugins/verilog/fpga_project_settings.h"
+#include "plugins/verilog/nextpnr_timing_analyzer.h"
 #include "fs_utils.h"
 
 #include <filesystem>
@@ -125,7 +126,17 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 		std::vector<collapsed_stage> stages;
 
 		for (const auto &hop : hops) {
-			if (!stages.empty() && !hop.src_location.empty() && stages.back().src_location == hop.src_location) {
+			std::string hop_loc = verilog::nextpnr_timing_analyzer::clean_display_location(hop.src_location);
+			bool can_merge = false;
+			if (!stages.empty()) {
+				if (!hop_loc.empty() && stages.back().src_location == hop_loc) {
+					can_merge = true;
+				} else if (args_.collapse && hop_loc.empty() && stages.back().src_location.empty()) {
+					can_merge = true;
+				}
+			}
+
+			if (can_merge) {
 				stages.back().count++;
 				if (!hop.input_hints.empty()) {
 					stages.back().input_hints.push_back(hop.input_hints);
@@ -135,7 +146,7 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 				}
 			} else {
 				collapsed_stage st;
-				st.src_location = hop.src_location;
+				st.src_location = hop_loc;
 				st.count = 1;
 				if (!hop.input_hints.empty()) {
 					st.input_hints.push_back(hop.input_hints);
@@ -182,9 +193,10 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 			}
 
 			std::string out_str;
-			if (!st.out_net.empty() && st.out_net.find('$') == std::string::npos &&
-			    !st.out_net.starts_with("new_n") && !st.out_net.starts_with("wire_")) {
-				out_str = std::format(" -> `{}`", st.out_net);
+			std::string norm_out = verilog::nextpnr_timing_analyzer::normalize_net_name(st.out_net);
+			if (!norm_out.empty() && norm_out.find('$') == std::string::npos &&
+			    !norm_out.starts_with("new_n") && !norm_out.starts_with("wire_")) {
+				out_str = std::format(" -> `{}`", norm_out);
 			}
 
 			chain_md += std::format("  {}. {} ({}{}){}\n", s_idx + 1, loc_str, stage_units, hint_str, out_str);

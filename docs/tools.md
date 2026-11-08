@@ -1023,6 +1023,7 @@ Tools in this family assist in digital ASIC and FPGA hardware engineering, simul
     *   `target` *(string, optional)*: Synthesis target mode when synthesizing on-the-fly (`"Generic LUT4"`, `"Generic LUT6"`, `"Generic Gates"`, or `"iCE40"`). If omitted, defaults to project `target` (e.g. `"iCE40"`) or `"Generic LUT4"`.
     *   `top_k` *(integer, optional)*: Number of worst-case critical paths to report (default: `3`).
     *   `group_by_sink` *(boolean, optional)*: Whether to group redundant paths converging on the same sink register/output into a single bottleneck entry with compacted source signal ranges (default: `true`).
+    *   `collapse` *(boolean, optional)*: Whether to collapse consecutive unlabeled logic hops and demangle noisy signal names into compact stages (default: `true`).
 
 ### `verilog_update_timing` (Family: `verilog`)
 *   **Description:** Scans a directory or project workspace for Verilog/SystemVerilog modules, synthesizes them using Yosys against the selected target architecture, and creates or updates `<module>.timing.md` interface timing contract sidecars. Only registered when `yosys` is present in system PATH.
@@ -1052,3 +1053,4 @@ Tools in this family assist in digital ASIC and FPGA hardware engineering, simul
     *   `top_k` *(integer, optional)*: Maximum number of worst critical paths or bottlenecks to display (default: `3`).
     *   `group_by_sink` *(boolean, optional)*: Whether to collapse redundant paths converging on the same bottleneck sink into single entries (default: `true`).
     *   `path_filter` *(string, optional)*: Path category filter: `'reg_to_reg'` to focus exclusively on internal clock-limiting register paths (default), or `'all'` to include async IO pads.
+    *   `collapse` *(boolean, optional)*: Whether to collapse noisy multi-hop carry chains and intermediate techmap routing hops into concise stages with logic/routing breakdown, fanout, and physical span (default: `true`).
