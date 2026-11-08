@@ -109,7 +109,7 @@ int main()
 	switched = lang_radio->select_choice("SystemVerilog");
 	assert(switched);
 	assert(editor_dlg->get_value("primary_language") == "SystemVerilog");
-	assert(editor_dlg->get_value("primary_language_version") == "IEEE 1800-2017");
+	assert(editor_dlg->get_value("primary_language_version") == "Generic LUT4");
 	for (const auto &child : ver_radio->children()) {
 		assert(child->width() >= child->natural_width());
 	}
@@ -183,8 +183,8 @@ int main()
 
 	for (const auto &child : wiz_std_radio->children()) {
 		assert(child->width() >= child->natural_width());
-		if (child->name() == "IEEE 1800-2017") {
-			assert(child->width() >= 18);
+		if (child->name() == "Generic LUT4") {
+			assert(child->width() >= 14);
 		}
 	}
 
