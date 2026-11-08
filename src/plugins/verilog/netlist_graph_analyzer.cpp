@@ -169,6 +169,8 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 	output_ports_.clear();
 	memo_downstream_.clear();
 	recursion_stack_.clear();
+	memo_upstream_.clear();
+	upstream_recursion_stack_.clear();
 	all_reg_to_reg_paths_.clear();
 	all_in_to_reg_paths_.clear();
 	all_reg_to_out_paths_.clear();
@@ -210,6 +212,7 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 			pinfo.name = port_name;
 			pinfo.direction = dir;
 			pinfo.bit_width = bits.empty() ? 1 : bits.size();
+			pinfo.bit_ids = bits;
 
 			if (dir == "input") {
 				input_ports_.push_back(pinfo);
@@ -315,7 +318,11 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 						drv.src = yosys_netlist_reader::clean_src_location(stored_cell.src_raw);
 						drv.cell_idx = cell_idx;
 						if (stored_cell.is_sequential) {
-							drv.type = bit_driver::driver_type::cell_q;
+							if (is_sequential_source_pin(stored_cell.type, pname)) {
+								drv.type = bit_driver::driver_type::cell_q;
+							} else {
+								drv.type = bit_driver::driver_type::cell_comb;
+							}
 						} else {
 							drv.type = bit_driver::driver_type::cell_comb;
 						}
@@ -447,6 +454,86 @@ netlist_graph_analyzer::downstream_cache_entry netlist_graph_analyzer::compute_d
 	return res;
 }
 
+netlist_graph_analyzer::upstream_cache_entry netlist_graph_analyzer::compute_upstream(int bit_id)
+{
+	if (bit_id <= 0) {
+		return {};
+	}
+
+	auto it = memo_upstream_.find(bit_id);
+	if (it != memo_upstream_.end() && it->second.computed) {
+		return it->second;
+	}
+
+	if (upstream_recursion_stack_.contains(bit_id)) {
+		upstream_cache_entry loop_res;
+		loop_res.computed = true;
+		return loop_res;
+	}
+
+	upstream_recursion_stack_.insert(bit_id);
+
+	upstream_cache_entry res;
+	res.computed = true;
+
+	auto it_drv = bit_drivers_.find(bit_id);
+	if (it_drv != bit_drivers_.end()) {
+		const auto &drv = it_drv->second;
+		if (drv.type == bit_driver::driver_type::primary_input) {
+			res.worst_in.depth = 0;
+			res.worst_in.startpoint_name = drv.name;
+			res.worst_in.start_kind = endpoint_kind::input_port;
+		} else if (drv.type == bit_driver::driver_type::cell_q) {
+			res.worst_reg.depth = 0;
+			res.worst_reg.startpoint_name = std::format("{}.{}", drv.name, drv.pin_name);
+			res.worst_reg.start_kind = endpoint_kind::register_cell;
+			res.worst_reg.start_src = drv.src;
+		} else if (drv.type == bit_driver::driver_type::cell_comb) {
+			if (drv.cell_idx < cells_.size()) {
+				const auto &c = cells_[drv.cell_idx];
+				path_hop hop;
+				hop.cell_name = c.name;
+				hop.cell_type = c.type;
+				hop.net_name = bit_to_net_name_.contains(bit_id) ? bit_to_net_name_[bit_id] : std::format("wire_{}", bit_id);
+				hop.src_location = yosys_netlist_reader::clean_src_location(c.src_raw);
+
+				for (int in_bit : c.all_input_bits) {
+					if (in_bit <= 0) {
+						continue;
+					}
+					auto prev_up = compute_upstream(in_bit);
+					if (prev_up.worst_reg.depth >= 0) {
+						int new_depth = prev_up.worst_reg.depth + 1;
+						if (new_depth > res.worst_reg.depth) {
+							res.worst_reg.depth = new_depth;
+							res.worst_reg.startpoint_name = prev_up.worst_reg.startpoint_name;
+							res.worst_reg.start_kind = prev_up.worst_reg.start_kind;
+							res.worst_reg.start_src = prev_up.worst_reg.start_src;
+							res.worst_reg.hops = prev_up.worst_reg.hops;
+							res.worst_reg.hops.push_back(hop);
+						}
+					}
+					if (prev_up.worst_in.depth >= 0) {
+						int new_depth = prev_up.worst_in.depth + 1;
+						if (new_depth > res.worst_in.depth) {
+							res.worst_in.depth = new_depth;
+							res.worst_in.startpoint_name = prev_up.worst_in.startpoint_name;
+							res.worst_in.start_kind = prev_up.worst_in.start_kind;
+							res.worst_in.start_src = prev_up.worst_in.start_src;
+							res.worst_in.hops = prev_up.worst_in.hops;
+							res.worst_in.hops.push_back(hop);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	upstream_recursion_stack_.erase(bit_id);
+	memo_upstream_[bit_id] = res;
+	return res;
+}
+
 void netlist_graph_analyzer::analyze_paths()
 {
 	// 1. Analyze primary input ports
@@ -508,7 +595,14 @@ void netlist_graph_analyzer::analyze_paths()
 			pin.endpoint = endpoint_kind::output_port;
 			pin.endpoint_desc = "Output";
 			pin.bound_signal_or_cell = out_sink_name;
+		} else if (connects_to_clock) {
+			pin.layers = -1;
+			pin.endpoint = endpoint_kind::clock;
+			pin.endpoint_desc = "Clock";
+		}
 
+		// Always record input to output path if one exists
+		if (worst_out_depth >= 0) {
 			timing_path tp;
 			tp.category = path_category::in_to_out;
 			tp.depth = worst_out_depth;
@@ -518,10 +612,6 @@ void netlist_graph_analyzer::analyze_paths()
 			tp.end_kind = endpoint_kind::output_port;
 			tp.hops = worst_out_hops;
 			all_in_to_out_paths_.push_back(std::move(tp));
-		} else if (connects_to_clock) {
-			pin.layers = -1;
-			pin.endpoint = endpoint_kind::clock;
-			pin.endpoint_desc = "Clock";
 		}
 	}
 
@@ -564,50 +654,42 @@ void netlist_graph_analyzer::analyze_paths()
 					}
 					all_reg_to_reg_paths_.push_back(std::move(tp));
 				}
-
-				if (down.worst_out.depth >= 0) {
-					timing_path tp;
-					tp.category = path_category::reg_to_out;
-					tp.depth = down.worst_out.depth;
-					tp.startpoint = q_pin_name;
-					tp.start_kind = endpoint_kind::register_cell;
-					tp.start_src = q_src;
-					tp.endpoint = down.worst_out.endpoint_name;
-					tp.end_kind = endpoint_kind::output_port;
-					tp.hops = down.worst_out.hops;
-					all_reg_to_out_paths_.push_back(std::move(tp));
-				}
 			}
 		}
 	}
 
-	// 3. Analyze primary output ports
+	// 3. Analyze primary output ports using upstream trace
 	for (auto &pout : output_ports_) {
 		pout.layers = -1;
 		pout.endpoint = endpoint_kind::unconnected;
 		pout.endpoint_desc = "Unconnected";
 
-		// Trace what drives this output port
 		int worst_depth_reg = -1;
 		std::string reg_src_name;
+		std::string reg_src_src;
+		std::vector<path_hop> reg_hops;
+
 		int worst_depth_in = -1;
 		std::string in_src_name;
+		std::string in_src_src;
+		std::vector<path_hop> in_hops;
 
-		for (const auto &tp : all_reg_to_out_paths_) {
-			if (tp.endpoint == pout.name) {
-				if ((int)tp.depth > worst_depth_reg) {
-					worst_depth_reg = tp.depth;
-					reg_src_name = tp.startpoint;
-				}
+		for (int bit_id : pout.bit_ids) {
+			if (bit_id <= 0) {
+				continue;
 			}
-		}
-
-		for (const auto &tp : all_in_to_out_paths_) {
-			if (tp.endpoint == pout.name) {
-				if ((int)tp.depth > worst_depth_in) {
-					worst_depth_in = tp.depth;
-					in_src_name = tp.startpoint;
-				}
+			auto up = compute_upstream(bit_id);
+			if (up.worst_reg.depth > worst_depth_reg) {
+				worst_depth_reg = up.worst_reg.depth;
+				reg_src_name = up.worst_reg.startpoint_name;
+				reg_src_src = up.worst_reg.start_src;
+				reg_hops = up.worst_reg.hops;
+			}
+			if (up.worst_in.depth > worst_depth_in) {
+				worst_depth_in = up.worst_in.depth;
+				in_src_name = up.worst_in.startpoint_name;
+				in_src_src = up.worst_in.start_src;
+				in_hops = up.worst_in.hops;
 			}
 		}
 
@@ -616,13 +698,34 @@ void netlist_graph_analyzer::analyze_paths()
 			pout.endpoint = endpoint_kind::register_cell;
 			pout.endpoint_desc = "Register";
 			pout.bound_signal_or_cell = reg_src_name;
+
+			timing_path tp;
+			tp.category = path_category::reg_to_out;
+			tp.depth = worst_depth_reg;
+			tp.startpoint = reg_src_name;
+			tp.start_kind = endpoint_kind::register_cell;
+			tp.start_src = reg_src_src;
+			tp.endpoint = pout.name;
+			tp.end_kind = endpoint_kind::output_port;
+			tp.hops = reg_hops;
+			all_reg_to_out_paths_.push_back(std::move(tp));
 		} else if (worst_depth_in >= 0) {
 			pout.layers = worst_depth_in;
 			pout.endpoint = endpoint_kind::input_port;
 			pout.endpoint_desc = "Input";
 			pout.bound_signal_or_cell = in_src_name;
+
+			timing_path tp;
+			tp.category = path_category::in_to_out;
+			tp.depth = worst_depth_in;
+			tp.startpoint = in_src_name;
+			tp.start_kind = endpoint_kind::input_port;
+			tp.start_src = in_src_src;
+			tp.endpoint = pout.name;
+			tp.end_kind = endpoint_kind::output_port;
+			tp.hops = in_hops;
+			all_in_to_out_paths_.push_back(std::move(tp));
 		} else {
-			// Check if constant
 			pout.layers = 0;
 			pout.endpoint = endpoint_kind::constant;
 			pout.endpoint_desc = "Constant";
@@ -707,6 +810,12 @@ bool netlist_graph_analyzer::synthesize_and_load(std::string_view module_name, s
 		try {
 			for (const auto &entry : std::filesystem::recursive_directory_iterator(proj_dir)) {
 				if (entry.is_regular_file()) {
+					std::string fname = entry.path().filename().string();
+					if (fname.ends_with('~') || fname.ends_with(".bak") || fname.ends_with(".org") ||
+					    fname.ends_with(".twoport") || fname.ends_with(".orig") || fname.starts_with(".#") ||
+					    fname.starts_with('.')) {
+						continue;
+					}
 					auto ext = entry.path().extension().string();
 					if (ext == ".sv" || ext == ".v") {
 						files_to_use.push_back(entry.path().string());
@@ -747,16 +856,16 @@ bool netlist_graph_analyzer::synthesize_and_load(std::string_view module_name, s
 		}
 	} else if (target_mode == "Generic LUT6") {
 		std::string top_arg = module_name.empty() ? "-auto-top" : std::format("-top {}", module_name);
-		synth_pipeline = std::format("hierarchy -check {}; proc; opt; fsm; opt; memory; opt; techmap; abc -lut 6; write_json {}",
+		synth_pipeline = std::format("hierarchy -check {}; proc; opt; flatten; opt; fsm; opt; memory; opt; techmap; abc -lut 6; write_json {}",
 		                             top_arg, tmp_json);
 	} else if (target_mode == "Generic Gates") {
 		std::string top_arg = module_name.empty() ? "-auto-top" : std::format("-top {}", module_name);
-		synth_pipeline = std::format("hierarchy -check {}; proc; opt; fsm; opt; memory; opt; techmap; write_json {}",
+		synth_pipeline = std::format("hierarchy -check {}; proc; opt; flatten; opt; fsm; opt; memory; opt; techmap; write_json {}",
 		                             top_arg, tmp_json);
 	} else {
 		// Default: Generic LUT4
 		std::string top_arg = module_name.empty() ? "-auto-top" : std::format("-top {}", module_name);
-		synth_pipeline = std::format("hierarchy -check {}; proc; opt; fsm; opt; memory; opt; techmap; abc -lut 4; write_json {}",
+		synth_pipeline = std::format("hierarchy -check {}; proc; opt; flatten; opt; fsm; opt; memory; opt; techmap; abc -lut 4; write_json {}",
 		                             top_arg, tmp_json);
 	}
 

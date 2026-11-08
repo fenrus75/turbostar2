@@ -39,6 +39,8 @@ bool verilog_update_timing_validator::validate_args_impl(const nlohmann::json &r
 
 	if (raw_json.contains("path") && raw_json["path"].is_string()) {
 		args_.requested_path = raw_json["path"].get<std::string>();
+	} else if (raw_json.contains("Path") && raw_json["Path"].is_string()) {
+		args_.requested_path = raw_json["Path"].get<std::string>();
 	}
 
 	std::string sec_err;
@@ -50,6 +52,11 @@ bool verilog_update_timing_validator::validate_args_impl(const nlohmann::json &r
 
 	if (raw_json.contains("netlist") && raw_json["netlist"].is_string()) {
 		args_.requested_netlist = raw_json["netlist"].get<std::string>();
+	} else if (raw_json.contains("Netlist") && raw_json["Netlist"].is_string()) {
+		args_.requested_netlist = raw_json["Netlist"].get<std::string>();
+	}
+
+	if (!args_.requested_netlist.empty()) {
 		if (!ctx.fs_security.validate_access(args_.requested_netlist, agentlib::access_type::read,
 		                                    args_.safe_netlist, sec_err)) {
 			out_error = sec_err;
@@ -59,6 +66,8 @@ bool verilog_update_timing_validator::validate_args_impl(const nlohmann::json &r
 
 	if (raw_json.contains("target") && raw_json["target"].is_string()) {
 		args_.target_mode = raw_json["target"].get<std::string>();
+	} else if (raw_json.contains("Target") && raw_json["Target"].is_string()) {
+		args_.target_mode = raw_json["Target"].get<std::string>();
 	}
 
 	return true;

@@ -131,13 +131,14 @@ void test_verilog_update_timing_execution()
 	agentlib::tool_context ctx;
 	ctx.fs_security.add_allowed_root(std::filesystem::current_path(), agentlib::access_type::write);
 
-	// Create a temporary directory with a couple simple modules
+	// Create a temporary directory with a module, a backup file, and comments
 	std::string tmp_dir = "tests/unit/tmp_timing_test";
 	std::filesystem::create_directories(tmp_dir);
 
 	std::string mod1_path = tmp_dir + "/counter.sv";
 	std::ofstream ofs1(mod1_path);
 	ofs1 << "module counter(input logic clk, input logic rst, output logic [3:0] q);\n"
+	     << "/* todo: make this a module so the top level is only modules and wires */\n"
 	     << "always_ff @(posedge clk) begin\n"
 	     << "  if (rst) q <= 0;\n"
 	     << "  else q <= q + 1;\n"
@@ -145,13 +146,28 @@ void test_verilog_update_timing_execution()
 	     << "endmodule\n";
 	ofs1.close();
 
+	// Create a backup file that should be ignored
+	std::string backup_path = tmp_dir + "/counter.sv~";
+	std::ofstream ofs_bak(backup_path);
+	ofs_bak << "module spurious_backup(input logic clk);\nendmodule\n";
+	ofs_bak.close();
+
+	// Create a top module that instantiates counter to verify hierarchy flattening
+	std::string mod2_path = tmp_dir + "/top_wrapper.sv";
+	std::ofstream ofs2(mod2_path);
+	ofs2 << "module top_wrapper(input logic clk, input logic rst, output logic [3:0] count_out);\n"
+	     << "  counter u_counter(.clk(clk), .rst(rst), .q(count_out));\n"
+	     << "endmodule\n";
+	ofs2.close();
+
 	tools::verilog_update_timing_validator validator;
 	std::string err;
 
 	if (!fs_utils::find_executable("yosys").empty()) {
+		// Test using PascalCase arguments as passed by MCP callers
 		nlohmann::json args = {
-			{"path", tmp_dir},
-			{"target", "Generic LUT4"}
+			{"Path", tmp_dir},
+			{"Target", "Generic LUT4"}
 		};
 
 		bool ok = validator.validate_args(args, ctx, err);
@@ -160,8 +176,11 @@ void test_verilog_update_timing_execution()
 		assert(tool != nullptr);
 
 		std::string result = tool->execute(ctx);
-		assert(result.find("Timing Sidecars Updated") != std::string::npos);
+		// Verify spurious modules like "so" or "spurious_backup" were NOT discovered
+		assert(result.find("so") == std::string::npos);
+		assert(result.find("spurious_backup") == std::string::npos);
 		assert(result.find("counter") != std::string::npos);
+		assert(result.find("top_wrapper") != std::string::npos);
 
 		std::string sidecar_file = tmp_dir + "/counter.timing.md";
 		assert(std::filesystem::exists(sidecar_file));
@@ -172,6 +191,14 @@ void test_verilog_update_timing_execution()
 		assert(s_content.find("| `clk` | 1 | - | Clock |") != std::string::npos);
 		assert(s_content.find("| `rst` | 1 | 0 | Register |") != std::string::npos);
 		assert(s_content.find("| `q` | 4 | 0 | Register |") != std::string::npos);
+
+		// Verify top_wrapper flattened counter and recognizes count_out as driven by Register, not Constant!
+		std::string top_sidecar = tmp_dir + "/top_wrapper.timing.md";
+		assert(std::filesystem::exists(top_sidecar));
+		std::ifstream top_ifs(top_sidecar);
+		std::string top_content((std::istreambuf_iterator<char>(top_ifs)), std::istreambuf_iterator<char>());
+		assert(top_content.find("# Timing: `top_wrapper`") != std::string::npos);
+		assert(top_content.find("| `count_out` | 4 | 0 | Register |") != std::string::npos);
 	}
 
 	std::error_code ec;

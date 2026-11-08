@@ -38,6 +38,7 @@ struct port_timing_info {
 	endpoint_kind endpoint{endpoint_kind::unconnected};
 	std::string endpoint_desc; // "Register", "Output", "Input", "Clock", "Constant", "Unconnected"
 	std::string bound_signal_or_cell; // e.g. "value_reg" or "next_flags"
+	std::vector<int> bit_ids;
 };
 
 struct path_hop {
@@ -139,6 +140,20 @@ class netlist_graph_analyzer
 		bool computed{false};
 	};
 
+	struct upstream_subpath {
+		int depth{-1};
+		std::string startpoint_name;
+		endpoint_kind start_kind{endpoint_kind::unconnected};
+		std::string start_src;
+		std::vector<path_hop> hops;
+	};
+
+	struct upstream_cache_entry {
+		upstream_subpath worst_reg;
+		upstream_subpath worst_in;
+		bool computed{false};
+	};
+
 	std::string module_name_;
 	std::vector<port_timing_info> input_ports_;
 	std::vector<port_timing_info> output_ports_;
@@ -155,10 +170,13 @@ class netlist_graph_analyzer
 	std::map<int, std::string> bit_to_net_name_;
 	std::map<int, downstream_cache_entry> memo_downstream_;
 	std::set<int> recursion_stack_;
+	std::map<int, upstream_cache_entry> memo_upstream_;
+	std::set<int> upstream_recursion_stack_;
 
 	void build_graph(const nlohmann::json &mod_obj);
 	void analyze_paths();
 	downstream_cache_entry compute_downstream(int bit_id);
+	upstream_cache_entry compute_upstream(int bit_id);
 };
 
 } // namespace verilog

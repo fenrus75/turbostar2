@@ -51,10 +51,17 @@ bool verilog_logic_depth_validator::validate_args_impl(const nlohmann::json &raw
 
 	if (raw_json.contains("module") && raw_json["module"].is_string()) {
 		args_.requested_module = raw_json["module"].get<std::string>();
+	} else if (raw_json.contains("Module") && raw_json["Module"].is_string()) {
+		args_.requested_module = raw_json["Module"].get<std::string>();
 	}
 
 	if (raw_json.contains("file") && raw_json["file"].is_string()) {
 		args_.requested_file = raw_json["file"].get<std::string>();
+	} else if (raw_json.contains("File") && raw_json["File"].is_string()) {
+		args_.requested_file = raw_json["File"].get<std::string>();
+	}
+
+	if (!args_.requested_file.empty()) {
 		std::string sec_err;
 		if (!ctx.fs_security.validate_access(args_.requested_file, agentlib::access_type::read,
 		                                    args_.safe_file, sec_err)) {
@@ -65,6 +72,11 @@ bool verilog_logic_depth_validator::validate_args_impl(const nlohmann::json &raw
 
 	if (raw_json.contains("netlist") && raw_json["netlist"].is_string()) {
 		args_.requested_netlist = raw_json["netlist"].get<std::string>();
+	} else if (raw_json.contains("Netlist") && raw_json["Netlist"].is_string()) {
+		args_.requested_netlist = raw_json["Netlist"].get<std::string>();
+	}
+
+	if (!args_.requested_netlist.empty()) {
 		std::string sec_err;
 		if (!ctx.fs_security.validate_access(args_.requested_netlist, agentlib::access_type::read,
 		                                    args_.safe_netlist, sec_err)) {
@@ -75,15 +87,22 @@ bool verilog_logic_depth_validator::validate_args_impl(const nlohmann::json &raw
 
 	if (raw_json.contains("target") && raw_json["target"].is_string()) {
 		args_.target_mode = raw_json["target"].get<std::string>();
+	} else if (raw_json.contains("Target") && raw_json["Target"].is_string()) {
+		args_.target_mode = raw_json["Target"].get<std::string>();
 	}
 
 	if (raw_json.contains("top_k") && raw_json["top_k"].is_number_integer()) {
 		int k = raw_json["top_k"].get<int>();
 		args_.top_k = (k > 0) ? (size_t)k : 3;
+	} else if (raw_json.contains("TopK") && raw_json["TopK"].is_number_integer()) {
+		int k = raw_json["TopK"].get<int>();
+		args_.top_k = (k > 0) ? (size_t)k : 3;
 	}
 
 	if (raw_json.contains("write_sidecar") && raw_json["write_sidecar"].is_boolean()) {
 		args_.write_sidecar = raw_json["write_sidecar"].get<bool>();
+	} else if (raw_json.contains("WriteSidecar") && raw_json["WriteSidecar"].is_boolean()) {
+		args_.write_sidecar = raw_json["WriteSidecar"].get<bool>();
 	}
 
 	return true;
