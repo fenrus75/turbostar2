@@ -295,4 +295,50 @@ std::string verilog_module_scanner::extract_dumpfile_path(const std::filesystem:
 	return "dump.vcd";
 }
 
+std::string verilog_module_scanner::resolve_vcd_path(const std::filesystem::path &project_root, std::string_view requested_path)
+{
+	std::error_code ec;
+	std::filesystem::path root = project_root.empty() ? std::filesystem::path(".") : project_root;
+
+	if (!requested_path.empty()) {
+		std::filesystem::path req_p(requested_path);
+		if (std::filesystem::exists(req_p, ec) || std::filesystem::exists(root / req_p, ec)) {
+			return std::string(requested_path);
+		}
+	}
+
+	// Discover the VCD path declared by $dumpfile("...") in the project's testbench file(s)
+	std::string tb_dump = "dump.vcd";
+	auto tbs = find_testbench_files(root);
+	for (const auto &tb : tbs) {
+		std::string extracted = extract_dumpfile_path(tb);
+		if (!extracted.empty()) {
+			tb_dump = extracted;
+			if (extracted != "dump.vcd") {
+				break;
+			}
+		}
+	}
+
+	auto qualify_with_root = [&](const std::filesystem::path &rel_p) -> std::string {
+		if (!std::filesystem::exists(rel_p, ec) && std::filesystem::exists(root / rel_p, ec)) {
+			return (root / rel_p).string();
+		}
+		return rel_p.string();
+	};
+
+	if (requested_path.empty()) {
+		return qualify_with_root(tb_dump);
+	}
+
+	// If the caller passed e.g. "sim/dump.vcd" when the testbench wrote "dump.vcd" in root, redirect to tb_dump
+	std::filesystem::path req_p(requested_path);
+	std::filesystem::path tb_p(tb_dump);
+	if (req_p.filename() == tb_p.filename() && std::filesystem::exists(root / tb_p, ec)) {
+		return qualify_with_root(tb_p);
+	}
+
+	return std::string(requested_path);
+}
+
 } // namespace verilog

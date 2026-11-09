@@ -1540,10 +1540,21 @@ int main()
 		assert(sim_out.find("vcd_wave(path=\"sim_out.vcd\"") != std::string::npos);
 		assert(verilog::vcd_parser_cache::get_instance().size() == 1);
 
+		// Verify vcd_file_info resolves the VCD filename from the testbench's $dumpfile("sim_out.vcd")
+		// when path is omitted OR when a mismatched prefix like "sim/sim_out.vcd" is passed
+		tools::vcd_file_info_validator info_val;
+		nlohmann::json auto_path_args = nlohmann::json::object();
+		assert(info_val.validate_args(auto_path_args, sim_ctx, err) && err.empty());
+		auto info_tool = info_val.create_tool(auto_path_args);
+		std::string info_out = info_tool->execute(sim_ctx);
+		assert(info_out.find("sim_out.vcd") != std::string::npos);
+
+		nlohmann::json prefixed_path_args = {{"path", "sim/sim_out.vcd"}};
+		assert(info_val.validate_args(prefixed_path_args, sim_ctx, err) && err.empty());
+
 		unregister_verilog_simulate();
 		std::error_code ec_rm;
 		std::filesystem::remove_all(sim_dir, ec_rm);
-		verilog::vcd_parser_cache::get_instance().clear();
 	}
 
 	// Clean up any test sidecars created during tests

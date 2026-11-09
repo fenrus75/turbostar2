@@ -68,6 +68,11 @@ public:
 	 * @brief Extracts the VCD filename from $dumpfile("...") in a testbench file, or returns "dump.vcd" if not found.
 	 */
 	static std::string extract_dumpfile_path(const std::filesystem::path &testbench_file);
+
+	/**
+	 * @brief Resolves a requested (or empty) VCD path against the project's testbench $dumpfile("...") declaration.
+	 */
+	static std::string resolve_vcd_path(const std::filesystem::path &project_root, std::string_view requested_path);
 };
 
 } // namespace verilog

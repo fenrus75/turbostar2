@@ -117,7 +117,9 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 		set_failure(ctx, vcd_access_err);
 		return std::format("Error validating VCD output path `{}`: {}", dump_rel, vcd_access_err);
 	}
-
+	if (vcd_full_path.has_parent_path()) {
+		fs::create_directories(vcd_full_path.parent_path(), ec);
+	}
 	// 6. Compile simulation binary with Verilator
 	fs::path mdir = fs::absolute(fs::path(fs_utils::get_project_tmp_dir()) / std::format("verilator_{}", top_mod), ec);
 	fs::create_directories(mdir, ec);

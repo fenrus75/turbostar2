@@ -1,6 +1,7 @@
 #include "vcd_file_info_validator.h"
 #include "agentlib/json_utils.h"
 #include "agentlib/tool_registry.h"
+#include "plugins/verilog/verilog_module_scanner.h"
 #include <format>
 
 namespace tools
@@ -20,7 +21,7 @@ nlohmann::json vcd_file_info_validator::get_parameters_schema() const
 		{"properties", {
 			{"path", {
 				{"type", "string"},
-				{"description", "Path to the VCD file (e.g. 'sim/dump.vcd' or 'tmp://trace.vcd')."}
+				{"description", "Path to the VCD file (e.g. 'dump.vcd' or 'tmp://trace.vcd'). If omitted, automatically resolved from $dumpfile(...) in the project's testbench."}
 			}},
 			{"clock_signal", {
 				{"type", "string"},
@@ -58,13 +59,14 @@ bool vcd_file_info_validator::validate_args_impl(const nlohmann::json &raw_json,
 						 const agentlib::tool_context &ctx,
 						 std::string &out_error) const
 {
-	if (!raw_json.contains("path") || !raw_json["path"].is_string()) {
-		out_error = "Missing required string argument 'path'";
-		return false;
-	}
-
 	args_ = vcd_file_info_args{};
-	args_.requested_path = raw_json["path"].get<std::string>();
+	std::string untrusted_path;
+	if (raw_json.contains("path") && raw_json["path"].is_string()) {
+		untrusted_path = raw_json["path"].get<std::string>();
+	}
+	args_.requested_path = verilog::verilog_module_scanner::resolve_vcd_path(
+		ctx.fs_security.get_working_directory(), untrusted_path
+	);
 
 	if (args_.requested_path.empty()) {
 		out_error = "Argument 'path' cannot be empty";
@@ -78,7 +80,6 @@ bool vcd_file_info_validator::validate_args_impl(const nlohmann::json &raw_json,
 		return false;
 	}
 	args_.safe_path = canonical_path;
-
 	if (raw_json.contains("clock_signal") && raw_json["clock_signal"].is_string()) {
 		args_.clock_signal = raw_json["clock_signal"].get<std::string>();
 	}

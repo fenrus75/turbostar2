@@ -932,7 +932,7 @@ Tools in this family assist in digital ASIC and FPGA hardware engineering, simul
 ### `vcd_file_info` (Family: `verilog`)
 *   **Description:** Inspects an IEEE 1364/1800 Value Change Dump (VCD) simulation file. Returns timescale, simulation start/end times, detected reference clock with period and tick counts, and a Markdown table of signals filtered by hierarchical scope or name pattern. Signals with 0 transitions throughout the trace are automatically annotated with `**` (dead/stuck-at signal detection). When `stats: true` is passed, expands the table with cycle-accurate `First Toggle (Tick)` and `Toggle Rate` (percentage of clock cycles where posedge-sampled values change). Supports cycle windowing via `start_tick` and `end_tick`.
 *   **Arguments:**
-    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI of the VCD simulation file (e.g. `'sim/dump.vcd'` or `'tmp://trace.vcd'`).
+    *   `path` *(string, required)*: Relative path under the project workspace or VFS URI of the VCD simulation file (e.g. `'dump.vcd'` or `'tmp://trace.vcd'`).
     *   `clock_signal` *(string, optional)*: Optional signal name to analyze as the reference clock. If omitted, the tool automatically detects the primary clock candidate.
     *   `scope` *(string, optional)*: Optional hierarchical module scope to filter signals (e.g. `'tb_main.uut.cpu8008'`).
     *   `filter` *(string, optional)*: Optional wildcard pattern to filter signal names (e.g. `'*addr*'` or `'*data*'`).

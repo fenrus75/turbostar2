@@ -27,10 +27,12 @@ module top_tb;
     end
 
     initial begin
+        $dumpfile("dump.vcd");
+        $dumpvars(0, top_tb);
+
         rst_n    = 0;
         data_in  = 8'h00;
         valid_in = 0;
-
         #20;
         rst_n = 1;
 

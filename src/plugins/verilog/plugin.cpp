@@ -77,26 +77,25 @@ To verify or debug a digital design without blowing your context window, follow 
 
 1. **Discover Simulation Context & Signal Hierarchy (`vcd_file_info`)**:
    Inspect timescale, duration, detected reference clock, and discover signals in the module of interest:
-   `vcd_file_info(path="sim/dump.vcd", scope="tb_main.uut.cpu8008", max_signals=30)`
+   `vcd_file_info(path="dump.vcd", scope="tb_main.uut.cpu8008", max_signals=30)`
 
 2. **Define Value Mappings & Qualifiers (`vcd_signal_labels`, `vcd_signal_qualifier`)**:
    Map opcode bytes or state numbers across instances using wildcard signal names (`*`) and binary bitmasks (`?`):
-   `vcd_signal_labels(path="sim/dump.vcd", signal="*opcode", labels={"0x06": "LAI", "0x36": "LMA", "b01???01": "ALU_OP"})`
+   `vcd_signal_labels(path="dump.vcd", signal="*opcode", labels={"0x06": "LAI", "0x36": "LMA", "b01???01": "ALU_OP"})`
    Bind data buses to valid/enable strobes (or active-low '~cs_n') so invalid cycles mask as '-' and collapse cleanly:
-   `vcd_signal_qualifier(path="sim/dump.vcd", signal="opcode_data", qualifier="opcode_data_valid")`
+   `vcd_signal_qualifier(path="dump.vcd", signal="opcode_data", qualifier="opcode_data_valid")`
 
 3. **Locate Cycle Intervals of Interest (`vcd_search`)**:
    Find exact clock cycle ranges matching an opcode, state name, or bit pattern (supports multi-condition AND matching):
-   `vcd_search(path="sim/dump.vcd", conditions={"opcode_data": "LMA", "opcode_data_valid": "1"})`
+   `vcd_search(path="dump.vcd", conditions={"opcode_data": "LMA", "opcode_data_valid": "1"})`
 
 4. **Sample Synchronous Waveforms at Clock Edges (`vcd_wave`)**:
    Query selected signals across the matched cycle window. Multi-bit buses default to hex; use `b:` prefix for binary bit-masks. Consecutive idle cycles (>= 3 ticks of no signal changes) are automatically collapsed:
-   `vcd_wave(path="sim/dump.vcd", signals=["rst", "current_ip", "opcode_data", "b:flags"], start_tick=4, end_tick=15)`
+   `vcd_wave(path="dump.vcd", signals=["rst", "current_ip", "opcode_data", "b:flags"], start_tick=4, end_tick=15)`
 
 5. **Compare Against Reference / Golden Run (`vcd_compare`)**:
    Pinpoint the exact clock cycle of divergence between golden and candidate traces, listing differing signals while ignoring invalid bus cycles:
-   `vcd_compare(path_a="sim/golden.vcd", path_b="sim/candidate.vcd", scope="tb_main.uut")`
-
+   `vcd_compare(path_a="dump_org.vcd", path_b="dump.vcd", scope="tb_main.uut")`
 6. **Trace Signal to Source RTL (`vcd_signal_to_code`)**:
    Map a simulation signal back to its source file declarations across the hierarchy, its driving cell/port, and downstream consumers:
    `vcd_signal_to_code(signal="tb_main.uut.cpu8008.A_val")`

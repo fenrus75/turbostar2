@@ -21,9 +21,8 @@ module top_tb;
     always #5 clk = ~clk;
 
     initial begin
-        $dumpfile("synth/top_tb.vcd");
+        $dumpfile("dump.vcd");
         $dumpvars(0, top_tb);
-
         // Reset pulse (active-low)
         rst_n = 0;
         #20;

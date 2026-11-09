@@ -1,8 +1,8 @@
 #include "vcd_signal_labels_validator.h"
 #include "agentlib/json_utils.h"
 #include "agentlib/tool_registry.h"
+#include "plugins/verilog/verilog_module_scanner.h"
 #include <format>
-
 namespace tools
 {
 
@@ -46,13 +46,14 @@ bool vcd_signal_labels_validator::validate_args_impl(const nlohmann::json &raw_j
 						    const agentlib::tool_context &ctx,
 						    std::string &out_error) const
 {
-	if (!raw_json.contains("path") || !raw_json["path"].is_string()) {
-		out_error = "Missing required string argument 'path'";
-		return false;
-	}
-
 	args_ = vcd_signal_labels_args{};
-	args_.requested_path = raw_json["path"].get<std::string>();
+	std::string untrusted_path;
+	if (raw_json.contains("path") && raw_json["path"].is_string()) {
+		untrusted_path = raw_json["path"].get<std::string>();
+	}
+	args_.requested_path = verilog::verilog_module_scanner::resolve_vcd_path(
+		ctx.fs_security.get_working_directory(), untrusted_path
+	);
 
 	if (args_.requested_path.empty()) {
 		out_error = "Argument 'path' cannot be empty";
