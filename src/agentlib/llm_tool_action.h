@@ -43,6 +43,7 @@ namespace agentlib {
 | vcd_signal_to_code_tool      | src/plugins/verilog/vcd_signal_to_code_tool.h         |
 | verilog_logic_depth_tool     | src/plugins/verilog/verilog_logic_depth_tool.h        |
 | verilog_update_timing_tool   | src/plugins/verilog/verilog_update_timing_tool.h      |
+| verilog_simulate_tool        | src/plugins/verilog/verilog_simulate_tool.h           |
 */
 class llm_tool_action : public llm_tool {
 public:

@@ -151,4 +151,148 @@ std::vector<discovered_module> verilog_module_scanner::scan(const std::filesyste
 	return discover_modules_in_files(out_all_files);
 }
 
+bool verilog_module_scanner::is_testbench_file(const std::filesystem::path &p)
+{
+	std::string fname = p.filename().string();
+	if (fname.ends_with('~') || fname.ends_with(".bak") || fname.ends_with(".org") ||
+	    fname.ends_with(".twoport") || fname.ends_with(".orig") || fname.starts_with(".#") ||
+	    fname.starts_with('.')) {
+		return false;
+	}
+	auto ext = p.extension().string();
+	if (ext != ".sv" && ext != ".v") {
+		return false;
+	}
+	for (const auto &part : p) {
+		std::string s = part.string();
+		if (s == ".git" || s == ".antigravitycli" || s == ".turbostar" || s == "build" ||
+		    s == "obj_dir" || s == "templates") {
+			return false;
+		}
+	}
+	if (fname.starts_with("tb_") || fname.ends_with("_tb.sv") || fname.ends_with("_tb.v") ||
+	    fname.find("testbench") != std::string::npos) {
+		return true;
+	}
+	for (const auto &part : p.parent_path()) {
+		std::string s = part.string();
+		if (s == "tb" || s == "testbench") {
+			return true;
+		}
+	}
+	return false;
+}
+
+std::vector<std::string> verilog_module_scanner::find_testbench_files(const std::filesystem::path &root)
+{
+	std::vector<std::string> tb_files;
+	std::error_code ec;
+
+	if (std::filesystem::is_regular_file(root, ec)) {
+		auto ext = root.extension().string();
+		if (ext == ".sv" || ext == ".v") {
+			tb_files.push_back(root.string());
+		}
+	} else if (std::filesystem::is_directory(root, ec)) {
+		for (const auto &entry : std::filesystem::recursive_directory_iterator(root, ec)) {
+			if (entry.is_regular_file(ec) && is_testbench_file(entry.path())) {
+				tb_files.push_back(entry.path().string());
+			}
+		}
+	}
+	std::sort(tb_files.begin(), tb_files.end());
+	return tb_files;
+}
+
+std::vector<std::string> verilog_module_scanner::stage_readmem_files(std::span<const std::string> source_files, const std::filesystem::path &work_dir)
+{
+	std::vector<std::string> staged;
+	std::error_code ec;
+
+	for (const auto &fpath : source_files) {
+		std::ifstream ifs(fpath);
+		if (!ifs.is_open()) {
+			continue;
+		}
+		std::string raw_content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+		std::string clean_content = strip_comments(raw_content);
+
+		const char *start = clean_content.data();
+		const char *end = clean_content.data() + clean_content.size();
+
+		while (start < end) {
+			auto match = ctre::search<R"re(\$readmem[hb]\s*\(\s*"([^"]+)")re">(start, end);
+			if (!match) {
+				break;
+			}
+			std::string ref_file = match.get<1>().to_string();
+			start = match.data() + match.size();
+
+			std::filesystem::path ref_p(ref_file);
+			if (ref_p.empty() || ref_p.is_absolute() || ref_file.find("..") != std::string::npos) {
+				continue;
+			}
+
+			std::filesystem::path dest_p = work_dir / ref_p;
+			if (std::filesystem::exists(dest_p, ec)) {
+				continue;
+			}
+
+			// Look for the referenced file next to the RTL source file first, then recursively in work_dir
+			std::filesystem::path src_dir = std::filesystem::path(fpath).parent_path();
+			std::filesystem::path found_p;
+			if (std::filesystem::is_regular_file(src_dir / ref_p, ec)) {
+				found_p = src_dir / ref_p;
+			} else if (ref_p.filename() == ref_p) {
+				for (const auto &entry : std::filesystem::recursive_directory_iterator(work_dir, ec)) {
+					if (entry.is_regular_file(ec) && entry.path().filename() == ref_p) {
+						found_p = entry.path();
+						break;
+					}
+				}
+			}
+
+			if (!found_p.empty()) {
+				if (dest_p.has_parent_path()) {
+					std::filesystem::create_directories(dest_p.parent_path(), ec);
+				}
+				// Remove any broken symlink at dest_p before symlinking/copying
+				if (std::filesystem::is_symlink(dest_p, ec)) {
+					std::filesystem::remove(dest_p, ec);
+				}
+				std::filesystem::path rel_target = std::filesystem::relative(found_p, dest_p.parent_path(), ec);
+				if (!ec && !rel_target.empty()) {
+					std::filesystem::create_symlink(rel_target, dest_p, ec);
+				} else {
+					ec.clear();
+					std::filesystem::copy_file(found_p, dest_p, std::filesystem::copy_options::overwrite_existing, ec);
+				}
+				if (!ec) {
+					staged.push_back(ref_file);
+				}
+			}
+		}
+	}
+	return staged;
+}
+
+std::string verilog_module_scanner::extract_dumpfile_path(const std::filesystem::path &testbench_file)
+{
+	std::ifstream ifs(testbench_file);
+	if (!ifs.is_open()) {
+		return "dump.vcd";
+	}
+	std::string raw_content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+	std::string clean_content = strip_comments(raw_content);
+
+	auto match = ctre::search<R"re(\$dumpfile\s*\(\s*"([^"]+)"\s*\))re">(clean_content);
+	if (match) {
+		std::string p = match.get<1>().to_string();
+		if (!p.empty() && p.find("..") == std::string::npos) {
+			return p;
+		}
+	}
+	return "dump.vcd";
+}
+
 } // namespace verilog

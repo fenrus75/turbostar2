@@ -18,7 +18,10 @@
 #include "plugins/verilog/vcd_signal_to_code_validator.h"
 #include "plugins/verilog/vcd_compare_tool.h"
 #include "plugins/verilog/vcd_compare_validator.h"
+#include "plugins/verilog/verilog_simulate_tool.h"
+#include "plugins/verilog/verilog_simulate_validator.h"
 #include "agentlib/tool_context.h"
+#include "fs_utils.h"
 #include <cassert>
 #include <iostream>
 #include <fstream>
@@ -37,8 +40,9 @@ void register_vcd_signal_to_code();
 void unregister_vcd_signal_to_code();
 void register_vcd_compare();
 void unregister_vcd_compare();
+void register_verilog_simulate();
+void unregister_verilog_simulate();
 }
-
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -1469,6 +1473,77 @@ int main()
 		std::error_code ec_rm;
 		std::filesystem::remove_all(tmp_dir, ec_rm);
 		lbl_mgr.clear_all();
+	}
+
+	// 21. Test verilog_simulate tool (testbench auto-discovery, $readmemh staging, VCD cache warming, and next-step hints)
+	if (!fs_utils::find_executable("verilator").empty()) {
+		register_verilog_simulate();
+
+		std::string sim_dir = std::format("tests/fixtures/tmp_verilog_sim_{}", (long)getpid());
+		std::filesystem::create_directories(sim_dir + "/sv/ram");
+		std::filesystem::create_directories(sim_dir + "/tb");
+
+		{
+			std::ofstream hex_ofs(sim_dir + "/sv/ram/ram_init.hex");
+			hex_ofs << "42\nA5\n";
+		}
+		{
+			std::ofstream dut_ofs(sim_dir + "/sv/dut.sv");
+			dut_ofs << "`timescale 1ns/1ps\n"
+			        << "module dut(input logic clk, input logic rst, output logic [7:0] out_val);\n"
+			        << "    logic [7:0] mem [0:1];\n"
+			        << "    initial $readmemh(\"ram_init.hex\", mem);\n"
+			        << "    always_ff @(posedge clk) begin\n"
+			        << "        if (rst) out_val <= mem[0];\n"
+			        << "        else out_val <= mem[1];\n"
+			        << "    end\n"
+			        << "endmodule\n";
+		}
+		{
+			std::ofstream tb_ofs(sim_dir + "/tb/tb_dut.sv");
+			tb_ofs << "`timescale 1ns/1ps\n"
+			       << "module tb_dut;\n"
+			       << "    logic clk = 0;\n"
+			       << "    logic rst = 1;\n"
+			       << "    logic [7:0] out_val;\n"
+			       << "    dut uut(.clk(clk), .rst(rst), .out_val(out_val));\n"
+			       << "    always #5 clk = ~clk;\n"
+			       << "    initial begin\n"
+			       << "        $dumpfile(\"sim_out.vcd\");\n"
+			       << "        $dumpvars(0, tb_dut);\n"
+			       << "        #12 rst = 0;\n"
+			       << "        #20;\n"
+			       << "        $display(\"OUT=%h\", out_val);\n"
+			       << "        $finish;\n"
+			       << "    end\n"
+			       << "endmodule\n";
+		}
+
+		agentlib::tool_context sim_ctx;
+		sim_ctx.fs_security.add_allowed_root(sim_dir, agentlib::access_type::read);
+		sim_ctx.fs_security.add_allowed_root(sim_dir, agentlib::access_type::write);
+		sim_ctx.fs_security.set_working_directory(sim_dir);
+
+		verilog::vcd_parser_cache::get_instance().clear();
+
+		tools::verilog_simulate_validator sim_val;
+		nlohmann::json sim_args = nlohmann::json::object();
+		std::string err;
+		assert(sim_val.validate_args(sim_args, sim_ctx, err) && err.empty());
+		auto sim_tool = sim_val.create_tool(sim_args);
+		std::string sim_out = sim_tool->execute(sim_ctx);
+
+		assert(sim_out.find("SUCCESS") != std::string::npos);
+		assert(sim_out.find("OUT=a5") != std::string::npos);
+		assert(sim_out.find("Generated VCD Summary (`sim_out.vcd`)") != std::string::npos);
+		assert(sim_out.find("vcd_file_info(path=\"sim_out.vcd\"") != std::string::npos);
+		assert(sim_out.find("vcd_wave(path=\"sim_out.vcd\"") != std::string::npos);
+		assert(verilog::vcd_parser_cache::get_instance().size() == 1);
+
+		unregister_verilog_simulate();
+		std::error_code ec_rm;
+		std::filesystem::remove_all(sim_dir, ec_rm);
+		verilog::vcd_parser_cache::get_instance().clear();
 	}
 
 	// Clean up any test sidecars created during tests

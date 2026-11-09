@@ -13,4 +13,4 @@
 ## Lessons Learned
 
 - **Comment Stripping**: Verilog code frequently contains commented-out module headers (e.g. `// module old_alu(...)`). Regex-based module discovery directly on raw text caused dead modules or legacy headers to be synthesized, leading to false synthesis errors. Stripping comments with string-literal awareness before regex search resolved this cleanly.
-- **Testbench Filtering**: Automatically skipping testbench files and folders avoids attempting to synthesize test harnesses containing non-synthesizable SystemVerilog constructs like `$dumpfile`, initial delays, or verification assertions.
+- **Testbench Filtering & Discovery**: Automatically skipping testbench files and folders avoids attempting to synthesize test harnesses during synthesis, while `find_testbench_files` and `stage_readmem_files` provide the complementary testbench discovery and `$readmemh`/`$readmemb` initialization file staging needed by `verilog_simulate`.

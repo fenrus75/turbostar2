@@ -35,6 +35,8 @@ void register_verilog_project_settings(void);
 void unregister_verilog_project_settings(void);
 void register_verilog_pnr_timing(void);
 void unregister_verilog_pnr_timing(void);
+void register_verilog_simulate(void);
+void unregister_verilog_simulate(void);
 
 /*
  * Plugin dynamic entry point invoked when loaded by plugin_loader.
@@ -51,6 +53,7 @@ void plugin_run(void)
 	register_verilog_update_timing();
 	register_verilog_project_settings();
 	register_verilog_pnr_timing();
+	register_verilog_simulate();
 
 	bool has_yosys = !fs_utils::find_executable("yosys").empty();
 	if (has_yosys) {
@@ -64,9 +67,13 @@ void plugin_run(void)
 
 Tools in this family assist in digital hardware design, FPGA engineering, simulation verification, and waveform analysis.
 
-#### Recommended Workflow: Inspecting a Simulation Dump (.vcd)
+#### Recommended Workflow: Simulating & Inspecting a Waveform (.vcd)
 
-To debug a digital design without blowing your context window, follow this workflow:
+To verify or debug a digital design without blowing your context window, follow this workflow:
+
+0. **Run Testbench Simulation & Generate VCD (`verilog_simulate`)**:
+   Compile and run the project testbench using Verilator to generate/refresh `dump.vcd` and load it into the in-memory VCD cache:
+   `verilog_simulate(testbench="tb/tb_main.sv")`
 
 1. **Discover Simulation Context & Signal Hierarchy (`vcd_file_info`)**:
    Inspect timescale, duration, detected reference clock, and discover signals in the module of interest:
@@ -107,8 +114,8 @@ To debug a digital design without blowing your context window, follow this workf
    `verilog_project_settings(target="ice40", device="hx8k", package="cb132", top_module="main", freq_mhz=60.0)`
 
 10. **Analyze Physical Place-and-Route Timing (`verilog_pnr_timing`)**:
-   Pinpoint post-route physical timing bottlenecks and Fmax, decomposed into logic vs wire routing delay:
-   `verilog_pnr_timing(top_k=3)`
+    Pinpoint post-route physical timing bottlenecks and Fmax, decomposed into logic vs wire routing delay:
+    `verilog_pnr_timing(top_k=3)`
 )"
 	);
 }
@@ -129,6 +136,7 @@ void plugin_unload(void)
 	unregister_verilog_update_timing();
 	unregister_verilog_project_settings();
 	unregister_verilog_pnr_timing();
+	unregister_verilog_simulate();
 
 	agentlib::tool_registry::get_instance().unregister_tool_family("verilog");
 }

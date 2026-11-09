@@ -194,7 +194,11 @@ test_vcd_tools = executable('test_vcd_tools',
    '../src/plugins/verilog/yosys_netlist_reader.cpp',
    '../src/plugins/verilog/netlist_graph_analyzer.cpp',
    '../src/plugins/verilog/vcd_signal_to_code_tool.cpp',
-   '../src/plugins/verilog/vcd_signal_to_code_validator.cpp'],
+   '../src/plugins/verilog/vcd_signal_to_code_validator.cpp',
+   '../src/plugins/verilog/verilog_module_scanner.cpp',
+   '../src/plugins/verilog/fpga_project_settings.cpp',
+   '../src/plugins/verilog/verilog_simulate_tool.cpp',
+   '../src/plugins/verilog/verilog_simulate_validator.cpp'],
   dependencies : [core_dep, agent_dep, nlohmann_json_dep, sqlite3_dep, lsp_dep, ctre_dep],
   include_directories: inc)
 test('unit_vcd_tools', test_vcd_tools, suite: 'plugins', workdir: meson.project_source_root())

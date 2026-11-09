@@ -48,6 +48,26 @@ public:
 	 * @brief Convenience method to find files and discover modules in one step.
 	 */
 	static std::vector<discovered_module> scan(const std::filesystem::path &root, std::vector<std::string> &out_all_files);
+
+	/**
+	 * @brief Returns true if a path looks like a Verilog/SystemVerilog testbench file.
+	 */
+	static bool is_testbench_file(const std::filesystem::path &p);
+
+	/**
+	 * @brief Finds all testbench .sv / .v files under the given root file or directory.
+	 */
+	static std::vector<std::string> find_testbench_files(const std::filesystem::path &root);
+
+	/**
+	 * @brief Scans source files for $readmemh / $readmemb literals and symlinks or stages missing data files into work_dir.
+	 */
+	static std::vector<std::string> stage_readmem_files(std::span<const std::string> source_files, const std::filesystem::path &work_dir);
+
+	/**
+	 * @brief Extracts the VCD filename from $dumpfile("...") in a testbench file, or returns "dump.vcd" if not found.
+	 */
+	static std::string extract_dumpfile_path(const std::filesystem::path &testbench_file);
 };
 
 } // namespace verilog
