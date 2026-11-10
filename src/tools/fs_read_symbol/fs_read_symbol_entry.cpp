@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <thread>
@@ -8,6 +9,7 @@
 #include "agentlib/document_provider.h"
 #include "agentlib/interactions/action.h"
 #include "agentlib/virtual_file_system.h"
+#include "codemap_utils.h"
 #include "project_manager.h"
 #include "fs_read_symbol.h"
 #include "fs_utils.h"
@@ -19,23 +21,32 @@ namespace tools
 namespace
 {
 
-void find_symbols_recursive(const lsp_manager::symbol_node &node, const std::string &parent_scope,
-			    const std::string &target_name, std::vector<lsp_manager::symbol_node> &matches,
-			    bool is_python)
+bool matches_codemap_symbol(const codemap_symbol_info &sym, std::string_view target_name, bool is_python)
 {
+	if (sym.name == target_name) {
+		return true;
+	}
+	if (auto pos = sym.name.rfind("::"); pos != std::string::npos) {
+		std::string_view short_name(sym.name.data() + pos + 2, sym.name.size() - pos - 2);
+		if (short_name == target_name) {
+			return true;
+		}
+	}
+	if (is_python) {
+		if (auto pos = sym.name.rfind('.'); pos != std::string::npos) {
+			std::string_view short_name(sym.name.data() + pos + 1, sym.name.size() - pos - 1);
+			if (short_name == target_name) {
+				return true;
+			}
+		}
+	}
 	std::string sep = is_python ? "." : "::";
-	std::string current_scope = parent_scope.empty() ? node.name : (parent_scope + sep + node.name);
-
-	if (node.name == target_name || 
-	    current_scope == target_name || 
-	    (current_scope.length() >= target_name.length() + sep.length() && 
-	     current_scope.substr(current_scope.length() - target_name.length() - sep.length()) == sep + target_name)) {
-		matches.push_back(node);
+	std::string suffix = sep + std::string(target_name);
+	if (sym.name.size() >= suffix.size() &&
+	    sym.name.compare(sym.name.size() - suffix.size(), suffix.size(), suffix) == 0) {
+		return true;
 	}
-
-	for (const auto &child : node.children) {
-		find_symbols_recursive(child, current_scope, target_name, matches, is_python);
-	}
+	return false;
 }
 
 size_t count_max_consecutive_backticks(const std::vector<std::string> &lines)
@@ -96,8 +107,8 @@ std::shared_ptr<agentlib::agent_interaction> fs_read_symbol_tool::get_interactio
 
 bool fs_read_symbol_tool::validate_runtime(const agentlib::tool_context & /*ctx*/, std::string &out_error) const
 {
-	if (!project_manager::get_instance().lsp_is_supported_file(args_.safe_path)) {
-		out_error = "LSP is not supported for file: " + args_.requested_path;
+	if (args_.safe_path.empty()) {
+		out_error = "Error: File path is empty.";
 		return false;
 	}
 	return true;
@@ -115,69 +126,72 @@ std::string fs_read_symbol_tool::execute(agentlib::tool_context &ctx)
 
 	ctx.file_drift_tracker.erase(args_.safe_path);
 
-	// 1. Read document content to feed to didOpen notification
-	std::string content;
-	if (ctx.doc_provider && ctx.doc_provider->get_open_document(args_.safe_path)) {
-		auto doc_snapshot = ctx.doc_provider->get_open_document(args_.safe_path);
-		size_t line_count = doc_snapshot->get_line_count();
-		for (size_t i = 0; i < line_count; ++i) {
-			content += doc_snapshot->get_line_text(i) + "\n";
-		}
-	} else if (args_.safe_path.find("://") != std::string::npos) {
-		auto vfs = ctx.fs_security.get_vfs();
-		if (vfs) {
-			auto view_opt = vfs->read_file(args_.safe_path);
-			if (view_opt) {
-				content = std::string(view_opt.value()->view());
+	// 1. Query document symbols via codemap_utils (uses LSP when available and codemap_fallbacks otherwise)
+	std::vector<codemap_symbol_info> doc_symbols = get_document_codemap_symbols(args_.safe_path, ctx, 1);
+	if (doc_symbols.empty() && project_manager::get_instance().lsp_is_supported_file(args_.safe_path)) {
+		for (int attempt = 0; attempt < 5; ++attempt) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(200));
+			doc_symbols = get_document_codemap_symbols(args_.safe_path, ctx, 1);
+			if (!doc_symbols.empty()) {
+				break;
 			}
 		}
-	} else {
-		std::string map_err;
-		if (auto mf = mapped_file::get_cached(args_.safe_path, map_err, /*populate=*/true)) {
-			content.assign(mf->string_view().data(), mf->string_view().size());
-		}
-	}
-	// 2. Open document in LSP server to synchronize buffer
-	project_manager::get_instance().lsp_open_document(args_.safe_path, content);
-
-	// 3. Query symbols, retrying up to 5 times with 200ms sleep to allow clangd indexer startup/catchup
-	std::vector<lsp_manager::symbol_node> root_symbols;
-	for (int attempt = 0; attempt < 5; ++attempt) {
-		root_symbols = project_manager::get_instance().lsp_query_document_symbols(args_.safe_path);
-		if (!root_symbols.empty()) {
-			break;
-		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(200));
 	}
 
-	if (root_symbols.empty()) {
+	if (doc_symbols.empty()) {
 		return "Error: No symbols returned by LSP. Either clangd is still initializing, or there are no functions/classes defined in this file.";
 	}
 
-	// 4. Find all matching symbols
+	// 2. Find all matching symbols
 	bool is_py = mime::get_language_from_extension(args_.safe_path) == "python";
-	std::vector<lsp_manager::symbol_node> matches;
-	for (const auto &root : root_symbols) {
-		find_symbols_recursive(root, "", args_.symbol_name, matches, is_py);
+	std::vector<codemap_symbol_info> matches;
+	for (const auto &sym : doc_symbols) {
+		if (sym.kind_str == "Class/Struct") {
+			continue;
+		}
+		if (matches_codemap_symbol(sym, args_.symbol_name, is_py)) {
+			matches.push_back(sym);
+		}
+	}
+	if (matches.empty()) {
+		for (const auto &sym : doc_symbols) {
+			if (sym.kind_str == "Class/Struct" && matches_codemap_symbol(sym, args_.symbol_name, is_py)) {
+				matches.push_back(sym);
+			}
+		}
+	}
+
+	// For Verilog/SystemVerilog files, also match <name>_mod or filename stem -> Module
+	if (matches.empty()) {
+		std::string ext = utf8::to_lower(std::filesystem::path(args_.safe_path).extension().string());
+		if (ext == ".sv" || ext == ".svh" || ext == ".v" || ext == ".vh") {
+			std::string stem = std::filesystem::path(args_.safe_path).stem().string();
+			for (const auto &sym : doc_symbols) {
+				if (sym.name == args_.symbol_name + "_mod" ||
+				    args_.symbol_name == sym.name + "_mod" ||
+				    (sym.kind_str == "Module" && args_.symbol_name == stem)) {
+					matches.push_back(sym);
+				}
+			}
+		}
 	}
 
 	if (matches.empty()) {
 		return "Error: Symbol '" + args_.symbol_name + "' was not found in '" + args_.requested_path + "'.";
 	}
 
-	// 5. Read lines for each match (capped at max 20 matches)
+	// 3. Read lines for each match (capped at max 20 matches)
 	std::stringstream ss;
 	size_t total_lines = count_total_lines(args_.safe_path, ctx);
 	size_t num_matches = std::min<size_t>(matches.size(), 20);
 
 	for (size_t i = 0; i < num_matches; ++i) {
 		const auto &match = matches[i];
-		int match_start = match.range.start_y + 1;
-		int match_end = match.range.end_y + 1;
+		int match_start = match.start_line;
+		int match_end = match.end_line;
 
 		int expanded_start = std::max(1, match_start - 2);
 		int expanded_end = std::min(static_cast<int>(total_lines), match_end + 2);
-
 		auto raw_lines = read_lines(args_.safe_path, expanded_start, expanded_end, ctx);
 
 		int offset = match_start - expanded_start;

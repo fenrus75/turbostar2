@@ -133,8 +133,26 @@ int main()
 		tools::fallback_find_symbols_verilog(sv_lines, 10, sv_filtered);
 		assert(sv_filtered.size() == 1);
 		assert(sv_filtered[0].name == "fifo_buffer");
-	}
 
+		// Test Verilog module preceded by (* ... *) synthesis attributes and comments containing endmodule
+		std::vector<std::string> attr_sv_lines = {
+		    "// Header",
+		    "(* top *) module main (",
+		    "    input logic clk,",
+		    "    output logic [7:0] LED",
+		    ");",
+		    "    // Do not stop at endmodule in a comment",
+		    "    assign LED = 8'h00;",
+		    "endmodule",
+		};
+		std::vector<tools::codemap_symbol_info> attr_sv_symbols;
+		tools::fallback_find_symbols_verilog(attr_sv_lines, attr_sv_symbols);
+		assert(attr_sv_symbols.size() == 1);
+		assert(attr_sv_symbols[0].name == "main");
+		assert(attr_sv_symbols[0].kind_str == "Module");
+		assert(attr_sv_symbols[0].start_line == 2);
+		assert(attr_sv_symbols[0].end_line == 8);
+	}
 	// 3. Test C / C++ fallback parser
 	{
 		std::vector<std::string> cpp_lines = {

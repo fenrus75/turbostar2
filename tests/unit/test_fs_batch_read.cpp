@@ -110,9 +110,28 @@ int main()
 
 		assert(res.find("from_extension") != std::string::npos);
 		assert(res.find("<fs_read_symbol_result>") == std::string::npos);
-	}
 
-	// Test 6: Alias 'files' for 'items'
+		// 5b. Direct fs_read_symbol and fs_batch_read on SystemVerilog (.sv) files via fallback symbol parser
+		nlohmann::json sv_sym_args = {{"path", "examples/test8008/sv/alu/alu.sv"}, {"symbol_name", "alu_mod"}};
+		std::string sv_raw = registry.execute_tool("fs_read_symbol", sv_sym_args.dump(), ctx);
+		std::string sv_res = fs_utils::unwrap_prompt_untrusted_data_tag(sv_raw);
+		assert(sv_res.find("module alu_mod") != std::string::npos);
+		assert(sv_res.find("StartLine: 1") != std::string::npos);
+		assert(sv_res.find("EndLine: 176") != std::string::npos);
+		// 5c. fs_read_symbol on attributed top module (* top *) module main in examples/test8008/sv/main.sv
+		nlohmann::json main_sym_args = {{"path", "examples/test8008/sv/main.sv"}, {"symbol_name", "main"}};
+		std::string main_raw = registry.execute_tool("fs_read_symbol", main_sym_args.dump(), ctx);
+		std::string main_res = fs_utils::unwrap_prompt_untrusted_data_tag(main_raw);
+		assert(main_res.find("(* top *) module main") != std::string::npos);
+		assert(main_res.find("StartLine: 3") != std::string::npos);
+		assert(main_res.find("EndLine: 33") != std::string::npos);
+
+		// 5d. fs_read_symbol on Verilog file when caller passes file stem ("alu" for alu_mod in alu.sv)
+		nlohmann::json stem_sym_args = {{"path", "examples/test8008/sv/alu/alu.sv"}, {"symbol_name", "alu"}};
+		std::string stem_raw = registry.execute_tool("fs_read_symbol", stem_sym_args.dump(), ctx);
+		std::string stem_res = fs_utils::unwrap_prompt_untrusted_data_tag(stem_raw);
+		assert(stem_res.find("module alu_mod") != std::string::npos);
+	}
 	{
 		std::cout << "6. Alias 'files' for 'items'..." << std::endl;
 		nlohmann::json args = {

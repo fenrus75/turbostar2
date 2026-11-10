@@ -151,19 +151,23 @@ void fallback_find_symbols_verilog_impl(std::span<const LineT> lines, int min_li
 		std::string end_kw;
 		std::string_view line_sv = lines[i];
 
-		if (auto m = ctre::search<R"(^\s*+(?:extern\s++)?+module\s++([a-zA-Z_]\w*+))">(line_sv)) {
+		if (auto cpos = line_sv.find("//"); cpos != std::string_view::npos) {
+			line_sv = line_sv.substr(0, cpos);
+		}
+
+		if (auto m = ctre::search<R"re(^\s*+(?:\(\*[^*]*+\*\)\s*+)*+(?:extern\s++)?+(?:macro)?+module\s++(?:(?:automatic|static)\s++)?+([a-zA-Z_]\w*+))re">(line_sv)) {
 			name = std::string(m.get<1>().to_view());
 			kind = "Module";
 			end_kw = "endmodule";
-		} else if (auto m = ctre::search<R"(^\s*+(?:extern\s++)?+interface\s++([a-zA-Z_]\w*+))">(line_sv)) {
+		} else if (auto m = ctre::search<R"re(^\s*+(?:\(\*[^*]*+\*\)\s*+)*+(?:extern\s++)?+interface\s++([a-zA-Z_]\w*+))re">(line_sv)) {
 			name = std::string(m.get<1>().to_view());
 			kind = "Interface";
 			end_kw = "endinterface";
-		} else if (auto m = ctre::search<R"(^\s*+package\s++([a-zA-Z_]\w*+))">(line_sv)) {
+		} else if (auto m = ctre::search<R"re(^\s*+(?:\(\*[^*]*+\*\)\s*+)*+package\s++([a-zA-Z_]\w*+))re">(line_sv)) {
 			name = std::string(m.get<1>().to_view());
 			kind = "Package";
 			end_kw = "endpackage";
-		} else if (auto m = ctre::search<R"(^\s*+(?:virtual\s++)?+class\s++([a-zA-Z_]\w*+))">(line_sv)) {
+		} else if (auto m = ctre::search<R"re(^\s*+(?:\(\*[^*]*+\*\)\s*+)*+(?:virtual\s++)?+class\s++([a-zA-Z_]\w*+))re">(line_sv)) {
 			name = std::string(m.get<1>().to_view());
 			kind = "Class";
 			end_kw = "endclass";
@@ -184,9 +188,18 @@ void fallback_find_symbols_verilog_impl(std::span<const LineT> lines, int min_li
 			int end_line = line_num;
 			for (size_t j = i + 1; j < lines.size(); ++j) {
 				std::string_view next_sv = lines[j];
-				if (next_sv.find(end_kw) != std::string_view::npos) {
-					end_line = static_cast<int>(j + 1);
-					break;
+				if (auto cpos = next_sv.find("//"); cpos != std::string_view::npos) {
+					next_sv = next_sv.substr(0, cpos);
+				}
+				auto pos = next_sv.find(end_kw);
+				if (pos != std::string_view::npos) {
+					bool left_ok = (pos == 0) || (!std::isalnum(static_cast<unsigned char>(next_sv[pos - 1])) && next_sv[pos - 1] != '_');
+					size_t after = pos + end_kw.size();
+					bool right_ok = (after == next_sv.size()) || (!std::isalnum(static_cast<unsigned char>(next_sv[after])) && next_sv[after] != '_');
+					if (left_ok && right_ok) {
+						end_line = static_cast<int>(j + 1);
+						break;
+					}
 				}
 			}
 			int len = end_line - line_num + 1;
