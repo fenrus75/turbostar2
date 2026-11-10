@@ -94,12 +94,12 @@ To verify or debug a digital design without blowing your context window, follow 
    `vcd_wave(path="dump.vcd", signals=["rst", "current_ip", "opcode_data", "b:flags"], start_tick=4, end_tick=15)`
 
 5. **Compare Against Reference / Golden Run (`vcd_compare`)**:
-   Pinpoint the exact clock cycle of divergence between golden and candidate traces, listing differing signals while ignoring invalid bus cycles:
-   `vcd_compare(path_a="dump_org.vcd", path_b="dump.vcd", scope="tb_main.uut")`
+   Pinpoint the exact clock cycle of divergence between golden (`dump.lastpass.vcd` or `dump.previous.vcd`, saved automatically by `verilog_simulate`) and candidate traces, listing differing signals while ignoring invalid bus cycles:
+   `vcd_compare(path_a="dump.lastpass.vcd", path_b="dump.vcd", scope="tb_main.uut")`
+
 6. **Trace Signal to Source RTL (`vcd_signal_to_code`)**:
    Map a simulation signal back to its source file declarations across the hierarchy, its driving cell/port, and downstream consumers:
    `vcd_signal_to_code(signal="tb_main.uut.cpu8008.A_val")`
-
 7. **Analyze Logic Depth & Timing Feasibility (`verilog_logic_depth`)**:
    Evaluate pre-place-and-route timing boundaries (In->Reg, Reg->Out, Reg->Reg, In->Out) and top critical paths:
    `verilog_logic_depth(module="alu", top_k=3)`

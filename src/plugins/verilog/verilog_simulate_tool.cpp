@@ -12,10 +12,60 @@
 #include "plugins/verilog/vcd_parser_cache.h"
 #include "plugins/verilog/verilog_module_scanner.h"
 
+#include <cctype>
+#include <ctre.hpp>
+
 namespace tools
 {
 
 namespace fs = std::filesystem;
+
+namespace
+{
+
+std::string make_tagged_vcd_path(std::string_view vcd_path, std::string_view tag)
+{
+	fs::path p(vcd_path);
+	if (p.extension() == ".vcd") {
+		fs::path tagged = p.parent_path() / std::format("{}.{}.vcd", p.stem().string(), tag);
+		return tagged.generic_string();
+	}
+	return std::format("{}.{}.vcd", vcd_path, tag);
+}
+
+bool did_testsuite_pass(std::string_view sim_out, bool timed_out, bool has_fatal)
+{
+	if (timed_out || has_fatal) {
+		return false;
+	}
+
+	std::string lower;
+	lower.reserve(sim_out.size());
+	for (unsigned char c : sim_out) {
+		lower.push_back(static_cast<char>(std::tolower(c)));
+	}
+
+	// Neutralize benign zero-count summaries such as "0 failed", "0 errors", "failed: 0", "errors=0"
+	std::string cleaned;
+	cleaned.reserve(lower.size());
+	std::string_view rem = lower;
+	static constexpr auto zero_fail_re = ctre::search<
+		R"(\b(?:(?:0|no|without)\s+(?:fail\w*|error\w*|mismatch\w*)|(?:fail\w*|error\w*|mismatch\w*)\s*[:=]\s*0)\b)">;
+	while (auto m = zero_fail_re(rem)) {
+		cleaned.append(rem.data(), static_cast<size_t>(m.data() - rem.data()));
+		cleaned.push_back(' ');
+		rem.remove_prefix(static_cast<size_t>((m.data() - rem.data()) + m.size()));
+	}
+	cleaned.append(rem);
+
+	if (ctre::search<R"(\b(?:fail|failed|failure|failures|mismatch|mismatches|error|errors|fatal)\b)">(cleaned)) {
+		return false;
+	}
+
+	return static_cast<bool>(ctre::search<R"(\b(?:pass|passed|successfully)\b)">(cleaned));
+}
+
+} // namespace
 
 verilog_simulate_tool::verilog_simulate_tool(verilog_simulate_args args)
 	: agentlib::llm_tool_action("Simulating Verilog testbench"),
@@ -150,7 +200,31 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 		                   display_tb, top_mod, compile_out);
 	}
 
-	// 7. Run the compiled simulation binary from project_root
+	// 7. Preserve any existing waveform as <stem>.previous.vcd before running the simulation binary
+	std::string prev_rel = make_tagged_vcd_path(dump_rel, "previous");
+	std::string lastpass_rel = make_tagged_vcd_path(dump_rel, "lastpass");
+	fs::path vcd_prev_full_path = root_path / prev_rel;
+	fs::path vcd_lastpass_full_path = root_path / lastpass_rel;
+
+	bool saved_previous = false;
+	if (fs::exists(vcd_full_path, ec) && fs::is_regular_file(vcd_full_path, ec)) {
+		std::string canon_prev;
+		std::string prev_err;
+		if (ctx.fs_security.validate_access(vcd_prev_full_path.string(), agentlib::access_type::write, canon_prev, prev_err)) {
+			fs::rename(vcd_full_path, vcd_prev_full_path, ec);
+			if (ec) {
+				ec.clear();
+				fs::copy_file(vcd_full_path, vcd_prev_full_path, fs::copy_options::overwrite_existing, ec);
+				if (!ec) {
+					fs::remove(vcd_full_path, ec);
+					ec.clear();
+				}
+			}
+			saved_previous = !ec && fs::exists(vcd_prev_full_path, ec);
+		}
+	}
+
+	// 8. Run the compiled simulation binary from project_root
 	auto pre_sim_time = fs::exists(vcd_full_path, ec)
 		? std::optional<fs::file_time_type>(fs::last_write_time(vcd_full_path, ec))
 		: std::nullopt;
@@ -164,6 +238,7 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 
 	bool timed_out = sim_out.find("Command timed out") != std::string::npos;
 	bool has_fatal = sim_out.find("%Error") != std::string::npos || sim_out.find("%Fatal") != std::string::npos;
+	bool suite_passed = did_testsuite_pass(sim_out, timed_out, has_fatal);
 
 	std::ostringstream ss;
 	ss << std::format("### Verilog Simulation: `{}` (`{}`)\n\n", display_tb, top_mod);
@@ -190,9 +265,20 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 		ss << "\n#### Simulation Output\n```\n" << sim_out << "\n```\n";
 	}
 
-	// 8. Parse and cache the generated VCD file and emit summary + next-step commands
+	// 9. Parse and cache the generated VCD file, update <stem>.lastpass.vcd on PASS, and emit next-step commands
 	bool vcd_exists = fs::exists(vcd_full_path, ec) && fs::is_regular_file(vcd_full_path, ec);
 	bool vcd_updated = vcd_exists && (!pre_sim_time.has_value() || fs::last_write_time(vcd_full_path, ec) >= *pre_sim_time);
+
+	bool saved_lastpass = false;
+	if (vcd_exists && vcd_updated && suite_passed) {
+		std::string canon_lp;
+		std::string lp_err;
+		if (ctx.fs_security.validate_access(vcd_lastpass_full_path.string(), agentlib::access_type::write, canon_lp, lp_err)) {
+			fs::copy_file(vcd_full_path, vcd_lastpass_full_path, fs::copy_options::overwrite_existing, ec);
+			saved_lastpass = !ec && fs::exists(vcd_lastpass_full_path, ec);
+		}
+	}
+	bool lastpass_exists = fs::exists(vcd_lastpass_full_path, ec) && fs::is_regular_file(vcd_lastpass_full_path, ec);
 
 	if (vcd_exists && vcd_updated) {
 		std::string parse_err;
@@ -203,6 +289,9 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 
 			ss << std::format("\n#### Generated VCD Summary (`{}`)\n", dump_rel);
 			ss << std::format("- **Waveform File**: `{}` ({} bytes, loaded into LRU cache)\n", dump_rel, fsize);
+			if (saved_lastpass) {
+				ss << std::format("- **Passing Baseline Saved**: `{}`\n", lastpass_rel);
+			}
 			ss << std::format("- **Timescale & Duration**: `{}` | `{} to {} {}` (Duration: `{} {}`)\n",
 			                  parser.get_timescale(),
 			                  parser.get_start_time(),
@@ -273,6 +362,14 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 			                  dump_rel, suggested_scope);
 			ss << std::format("- Use `vcd_wave(path=\"{}\", signals={})` to see the waveforms.\n",
 			                  dump_rel, sigs_arg);
+			if (saved_previous) {
+				ss << std::format("- Previous result saved as `{}`. To compare the current result to this file use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
+				                  prev_rel, prev_rel, dump_rel, suggested_scope);
+			}
+			if (!suite_passed && lastpass_exists) {
+				ss << std::format("- To compare to the last passing run, use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
+				                  lastpass_rel, dump_rel, suggested_scope);
+			}
 		} else {
 			ss << std::format("\n> [!WARNING] VCD file `{}` was generated but could not be parsed: {}\n",
 			                  dump_rel, parse_err);

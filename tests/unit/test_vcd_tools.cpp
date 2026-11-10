@@ -1513,7 +1513,8 @@ int main()
 			       << "        $dumpvars(0, tb_dut);\n"
 			       << "        #12 rst = 0;\n"
 			       << "        #20;\n"
-			       << "        $display(\"OUT=%h\", out_val);\n"
+			       << "        if (out_val == 8'ha5) $display(\"OUT=%h PASS\", out_val);\n"
+			       << "        else $display(\"OUT=%h FAIL\", out_val);\n"
 			       << "        $finish;\n"
 			       << "    end\n"
 			       << "endmodule\n";
@@ -1534,11 +1535,65 @@ int main()
 		std::string sim_out = sim_tool->execute(sim_ctx);
 
 		assert(sim_out.find("SUCCESS") != std::string::npos);
-		assert(sim_out.find("OUT=a5") != std::string::npos);
+		assert(sim_out.find("OUT=a5 PASS") != std::string::npos);
 		assert(sim_out.find("Generated VCD Summary (`sim_out.vcd`)") != std::string::npos);
+		assert(sim_out.find("Passing Baseline Saved**: `sim_out.lastpass.vcd`") != std::string::npos);
 		assert(sim_out.find("vcd_file_info(path=\"sim_out.vcd\"") != std::string::npos);
 		assert(sim_out.find("vcd_wave(path=\"sim_out.vcd\"") != std::string::npos);
+		assert(sim_out.find("sim_out.previous.vcd") == std::string::npos);
+		assert(std::filesystem::exists(sim_dir + "/sim_out.lastpass.vcd"));
+		assert(!std::filesystem::exists(sim_dir + "/sim_out.previous.vcd"));
 		assert(verilog::vcd_parser_cache::get_instance().size() == 1);
+
+		// Mutate DUT so the next simulation run produces a failing result, and verify both
+		// sim_out.previous.vcd and sim_out.lastpass.vcd are preserved and suggested for vcd_compare
+		{
+			std::ofstream dut_ofs(sim_dir + "/sv/dut.sv");
+			dut_ofs << "`timescale 1ns/1ps\n"
+			        << "module dut(input logic clk, input logic rst, output logic [7:0] out_val);\n"
+			        << "    always_ff @(posedge clk) begin\n"
+			        << "        if (rst) out_val <= 8'h42;\n"
+			        << "        else out_val <= 8'hff;\n"
+			        << "    end\n"
+			        << "endmodule\n";
+		}
+
+		auto sim_tool_2 = sim_val.create_tool(sim_args);
+		std::string sim_out_2 = sim_tool_2->execute(sim_ctx);
+		assert(sim_out_2.find("OUT=ff FAIL") != std::string::npos);
+		assert(std::filesystem::exists(sim_dir + "/sim_out.previous.vcd"));
+		assert(std::filesystem::exists(sim_dir + "/sim_out.lastpass.vcd"));
+		assert(sim_out_2.find("Previous result saved as `sim_out.previous.vcd`. To compare the current result to this file use `vcd_compare(path_a=\"sim_out.previous.vcd\", path_b=\"sim_out.vcd\", scope=\"tb_dut.uut\")`") != std::string::npos);
+		assert(sim_out_2.find("To compare to the last passing run, use `vcd_compare(path_a=\"sim_out.lastpass.vcd\", path_b=\"sim_out.vcd\", scope=\"tb_dut.uut\")`") != std::string::npos);
+
+		// Run a 3rd simulation that also fails (8'hee); verify sim_out.lastpass.vcd STILL holds the passing 8'ha5 trace
+		{
+			std::ofstream dut_ofs(sim_dir + "/sv/dut.sv");
+			dut_ofs << "`timescale 1ns/1ps\n"
+			        << "module dut(input logic clk, input logic rst, output logic [7:0] out_val);\n"
+			        << "    always_ff @(posedge clk) begin\n"
+			        << "        if (rst) out_val <= 8'h42;\n"
+			        << "        else out_val <= 8'hee;\n"
+			        << "    end\n"
+			        << "endmodule\n";
+		}
+
+		auto sim_tool_3 = sim_val.create_tool(sim_args);
+		std::string sim_out_3 = sim_tool_3->execute(sim_ctx);
+		assert(sim_out_3.find("OUT=ee FAIL") != std::string::npos);
+		assert(sim_out_3.find("To compare to the last passing run, use `vcd_compare(path_a=\"sim_out.lastpass.vcd\", path_b=\"sim_out.vcd\", scope=\"tb_dut.uut\")`") != std::string::npos);
+
+		tools::vcd_compare_validator cmp_val;
+		nlohmann::json cmp_args = {
+			{"path_a", "sim_out.lastpass.vcd"},
+			{"path_b", "sim_out.vcd"},
+			{"scope", "tb_dut.uut"}
+		};
+		assert(cmp_val.validate_args(cmp_args, sim_ctx, err) && err.empty());
+		auto cmp_tool = cmp_val.create_tool(cmp_args);
+		std::string cmp_out = cmp_tool->execute(sim_ctx);
+		assert(cmp_out.find("0xA5") != std::string::npos);
+		assert(cmp_out.find("0xEE") != std::string::npos);
 
 		// Verify vcd_file_info resolves the VCD filename from the testbench's $dumpfile("sim_out.vcd")
 		// when path is omitted OR when a mismatched prefix like "sim/sim_out.vcd" is passed

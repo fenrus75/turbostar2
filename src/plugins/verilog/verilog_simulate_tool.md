@@ -6,9 +6,11 @@ Compiles and executes a SystemVerilog/Verilog testbench together with the projec
 Key capabilities:
 1. **Zero-Config Testbench & RTL Discovery**: Automatically locates testbench files (`tb/`, `testbench/`, `tb_*.sv`, `*_tb.sv`), extracts the top-level testbench module name, and combines it with all synthesizable RTL under `sv_path`.
 2. **Automatic `$readmemh` / `$readmemb` Asset Staging**: Scans source files for relative `$readmemh`/`$readmemb` initialization filenames (e.g. `ram_init.hex`) and stages symlinks in the simulation working directory so memory initialization succeeds without manual Makefile wrapper steps.
-3. **LRU Cache Warming & Actionable Guidance**: Immediately parses the generated `.vcd` into `vcd_parser_cache` and emits copy-pasteable `vcd_file_info(...)` and `vcd_wave(...)` tool calls tailored to the discovered hierarchy and signals.
+3. **Automatic Waveform History (`<stem>.previous.vcd` & `<stem>.lastpass.vcd`)**: Before executing the simulation binary, preserves any existing `.vcd` waveform as `<stem>.previous.vcd`. When the simulation testsuite passes (`PASS` / `PASSED` / `successfully` without errors), also snapshots `<stem>.lastpass.vcd` so multi-iteration debugging sessions never lose their last known-good reference trace.
+4. **LRU Cache Warming & Actionable Guidance**: Immediately parses the generated `.vcd` into `vcd_parser_cache` and emits copy-pasteable `vcd_file_info(...)`, `vcd_wave(...)`, and `vcd_compare(...)` tool calls tailored to the discovered hierarchy, signals, and pass/fail status.
 
 ## Lessons Learned
 - Running Verilator without `-flto` and placing `--Mdir` (resolved via `std::filesystem::absolute`) in the project temporary directory avoids polluting the repository with `obj_dir/` while keeping incremental C++ rebuilds fast.
 - Passing `CCACHE_DISABLE=1 OBJCACHE=` to `verilator` prevents Verilator's generated Makefile from failing when `~/.cache/ccache` is mounted read-only inside the subprocess execution sandbox.
 - Warming `vcd_parser_cache` at the end of `verilog_simulate` eliminates redundant VCD parsing on the immediately following `vcd_file_info` or `vcd_wave` call.
+- Keeping both `<stem>.previous.vcd` and `<stem>.lastpass.vcd` prevents multi-step debugging loops from overwriting the last known-good waveform when two or more consecutive edits fail.

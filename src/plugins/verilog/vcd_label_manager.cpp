@@ -244,12 +244,20 @@ void vcd_label_manager::load_sidecar_locked(std::string_view safe_path)
 
 	std::string sidecar_path = p + ".labels.json";
 	if (!std::filesystem::exists(sidecar_path)) {
-		return;
+		if (p.ends_with(".previous.vcd") || p.ends_with(".lastpass.vcd")) {
+			std::string base_sidecar = p.substr(0, p.size() - 13) + ".vcd.labels.json";
+			if (std::filesystem::exists(base_sidecar)) {
+				sidecar_path = base_sidecar;
+			} else {
+				return;
+			}
+		} else {
+			return;
+		}
 	}
 
 	std::ifstream file(sidecar_path);
 	if (!file.is_open()) return;
-
 	try {
 		nlohmann::json j;
 		file >> j;

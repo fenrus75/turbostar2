@@ -86,6 +86,9 @@ size_t vcd_parser_cache::size() const
 
 std::string vcd_parser_cache::check_stale_rtl_warning(std::string_view safe_vcd_path, std::string_view display_vcd_path)
 {
+	if (safe_vcd_path.ends_with(".previous.vcd") || safe_vcd_path.ends_with(".lastpass.vcd")) {
+		return "";
+	}
 	std::error_code ec;
 	auto vcd_mtime = std::filesystem::last_write_time(safe_vcd_path, ec);
 	if (ec) {
@@ -97,7 +100,6 @@ std::string vcd_parser_cache::check_stale_rtl_warning(std::string_view safe_vcd_
 	if (parent_dir.empty()) {
 		parent_dir = ".";
 	}
-
 	std::vector<std::filesystem::path> scan_dirs = {parent_dir};
 	if (std::filesystem::exists(parent_dir / "sv", ec) && std::filesystem::is_directory(parent_dir / "sv", ec)) {
 		scan_dirs.push_back(parent_dir / "sv");

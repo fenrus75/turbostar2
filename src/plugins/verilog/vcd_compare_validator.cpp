@@ -1,6 +1,7 @@
 #include "vcd_compare_validator.h"
 #include "agentlib/json_utils.h"
 #include "agentlib/tool_registry.h"
+#include "plugins/verilog/verilog_module_scanner.h"
 #include <format>
 
 namespace tools
@@ -19,11 +20,11 @@ nlohmann::json vcd_compare_validator::get_parameters_schema() const
 		{"properties", {
 			{"path_a", {
 				{"type", "string"},
-				{"description", "Path to first VCD file (reference / golden trace)."}
+				{"description", "Path to first VCD file (reference / golden trace, e.g. 'dump.previous.vcd' or 'dump.lastpass.vcd')."}
 			}},
 			{"path_b", {
 				{"type", "string"},
-				{"description", "Path to second VCD file (candidate / test run trace)."}
+				{"description", "Path to second VCD file (candidate / test run trace, e.g. 'dump.vcd')."}
 			}},
 			{"signals", {
 				{"type", "array"},
@@ -94,7 +95,8 @@ bool vcd_compare_validator::validate_args_impl(/* untrusted */ const nlohmann::j
 	args_.requested_path_a = raw_json["path_a"].get<std::string>();
 	args_.requested_path_b = raw_json["path_b"].get<std::string>();
 
-	std::string untrusted_path_a = args_.requested_path_a;
+	std::string untrusted_path_a = verilog::verilog_module_scanner::resolve_vcd_path(
+		ctx.fs_security.get_working_directory(), args_.requested_path_a);
 	std::string safe_path_a;
 	std::string sec_err_a;
 	if (!ctx.fs_security.validate_access(untrusted_path_a, agentlib::access_type::read, safe_path_a, sec_err_a)) {
@@ -103,7 +105,8 @@ bool vcd_compare_validator::validate_args_impl(/* untrusted */ const nlohmann::j
 	}
 	args_.safe_path_a = safe_path_a;
 
-	std::string untrusted_path_b = args_.requested_path_b;
+	std::string untrusted_path_b = verilog::verilog_module_scanner::resolve_vcd_path(
+		ctx.fs_security.get_working_directory(), args_.requested_path_b);
 	std::string safe_path_b;
 	std::string sec_err_b;
 	if (!ctx.fs_security.validate_access(untrusted_path_b, agentlib::access_type::read, safe_path_b, sec_err_b)) {

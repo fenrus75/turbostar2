@@ -337,6 +337,10 @@ std::string verilog_module_scanner::resolve_vcd_path(const std::filesystem::path
 	if (req_p.filename() == tb_p.filename() && std::filesystem::exists(root / tb_p, ec)) {
 		return qualify_with_root(tb_p);
 	}
+	std::filesystem::path sibling_p = tb_p.parent_path() / req_p.filename();
+	if (!req_p.filename().empty() && std::filesystem::exists(root / sibling_p, ec)) {
+		return qualify_with_root(sibling_p);
+	}
 
 	return std::string(requested_path);
 }

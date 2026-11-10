@@ -1056,7 +1056,7 @@ Tools in this family assist in digital ASIC and FPGA hardware engineering, simul
     *   `collapse` *(boolean, optional)*: Whether to collapse noisy multi-hop carry chains and intermediate techmap routing hops into concise stages with logic/routing breakdown, fanout, and physical span (default: `true`).
 
 ### `verilog_simulate` (Family: `verilog`)
-*   **Description:** Compiles and runs a SystemVerilog/Verilog testbench together with project RTL using Verilator (`--binary --timing --trace`), automatically staging relative `$readmemh`/`$readmemb` initialization files, generating a `.vcd` waveform file, warming `vcd_parser_cache`, and returning simulation stdout along with a waveform summary and copy-pasteable `vcd_file_info` and `vcd_wave` commands for next steps.
+*   **Description:** Compiles and runs a SystemVerilog/Verilog testbench together with project RTL using Verilator (`--binary --timing --trace`), automatically staging relative `$readmemh`/`$readmemb` initialization files, preserving prior waveforms as `<stem>.previous.vcd` (and `<stem>.lastpass.vcd` on passing runs), generating a `.vcd` waveform file, warming `vcd_parser_cache`, and returning simulation stdout along with a waveform summary and copy-pasteable `vcd_file_info`, `vcd_wave`, and `vcd_compare` commands for next steps.
 *   **Arguments:**
     *   `testbench` *(string, optional)*: Optional path to the testbench `.sv`/`.v` file (e.g. `'tb/tb_main.sv'`). If omitted, automatically discovers testbenches in `tb/`, `testbench/`, or matching `tb_*.sv` / `*_tb.sv`.
     *   `top_module` *(string, optional)*: Optional top-level testbench module name (e.g. `'tb_main'`). If omitted, automatically extracted from the testbench file.
