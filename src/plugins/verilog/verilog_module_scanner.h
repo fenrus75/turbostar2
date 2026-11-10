@@ -73,6 +73,15 @@ public:
 	 * @brief Resolves a requested (or empty) VCD path against the project's testbench $dumpfile("...") declaration.
 	 */
 	static std::string resolve_vcd_path(const std::filesystem::path &project_root, std::string_view requested_path);
+
+	/**
+	 * @brief Resolves a requested module name (or empty string when safe_file is provided) against
+	 *        the declared modules discovered in safe_file and all_sources (matching module names,
+	 *        source file stems, and RTL submodule instance names).
+	 */
+	static std::string resolve_module_name(std::string_view requested_module,
+	                                       std::string_view safe_file,
+	                                       std::span<const std::string> all_sources);
 };
 
 } // namespace verilog

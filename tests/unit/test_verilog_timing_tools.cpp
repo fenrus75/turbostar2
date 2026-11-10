@@ -158,6 +158,36 @@ void test_verilog_logic_depth_execution()
 			assert(res_def.find("LUTs + ") != std::string::npos);
 			assert(res_def.find("carry)") != std::string::npos);
 
+			// Test module name resolution from filename stem / instance name ("alu" -> "alu_mod")
+			nlohmann::json alias_args = {
+				{"module", "alu"}
+			};
+			bool ok_alias = validator.validate_args(alias_args, ctx_def, err);
+			assert(ok_alias);
+			auto tool_alias = validator.create_tool(alias_args);
+			std::string res_alias = tool_alias->execute(ctx_def);
+			assert(res_alias.find("# Timing: `alu_mod`") != std::string::npos);
+
+			// Test module name resolution from RTL instance name ("cpu8008" -> "cpu")
+			nlohmann::json inst_args = {
+				{"module", "cpu8008"}
+			};
+			bool ok_inst = validator.validate_args(inst_args, ctx_def, err);
+			assert(ok_inst);
+			auto tool_inst = validator.create_tool(inst_args);
+			std::string res_inst = tool_inst->execute(ctx_def);
+			assert(res_inst.find("# Timing: `cpu`") != std::string::npos);
+
+			// Test module auto-detection from 'file' parameter when 'module' is omitted
+			nlohmann::json file_only_args = {
+				{"file", "sv/alu/alu.sv"}
+			};
+			bool ok_fonly = validator.validate_args(file_only_args, ctx_def, err);
+			assert(ok_fonly);
+			auto tool_fonly = validator.create_tool(file_only_args);
+			std::string res_fonly = tool_fonly->execute(ctx_def);
+			assert(res_fonly.find("# Timing: `alu_mod`") != std::string::npos);
+
 			std::filesystem::remove_all(tmp_prj, ec_sym);
 		}
 	}

@@ -49,16 +49,6 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 		std::string load_err;
 		verilog::fpga_project_settings::load_from_project(project_root, cfg, load_err);
 
-		if (args_.requested_module.empty()) {
-			if (!cfg.top_module.empty()) {
-				args_.requested_module = cfg.top_module;
-			} else {
-				set_failure(ctx, "No module name specified and no top_module configured in project settings");
-				return "Error: No module name specified and no top_module configured in turbostar.json. "
-				       "Please pass 'module' parameter or configure 'top_module' via verilog_project_settings.";
-			}
-		}
-
 		if (target_mode == "Generic LUT4" && cfg.target == "ice40") {
 			target_mode = "iCE40";
 		}
@@ -88,8 +78,36 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 			return "Error: No synthesizable SystemVerilog/Verilog source files found in workspace.";
 		}
 
+		std::string resolved_module = verilog::verilog_module_scanner::resolve_module_name(
+			args_.requested_module, args_.safe_file, sources);
+		if (resolved_module.empty()) {
+			if (!cfg.top_module.empty()) {
+				resolved_module = cfg.top_module;
+			} else {
+				auto discovered = verilog::verilog_module_scanner::discover_modules_in_files(sources);
+				if (discovered.size() == 1) {
+					resolved_module = discovered.front().module_name;
+				} else {
+					set_failure(ctx, "No module name specified and no top_module configured in project settings");
+					return "Error: No module name specified and no top_module configured in turbostar.json. "
+					       "Please pass 'module' parameter or configure 'top_module' via verilog_project_settings.";
+				}
+			}
+		}
+		args_.requested_module = resolved_module;
+
 		loaded = analyzer.synthesize_and_load(args_.requested_module, sources, target_mode, err);
 		if (!loaded) {
+			auto discovered = verilog::verilog_module_scanner::discover_modules_in_files(sources);
+			if (!discovered.empty()) {
+				std::string mod_list;
+				for (size_t i = 0; i < discovered.size(); ++i) {
+					if (i > 0) mod_list += ", ";
+					mod_list += std::format("`{}` ({})", discovered[i].module_name,
+					                        std::filesystem::path(discovered[i].source_file).filename().string());
+				}
+				err += std::format("\nAvailable RTL modules: {}", mod_list);
+			}
 			set_failure(ctx, err);
 			return std::format("Synthesis/analysis failed for module '{}': {}", args_.requested_module, err);
 		}

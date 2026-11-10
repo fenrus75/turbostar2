@@ -341,4 +341,121 @@ std::string verilog_module_scanner::resolve_vcd_path(const std::filesystem::path
 	return std::string(requested_path);
 }
 
+std::string verilog_module_scanner::resolve_module_name(std::string_view requested_module,
+                                                        std::string_view safe_file,
+                                                        std::span<const std::string> all_sources)
+{
+	std::vector<discovered_module> file_mods;
+	if (!safe_file.empty()) {
+		std::string sf(safe_file);
+		file_mods = discover_modules_in_files(std::span<const std::string>(&sf, 1));
+		if (requested_module.empty() && !file_mods.empty()) {
+			return file_mods.front().module_name;
+		}
+	}
+
+	if (requested_module.empty()) {
+		return "";
+	}
+
+	std::string req(requested_module);
+	std::string leaf = req;
+	if (req.ends_with(".sv") || req.ends_with(".v")) {
+		leaf = std::filesystem::path(req).stem().string();
+	} else if (auto pos = req.find_last_of("./"); pos != std::string::npos && pos + 1 < req.size()) {
+		leaf = req.substr(pos + 1);
+	}
+
+	auto all_mods = discover_modules_in_files(all_sources);
+	for (const auto &fm : file_mods) {
+		bool exists = false;
+		for (const auto &am : all_mods) {
+			if (am.module_name == fm.module_name) {
+				exists = true;
+				break;
+			}
+		}
+		if (!exists) {
+			all_mods.push_back(fm);
+		}
+	}
+
+	// 1. Exact match on declared module name
+	for (const auto &m : all_mods) {
+		if (m.module_name == req || m.module_name == leaf) {
+			return m.module_name;
+		}
+	}
+
+	// 2. Single declared module inside an explicitly specified file
+	if (file_mods.size() == 1) {
+		return file_mods.front().module_name;
+	}
+
+	// 3. Match on source filename or filename stem (e.g., "alu" or "alu.sv" -> "alu_mod" in sv/alu/alu.sv)
+	for (const auto &m : all_mods) {
+		std::filesystem::path src_p(m.source_file);
+		if (src_p.stem().string() == req || src_p.stem().string() == leaf || src_p.filename().string() == req) {
+			return m.module_name;
+		}
+	}
+
+	// 4. Match on _mod suffix / prefix convention
+	for (const auto &m : all_mods) {
+		if (m.module_name == leaf + "_mod" || leaf == m.module_name + "_mod") {
+			return m.module_name;
+		}
+	}
+
+	// 5. Match on RTL submodule instance name (e.g. "cpu cpu8008(" -> "cpu", "alu_mod alu(" -> "alu_mod")
+	auto is_known_module = [&](std::string_view cand) -> bool {
+		for (const auto &m : all_mods) {
+			if (m.module_name == cand) {
+				return true;
+			}
+		}
+		return false;
+	};
+
+	for (const auto &fpath : all_sources) {
+		std::ifstream ifs(fpath);
+		if (!ifs.is_open()) {
+			continue;
+		}
+		std::string raw_content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+		std::string clean_content = strip_comments(raw_content);
+
+		const char *start = clean_content.data();
+		const char *end = clean_content.data() + clean_content.size();
+		while (start < end) {
+			auto match = ctre::search<R"(\b([a-zA-Z_][a-zA-Z_0-9]*)\s+([a-zA-Z_][a-zA-Z_0-9]*)\s*\()">(start, end);
+			if (!match) {
+				break;
+			}
+			std::string mod_type = match.get<1>().to_string();
+			std::string inst_name = match.get<2>().to_string();
+			if (is_known_module(mod_type) && (inst_name == req || inst_name == leaf)) {
+				return mod_type;
+			}
+			start = match.data() + match.size();
+		}
+
+		start = clean_content.data();
+		while (start < end) {
+			auto match = ctre::search<R"re(\b([a-zA-Z_][a-zA-Z_0-9]*)\s*#\s*\([^;]*?\)\s*([a-zA-Z_][a-zA-Z_0-9]*)\s*\()re">(start, end);
+			if (!match) {
+				break;
+			}
+			std::string mod_type = match.get<1>().to_string();
+			std::string inst_name = match.get<2>().to_string();
+			if (is_known_module(mod_type) && (inst_name == req || inst_name == leaf)) {
+				return mod_type;
+			}
+			start = match.data() + match.size();
+		}
+	}
+
+	return req;
+}
+
 } // namespace verilog
