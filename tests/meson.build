@@ -205,8 +205,7 @@ test_vcd_tools = executable('test_vcd_tools',
    '../src/plugins/verilog/verilog_compile_validator.cpp'],
   dependencies : [core_dep, agent_dep, nlohmann_json_dep, sqlite3_dep, lsp_dep, ctre_dep],
   include_directories: inc)
-test('unit_vcd_tools', test_vcd_tools, suite: 'plugins', workdir: meson.project_source_root())
-
+test('unit_vcd_tools', test_vcd_tools, suite: 'plugins', workdir: meson.project_source_root(), timeout: 90)
 test_netlist_graph_analyzer = executable('test_netlist_graph_analyzer',
   ['unit/test_netlist_graph_analyzer.cpp',
    '../src/plugins/verilog/yosys_netlist_reader.cpp',

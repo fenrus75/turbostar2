@@ -101,16 +101,25 @@ std::string vcd_parser_cache::check_stale_rtl_warning(std::string_view safe_vcd_
 		parent_dir = ".";
 	}
 	std::vector<std::filesystem::path> scan_dirs = {parent_dir};
-	if (std::filesystem::exists(parent_dir / "sv", ec) && std::filesystem::is_directory(parent_dir / "sv", ec)) {
-		scan_dirs.push_back(parent_dir / "sv");
-	}
-	if (parent_dir.has_parent_path()) {
-		auto sib_sv = parent_dir.parent_path() / "sv";
-		if (std::filesystem::exists(sib_sv, ec) && std::filesystem::is_directory(sib_sv, ec)) {
-			scan_dirs.push_back(sib_sv);
+	for (const auto *sub : {"sv", "rtl", "src"}) {
+		if (std::filesystem::exists(parent_dir / sub, ec) && std::filesystem::is_directory(parent_dir / sub, ec)) {
+			scan_dirs.push_back(parent_dir / sub);
 		}
 	}
-
+	if (parent_dir.has_parent_path()) {
+		auto parent_parent = parent_dir.parent_path();
+		std::string pdir_name = parent_dir.filename().string();
+		if (pdir_name == "wave" || pdir_name == "waves" || pdir_name == "sim" ||
+		    pdir_name == "tb" || pdir_name == "testbench" || pdir_name == "vcd") {
+			scan_dirs.push_back(parent_parent);
+		}
+		for (const auto *sub : {"sv", "rtl", "src"}) {
+			auto sib = parent_parent / sub;
+			if (std::filesystem::exists(sib, ec) && std::filesystem::is_directory(sib, ec)) {
+				scan_dirs.push_back(sib);
+			}
+		}
+	}
 	std::filesystem::file_time_type newest_mtime = vcd_mtime;
 	std::string newest_rtl;
 

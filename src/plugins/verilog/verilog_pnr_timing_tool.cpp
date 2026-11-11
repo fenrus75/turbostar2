@@ -73,7 +73,14 @@ std::string verilog_pnr_timing_tool::execute(agentlib::tool_context &ctx)
 	fs::path scan_root;
 	if (!args_.safe_file.empty()) {
 		scan_root = fs::path(args_.safe_file).parent_path();
-		if (scan_root.has_parent_path() && scan_root.filename() != "sv") {
+		auto is_rtl_root_dir = [&](const fs::path &d) {
+			std::string fname = d.filename().string();
+			std::error_code ec;
+			return fname == "sv" || fname == "src" || fname == "rtl" ||
+			       (!cfg.sv_path.empty() && fname == cfg.sv_path) ||
+			       fs::equivalent(d, fs::path(project_root), ec);
+		};
+		if (scan_root.has_parent_path() && !is_rtl_root_dir(scan_root)) {
 			scan_root = scan_root.parent_path();
 		}
 	} else if (!cfg.sv_path.empty()) {

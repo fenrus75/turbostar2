@@ -266,7 +266,8 @@ std::string vcd_label_manager::get_global_sidecar_path(std::string_view safe_pat
 	if (dir.has_parent_path()) {
 		std::filesystem::path parent = dir.parent_path();
 		std::error_code ec;
-		if (dir_name == "sim" || dir_name == "tb" || dir_name == "testbench" || dir_name == "waves" ||
+		if (dir_name == "sim" || dir_name == "tb" || dir_name == "testbench" ||
+		    dir_name == "wave" || dir_name == "waves" || dir_name == "vcd" ||
 		    (!std::filesystem::exists(dir / "vcd_labels.json", ec) &&
 		     (std::filesystem::exists(parent / "vcd_labels.json", ec) ||
 		      std::filesystem::exists(parent / "turbostar.json", ec) ||
@@ -274,7 +275,6 @@ std::string vcd_label_manager::get_global_sidecar_path(std::string_view safe_pat
 			return canonicalize_path_key((parent / "vcd_labels.json").string());
 		}
 	}
-
 	return canonicalize_path_key((dir / "vcd_labels.json").string());
 }
 void vcd_label_manager::load_json_file_locked(std::string_view json_path, std::string_view map_key)

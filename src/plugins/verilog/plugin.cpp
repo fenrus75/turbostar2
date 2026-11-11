@@ -75,27 +75,27 @@ Tools in this family assist in SystemVerilog/Verilog RTL development, FPGA synth
 
 #### 1. Standard Edit – Compile – Test – Commit Workflow
 - **Initial Setup (`verilog_project_settings`, `verilog_configure_testbench`)**:
-  Configure target FPGA hardware (`target`, `device`, `package`, `top_module`, `freq_mhz`, `sv_path="src"`) and associate testbenches with RTL modules (`modules`, `level="quick"|"comprehensive"|"extreme"`, and optional per-module `hierarchical=true` default) in `turbostar.json`.
+  Configure target FPGA hardware (`target`, `device`, `package`, `top_module`, `freq_mhz`, and optional `sv_path` — auto-detected from `src/`, `sv/`, `rtl/`, or project root) and associate testbenches with RTL modules (`modules`, `level="quick"|"comprehensive"|"extreme"`, and optional per-module `hierarchical=true` default) in `turbostar.json`.
 - **Compile & Health Check (`verilog_compile`)**:
   Run `verilog_compile(module="...", lint_only=true)` for a fast Verilator syntax/lint pass, or `verilog_compile(module="...")` for full Verilator + Yosys synthesis + `nextpnr` place-and-route. It scopes files to the module's hierarchy, separates correctness/synthesis warnings from style notes, flags inferred latches and combinational loops, and writes the full raw log to `tmp://synthesis.log`.
 - **Simulate (`verilog_simulate`)**:
-  Run associated testbenches in parallel via Verilator (`verilog_simulate(module="...")`). Give each testbench a unique `$dumpfile("wave/dump_<tb>.vcd")` so parallel runs do not collide, and emit explicit `PASS` or `FAIL`/`$error` assertions so benches are graded `PASS` rather than `INFO (no assertions)`.
+  Run associated testbenches in parallel via Verilator (`verilog_simulate(module="...")`). Give each testbench a unique `$dumpfile` path (e.g., `dump_<tb>.vcd` or `wave/dump_<tb>.vcd` per project convention) so parallel runs do not collide, and emit explicit `PASS` or `FAIL`/`$error` assertions so benches are graded `PASS` rather than `INFO (no assertions)`.
 
 #### 2. Waveform Debugging Workflow (.vcd)
 To debug simulation waveforms without blowing out your context window:
 1. **Discover Hierarchy & Clocks (`vcd_file_info`)**:
-   `vcd_file_info(path="wave/dump_main.vcd", scope="tb_main.uut", max_signals=30)`
+   `vcd_file_info(path="dump_main.vcd", scope="tb_main.uut", max_signals=30)`
 2. **Define Value Labels & Valid Qualifiers (`vcd_signal_labels`, `vcd_signal_qualifier`)**:
    Note: `typedef enum` FSM states in RTL are auto-discovered. For opcodes or raw buses, register project-wide labels (`vcd_labels.json`) and valid/enable strobes so invalid cycles mask as `-`:
-   `vcd_signal_labels(path="wave/dump_main.vcd", signal="*opcode", labels={"0x06": "LAI", "b01???01": "ALU_OP"})`
-   `vcd_signal_qualifier(path="wave/dump_main.vcd", signal="opcode_data", qualifier="opcode_data_valid")`
+   `vcd_signal_labels(path="dump_main.vcd", signal="*opcode", labels={"0x06": "LAI", "b01???01": "ALU_OP"})`
+   `vcd_signal_qualifier(path="dump_main.vcd", signal="opcode_data", qualifier="opcode_data_valid")`
 3. **Locate Cycles of Interest (`vcd_search`)**:
-   `vcd_search(path="wave/dump_main.vcd", conditions={"opcode_data": "LAI", "opcode_data_valid": "1"})`
+   `vcd_search(path="dump_main.vcd", conditions={"opcode_data": "LAI", "opcode_data_valid": "1"})`
 4. **Sample Synchronous Waveforms (`vcd_wave`)**:
-   `vcd_wave(path="wave/dump_main.vcd", signals=["rst", "current_ip", "opcode_data", "b:flags"], start_tick=4, end_tick=15)`
+   `vcd_wave(path="dump_main.vcd", signals=["rst", "current_ip", "opcode_data", "b:flags"], start_tick=4, end_tick=15)`
 5. **Compare Against Golden / Previous Run (`vcd_compare`)**:
    `verilog_simulate` automatically snapshots `<stem>.previous.vcd` and `<stem>.lastpass.vcd` and reports divergence. Use `vcd_compare` for detailed cycle-accurate diffing:
-   `vcd_compare(path_a="wave/dump_main.lastpass.vcd", path_b="wave/dump_main.vcd", scope="tb_main.uut")`
+   `vcd_compare(path_a="dump_main.lastpass.vcd", path_b="dump_main.vcd", scope="tb_main.uut")`
 6. **Trace Signal to RTL (`vcd_signal_to_code`)**:
    `vcd_signal_to_code(signal="tb_main.uut.cpu8008.A_val")`
 

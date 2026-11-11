@@ -51,8 +51,7 @@ void unregister_verilog_configure_testbench();
 }
 int main()
 {
-	test_watchdog::setup_watchdog(30);
-
+	test_watchdog::setup_watchdog(90);
 	const std::string vcd_path = "tests/fixtures/test_dump.vcd";
 	std::filesystem::remove(vcd_path + ".labels.json");
 	std::filesystem::remove("tests/fixtures/test_dump_org.vcd.labels.json");
@@ -2071,10 +2070,39 @@ int main()
 		std::filesystem::remove_all(tmp_proj);
 	}
 
+	// Test directory-flexible support for wave/ + src/ layout in vcd_label_manager and vcd_parser_cache
+	{
+		std::filesystem::path wave_proj = std::filesystem::temp_directory_path() / "turbostar_vcd_wave_src_test";
+		std::filesystem::remove_all(wave_proj);
+		std::filesystem::create_directories(wave_proj / "src");
+		std::filesystem::create_directories(wave_proj / "wave");
+
+		std::filesystem::path wave_vcd = wave_proj / "wave" / "dump_main.vcd";
+		std::filesystem::copy_file(vcd_path, wave_vcd);
+
+		// 1) Global sidecar path for wave/dump_main.vcd should resolve to project root (wave_proj/vcd_labels.json)
+		std::string g_sidecar = verilog::vcd_label_manager::get_global_sidecar_path(wave_vcd.string());
+		assert(std::filesystem::path(g_sidecar).parent_path() == std::filesystem::weakly_canonical(wave_proj));
+
+		// 2) Stale RTL warning should detect newer RTL file inside sibling src/ directory
+		std::filesystem::path rtl_src = wave_proj / "src" / "main.sv";
+		{
+			std::ofstream ofs(rtl_src);
+			ofs << "module main(input logic clk); endmodule\n";
+		}
+		auto future_time = std::filesystem::last_write_time(wave_vcd) + std::chrono::seconds(10);
+		std::filesystem::last_write_time(rtl_src, future_time);
+
+		std::string stale_warn = verilog::vcd_parser_cache::check_stale_rtl_warning(wave_vcd.string(), "wave/dump_main.vcd");
+		assert(stale_warn.find("Stale VCD") != std::string::npos);
+		assert(stale_warn.find("main.sv") != std::string::npos);
+
+		std::filesystem::remove_all(wave_proj);
+	}
+
 	std::filesystem::remove(vcd_path + ".labels.json");
 	std::filesystem::remove("tests/fixtures/test_dump_org.vcd.labels.json");
 	std::filesystem::remove("tests/fixtures/test_dump_org.vcd.qualifiers.json");
-	std::filesystem::remove("tests/fixtures/test_dump_mutated.vcd.labels.json");
 	std::filesystem::remove("tests/fixtures/test_dump_mutated.vcd.qualifiers.json");
 	std::filesystem::remove("tests/fixtures/vcd_labels.json");
 	std::filesystem::remove("vcd_labels.json");

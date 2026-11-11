@@ -58,7 +58,14 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 			std::filesystem::path fp(args_.safe_file);
 			// Gather synthesizable sibling RTL files from the enclosing directory tree
 			std::filesystem::path scan_root = fp.parent_path();
-			if (scan_root.has_parent_path() && scan_root.filename() != "sv") {
+			auto is_rtl_root_dir = [&](const std::filesystem::path &d) {
+				std::string fname = d.filename().string();
+				std::error_code ec;
+				return fname == "sv" || fname == "src" || fname == "rtl" ||
+				       (!cfg.sv_path.empty() && fname == cfg.sv_path) ||
+				       std::filesystem::equivalent(d, std::filesystem::path(project_root), ec);
+			};
+			if (scan_root.has_parent_path() && !is_rtl_root_dir(scan_root)) {
 				scan_root = scan_root.parent_path();
 			}
 			sources = verilog::verilog_module_scanner::find_synthesizable_files(scan_root);
