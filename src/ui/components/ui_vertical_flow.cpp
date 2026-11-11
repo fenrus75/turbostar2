@@ -25,17 +25,20 @@ bool ui_vertical_flow::flow()
 	}
 
 	int total_width = children_.empty() ? 0 : (2 * x_offset_ + max_child_width);
+	int effective_width = std::max(this->width(), total_width);
+	int inner_width = std::max(max_child_width, effective_width - 2 * x_offset_);
 
 	// Set position and width of all children in a loop
 	int running_y = y_offset_;
 	for (const auto &child : children_) {
-		int target_x = child->want_horizontal_stretch() ? 0 : x_offset_;
+		int target_x = x_offset_;
 		int target_y = running_y;
-		int target_width = child->want_horizontal_stretch() ? total_width : child->width();
+		int target_width = child->want_horizontal_stretch() ? inner_width : child->width();
 
 		if (child->x() != target_x || child->y() != target_y || child->width() != target_width) {
 			child->set_width(target_width);
 			child->set_position(target_x, target_y);
+			child->flow();
 		}
 
 		running_y += child->height() + spacer_;
@@ -43,7 +46,6 @@ bool ui_vertical_flow::flow()
 
 	int total_height = children_.empty() ? 0 : (running_y - spacer_ + y_offset_);
 
-	int effective_width = std::max(this->width(), total_width);
 	bool dimensions_changed = (this->width() != effective_width || this->height() != total_height);
 	if (dimensions_changed) {
 		this->set_width(effective_width);

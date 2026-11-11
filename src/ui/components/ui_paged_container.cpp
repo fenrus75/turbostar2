@@ -84,6 +84,7 @@ bool ui_paged_container::set_current_page(size_t page_index)
 	if (page_entered_cb_) {
 		page_entered_cb_(current_page_);
 	}
+	this->flow();
 
 	auto focusables = get_focusable_elements();
 	if (!focusables.empty()) {

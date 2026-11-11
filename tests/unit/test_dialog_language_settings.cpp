@@ -188,6 +188,15 @@ int main()
 		}
 	}
 
+	// Case 8: Verify Wizard Page 1 (Step 2 of 3) language radio buttons do not overlap left dialog border (x == 0)
+	wizard_paged->set_current_page(1);
+	wizard_dlg->flow();
+	int lang_abs_x = 0;
+	for (const ui_element *cur = wiz_lang_radio; cur != nullptr && cur != wizard_dlg.get(); cur = cur->parent()) {
+		lang_abs_x += cur->x();
+	}
+	assert(lang_abs_x >= 2);
+
 	std::cout << "All language tab and shared preset tests passed successfully!" << std::endl;
 	return 0;
 }

@@ -428,14 +428,15 @@ std::unique_ptr<dialog> create_new_project_dialog()
 	page1->add_child(std::make_unique<ui_text_label>("Step 2 of 3: Select Programming Language"));
 	page1->add_child(std::make_unique<ui_text_label>(""));
 
+	auto lang_box = std::make_unique<ui_group_box>("gb_lang", 32, "Programming Language");
 	auto lang_group = std::make_unique<ui_radiobutton_group>("language", false);
 	for (const auto &preset : turbostar::project_template_manager::get_language_presets()) {
 		lang_group->add_child(std::make_unique<ui_radio_choice>(preset.language, preset.language, preset.hotkey, preset.language == "C++"));
 	}
-	page1->add_child(std::move(lang_group));
+	lang_box->add_child(std::move(lang_group));
+	page1->add_child(std::move(lang_box));
 
 	wizard_ptr->add_page(std::move(page1));
-
 	// Page 2: Build System & Language Standard Options
 	auto page2 = std::make_unique<ui_vertical_flow>("page2", 2, 1, 0);
 	page2->add_child(std::make_unique<ui_text_label>("Step 3 of 3: Build System & Language Standard"));
