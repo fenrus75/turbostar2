@@ -45,6 +45,7 @@ namespace agentlib {
 | verilog_update_timing_tool   | src/plugins/verilog/verilog_update_timing_tool.h      |
 | verilog_simulate_tool        | src/plugins/verilog/verilog_simulate_tool.h           |
 | verilog_configure_testbench_tool | src/plugins/verilog/verilog_configure_testbench_tool.h |
+| verilog_compile_tool         | src/plugins/verilog/verilog_compile_tool.h            |
 */
 class llm_tool_action : public llm_tool {
 public:

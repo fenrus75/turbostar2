@@ -200,7 +200,9 @@ test_vcd_tools = executable('test_vcd_tools',
    '../src/plugins/verilog/verilog_simulate_tool.cpp',
    '../src/plugins/verilog/verilog_simulate_validator.cpp',
    '../src/plugins/verilog/verilog_configure_testbench_tool.cpp',
-   '../src/plugins/verilog/verilog_configure_testbench_validator.cpp'],
+   '../src/plugins/verilog/verilog_configure_testbench_validator.cpp',
+   '../src/plugins/verilog/verilog_compile_tool.cpp',
+   '../src/plugins/verilog/verilog_compile_validator.cpp'],
   dependencies : [core_dep, agent_dep, nlohmann_json_dep, sqlite3_dep, lsp_dep, ctre_dep],
   include_directories: inc)
 test('unit_vcd_tools', test_vcd_tools, suite: 'plugins', workdir: meson.project_source_root())
@@ -227,7 +229,9 @@ test_verilog_timing_tools = executable('test_verilog_timing_tools',
    '../src/plugins/verilog/verilog_project_settings_tool.cpp',
    '../src/plugins/verilog/verilog_project_settings_validator.cpp',
    '../src/plugins/verilog/verilog_pnr_timing_tool.cpp',
-   '../src/plugins/verilog/verilog_pnr_timing_validator.cpp'],
+   '../src/plugins/verilog/verilog_pnr_timing_validator.cpp',
+   '../src/plugins/verilog/verilog_compile_tool.cpp',
+   '../src/plugins/verilog/verilog_compile_validator.cpp'],
   dependencies : [core_dep, agent_dep, nlohmann_json_dep, sqlite3_dep, lsp_dep, ctre_dep],
   include_directories: inc)
 test('unit_verilog_timing_tools', test_verilog_timing_tools, suite: 'plugins', workdir: meson.project_source_root())

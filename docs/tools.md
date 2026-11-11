@@ -1074,3 +1074,11 @@ Tools in this family assist in digital ASIC and FPGA hardware engineering, simul
     *   `level` *(string, optional)*: Test tier for filtering in `verilog_simulate`: `'quick'`, `'comprehensive'`, or `'extreme'` (default: `'quick'`).
     *   `hierarchical` *(boolean, optional)*: When provided along with `modules`/`module` (e.g. `verilog_configure_testbench(module='cpu', hierarchical=true)`), configures whether `verilog_simulate(module=...)` defaults to `hierarchical=true` for those module(s) in `turbostar.json`.
     *   `remove` *(boolean, optional)*: When `true`, removes the specified module association(s) from the testbench, or removes the testbench configuration entirely if `modules` is omitted (default: `false`; aliases: `delete`, `clear`).
+
+### `verilog_compile` (Family: `verilog`)
+*   **Description:** Compiles and verifies SystemVerilog/Verilog RTL health using Verilator lint (`--lint-only -Wall --Wno-fatal`), Yosys synthesis (`synth_ice40`/`synth_ecp5`/`synth` + `check` + `stat`), and `nextpnr` single-seed place-and-route. Writes the full raw compilation/synthesis/place-and-route log to `output_file` (default: `'tmp://synthesis.log'`) and returns a concise diagnostic summary of errors, lint/synthesis warnings, inferred latches, combinational loops, cell statistics, and device utilization.
+*   **Arguments:**
+    *   `module` *(string, optional)*: Optional target RTL module name or source file path (e.g. `'main'`, `'alu_mod'`, or `'sv/alu/alu.sv'`; aliases: `file`, `path`, `top_module`, `top`, `rtl_module`). Defaults to `top_module` configured in `turbostar.json`.
+    *   `lint_only` *(boolean, optional)*: When `true`, runs Verilator in `--lint-only -Wall` mode for fast syntax, width, and lint checking without running Yosys or `nextpnr` (default: `false`).
+    *   `synth_only` *(boolean, optional)*: When `true`, runs Verilator lint and Yosys synthesis (checking for inferred latches, combinational loops, and cell counts) without running `nextpnr` place-and-route (default: `false`).
+    *   `output_file` *(string, optional)*: Path or VFS URI where the full raw compiler, synthesis, and place-and-route output log is saved (default: `'tmp://synthesis.log'`; aliases: `log_file`, `log`, `out`).

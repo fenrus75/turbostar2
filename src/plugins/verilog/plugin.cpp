@@ -39,6 +39,8 @@ void register_verilog_simulate(void);
 void unregister_verilog_simulate(void);
 void register_verilog_configure_testbench(void);
 void unregister_verilog_configure_testbench(void);
+void register_verilog_compile(void);
+void unregister_verilog_compile(void);
 
 /*
  * Plugin dynamic entry point invoked when loaded by plugin_loader.
@@ -57,6 +59,7 @@ void plugin_run(void)
 	register_verilog_pnr_timing();
 	register_verilog_simulate();
 	register_verilog_configure_testbench();
+	register_verilog_compile();
 
 	bool has_yosys = !fs_utils::find_executable("yosys").empty();
 	if (has_yosys) {
@@ -119,6 +122,10 @@ To verify or debug a digital design without blowing your context window, follow 
 10. **Analyze Physical Place-and-Route Timing (`verilog_pnr_timing`)**:
     Pinpoint post-route physical timing bottlenecks and Fmax, decomposed into logic vs wire routing delay:
     `verilog_pnr_timing(top_k=3)`
+
+11. **Compile & Check RTL Health (`verilog_compile`)**:
+    Verify syntax, Verilator lint warnings, Yosys synthesis (inferred latches, combinational loops, cell statistics), and nextpnr place-and-route, saving the full raw log to `tmp://synthesis.log`:
+    `verilog_compile()` or `verilog_compile(module="alu_mod", lint_only=true)`
 )"
 	);
 }
@@ -141,6 +148,7 @@ void plugin_unload(void)
 	unregister_verilog_pnr_timing();
 	unregister_verilog_simulate();
 	unregister_verilog_configure_testbench();
+	unregister_verilog_compile();
 
 	agentlib::tool_registry::get_instance().unregister_tool_family("verilog");
 }
