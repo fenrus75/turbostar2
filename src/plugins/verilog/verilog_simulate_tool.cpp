@@ -45,6 +45,19 @@ std::string make_collision_renamed_vcd_path(std::string_view raw_dump_rel, const
 	return renamed.generic_string();
 }
 
+std::string suggest_unique_dumpfile_path(std::string_view raw_dump_rel, const fs::path &tb_path)
+{
+	fs::path raw_p(raw_dump_rel);
+	std::string stem = tb_path.stem().string();
+	if (stem.starts_with("tb_") && stem.size() > 3) {
+		stem = stem.substr(3);
+	} else if (stem.ends_with("_tb") && stem.size() > 3) {
+		stem = stem.substr(0, stem.size() - 3);
+	}
+	fs::path suggested = raw_p.parent_path() / std::format("dump_{}.vcd", stem.empty() ? "tb" : stem);
+	return suggested.generic_string();
+}
+
 enum class testsuite_verdict {
 	passed,
 	completed_no_assertions,
@@ -296,7 +309,7 @@ tb_run_outcome execute_single_testbench(
 	} else if (out.suite_passed) {
 		status_banner = "PASS (SUCCESS)";
 	} else {
-		status_banner = "COMPLETED (no PASS/FAIL assertions)";
+		status_banner = "INFO (Completed cleanly, no PASS/FAIL assertions)";
 	}
 
 	std::ostringstream ss;
@@ -336,11 +349,13 @@ tb_run_outcome execute_single_testbench(
 			}
 			others += std::format("`{}`", ctb);
 		}
+		std::string suggested_vcd = suggest_unique_dumpfile_path(plan.raw_dump_rel, plan.display_tb);
 		ss << std::format("\n> [!WARNING] **Waveform `$dumpfile` Collision**: Testbench `{}` writes to `{}`{}",
 		                  plan.display_tb, plan.raw_dump_rel,
 		                  others.empty() ? "" : std::format(" (collides with {})", others));
-		ss << std::format(". Renamed generated waveform to `{}`. Consider updating `$dumpfile(\"...\")` in each testbench to use a unique filename.\n",
-		                  dump_rel);
+		ss << std::format(". Renamed generated waveform to `{}`.\n"
+		                  "> **Recommended Fix**: Edit `{}` and rename `$dumpfile(\"{}\")` -> `$dumpfile(\"{}\")` so each testbench writes to a unique waveform file.\n",
+		                  dump_rel, plan.display_tb, plan.raw_dump_rel, suggested_vcd);
 	}
 
 	while (!sim_out.empty() && (sim_out.back() == '\n' || sim_out.back() == '\r')) {
@@ -759,12 +774,47 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 				                   "Re-run with `verilog_simulate(module=\"{}\", level=\"extreme\")` to include them.",
 				                   resolved_mod, args_.level, skipped_str, args_.requested_module);
 			} else {
-				msg << std::format("No testbenches are associated with module `{}`", resolved_mod);
-				if (args_.hierarchical && target_hierarchy.size() > 1) {
-					msg << " (or its submodules)";
+				// If hierarchical=false, check whether submodules of resolved_mod have testbenches!
+				std::vector<std::string> sub_hierarchy;
+				std::set<std::string> sub_tbs;
+				std::vector<std::string> tested_submods;
+				if (!args_.hierarchical) {
+					sub_hierarchy = verilog::verilog_module_scanner::discover_submodule_hierarchy(resolved_mod, rtl_files);
+					for (const auto &sm : sub_hierarchy) {
+						if (sm == resolved_mod) {
+							continue;
+						}
+						bool sm_has_tb = false;
+						for (const auto &item : catalog) {
+							if (std::find(item.modules.begin(), item.modules.end(), sm) != item.modules.end()) {
+								sub_tbs.insert(item.rel_path);
+								sm_has_tb = true;
+							}
+						}
+						if (sm_has_tb) {
+							tested_submods.push_back(sm);
+						}
+					}
 				}
-				msg << ".\nAssociate a testbench using `verilog_configure_testbench(testbench=\"path/to/tb.sv\", modules=[\""
-				    << resolved_mod << "\"])` or pass `testbench=\"path/to/tb.sv\"` directly.";
+
+				if (!sub_tbs.empty()) {
+					std::string submods_str;
+					for (size_t i = 0; i < tested_submods.size(); ++i) {
+						if (i > 0) submods_str += ", ";
+						submods_str += std::format("`{}`", tested_submods[i]);
+					}
+					msg << std::format("No direct testbench is associated with module `{}`, but **{} testbench(es)** exist for its submodules ({}).\n"
+					                   "- **Recommended**: Run `verilog_simulate(module=\"{}\", hierarchical=true)` to verify `{}` bottom-up via its submodule testbenches.\n"
+					                   "- Or associate a direct testbench using `verilog_configure_testbench(testbench=\"path/to/tb.sv\", modules=[\"{}\"])`.",
+					                   resolved_mod, sub_tbs.size(), submods_str, args_.requested_module, resolved_mod, resolved_mod);
+				} else {
+					msg << std::format("No testbenches are associated with module `{}`", resolved_mod);
+					if (args_.hierarchical && target_hierarchy.size() > 1) {
+						msg << " (or its submodules)";
+					}
+					msg << ".\nAssociate a testbench using `verilog_configure_testbench(testbench=\"path/to/tb.sv\", modules=[\""
+					    << resolved_mod << "\"])` or pass `testbench=\"path/to/tb.sv\"` directly.";
+				}
 			}
 			set_failure(ctx, "No matching testbenches found for module");
 			return msg.str();
@@ -856,7 +906,7 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 	}
 	report << std::format("- **Level Filter**: `{}`\n", args_.level);
 	if (completed_count > 0) {
-		report << std::format("- **Summary**: **{} Passed**, **{} Completed (no assertions)**, **{} Failed** (out of {} testbench run(s))\n\n",
+		report << std::format("- **Summary**: **{} Passed**, **{} Info (no assertions)**, **{} Failed** (out of {} testbench run(s))\n\n",
 		                      pass_count, completed_count, fail_count, outcomes.size());
 	} else {
 		report << std::format("- **Summary**: **{} Passed**, **{} Failed** (out of {} testbench run(s))\n\n",
@@ -875,7 +925,7 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 		std::string status_str = o.compile_failed ? "COMPILE ERROR"
 			: (o.timed_out ? "TIMED OUT"
 			: (o.suite_failed ? "**FAIL**"
-			: (o.suite_passed ? "**PASS**" : "COMPLETED (no assertions)")));
+			: (o.suite_passed ? "**PASS**" : "**INFO** (no assertions)")));
 		std::string wave_str = o.effective_dump_rel.empty()
 			? "*(none)*"
 			: std::format("`{}`", o.effective_dump_rel);

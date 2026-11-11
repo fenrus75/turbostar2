@@ -274,11 +274,23 @@ std::string verilog_configure_testbench_tool::execute(agentlib::tool_context &ct
 	}
 
 	// Check for VCD filename collisions across testbenches
+	auto suggest_unique_dumpfile = [](std::string_view raw_dump, std::string_view tb_rel) -> std::string {
+		fs::path raw_p(raw_dump);
+		std::string stem = fs::path(tb_rel).stem().string();
+		if (stem.starts_with("tb_") && stem.size() > 3) {
+			stem = stem.substr(3);
+		} else if (stem.ends_with("_tb") && stem.size() > 3) {
+			stem = stem.substr(0, stem.size() - 3);
+		}
+		fs::path suggested = raw_p.parent_path() / std::format("dump_{}.vcd", stem.empty() ? "tb" : stem);
+		return suggested.generic_string();
+	};
+
 	bool has_collision = false;
 	for (const auto &[dump_path, tb_list] : dumpfile_to_tbs) {
 		if (tb_list.size() > 1) {
 			if (!has_collision) {
-				ss << "\n> [!WARNING] **Waveform `$dumpfile` Collision Detected**\n";
+				ss << "\n> [!WARNING] **Waveform `$dumpfile` Collision Detected — Recommended Fix**\n";
 				has_collision = true;
 			}
 			std::string tbs_joined;
@@ -288,8 +300,12 @@ std::string verilog_configure_testbench_tool::execute(agentlib::tool_context &ct
 				}
 				tbs_joined += std::format("`{}`", tb_list[i]);
 			}
-			ss << std::format("> Multiple testbenches write to `{}`: {}. Consider updating each testbench's `$dumpfile(\"...\")` call to a unique name (e.g. `dump_<tb_name>.vcd`). When colliding testbenches are run via `verilog_simulate`, their waveforms will be automatically renamed to `<tb_stem>.vcd` to prevent overwriting.\n",
-			                  dump_path, tbs_joined);
+			ss << std::format("> Multiple testbenches write to `{}`: {}.\n", dump_path, tbs_joined);
+			ss << "> **Recommended Fix**: Edit the colliding testbenches so each writes to a unique `$dumpfile` path:\n";
+			for (const auto &tb_rel : tb_list) {
+				ss << std::format("> - In `{}`: rename `$dumpfile(\"{}\")` -> `$dumpfile(\"{}\")`\n",
+				                  tb_rel, dump_path, suggest_unique_dumpfile(dump_path, tb_rel));
+			}
 		}
 	}
 

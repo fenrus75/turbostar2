@@ -1910,8 +1910,9 @@ int main()
 		std::string cfg1_out = cfg_val.create_tool(cfg1)->execute(mctx);
 		assert(cfg1_out.find("Configured testbench `tb/tb_alu.sv`") != std::string::npos);
 		assert(cfg1_out.find("`alu_mod`") != std::string::npos);
-		// Should also warn that tb/tb_alu.sv and tb/tb_cpu_extreme.sv both write to dump.vcd!
+		// Should also warn that tb/tb_alu.sv and tb/tb_cpu_extreme.sv both write to dump.vcd with directive fix!
 		assert(cfg1_out.find("Waveform `$dumpfile` Collision Detected") != std::string::npos);
+		assert(cfg1_out.find("rename `$dumpfile(\"dump.vcd\")` -> `$dumpfile(\"dump_alu.vcd\")`") != std::string::npos);
 
 		// Configure tb_cpu.sv (level="comprehensive") and tb_cpu_extreme.sv (level="extreme")
 		nlohmann::json cfg2 = {
@@ -1979,6 +1980,7 @@ int main()
 			assert(std::filesystem::exists(tmp_proj / "tb_alu.lastpass.vcd"));
 			assert(out_hier.find("Waveform `$dumpfile` Collision") != std::string::npos);
 			assert(out_hier.find("Renamed generated waveform to `tb_alu.vcd`") != std::string::npos);
+			assert(out_hier.find("rename `$dumpfile(\"dump.vcd\")` -> `$dumpfile(\"dump_alu.vcd\")`") != std::string::npos);
 			// And tb_cpu.sv (second run) automatically compared IDENTICAL against its previous run!
 			assert(out_hier.find("IDENTICAL to previous") != std::string::npos);
 
@@ -2017,9 +2019,28 @@ int main()
 			};
 			assert(sim_val.validate_args(sim_alu_with_probe, mctx, err) && err.empty());
 			std::string out_alu_probe = sim_val.create_tool(sim_alu_with_probe)->execute(mctx);
-			assert(out_alu_probe.find("**1 Passed**, **1 Completed (no assertions)**, **0 Failed**") != std::string::npos);
-			assert(out_alu_probe.find("COMPLETED (no assertions)") != std::string::npos);
+			assert(out_alu_probe.find("**1 Passed**, **1 Info (no assertions)**, **0 Failed**") != std::string::npos);
+			assert(out_alu_probe.find("**INFO** (no assertions)") != std::string::npos);
 			assert(out_alu_probe.find("**FAIL**") == std::string::npos);
+
+			// 5) Add a top-level wrapper module soc_top (instantiating cpu_mod) with NO direct testbench.
+			//    Verify verilog_simulate(module="soc_top") (default hierarchical=false) detects submodule testbenches
+			//    and recommends running with hierarchical=true!
+			{
+				std::ofstream f(tmp_proj / "sv" / "soc_top.sv");
+				f << "module soc_top(input logic clk, input logic [7:0] a, b, output logic [7:0] y);\n"
+				  << "    cpu_mod cpu_inst(.clk(clk), .in_a(a), .in_b(b), .out_y(y));\n"
+				  << "endmodule\n";
+			}
+			nlohmann::json sim_soc_nonhier = {
+				{"module", "soc_top"}
+			};
+			assert(sim_val.validate_args(sim_soc_nonhier, mctx, err) && err.empty());
+			std::string out_soc_nonhier = sim_val.create_tool(sim_soc_nonhier)->execute(mctx);
+			assert(out_soc_nonhier.find("No direct testbench is associated with module `soc_top`") != std::string::npos);
+			assert(out_soc_nonhier.find("verilog_simulate(module=\"soc_top\", hierarchical=true)") != std::string::npos);
+			assert(out_soc_nonhier.find("`alu_mod`") != std::string::npos);
+			assert(out_soc_nonhier.find("`cpu_mod`") != std::string::npos);
 		}
 
 		std::filesystem::remove_all(tmp_proj);
