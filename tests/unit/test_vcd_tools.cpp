@@ -1737,12 +1737,14 @@ int main()
 		auto test8008_enums = verilog::verilog_module_scanner::discover_enum_signal_labels("examples/test8008");
 		assert(test8008_enums.contains("*sequencer.state"));
 		assert(test8008_enums.contains("*sequencer.next_state"));
-		assert(test8008_enums["*sequencer.state"]["0x1"] == "DECODE");
-		assert(test8008_enums["*sequencer.state"]["0x2"] == "RETIRE");
-		assert(test8008_enums["*sequencer.state"]["0x4"] == "HALT");
-		assert(test8008_enums["*sequencer.next_state"]["0x1"] == "DECODE");
-		assert(test8008_enums["*sequencer.next_state"]["0x2"] == "RETIRE");
-		assert(test8008_enums["*sequencer.next_state"]["0x4"] == "HALT");
+		assert(test8008_enums["*sequencer.state"]["0x1"] == "FETCH");
+		assert(test8008_enums["*sequencer.state"]["0x2"] == "DECODE");
+		assert(test8008_enums["*sequencer.state"]["0x4"] == "RETIRE");
+		assert(test8008_enums["*sequencer.state"]["0x8"] == "HALT");
+		assert(test8008_enums["*sequencer.next_state"]["0x1"] == "FETCH");
+		assert(test8008_enums["*sequencer.next_state"]["0x2"] == "DECODE");
+		assert(test8008_enums["*sequencer.next_state"]["0x4"] == "RETIRE");
+		assert(test8008_enums["*sequencer.next_state"]["0x8"] == "HALT");
 
 		// Create an isolated temp project with typedef enum + inline enum + copy of test_dump.vcd (and NO sidecar files)
 		std::filesystem::path tmp_proj = std::filesystem::temp_directory_path() / "turbostar_test_sv_enum_auto";
@@ -1990,6 +1992,34 @@ int main()
 			std::string out_quick_cpu = sim_val.create_tool(sim_quick_cpu)->execute(mctx);
 			assert(out_quick_cpu.find("No testbenches for module `cpu_mod` matched `level=\"quick\"`") != std::string::npos);
 			assert(out_quick_cpu.find("Skipped higher-tier testbench(es)") != std::string::npos);
+
+			// 4) Add a probe-only testbench (tb_alu_probe.sv: exits 0 cleanly, logs via $display, no PASS/FAIL assertion, no $dumpfile).
+			//    Verify it is NOT classified as FAIL, does NOT trigger false $dumpfile collision warnings, and reports COMPLETED (no assertions) + 0 Failed!
+			{
+				std::ofstream f(tmp_proj / "tb" / "tb_alu_probe.sv");
+				f << "`timescale 1ns/1ps\n"
+				  << "module tb_alu_probe;\n"
+				  << "    logic clk = 0;\n"
+				  << "    always #5 clk = ~clk;\n"
+				  << "    logic [7:0] a = 8'd5, b = 8'd6, y;\n"
+				  << "    alu_mod uut(.clk(clk), .a(a), .b(b), .y(y));\n"
+				  << "    initial begin\n"
+				  << "        #20;\n"
+				  << "        $display(\"probe y=%02h\", y);\n"
+				  << "        $finish;\n"
+				  << "    end\n"
+				  << "endmodule\n";
+			}
+			assert(verilog::verilog_module_scanner::extract_dumpfile_path(tmp_proj / "tb" / "tb_alu_probe.sv").empty());
+
+			nlohmann::json sim_alu_with_probe = {
+				{"module", "alu_mod"}
+			};
+			assert(sim_val.validate_args(sim_alu_with_probe, mctx, err) && err.empty());
+			std::string out_alu_probe = sim_val.create_tool(sim_alu_with_probe)->execute(mctx);
+			assert(out_alu_probe.find("**1 Passed**, **1 Completed (no assertions)**, **0 Failed**") != std::string::npos);
+			assert(out_alu_probe.find("COMPLETED (no assertions)") != std::string::npos);
+			assert(out_alu_probe.find("**FAIL**") == std::string::npos);
 		}
 
 		std::filesystem::remove_all(tmp_proj);

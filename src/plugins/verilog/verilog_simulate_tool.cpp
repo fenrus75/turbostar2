@@ -45,10 +45,16 @@ std::string make_collision_renamed_vcd_path(std::string_view raw_dump_rel, const
 	return renamed.generic_string();
 }
 
-bool did_testsuite_pass(std::string_view sim_out, bool timed_out, bool has_fatal)
+enum class testsuite_verdict {
+	passed,
+	completed_no_assertions,
+	failed
+};
+
+testsuite_verdict classify_testsuite_output(std::string_view sim_out, bool timed_out, bool has_fatal)
 {
 	if (timed_out || has_fatal) {
-		return false;
+		return testsuite_verdict::failed;
 	}
 
 	std::string lower;
@@ -71,10 +77,14 @@ bool did_testsuite_pass(std::string_view sim_out, bool timed_out, bool has_fatal
 	cleaned.append(rem);
 
 	if (ctre::search<R"(\b(?:fail|failed|failure|failures|mismatch|mismatches|error|errors|fatal)\b)">(cleaned)) {
-		return false;
+		return testsuite_verdict::failed;
 	}
 
-	return static_cast<bool>(ctre::search<R"(\b(?:pass|passed|successfully)\b)">(cleaned));
+	if (ctre::search<R"(\b(?:pass|passed|successfully)\b)">(cleaned)) {
+		return testsuite_verdict::passed;
+	}
+
+	return testsuite_verdict::completed_no_assertions;
 }
 
 struct tb_run_plan {
@@ -98,6 +108,8 @@ struct tb_run_outcome {
 	bool timed_out{false};
 	bool has_fatal{false};
 	bool suite_passed{false};
+	bool suite_failed{false};
+	bool completed_no_assertions{false};
 	std::string compare_status;
 	std::string section_markdown;
 };
@@ -148,22 +160,26 @@ tb_run_outcome execute_single_testbench(
 	// 3. Stage any $readmemh / $readmemb initialization files into project_root
 	std::vector<std::string> staged_files = verilog::verilog_module_scanner::stage_readmem_files(all_sources, root_path);
 
-	// 4. Validate VCD output path(s)
-	fs::path raw_vcd_full_path = root_path / plan.raw_dump_rel;
-	fs::path vcd_full_path = root_path / plan.effective_dump_rel;
+	// 4. Validate VCD output path(s) if the testbench declares a VCD dump
+	bool expects_vcd = !plan.effective_dump_rel.empty();
+	fs::path raw_vcd_full_path = expects_vcd ? (root_path / plan.raw_dump_rel) : fs::path();
+	fs::path vcd_full_path = expects_vcd ? (root_path / plan.effective_dump_rel) : fs::path();
 
-	std::string canonical_vcd;
-	std::string vcd_access_err;
-	if (!ctx.fs_security.validate_access(vcd_full_path.string(), agentlib::access_type::write, canonical_vcd, vcd_access_err)) {
-		out.compile_failed = true;
-		out.section_markdown = std::format("Error validating VCD output path `{}`: {}", plan.effective_dump_rel, vcd_access_err);
-		return out;
-	}
-	if (vcd_full_path.has_parent_path()) {
-		fs::create_directories(vcd_full_path.parent_path(), ec);
-	}
-	if (raw_vcd_full_path.has_parent_path()) {
-		fs::create_directories(raw_vcd_full_path.parent_path(), ec);
+	if (expects_vcd) {
+		std::string canonical_vcd;
+		std::string vcd_access_err;
+		if (!ctx.fs_security.validate_access(vcd_full_path.string(), agentlib::access_type::write, canonical_vcd, vcd_access_err)) {
+			out.compile_failed = true;
+			out.suite_failed = true;
+			out.section_markdown = std::format("Error validating VCD output path `{}`: {}", plan.effective_dump_rel, vcd_access_err);
+			return out;
+		}
+		if (vcd_full_path.has_parent_path()) {
+			fs::create_directories(vcd_full_path.parent_path(), ec);
+		}
+		if (raw_vcd_full_path.has_parent_path()) {
+			fs::create_directories(raw_vcd_full_path.parent_path(), ec);
+		}
 	}
 
 	// 5. Compile simulation binary with Verilator
@@ -190,6 +206,7 @@ tb_run_outcome execute_single_testbench(
 	std::string compile_out = fs_utils::execute_command_sync(compile_cmd, 120);
 	if (!fs::exists(sim_bin, ec)) {
 		out.compile_failed = true;
+		out.suite_failed = true;
 		out.section_markdown = std::format("### Verilog Simulation Failed (Compilation Error)\n\n"
 		                                   "- **Testbench**: `{}` (top module: `{}`)\n\n"
 		                                   "#### Compiler Output\n```\n{}\n```\n",
@@ -199,13 +216,13 @@ tb_run_outcome execute_single_testbench(
 
 	// 6. Preserve any existing waveform at effective_dump_rel as <stem>.previous.vcd before running
 	const std::string &dump_rel = plan.effective_dump_rel;
-	std::string prev_rel = make_tagged_vcd_path(dump_rel, "previous");
-	std::string lastpass_rel = make_tagged_vcd_path(dump_rel, "lastpass");
-	fs::path vcd_prev_full_path = root_path / prev_rel;
-	fs::path vcd_lastpass_full_path = root_path / lastpass_rel;
+	std::string prev_rel = expects_vcd ? make_tagged_vcd_path(dump_rel, "previous") : "";
+	std::string lastpass_rel = expects_vcd ? make_tagged_vcd_path(dump_rel, "lastpass") : "";
+	fs::path vcd_prev_full_path = expects_vcd ? (root_path / prev_rel) : fs::path();
+	fs::path vcd_lastpass_full_path = expects_vcd ? (root_path / lastpass_rel) : fs::path();
 
 	bool saved_previous = false;
-	if (fs::exists(vcd_full_path, ec) && fs::is_regular_file(vcd_full_path, ec)) {
+	if (expects_vcd && fs::exists(vcd_full_path, ec) && fs::is_regular_file(vcd_full_path, ec)) {
 		std::string canon_prev;
 		std::string prev_err;
 		if (ctx.fs_security.validate_access(vcd_prev_full_path.string(), agentlib::access_type::write, canon_prev, prev_err)) {
@@ -226,7 +243,7 @@ tb_run_outcome execute_single_testbench(
 	// stash it temporarily so the simulation binary produces a clean raw file without clobbering unrelated files.
 	fs::path raw_stash_path;
 	bool stashed_raw = false;
-	if (plan.has_collision && raw_vcd_full_path != vcd_full_path && fs::exists(raw_vcd_full_path, ec)) {
+	if (expects_vcd && plan.has_collision && raw_vcd_full_path != vcd_full_path && fs::exists(raw_vcd_full_path, ec)) {
 		raw_stash_path = raw_vcd_full_path.string() + ".stash_tmp";
 		fs::rename(raw_vcd_full_path, raw_stash_path, ec);
 		stashed_raw = !ec;
@@ -234,7 +251,7 @@ tb_run_outcome execute_single_testbench(
 	}
 
 	// 7. Run the compiled simulation binary from project_root
-	auto pre_sim_time = fs::exists(raw_vcd_full_path, ec)
+	auto pre_sim_time = (expects_vcd && fs::exists(raw_vcd_full_path, ec))
 		? std::optional<fs::file_time_type>(fs::last_write_time(raw_vcd_full_path, ec))
 		: std::nullopt;
 
@@ -246,9 +263,9 @@ tb_run_outcome execute_single_testbench(
 	std::string sim_out = fs_utils::execute_command_sync(run_cmd, timeout_sec);
 
 	// If collision renaming is active, move newly generated raw_vcd_full_path -> vcd_full_path
-	bool raw_exists = fs::exists(raw_vcd_full_path, ec) && fs::is_regular_file(raw_vcd_full_path, ec);
+	bool raw_exists = expects_vcd && fs::exists(raw_vcd_full_path, ec) && fs::is_regular_file(raw_vcd_full_path, ec);
 	bool raw_updated = raw_exists && (!pre_sim_time.has_value() || fs::last_write_time(raw_vcd_full_path, ec) >= *pre_sim_time);
-	if (plan.has_collision && raw_vcd_full_path != vcd_full_path && raw_updated) {
+	if (expects_vcd && plan.has_collision && raw_vcd_full_path != vcd_full_path && raw_updated) {
 		fs::rename(raw_vcd_full_path, vcd_full_path, ec);
 		if (ec) {
 			ec.clear();
@@ -264,12 +281,27 @@ tb_run_outcome execute_single_testbench(
 
 	out.timed_out = sim_out.find("Command timed out") != std::string::npos;
 	out.has_fatal = sim_out.find("%Error") != std::string::npos || sim_out.find("%Fatal") != std::string::npos;
-	out.suite_passed = did_testsuite_pass(sim_out, out.timed_out, out.has_fatal);
+	auto verdict = classify_testsuite_output(sim_out, out.timed_out, out.has_fatal);
+	out.suite_passed = (verdict == testsuite_verdict::passed);
+	out.suite_failed = (verdict == testsuite_verdict::failed);
+	out.completed_no_assertions = (verdict == testsuite_verdict::completed_no_assertions);
+
+	std::string status_banner;
+	if (out.timed_out) {
+		status_banner = "TIMED OUT";
+	} else if (out.has_fatal) {
+		status_banner = "Completed with `%Error`/`%Fatal`";
+	} else if (out.suite_failed) {
+		status_banner = "FAIL (Assertion/Check Failed)";
+	} else if (out.suite_passed) {
+		status_banner = "PASS (SUCCESS)";
+	} else {
+		status_banner = "COMPLETED (no PASS/FAIL assertions)";
+	}
 
 	std::ostringstream ss;
 	ss << std::format("### Verilog Simulation: `{}` (`{}`)\n\n", plan.display_tb, top_mod);
-	ss << std::format("- **Status**: {}\n",
-	                  out.timed_out ? "TIMED OUT" : (out.has_fatal ? "Completed with `%Error`/`%Fatal`" : (out.suite_passed ? "PASS (SUCCESS)" : "COMPLETED")));
+	ss << std::format("- **Status**: {}\n", status_banner);
 	if (!plan.matched_modules.empty()) {
 		std::string mods_str;
 		for (size_t i = 0; i < plan.matched_modules.size(); ++i) {
@@ -319,7 +351,7 @@ tb_run_outcome execute_single_testbench(
 	}
 
 	// 8. Parse and cache the generated VCD file, update <stem>.lastpass.vcd on PASS, and emit next-step commands
-	bool vcd_exists = fs::exists(vcd_full_path, ec) && fs::is_regular_file(vcd_full_path, ec);
+	bool vcd_exists = expects_vcd && fs::exists(vcd_full_path, ec) && fs::is_regular_file(vcd_full_path, ec);
 	bool vcd_updated = vcd_exists && (plan.has_collision ? raw_updated : (!pre_sim_time.has_value() || fs::last_write_time(vcd_full_path, ec) >= *pre_sim_time));
 
 	bool saved_lastpass = false;
@@ -331,7 +363,7 @@ tb_run_outcome execute_single_testbench(
 			saved_lastpass = !ec && fs::exists(vcd_lastpass_full_path, ec);
 		}
 	}
-	bool lastpass_exists = fs::exists(vcd_lastpass_full_path, ec) && fs::is_regular_file(vcd_lastpass_full_path, ec);
+	bool lastpass_exists = expects_vcd && fs::exists(vcd_lastpass_full_path, ec) && fs::is_regular_file(vcd_lastpass_full_path, ec);
 
 	if (vcd_exists && vcd_updated) {
 		std::string parse_err;
@@ -464,9 +496,12 @@ tb_run_outcome execute_single_testbench(
 			ss << std::format("\n> [!WARNING] VCD file `{}` was generated but could not be parsed: {}\n",
 			                  dump_rel, parse_err);
 		}
-	} else {
+	} else if (expects_vcd) {
 		ss << std::format("\n> [!NOTE] No VCD file was produced at `{}`. Ensure the testbench calls `$dumpfile(\"{}\"); $dumpvars(0, {});`.\n",
 		                  dump_rel, plan.raw_dump_rel, top_mod);
+	} else {
+		ss << std::format("\n> [!NOTE] No VCD file was produced (testbench does not call `$dumpfile`/`$dumpvars`). To capture waveforms, add `$dumpfile(\"dump_{}.vcd\"); $dumpvars(0, {});`.\n",
+		                  top_mod, top_mod);
 	}
 
 	out.section_markdown = ss.str();
@@ -580,7 +615,9 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 
 	std::map<std::string, std::vector<std::string>> dumpfile_to_tbs;
 	for (const auto &item : catalog) {
-		dumpfile_to_tbs[item.raw_dump_rel].push_back(item.rel_path);
+		if (!item.raw_dump_rel.empty()) {
+			dumpfile_to_tbs[item.raw_dump_rel].push_back(item.rel_path);
+		}
 	}
 
 	auto make_plan_from_catalog = [&](const catalog_tb &item, std::vector<std::string> matched_mods) -> tb_run_plan {
@@ -590,14 +627,16 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 		plan.level = item.level;
 		plan.matched_modules = std::move(matched_mods);
 		plan.raw_dump_rel = item.raw_dump_rel;
-		const auto &colliding = dumpfile_to_tbs[item.raw_dump_rel];
-		if (colliding.size() > 1) {
-			plan.has_collision = true;
-			plan.colliding_tbs = colliding;
-			plan.effective_dump_rel = make_collision_renamed_vcd_path(item.raw_dump_rel, item.rel_path);
-		} else {
-			plan.has_collision = false;
-			plan.effective_dump_rel = item.raw_dump_rel;
+		if (!item.raw_dump_rel.empty()) {
+			const auto &colliding = dumpfile_to_tbs[item.raw_dump_rel];
+			if (colliding.size() > 1) {
+				plan.has_collision = true;
+				plan.colliding_tbs = colliding;
+				plan.effective_dump_rel = make_collision_renamed_vcd_path(item.raw_dump_rel, item.rel_path);
+			} else {
+				plan.has_collision = false;
+				plan.effective_dump_rel = item.raw_dump_rel;
+			}
 		}
 		return plan;
 	};
@@ -630,13 +669,15 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 			plan.tb_file = args_.safe_testbench;
 			plan.display_tb = args_.requested_testbench.empty() ? rel : args_.requested_testbench;
 			plan.raw_dump_rel = verilog::verilog_module_scanner::extract_dumpfile_path(args_.safe_testbench);
-			const auto &colliding = dumpfile_to_tbs[plan.raw_dump_rel];
-			if (colliding.size() > 1) {
-				plan.has_collision = true;
-				plan.colliding_tbs = colliding;
-				plan.effective_dump_rel = make_collision_renamed_vcd_path(plan.raw_dump_rel, plan.display_tb);
-			} else {
-				plan.effective_dump_rel = plan.raw_dump_rel;
+			if (!plan.raw_dump_rel.empty()) {
+				const auto &colliding = dumpfile_to_tbs[plan.raw_dump_rel];
+				if (colliding.size() > 1) {
+					plan.has_collision = true;
+					plan.colliding_tbs = colliding;
+					plan.effective_dump_rel = make_collision_renamed_vcd_path(plan.raw_dump_rel, plan.display_tb);
+				} else {
+					plan.effective_dump_rel = plan.raw_dump_rel;
+				}
 			}
 			plans.push_back(std::move(plan));
 		}
@@ -769,17 +810,19 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 	std::vector<tb_run_outcome> outcomes;
 	outcomes.reserve(plans.size());
 	size_t pass_count = 0;
+	size_t completed_count = 0;
 	size_t fail_count = 0;
 
 	for (const auto &plan : plans) {
 		auto outcome = execute_single_testbench(
 			ctx, root_path, project_root, rtl_files, plan,
 			plans.size() == 1 ? override_top_mod : "", args_.timeout_sec);
-		bool failed = outcome.compile_failed || outcome.timed_out || outcome.has_fatal || !outcome.suite_passed;
-		if (failed) {
+		if (outcome.suite_failed || outcome.compile_failed || outcome.timed_out || outcome.has_fatal) {
 			++fail_count;
-		} else {
+		} else if (outcome.suite_passed) {
 			++pass_count;
+		} else {
+			++completed_count;
 		}
 		outcomes.push_back(std::move(outcome));
 	}
@@ -812,8 +855,13 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 		report << "## Verilog Test Suite Report\n\n";
 	}
 	report << std::format("- **Level Filter**: `{}`\n", args_.level);
-	report << std::format("- **Summary**: **{} Passed**, **{} Failed** (out of {} testbench run(s))\n\n",
-	                      pass_count, fail_count, outcomes.size());
+	if (completed_count > 0) {
+		report << std::format("- **Summary**: **{} Passed**, **{} Completed (no assertions)**, **{} Failed** (out of {} testbench run(s))\n\n",
+		                      pass_count, completed_count, fail_count, outcomes.size());
+	} else {
+		report << std::format("- **Summary**: **{} Passed**, **{} Failed** (out of {} testbench run(s))\n\n",
+		                      pass_count, fail_count, outcomes.size());
+	}
 
 	report << "| Testbench | Module(s) | Level | Result | Waveform | vs. Previous |\n";
 	report << "| :--- | :--- | :--- | :--- | :--- | :--- |\n";
@@ -825,9 +873,14 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 		}
 		if (mods_str.empty()) mods_str = "-";
 		std::string status_str = o.compile_failed ? "COMPILE ERROR"
-			: (o.timed_out ? "TIMED OUT" : (o.suite_passed ? "**PASS**" : "**FAIL**"));
-		report << std::format("| `{}` | {} | `{}` | {} | `{}` | {} |\n",
-		                      o.display_tb, mods_str, o.level, status_str, o.effective_dump_rel,
+			: (o.timed_out ? "TIMED OUT"
+			: (o.suite_failed ? "**FAIL**"
+			: (o.suite_passed ? "**PASS**" : "COMPLETED (no assertions)")));
+		std::string wave_str = o.effective_dump_rel.empty()
+			? "*(none)*"
+			: std::format("`{}`", o.effective_dump_rel);
+		report << std::format("| `{}` | {} | `{}` | {} | {} | {} |\n",
+		                      o.display_tb, mods_str, o.level, status_str, wave_str,
 		                      o.compare_status.empty() ? "-" : o.compare_status);
 	}
 
@@ -838,7 +891,7 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 	if (fail_count > 0) {
 		set_failure(ctx, std::format("{} of {} testbench(es) failed", fail_count, outcomes.size()));
 	} else {
-		set_success(ctx, std::format("All {} testbench(es) passed", pass_count));
+		set_success(ctx, std::format("{} passed, {} completed", pass_count, completed_count));
 	}
 	return report.str();
 }

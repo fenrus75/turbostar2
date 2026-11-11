@@ -286,7 +286,7 @@ std::string verilog_module_scanner::extract_dumpfile_path(const std::filesystem:
 {
 	std::ifstream ifs(testbench_file);
 	if (!ifs.is_open()) {
-		return "dump.vcd";
+		return "";
 	}
 	std::string raw_content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
 	std::string clean_content = strip_comments(raw_content);
@@ -298,7 +298,10 @@ std::string verilog_module_scanner::extract_dumpfile_path(const std::filesystem:
 			return p;
 		}
 	}
-	return "dump.vcd";
+	if (ctre::search<R"(\$(?:dumpfile|dumpvars)\b)">(clean_content)) {
+		return "dump.vcd";
+	}
+	return "";
 }
 
 std::string verilog_module_scanner::resolve_vcd_path(const std::filesystem::path &project_root, std::string_view requested_path)

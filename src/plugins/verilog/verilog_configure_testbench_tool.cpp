@@ -213,12 +213,16 @@ std::string verilog_configure_testbench_tool::execute(agentlib::tool_context &ct
 			std::string rel_tb = normalize_tb_rel(e.testbench);
 			configured_rels.insert(rel_tb);
 			fs::path full_tb = root_path / rel_tb;
-			std::string dump_path = fs::exists(full_tb, ec)
+			bool exists_on_disk = fs::exists(full_tb, ec);
+			std::string raw_dump = exists_on_disk
 				? verilog::verilog_module_scanner::extract_dumpfile_path(full_tb)
-				: "*(missing file)*";
-			if (fs::exists(full_tb, ec)) {
-				dumpfile_to_tbs[dump_path].push_back(rel_tb);
+				: "";
+			if (exists_on_disk && !raw_dump.empty()) {
+				dumpfile_to_tbs[raw_dump].push_back(rel_tb);
 			}
+			std::string dump_display = !exists_on_disk
+				? "*(missing file)*"
+				: (raw_dump.empty() ? "*(none)*" : std::format("`{}`", raw_dump));
 
 			std::string mods_str;
 			for (size_t i = 0; i < e.modules.size(); ++i) {
@@ -230,7 +234,7 @@ std::string verilog_configure_testbench_tool::execute(agentlib::tool_context &ct
 			if (mods_str.empty()) {
 				mods_str = "*none*";
 			}
-			ss << std::format("| `{}` | {} | `{}` | `{}` |\n", rel_tb, mods_str, e.level, dump_path);
+			ss << std::format("| `{}` | {} | `{}` | {} |\n", rel_tb, mods_str, e.level, dump_display);
 		}
 	}
 
@@ -240,7 +244,9 @@ std::string verilog_configure_testbench_tool::execute(agentlib::tool_context &ct
 		if (!configured_rels.contains(rel_tb)) {
 			unconfigured_tbs.push_back(dtb);
 			std::string dump_path = verilog::verilog_module_scanner::extract_dumpfile_path(dtb);
-			dumpfile_to_tbs[dump_path].push_back(rel_tb);
+			if (!dump_path.empty()) {
+				dumpfile_to_tbs[dump_path].push_back(rel_tb);
+			}
 		}
 	}
 
@@ -262,7 +268,8 @@ std::string verilog_configure_testbench_tool::execute(agentlib::tool_context &ct
 				mods_str = "*none detected*";
 			}
 			std::string dump_path = verilog::verilog_module_scanner::extract_dumpfile_path(dtb);
-			ss << std::format("| `{}` | {} | `{}` |\n", rel_tb, mods_str, dump_path);
+			std::string dump_display = dump_path.empty() ? "*(none)*" : std::format("`{}`", dump_path);
+			ss << std::format("| `{}` | {} | {} |\n", rel_tb, mods_str, dump_display);
 		}
 	}
 

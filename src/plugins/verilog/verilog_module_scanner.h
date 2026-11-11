@@ -65,7 +65,9 @@ public:
 	static std::vector<std::string> stage_readmem_files(std::span<const std::string> source_files, const std::filesystem::path &work_dir);
 
 	/**
-	 * @brief Extracts the VCD filename from $dumpfile("...") in a testbench file, or returns "dump.vcd" if not found.
+	 * @brief Extracts the VCD filename from $dumpfile("...") in a testbench file, returns "dump.vcd" if
+	 *        $dumpvars/$dumpfile() is used without an explicit filename, or returns "" if the testbench
+	 *        does not dump waveforms.
 	 */
 	static std::string extract_dumpfile_path(const std::filesystem::path &testbench_file);
 
