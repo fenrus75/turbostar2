@@ -20,6 +20,7 @@
 #include "plugins/verilog/vcd_compare_validator.h"
 #include "plugins/verilog/verilog_simulate_tool.h"
 #include "plugins/verilog/verilog_simulate_validator.h"
+#include "plugins/verilog/verilog_module_scanner.h"
 #include "agentlib/tool_context.h"
 #include "fs_utils.h"
 #include <cassert>
@@ -1716,6 +1717,69 @@ int main()
 
 		assert(lbl_mgr.find_label("tests/fixtures/test_dump_org.vcd", "tb_main.uut.cpu8008.opcode", "0x06") == "LOCAL_LAI");
 		assert(lbl_mgr.find_label(vcd_path, "tb_main.uut.cpu8008.opcode", "0x06") == "GLOBAL_LAI");
+	}
+
+	// 24. Test automatic SystemVerilog enum discovery (typedef enum & inline enum) and zero-config vcd_wave annotation
+	{
+		// Verify discovery on real examples/test8008 directory
+		auto test8008_enums = verilog::verilog_module_scanner::discover_enum_signal_labels("examples/test8008");
+		assert(test8008_enums.contains("*sequencer.state"));
+		assert(test8008_enums.contains("*sequencer.next_state"));
+		assert(test8008_enums["*sequencer.state"]["0x1"] == "DECODE");
+		assert(test8008_enums["*sequencer.state"]["0x2"] == "RETIRE");
+		assert(test8008_enums["*sequencer.state"]["0x4"] == "HALT");
+		assert(test8008_enums["*sequencer.next_state"]["0x1"] == "DECODE");
+		assert(test8008_enums["*sequencer.next_state"]["0x2"] == "RETIRE");
+		assert(test8008_enums["*sequencer.next_state"]["0x4"] == "HALT");
+
+		// Create an isolated temp project with typedef enum + inline enum + copy of test_dump.vcd (and NO sidecar files)
+		std::filesystem::path tmp_proj = std::filesystem::temp_directory_path() / "turbostar_test_sv_enum_auto";
+		std::filesystem::remove_all(tmp_proj);
+		std::filesystem::create_directories(tmp_proj / "sv");
+
+		{
+			std::ofstream seq_f(tmp_proj / "sv" / "sequencer.sv");
+			seq_f << "typedef enum logic [2:0] { DECODE = 3'b001, RETIRE = 3'b010, HALT = 3'b100 } state_t;\n"
+			      << "module sequencer_mod(input logic clk);\n"
+			      << "    state_t state;\n"
+			      << "    state_t next_state;\n"
+			      << "    enum logic [1:0] { IDLE, BUSY = 2, DONE } inline_fsm;\n"
+			      << "endmodule\n"
+			      << "module cpu_top(input logic clk);\n"
+			      << "    sequencer_mod sequencer(.clk(clk));\n"
+			      << "endmodule\n";
+		}
+		std::filesystem::copy_file("examples/test8008/dump.vcd", tmp_proj / "dump.vcd", std::filesystem::copy_options::overwrite_existing);
+		auto &lbl_mgr = verilog::vcd_label_manager::get_instance();
+		lbl_mgr.clear_all();
+
+		agentlib::tool_context enum_ctx;
+		enum_ctx.fs_security.add_allowed_root(tmp_proj.string(), agentlib::access_type::read);
+		enum_ctx.fs_security.set_working_directory(tmp_proj.string());
+
+		tools::vcd_wave_validator wave_val;
+		std::string err;
+		nlohmann::json wave_args = {
+			{"path", (tmp_proj / "dump.vcd").string()},
+			{"signals", nlohmann::json::array({"tb_main.uut.cpu8008.sequencer.state", "tb_main.uut.cpu8008.sequencer.next_state"})},
+			{"start_tick", 0},
+			{"end_tick", 10}
+		};
+		assert(wave_val.validate_args(wave_args, enum_ctx, err) && err.empty());
+		std::string w_out = wave_val.create_tool(wave_args)->execute(enum_ctx);
+
+		// Verify DECODE and RETIRE are automatically annotated in vcd_wave without any vcd_signal_labels call!
+		assert(w_out.find("0x1 (DECODE)") != std::string::npos);
+		assert(w_out.find("0x2 (RETIRE)") != std::string::npos);
+		// And because labels were auto-discovered, the one-shot vcd_signal_labels hint is not wasted on sequencer.state
+		assert(w_out.find("vcd_signal_labels") == std::string::npos);
+
+		// Also verify inline enum auto-increment values (IDLE=0x0, BUSY=0x2, DONE=0x3)
+		assert(lbl_mgr.find_label((tmp_proj / "dump.vcd").string(), "tb_main.sequencer.inline_fsm", "0x00") == "IDLE");
+		assert(lbl_mgr.find_label((tmp_proj / "dump.vcd").string(), "tb_main.sequencer.inline_fsm", "0x02") == "BUSY");
+		assert(lbl_mgr.find_label((tmp_proj / "dump.vcd").string(), "tb_main.sequencer.inline_fsm", "0x03") == "DONE");
+
+		std::filesystem::remove_all(tmp_proj);
 	}
 
 	std::filesystem::remove(vcd_path + ".labels.json");

@@ -1,9 +1,15 @@
 #include "plugins/verilog/verilog_module_scanner.h"
 
+#include "mapped_file.h"
+
 #include <algorithm>
+#include <cctype>
+#include <cstring>
 #include <ctre.hpp>
 #include <filesystem>
+#include <format>
 #include <fstream>
+#include <set>
 
 namespace verilog
 {
@@ -460,6 +466,562 @@ std::string verilog_module_scanner::resolve_module_name(std::string_view request
 	}
 
 	return req;
+}
+
+namespace
+{
+
+constexpr bool is_sv_ident_char(char c) noexcept
+{
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+}
+
+constexpr std::string_view trim_sv(std::string_view s) noexcept
+{
+	size_t b = s.find_first_not_of(" \t\r\n");
+	if (b == std::string_view::npos) {
+		return {};
+	}
+	size_t e = s.find_last_not_of(" \t\r\n");
+	return s.substr(b, e - b + 1);
+}
+
+bool is_valid_sv_identifier(std::string_view s) noexcept
+{
+	if (s.empty()) {
+		return false;
+	}
+	char first = s.front();
+	if (!((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') || first == '_')) {
+		return false;
+	}
+	for (char c : s) {
+		if (!is_sv_ident_char(c)) {
+			return false;
+		}
+	}
+	static constexpr std::string_view keywords[] = {
+		"module", "endmodule", "input", "output", "inout", "logic", "wire", "reg", "bit",
+		"int", "integer", "byte", "shortint", "longint", "typedef", "enum", "struct", "union",
+		"begin", "end", "always", "always_ff", "always_comb", "always_latch", "assign",
+		"if", "else", "case", "casex", "casez", "endcase", "default", "for", "while",
+		"function", "endfunction", "task", "endtask", "package", "endpackage", "parameter",
+		"localparam", "posedge", "negedge", "or", "and", "signed", "unsigned", "var", "const"
+	};
+	for (auto kw : keywords) {
+		if (s == kw) {
+			return false;
+		}
+	}
+	return true;
+}
+
+bool parse_verilog_int_literal(std::string_view raw_rhs, uint64_t &out_val) noexcept
+{
+	std::string clean;
+	clean.reserve(raw_rhs.size());
+	for (char c : trim_sv(raw_rhs)) {
+		if (c != '_' && c != ' ' && c != '\t') {
+			clean.push_back(c);
+		}
+	}
+	if (clean.empty()) {
+		return false;
+	}
+	if (clean == "'0") {
+		out_val = 0;
+		return true;
+	}
+
+	int base = 10;
+	std::string_view digits = clean;
+
+	if (auto tick = clean.find('\''); tick != std::string::npos) {
+		std::string_view after = std::string_view(clean).substr(tick + 1);
+		if (!after.empty() && (after.front() == 's' || after.front() == 'S')) {
+			after.remove_prefix(1);
+		}
+		if (after.empty()) {
+			return false;
+		}
+		char bch = after.front();
+		after.remove_prefix(1);
+		if (bch == 'b' || bch == 'B') {
+			base = 2;
+		} else if (bch == 'h' || bch == 'H') {
+			base = 16;
+		} else if (bch == 'd' || bch == 'D') {
+			base = 10;
+		} else if (bch == 'o' || bch == 'O') {
+			base = 8;
+		} else {
+			return false;
+		}
+		digits = after;
+	} else if (clean.starts_with("0x") || clean.starts_with("0X")) {
+		base = 16;
+		digits = std::string_view(clean).substr(2);
+	}
+
+	if (digits.empty()) {
+		return false;
+	}
+	for (char c : digits) {
+		if (base == 2 && (c != '0' && c != '1')) return false;
+		if (base == 8 && (c < '0' || c > '7')) return false;
+		if (base == 10 && (c < '0' || c > '9')) return false;
+		if (base == 16 && !std::isxdigit(static_cast<unsigned char>(c))) return false;
+	}
+
+	try {
+		out_val = std::stoull(std::string(digits), nullptr, base);
+		return true;
+	} catch (...) {
+		return false;
+	}
+}
+
+std::map<std::string, std::string> parse_enum_body(std::string_view body)
+{
+	std::map<std::string, std::string> val_to_label;
+	uint64_t next_val = 0;
+	bool next_valid = true;
+
+	size_t pos = 0;
+	while (pos <= body.size()) {
+		size_t comma = body.find(',', pos);
+		std::string_view item = (comma == std::string_view::npos)
+			? body.substr(pos)
+			: body.substr(pos, comma - pos);
+		pos = (comma == std::string_view::npos) ? body.size() + 1 : comma + 1;
+
+		item = trim_sv(item);
+		if (item.empty()) {
+			continue;
+		}
+
+		auto eq = item.find('=');
+		if (eq == std::string_view::npos) {
+			if (is_valid_sv_identifier(item) && next_valid) {
+				val_to_label[std::format("0x{:x}", next_val)] = std::string(item);
+				++next_val;
+			} else {
+				next_valid = false;
+			}
+		} else {
+			std::string_view name = trim_sv(item.substr(0, eq));
+			std::string_view rhs = trim_sv(item.substr(eq + 1));
+			uint64_t parsed = 0;
+			if (is_valid_sv_identifier(name) && parse_verilog_int_literal(rhs, parsed)) {
+				val_to_label[std::format("0x{:x}", parsed)] = std::string(name);
+				next_val = parsed + 1;
+				next_valid = true;
+			} else {
+				next_valid = false;
+			}
+		}
+	}
+
+	return val_to_label;
+}
+
+std::vector<std::string> parse_declarator_list(std::string_view decl_text, bool in_port_list)
+{
+	std::vector<std::string> names;
+	size_t pos = 0;
+	bool first_item = true;
+
+	while (pos < decl_text.size()) {
+		int paren_depth = 0;
+		size_t comma = std::string_view::npos;
+		for (size_t i = pos; i < decl_text.size(); ++i) {
+			char c = decl_text[i];
+			if (c == '(' || c == '{' || c == '[') {
+				++paren_depth;
+			} else if (c == ')' || c == '}' || c == ']') {
+				if (paren_depth > 0) --paren_depth;
+			} else if (c == ',' && paren_depth == 0) {
+				comma = i;
+				break;
+			}
+		}
+
+		std::string_view item = (comma == std::string_view::npos)
+			? decl_text.substr(pos)
+			: decl_text.substr(pos, comma - pos);
+		pos = (comma == std::string_view::npos) ? decl_text.size() : comma + 1;
+
+		item = trim_sv(item);
+		if (item.empty()) {
+			continue;
+		}
+
+		if (auto eq = item.find('='); eq != std::string_view::npos) {
+			item = trim_sv(item.substr(0, eq));
+		}
+		while (item.starts_with('[')) {
+			auto close_br = item.find(']');
+			if (close_br == std::string_view::npos) break;
+			item = trim_sv(item.substr(close_br + 1));
+		}
+		if (auto br = item.find('['); br != std::string_view::npos) {
+			item = trim_sv(item.substr(0, br));
+		}
+
+		if (in_port_list && !first_item) {
+			// In ANSI port lists (e.g. "output state_t s1, input logic clk"), a comma may start a new typed port
+			if (!is_valid_sv_identifier(item)) {
+				break;
+			}
+		}
+		first_item = false;
+
+		if (is_valid_sv_identifier(item)) {
+			names.emplace_back(item);
+		}
+	}
+
+	return names;
+}
+
+struct module_span {
+	std::string name;
+	size_t start_pos{0};
+	size_t header_end_pos{0};
+	size_t end_pos{0};
+};
+
+std::vector<module_span> find_module_spans(std::string_view clean)
+{
+	std::vector<module_span> spans;
+	const char *base = clean.data();
+	const char *start = base;
+	const char *end = base + clean.size();
+
+	while (start < end) {
+		auto match = ctre::search<R"(\bmodule\s+(?:automatic\s+|static\s+)?([a-zA-Z_][a-zA-Z_0-9]*)\b)">(start, end);
+		if (!match) {
+			break;
+		}
+		std::string mod_name = match.get<1>().to_string();
+		size_t mod_start = static_cast<size_t>(match.data() - base);
+		size_t after_name = static_cast<size_t>((match.data() + match.size()) - base);
+
+		auto end_match = ctre::search<R"(\bendmodule\b)">(base + after_name, end);
+		size_t mod_end = end_match ? static_cast<size_t>((end_match.data() + end_match.size()) - base) : clean.size();
+
+		// Find header semicolon ';'
+		size_t semi = clean.find(';', after_name);
+		size_t header_end = (semi != std::string_view::npos && semi < mod_end) ? semi : after_name;
+
+		spans.push_back({std::move(mod_name), mod_start, header_end, mod_end});
+		start = base + mod_end;
+	}
+	return spans;
+}
+
+} // namespace
+
+std::map<std::string, std::map<std::string, std::string>> verilog_module_scanner::discover_enum_signal_labels(const std::filesystem::path &root)
+{
+	std::vector<std::string> files = find_synthesizable_files(root);
+	auto tb_files = find_testbench_files(root);
+	for (auto &tb : tb_files) {
+		if (std::ranges::find(files, tb) == files.end()) {
+			files.push_back(std::move(tb));
+		}
+	}
+	if (files.empty()) {
+		return {};
+	}
+
+	std::map<std::string, std::string> cleaned_cache;
+	auto get_clean = [&](const std::string &fpath, std::string_view raw_sv) -> std::string_view {
+		auto it = cleaned_cache.find(fpath);
+		if (it != cleaned_cache.end()) {
+			return it->second;
+		}
+		auto [ins_it, _] = cleaned_cache.emplace(fpath, strip_comments(raw_sv));
+		return ins_it->second;
+	};
+
+	struct enum_signal_binding {
+		std::string mod_name;
+		std::string sig_name;
+		std::map<std::string, std::string> labels;
+	};
+
+	// type_name -> (hex_val -> label)
+	std::map<std::string, std::map<std::string, std::string>> enum_types;
+	std::vector<enum_signal_binding> bindings;
+
+	// Pass 1: Use mapped_file + ::memmem("enum") fast-path to locate enum declarations
+	for (const auto &fpath : files) {
+		std::string err;
+		auto mf = mapped_file::get_cached(fpath, err, /*populate=*/false);
+		if (!mf || !mf->is_open()) {
+			continue;
+		}
+		std::string_view raw_sv = mf->string_view();
+		if (raw_sv.size() < 4 || ::memmem(raw_sv.data(), raw_sv.size(), "enum", 4) == nullptr) {
+			continue;
+		}
+
+		std::string_view clean = get_clean(fpath, raw_sv);
+		auto mod_spans = find_module_spans(clean);
+		auto enclosing_mod = [&](size_t pos) -> std::string {
+			for (const auto &ms : mod_spans) {
+				if (pos >= ms.start_pos && pos < ms.end_pos) {
+					return ms.name;
+				}
+			}
+			return "";
+		};
+
+		const char *base = clean.data();
+		const char *cur = base;
+		const char *end = base + clean.size();
+
+		while (cur < end) {
+			auto match = ctre::search<R"(\benum\b)">(cur, end);
+			if (!match) {
+				break;
+			}
+			size_t enum_pos = static_cast<size_t>(match.data() - base);
+			size_t after_enum = static_cast<size_t>((match.data() + match.size()) - base);
+
+			// Check if preceded by 'typedef'
+			bool is_typedef = false;
+			size_t prev = enum_pos;
+			while (prev > 0 && (clean[prev - 1] == ' ' || clean[prev - 1] == '\t' || clean[prev - 1] == '\r' || clean[prev - 1] == '\n')) {
+				--prev;
+			}
+			if (prev >= 7 && clean.substr(prev - 7, 7) == "typedef" && (prev == 7 || !is_sv_ident_char(clean[prev - 8]))) {
+				is_typedef = true;
+			}
+
+			size_t open_brace = clean.find('{', after_enum);
+			size_t semi_before = clean.find(';', after_enum);
+			if (open_brace == std::string_view::npos || (semi_before != std::string_view::npos && semi_before < open_brace)) {
+				cur = base + after_enum;
+				continue;
+			}
+			size_t close_brace = clean.find('}', open_brace + 1);
+			if (close_brace == std::string_view::npos) {
+				break;
+			}
+			size_t semi_after = clean.find(';', close_brace + 1);
+			if (semi_after == std::string_view::npos) {
+				break;
+			}
+
+			std::string_view body = clean.substr(open_brace + 1, close_brace - open_brace - 1);
+			std::string_view tail = trim_sv(clean.substr(close_brace + 1, semi_after - close_brace - 1));
+			auto val_map = parse_enum_body(body);
+
+			if (!val_map.empty() && !tail.empty()) {
+				if (is_typedef) {
+					if (is_valid_sv_identifier(tail)) {
+						enum_types[std::string(tail)] = std::move(val_map);
+					}
+				} else {
+					std::string mod = enclosing_mod(enum_pos);
+					for (auto &sig : parse_declarator_list(tail, false)) {
+						bindings.push_back({mod, std::move(sig), val_map});
+					}
+				}
+			}
+
+			cur = base + semi_after + 1;
+		}
+	}
+
+	if (enum_types.empty() && bindings.empty()) {
+		return {};
+	}
+
+	// Pass 2: Find signal declarations using discovered typedef enum types (filtered via ::memmem)
+	if (!enum_types.empty()) {
+		for (const auto &fpath : files) {
+			std::string err;
+			auto mf = mapped_file::get_cached(fpath, err, /*populate=*/false);
+			if (!mf || !mf->is_open()) {
+				continue;
+			}
+			std::string_view raw_sv = mf->string_view();
+
+			bool has_any_type = false;
+			for (const auto &[tname, _] : enum_types) {
+				if (raw_sv.size() >= tname.size() && ::memmem(raw_sv.data(), raw_sv.size(), tname.data(), tname.size()) != nullptr) {
+					has_any_type = true;
+					break;
+				}
+			}
+			if (!has_any_type) {
+				continue;
+			}
+
+			std::string_view clean = get_clean(fpath, raw_sv);
+			auto mod_spans = find_module_spans(clean);
+
+			for (const auto &[tname, val_map] : enum_types) {
+				size_t search_pos = 0;
+				while (search_pos < clean.size()) {
+					size_t hit = clean.find(tname, search_pos);
+					if (hit == std::string_view::npos) {
+						break;
+					}
+					size_t after_hit = hit + tname.size();
+					search_pos = after_hit;
+
+					// Verify identifier word boundaries
+					if ((hit > 0 && is_sv_ident_char(clean[hit - 1])) ||
+					    (after_hit < clean.size() && is_sv_ident_char(clean[after_hit]))) {
+						continue;
+					}
+
+					// Check preceding non-whitespace character to skip `typedef enum { ... } state_t;`
+					size_t prev = hit;
+					while (prev > 0 && (clean[prev - 1] == ' ' || clean[prev - 1] == '\t' || clean[prev - 1] == '\r' || clean[prev - 1] == '\n')) {
+						--prev;
+					}
+					if (prev > 0 && (clean[prev - 1] == '}' || clean[prev - 1] == '.' || clean[prev - 1] == ':')) {
+						continue;
+					}
+
+					// Skip casts like `state_t'(...)`
+					size_t next = after_hit;
+					while (next < clean.size() && (clean[next] == ' ' || clean[next] == '\t' || clean[next] == '\r' || clean[next] == '\n')) {
+						++next;
+					}
+					if (next >= clean.size() || clean[next] == '\'' || clean[next] == ';' || clean[next] == '(' || clean[next] == ')') {
+						continue;
+					}
+
+					std::string mod_name;
+					bool in_port_list = false;
+					for (const auto &ms : mod_spans) {
+						if (hit >= ms.start_pos && hit < ms.end_pos) {
+							mod_name = ms.name;
+							in_port_list = (hit < ms.header_end_pos);
+							break;
+						}
+					}
+
+					size_t decl_end = clean.find(';', next);
+					if (in_port_list) {
+						size_t close_paren = clean.find(')', next);
+						if (close_paren != std::string_view::npos && (decl_end == std::string_view::npos || close_paren < decl_end)) {
+							decl_end = close_paren;
+						}
+					}
+					if (decl_end == std::string_view::npos) {
+						continue;
+					}
+
+					std::string_view decl_text = clean.substr(next, decl_end - next);
+					for (auto &sig : parse_declarator_list(decl_text, in_port_list)) {
+						bindings.push_back({mod_name, std::move(sig), val_map});
+					}
+					search_pos = decl_end + 1;
+				}
+			}
+		}
+	}
+
+	if (bindings.empty()) {
+		return {};
+	}
+
+	// Pass 3: Resolve module instance names (e.g. `sequencer_mod sequencer(` -> `sequencer`) using ::memmem
+	std::set<std::string> target_mods;
+	for (const auto &b : bindings) {
+		if (!b.mod_name.empty()) {
+			target_mods.insert(b.mod_name);
+		}
+	}
+
+	std::map<std::string, std::set<std::string>> mod_instances;
+	if (!target_mods.empty()) {
+		for (const auto &fpath : files) {
+			std::string err;
+			auto mf = mapped_file::get_cached(fpath, err, /*populate=*/false);
+			if (!mf || !mf->is_open()) {
+				continue;
+			}
+			std::string_view raw_sv = mf->string_view();
+
+			bool has_any_mod = false;
+			for (const auto &mname : target_mods) {
+				if (raw_sv.size() >= mname.size() && ::memmem(raw_sv.data(), raw_sv.size(), mname.data(), mname.size()) != nullptr) {
+					has_any_mod = true;
+					break;
+				}
+			}
+			if (!has_any_mod) {
+				continue;
+			}
+
+			std::string_view clean = get_clean(fpath, raw_sv);
+			const char *start = clean.data();
+			const char *end = clean.data() + clean.size();
+
+			while (start < end) {
+				auto match = ctre::search<R"(\b([a-zA-Z_][a-zA-Z_0-9]*)\s+([a-zA-Z_][a-zA-Z_0-9]*)\s*\()">(start, end);
+				if (!match) {
+					break;
+				}
+				std::string mod_type = match.get<1>().to_string();
+				std::string inst_name = match.get<2>().to_string();
+				if (target_mods.contains(mod_type) && is_valid_sv_identifier(inst_name)) {
+					mod_instances[mod_type].insert(inst_name);
+				}
+				start = match.data() + match.size();
+			}
+
+			start = clean.data();
+			while (start < end) {
+				auto match = ctre::search<R"re(\b([a-zA-Z_][a-zA-Z_0-9]*)\s*#\s*\([^;]*?\)\s*([a-zA-Z_][a-zA-Z_0-9]*)\s*\()re">(start, end);
+				if (!match) {
+					break;
+				}
+				std::string mod_type = match.get<1>().to_string();
+				std::string inst_name = match.get<2>().to_string();
+				if (target_mods.contains(mod_type) && is_valid_sv_identifier(inst_name)) {
+					mod_instances[mod_type].insert(inst_name);
+				}
+				start = match.data() + match.size();
+			}
+		}
+	}
+
+	// Build final signal pattern -> label map
+	std::map<std::string, std::map<std::string, std::string>> result;
+	std::map<std::string, std::map<std::string, std::string>> bare_sig_map;
+	std::set<std::string> conflicting_bare_sigs;
+
+	for (const auto &b : bindings) {
+		if (!b.mod_name.empty()) {
+			result[std::format("*{}.{}", b.mod_name, b.sig_name)] = b.labels;
+			for (const auto &inst : mod_instances[b.mod_name]) {
+				result[std::format("*{}.{}", inst, b.sig_name)] = b.labels;
+			}
+		}
+		auto it = bare_sig_map.find(b.sig_name);
+		if (it == bare_sig_map.end()) {
+			bare_sig_map[b.sig_name] = b.labels;
+		} else if (it->second != b.labels) {
+			conflicting_bare_sigs.insert(b.sig_name);
+		}
+	}
+
+	for (auto &[sig_name, labels] : bare_sig_map) {
+		if (!conflicting_bare_sigs.contains(sig_name)) {
+			result[sig_name] = std::move(labels);
+		}
+	}
+
+	return result;
 }
 
 } // namespace verilog

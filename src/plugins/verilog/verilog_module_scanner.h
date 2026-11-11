@@ -1,11 +1,11 @@
 #pragma once
 
 #include <filesystem>
+#include <map>
 #include <span>
 #include <string>
 #include <string_view>
 #include <vector>
-
 namespace verilog
 {
 
@@ -82,6 +82,14 @@ public:
 	static std::string resolve_module_name(std::string_view requested_module,
 	                                       std::string_view safe_file,
 	                                       std::span<const std::string> all_sources);
+
+	/**
+	 * @brief Scans SystemVerilog (.sv / .v) files under root for typedef enum and inline enum
+	 *        declarations using mapped_file and ::memmem fast-paths, resolves signals declared
+	 *        with those enum types inside modules and their instantiated hierarchy names, and
+	 *        returns a map of signal patterns (e.g. "*sequencer.state") to hex value -> enum label maps.
+	 */
+	static std::map<std::string, std::map<std::string, std::string>> discover_enum_signal_labels(const std::filesystem::path &root);
 };
 
 } // namespace verilog

@@ -106,9 +106,10 @@ class vcd_label_manager
 	~vcd_label_manager() = default;
 
 	/*
-	 * mutex_ protects the in-memory cache of file labels, qualifiers, and one-shot hint flags:
+	 * mutex_ protects the in-memory cache of file labels, qualifiers, auto-discovered enums, and one-shot hint flags:
 	 * path_labels_ map (safe_path -> (signal -> (hex_key -> label_string)))
 	 * path_qualifiers_ map (safe_path -> (signal -> qualifier_expr))
+	 * auto_enum_labels_ map (global_key -> (signal -> (hex_key -> label_string)))
 	 * qualifier_hint_shown_ and label_hint_shown_ booleans
 	 *
 	 * Locking Rules:
@@ -117,7 +118,9 @@ class vcd_label_manager
 	mutable std::mutex mutex_;
 	std::map<std::string, std::map<std::string, std::map<std::string, std::string>>> path_labels_;
 	std::map<std::string, std::map<std::string, std::string>> path_qualifiers_;
+	std::map<std::string, std::map<std::string, std::map<std::string, std::string>>> auto_enum_labels_;
 	std::map<std::string, bool> file_loaded_;
+	std::map<std::string, bool> auto_enum_loaded_;
 	bool qualifier_hint_shown_ = false;
 	bool label_hint_shown_ = false;
 

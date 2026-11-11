@@ -1,10 +1,10 @@
 #include "vcd_label_manager.h"
+#include "plugins/verilog/verilog_module_scanner.h"
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <format>
-
 namespace verilog
 {
 
@@ -336,6 +336,14 @@ void vcd_label_manager::load_sidecar_locked(std::string_view safe_path)
 		file_loaded_[global_key] = true;
 		load_json_file_locked(global_key, global_key);
 	}
+	if (!auto_enum_loaded_[global_key]) {
+		auto_enum_loaded_[global_key] = true;
+		std::filesystem::path project_dir = std::filesystem::path(global_key).parent_path();
+		if (project_dir.empty()) {
+			project_dir = ".";
+		}
+		auto_enum_labels_[global_key] = verilog_module_scanner::discover_enum_signal_labels(project_dir);
+	}
 
 	if (p == global_key || file_loaded_[p]) {
 		return;
@@ -409,7 +417,12 @@ std::map<std::string, std::map<std::string, std::string>> vcd_label_manager::mer
 	load_sidecar_locked(p);
 	std::string global_key = get_global_sidecar_path(p);
 
-	auto merged = path_labels_[global_key];
+	auto merged = auto_enum_labels_[global_key];
+	for (const auto &[sig, val_map] : path_labels_[global_key]) {
+		for (const auto &[k, v] : val_map) {
+			merged[sig][k] = v;
+		}
+	}
 	if (p != global_key) {
 		for (const auto &[sig, val_map] : path_labels_[p]) {
 			for (const auto &[k, v] : val_map) {
@@ -454,12 +467,33 @@ std::string vcd_label_manager::find_label(
 	std::string global_key = get_global_sidecar_path(p);
 	std::string norm_hex = normalize_hex_key(hex_val);
 
+	auto strip_hex_zeros = [](std::string_view h) -> std::string_view {
+		if (!h.starts_with("0x")) {
+			return {};
+		}
+		std::string_view digits = h.substr(2);
+		while (digits.size() > 1 && digits.front() == '0') {
+			digits.remove_prefix(1);
+		}
+		return digits;
+	};
+	std::string_view norm_hex_stripped = strip_hex_zeros(norm_hex);
+
 	// Helper to search a specific signal's val_map
 	auto match_in_val_map = [&](const std::map<std::string, std::string> &val_map) -> std::string {
 		// 1. Direct match on normalized hex key
 		auto it = val_map.find(norm_hex);
 		if (it != val_map.end()) {
 			return it->second;
+		}
+
+		// 1b. Match on hex digits ignoring leading zeros (e.g. "0x0" vs "0x00", "0x6" vs "0x06")
+		if (!norm_hex_stripped.empty()) {
+			for (const auto &[k, label] : val_map) {
+				if (strip_hex_zeros(k) == norm_hex_stripped) {
+					return label;
+				}
+			}
 		}
 
 		// 2. Binary wildcard pattern match
@@ -528,14 +562,18 @@ std::string vcd_label_manager::find_label(
 		return best_label;
 	};
 
-	// Check per-file local overrides first, then fall back to project-global vcd_labels.json
+	// Check per-file local overrides first, then project-global vcd_labels.json, then auto-discovered SV enums
 	if (p != global_key) {
 		std::string local_res = search_sig_map(path_labels_[p]);
 		if (!local_res.empty()) {
 			return local_res;
 		}
 	}
-	return search_sig_map(path_labels_[global_key]);
+	std::string global_res = search_sig_map(path_labels_[global_key]);
+	if (!global_res.empty()) {
+		return global_res;
+	}
+	return search_sig_map(auto_enum_labels_[global_key]);
 }
 
 bool vcd_label_manager::set_labels(
@@ -796,9 +834,10 @@ void vcd_label_manager::clear_all()
 	std::lock_guard<std::mutex> lock(mutex_);
 	path_labels_.clear();
 	path_qualifiers_.clear();
+	auto_enum_labels_.clear();
 	file_loaded_.clear();
+	auto_enum_loaded_.clear();
 	qualifier_hint_shown_ = false;
 	label_hint_shown_ = false;
 }
-
 } // namespace verilog
