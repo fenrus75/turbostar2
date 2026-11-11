@@ -1,9 +1,8 @@
 # verilog_logic_depth_tool
 
 ## Goals & Constraints
-- Analyzes the structural layers of logic (LUT/gate depth) of a Verilog/SystemVerilog module to evaluate timing feasibility pre-place-and-route.
-- Reports `In -> Reg`, `Reg -> Out`, `Reg -> Reg`, and `In -> Out` logic depths along with the top worst critical paths mapped to source RTL coordinates.
-- Supports both pre-existing Yosys JSON netlists and on-the-fly synthesis via Yosys.
+- Analyzes the structural layers of logic (LUT/gate depth) and standalone synthesized area (LUTs, Flip-Flops, Carry, RAM/DSP) of a Verilog/SystemVerilog module to evaluate timing and resource feasibility pre-place-and-route.
+- Reports `In -> Reg`, `Reg -> Out`, `Reg -> Reg`, and `In -> Out` logic depths, the top worst critical paths mapped to source RTL coordinates, and an `Area Summary` at the end of the report.
 - Purely read-only and side-effect free, leaving sidecar file creation to the dedicated `verilog_update_timing` tool and `turbostar-verilog-update-timing` CLI.
 
 ## Lessons Learned

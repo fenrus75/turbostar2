@@ -104,6 +104,8 @@ int main(int argc, char **argv)
 		std::string module_name;
 		std::string sidecar_path;
 		size_t reg_depth{0};
+		size_t luts{0};
+		size_t ffs{0};
 		size_t inputs{0};
 		size_t outputs{0};
 		bool success{false};
@@ -141,6 +143,9 @@ int main(int argc, char **argv)
 			}
 		} else {
 			res.reg_depth = analyzer.get_max_reg_to_reg_depth();
+			const auto &area = analyzer.get_area_summary();
+			res.luts = (safe_target == "Generic Gates") ? (area.other_comb_count + area.lut_count) : area.lut_count;
+			res.ffs = area.ff_count;
 			res.inputs = analyzer.get_input_ports().size();
 			res.outputs = analyzer.get_output_ports().size();
 
@@ -171,12 +176,14 @@ int main(int argc, char **argv)
 
 	if (!quiet) {
 		std::cout << "\n";
-		std::cout << std::format("{:<20} | {:<16} | {:<7} | {:<8} | {:<8} | {}\n",
-		                         "Module", "Reg->Reg Depth", "Inputs", "Outputs", "Status", "Sidecar Path");
-		std::cout << std::string(90, '-') << "\n";
+		std::cout << std::format("{:<20} | {:<16} | {:<7} | {:<6} | {:<7} | {:<8} | {:<8} | {}\n",
+		                         "Module", "Reg->Reg Depth", "LUTs", "FFs", "Inputs", "Outputs", "Status", "Sidecar Path");
+		std::cout << std::string(108, '-') << "\n";
 
 		for (const auto &r : results) {
 			std::string depth_str = r.success ? std::format("{} LUTs", r.reg_depth) : "-";
+			std::string lut_str = r.success ? std::format("{}", r.luts) : "-";
+			std::string ff_str = r.success ? std::format("{}", r.ffs) : "-";
 			std::string in_str = r.success ? std::format("{}", r.inputs) : "-";
 			std::string out_str = r.success ? std::format("{}", r.outputs) : "-";
 			std::string status_str;
@@ -186,8 +193,8 @@ int main(int argc, char **argv)
 				status_str = "FAILED";
 			}
 
-			std::cout << std::format("{:<20} | {:<16} | {:<7} | {:<8} | {:<8} | {}\n",
-			                         r.module_name, depth_str, in_str, out_str, status_str, r.sidecar_path);
+			std::cout << std::format("{:<20} | {:<16} | {:<7} | {:<6} | {:<7} | {:<8} | {:<8} | {}\n",
+			                         r.module_name, depth_str, lut_str, ff_str, in_str, out_str, status_str, r.sidecar_path);
 		}
 		std::cout << "\n";
 		std::cout << std::format("{}: {}/{} modules processed (Target: {})\n",

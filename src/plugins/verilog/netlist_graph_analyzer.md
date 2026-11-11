@@ -13,9 +13,8 @@
   - Internal Register to Register (`Reg -> Reg`)
   - Combinational feedthrough (`In -> Out`)
 - Traverses the Directed Acyclic Graph (DAG) using memoized dynamic programming with cycle detection to prevent infinite recursion on unexpected combinational loops.
-- Formats token-efficient sidecar Markdown documents (`<module>.timing.md`) with two clear tables: Inputs (`Name | Width | Layers to | Sinks to`) and Outputs (`Name | Width | Layers from | Driven from`).
+- Formats token-efficient sidecar Markdown documents (`<module>.timing.md`) with Inputs (`Name | Width | Layers to | Sinks to`), Outputs (`Name | Width | Layers from | Driven from`), and a standalone module `Area Summary` (LUTs, Flip-Flops, Carry, RAM, DSP, and total cells).
 - Extracts detailed critical paths with source RTL coordinates (`file.sv:line`) for module optimization.
-
 ## Lessons Learned
 - In Yosys JSON netlists, port connections can reference constant strings (`"0"`, `"1"`, `"x"`, `"z"`) in addition to integer bit IDs; the bit parser must treat non-integer tokens safely as constant drivers/sinks.
 - Multi-bit ports often have individual bits with varying logic depths. Timing analysis must report the worst-case (maximum) depth across all bits of a port to reflect setup/hold constraints.

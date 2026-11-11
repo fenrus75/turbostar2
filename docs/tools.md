@@ -1016,7 +1016,7 @@ Tools in this family assist in digital ASIC and FPGA hardware engineering, simul
     *   `netlist` *(string, optional)*: Optional path to a hierarchy-preserving Yosys elaboration netlist JSON (generated via `yosys ... prep -flatten; write_json netlist.json`). If omitted, automatically discovers elaboration netlists in the project workspace.
 
 ### `verilog_logic_depth` (Family: `verilog`)
-*   **Description:** Analyzes pre-place-and-route structural logic depth ("layers of logic") for a Verilog/SystemVerilog module. Evaluates In->Reg, Reg->Out, Reg->Reg, and In->Out timing boundaries, renders the sidecar contract table, and traces the top $K$ worst critical combinational paths with cell types, interconnect nets, and source coordinates (`file.sv:line`). Only registered when `yosys` is present in system PATH.
+*   **Description:** Analyzes pre-place-and-route structural logic depth ("layers of logic") and standalone module area (LUTs, Flip-Flops, Carry, RAM/DSP) for a Verilog/SystemVerilog module. Evaluates In->Reg, Reg->Out, Reg->Reg, and In->Out timing boundaries, renders the sidecar contract table, traces the top $K$ worst critical combinational paths with cell types, interconnect nets, and source coordinates (`file.sv:line`), and appends a standalone module `Area Summary`. Only registered when `yosys` is present in system PATH.
 *   **Arguments:**
     *   `module` *(string, optional)*: Target module name to analyze. If omitted, defaults to `top_module` configured in `turbostar.json`.
     *   `file` *(string, optional)*: Source RTL file containing the module. If omitted, scans synthesizable RTL files under `sv_path` (or auto-detected `sv/`, `rtl/`, `src/`).
@@ -1027,7 +1027,7 @@ Tools in this family assist in digital ASIC and FPGA hardware engineering, simul
     *   `collapse` *(boolean, optional)*: Whether to collapse consecutive unlabeled logic hops and demangle noisy signal names into compact stages (default: `true`).
 
 ### `verilog_update_timing` (Family: `verilog`)
-*   **Description:** Scans a directory or project workspace for Verilog/SystemVerilog modules, synthesizes them using Yosys against the selected target architecture, and creates or updates `<module>.timing.md` interface timing contract sidecars. Only registered when `yosys` is present in system PATH.
+*   **Description:** Scans a directory or project workspace for Verilog/SystemVerilog modules, synthesizes them using Yosys against the selected target architecture, creates or updates `<module>.timing.md` interface timing and area contract sidecars, and returns a per-module depth and LUT/FF area summary table. Only registered when `yosys` is present in system PATH.
 *   **Arguments:**
     *   `path` *(string, optional)*: Directory path to scan for Verilog modules (defaults to `sv_path` from project settings, or auto-detected `sv/`, `rtl/`, `src/`).
     *   `target` *(string, optional)*: Synthesis target mode (`"Generic LUT4"`, `"Generic LUT6"`, `"Generic Gates"`, or `"iCE40"`). Defaults to project target architecture or `"Generic LUT4"`.

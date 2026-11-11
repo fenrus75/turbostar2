@@ -102,7 +102,12 @@ void test_verilog_logic_depth_execution()
 			assert(alu_res.find("all converge here") != std::string::npos);
 			assert(alu_res.find("alu_out") != std::string::npos);
 			assert(alu_res.find("(3 LUTs") != std::string::npos);
-
+			assert(alu_res.find("## Area Summary") != std::string::npos);
+			assert(alu_res.find("**LUTs**:") != std::string::npos);
+			assert(alu_res.find("**Flip-Flops**:") != std::string::npos);
+			assert(alu_res.find("Area is for this module only; cross-module optimizations may reduce final area.") != std::string::npos);
+			// Verify Area Summary is placed at the end of the report (after Worst Combinational Paths)
+			assert(alu_res.find("## Area Summary") > alu_res.find("## Worst Combinational Paths"));
 			// Test uncollapsed logic depth (collapse: false)
 			nlohmann::json uncollapsed_args = {
 				{"module", "alu_mod"},
@@ -283,6 +288,8 @@ void test_verilog_update_timing_execution()
 		assert(result.find("spurious_backup") == std::string::npos);
 		assert(result.find("counter") != std::string::npos);
 		assert(result.find("top_wrapper") != std::string::npos);
+		assert(result.find("| LUTs | FFs |") != std::string::npos);
+		assert(result.find("cross-module optimizations may reduce final area") != std::string::npos);
 
 		std::string sidecar_file = tmp_dir + "/counter.timing.md";
 		assert(std::filesystem::exists(sidecar_file));
@@ -293,7 +300,10 @@ void test_verilog_update_timing_execution()
 		assert(s_content.find("| `clk` | 1 | - | Clock |") != std::string::npos);
 		assert(s_content.find("| `rst` | 1 | 0 | Register |") != std::string::npos);
 		assert(s_content.find("| `q` | 4 | 0 | Register |") != std::string::npos);
-
+		assert(s_content.find("## Area Summary") != std::string::npos);
+		assert(s_content.find("**LUTs**:") != std::string::npos);
+		assert(s_content.find("**Flip-Flops**: 4") != std::string::npos);
+		assert(s_content.find("Area is for this module only; cross-module optimizations may reduce final area.") != std::string::npos);
 		// Verify top_wrapper flattened counter and recognizes count_out as driven by Register, not Constant!
 		std::string top_sidecar = tmp_dir + "/top_wrapper.timing.md";
 		assert(std::filesystem::exists(top_sidecar));

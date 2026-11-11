@@ -80,6 +80,16 @@ struct bottleneck_group {
 	std::string note;
 };
 
+struct area_summary {
+	size_t lut_count{0};
+	size_t ff_count{0};
+	size_t carry_count{0};
+	size_t ram_count{0};
+	size_t dsp_count{0};
+	size_t other_comb_count{0};
+	size_t total_cells{0};
+};
+
 class netlist_graph_analyzer
 {
       public:
@@ -99,6 +109,7 @@ class netlist_graph_analyzer
 	const std::vector<port_timing_info> &get_input_ports() const noexcept { return input_ports_; }
 	const std::vector<port_timing_info> &get_output_ports() const noexcept { return output_ports_; }
 	size_t get_max_reg_to_reg_depth() const noexcept { return max_reg_to_reg_depth_; }
+	const area_summary &get_area_summary() const noexcept { return area_summary_; }
 
 	// Extract worst paths across the module (sorted descending by depth)
 	std::vector<timing_path> get_worst_paths(std::optional<path_category> category = std::nullopt, size_t top_k = 3) const;
@@ -110,11 +121,16 @@ class netlist_graph_analyzer
 	static std::string format_source_ranges(std::span<const source_signal_info> sources);
 	static std::string compact_signal_names(std::span<const std::string> names);
 
-	// Format sidecar markdown (.timing.md)
-	std::string generate_timing_markdown(std::string_view target_mode = "Generic LUT4") const;
+	// Format sidecar markdown (.timing.md) and standalone area summary section
+	std::string generate_timing_markdown(std::string_view target_mode = "Generic LUT4", bool include_area = true) const;
+	std::string format_area_markdown(std::string_view target_mode = "Generic LUT4") const;
 
 	// Helper to check if a cell type is a sequential element
 	static bool is_sequential_cell_type(std::string_view type) noexcept;
+	static bool is_lut_cell_type(std::string_view type) noexcept;
+	static bool is_carry_cell_type(std::string_view type) noexcept;
+	static bool is_ram_cell_type(std::string_view type) noexcept;
+	static bool is_dsp_cell_type(std::string_view type) noexcept;
 
 	// Helper to check if a pin is a clock pin
 	static bool is_clock_pin(std::string_view cell_type, std::string_view port_name) noexcept;
@@ -191,6 +207,7 @@ class netlist_graph_analyzer
 	std::vector<port_timing_info> input_ports_;
 	std::vector<port_timing_info> output_ports_;
 	size_t max_reg_to_reg_depth_{0};
+	area_summary area_summary_{};
 	std::vector<timing_path> all_reg_to_reg_paths_;
 	std::vector<timing_path> all_in_to_reg_paths_;
 	std::vector<timing_path> all_reg_to_out_paths_;

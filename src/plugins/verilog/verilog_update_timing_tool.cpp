@@ -72,6 +72,8 @@ std::string verilog_update_timing_tool::execute(agentlib::tool_context &ctx)
 		std::string module_name;
 		std::string sidecar_path;
 		size_t reg_depth{0};
+		size_t luts{0};
+		size_t ffs{0};
 		size_t inputs{0};
 		size_t outputs{0};
 		bool success{false};
@@ -100,6 +102,9 @@ std::string verilog_update_timing_tool::execute(agentlib::tool_context &ctx)
 			st.err = err;
 		} else {
 			st.reg_depth = analyzer.get_max_reg_to_reg_depth();
+			const auto &area = analyzer.get_area_summary();
+			st.luts = (target_mode == "Generic Gates") ? (area.other_comb_count + area.lut_count) : area.lut_count;
+			st.ffs = area.ff_count;
 			st.inputs = analyzer.get_input_ports().size();
 			st.outputs = analyzer.get_output_ports().size();
 
@@ -132,20 +137,22 @@ std::string verilog_update_timing_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
+	std::string comb_col = (target_mode == "Generic Gates") ? "Gates" : "LUTs";
 	std::string report = std::format("### Timing Sidecars Updated ({}/{} modules)\n\n", success_count, stats.size());
-	report += std::format("Target: {}\n\n", args_.target_mode);
-	report += "| Module | Sidecar Path | Reg -> Reg Depth | Inputs | Outputs | Status |\n";
-	report += "| :--- | :--- | :---: | :---: | :---: | :--- |\n";
+	report += std::format("Target: {}\n\n", target_mode);
+	report += std::format("| Module | Sidecar Path | Reg -> Reg Depth | {} | FFs | Inputs | Outputs | Status |\n", comb_col);
+	report += "| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |\n";
 
 	for (const auto &st : stats) {
 		if (st.success) {
-			report += std::format("| `{}` | `{}` | {} | {} | {} | OK |\n",
-			                      st.module_name, st.sidecar_path, st.reg_depth, st.inputs, st.outputs);
+			report += std::format("| `{}` | `{}` | {} | {} | {} | {} | {} | OK |\n",
+			                      st.module_name, st.sidecar_path, st.reg_depth, st.luts, st.ffs, st.inputs, st.outputs);
 		} else {
-			report += std::format("| `{}` | `{}` | - | - | - | Failed ({}) |\n",
+			report += std::format("| `{}` | `{}` | - | - | - | - | - | Failed ({}) |\n",
 			                      st.module_name, st.sidecar_path, st.err);
 		}
 	}
+	report += std::format("\n_Note: Area ({}/FFs) is for each module only; cross-module optimizations may reduce final area._\n", comb_col);
 
 	if (success_count > 0) {
 		set_success(ctx);

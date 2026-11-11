@@ -64,11 +64,46 @@ bool netlist_graph_analyzer::is_sequential_cell_type(std::string_view type) noex
 	    type.starts_with("FDPE")) {
 		return true;
 	}
-	if (type.starts_with("$mem") || type.find("RAM") != std::string_view::npos ||
-	    type.find("BRAM") != std::string_view::npos || type.find("FIFO") != std::string_view::npos) {
+	if (is_ram_cell_type(type)) {
 		return true;
 	}
 	return false;
+}
+
+bool netlist_graph_analyzer::is_lut_cell_type(std::string_view type) noexcept
+{
+	if (type.empty()) {
+		return false;
+	}
+	return type == "$lut" || type == "SB_LUT4" || type.starts_with("LUT") ||
+	       type.find("_LUT") != std::string_view::npos;
+}
+
+bool netlist_graph_analyzer::is_carry_cell_type(std::string_view type) noexcept
+{
+	if (type.empty()) {
+		return false;
+	}
+	return type == "SB_CARRY" || type.find("CARRY") != std::string_view::npos ||
+	       type.find("CCU2") != std::string_view::npos;
+}
+
+bool netlist_graph_analyzer::is_ram_cell_type(std::string_view type) noexcept
+{
+	if (type.empty()) {
+		return false;
+	}
+	return type.starts_with("$mem") || type.find("RAM") != std::string_view::npos ||
+	       type.find("BRAM") != std::string_view::npos || type.find("FIFO") != std::string_view::npos;
+}
+
+bool netlist_graph_analyzer::is_dsp_cell_type(std::string_view type) noexcept
+{
+	if (type.empty()) {
+		return false;
+	}
+	return type.starts_with("SB_MAC") || type.find("DSP") != std::string_view::npos ||
+	       type.find("MULT") != std::string_view::npos;
 }
 
 bool netlist_graph_analyzer::is_clock_pin(std::string_view /* cell_type */, std::string_view port_name) noexcept
@@ -213,7 +248,7 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 	all_reg_to_out_paths_.clear();
 	all_in_to_out_paths_.clear();
 	max_reg_to_reg_depth_ = 0;
-
+	area_summary_ = {};
 	// Pre-scan cells to identify which RTL source file drives each bit ID
 	std::map<int, std::string> bit_driver_file;
 	if (mod_obj.contains("cells") && mod_obj["cells"].is_object()) {
@@ -601,7 +636,20 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 			cells_.push_back(std::move(c));
 
 			const auto &stored_cell = cells_.back();
-
+			area_summary_.total_cells++;
+			if (is_ram_cell_type(stored_cell.type)) {
+				area_summary_.ram_count++;
+			} else if (is_dsp_cell_type(stored_cell.type)) {
+				area_summary_.dsp_count++;
+			} else if (stored_cell.is_sequential) {
+				area_summary_.ff_count++;
+			} else if (is_carry_cell_type(stored_cell.type)) {
+				area_summary_.carry_count++;
+			} else if (is_lut_cell_type(stored_cell.type)) {
+				area_summary_.lut_count++;
+			} else {
+				area_summary_.other_comb_count++;
+			}
 			// Register output drivers for each bit driven by this cell
 			for (const auto &[pname, con_bits] : stored_cell.output_conns) {
 				for (size_t pin_idx = 0; pin_idx < con_bits.size(); ++pin_idx) {
@@ -1461,7 +1509,36 @@ std::string netlist_graph_analyzer::format_source_ranges(std::span<const source_
 	return res;
 }
 
-std::string netlist_graph_analyzer::generate_timing_markdown(std::string_view target_mode) const
+std::string netlist_graph_analyzer::format_area_markdown(std::string_view target_mode) const
+{
+	std::string md = "\n## Area Summary\n\n";
+	if (target_mode == "Generic Gates") {
+		md += std::format("- **Comb Gates**: {} | **Flip-Flops**: {}",
+		                  area_summary_.other_comb_count + area_summary_.lut_count,
+		                  area_summary_.ff_count);
+	} else {
+		md += std::format("- **LUTs**: {} | **Flip-Flops**: {}",
+		                  area_summary_.lut_count,
+		                  area_summary_.ff_count);
+		if (area_summary_.carry_count > 0 || target_mode == "iCE40") {
+			md += std::format(" | **Carry**: {}", area_summary_.carry_count);
+		}
+		if (area_summary_.other_comb_count > 0) {
+			md += std::format(" | **Other Comb**: {}", area_summary_.other_comb_count);
+		}
+	}
+	if (area_summary_.ram_count > 0) {
+		md += std::format(" | **RAM**: {}", area_summary_.ram_count);
+	}
+	if (area_summary_.dsp_count > 0) {
+		md += std::format(" | **DSP**: {}", area_summary_.dsp_count);
+	}
+	md += std::format(" | **Total Cells**: {}\n", area_summary_.total_cells);
+	md += "_Note: Area is for this module only; cross-module optimizations may reduce final area._\n";
+	return md;
+}
+
+std::string netlist_graph_analyzer::generate_timing_markdown(std::string_view target_mode, bool include_area) const
 {
 	std::string md;
 	md += std::format("# Timing: `{}`\n\n", module_name_);
@@ -1483,6 +1560,10 @@ std::string netlist_graph_analyzer::generate_timing_markdown(std::string_view ta
 	for (const auto &outp : output_ports_) {
 		std::string layers_str = (outp.layers < 0) ? "-" : std::to_string(outp.layers);
 		md += std::format("| `{}` | {} | {} | {} |\n", outp.name, outp.bit_width, layers_str, outp.endpoint_desc);
+	}
+
+	if (include_area) {
+		md += format_area_markdown(target_mode);
 	}
 
 	return md;

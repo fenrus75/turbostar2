@@ -120,7 +120,7 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-	std::string md_tables = analyzer.generate_timing_markdown(target_mode);
+	std::string md_tables = analyzer.generate_timing_markdown(target_mode, false);
 
 	auto format_cat = [](verilog::path_category cat) -> std::string {
 		switch (cat) {
@@ -373,7 +373,7 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	set_success(ctx);
-	return md_tables + paths_md;
+	return md_tables + paths_md + analyzer.format_area_markdown(target_mode);
 }
 
 } // namespace tools
