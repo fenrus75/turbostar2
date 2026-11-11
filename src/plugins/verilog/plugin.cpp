@@ -71,61 +71,40 @@ void plugin_run(void)
 		"Activate when working with Verilog/SystemVerilog chip and FPGA designs",
 		R"(### Verilog & Hardware Design Tool Family (`verilog`)
 
-Tools in this family assist in digital hardware design, FPGA engineering, simulation verification, and waveform analysis.
+Tools in this family assist in SystemVerilog/Verilog RTL development, FPGA synthesis & place-and-route, simulation verification, timing closure, and waveform analysis.
 
-#### Recommended Workflow: Simulating & Inspecting a Waveform (.vcd)
+#### 1. Standard Edit – Compile – Test – Commit Workflow
+- **Initial Setup (`verilog_project_settings`, `verilog_configure_testbench`)**:
+  Configure target FPGA hardware (`target`, `device`, `package`, `top_module`, `freq_mhz`, `sv_path="src"`) and associate testbenches with RTL modules (`modules`, `level="quick"|"comprehensive"|"extreme"`, and optional per-module `hierarchical=true` default) in `turbostar.json`.
+- **Compile & Health Check (`verilog_compile`)**:
+  Run `verilog_compile(module="...", lint_only=true)` for a fast Verilator syntax/lint pass, or `verilog_compile(module="...")` for full Verilator + Yosys synthesis + `nextpnr` place-and-route. It scopes files to the module's hierarchy, separates correctness/synthesis warnings from style notes, flags inferred latches and combinational loops, and writes the full raw log to `tmp://synthesis.log`.
+- **Simulate (`verilog_simulate`)**:
+  Run associated testbenches in parallel via Verilator (`verilog_simulate(module="...")`). Give each testbench a unique `$dumpfile("wave/dump_<tb>.vcd")` so parallel runs do not collide, and emit explicit `PASS` or `FAIL`/`$error` assertions so benches are graded `PASS` rather than `INFO (no assertions)`.
 
-To verify or debug a digital design without blowing your context window, follow this workflow:
-
-0. **Configure & Run Testbench Simulation (`verilog_configure_testbench`, `verilog_simulate`)**:
-   Associate unit testbenches with RTL modules and tiers (`quick`, `comprehensive`, `extreme`) in `turbostar.json`, then compile and run testbenches for a specific module (optionally `hierarchical=true` for bottom-up submodule testing) or testbench file using Verilator:
-   `verilog_configure_testbench(testbench="tb/tb_alu.sv", modules=["alu_mod"], level="quick")`
-   `verilog_simulate(module="cpu", hierarchical=true, level="comprehensive")`
-
-1. **Discover Simulation Context & Signal Hierarchy (`vcd_file_info`)**:
-   Inspect timescale, duration, detected reference clock, and discover signals in the module of interest:
-   `vcd_file_info(path="dump.vcd", scope="tb_main.uut.cpu8008", max_signals=30)`
-
-2. **Define Value Mappings & Qualifiers (`vcd_signal_labels`, `vcd_signal_qualifier`)**:
-   Map opcode bytes or state numbers across instances using wildcard signal names (`*`) and binary bitmasks (`?`):
-   `vcd_signal_labels(path="dump.vcd", signal="*opcode", labels={"0x06": "LAI", "0x36": "LMA", "b01???01": "ALU_OP"})`
-   Bind data buses to valid/enable strobes (or active-low '~cs_n') so invalid cycles mask as '-' and collapse cleanly:
-   `vcd_signal_qualifier(path="dump.vcd", signal="opcode_data", qualifier="opcode_data_valid")`
-
-3. **Locate Cycle Intervals of Interest (`vcd_search`)**:
-   Find exact clock cycle ranges matching an opcode, state name, or bit pattern (supports multi-condition AND matching):
-   `vcd_search(path="dump.vcd", conditions={"opcode_data": "LMA", "opcode_data_valid": "1"})`
-
-4. **Sample Synchronous Waveforms at Clock Edges (`vcd_wave`)**:
-   Query selected signals across the matched cycle window. Multi-bit buses default to hex; use `b:` prefix for binary bit-masks. Consecutive idle cycles (>= 3 ticks of no signal changes) are automatically collapsed:
-   `vcd_wave(path="dump.vcd", signals=["rst", "current_ip", "opcode_data", "b:flags"], start_tick=4, end_tick=15)`
-
-5. **Compare Against Reference / Golden Run (`vcd_compare`)**:
-   Pinpoint the exact clock cycle of divergence between golden (`dump.lastpass.vcd` or `dump.previous.vcd`, saved automatically by `verilog_simulate`) and candidate traces, listing differing signals while ignoring invalid bus cycles:
-   `vcd_compare(path_a="dump.lastpass.vcd", path_b="dump.vcd", scope="tb_main.uut")`
-
-6. **Trace Signal to Source RTL (`vcd_signal_to_code`)**:
-   Map a simulation signal back to its source file declarations across the hierarchy, its driving cell/port, and downstream consumers:
+#### 2. Waveform Debugging Workflow (.vcd)
+To debug simulation waveforms without blowing out your context window:
+1. **Discover Hierarchy & Clocks (`vcd_file_info`)**:
+   `vcd_file_info(path="wave/dump_main.vcd", scope="tb_main.uut", max_signals=30)`
+2. **Define Value Labels & Valid Qualifiers (`vcd_signal_labels`, `vcd_signal_qualifier`)**:
+   Note: `typedef enum` FSM states in RTL are auto-discovered. For opcodes or raw buses, register project-wide labels (`vcd_labels.json`) and valid/enable strobes so invalid cycles mask as `-`:
+   `vcd_signal_labels(path="wave/dump_main.vcd", signal="*opcode", labels={"0x06": "LAI", "b01???01": "ALU_OP"})`
+   `vcd_signal_qualifier(path="wave/dump_main.vcd", signal="opcode_data", qualifier="opcode_data_valid")`
+3. **Locate Cycles of Interest (`vcd_search`)**:
+   `vcd_search(path="wave/dump_main.vcd", conditions={"opcode_data": "LAI", "opcode_data_valid": "1"})`
+4. **Sample Synchronous Waveforms (`vcd_wave`)**:
+   `vcd_wave(path="wave/dump_main.vcd", signals=["rst", "current_ip", "opcode_data", "b:flags"], start_tick=4, end_tick=15)`
+5. **Compare Against Golden / Previous Run (`vcd_compare`)**:
+   `verilog_simulate` automatically snapshots `<stem>.previous.vcd` and `<stem>.lastpass.vcd` and reports divergence. Use `vcd_compare` for detailed cycle-accurate diffing:
+   `vcd_compare(path_a="wave/dump_main.lastpass.vcd", path_b="wave/dump_main.vcd", scope="tb_main.uut")`
+6. **Trace Signal to RTL (`vcd_signal_to_code`)**:
    `vcd_signal_to_code(signal="tb_main.uut.cpu8008.A_val")`
-7. **Analyze Logic Depth & Timing Feasibility (`verilog_logic_depth`)**:
-   Evaluate pre-place-and-route timing boundaries (In->Reg, Reg->Out, Reg->Reg, In->Out) and top critical paths:
-   `verilog_logic_depth(module="alu", top_k=3)`
 
-8. **Batch Update Timing Sidecars (`verilog_update_timing`)**:
-   Scan project modules and update all `<module>.timing.md` interface contract sidecars in batch:
-   `verilog_update_timing(path="sv", target="Generic LUT4")`
-
-9. **Configure Project FPGA Settings (`verilog_project_settings`)**:
-   Query or configure target hardware architecture, device, package, clock frequency, and pin constraints:
-   `verilog_project_settings(target="ice40", device="hx8k", package="cb132", top_module="main", freq_mhz=60.0)`
-
-10. **Analyze Physical Place-and-Route Timing (`verilog_pnr_timing`)**:
-    Pinpoint post-route physical timing bottlenecks and Fmax, decomposed into logic vs wire routing delay:
-    `verilog_pnr_timing(top_k=3)`
-
-11. **Compile & Check RTL Health (`verilog_compile`)**:
-    Verify syntax, Verilator lint warnings, Yosys synthesis (inferred latches, combinational loops, cell statistics), and nextpnr place-and-route, saving the full raw log to `tmp://synthesis.log`:
-    `verilog_compile()` or `verilog_compile(module="alu_mod", lint_only=true)`
+#### 3. Dual-View Timing Optimization Strategy
+Timing closure works best when combining the structural view with the post-routing physical view:
+- **Structural Logic Depth (`verilog_logic_depth`, `verilog_update_timing`)**:
+  Measures LUT levels between flip-flops (`In->Reg`, `Reg->Reg`, `Reg->Out`, `In->Out`) to reveal the underlying architectural cause of long combinational chains (`verilog_logic_depth(module="alu", top_k=3)`).
+- **Physical Place-and-Route Timing (`verilog_pnr_timing`)**:
+  Runs multi-seed `nextpnr` to report post-routing $F_{\max}$, critical paths decomposed into logic vs. routing wire delay, and net fan-out (`verilog_pnr_timing(top_k=3)`).
 )"
 	);
 }
