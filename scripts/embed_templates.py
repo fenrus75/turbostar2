@@ -15,10 +15,11 @@ def embed_templates(templates_dir: str, output_file: str) -> None:
         dirs.sort()
         files.sort()
         for f in files:
+            if f.endswith('~') or f.startswith('.#'):
+                continue
             full_path = os.path.join(root, f)
             rel_path = os.path.relpath(full_path, templates_dir)
             template_files.append((rel_path, full_path))
-
     template_files.sort(key=lambda x: x[0])
 
     with open(output_file, 'w') as out:

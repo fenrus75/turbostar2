@@ -19,7 +19,7 @@ module top #(
         if (!rst_n) begin
             counter_reg <= 27'd0;
         end else begin
-            counter_reg <= counter_reg + 1'b1;
+            counter_reg <= counter_reg + 27'd1;
         end
     end
 

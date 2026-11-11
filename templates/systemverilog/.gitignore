@@ -1,7 +1,9 @@
 build/
 synth/
 obj_dir/
+wave/
 *.vcd
 *.bin
 *.asc
-*.json
+*.rpt
+*~

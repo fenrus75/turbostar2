@@ -136,13 +136,13 @@ int main()
 		assert(cmake_content.find("set(CMAKE_C_STANDARD 17)") != std::string::npos);
 	}
 
-	// 5. Instantiate SystemVerilog Verilator project
+	// 5. Instantiate SystemVerilog project (via canonical "Yosys + Verilator" buildsystem)
 	{
 		turbostar::project_create_options opts;
 		opts.project_name = "sv_demo";
 		opts.executable_name = "sv_demo";
 		opts.language = "SystemVerilog";
-		opts.buildsystem = "Meson (Verilator)";
+		opts.buildsystem = "Yosys + Verilator";
 		opts.language_standard = "IEEE 1800-2017";
 		opts.target_directory = temp_dir / "demo_sv";
 		opts.init_git = true;
@@ -152,21 +152,30 @@ int main()
 		assert(ok);
 		assert(err.empty());
 
-		assert(std::filesystem::exists(opts.target_directory / "meson.build"));
+		assert(!std::filesystem::exists(opts.target_directory / "meson.build"));
+		assert(std::filesystem::exists(opts.target_directory / "turbostar.json"));
+		assert(std::filesystem::exists(opts.target_directory / "pins.pcf"));
+		assert(std::filesystem::exists(opts.target_directory / "8segbits.txt"));
 		assert(std::filesystem::exists(opts.target_directory / "src/top.sv"));
-		assert(std::filesystem::exists(opts.target_directory / "src/top_tb.sv"));
+		assert(std::filesystem::exists(opts.target_directory / "tb/top_tb.sv"));
 		assert(std::filesystem::exists(opts.target_directory / "AGENTS.md"));
-
-		std::string meson_build = read_file_content(opts.target_directory / "meson.build");
-		assert(meson_build.find("find_program('verilator'") != std::string::npos);
-		assert(meson_build.find("sv_demo") != std::string::npos);
+		assert(std::filesystem::exists(opts.target_directory / ".gitignore"));
 
 		std::string top_sv = read_file_content(opts.target_directory / "src/top.sv");
 		assert(top_sv.find("module top") != std::string::npos);
 		assert(top_sv.find("IEEE 1800-2017") != std::string::npos);
+
+		std::string top_tb = read_file_content(opts.target_directory / "tb/top_tb.sv");
+		assert(top_tb.find("wave/dump_top_tb.vcd") != std::string::npos);
+		assert(top_tb.find("PASS:") != std::string::npos);
+
+		std::string agents_md = read_file_content(opts.target_directory / "AGENTS.md");
+		assert(agents_md.find("sv_demo") != std::string::npos);
+		assert(agents_md.find("verilog_compile") != std::string::npos);
+		assert(agents_md.find("verilog_simulate") != std::string::npos);
 	}
 
-	// 6. Instantiate SystemVerilog FPGA iCE40 project
+	// 6. Verify legacy SystemVerilog buildsystem names ("Meson (FPGA)", "Meson (Verilator)") alias to systemverilog
 	{
 		turbostar::project_create_options opts;
 		opts.project_name = "fpga_demo";
@@ -182,20 +191,13 @@ int main()
 		assert(ok);
 		assert(err.empty());
 
-		assert(std::filesystem::exists(opts.target_directory / "meson.build"));
+		assert(std::filesystem::exists(opts.target_directory / "turbostar.json"));
 		assert(std::filesystem::exists(opts.target_directory / "pins.pcf"));
 		assert(std::filesystem::exists(opts.target_directory / "8segbits.txt"));
 		assert(std::filesystem::exists(opts.target_directory / "src/top.sv"));
-		assert(std::filesystem::exists(opts.target_directory / "src/top_tb.sv"));
+		assert(std::filesystem::exists(opts.target_directory / "tb/top_tb.sv"));
 		assert(std::filesystem::exists(opts.target_directory / "AGENTS.md"));
 		assert(std::filesystem::exists(opts.target_directory / ".gitignore"));
-
-		std::string meson_build = read_file_content(opts.target_directory / "meson.build");
-		assert(meson_build.find("find_program('yosys'") != std::string::npos);
-		assert(meson_build.find("find_program('nextpnr-ice40'") != std::string::npos);
-		assert(meson_build.find("find_program('icepack'") != std::string::npos);
-		assert(meson_build.find("pins.pcf") != std::string::npos);
-		assert(meson_build.find("fpga_demo") != std::string::npos);
 
 		std::string pcf_content = read_file_content(opts.target_directory / "pins.pcf");
 		assert(pcf_content.find("set_io clk P7") != std::string::npos);
@@ -210,7 +212,6 @@ int main()
 		assert(agents_md.find("Lattice iCE40-HX8K") != std::string::npos);
 		assert(agents_md.find("fpga_demo") != std::string::npos);
 	}
-
 	// Cleanup
 	std::filesystem::remove_all(temp_dir);
 

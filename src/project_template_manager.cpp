@@ -30,16 +30,10 @@ std::vector<template_info> project_template_manager::get_available_templates() c
 	    {"cmake_c", "CMake + C", "C", "CMake", {"C17", "C11", "C99"}, "C17"},
 	    {"python_basic", "Python Application", "Python", "pyproject.toml", {"3.11+", "3.10", "3.9"}, "3.11+"},
 	    {"cargo_rust", "Rust Cargo Application", "Rust", "Cargo", {"2021 Edition", "2018 Edition"}, "2021 Edition"},
-	    {"verilator_sv",
-	     "Meson + Verilator (Simulation)",
+	    {"systemverilog",
+	     "SystemVerilog FPGA / RTL (Yosys + Verilator)",
 	     "SystemVerilog",
-	     "Meson (Verilator)",
-	     {"IEEE 1800-2017", "IEEE 1800-2012", "IEEE 1800-2005"},
-	     "IEEE 1800-2017"},
-	    {"fpga_ice40",
-	     "Meson + iCE40 FPGA (Yosys)",
-	     "SystemVerilog",
-	     "Meson (FPGA)",
+	     "Yosys + Verilator",
 	     {"IEEE 1800-2017", "IEEE 1800-2012", "IEEE 1800-2005"},
 	     "IEEE 1800-2017"},
 	};
@@ -75,9 +69,9 @@ const std::vector<language_preset_definition> &project_template_manager::get_lan
 	    {"SystemVerilog",
 	     'S',
 	     {{"Generic LUT4", '4'}, {"Generic LUT6", '6'}, {"Generic Gates", 'G'}, {"iCE40", 'i'}, {"Other", 'r'}},
-	     {{"Meson (FPGA)", 'F'}, {"Meson (Verilator)", 'V'}, {"None / Custom", 'N'}, {"Other", 'O'}},
+	     {{"Yosys + Verilator", 'Y'}, {"None / Custom", 'N'}, {"Other", 'O'}},
 	     "Generic LUT4",
-	     "Meson (FPGA)"},
+	     "Yosys + Verilator"},
 	    {"Other",
 	     'O',
 	     {{"Custom / Default", 'D'}},
@@ -158,8 +152,10 @@ bool project_template_manager::create_project(const project_create_options &opts
 		}
 	}
 	if (target_template_id.empty() && opts.language == "SystemVerilog") {
-		if (opts.buildsystem == "Meson" || opts.buildsystem == "meson") {
-			target_template_id = "fpga_ice40";
+		if (opts.buildsystem == "Yosys + Verilator" || opts.buildsystem == "Meson (FPGA)" ||
+		    opts.buildsystem == "Meson (Verilator)" || opts.buildsystem == "Meson" ||
+		    opts.buildsystem == "meson") {
+			target_template_id = "systemverilog";
 		}
 	}
 

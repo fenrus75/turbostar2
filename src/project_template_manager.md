@@ -18,3 +18,4 @@ Its primary responsibilities include:
 ## Lessons Learned
 - **Single Source of Truth for Language Options**: Decoupling language and standard version presets from UI containers into `project_template_manager` prevents configuration drift between the New Project wizard and the Preferences dialog.
 - **ASCII Identifier Case Folding**: Using `utf8::to_lower` ensures project identifiers and CMake / Meson variable substitutions avoid locale-sensitive behavior (such as the Turkish I problem) while remaining fast and zero-overhead.
+- **Unified SystemVerilog Template (`systemverilog`)**: Consolidating separate simulation (`verilator_sv`) and synthesis (`fpga_ice40`) templates into a single `systemverilog` template without a static `meson.build` aligns new projects directly with the `verilog` plugin tools (`verilog_compile`, `verilog_simulate`, `turbostar.json`), avoiding out-of-sync source file lists when modules or testbenches are added.
