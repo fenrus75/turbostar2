@@ -1014,8 +1014,35 @@ void test_verilog_compile_tool()
 		std::string full_out = validator.create_tool(full_args)->execute(ctx);
 		assert(full_out.find("# Verilog Compile Report: `counter`") != std::string::npos);
 		assert(full_out.find("nextpnr Place-and-Route") != std::string::npos);
+		assert(full_out.find("0 inferred latch note(s), 0 combinational loop(s)") != std::string::npos);
+		assert(full_out.find("Critical Synthesis Hazards") == std::string::npos);
 		assert(full_out.find("## Place-and-Route Utilization & Timing (Seed 1)") != std::string::npos);
 		assert(full_out.find("ICESTORM_LC") != std::string::npos);
+	}
+
+	// 2.6 Test genuine inferred latch detection in Yosys synthesis
+	if (!fs_utils::find_executable("yosys").empty()) {
+		{
+			std::ofstream ofs(tmp_dir + "/sv/latch_mod.sv");
+			ofs << "module latch_mod(input logic en, input logic d, output logic q);\n"
+			    << "    always @* begin\n"
+			    << "        if (en) q = d;\n"
+			    << "    end\n"
+			    << "endmodule\n";
+		}
+		nlohmann::json latch_args = {
+			{"module", "latch_mod"},
+			{"synth_only", true}
+		};
+		assert(validator.validate_args(latch_args, ctx, err) && err.empty());
+		std::string latch_out = validator.create_tool(latch_args)->execute(ctx);
+		assert(latch_out.find("1 inferred latch note(s), ") != std::string::npos);
+		assert(latch_out.find("0 combinational loop(s)") == std::string::npos);
+		assert(latch_out.find("## Critical Synthesis Hazards") != std::string::npos);
+		assert(latch_out.find("Inferred Latch") != std::string::npos);
+		assert(latch_out.find("Combinational Loop") != std::string::npos);
+		std::error_code rm_ec;
+		std::filesystem::remove(tmp_dir + "/sv/latch_mod.sv", rm_ec);
 	}
 
 	// 3. Test hierarchy-scoped file filtering and two-tier warning severity grouping

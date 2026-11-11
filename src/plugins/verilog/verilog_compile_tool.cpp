@@ -208,6 +208,29 @@ struct parsed_yosys_diagnostics {
 	std::string stat_block;
 };
 
+bool is_yosys_loop_diagnostic(std::string_view line) noexcept
+{
+	if (line.find("Executing SCC pass") != std::string_view::npos ||
+	    line.find("Generating RTLIL representation") != std::string_view::npos ||
+	    line.find("SCC_BREAKER") != std::string_view::npos) {
+		return false;
+	}
+	if (line.find("Found logic loop") != std::string_view::npos ||
+	    line.find("Found an SCC:") != std::string_view::npos) {
+		return true;
+	}
+	size_t found_pos = line.find("Found ");
+	if (found_pos != std::string_view::npos &&
+	    (line.find("SCC", found_pos) != std::string_view::npos ||
+	     line.find("scc", found_pos) != std::string_view::npos)) {
+		size_t num_pos = found_pos + 6;
+		if (num_pos < line.size() && line[num_pos] >= '1' && line[num_pos] <= '9') {
+			return true;
+		}
+	}
+	return false;
+}
+
 parsed_yosys_diagnostics parse_yosys_output(std::string_view raw_out, std::string_view target_mod)
 {
 	parsed_yosys_diagnostics res;
@@ -235,8 +258,8 @@ parsed_yosys_diagnostics parse_yosys_output(std::string_view raw_out, std::strin
 			}
 		}
 
-		if (line.find("$dlatch") != std::string::npos || line.find("$_DLATCH_") != std::string::npos ||
-		    line.find("Latch inferred") != std::string::npos) {
+		if (line.find("Latch inferred for signal") != std::string::npos &&
+		    line.find("No latch inferred") == std::string::npos) {
 			std::string trimmed = line;
 			while (!trimmed.empty() && (trimmed.front() == ' ' || trimmed.front() == '\t')) {
 				trimmed.erase(trimmed.begin());
@@ -246,9 +269,7 @@ parsed_yosys_diagnostics parse_yosys_output(std::string_view raw_out, std::strin
 			}
 		}
 
-		if (line.find("logic loop") != std::string::npos ||
-		    (line.find("Found ") != std::string::npos && line.find("scc") != std::string::npos &&
-		     line.find("Found 0 ") == std::string::npos)) {
+		if (is_yosys_loop_diagnostic(line)) {
 			std::string trimmed = line;
 			while (!trimmed.empty() && (trimmed.front() == ' ' || trimmed.front() == '\t')) {
 				trimmed.erase(trimmed.begin());
@@ -268,6 +289,16 @@ parsed_yosys_diagnostics parse_yosys_output(std::string_view raw_out, std::strin
 				in_stat_block = false;
 			} else if (!line.empty()) {
 				stat_lines.push_back(line);
+				if (res.latch_notes.empty() &&
+				    (line.find("$dlatch") != std::string::npos || line.find("$_DLATCH_") != std::string::npos)) {
+					std::string trimmed = line;
+					while (!trimmed.empty() && (trimmed.front() == ' ' || trimmed.front() == '\t')) {
+						trimmed.erase(trimmed.begin());
+					}
+					if (!trimmed.empty()) {
+						res.latch_notes.push_back("Netlist cell: " + trimmed);
+					}
+				}
 			}
 		}
 	}
