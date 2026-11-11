@@ -20,7 +20,10 @@
 #include "plugins/verilog/vcd_compare_validator.h"
 #include "plugins/verilog/verilog_simulate_tool.h"
 #include "plugins/verilog/verilog_simulate_validator.h"
+#include "plugins/verilog/verilog_configure_testbench_tool.h"
+#include "plugins/verilog/verilog_configure_testbench_validator.h"
 #include "plugins/verilog/verilog_module_scanner.h"
+#include "plugins/verilog/fpga_project_settings.h"
 #include "agentlib/tool_context.h"
 #include "fs_utils.h"
 #include <cassert>
@@ -43,6 +46,8 @@ void register_vcd_compare();
 void unregister_vcd_compare();
 void register_verilog_simulate();
 void unregister_verilog_simulate();
+void register_verilog_configure_testbench();
+void unregister_verilog_configure_testbench();
 }
 int main()
 {
@@ -1785,6 +1790,207 @@ int main()
 		assert(lbl_mgr.find_label((tmp_proj / "dump.vcd").string(), "tb_main.sequencer.inline_fsm", "0x00") == "IDLE");
 		assert(lbl_mgr.find_label((tmp_proj / "dump.vcd").string(), "tb_main.sequencer.inline_fsm", "0x02") == "BUSY");
 		assert(lbl_mgr.find_label((tmp_proj / "dump.vcd").string(), "tb_main.sequencer.inline_fsm", "0x03") == "DONE");
+
+		std::filesystem::remove_all(tmp_proj);
+	}
+
+	// 25. Test verilog_configure_testbench and module-level / hierarchical verilog_simulate
+	{
+		register_verilog_configure_testbench();
+		unregister_verilog_configure_testbench();
+
+		std::filesystem::path tmp_proj = std::filesystem::temp_directory_path() / "turbostar_test_mod_sim";
+		std::filesystem::remove_all(tmp_proj);
+		std::filesystem::create_directories(tmp_proj / "sv" / "alu");
+		std::filesystem::create_directories(tmp_proj / "sv" / "cpu");
+		std::filesystem::create_directories(tmp_proj / "tb");
+
+		// Leaf module: alu_mod in sv/alu/alu.sv
+		{
+			std::ofstream f(tmp_proj / "sv" / "alu" / "alu.sv");
+			f << "module alu_mod(input logic clk, input logic [7:0] a, b, output logic [7:0] y);\n"
+			  << "    always_ff @(posedge clk) y <= a + b;\n"
+			  << "endmodule\n";
+		}
+		// Parent module: cpu_mod in sv/cpu/cpu.sv instantiating alu_mod
+		{
+			std::ofstream f(tmp_proj / "sv" / "cpu" / "cpu.sv");
+			f << "module cpu_mod(input logic clk, input logic [7:0] in_a, in_b, output logic [7:0] out_y);\n"
+			  << "    alu_mod alu_inst(.clk(clk), .a(in_a), .b(in_b), .y(out_y));\n"
+			  << "endmodule\n";
+		}
+		// Testbench 1: tb/tb_alu.sv (uses $dumpfile("dump.vcd") - intentionally colliding with tb_cpu_extreme.sv)
+		{
+			std::ofstream f(tmp_proj / "tb" / "tb_alu.sv");
+			f << "`timescale 1ns/1ps\n"
+			  << "module tb_alu;\n"
+			  << "    logic clk = 0;\n"
+			  << "    always #5 clk = ~clk;\n"
+			  << "    logic [7:0] a = 8'd3, b = 8'd4, y;\n"
+			  << "    alu_mod uut(.clk(clk), .a(a), .b(b), .y(y));\n"
+			  << "    initial begin\n"
+			  << "        $dumpfile(\"dump.vcd\");\n"
+			  << "        $dumpvars(0, tb_alu);\n"
+			  << "        #20;\n"
+			  << "        if (y == 8'd7) $display(\"ALU TEST PASSED\");\n"
+			  << "        else $display(\"ALU TEST FAILED\");\n"
+			  << "        $finish;\n"
+			  << "    end\n"
+			  << "endmodule\n";
+		}
+		// Testbench 2: tb/tb_cpu.sv (uses unique $dumpfile("dump_cpu.vcd"))
+		{
+			std::ofstream f(tmp_proj / "tb" / "tb_cpu.sv");
+			f << "`timescale 1ns/1ps\n"
+			  << "module tb_cpu;\n"
+			  << "    logic clk = 0;\n"
+			  << "    always #5 clk = ~clk;\n"
+			  << "    logic [7:0] a = 8'd10, b = 8'd20, y;\n"
+			  << "    cpu_mod uut(.clk(clk), .in_a(a), .in_b(b), .out_y(y));\n"
+			  << "    initial begin\n"
+			  << "        $dumpfile(\"dump_cpu.vcd\");\n"
+			  << "        $dumpvars(0, tb_cpu);\n"
+			  << "        #20;\n"
+			  << "        if (y == 8'd30) $display(\"CPU TEST PASSED\");\n"
+			  << "        else $display(\"CPU TEST FAILED\");\n"
+			  << "        $finish;\n"
+			  << "    end\n"
+			  << "endmodule\n";
+		}
+		// Testbench 3: tb/tb_cpu_extreme.sv (uses colliding $dumpfile("dump.vcd"), configured as "extreme")
+		{
+			std::ofstream f(tmp_proj / "tb" / "tb_cpu_extreme.sv");
+			f << "`timescale 1ns/1ps\n"
+			  << "module tb_cpu_extreme;\n"
+			  << "    logic clk = 0;\n"
+			  << "    always #5 clk = ~clk;\n"
+			  << "    logic [7:0] a = 8'd100, b = 8'd50, y;\n"
+			  << "    cpu_mod uut(.clk(clk), .in_a(a), .in_b(b), .out_y(y));\n"
+			  << "    initial begin\n"
+			  << "        $dumpfile(\"dump.vcd\");\n"
+			  << "        $dumpvars(0, tb_cpu_extreme);\n"
+			  << "        #20;\n"
+			  << "        if (y == 8'd150) $display(\"EXTREME CPU TEST PASSED\");\n"
+			  << "        else $display(\"EXTREME CPU TEST FAILED\");\n"
+			  << "        $finish;\n"
+			  << "    end\n"
+			  << "endmodule\n";
+		}
+
+		// Verify scanner hierarchy discovery (bottom-up: alu_mod first, cpu_mod second)
+		auto rtl_files = verilog::verilog_module_scanner::find_synthesizable_files(tmp_proj / "sv");
+		auto hier = verilog::verilog_module_scanner::discover_submodule_hierarchy("cpu_mod", rtl_files);
+		assert(hier.size() == 2);
+		assert(hier[0] == "alu_mod");
+		assert(hier[1] == "cpu_mod");
+
+		auto inst_mods = verilog::verilog_module_scanner::discover_instantiated_modules(tmp_proj / "tb" / "tb_alu.sv", rtl_files);
+		assert(inst_mods.size() == 1 && inst_mods[0] == "alu_mod");
+
+		agentlib::tool_context mctx;
+		mctx.fs_security.add_allowed_root(tmp_proj.string(), agentlib::access_type::write);
+		mctx.fs_security.set_working_directory(tmp_proj.string());
+
+		tools::verilog_configure_testbench_validator cfg_val;
+		std::string err;
+
+		// List mode (pure)
+		assert(cfg_val.is_pure(nlohmann::json::object()));
+
+		// Configure tb_alu.sv by file path to sv/alu/alu.sv (resolves to alu_mod), level="quick"
+		nlohmann::json cfg1 = {
+			{"testbench", "tb/tb_alu.sv"},
+			{"modules", nlohmann::json::array({"sv/alu/alu.sv"})},
+			{"level", "quick"}
+		};
+		assert(!cfg_val.is_pure(cfg1));
+		assert(cfg_val.validate_args(cfg1, mctx, err) && err.empty());
+		std::string cfg1_out = cfg_val.create_tool(cfg1)->execute(mctx);
+		assert(cfg1_out.find("Configured testbench `tb/tb_alu.sv`") != std::string::npos);
+		assert(cfg1_out.find("`alu_mod`") != std::string::npos);
+		// Should also warn that tb/tb_alu.sv and tb/tb_cpu_extreme.sv both write to dump.vcd!
+		assert(cfg1_out.find("Waveform `$dumpfile` Collision Detected") != std::string::npos);
+
+		// Configure tb_cpu.sv (level="comprehensive") and tb_cpu_extreme.sv (level="extreme")
+		nlohmann::json cfg2 = {
+			{"testbench", "tb/tb_cpu.sv"},
+			{"module", "cpu"},
+			{"level", "comprehensive"}
+		};
+		assert(cfg_val.validate_args(cfg2, mctx, err) && err.empty());
+		cfg_val.create_tool(cfg2)->execute(mctx);
+
+		nlohmann::json cfg3 = {
+			{"testbench", "tb/tb_cpu_extreme.sv"},
+			{"modules", nlohmann::json::array({"cpu_mod", "alu_mod"})},
+			{"level", "extreme"}
+		};
+		assert(cfg_val.validate_args(cfg3, mctx, err) && err.empty());
+		cfg_val.create_tool(cfg3)->execute(mctx);
+
+		// Test removing alu_mod from tb_cpu_extreme.sv while keeping cpu_mod
+		nlohmann::json cfg_rem_one = {
+			{"testbench", "tb/tb_cpu_extreme.sv"},
+			{"module", "alu_mod"},
+			{"remove", true}
+		};
+		assert(cfg_val.validate_args(cfg_rem_one, mctx, err) && err.empty());
+		std::string rem_out = cfg_val.create_tool(cfg_rem_one)->execute(mctx);
+		assert(rem_out.find("Removed 1 module association(s) from testbench `tb/tb_cpu_extreme.sv`") != std::string::npos);
+
+		if (!fs_utils::find_executable("verilator").empty()) {
+			tools::verilog_simulate_validator sim_val;
+
+			// 1) Simulate cpu with hierarchical=false (default) and level="comprehensive" (default):
+			//    Should ONLY run tb/tb_cpu.sv (skips tb_alu.sv because hierarchical=false, and skips tb_cpu_extreme.sv because level="comprehensive" < "extreme")
+			nlohmann::json sim_cpu_only = {
+				{"module", "cpu"}
+			};
+			assert(sim_val.validate_args(sim_cpu_only, mctx, err) && err.empty());
+			std::string out_cpu_only = sim_val.create_tool(sim_cpu_only)->execute(mctx);
+			assert(out_cpu_only.find("**1 Passed**, **0 Failed** (out of 1 testbench run(s))") != std::string::npos);
+			assert(out_cpu_only.find("`tb/tb_cpu.sv`") != std::string::npos);
+			assert(out_cpu_only.find("`tb/tb_alu.sv`") == std::string::npos);
+			assert(out_cpu_only.find("`tb/tb_cpu_extreme.sv`") == std::string::npos);
+			// Unique dump_cpu.vcd has NO collision, so it keeps its original name dump_cpu.vcd!
+			assert(std::filesystem::exists(tmp_proj / "dump_cpu.vcd"));
+			assert(out_cpu_only.find("Waveform `$dumpfile` Collision") == std::string::npos);
+
+			// 2) Simulate cpu with hierarchical=true and level="comprehensive":
+			//    Should run bottom-up: tb/tb_alu.sv first (for leaf alu_mod), then tb/tb_cpu.sv (for parent cpu_mod)!
+			nlohmann::json sim_hier = {
+				{"module", "sv/cpu/cpu.sv"},
+				{"hierarchical", true},
+				{"level", "comprehensive"}
+			};
+			assert(sim_val.validate_args(sim_hier, mctx, err) && err.empty());
+			std::string out_hier = sim_val.create_tool(sim_hier)->execute(mctx);
+			assert(out_hier.find("Bottom-Up Module Order**: `alu_mod` -> `cpu_mod`") != std::string::npos);
+			assert(out_hier.find("**2 Passed**, **0 Failed** (out of 2 testbench run(s))") != std::string::npos);
+			size_t pos_alu = out_hier.find("### Verilog Simulation: `tb/tb_alu.sv`");
+			size_t pos_cpu = out_hier.find("### Verilog Simulation: `tb/tb_cpu.sv`");
+			assert(pos_alu != std::string::npos && pos_cpu != std::string::npos && pos_alu < pos_cpu);
+
+			// Because tb/tb_alu.sv's "dump.vcd" collides with tb/tb_cpu_extreme.sv's "dump.vcd",
+			// its waveform was automatically renamed to tb_alu.vcd and a collision warning was emitted!
+			assert(std::filesystem::exists(tmp_proj / "tb_alu.vcd"));
+			assert(std::filesystem::exists(tmp_proj / "tb_alu.lastpass.vcd"));
+			assert(out_hier.find("Waveform `$dumpfile` Collision") != std::string::npos);
+			assert(out_hier.find("Renamed generated waveform to `tb_alu.vcd`") != std::string::npos);
+			// And tb_cpu.sv (second run) automatically compared IDENTICAL against its previous run!
+			assert(out_hier.find("IDENTICAL to previous") != std::string::npos);
+
+			// 3) Simulate cpu with level="quick" (hierarchical=false):
+			//    tb_cpu.sv is "comprehensive" and tb_cpu_extreme.sv is "extreme", so 0 match level="quick" and it reports skipped higher-tier testbenches
+			nlohmann::json sim_quick_cpu = {
+				{"module", "cpu_mod"},
+				{"level", "quick"}
+			};
+			assert(sim_val.validate_args(sim_quick_cpu, mctx, err) && err.empty());
+			std::string out_quick_cpu = sim_val.create_tool(sim_quick_cpu)->execute(mctx);
+			assert(out_quick_cpu.find("No testbenches for module `cpu_mod` matched `level=\"quick\"`") != std::string::npos);
+			assert(out_quick_cpu.find("Skipped higher-tier testbench(es)") != std::string::npos);
+		}
 
 		std::filesystem::remove_all(tmp_proj);
 	}

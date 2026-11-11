@@ -24,6 +24,15 @@ struct fpga_target_config {
 };
 
 /**
+ * @brief Association between a testbench file, one or more RTL modules, and a test level tier.
+ */
+struct testbench_entry {
+	std::string testbench;            // Project-relative path to the testbench file, e.g. "tb/tb_alu.sv"
+	std::vector<std::string> modules; // Canonical RTL module names tested by this testbench, e.g. ["alu_mod"]
+	std::string level{"quick"};       // Test tier: "quick", "comprehensive", or "extreme"
+};
+
+/**
  * @brief Discovered hardware EDA tools installed on the host system.
  */
 struct fpga_system_tools {
@@ -68,6 +77,20 @@ public:
 	// Format a Markdown summary of current project FPGA settings and detected environment
 	static std::string format_summary(const fpga_target_config &cfg, const fpga_system_tools &tools,
 	                                  std::span<const std::string> pcf_files);
+
+	// Normalize a test level string ("quick", "comprehensive", "extreme"); returns empty string if unrecognized
+	static std::string normalize_test_level(std::string_view level);
+
+	// Return cumulative numeric rank for a test level ("quick" -> 1, "comprehensive" -> 2, "extreme" -> 3)
+	static int test_level_rank(std::string_view level) noexcept;
+
+	// Load configured testbench associations from turbostar.json / project.json
+	static bool load_testbenches(std::string_view project_root, std::vector<testbench_entry> &out_entries,
+	                             std::string &out_config_path, std::string &out_error);
+
+	// Save configured testbench associations into turbostar.json / project.json preserving existing keys
+	static bool save_testbenches(std::string_view project_root, std::span<const testbench_entry> entries,
+	                             std::string &out_path_used, std::string &out_error);
 };
 
 } // namespace verilog

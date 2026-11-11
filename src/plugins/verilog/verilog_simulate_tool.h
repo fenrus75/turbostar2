@@ -9,6 +9,10 @@ namespace tools
 struct verilog_simulate_args {
 	std::string requested_testbench;
 	std::string safe_testbench;
+	std::string requested_module;
+	bool hierarchical{false};
+	std::string level{"comprehensive"};
+	bool level_explicit{false};
 	std::string top_module;
 	int timeout_sec{30};
 };

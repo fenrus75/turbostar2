@@ -60,6 +60,7 @@ namespace agentlib
 | verilog_logic_depth_validator | src/plugins/verilog/verilog_logic_depth_validator.h          |
 | verilog_update_timing_validator | src/plugins/verilog/verilog_update_timing_validator.h      |
 | verilog_simulate_validator   | src/plugins/verilog/verilog_simulate_validator.h             |
+| verilog_configure_testbench_validator | src/plugins/verilog/verilog_configure_testbench_validator.h |
 */
 
 struct tool_example {

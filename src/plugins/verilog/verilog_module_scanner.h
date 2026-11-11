@@ -90,6 +90,20 @@ public:
 	 *        returns a map of signal patterns (e.g. "*sequencer.state") to hex value -> enum label maps.
 	 */
 	static std::map<std::string, std::map<std::string, std::string>> discover_enum_signal_labels(const std::filesystem::path &root);
+
+	/**
+	 * @brief Scans a Verilog/SystemVerilog source or testbench file and returns the deduplicated list
+	 *        of known RTL module names (from all_rtl_sources) directly instantiated inside it.
+	 */
+	static std::vector<std::string> discover_instantiated_modules(const std::filesystem::path &source_file,
+	                                                              std::span<const std::string> all_rtl_sources);
+
+	/**
+	 * @brief Resolves the transitive submodule hierarchy rooted at root_module across all_rtl_sources
+	 *        in bottom-up (post-order) sequence: leaf submodules first, root_module last, deduplicated.
+	 */
+	static std::vector<std::string> discover_submodule_hierarchy(std::string_view root_module,
+	                                                             std::span<const std::string> all_rtl_sources);
 };
 
 } // namespace verilog

@@ -1,6 +1,7 @@
 #include "plugins/verilog/fpga_project_settings.h"
 #include "fs_utils.h"
 
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <format>
@@ -371,6 +372,191 @@ std::string fpga_project_settings::format_guidance(std::string_view /*project_ro
 	md += "```\n";
 
 	return md;
+}
+
+std::string fpga_project_settings::normalize_test_level(std::string_view level)
+{
+	std::string lower;
+	lower.reserve(level.size());
+	for (unsigned char c : level) {
+		if (!std::isspace(c)) {
+			lower.push_back(static_cast<char>(std::tolower(c)));
+		}
+	}
+	if (lower.empty() || lower == "quick" || lower == "fast" || lower == "smoke" || lower == "unit") {
+		return "quick";
+	}
+	if (lower == "comprehensive" || lower == "normal" || lower == "standard" || lower == "default" || lower == "medium" || lower == "thorough") {
+		return "comprehensive";
+	}
+	if (lower == "extreme" || lower == "exhaustive" || lower == "long" || lower == "full" || lower == "all" || lower == "stress") {
+		return "extreme";
+	}
+	return "";
+}
+
+int fpga_project_settings::test_level_rank(std::string_view level) noexcept
+{
+	std::string norm = normalize_test_level(level);
+	if (norm == "quick") {
+		return 1;
+	}
+	if (norm == "comprehensive") {
+		return 2;
+	}
+	if (norm == "extreme") {
+		return 3;
+	}
+	return 2;
+}
+
+bool fpga_project_settings::load_testbenches(std::string_view project_root, std::vector<testbench_entry> &out_entries,
+                                             std::string &out_config_path, std::string &out_error)
+{
+	out_entries.clear();
+	out_config_path.clear();
+	out_error.clear();
+
+	fs::path root(project_root.empty() ? "." : project_root);
+	std::vector<std::string> candidates = {"turbostar.json", "project.json"};
+
+	fs::path found_path;
+	for (const auto &cand : candidates) {
+		fs::path p = root / cand;
+		std::error_code ec;
+		if (fs::exists(p, ec) && fs::is_regular_file(p, ec)) {
+			found_path = p;
+			break;
+		}
+	}
+
+	if (found_path.empty()) {
+		return true;
+	}
+
+	out_config_path = found_path.string();
+	std::ifstream f(found_path);
+	if (!f.is_open()) {
+		out_error = std::format("Failed to open config file '{}'", found_path.string());
+		return false;
+	}
+
+	nlohmann::json untrusted_j;
+	try {
+		f >> untrusted_j;
+	} catch (const std::exception &e) {
+		out_error = std::format("JSON parse error in '{}': {}", found_path.string(), e.what());
+		return false;
+	}
+
+	if (!untrusted_j.contains("testbenches")) {
+		return true;
+	}
+
+	auto parse_entry_obj = [&](const std::string &untrusted_tb_key, const nlohmann::json &untrusted_item) {
+		std::string untrusted_tb = untrusted_tb_key;
+		if (untrusted_tb.empty() && untrusted_item.contains("testbench") && untrusted_item["testbench"].is_string()) {
+			untrusted_tb = untrusted_item["testbench"].get<std::string>();
+		}
+		if (untrusted_tb.empty() || !fs_utils::is_safe_for_ui(untrusted_tb)) {
+			return;
+		}
+		testbench_entry entry;
+		entry.testbench = untrusted_tb;
+
+		std::string untrusted_lvl = "quick";
+		if (untrusted_item.contains("level") && untrusted_item["level"].is_string()) {
+			untrusted_lvl = untrusted_item["level"].get<std::string>();
+		}
+		std::string clean_lvl = normalize_test_level(untrusted_lvl);
+		entry.level = clean_lvl.empty() ? "quick" : clean_lvl;
+
+		auto add_mod = [&](const std::string &untrusted_m) {
+			if (!untrusted_m.empty() && fs_utils::is_safe_for_ui(untrusted_m)) {
+				if (std::find(entry.modules.begin(), entry.modules.end(), untrusted_m) == entry.modules.end()) {
+					entry.modules.push_back(untrusted_m);
+				}
+			}
+		};
+
+		if (untrusted_item.contains("modules") && untrusted_item["modules"].is_array()) {
+			for (const auto &untrusted_m : untrusted_item["modules"]) {
+				if (untrusted_m.is_string()) {
+					add_mod(untrusted_m.get<std::string>());
+				}
+			}
+		} else if (untrusted_item.contains("modules") && untrusted_item["modules"].is_string()) {
+			add_mod(untrusted_item["modules"].get<std::string>());
+		}
+		if (untrusted_item.contains("module") && untrusted_item["module"].is_string()) {
+			add_mod(untrusted_item["module"].get<std::string>());
+		}
+
+		out_entries.push_back(std::move(entry));
+	};
+
+	const auto &untrusted_tbs = untrusted_j["testbenches"];
+	if (untrusted_tbs.is_array()) {
+		for (const auto &untrusted_item : untrusted_tbs) {
+			if (untrusted_item.is_object()) {
+				parse_entry_obj("", untrusted_item);
+			}
+		}
+	} else if (untrusted_tbs.is_object()) {
+		for (auto it = untrusted_tbs.begin(); it != untrusted_tbs.end(); ++it) {
+			if (it.value().is_object()) {
+				parse_entry_obj(it.key(), it.value());
+			}
+		}
+	}
+
+	return true;
+}
+
+bool fpga_project_settings::save_testbenches(std::string_view project_root, std::span<const testbench_entry> entries,
+                                             std::string &out_path_used, std::string &out_error)
+{
+	fs::path root(project_root.empty() ? "." : project_root);
+	fs::path target_path = root / "turbostar.json";
+	std::error_code ec;
+	if (!fs::exists(target_path, ec) && fs::exists(root / "project.json", ec)) {
+		target_path = root / "project.json";
+	}
+
+	nlohmann::json j = nlohmann::json::object();
+	if (fs::exists(target_path, ec)) {
+		std::ifstream in(target_path);
+		if (in.is_open()) {
+			try {
+				in >> j;
+			} catch (...) {
+				j = nlohmann::json::object();
+			}
+		}
+	}
+	if (!j.is_object()) {
+		j = nlohmann::json::object();
+	}
+
+	nlohmann::json tb_arr = nlohmann::json::array();
+	for (const auto &e : entries) {
+		nlohmann::json item = nlohmann::json::object();
+		item["testbench"] = e.testbench;
+		item["modules"] = e.modules;
+		item["level"] = e.level.empty() ? "quick" : e.level;
+		tb_arr.push_back(std::move(item));
+	}
+	j["testbenches"] = std::move(tb_arr);
+
+	std::ofstream out(target_path);
+	if (!out.is_open()) {
+		out_error = std::format("Failed to open '{}' for writing", target_path.string());
+		return false;
+	}
+
+	out << j.dump(2) << "\n";
+	out_path_used = target_path.string();
+	return true;
 }
 
 } // namespace verilog

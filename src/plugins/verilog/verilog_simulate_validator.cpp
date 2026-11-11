@@ -3,15 +3,17 @@
 #include <cctype>
 #include "agentlib/tool_registry.h"
 #include "fs_utils.h"
+#include "plugins/verilog/fpga_project_settings.h"
 
 namespace tools
 {
 
 std::string verilog_simulate_validator::get_description() const
 {
-	return "Compiles and runs a SystemVerilog/Verilog testbench together with project RTL using Verilator, "
-	       "generating a VCD waveform file, warming the in-memory VCD cache, and returning simulation output "
-	       "plus a quick waveform summary and next-step vcd_file_info / vcd_wave commands.";
+	return "Compiles and runs one or more SystemVerilog/Verilog testbenches together with project RTL using Verilator, "
+	       "supporting module-targeted unit testing (`module`), optional bottom-up submodule testing (`hierarchical`), "
+	       "and test tier filtering (`level`: 'quick', 'comprehensive', 'extreme'). Generates VCD waveforms, "
+	       "automatically compares against `.previous.vcd` and `.lastpass.vcd`, and returns pass/fail summaries.";
 }
 
 nlohmann::json verilog_simulate_validator::get_parameters_schema() const
@@ -21,15 +23,28 @@ nlohmann::json verilog_simulate_validator::get_parameters_schema() const
 		{"properties", {
 			{"testbench", {
 				{"type", "string"},
-				{"description", "Optional path to the testbench .sv/.v file (e.g. 'tb/tb_main.sv'). If omitted, automatically discovers testbenches in tb/, testbench/, or matching tb_*.sv / *_tb.sv."}
+				{"description", "Optional path to a specific testbench .sv/.v file (e.g. 'tb/tb_main.sv'). If omitted, uses 'module' associations or auto-discovers testbenches."}
+			}},
+			{"module", {
+				{"type", "string"},
+				{"description", "Optional RTL module name or source file path (e.g. 'alu_mod', 'alu', or 'sv/alu/alu.sv'). Runs all testbenches associated with this module (configured via verilog_configure_testbench or auto-discovered by instantiation)."}
+			}},
+			{"hierarchical", {
+				{"type", "boolean"},
+				{"description", "When true and 'module' is specified, also runs testbenches for all submodules instantiated transitively by 'module', deduplicated and ordered bottom-up (default: false)."}
+			}},
+			{"level", {
+				{"type", "string"},
+				{"enum", {"quick", "comprehensive", "extreme"}},
+				{"description", "Cumulative test tier filter: 'quick' runs only quick tests; 'comprehensive' runs quick + comprehensive tests; 'extreme' runs quick + comprehensive + extreme tests (default: 'comprehensive')."}
 			}},
 			{"top_module", {
 				{"type", "string"},
-				{"description", "Optional top-level testbench module name (e.g. 'tb_main'). If omitted, automatically detected from the testbench file."}
+				{"description", "Optional top-level testbench module name (e.g. 'tb_main'). If omitted, automatically detected from each testbench file."}
 			}},
 			{"timeout_sec", {
 				{"type", "integer"},
-				{"description", "Maximum simulation runtime in seconds before timing out (default: 30)."}
+				{"description", "Maximum simulation runtime in seconds per testbench before timing out (default: 30)."}
 			}}
 		}},
 		{"required", nlohmann::json::array()}
@@ -43,7 +58,8 @@ std::unordered_map<std::string, std::string> verilog_simulate_validator::get_cus
 		{"tb", "testbench"},
 		{"testbench_file", "testbench"},
 		{"path", "testbench"},
-		{"module", "top_module"},
+		{"rtl_module", "module"},
+		{"tier", "level"},
 		{"top", "top_module"},
 		{"timeout", "timeout_sec"}
 	};
@@ -68,6 +84,34 @@ bool verilog_simulate_validator::validate_args_impl(const nlohmann::json &untrus
 				return false;
 			}
 			args_.safe_testbench = safe_tb;
+		}
+	}
+
+	if (untrusted_args.contains("module") && untrusted_args["module"].is_string()) {
+		std::string untrusted_mod = untrusted_args["module"].get<std::string>();
+		if (!untrusted_mod.empty()) {
+			if (!fs_utils::is_safe_for_ui(untrusted_mod)) {
+				out_error = "Invalid characters in 'module' parameter";
+				return false;
+			}
+			args_.requested_module = untrusted_mod;
+		}
+	}
+
+	if (untrusted_args.contains("hierarchical") && untrusted_args["hierarchical"].is_boolean()) {
+		args_.hierarchical = untrusted_args["hierarchical"].get<bool>();
+	}
+
+	if (untrusted_args.contains("level") && untrusted_args["level"].is_string()) {
+		std::string untrusted_lvl = untrusted_args["level"].get<std::string>();
+		if (!untrusted_lvl.empty()) {
+			std::string norm = verilog::fpga_project_settings::normalize_test_level(untrusted_lvl);
+			if (norm.empty()) {
+				out_error = "Invalid 'level' parameter: must be 'quick', 'comprehensive', or 'extreme'";
+				return false;
+			}
+			args_.level = norm;
+			args_.level_explicit = true;
 		}
 	}
 

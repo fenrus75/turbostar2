@@ -37,6 +37,8 @@ void register_verilog_pnr_timing(void);
 void unregister_verilog_pnr_timing(void);
 void register_verilog_simulate(void);
 void unregister_verilog_simulate(void);
+void register_verilog_configure_testbench(void);
+void unregister_verilog_configure_testbench(void);
 
 /*
  * Plugin dynamic entry point invoked when loaded by plugin_loader.
@@ -54,6 +56,7 @@ void plugin_run(void)
 	register_verilog_project_settings();
 	register_verilog_pnr_timing();
 	register_verilog_simulate();
+	register_verilog_configure_testbench();
 
 	bool has_yosys = !fs_utils::find_executable("yosys").empty();
 	if (has_yosys) {
@@ -71,9 +74,10 @@ Tools in this family assist in digital hardware design, FPGA engineering, simula
 
 To verify or debug a digital design without blowing your context window, follow this workflow:
 
-0. **Run Testbench Simulation & Generate VCD (`verilog_simulate`)**:
-   Compile and run the project testbench using Verilator to generate/refresh `dump.vcd` and load it into the in-memory VCD cache:
-   `verilog_simulate(testbench="tb/tb_main.sv")`
+0. **Configure & Run Testbench Simulation (`verilog_configure_testbench`, `verilog_simulate`)**:
+   Associate unit testbenches with RTL modules and tiers (`quick`, `comprehensive`, `extreme`) in `turbostar.json`, then compile and run testbenches for a specific module (optionally `hierarchical=true` for bottom-up submodule testing) or testbench file using Verilator:
+   `verilog_configure_testbench(testbench="tb/tb_alu.sv", modules=["alu_mod"], level="quick")`
+   `verilog_simulate(module="cpu", hierarchical=true, level="comprehensive")`
 
 1. **Discover Simulation Context & Signal Hierarchy (`vcd_file_info`)**:
    Inspect timescale, duration, detected reference clock, and discover signals in the module of interest:
@@ -136,6 +140,7 @@ void plugin_unload(void)
 	unregister_verilog_project_settings();
 	unregister_verilog_pnr_timing();
 	unregister_verilog_simulate();
+	unregister_verilog_configure_testbench();
 
 	agentlib::tool_registry::get_instance().unregister_tool_family("verilog");
 }
