@@ -4,7 +4,7 @@
     "device": "hx8k",
     "package": "cb132",
     "top_module": "top",
-    "freq_mhz": 100.0,
+    "freq_mhz": 50.0,
     "pcf_file": "pins.pcf",
     "sv_path": "src"
   },
