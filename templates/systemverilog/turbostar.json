@@ -1,23 +1,23 @@
 {
-  "fpga_target": {
-    "target": "ice40",
+  "fpga": {
     "device": "hx8k",
-    "package": "cb132",
-    "top_module": "top",
     "freq_mhz": 50.0,
+    "package": "cb132",
     "pcf_file": "pins.pcf",
-    "sv_path": "src"
+    "sv_path": "src",
+    "target": "ice40",
+    "top_module": "top"
   },
+  "hierarchical_modules": [
+    "top"
+  ],
   "testbenches": [
     {
-      "testbench": "tb/top_tb.sv",
+      "level": "quick",
       "modules": [
         "top"
       ],
-      "level": "quick"
+      "testbench": "tb/top_tb.sv"
     }
-  ],
-  "hierarchical_modules": [
-    "top"
   ]
 }

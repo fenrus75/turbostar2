@@ -126,16 +126,20 @@ bool fpga_project_settings::load_from_project(std::string_view project_root, fpg
 
 	out_cfg.active_config_file = found_path.string();
 
-	if (!j.contains("fpga") || !j["fpga"].is_object()) {
+	const nlohmann::json *fpga_ptr = nullptr;
+	if (j.contains("fpga") && j["fpga"].is_object()) {
+		fpga_ptr = &j["fpga"];
+	} else if (j.contains("fpga_target") && j["fpga_target"].is_object()) {
+		fpga_ptr = &j["fpga_target"];
+	} else {
 		out_error = std::format("Config file '{}' does not contain an 'fpga' configuration object", found_path.string());
 		return false;
 	}
 
-	const auto &fpga = j["fpga"];
+	const auto &fpga = *fpga_ptr;
 	out_cfg.target = fpga.value("target", "");
 	out_cfg.device = fpga.value("device", "");
 	out_cfg.package = fpga.value("package", "");
-
 	if (fpga.contains("top_module")) {
 		out_cfg.top_module = fpga.value("top_module", "");
 	} else if (fpga.contains("top")) {

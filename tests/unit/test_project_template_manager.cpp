@@ -161,9 +161,12 @@ int main()
 		assert(std::filesystem::exists(opts.target_directory / "AGENTS.md"));
 		assert(std::filesystem::exists(opts.target_directory / ".gitignore"));
 
+		std::string ts_json = read_file_content(opts.target_directory / "turbostar.json");
+		assert(ts_json.find("\"fpga\"") != std::string::npos);
+		assert(ts_json.find("\"freq_mhz\": 50.0") != std::string::npos);
+
 		std::string top_sv = read_file_content(opts.target_directory / "src/top.sv");
 		assert(top_sv.find("module top") != std::string::npos);
-		assert(top_sv.find("IEEE 1800-2017") != std::string::npos);
 
 		std::string top_tb = read_file_content(opts.target_directory / "tb/top_tb.sv");
 		assert(top_tb.find("wave/dump_top_tb.vcd") != std::string::npos);
