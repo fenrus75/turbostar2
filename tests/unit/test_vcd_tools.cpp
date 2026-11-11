@@ -1612,7 +1612,41 @@ int main()
 		std::filesystem::remove_all(sim_dir, ec_rm);
 	}
 
-	// Clean up any test sidecars created during tests
+	// 22. Test one-shot contextual hints in vcd_wave (_valid qualifier priority over state/opcode/instr/fsm labels, shown once each)
+	{
+		auto &lbl_mgr = verilog::vcd_label_manager::get_instance();
+		lbl_mgr.clear_all();
+		std::filesystem::remove(vcd_path + ".labels.json");
+
+		tools::vcd_wave_validator wave_val;
+		nlohmann::json wave_args = {
+			{"path", vcd_path},
+			{"signals", nlohmann::json::array({"opcode_data", "opcode_data_valid", "opcode"})},
+			{"max_rows", 10}
+		};
+		std::string err;
+		assert(wave_val.validate_args(wave_args, global_ctx, err) && err.empty());
+
+		// Call 1: both _valid pair and opcode/state signals are present and unregistered -> only Hint 1 (_valid qualifier) is shown
+		auto wave_tool_1 = wave_val.create_tool(wave_args);
+		std::string out_1 = wave_tool_1->execute(global_ctx);
+		assert(out_1.find("vcd_signal_qualifier(path=\"") != std::string::npos);
+		assert(out_1.find("signal=\"opcode_data\", qualifier=\"opcode_data_valid\"") != std::string::npos);
+		assert(out_1.find("vcd_signal_labels(") == std::string::npos);
+
+		// Call 2: Hint 1 was already shown once, so now Hint 2 (symbolic labels for opcode_data) is shown
+		auto wave_tool_2 = wave_val.create_tool(wave_args);
+		std::string out_2 = wave_tool_2->execute(global_ctx);
+		assert(out_2.find("vcd_signal_qualifier(") == std::string::npos);
+		assert(out_2.find("vcd_signal_labels(path=\"") != std::string::npos);
+		assert(out_2.find("signal=\"opcode_data\"") != std::string::npos);
+
+		// Call 3: Both hints have been shown once -> neither hint is repeated
+		auto wave_tool_3 = wave_val.create_tool(wave_args);
+		std::string out_3 = wave_tool_3->execute(global_ctx);
+		assert(out_3.find("vcd_signal_qualifier(") == std::string::npos);
+		assert(out_3.find("vcd_signal_labels(") == std::string::npos);
+	}
 	std::filesystem::remove(vcd_path + ".labels.json");
 	std::filesystem::remove("tests/fixtures/test_dump_org.vcd.labels.json");
 	std::filesystem::remove("tests/fixtures/test_dump_org.vcd.qualifiers.json");

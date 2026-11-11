@@ -85,6 +85,13 @@ class vcd_label_manager
 		std::string &out_msg
 	);
 
+	// Check whether any labels are registered for a given signal (exact or pattern match)
+	bool has_labels_for_signal(std::string_view safe_path, std::string_view signal_name);
+
+	// One-shot hint flags for vcd_wave (each returns true at most once until clear_all())
+	bool try_consume_qualifier_hint() noexcept;
+	bool try_consume_label_hint() noexcept;
+
 	// Clear all in-memory labels (useful on plugin unload or test teardown)
 	void clear_all();
 
@@ -93,17 +100,20 @@ class vcd_label_manager
 	~vcd_label_manager() = default;
 
 	/*
-	 * mutex_ protects the in-memory cache of file labels and qualifiers:
+	 * mutex_ protects the in-memory cache of file labels, qualifiers, and one-shot hint flags:
 	 * path_labels_ map (safe_path -> (signal -> (hex_key -> label_string)))
 	 * path_qualifiers_ map (safe_path -> (signal -> qualifier_expr))
+	 * qualifier_hint_shown_ and label_hint_shown_ booleans
 	 *
 	 * Locking Rules:
-	 * - Held briefly during get, find, and update operations.
+	 * - Held briefly during get, find, hint consumption, and update operations.
 	 */
 	mutable std::mutex mutex_;
 	std::map<std::string, std::map<std::string, std::map<std::string, std::string>>> path_labels_;
 	std::map<std::string, std::map<std::string, std::string>> path_qualifiers_;
 	std::map<std::string, bool> file_loaded_;
+	bool qualifier_hint_shown_ = false;
+	bool label_hint_shown_ = false;
 
 	void load_sidecar_locked(std::string_view safe_path);
 	bool save_sidecar_locked(std::string_view safe_path, std::string &out_error);

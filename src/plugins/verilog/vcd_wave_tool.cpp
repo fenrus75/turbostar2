@@ -5,6 +5,8 @@
 #include <format>
 #include <sstream>
 #include <fstream>
+#include <algorithm>
+#include <cctype>
 #include <set>
 namespace tools
 {
@@ -340,6 +342,114 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 
 			ss << std::format("\n> [!NOTE] Generated GTKWave save file at `{}` (launch via `gtkwave \"{}\" \"{}\"`).\n",
 			                  args_.requested_gtkw, args_.safe_path, args_.requested_gtkw);
+		}
+	}
+
+	// One-shot contextual hints (at most one per call; _valid qualifier has higher priority than enum labels)
+	struct resolved_sig_info {
+		std::string raw_arg;
+		std::string clean_arg;
+		std::string full_name;
+		std::string short_name;
+		int bit_width = 1;
+	};
+	std::vector<resolved_sig_info> resolved_sigs;
+	resolved_sigs.reserve(args_.signals.size());
+	for (const auto &sig : args_.signals) {
+		std::string_view clean_sv = sig;
+		if (clean_sv.starts_with("x:") || clean_sv.starts_with("b:")) {
+			clean_sv.remove_prefix(2);
+		}
+		std::string clean_arg(clean_sv);
+		auto it = full_names_map.find(sig);
+		std::string full_name = (it != full_names_map.end()) ? it->second : "";
+		const auto *sig_obj = !full_name.empty() ? parser.find_signal(full_name) : parser.find_signal(clean_arg);
+		if (full_name.empty() && sig_obj) {
+			full_name = sig_obj->full_name;
+		}
+		std::string short_name = sig_obj ? sig_obj->short_name : clean_arg;
+		int width = sig_obj ? sig_obj->bit_width : 1;
+		resolved_sigs.push_back({sig, std::move(clean_arg), std::move(full_name), std::move(short_name), width});
+	}
+
+	bool hint_emitted = false;
+	for (const auto &v_info : resolved_sigs) {
+		if (!v_info.clean_arg.ends_with("_valid") && !v_info.short_name.ends_with("_valid")) {
+			continue;
+		}
+		for (const auto &b_info : resolved_sigs) {
+			bool matches_base =
+				(b_info.clean_arg + "_valid" == v_info.clean_arg) ||
+				(!b_info.full_name.empty() && b_info.full_name + "_valid" == v_info.full_name) ||
+				(b_info.short_name + "_valid" == v_info.short_name);
+			if (!matches_base) {
+				continue;
+			}
+			bool has_qual = !label_mgr.find_qualifier(args_.safe_path, b_info.full_name).first.empty() ||
+			                !label_mgr.find_qualifier(args_.safe_path, b_info.clean_arg).first.empty();
+			if (!has_qual && label_mgr.try_consume_qualifier_hint()) {
+				ss << std::format(
+					"\n> [!TIP] Both `{}` and `{}` were requested. To mask invalid cycles of `{}` as `-` (and collapse idle rows automatically), use `vcd_signal_qualifier(path=\"{}\", signal=\"{}\", qualifier=\"{}\")`.\n",
+					b_info.clean_arg, v_info.clean_arg, b_info.clean_arg,
+					args_.requested_path, b_info.clean_arg, v_info.clean_arg);
+				hint_emitted = true;
+			}
+			break;
+		}
+		if (hint_emitted) {
+			break;
+		}
+	}
+
+	if (!hint_emitted) {
+		for (const auto &s_info : resolved_sigs) {
+			if (s_info.bit_width <= 1) {
+				continue;
+			}
+			std::string lower_short;
+			lower_short.reserve(s_info.short_name.size());
+			for (unsigned char c : s_info.short_name) {
+				lower_short.push_back(static_cast<char>(std::tolower(c)));
+			}
+			bool is_enum_candidate =
+				lower_short.find("state") != std::string::npos ||
+				lower_short.find("opcode") != std::string::npos ||
+				lower_short.find("instr") != std::string::npos ||
+				lower_short.find("fsm") != std::string::npos;
+			if (!is_enum_candidate) {
+				continue;
+			}
+			bool has_lbl = label_mgr.has_labels_for_signal(args_.safe_path, s_info.full_name) ||
+			               label_mgr.has_labels_for_signal(args_.safe_path, s_info.clean_arg);
+			if (!has_lbl && label_mgr.try_consume_label_hint()) {
+				std::vector<std::string> sample_hex;
+				for (const auto &sample : samples) {
+					if (sample.collapsed_count > 0) {
+						continue;
+					}
+					auto vit = sample.signal_values.find(s_info.raw_arg);
+					if (vit != sample.signal_values.end() && vit->second.starts_with("0x") &&
+					    vit->second.find('x', 2) == std::string::npos &&
+					    vit->second.find('z', 2) == std::string::npos) {
+						if (std::find(sample_hex.begin(), sample_hex.end(), vit->second) == sample_hex.end()) {
+							sample_hex.push_back(vit->second);
+							if (sample_hex.size() >= 2) {
+								break;
+							}
+						}
+					}
+				}
+				std::string labels_example = sample_hex.empty()
+					? R"({"0x00": "IDLE", "0x01": "ACTIVE"})"
+					: (sample_hex.size() == 1
+						? std::format(R"({{"{}": "<NAME_1>"}})", sample_hex[0])
+						: std::format(R"({{"{}": "<NAME_1>", "{}": "<NAME_2>"}})", sample_hex[0], sample_hex[1]));
+				ss << std::format(
+					"\n> [!TIP] Signal `{}` has no symbolic labels yet. To display enum names alongside hex values (and search by name in `vcd_search`), use `vcd_signal_labels(path=\"{}\", signal=\"{}\", labels={})`.\n",
+					s_info.clean_arg, args_.requested_path, s_info.clean_arg, labels_example);
+				hint_emitted = true;
+				break;
+			}
 		}
 	}
 

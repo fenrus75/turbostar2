@@ -609,12 +609,58 @@ bool vcd_label_manager::set_qualifiers_batch(
 	return true;
 }
 
+bool vcd_label_manager::has_labels_for_signal(std::string_view safe_path, std::string_view signal_name)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	std::string p(safe_path);
+	load_sidecar_locked(p);
+
+	const auto &sig_map = path_labels_[p];
+	if (sig_map.empty() || signal_name.empty()) {
+		return false;
+	}
+
+	auto it = sig_map.find(std::string(signal_name));
+	if (it != sig_map.end() && !it->second.empty()) {
+		return true;
+	}
+
+	for (const auto &[reg_sig, val_map] : sig_map) {
+		if (!val_map.empty() && signal_pattern_matches(reg_sig, signal_name)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool vcd_label_manager::try_consume_qualifier_hint() noexcept
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	if (qualifier_hint_shown_) {
+		return false;
+	}
+	qualifier_hint_shown_ = true;
+	return true;
+}
+
+bool vcd_label_manager::try_consume_label_hint() noexcept
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	if (label_hint_shown_) {
+		return false;
+	}
+	label_hint_shown_ = true;
+	return true;
+}
+
 void vcd_label_manager::clear_all()
 {
 	std::lock_guard<std::mutex> lock(mutex_);
 	path_labels_.clear();
 	path_qualifiers_.clear();
 	file_loaded_.clear();
+	qualifier_hint_shown_ = false;
+	label_hint_shown_ = false;
 }
 
 } // namespace verilog
