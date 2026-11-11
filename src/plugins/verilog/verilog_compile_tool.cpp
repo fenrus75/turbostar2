@@ -8,6 +8,7 @@
 #include <map>
 #include <nlohmann/json.hpp>
 #include <set>
+#include <span>
 #include <sstream>
 #include <vector>
 #include "fs_utils.h"
@@ -92,8 +93,32 @@ bool write_compile_log(agentlib::tool_context &ctx, const std::string &safe_out_
 
 struct parsed_verilator_diagnostics {
 	std::vector<std::string> errors;
-	std::vector<std::string> warnings;
+	std::vector<std::string> correctness_warnings;
+	std::vector<std::string> style_warnings;
+	std::map<std::string, std::vector<std::string>> style_by_code;
 };
+
+constexpr std::string_view extract_verilator_warning_code(std::string_view line) noexcept
+{
+	constexpr std::string_view prefix = "%Warning-";
+	if (!line.starts_with(prefix)) {
+		return "";
+	}
+	std::string_view rest = line.substr(prefix.size());
+	size_t colon = rest.find(':');
+	if (colon == std::string_view::npos || colon == 0) {
+		return "";
+	}
+	return rest.substr(0, colon);
+}
+
+constexpr bool is_verilator_style_code(std::string_view code) noexcept
+{
+	return code == "EOFNEWLINE" || code == "UNUSEDSIGNAL" || code == "UNUSEDPARAM" ||
+	       code == "UNUSED" || code == "UNUSEDGENVAR" || code == "PINCONNECTEMPTY" ||
+	       code == "PINNOCONNECT" || code == "DECLFILENAME" || code == "VARHIDDEN" ||
+	       code == "DEFPARAM" || code == "INCABSPATH" || code == "TIMESCALEMOD";
+}
 
 parsed_verilator_diagnostics parse_verilator_output(std::string_view raw_out)
 {
@@ -113,11 +138,66 @@ parsed_verilator_diagnostics parse_verilator_output(std::string_view raw_out)
 			}
 		} else if (line.starts_with("%Warning")) {
 			if (seen_warn.insert(line).second) {
-				res.warnings.push_back(line);
+				std::string_view code = extract_verilator_warning_code(line);
+				if (is_verilator_style_code(code)) {
+					res.style_warnings.push_back(line);
+					res.style_by_code[std::string(code)].push_back(line);
+				} else {
+					res.correctness_warnings.push_back(line);
+				}
 			}
 		}
 	}
 	return res;
+}
+
+std::string format_categorized_warnings(const parsed_verilator_diagnostics &v_diag,
+                                        std::span<const std::string> yosys_warnings,
+                                        std::span<const std::string> pnr_warnings,
+                                        std::string_view log_file)
+{
+	std::string out;
+	size_t corr_total = v_diag.correctness_warnings.size() + yosys_warnings.size() + pnr_warnings.size();
+
+	if (corr_total > 0) {
+		out += std::format("\n## Correctness & Synthesis Warnings ({})\n\n", corr_total);
+		size_t shown = 0;
+		constexpr size_t max_corr_shown = 20;
+		for (const auto &w : v_diag.correctness_warnings) {
+			if (shown >= max_corr_shown) break;
+			out += std::format("- [Verilator] `{}`\n", w);
+			++shown;
+		}
+		for (const auto &w : yosys_warnings) {
+			if (shown >= max_corr_shown) break;
+			out += std::format("- [Yosys] `{}`\n", w);
+			++shown;
+		}
+		for (const auto &w : pnr_warnings) {
+			if (shown >= max_corr_shown) break;
+			out += std::format("- [nextpnr] `{}`\n", w);
+			++shown;
+		}
+		if (corr_total > shown) {
+			out += std::format("- *(...and {} more correctness/synthesis warning(s) in `{}`)*\n",
+			                   corr_total - shown, log_file);
+		}
+	}
+
+	if (!v_diag.style_by_code.empty()) {
+		out += std::format("\n## Style & Unused Resource Notes ({})\n\n", v_diag.style_warnings.size());
+		for (const auto &[code, items] : v_diag.style_by_code) {
+			if (items.empty()) continue;
+			if (items.size() == 1) {
+				out += std::format("- **`{}`** (1): `{}`\n", code, items.front());
+			} else {
+				out += std::format("- **`{}`** ({} occurrences) — e.g. `{}` *(+{} more in `{}`)*\n",
+				                   code, items.size(), items.front(), items.size() - 1, log_file);
+			}
+		}
+	}
+
+	return out;
 }
 
 struct parsed_yosys_diagnostics {
@@ -339,6 +419,48 @@ std::string verilog_compile_tool::execute(agentlib::tool_context &ctx)
 
 	bool is_top_module = cfg.top_module.empty() || (target_mod == cfg.top_module);
 
+	// Filter RTL sources to the transitive submodule hierarchy of target_mod (plus any package-only files)
+	// so compiling a leaf module does not parse or emit warnings from unrelated modules in the workspace.
+	auto all_mods = verilog::verilog_module_scanner::discover_modules_in_files(sources);
+	auto hier_mods = verilog::verilog_module_scanner::discover_submodule_hierarchy(target_mod, sources);
+	std::set<std::string> hier_mod_set(hier_mods.begin(), hier_mods.end());
+
+	std::set<std::string> files_with_any_module;
+	std::set<std::string> files_with_hier_module;
+	for (const auto &dm : all_mods) {
+		files_with_any_module.insert(dm.source_file);
+		if (hier_mod_set.contains(dm.module_name)) {
+			files_with_hier_module.insert(dm.source_file);
+		}
+	}
+
+	std::vector<std::string> active_sources;
+	if (!files_with_hier_module.empty()) {
+		for (const auto &src : sources) {
+			if (files_with_hier_module.contains(src) || !files_with_any_module.contains(src)) {
+				active_sources.push_back(src);
+			}
+		}
+	} else if (!args_.safe_file.empty()) {
+		active_sources.push_back(args_.safe_file);
+		for (const auto &src : sources) {
+			if (!files_with_any_module.contains(src) && src != args_.safe_file) {
+				active_sources.push_back(src);
+			}
+		}
+	} else {
+		active_sources = sources;
+	}
+
+	std::string scope_summary;
+	if (active_sources.size() == sources.size()) {
+		scope_summary = std::format("`{}` ({} RTL file{} in hierarchy)",
+		                            target_mod, active_sources.size(), active_sources.size() == 1 ? "" : "s");
+	} else {
+		scope_summary = std::format("`{}` ({} of {} workspace RTL files in module hierarchy)",
+		                            target_mod, active_sources.size(), sources.size());
+	}
+
 	std::string verilator_bin = fs_utils::find_executable("verilator");
 	std::string yosys_bin = fs_utils::find_executable("yosys");
 
@@ -361,10 +483,10 @@ std::string verilog_compile_tool::execute(agentlib::tool_context &ctx)
 	bool verilator_ran = false;
 	if (!verilator_bin.empty()) {
 		verilator_ran = true;
-		std::string v_cmd = std::format("{} --lint-only -Wall --Wno-fatal -Wno-DECLFILENAME --timing --top-module {}",
+		std::string v_cmd = std::format("{} --lint-only -Wall --Wno-fatal -Wno-DECLFILENAME -Wno-EOFNEWLINE --timing --top-module {}",
 		                                fs_utils::escape_shell_arg(verilator_bin),
 		                                fs_utils::escape_shell_arg(target_mod));
-		for (const auto &src : sources) {
+		for (const auto &src : active_sources) {
 			v_cmd += " " + fs_utils::escape_shell_arg(src);
 		}
 		std::string v_out = fs_utils::execute_command_sync(v_cmd);
@@ -383,23 +505,14 @@ std::string verilog_compile_tool::execute(agentlib::tool_context &ctx)
 
 			std::string out = std::format("# Verilog Compile Report: `{}`\n\n", target_mod);
 			out += "- **Status**: **FAILED** (Verilator Syntax / Elaboration Error)\n";
+			out += std::format("- **Target Scope**: {}\n", scope_summary);
 			out += std::format("- **Full Log**: `{}` ({} lines, {} bytes)\n\n",
 			                   args_.requested_output_file, total_lines, combined_raw_log.size());
 			out += "## Errors\n\n";
 			for (const auto &e : v_diag.errors) {
 				out += std::format("- `{}`\n", e);
 			}
-			if (!v_diag.warnings.empty()) {
-				out += std::format("\n## Lint Warnings ({})\n\n", v_diag.warnings.size());
-				size_t shown = std::min<size_t>(15, v_diag.warnings.size());
-				for (size_t i = 0; i < shown; ++i) {
-					out += std::format("- `{}`\n", v_diag.warnings[i]);
-				}
-				if (v_diag.warnings.size() > shown) {
-					out += std::format("- *(...and {} more warnings in `{}`)*\n",
-					                   v_diag.warnings.size() - shown, args_.requested_output_file);
-				}
-			}
+			out += format_categorized_warnings(v_diag, {}, {}, args_.requested_output_file);
 			out += std::format("\n> **Tip**: Inspect full context in `{}` using `fs_read_lines(path=\"{}\", start_line=1, end_line=100)`.\n",
 			                   args_.requested_output_file, args_.requested_output_file);
 			set_failure(ctx, "Verilator compilation failed");
@@ -416,21 +529,14 @@ std::string verilog_compile_tool::execute(agentlib::tool_context &ctx)
 
 		std::string out = std::format("# Verilog Lint Report: `{}`\n\n", target_mod);
 		out += std::format("- **Status**: **PASSED** (Lint Only, {:.2f}s)\n", elapsed_s);
-		out += std::format("- **RTL Files Checked**: {}\n", sources.size());
-		out += std::format("- **Lint Warnings**: {}\n", v_diag.warnings.size());
+		out += std::format("- **Target Scope**: {}\n", scope_summary);
+		out += std::format("- **Diagnostics Summary**: {} correctness warning(s), {} style/unused note(s)\n",
+		                   v_diag.correctness_warnings.size(), v_diag.style_warnings.size());
 		out += std::format("- **Full Log**: `{}` ({} lines, {} bytes)\n",
 		                   args_.requested_output_file, total_lines, combined_raw_log.size());
 
-		if (!v_diag.warnings.empty()) {
-			out += "\n## Lint Warnings\n\n";
-			size_t shown = std::min<size_t>(20, v_diag.warnings.size());
-			for (size_t i = 0; i < shown; ++i) {
-				out += std::format("- `{}`\n", v_diag.warnings[i]);
-			}
-			if (v_diag.warnings.size() > shown) {
-				out += std::format("- *(...and {} more warnings — inspect `{}`)*\n",
-				                   v_diag.warnings.size() - shown, args_.requested_output_file);
-			}
+		if (!v_diag.correctness_warnings.empty() || !v_diag.style_warnings.empty()) {
+			out += format_categorized_warnings(v_diag, {}, {}, args_.requested_output_file);
 		} else {
 			out += "\n*No lint warnings or errors reported.*\n";
 		}
@@ -463,7 +569,7 @@ std::string verilog_compile_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	std::string yosys_cmd = fs_utils::escape_shell_arg(yosys_bin) + " -p " + fs_utils::escape_shell_arg(synth_pass);
-	for (const auto &src : sources) {
+	for (const auto &src : active_sources) {
 		yosys_cmd += " " + fs_utils::escape_shell_arg(src);
 	}
 
@@ -616,14 +722,14 @@ std::string verilog_compile_tool::execute(agentlib::tool_context &ctx)
 
 	std::string out = std::format("# Verilog Compile Report: `{}`\n\n", target_mod);
 	out += std::format("- **Status**: **{}** ({}, {:.2f}s)\n", pnr_ok ? "PASSED" : "FAILED (nextpnr Place-and-Route)", stages_str, elapsed_s);
-	out += std::format("- **RTL Files Compiled**: {}\n", sources.size());
+	out += std::format("- **Target Scope**: {}\n", scope_summary);
 	out += std::format("- **Full Log**: `{}` ({} lines, {} bytes — inspect with `fs_read_lines` or `fs_grep_files`)\n",
 	                   args_.requested_output_file, total_lines, combined_raw_log.size());
 
 	// Design Health & Diagnostics
-	size_t total_warnings = v_diag.warnings.size() + y_diag.warnings.size() + p_diag.warnings.size();
-	out += std::format("- **Diagnostics Summary**: {} error(s), {} warning(s), {} inferred latch note(s), {} combinational loop(s)\n",
-	                   p_diag.errors.size(), total_warnings, y_diag.latch_notes.size(), y_diag.loop_notes.size());
+	size_t corr_warnings = v_diag.correctness_warnings.size() + y_diag.warnings.size() + p_diag.warnings.size();
+	out += std::format("- **Diagnostics Summary**: {} error(s), {} correctness/synthesis warning(s), {} style/unused note(s), {} inferred latch note(s), {} combinational loop(s)\n",
+	                   p_diag.errors.size(), corr_warnings, v_diag.style_warnings.size(), y_diag.latch_notes.size(), y_diag.loop_notes.size());
 
 	if (!p_diag.errors.empty()) {
 		out += "\n## Place-and-Route Errors\n\n";
@@ -642,29 +748,7 @@ std::string verilog_compile_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-	if (total_warnings > 0) {
-		out += std::format("\n## Compiler & Synthesis Warnings ({})\n\n", total_warnings);
-		size_t shown = 0;
-		for (const auto &w : v_diag.warnings) {
-			if (shown >= 15) break;
-			out += std::format("- [Verilator] `{}`\n", w);
-			++shown;
-		}
-		for (const auto &w : y_diag.warnings) {
-			if (shown >= 15) break;
-			out += std::format("- [Yosys] `{}`\n", w);
-			++shown;
-		}
-		for (const auto &w : p_diag.warnings) {
-			if (shown >= 15) break;
-			out += std::format("- [nextpnr] `{}`\n", w);
-			++shown;
-		}
-		if (total_warnings > shown) {
-			out += std::format("- *(...and {} more warnings in `{}`)*\n",
-			                   total_warnings - shown, args_.requested_output_file);
-		}
-	}
+	out += format_categorized_warnings(v_diag, y_diag.warnings, p_diag.warnings, args_.requested_output_file);
 
 	if (!y_diag.stat_block.empty()) {
 		out += std::format("\n## Synthesis Cell Statistics (`{}`)\n\n```text\n{}```\n", target_mod, y_diag.stat_block);

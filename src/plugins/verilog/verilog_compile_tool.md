@@ -11,3 +11,5 @@
 ## Lessons Learned
 
 - **Running Verilator with `-Wall --Wno-fatal` Ahead of Yosys**: Passing `-Wall --Wno-fatal` causes Verilator to emit all `%Warning-...` diagnostics while only exiting non-zero on actual `%Error` syntax/elaboration failures, allowing the tool to surface rich Verilator lint warnings alongside Yosys synthesis results in a single call.
+- **Hierarchy-Scoped File Filtering**: Filtering workspace RTL files to `target_mod`'s transitive submodule hierarchy (via `verilog_module_scanner::discover_submodule_hierarchy`) prevents unrelated workspace modules from leaking parser warnings when compiling a specific leaf/mid-level module, and reports `Target Scope: <mod> (K of N workspace RTL files in module hierarchy)`.
+- **Two-Tier Warning Severity Grouping**: Splitting Verilator warnings into `Correctness & Synthesis Warnings` (width mismatches, latches, incomplete cases, undriven nets) vs. `Style & Unused Resource Notes` (`UNUSEDSIGNAL`, `PINCONNECTEMPTY`, `UNUSEDPARAM`, grouped compactly by warning code with counts) ensures style clutter never crowds out real RTL correctness hazards.

@@ -1018,7 +1018,41 @@ void test_verilog_compile_tool()
 		assert(full_out.find("ICESTORM_LC") != std::string::npos);
 	}
 
-	// 3. Test syntax error detection
+	// 3. Test hierarchy-scoped file filtering and two-tier warning severity grouping
+	if (!fs_utils::find_executable("verilator").empty()) {
+		{
+			std::ofstream ofs(tmp_dir + "/sv/noisy_other.sv");
+			ofs << "module noisy_other(input logic [7:0] a, input logic unused_in, output logic [3:0] y);\n"
+			    << "    logic unused_local;\n"
+			    << "    assign y = a;\n" // WIDTHTRUNC (correctness) + UNUSEDSIGNAL (style)
+			    << "endmodule";          // no trailing newline (EOFNEWLINE suppressed)
+		}
+
+		// Linting `counter` should scope to 1 of 2 workspace RTL files and NOT leak `noisy_other` warnings
+		nlohmann::json counter_lint = {
+			{"module", "counter"},
+			{"lint_only", true}
+		};
+		assert(validator.validate_args(counter_lint, ctx, err) && err.empty());
+		std::string counter_out = validator.create_tool(counter_lint)->execute(ctx);
+		assert(counter_out.find("1 of 2 workspace RTL files in module hierarchy") != std::string::npos);
+		assert(counter_out.find("0 correctness warning(s), 0 style/unused note(s)") != std::string::npos);
+
+		// Linting `noisy_other` should separate WIDTHTRUNC (correctness) from UNUSEDSIGNAL (style)
+		nlohmann::json noisy_lint = {
+			{"module", "noisy_other"},
+			{"lint_only", true}
+		};
+		assert(validator.validate_args(noisy_lint, ctx, err) && err.empty());
+		std::string noisy_out = validator.create_tool(noisy_lint)->execute(ctx);
+		assert(noisy_out.find("## Correctness & Synthesis Warnings (1)") != std::string::npos);
+		assert(noisy_out.find("WIDTHTRUNC") != std::string::npos);
+		assert(noisy_out.find("## Style & Unused Resource Notes (") != std::string::npos);
+		assert(noisy_out.find("**`UNUSEDSIGNAL`**") != std::string::npos);
+		assert(noisy_out.find("EOFNEWLINE") == std::string::npos);
+	}
+
+	// 4. Test syntax error detection
 	if (!fs_utils::find_executable("verilator").empty()) {
 		{
 			std::ofstream ofs(tmp_dir + "/sv/broken.sv");
@@ -1027,7 +1061,7 @@ void test_verilog_compile_tool()
 			    << "endmodule\n";
 		}
 		nlohmann::json err_args = {
-			{"module", "broken"},
+			{"module", "sv/broken.sv"},
 			{"lint_only", true}
 		};
 		assert(validator.validate_args(err_args, ctx, err) && err.empty());
