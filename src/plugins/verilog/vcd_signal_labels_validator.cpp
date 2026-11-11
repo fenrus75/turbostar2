@@ -8,12 +8,12 @@ namespace tools
 
 std::string vcd_signal_labels_validator::get_description() const
 {
-	return "Registers or queries human-readable labels for specific signal values in a VCD file "
+	return "Registers or queries human-readable labels for specific signal values in VCD waveforms "
 	       "(e.g. mapping opcodes, bus states, or FSM values like '0x06' -> 'LAI', or binary masks like '00????10'). "
 	       "Signal names support wildcards ('*' and '?') such as 'uut.*.opcode' to label signals across hierarchy levels. "
 	       "If 'labels' is omitted, lists all currently active label mappings for the file. "
-	       "Labels persist across calls (saved to a '<path>.labels.json' sidecar file) "
-	       "and are automatically displayed in 'vcd_wave' tables. Use 'clear: true' to remove labels.";
+	       "By default ('global: true'), labels are saved to project-wide 'vcd_labels.json' so they apply across all testbenches and VCD files "
+	       "(or set 'global: false' to save to '<path>.labels.json'). Use 'clear: true' to remove labels.";
 }
 
 nlohmann::json vcd_signal_labels_validator::get_parameters_schema() const
@@ -23,7 +23,7 @@ nlohmann::json vcd_signal_labels_validator::get_parameters_schema() const
 		{"properties", {
 			{"path", {
 				{"type", "string"},
-				{"description", "Path to the VCD file."}
+				{"description", "Optional path to the VCD file. If omitted, automatically resolved from the project's testbench."}
 			}},
 			{"signal", {
 				{"type", "string"},
@@ -36,9 +36,12 @@ nlohmann::json vcd_signal_labels_validator::get_parameters_schema() const
 			{"clear", {
 				{"type", "boolean"},
 				{"description", "If true, clears labels for the specified signal (or all signals if signal is omitted)."}
+			}},
+			{"global", {
+				{"type", "boolean"},
+				{"description", "If true (default), saves labels to project-wide 'vcd_labels.json' so they apply across all testbenches and VCD files. Set to false to save only to '<path>.labels.json'."}
 			}}
-		}},
-		{"required", {"path"}}
+		}}
 	};
 }
 
@@ -70,6 +73,10 @@ bool vcd_signal_labels_validator::validate_args_impl(const nlohmann::json &raw_j
 
 	if (raw_json.contains("clear") && raw_json["clear"].is_boolean()) {
 		args_.clear = raw_json["clear"].get<bool>();
+	}
+
+	if (raw_json.contains("global") && raw_json["global"].is_boolean()) {
+		args_.global = raw_json["global"].get<bool>();
 	}
 
 	if (raw_json.contains("signal") && raw_json["signal"].is_string()) {

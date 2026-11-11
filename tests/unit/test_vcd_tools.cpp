@@ -48,6 +48,14 @@ int main()
 	test_watchdog::setup_watchdog(30);
 
 	const std::string vcd_path = "tests/fixtures/test_dump.vcd";
+	std::filesystem::remove(vcd_path + ".labels.json");
+	std::filesystem::remove("tests/fixtures/test_dump_org.vcd.labels.json");
+	std::filesystem::remove("tests/fixtures/test_dump_org.vcd.qualifiers.json");
+	std::filesystem::remove("tests/fixtures/test_dump_mutated.vcd.labels.json");
+	std::filesystem::remove("tests/fixtures/test_dump_mutated.vcd.qualifiers.json");
+	std::filesystem::remove("tests/fixtures/vcd_labels.json");
+	std::filesystem::remove("vcd_labels.json");
+
 	agentlib::tool_context global_ctx;
 	global_ctx.fs_security.add_allowed_root("tests/fixtures", agentlib::access_type::read);
 	global_ctx.fs_security.add_allowed_root("tests/fixtures", agentlib::access_type::write);
@@ -925,7 +933,8 @@ int main()
 		nlohmann::json q_args_a = {
 			{"path", org_vcd},
 			{"signal", "tb_main.uut.cpu8008.decode.mem_data"},
-			{"qualifier", "tb_main.uut.cpu8008.decode.mem_req_en"}
+			{"qualifier", "tb_main.uut.cpu8008.decode.mem_req_en"},
+			{"global", false}
 		};
 		bool q_ok = q_val.validate_args(q_args_a, ctx, err);
 		assert(q_ok && err.empty());
@@ -935,7 +944,8 @@ int main()
 		nlohmann::json q_args_b = {
 			{"path", mut_vcd},
 			{"signal", "tb_main.uut.cpu8008.decode.mem_data"},
-			{"qualifier", "tb_main.uut.cpu8008.decode.mem_req_en"}
+			{"qualifier", "tb_main.uut.cpu8008.decode.mem_req_en"},
+			{"global", false}
 		};
 		q_ok = q_val.validate_args(q_args_b, ctx, err);
 		assert(q_ok && err.empty());
@@ -960,7 +970,8 @@ int main()
 		// Clear qualifiers on File A, leaving qualifier on File B only
 		nlohmann::json clear_a = {
 			{"path", org_vcd},
-			{"clear", true}
+			{"clear", true},
+			{"global", false}
 		};
 		q_ok = q_val.validate_args(clear_a, ctx, err);
 		assert(q_ok);
@@ -1617,6 +1628,8 @@ int main()
 		auto &lbl_mgr = verilog::vcd_label_manager::get_instance();
 		lbl_mgr.clear_all();
 		std::filesystem::remove(vcd_path + ".labels.json");
+		std::filesystem::remove("tests/fixtures/vcd_labels.json");
+		std::filesystem::remove("vcd_labels.json");
 
 		tools::vcd_wave_validator wave_val;
 		nlohmann::json wave_args = {
@@ -1647,11 +1660,71 @@ int main()
 		assert(out_3.find("vcd_signal_qualifier(") == std::string::npos);
 		assert(out_3.find("vcd_signal_labels(") == std::string::npos);
 	}
+
+	// 23. Test project-global vcd_labels.json (default global: true) and local override (global: false)
+	{
+		auto &lbl_mgr = verilog::vcd_label_manager::get_instance();
+		lbl_mgr.clear_all();
+		std::filesystem::remove(vcd_path + ".labels.json");
+		std::filesystem::remove("tests/fixtures/test_dump_org.vcd.labels.json");
+		std::filesystem::remove("tests/fixtures/vcd_labels.json");
+
+		tools::vcd_signal_labels_validator lbl_val;
+		tools::vcd_signal_qualifier_validator qual_val;
+		std::string err;
+
+		// Register global label (default global: true) on test_dump.vcd
+		nlohmann::json global_lbl_args = {
+			{"path", vcd_path},
+			{"signal", "*opcode"},
+			{"labels", {{"0x06", "GLOBAL_LAI"}}}
+		};
+		assert(lbl_val.validate_args(global_lbl_args, global_ctx, err) && err.empty());
+		std::string g_out = lbl_val.create_tool(global_lbl_args)->execute(global_ctx);
+		assert(g_out.find("Saved to project-global vcd_labels.json.") != std::string::npos);
+		assert(std::filesystem::exists("tests/fixtures/vcd_labels.json"));
+		assert(!std::filesystem::exists(vcd_path + ".labels.json"));
+
+		// Register global qualifier (default global: true)
+		nlohmann::json global_qual_args = {
+			{"path", vcd_path},
+			{"signal", "opcode_data"},
+			{"qualifier", "opcode_data_valid"}
+		};
+		assert(qual_val.validate_args(global_qual_args, global_ctx, err) && err.empty());
+		std::string gq_out = qual_val.create_tool(global_qual_args)->execute(global_ctx);
+		assert(gq_out.find("Saved to project-global vcd_labels.json.") != std::string::npos);
+
+		// Clear in-memory cache and verify a DIFFERENT VCD file in the project (test_dump_org.vcd)
+		// automatically inherits both the global label and the global qualifier from vcd_labels.json!
+		lbl_mgr.clear_all();
+		assert(lbl_mgr.find_label("tests/fixtures/test_dump_org.vcd", "tb_main.uut.cpu8008.opcode", "0x06") == "GLOBAL_LAI");
+		assert(lbl_mgr.find_qualifier("tests/fixtures/test_dump_org.vcd", "opcode_data").first == "opcode_data_valid");
+
+		// Now register a local override (global: false) on test_dump_org.vcd and verify it overrides the global label
+		// for test_dump_org.vcd while leaving test_dump.vcd with GLOBAL_LAI
+		nlohmann::json local_lbl_args = {
+			{"path", "tests/fixtures/test_dump_org.vcd"},
+			{"signal", "*opcode"},
+			{"labels", {{"0x06", "LOCAL_LAI"}}},
+			{"global", false}
+		};
+		assert(lbl_val.validate_args(local_lbl_args, global_ctx, err) && err.empty());
+		std::string l_out = lbl_val.create_tool(local_lbl_args)->execute(global_ctx);
+		assert(l_out.find("Saved to sidecar file.") != std::string::npos);
+		assert(std::filesystem::exists("tests/fixtures/test_dump_org.vcd.labels.json"));
+
+		assert(lbl_mgr.find_label("tests/fixtures/test_dump_org.vcd", "tb_main.uut.cpu8008.opcode", "0x06") == "LOCAL_LAI");
+		assert(lbl_mgr.find_label(vcd_path, "tb_main.uut.cpu8008.opcode", "0x06") == "GLOBAL_LAI");
+	}
+
 	std::filesystem::remove(vcd_path + ".labels.json");
 	std::filesystem::remove("tests/fixtures/test_dump_org.vcd.labels.json");
 	std::filesystem::remove("tests/fixtures/test_dump_org.vcd.qualifiers.json");
 	std::filesystem::remove("tests/fixtures/test_dump_mutated.vcd.labels.json");
 	std::filesystem::remove("tests/fixtures/test_dump_mutated.vcd.qualifiers.json");
+	std::filesystem::remove("tests/fixtures/vcd_labels.json");
+	std::filesystem::remove("vcd_labels.json");
 
 	std::cout << "All VCD unit tests passed!\n";
 	return 0;

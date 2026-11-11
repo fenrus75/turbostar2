@@ -9,7 +9,7 @@ std::string vcd_signal_qualifier_validator::get_description() const
 {
 	return "Declares or queries validity qualifier relationships between signals (e.g. data bus qualified by valid bit, "
 	       "or active-low '~cs_n'). Masks invalid cycles with '-' in vcd_wave, prevents noise from breaking idle collapsing, "
-	       "and filters out invalid cycles in vcd_search.";
+	       "and filters out invalid cycles in vcd_search. By default ('global: true'), qualifiers are saved to project-wide 'vcd_labels.json'.";
 }
 
 nlohmann::json vcd_signal_qualifier_validator::get_parameters_schema() const
@@ -19,7 +19,7 @@ nlohmann::json vcd_signal_qualifier_validator::get_parameters_schema() const
 		{"properties", {
 			{"path", {
 				{"type", "string"},
-				{"description", "Path to the VCD file."}
+				{"description", "Optional path to the VCD file. If omitted, automatically resolved from the project's testbench."}
 			}},
 			{"signal", {
 				{"type", "string"},
@@ -37,9 +37,12 @@ nlohmann::json vcd_signal_qualifier_validator::get_parameters_schema() const
 			{"clear", {
 				{"type", "boolean"},
 				{"description", "If true, clears qualifiers for the specified signal, or all qualifiers if signal is omitted."}
+			}},
+			{"global", {
+				{"type", "boolean"},
+				{"description", "If true (default), saves qualifiers to project-wide 'vcd_labels.json' so they apply across all testbenches and VCD files. Set to false to save only to '<path>.labels.json'."}
 			}}
-		}},
-		{"required", {"path"}}
+		}}
 	};
 }
 
@@ -82,6 +85,7 @@ bool vcd_signal_qualifier_validator::validate_args_impl(const nlohmann::json &ra
 	}
 
 	args_.clear = raw_json.value("clear", false);
+	args_.global = raw_json.value("global", true);
 
 	return true;
 }

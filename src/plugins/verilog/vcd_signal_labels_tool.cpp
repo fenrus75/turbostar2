@@ -29,10 +29,8 @@ std::string vcd_signal_labels_tool::execute(agentlib::tool_context &ctx)
 	if (args_.clear || !args_.labels.empty()) {
 		bool file_saved = false;
 		std::string msg;
-		mgr.set_labels(args_.safe_path, args_.signal, args_.labels, args_.clear, file_saved, msg);
+		mgr.set_labels(args_.safe_path, args_.signal, args_.labels, args_.clear, file_saved, msg, args_.global);
 		ss << msg << "\n";
-
-		// If registering labels for a pattern, verify if it matches any signal in the VCD header
 		if (!args_.clear && !args_.signal.empty()) {
 			std::string hdr_err;
 			auto parser_ptr = verilog::vcd_parser_cache::get_instance().get_or_parse(args_.safe_path, hdr_err);

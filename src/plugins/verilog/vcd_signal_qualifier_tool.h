@@ -14,6 +14,7 @@ struct vcd_signal_qualifier_args {
 	std::string qualifier;
 	std::map<std::string, std::string> bindings;
 	bool clear{false};
+	bool global{true};
 };
 
 class vcd_signal_qualifier_tool : public agentlib::llm_tool_action

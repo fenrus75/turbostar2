@@ -13,6 +13,7 @@ struct vcd_signal_labels_args {
 	std::string signal;
 	std::map<std::string, std::string> labels;
 	bool clear{false};
+	bool global{true};
 };
 
 class vcd_signal_labels_tool : public agentlib::llm_tool_action

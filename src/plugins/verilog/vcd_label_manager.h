@@ -35,10 +35,13 @@ class vcd_label_manager
 	// active_low: if true, "0" is valid; if false, "1" is valid. "x"/"z" are always invalid.
 	static bool is_qualifier_valid(std::string_view qualifier_raw_val, bool active_low);
 
-	// Get all registered labels for a VCD path (loads sidecar file if not loaded)
+	// Resolve the project-global vcd_labels.json path associated with a VCD path or workspace directory
+	static std::string get_global_sidecar_path(std::string_view safe_path);
+
+	// Get all registered labels for a VCD path (merges global vcd_labels.json + local <path>.labels.json)
 	std::map<std::string, std::map<std::string, std::string>> get_labels_for_file(std::string_view safe_path);
 
-	// Get all registered qualifiers for a VCD path (loads sidecar file if not loaded)
+	// Get all registered qualifiers for a VCD path (merges global vcd_labels.json + local <path>.labels.json)
 	std::map<std::string, std::string> get_qualifiers_for_file(std::string_view safe_path);
 
 	// Find qualifier for a given signal name
@@ -53,7 +56,8 @@ class vcd_label_manager
 		std::string_view qualifier_expr,
 		bool clear,
 		bool &out_file_saved,
-		std::string &out_msg
+		std::string &out_msg,
+		bool is_global = false
 	);
 
 	// Register multiple qualifiers in batch
@@ -61,7 +65,8 @@ class vcd_label_manager
 		std::string_view safe_path,
 		const std::map<std::string, std::string> &bindings,
 		bool &out_file_saved,
-		std::string &out_msg
+		std::string &out_msg,
+		bool is_global = false
 	);
 
 	// Find label for a given signal and value
@@ -82,7 +87,8 @@ class vcd_label_manager
 		const std::map<std::string, std::string> &val_to_label,
 		bool clear,
 		bool &out_file_saved,
-		std::string &out_msg
+		std::string &out_msg,
+		bool is_global = false
 	);
 
 	// Check whether any labels are registered for a given signal (exact or pattern match)
@@ -115,8 +121,10 @@ class vcd_label_manager
 	bool qualifier_hint_shown_ = false;
 	bool label_hint_shown_ = false;
 
+	void load_json_file_locked(std::string_view json_path, std::string_view map_key);
 	void load_sidecar_locked(std::string_view safe_path);
-	bool save_sidecar_locked(std::string_view safe_path, std::string &out_error);
+	bool save_sidecar_locked(std::string_view target_key, std::string &out_error);
+	std::map<std::string, std::map<std::string, std::string>> merged_labels_locked(std::string_view safe_path);
+	std::map<std::string, std::string> merged_qualifiers_locked(std::string_view safe_path);
 };
-
 } // namespace verilog

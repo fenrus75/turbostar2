@@ -31,16 +31,14 @@ std::string vcd_signal_qualifier_tool::execute(agentlib::tool_context &ctx)
 		std::string msg;
 
 		if (args_.clear) {
-			mgr.set_qualifier(args_.safe_path, args_.signal, "", true, file_saved, msg);
+			mgr.set_qualifier(args_.safe_path, args_.signal, "", true, file_saved, msg, args_.global);
 			ss << msg << "\n\n";
 		} else if (!args_.bindings.empty()) {
-			mgr.set_qualifiers_batch(args_.safe_path, args_.bindings, file_saved, msg);
+			mgr.set_qualifiers_batch(args_.safe_path, args_.bindings, file_saved, msg, args_.global);
 			ss << msg << "\n\n";
 		} else if (!args_.signal.empty() && !args_.qualifier.empty()) {
-			mgr.set_qualifier(args_.safe_path, args_.signal, args_.qualifier, false, file_saved, msg);
+			mgr.set_qualifier(args_.safe_path, args_.signal, args_.qualifier, false, file_saved, msg, args_.global);
 			ss << msg << "\n";
-
-			// Verify if signal and qualifier pattern match signals in trace
 			std::string hdr_err;
 			auto parser_ptr = verilog::vcd_parser_cache::get_instance().get_or_parse(args_.safe_path, hdr_err);
 			if (parser_ptr) {

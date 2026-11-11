@@ -236,10 +236,110 @@ std::string vcd_label_manager::normalize_hex_key(std::string_view val)
 	return s;
 }
 
+static std::string canonicalize_path_key(std::string_view safe_path)
+{
+	if (safe_path.empty()) {
+		return "";
+	}
+	std::error_code ec;
+	auto canon = std::filesystem::weakly_canonical(std::filesystem::path(safe_path), ec);
+	if (!ec && !canon.empty()) {
+		return canon.string();
+	}
+	return std::string(safe_path);
+}
+
+std::string vcd_label_manager::get_global_sidecar_path(std::string_view safe_path)
+{
+	std::string norm_path = canonicalize_path_key(safe_path);
+	if (norm_path.ends_with("vcd_labels.json")) {
+		return norm_path;
+	}
+
+	std::filesystem::path p(norm_path);
+	std::filesystem::path dir = p.parent_path();
+	if (dir.empty()) {
+		dir = ".";
+	}
+
+	std::string dir_name = dir.filename().string();
+	if (dir.has_parent_path()) {
+		std::filesystem::path parent = dir.parent_path();
+		std::error_code ec;
+		if (dir_name == "sim" || dir_name == "tb" || dir_name == "testbench" || dir_name == "waves" ||
+		    (!std::filesystem::exists(dir / "vcd_labels.json", ec) &&
+		     (std::filesystem::exists(parent / "vcd_labels.json", ec) ||
+		      std::filesystem::exists(parent / "turbostar.json", ec) ||
+		      std::filesystem::exists(parent / "project.json", ec)))) {
+			return canonicalize_path_key((parent / "vcd_labels.json").string());
+		}
+	}
+
+	return canonicalize_path_key((dir / "vcd_labels.json").string());
+}
+void vcd_label_manager::load_json_file_locked(std::string_view json_path, std::string_view map_key)
+{
+	std::string key(map_key);
+	std::string fpath(json_path);
+	if (!std::filesystem::exists(fpath)) {
+		return;
+	}
+
+	std::ifstream file(fpath);
+	if (!file.is_open()) return;
+	try {
+		nlohmann::json j;
+		file >> j;
+		if (j.is_object()) {
+			if (j.contains("labels") || j.contains("qualifiers")) {
+				if (j.contains("labels") && j["labels"].is_object()) {
+					for (auto &[sig, val_map] : j["labels"].items()) {
+						if (val_map.is_object()) {
+							for (auto &[val_str, label_str] : val_map.items()) {
+								if (label_str.is_string()) {
+									std::string norm = normalize_hex_key(val_str);
+									path_labels_[key][sig][norm] = label_str.get<std::string>();
+								}
+							}
+						}
+					}
+				}
+				if (j.contains("qualifiers") && j["qualifiers"].is_object()) {
+					for (auto &[sig, q_str] : j["qualifiers"].items()) {
+						if (q_str.is_string()) {
+							path_qualifiers_[key][sig] = q_str.get<std::string>();
+						}
+					}
+				}
+			} else {
+				// Legacy format where entire root is signal -> val_map
+				for (auto &[sig, val_map] : j.items()) {
+					if (val_map.is_object()) {
+						for (auto &[val_str, label_str] : val_map.items()) {
+							if (label_str.is_string()) {
+								std::string norm = normalize_hex_key(val_str);
+								path_labels_[key][sig][norm] = label_str.get<std::string>();
+							}
+						}
+					}
+				}
+			}
+		}
+	} catch (...) {}
+}
+
 void vcd_label_manager::load_sidecar_locked(std::string_view safe_path)
 {
-	std::string p(safe_path);
-	if (file_loaded_[p]) return;
+	std::string p = canonicalize_path_key(safe_path);
+	std::string global_key = get_global_sidecar_path(p);
+	if (!file_loaded_[global_key]) {
+		file_loaded_[global_key] = true;
+		load_json_file_locked(global_key, global_key);
+	}
+
+	if (p == global_key || file_loaded_[p]) {
+		return;
+	}
 	file_loaded_[p] = true;
 
 	std::string sidecar_path = p + ".labels.json";
@@ -256,53 +356,13 @@ void vcd_label_manager::load_sidecar_locked(std::string_view safe_path)
 		}
 	}
 
-	std::ifstream file(sidecar_path);
-	if (!file.is_open()) return;
-	try {
-		nlohmann::json j;
-		file >> j;
-		if (j.is_object()) {
-			if (j.contains("labels") || j.contains("qualifiers")) {
-				if (j.contains("labels") && j["labels"].is_object()) {
-					for (auto &[sig, val_map] : j["labels"].items()) {
-						if (val_map.is_object()) {
-							for (auto &[val_str, label_str] : val_map.items()) {
-								if (label_str.is_string()) {
-									std::string norm = normalize_hex_key(val_str);
-									path_labels_[p][sig][norm] = label_str.get<std::string>();
-								}
-							}
-						}
-					}
-				}
-				if (j.contains("qualifiers") && j["qualifiers"].is_object()) {
-					for (auto &[sig, q_str] : j["qualifiers"].items()) {
-						if (q_str.is_string()) {
-							path_qualifiers_[p][sig] = q_str.get<std::string>();
-						}
-					}
-				}
-			} else {
-				// Legacy format where entire root is signal -> val_map
-				for (auto &[sig, val_map] : j.items()) {
-					if (val_map.is_object()) {
-						for (auto &[val_str, label_str] : val_map.items()) {
-							if (label_str.is_string()) {
-								std::string norm = normalize_hex_key(val_str);
-								path_labels_[p][sig][norm] = label_str.get<std::string>();
-							}
-						}
-					}
-				}
-			}
-		}
-	} catch (...) {}
+	load_json_file_locked(sidecar_path, p);
 }
 
-bool vcd_label_manager::save_sidecar_locked(std::string_view safe_path, std::string &out_error)
+bool vcd_label_manager::save_sidecar_locked(std::string_view target_key, std::string &out_error)
 {
-	std::string p(safe_path);
-	std::string sidecar_path = p + ".labels.json";
+	std::string p = canonicalize_path_key(target_key);
+	std::string sidecar_path = p.ends_with("vcd_labels.json") ? p : (p + ".labels.json");
 
 	const auto &sig_map = path_labels_[p];
 	const auto &qual_map = path_qualifiers_[p];
@@ -343,11 +403,42 @@ bool vcd_label_manager::save_sidecar_locked(std::string_view safe_path, std::str
 	return true;
 }
 
+std::map<std::string, std::map<std::string, std::string>> vcd_label_manager::merged_labels_locked(std::string_view safe_path)
+{
+	std::string p = canonicalize_path_key(safe_path);
+	load_sidecar_locked(p);
+	std::string global_key = get_global_sidecar_path(p);
+
+	auto merged = path_labels_[global_key];
+	if (p != global_key) {
+		for (const auto &[sig, val_map] : path_labels_[p]) {
+			for (const auto &[k, v] : val_map) {
+				merged[sig][k] = v;
+			}
+		}
+	}
+	return merged;
+}
+
+std::map<std::string, std::string> vcd_label_manager::merged_qualifiers_locked(std::string_view safe_path)
+{
+	std::string p = canonicalize_path_key(safe_path);
+	load_sidecar_locked(p);
+	std::string global_key = get_global_sidecar_path(p);
+
+	auto merged = path_qualifiers_[global_key];
+	if (p != global_key) {
+		for (const auto &[sig, q] : path_qualifiers_[p]) {
+			merged[sig] = q;
+		}
+	}
+	return merged;
+}
+
 std::map<std::string, std::map<std::string, std::string>> vcd_label_manager::get_labels_for_file(std::string_view safe_path)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	load_sidecar_locked(safe_path);
-	return path_labels_[std::string(safe_path)];
+	return merged_labels_locked(safe_path);
 }
 
 std::string vcd_label_manager::find_label(
@@ -358,10 +449,9 @@ std::string vcd_label_manager::find_label(
 )
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	std::string p(safe_path);
+	std::string p = canonicalize_path_key(safe_path);
 	load_sidecar_locked(p);
-
-	const auto &sig_map = path_labels_[p];
+	std::string global_key = get_global_sidecar_path(p);
 	std::string norm_hex = normalize_hex_key(hex_val);
 
 	// Helper to search a specific signal's val_map
@@ -400,39 +490,52 @@ std::string vcd_label_manager::find_label(
 		return "";
 	};
 
-	// 1. Try exact signal name match
-	auto it = sig_map.find(std::string(signal_name));
-	if (it != sig_map.end()) {
-		std::string res = match_in_val_map(it->second);
-		if (!res.empty()) return res;
-	}
-
-	// 2. Try matching by leaf short name, suffix, or glob wildcard pattern (e.g. "module1.*.opcode" or "*opcode"),
-	// preferring more specific patterns (more non-wildcard characters)
-	std::string best_label;
-	size_t best_specificity = 0;
-	bool found_any = false;
-	for (const auto &[reg_sig, val_map] : sig_map) {
-		if (reg_sig == signal_name) {
-			continue; // Already checked exact match
+	auto search_sig_map = [&](const std::map<std::string, std::map<std::string, std::string>> &sig_map) -> std::string {
+		if (sig_map.empty()) {
+			return "";
 		}
-		if (signal_pattern_matches(reg_sig, signal_name)) {
-			std::string res = match_in_val_map(val_map);
-			if (!res.empty()) {
-				size_t spec = 0;
-				for (char c : reg_sig) {
-					if (c != '*' && c != '?') spec++;
-				}
-				if (!found_any || spec > best_specificity) {
-					best_label = std::move(res);
-					best_specificity = spec;
-					found_any = true;
+		// 1. Try exact signal name match
+		auto it = sig_map.find(std::string(signal_name));
+		if (it != sig_map.end()) {
+			std::string res = match_in_val_map(it->second);
+			if (!res.empty()) return res;
+		}
+
+		// 2. Try matching by leaf short name, suffix, or glob wildcard pattern (e.g. "module1.*.opcode" or "*opcode"),
+		// preferring more specific patterns (more non-wildcard characters)
+		std::string best_label;
+		size_t best_specificity = 0;
+		bool found_any = false;
+		for (const auto &[reg_sig, val_map] : sig_map) {
+			if (reg_sig == signal_name) {
+				continue; // Already checked exact match
+			}
+			if (signal_pattern_matches(reg_sig, signal_name)) {
+				std::string res = match_in_val_map(val_map);
+				if (!res.empty()) {
+					size_t spec = 0;
+					for (char c : reg_sig) {
+						if (c != '*' && c != '?') spec++;
+					}
+					if (!found_any || spec > best_specificity) {
+						best_label = std::move(res);
+						best_specificity = spec;
+						found_any = true;
+					}
 				}
 			}
 		}
-	}
+		return best_label;
+	};
 
-	return best_label;
+	// Check per-file local overrides first, then fall back to project-global vcd_labels.json
+	if (p != global_key) {
+		std::string local_res = search_sig_map(path_labels_[p]);
+		if (!local_res.empty()) {
+			return local_res;
+		}
+	}
+	return search_sig_map(path_labels_[global_key]);
 }
 
 bool vcd_label_manager::set_labels(
@@ -441,35 +544,49 @@ bool vcd_label_manager::set_labels(
 	const std::map<std::string, std::string> &val_to_label,
 	bool clear,
 	bool &out_file_saved,
-	std::string &out_msg
+	std::string &out_msg,
+	bool is_global
 )
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	std::string p(safe_path);
+	std::string p = canonicalize_path_key(safe_path);
 	load_sidecar_locked(p);
+	std::string target_key = is_global ? get_global_sidecar_path(p) : p;
 
 	if (clear) {
 		if (signal_name.empty()) {
-			path_labels_[p].clear();
-			out_msg = "Cleared all signal labels for this VCD file.";
+			path_labels_[target_key].clear();
+			if (is_global && p != target_key) {
+				path_labels_[p].clear();
+				std::string dummy_err;
+				save_sidecar_locked(p, dummy_err);
+			}
+			out_msg = is_global
+				? "Cleared all signal labels in project-global vcd_labels.json."
+				: "Cleared all signal labels for this VCD file.";
 		} else {
-			path_labels_[p].erase(std::string(signal_name));
+			path_labels_[target_key].erase(std::string(signal_name));
+			if (is_global && p != target_key) {
+				path_labels_[p].erase(std::string(signal_name));
+				std::string dummy_err;
+				save_sidecar_locked(p, dummy_err);
+			}
 			out_msg = std::format("Cleared labels for signal '{}'.", signal_name);
 		}
 	} else {
 		std::map<std::string, std::string> norm_updates;
 		for (const auto &[val_raw, label] : val_to_label) {
 			std::string norm = normalize_hex_key(val_raw);
-			path_labels_[p][std::string(signal_name)][norm] = label;
+			path_labels_[target_key][std::string(signal_name)][norm] = label;
 			norm_updates[norm] = label;
 		}
 
-		// If signal_name is a pattern that encompasses an existing pattern (e.g. "*opcode*" registered after "*opcode"),
-		// propagate conflicting hex key updates into the encompassed pattern so it does not shadow the newer mapping.
+		// If signal_name overlaps with an existing pattern (e.g. "*opcode*" vs "*opcode" or "opcode"),
+		// propagate conflicting hex key updates so the older pattern does not shadow the newer mapping.
 		size_t updated_overlapping = 0;
-		for (auto &[existing_sig, existing_map] : path_labels_[p]) {
+		for (auto &[existing_sig, existing_map] : path_labels_[target_key]) {
 			if (existing_sig == signal_name) continue;
-			if (signal_pattern_matches(signal_name, existing_sig)) {
+			if (signal_pattern_matches(signal_name, existing_sig) || signal_pattern_matches(existing_sig, signal_name)) {
 				bool touched = false;
 				for (const auto &[norm_k, new_lbl] : norm_updates) {
 					if (existing_map.contains(norm_k)) {
@@ -491,9 +608,9 @@ bool vcd_label_manager::set_labels(
 
 	// Attempt sidecar save
 	std::string save_err;
-	out_file_saved = save_sidecar_locked(p, save_err);
+	out_file_saved = save_sidecar_locked(target_key, save_err);
 	if (out_file_saved) {
-		out_msg += " Saved to sidecar file.";
+		out_msg += is_global ? " Saved to project-global vcd_labels.json." : " Saved to sidecar file.";
 	} else {
 		out_msg += std::format(" Retained in-memory only (could not write sidecar: {}).", save_err);
 	}
@@ -504,20 +621,18 @@ bool vcd_label_manager::set_labels(
 std::map<std::string, std::string> vcd_label_manager::get_qualifiers_for_file(std::string_view safe_path)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	load_sidecar_locked(safe_path);
-	return path_qualifiers_[std::string(safe_path)];
+	return merged_qualifiers_locked(safe_path);
 }
 
 std::pair<std::string, bool> vcd_label_manager::find_qualifier(std::string_view safe_path, std::string_view signal_name)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	std::string p(safe_path);
-	load_sidecar_locked(p);
-
-	const auto &qual_map = path_qualifiers_[p];
-	if (qual_map.empty() || signal_name.empty()) {
+	if (signal_name.empty()) {
 		return {"", false};
 	}
+	std::string p = canonicalize_path_key(safe_path);
+	load_sidecar_locked(p);
+	std::string global_key = get_global_sidecar_path(p);
 
 	auto parse_expr = [](std::string_view expr) -> std::pair<std::string, bool> {
 		bool active_low = false;
@@ -529,52 +644,76 @@ std::pair<std::string, bool> vcd_label_manager::find_qualifier(std::string_view 
 		return {s, active_low};
 	};
 
-	// 1. Exact match
-	auto it = qual_map.find(std::string(signal_name));
-	if (it != qual_map.end()) {
-		return parse_expr(it->second);
-	}
+	auto search_qual_map = [&](const std::map<std::string, std::string> &qual_map) -> std::pair<std::string, bool> {
+		if (qual_map.empty()) {
+			return {"", false};
+		}
+		// 1. Exact match
+		auto it = qual_map.find(std::string(signal_name));
+		if (it != qual_map.end()) {
+			return parse_expr(it->second);
+		}
+		// 2. Pattern / wildcard / suffix match
+		for (const auto &[reg_sig, q_expr] : qual_map) {
+			if (signal_pattern_matches(reg_sig, signal_name)) {
+				return parse_expr(q_expr);
+			}
+		}
+		return {"", false};
+	};
 
-	// 2. Pattern / wildcard / suffix match
-	for (const auto &[reg_sig, q_expr] : qual_map) {
-		if (signal_pattern_matches(reg_sig, signal_name)) {
-			return parse_expr(q_expr);
+	if (p != global_key) {
+		auto local_res = search_qual_map(path_qualifiers_[p]);
+		if (!local_res.first.empty()) {
+			return local_res;
 		}
 	}
-
-	return {"", false};
+	return search_qual_map(path_qualifiers_[global_key]);
 }
-
 bool vcd_label_manager::set_qualifier(
 	std::string_view safe_path,
 	std::string_view signal_name,
 	std::string_view qualifier_expr,
 	bool clear,
 	bool &out_file_saved,
-	std::string &out_msg
+	std::string &out_msg,
+	bool is_global
 )
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	std::string p(safe_path);
+	std::string p = canonicalize_path_key(safe_path);
 	load_sidecar_locked(p);
+	std::string target_key = is_global ? get_global_sidecar_path(p) : p;
 
 	if (clear) {
 		if (signal_name.empty()) {
-			path_qualifiers_[p].clear();
-			out_msg = "Cleared all signal qualifiers for this VCD file.";
+			path_qualifiers_[target_key].clear();
+			if (is_global && p != target_key) {
+				path_qualifiers_[p].clear();
+				std::string dummy_err;
+				save_sidecar_locked(p, dummy_err);
+			}
+			out_msg = is_global
+				? "Cleared all signal qualifiers in project-global vcd_labels.json."
+				: "Cleared all signal qualifiers for this VCD file.";
 		} else {
-			path_qualifiers_[p].erase(std::string(signal_name));
+			path_qualifiers_[target_key].erase(std::string(signal_name));
+			if (is_global && p != target_key) {
+				path_qualifiers_[p].erase(std::string(signal_name));
+				std::string dummy_err;
+				save_sidecar_locked(p, dummy_err);
+			}
 			out_msg = std::format("Cleared qualifier for signal '{}'.", signal_name);
 		}
 	} else {
-		path_qualifiers_[p][std::string(signal_name)] = std::string(qualifier_expr);
+		path_qualifiers_[target_key][std::string(signal_name)] = std::string(qualifier_expr);
 		out_msg = std::format("Registered qualifier '{}' for signal '{}'.", qualifier_expr, signal_name);
 	}
 
 	std::string save_err;
-	out_file_saved = save_sidecar_locked(p, save_err);
+	out_file_saved = save_sidecar_locked(target_key, save_err);
 	if (out_file_saved) {
-		out_msg += " Saved to sidecar file.";
+		out_msg += is_global ? " Saved to project-global vcd_labels.json." : " Saved to sidecar file.";
 	} else {
 		out_msg += std::format(" Retained in-memory only (could not write sidecar: {}).", save_err);
 	}
@@ -586,22 +725,24 @@ bool vcd_label_manager::set_qualifiers_batch(
 	std::string_view safe_path,
 	const std::map<std::string, std::string> &bindings,
 	bool &out_file_saved,
-	std::string &out_msg
+	std::string &out_msg,
+	bool is_global
 )
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	std::string p(safe_path);
+	std::string p = canonicalize_path_key(safe_path);
 	load_sidecar_locked(p);
+	std::string target_key = is_global ? get_global_sidecar_path(p) : p;
 
 	for (const auto &[sig, q] : bindings) {
-		path_qualifiers_[p][sig] = q;
+		path_qualifiers_[target_key][sig] = q;
 	}
 	out_msg = std::format("Registered {} signal qualifier binding(s).", bindings.size());
 
 	std::string save_err;
-	out_file_saved = save_sidecar_locked(p, save_err);
+	out_file_saved = save_sidecar_locked(target_key, save_err);
 	if (out_file_saved) {
-		out_msg += " Saved to sidecar file.";
+		out_msg += is_global ? " Saved to project-global vcd_labels.json." : " Saved to sidecar file.";
 	} else {
 		out_msg += std::format(" Retained in-memory only (could not write sidecar: {}).", save_err);
 	}
@@ -612,10 +753,7 @@ bool vcd_label_manager::set_qualifiers_batch(
 bool vcd_label_manager::has_labels_for_signal(std::string_view safe_path, std::string_view signal_name)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
-	std::string p(safe_path);
-	load_sidecar_locked(p);
-
-	const auto &sig_map = path_labels_[p];
+	auto sig_map = merged_labels_locked(safe_path);
 	if (sig_map.empty() || signal_name.empty()) {
 		return false;
 	}
