@@ -1792,6 +1792,61 @@ int main()
 		assert(lbl_mgr.find_label((tmp_proj / "dump.vcd").string(), "tb_main.sequencer.inline_fsm", "0x02") == "BUSY");
 		assert(lbl_mgr.find_label((tmp_proj / "dump.vcd").string(), "tb_main.sequencer.inline_fsm", "0x03") == "DONE");
 
+		// Now modify sequencer.sv by inserting new enum values in the middle (WITHOUT calling lbl_mgr.clear_all())
+		// and verify vcd_wave and find_label automatically revalidate and rescan the updated enum values!
+		{
+			std::ofstream seq_f(tmp_proj / "sv" / "sequencer.sv", std::ios::trunc);
+			seq_f << "typedef enum logic [2:0] { IDLE_0, FETCH_MID, DECODE, RETIRE, HALT } state_t;\n"
+			      << "module sequencer_mod(input logic clk);\n"
+			      << "    state_t state;\n"
+			      << "    state_t next_state;\n"
+			      << "    enum logic [2:0] { IDLE, PREP_1, PREP_2, BUSY, DONE } inline_fsm;\n"
+			      << "endmodule\n"
+			      << "module cpu_top(input logic clk);\n"
+			      << "    sequencer_mod sequencer(.clk(clk));\n"
+			      << "endmodule\n";
+		}
+
+		// Without clear_all(), vcd_wave and find_label must reflect the newly inserted middle enum values:
+		// state_t: 0x0=IDLE_0, 0x1=FETCH_MID, 0x2=DECODE, 0x3=RETIRE, 0x4=HALT
+		// inline_fsm: 0x0=IDLE, 0x1=PREP_1, 0x2=PREP_2, 0x3=BUSY, 0x4=DONE
+		std::string w_out_rescanned = wave_val.create_tool(wave_args)->execute(enum_ctx);
+		assert(w_out_rescanned.find("0x1 (FETCH_MID)") != std::string::npos);
+		assert(w_out_rescanned.find("0x2 (DECODE)") != std::string::npos);
+		assert(lbl_mgr.find_label((tmp_proj / "dump.vcd").string(), "tb_main.sequencer.inline_fsm", "0x01") == "PREP_1");
+		assert(lbl_mgr.find_label((tmp_proj / "dump.vcd").string(), "tb_main.sequencer.inline_fsm", "0x02") == "PREP_2");
+		assert(lbl_mgr.find_label((tmp_proj / "dump.vcd").string(), "tb_main.sequencer.inline_fsm", "0x03") == "BUSY");
+		assert(lbl_mgr.find_label((tmp_proj / "dump.vcd").string(), "tb_main.sequencer.inline_fsm", "0x04") == "DONE");
+
+		// Also verify that if enum values were previously saved in vcd_labels.json and then new values are inserted
+		// in the middle of the RTL enum, the saved labels are reconciled against the updated RTL enum
+		bool saved = false;
+		std::string save_msg;
+		lbl_mgr.set_labels(
+			(tmp_proj / "dump.vcd").string(),
+			"*sequencer.state",
+			{{"0x0", "IDLE_0"}, {"0x1", "FETCH_MID"}, {"0x2", "DECODE"}, {"0x3", "RETIRE"}, {"0x4", "HALT"}},
+			false,
+			saved,
+			save_msg,
+			true
+		);
+		{
+			std::ofstream seq_f(tmp_proj / "sv" / "sequencer.sv", std::ios::trunc);
+			seq_f << "typedef enum logic [2:0] { IDLE_0, EXTRA_A, EXTRA_B, FETCH_MID, DECODE, RETIRE, HALT } state_t;\n"
+			      << "module sequencer_mod(input logic clk);\n"
+			      << "    state_t state;\n"
+			      << "    state_t next_state;\n"
+			      << "endmodule\n"
+			      << "module cpu_top(input logic clk);\n"
+			      << "    sequencer_mod sequencer(.clk(clk));\n"
+			      << "endmodule\n";
+		}
+		assert(lbl_mgr.find_label((tmp_proj / "dump.vcd").string(), "tb_main.uut.cpu8008.sequencer.state", "0x01") == "EXTRA_A");
+		assert(lbl_mgr.find_label((tmp_proj / "dump.vcd").string(), "tb_main.uut.cpu8008.sequencer.state", "0x02") == "EXTRA_B");
+		assert(lbl_mgr.find_label((tmp_proj / "dump.vcd").string(), "tb_main.uut.cpu8008.sequencer.state", "0x03") == "FETCH_MID");
+		assert(lbl_mgr.find_label((tmp_proj / "dump.vcd").string(), "tb_main.uut.cpu8008.sequencer.state", "0x04") == "DECODE");
+
 		std::filesystem::remove_all(tmp_proj);
 	}
 

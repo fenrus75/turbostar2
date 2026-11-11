@@ -1,11 +1,13 @@
 #pragma once
 
+#include <cstdint>
+#include <filesystem>
 #include <map>
 #include <mutex>
 #include <string>
 #include <string_view>
+#include <vector>
 #include <nlohmann/json.hpp>
-
 namespace verilog
 {
 
@@ -101,15 +103,26 @@ class vcd_label_manager
 	// Clear all in-memory labels (useful on plugin unload or test teardown)
 	void clear_all();
 
+	// Mark auto-discovered enum caches for revalidation on next access
+	void invalidate_auto_enums();
+
       private:
 	vcd_label_manager() = default;
 	~vcd_label_manager() = default;
+
+	struct file_stamp {
+		std::string path;
+		bool is_dir{false};
+		std::filesystem::file_time_type mtime{};
+		uintmax_t size{0};
+	};
 
 	/*
 	 * mutex_ protects the in-memory cache of file labels, qualifiers, auto-discovered enums, and one-shot hint flags:
 	 * path_labels_ map (safe_path -> (signal -> (hex_key -> label_string)))
 	 * path_qualifiers_ map (safe_path -> (signal -> qualifier_expr))
 	 * auto_enum_labels_ map (global_key -> (signal -> (hex_key -> label_string)))
+	 * auto_enum_stamps_ and json_file_stamps_ modification tracking maps
 	 * qualifier_hint_shown_ and label_hint_shown_ booleans
 	 *
 	 * Locking Rules:
@@ -120,12 +133,15 @@ class vcd_label_manager
 	std::map<std::string, std::map<std::string, std::string>> path_qualifiers_;
 	std::map<std::string, std::map<std::string, std::map<std::string, std::string>>> auto_enum_labels_;
 	std::map<std::string, bool> file_loaded_;
+	std::map<std::string, file_stamp> json_file_stamps_;
 	std::map<std::string, bool> auto_enum_loaded_;
+	std::map<std::string, std::vector<file_stamp>> auto_enum_stamps_;
 	bool qualifier_hint_shown_ = false;
 	bool label_hint_shown_ = false;
 
 	void load_json_file_locked(std::string_view json_path, std::string_view map_key);
 	void load_sidecar_locked(std::string_view safe_path);
+	void reconcile_enum_labels_locked(std::string_view global_key, std::string_view target_key);
 	bool save_sidecar_locked(std::string_view target_key, std::string &out_error);
 	std::map<std::string, std::map<std::string, std::string>> merged_labels_locked(std::string_view safe_path);
 	std::map<std::string, std::string> merged_qualifiers_locked(std::string_view safe_path);

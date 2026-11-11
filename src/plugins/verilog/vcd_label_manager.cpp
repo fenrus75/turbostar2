@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <format>
+#include <set>
 namespace verilog
 {
 
@@ -268,22 +269,36 @@ std::string vcd_label_manager::get_global_sidecar_path(std::string_view safe_pat
 		std::error_code ec;
 		if (dir_name == "sim" || dir_name == "tb" || dir_name == "testbench" ||
 		    dir_name == "wave" || dir_name == "waves" || dir_name == "vcd" ||
+		    dir_name == "build" || dir_name == "obj_dir" || dir_name == "out" ||
 		    (!std::filesystem::exists(dir / "vcd_labels.json", ec) &&
 		     (std::filesystem::exists(parent / "vcd_labels.json", ec) ||
 		      std::filesystem::exists(parent / "turbostar.json", ec) ||
-		      std::filesystem::exists(parent / "project.json", ec)))) {
+		      std::filesystem::exists(parent / "project.json", ec) ||
+		      std::filesystem::exists(parent / "src", ec) ||
+		      std::filesystem::exists(parent / "sv", ec) ||
+		      std::filesystem::exists(parent / "rtl", ec)))) {
 			return canonicalize_path_key((parent / "vcd_labels.json").string());
 		}
 	}
 	return canonicalize_path_key((dir / "vcd_labels.json").string());
 }
+
 void vcd_label_manager::load_json_file_locked(std::string_view json_path, std::string_view map_key)
 {
 	std::string key(map_key);
 	std::string fpath(json_path);
-	if (!std::filesystem::exists(fpath)) {
+	std::error_code ec;
+	if (!std::filesystem::exists(fpath, ec)) {
+		json_file_stamps_.erase(key);
 		return;
 	}
+
+	file_stamp st;
+	st.path = fpath;
+	st.is_dir = false;
+	st.mtime = std::filesystem::last_write_time(fpath, ec);
+	st.size = std::filesystem::file_size(fpath, ec);
+	json_file_stamps_[key] = st;
 
 	std::ifstream file(fpath);
 	if (!file.is_open()) return;
@@ -328,27 +343,157 @@ void vcd_label_manager::load_json_file_locked(std::string_view json_path, std::s
 	} catch (...) {}
 }
 
+void vcd_label_manager::reconcile_enum_labels_locked(std::string_view global_key, std::string_view target_key)
+{
+	std::string g_key(global_key);
+	std::string t_key(target_key);
+	auto it_enums = auto_enum_labels_.find(g_key);
+	if (it_enums == auto_enum_labels_.end() || it_enums->second.empty()) {
+		return;
+	}
+	auto it_target = path_labels_.find(t_key);
+	if (it_target == path_labels_.end() || it_target->second.empty()) {
+		return;
+	}
+
+	for (const auto &[enum_sig, enum_val_map] : it_enums->second) {
+		if (enum_val_map.empty()) {
+			continue;
+		}
+		std::set<std::string> enum_names;
+		for (const auto &[_, lbl] : enum_val_map) {
+			enum_names.insert(lbl);
+		}
+
+		for (auto &[user_sig, user_val_map] : it_target->second) {
+			if (!signal_pattern_matches(enum_sig, user_sig) && !signal_pattern_matches(user_sig, enum_sig)) {
+				continue;
+			}
+			// Check whether user_val_map contains label names belonging to this RTL enum
+			bool overlaps_enum_names = false;
+			for (const auto &[_, user_lbl] : user_val_map) {
+				if (enum_names.contains(user_lbl)) {
+					overlaps_enum_names = true;
+					break;
+				}
+			}
+			if (!overlaps_enum_names) {
+				continue;
+			}
+
+			// Remove stale keys for enum constant names and apply the current RTL enum mapping
+			for (auto it = user_val_map.begin(); it != user_val_map.end(); ) {
+				if (enum_names.contains(it->second)) {
+					it = user_val_map.erase(it);
+				} else {
+					++it;
+				}
+			}
+			for (const auto &[hex_k, lbl] : enum_val_map) {
+				user_val_map[hex_k] = lbl;
+			}
+		}
+	}
+}
+
 void vcd_label_manager::load_sidecar_locked(std::string_view safe_path)
 {
 	std::string p = canonicalize_path_key(safe_path);
 	std::string global_key = get_global_sidecar_path(p);
-	if (!file_loaded_[global_key]) {
+
+	auto is_json_stamp_stale = [&](const std::string &key, const std::string &fpath) -> bool {
+		std::error_code ec;
+		bool exists = std::filesystem::exists(fpath, ec);
+		auto it = json_file_stamps_.find(key);
+		if (!exists) {
+			return it != json_file_stamps_.end();
+		}
+		if (it == json_file_stamps_.end()) {
+			return true;
+		}
+		auto mtime = std::filesystem::last_write_time(fpath, ec);
+		auto size = std::filesystem::file_size(fpath, ec);
+		return ec || mtime != it->second.mtime || size != it->second.size;
+	};
+
+	if (!file_loaded_[global_key] || is_json_stamp_stale(global_key, global_key)) {
+		if (file_loaded_[global_key]) {
+			path_labels_[global_key].clear();
+			path_qualifiers_[global_key].clear();
+		}
 		file_loaded_[global_key] = true;
 		load_json_file_locked(global_key, global_key);
 	}
-	if (!auto_enum_loaded_[global_key]) {
+
+	auto are_rtl_stamps_valid = [](const std::vector<file_stamp> &stamps) -> bool {
+		if (stamps.empty()) {
+			return false;
+		}
+		std::error_code ec;
+		for (const auto &st : stamps) {
+			auto mtime = std::filesystem::last_write_time(st.path, ec);
+			if (ec || mtime != st.mtime) {
+				return false;
+			}
+			if (!st.is_dir) {
+				auto sz = std::filesystem::file_size(st.path, ec);
+				if (ec || sz != st.size) {
+					return false;
+				}
+			}
+		}
+		return true;
+	};
+
+	auto collect_rtl_stamps = [](const std::filesystem::path &project_dir) -> std::vector<file_stamp> {
+		std::vector<file_stamp> stamps;
+		std::error_code ec;
+		if (!std::filesystem::exists(project_dir, ec)) {
+			return stamps;
+		}
+		stamps.push_back({project_dir.string(), true, std::filesystem::last_write_time(project_dir, ec), 0});
+		if (std::filesystem::is_directory(project_dir, ec)) {
+			std::filesystem::recursive_directory_iterator it(
+				project_dir, std::filesystem::directory_options::skip_permission_denied, ec);
+			std::filesystem::recursive_directory_iterator end;
+			while (!ec && it != end) {
+				const auto &ep = it->path();
+				std::string fname = ep.filename().string();
+				if (it->is_directory(ec)) {
+					if (fname.starts_with('.') || fname == "build" || fname == "obj_dir" || fname == "templates") {
+						it.disable_recursion_pending();
+					} else {
+						stamps.push_back({ep.string(), true, it->last_write_time(ec), 0});
+					}
+				} else if (it->is_regular_file(ec) && !fname.starts_with('.') && !fname.ends_with('~')) {
+					auto ext = ep.extension().string();
+					if (ext == ".sv" || ext == ".v" || ext == ".svh" || ext == ".vh") {
+						stamps.push_back({ep.string(), false, it->last_write_time(ec), it->file_size(ec)});
+					}
+				}
+				it.increment(ec);
+			}
+		}
+		return stamps;
+	};
+
+	if (!auto_enum_loaded_[global_key] || !are_rtl_stamps_valid(auto_enum_stamps_[global_key])) {
 		auto_enum_loaded_[global_key] = true;
 		std::filesystem::path project_dir = std::filesystem::path(global_key).parent_path();
 		if (project_dir.empty()) {
 			project_dir = ".";
 		}
+		auto_enum_stamps_[global_key] = collect_rtl_stamps(project_dir);
 		auto_enum_labels_[global_key] = verilog_module_scanner::discover_enum_signal_labels(project_dir);
+		reconcile_enum_labels_locked(global_key, global_key);
+		if (p != global_key && file_loaded_[p]) {
+			reconcile_enum_labels_locked(global_key, p);
+		}
 	}
 
-	if (p == global_key || file_loaded_[p]) {
+	if (p == global_key) {
 		return;
 	}
-	file_loaded_[p] = true;
 
 	std::string sidecar_path = p + ".labels.json";
 	if (!std::filesystem::exists(sidecar_path)) {
@@ -356,15 +501,21 @@ void vcd_label_manager::load_sidecar_locked(std::string_view safe_path)
 			std::string base_sidecar = p.substr(0, p.size() - 13) + ".vcd.labels.json";
 			if (std::filesystem::exists(base_sidecar)) {
 				sidecar_path = base_sidecar;
-			} else {
-				return;
 			}
-		} else {
-			return;
 		}
 	}
 
-	load_json_file_locked(sidecar_path, p);
+	if (!file_loaded_[p] || is_json_stamp_stale(p, sidecar_path)) {
+		if (file_loaded_[p] && std::filesystem::exists(sidecar_path)) {
+			path_labels_[p].clear();
+			path_qualifiers_[p].clear();
+		}
+		file_loaded_[p] = true;
+		if (std::filesystem::exists(sidecar_path)) {
+			load_json_file_locked(sidecar_path, p);
+			reconcile_enum_labels_locked(global_key, p);
+		}
+	}
 }
 
 bool vcd_label_manager::save_sidecar_locked(std::string_view target_key, std::string &out_error)
@@ -380,6 +531,7 @@ bool vcd_label_manager::save_sidecar_locked(std::string_view target_key, std::st
 			std::error_code ec;
 			std::filesystem::remove(sidecar_path, ec);
 		}
+		json_file_stamps_.erase(p);
 		return true;
 	}
 
@@ -408,6 +560,15 @@ bool vcd_label_manager::save_sidecar_locked(std::string_view target_key, std::st
 	}
 
 	file << j.dump(2) << "\n";
+	file.close();
+
+	std::error_code ec;
+	file_stamp st;
+	st.path = sidecar_path;
+	st.is_dir = false;
+	st.mtime = std::filesystem::last_write_time(sidecar_path, ec);
+	st.size = std::filesystem::file_size(sidecar_path, ec);
+	json_file_stamps_[p] = st;
 	return true;
 }
 
@@ -836,8 +997,17 @@ void vcd_label_manager::clear_all()
 	path_qualifiers_.clear();
 	auto_enum_labels_.clear();
 	file_loaded_.clear();
+	json_file_stamps_.clear();
 	auto_enum_loaded_.clear();
+	auto_enum_stamps_.clear();
 	qualifier_hint_shown_ = false;
 	label_hint_shown_ = false;
+}
+
+void vcd_label_manager::invalidate_auto_enums()
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	auto_enum_loaded_.clear();
+	auto_enum_stamps_.clear();
 }
 } // namespace verilog

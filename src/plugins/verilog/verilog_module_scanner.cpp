@@ -734,6 +734,22 @@ std::map<std::string, std::map<std::string, std::string>> verilog_module_scanner
 			files.push_back(std::move(tb));
 		}
 	}
+	// Also include SystemVerilog/Verilog header files (.svh, .vh) where package/shared typedef enums may reside
+	std::error_code hdr_ec;
+	if (std::filesystem::is_directory(root, hdr_ec)) {
+		for (const auto &entry : std::filesystem::recursive_directory_iterator(
+		         root, std::filesystem::directory_options::skip_permission_denied, hdr_ec)) {
+			if (entry.is_regular_file(hdr_ec) && !is_ignored_file(entry.path())) {
+				auto ext = entry.path().extension().string();
+				if (ext == ".svh" || ext == ".vh") {
+					std::string p_str = entry.path().string();
+					if (std::ranges::find(files, p_str) == files.end()) {
+						files.push_back(std::move(p_str));
+					}
+				}
+			}
+		}
+	}
 	if (files.empty()) {
 		return {};
 	}
@@ -888,7 +904,8 @@ std::map<std::string, std::map<std::string, std::string>> verilog_module_scanner
 					while (prev > 0 && (clean[prev - 1] == ' ' || clean[prev - 1] == '\t' || clean[prev - 1] == '\r' || clean[prev - 1] == '\n')) {
 						--prev;
 					}
-					if (prev > 0 && (clean[prev - 1] == '}' || clean[prev - 1] == '.' || clean[prev - 1] == ':')) {
+					if (prev > 0 && (clean[prev - 1] == '}' || clean[prev - 1] == '.' ||
+					                 (clean[prev - 1] == ':' && (prev < 2 || clean[prev - 2] != ':')))) {
 						continue;
 					}
 
