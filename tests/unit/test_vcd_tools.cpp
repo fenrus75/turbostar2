@@ -2038,9 +2038,34 @@ int main()
 			assert(sim_val.validate_args(sim_soc_nonhier, mctx, err) && err.empty());
 			std::string out_soc_nonhier = sim_val.create_tool(sim_soc_nonhier)->execute(mctx);
 			assert(out_soc_nonhier.find("No direct testbench is associated with module `soc_top`") != std::string::npos);
+			assert(out_soc_nonhier.find("verilog_configure_testbench(module=\"soc_top\", hierarchical=true)") != std::string::npos);
 			assert(out_soc_nonhier.find("verilog_simulate(module=\"soc_top\", hierarchical=true)") != std::string::npos);
 			assert(out_soc_nonhier.find("`alu_mod`") != std::string::npos);
 			assert(out_soc_nonhier.find("`cpu_mod`") != std::string::npos);
+
+			// 6) Configure default hierarchical=true for soc_top in turbostar.json via verilog_configure_testbench,
+			//    then verify verilog_simulate(module="soc_top") runs hierarchically without needing hierarchical=true,
+			//    while explicit hierarchical=false still overrides it.
+			nlohmann::json cfg_soc_hier = {
+				{"module", "soc_top"},
+				{"hierarchical", true}
+			};
+			assert(cfg_val.validate_args(cfg_soc_hier, mctx, err) && err.empty());
+			std::string out_cfg_soc_hier = cfg_val.create_tool(cfg_soc_hier)->execute(mctx);
+			assert(out_cfg_soc_hier.find("Set default `hierarchical=true` for module(s) `soc_top`.") != std::string::npos);
+			assert(out_cfg_soc_hier.find("**Modules with Default `hierarchical=true`**: `soc_top`") != std::string::npos);
+
+			std::string out_soc_default_hier = sim_val.create_tool(sim_soc_nonhier)->execute(mctx);
+			assert(out_soc_default_hier.find("Ran with `hierarchical=true` due to project settings for `soc_top` in `turbostar.json`") != std::string::npos);
+			assert(out_soc_default_hier.find("`alu_mod` -> `cpu_mod` -> `soc_top`") != std::string::npos);
+
+			nlohmann::json sim_soc_explicit_false = {
+				{"module", "soc_top"},
+				{"hierarchical", false}
+			};
+			assert(sim_val.validate_args(sim_soc_explicit_false, mctx, err) && err.empty());
+			std::string out_soc_override_false = sim_val.create_tool(sim_soc_explicit_false)->execute(mctx);
+			assert(out_soc_override_false.find("No direct testbench is associated with module `soc_top`") != std::string::npos);
 		}
 
 		std::filesystem::remove_all(tmp_proj);

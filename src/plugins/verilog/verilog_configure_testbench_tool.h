@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
 #include "agentlib/llm_tool_action.h"
@@ -12,6 +13,7 @@ struct verilog_configure_testbench_args {
 	std::string safe_testbench;
 	std::vector<std::string> requested_modules;
 	std::string level;
+	std::optional<bool> hierarchical;
 	bool remove{false};
 };
 

@@ -559,4 +559,101 @@ bool fpga_project_settings::save_testbenches(std::string_view project_root, std:
 	return true;
 }
 
+bool fpga_project_settings::load_hierarchical_modules(std::string_view project_root, std::vector<std::string> &out_modules,
+                                                      std::string &out_error)
+{
+	out_modules.clear();
+	out_error.clear();
+
+	fs::path root(project_root.empty() ? "." : project_root);
+	std::vector<std::string> candidates = {"turbostar.json", "project.json"};
+
+	fs::path found_path;
+	for (const auto &cand : candidates) {
+		fs::path p = root / cand;
+		std::error_code ec;
+		if (fs::exists(p, ec) && fs::is_regular_file(p, ec)) {
+			found_path = p;
+			break;
+		}
+	}
+
+	if (found_path.empty()) {
+		return true;
+	}
+
+	std::ifstream f(found_path);
+	if (!f.is_open()) {
+		out_error = std::format("Failed to open config file '{}'", found_path.string());
+		return false;
+	}
+
+	nlohmann::json untrusted_j;
+	try {
+		f >> untrusted_j;
+	} catch (const std::exception &e) {
+		out_error = std::format("JSON parse error in '{}': {}", found_path.string(), e.what());
+		return false;
+	}
+
+	if (!untrusted_j.contains("hierarchical_modules") || !untrusted_j["hierarchical_modules"].is_array()) {
+		return true;
+	}
+
+	for (const auto &untrusted_m : untrusted_j["hierarchical_modules"]) {
+		if (untrusted_m.is_string()) {
+			std::string untrusted_str = untrusted_m.get<std::string>();
+			if (!untrusted_str.empty() && fs_utils::is_safe_for_ui(untrusted_str)) {
+				if (std::find(out_modules.begin(), out_modules.end(), untrusted_str) == out_modules.end()) {
+					out_modules.push_back(untrusted_str);
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
+bool fpga_project_settings::save_hierarchical_modules(std::string_view project_root, std::span<const std::string> modules,
+                                                      std::string &out_path_used, std::string &out_error)
+{
+	fs::path root(project_root.empty() ? "." : project_root);
+	fs::path target_path = root / "turbostar.json";
+	std::error_code ec;
+	if (!fs::exists(target_path, ec) && fs::exists(root / "project.json", ec)) {
+		target_path = root / "project.json";
+	}
+
+	nlohmann::json j = nlohmann::json::object();
+	if (fs::exists(target_path, ec)) {
+		std::ifstream in(target_path);
+		if (in.is_open()) {
+			try {
+				in >> j;
+			} catch (...) {
+				j = nlohmann::json::object();
+			}
+		}
+	}
+	if (!j.is_object()) {
+		j = nlohmann::json::object();
+	}
+
+	nlohmann::json mod_arr = nlohmann::json::array();
+	for (const auto &m : modules) {
+		mod_arr.push_back(m);
+	}
+	j["hierarchical_modules"] = std::move(mod_arr);
+
+	std::ofstream out(target_path);
+	if (!out.is_open()) {
+		out_error = std::format("Failed to open '{}' for writing", target_path.string());
+		return false;
+	}
+
+	out << j.dump(2) << "\n";
+	out_path_used = target_path.string();
+	return true;
+}
+
 } // namespace verilog

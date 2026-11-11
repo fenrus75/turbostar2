@@ -91,6 +91,14 @@ public:
 	// Save configured testbench associations into turbostar.json / project.json preserving existing keys
 	static bool save_testbenches(std::string_view project_root, std::span<const testbench_entry> entries,
 	                             std::string &out_path_used, std::string &out_error);
+
+	// Load modules configured with default hierarchical=true from turbostar.json / project.json
+	static bool load_hierarchical_modules(std::string_view project_root, std::vector<std::string> &out_modules,
+	                                      std::string &out_error);
+
+	// Save modules configured with default hierarchical=true into turbostar.json / project.json
+	static bool save_hierarchical_modules(std::string_view project_root, std::span<const std::string> modules,
+	                                      std::string &out_path_used, std::string &out_error);
 };
 
 } // namespace verilog

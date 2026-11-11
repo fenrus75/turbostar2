@@ -659,6 +659,8 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 	std::vector<tb_run_plan> plans;
 	std::string override_top_mod = args_.top_module;
 	std::vector<std::string> target_hierarchy;
+	bool effective_hierarchical = args_.hierarchical;
+	bool hier_from_project_settings = false;
 
 	// Case A: Explicit testbench file passed
 	if (!args_.safe_testbench.empty()) {
@@ -710,7 +712,18 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 			resolved_mod = verilog::verilog_module_scanner::resolve_module_name(args_.requested_module, "", rtl_files);
 		}
 
-		if (args_.hierarchical) {
+		if (!args_.hierarchical_explicit) {
+			std::vector<std::string> hier_modules;
+			std::string hier_err;
+			verilog::fpga_project_settings::load_hierarchical_modules(project_root, hier_modules, hier_err);
+			if (std::find(hier_modules.begin(), hier_modules.end(), resolved_mod) != hier_modules.end() ||
+			    std::find(hier_modules.begin(), hier_modules.end(), args_.requested_module) != hier_modules.end()) {
+				effective_hierarchical = true;
+				hier_from_project_settings = true;
+			}
+		}
+
+		if (effective_hierarchical) {
 			target_hierarchy = verilog::verilog_module_scanner::discover_submodule_hierarchy(resolved_mod, rtl_files);
 		} else {
 			target_hierarchy = {resolved_mod};
@@ -774,11 +787,11 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 				                   "Re-run with `verilog_simulate(module=\"{}\", level=\"extreme\")` to include them.",
 				                   resolved_mod, args_.level, skipped_str, args_.requested_module);
 			} else {
-				// If hierarchical=false, check whether submodules of resolved_mod have testbenches!
+				// If effective_hierarchical=false, check whether submodules of resolved_mod have testbenches!
 				std::vector<std::string> sub_hierarchy;
 				std::set<std::string> sub_tbs;
 				std::vector<std::string> tested_submods;
-				if (!args_.hierarchical) {
+				if (!effective_hierarchical) {
 					sub_hierarchy = verilog::verilog_module_scanner::discover_submodule_hierarchy(resolved_mod, rtl_files);
 					for (const auto &sm : sub_hierarchy) {
 						if (sm == resolved_mod) {
@@ -804,12 +817,15 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 						submods_str += std::format("`{}`", tested_submods[i]);
 					}
 					msg << std::format("No direct testbench is associated with module `{}`, but **{} testbench(es)** exist for its submodules ({}).\n"
-					                   "- **Recommended**: Run `verilog_simulate(module=\"{}\", hierarchical=true)` to verify `{}` bottom-up via its submodule testbenches.\n"
-					                   "- Or associate a direct testbench using `verilog_configure_testbench(testbench=\"path/to/tb.sv\", modules=[\"{}\"])`.",
-					                   resolved_mod, sub_tbs.size(), submods_str, args_.requested_module, resolved_mod, resolved_mod);
+					                   "- **Recommended (One-Time Project Config)**: Run `verilog_configure_testbench(module=\"{}\", hierarchical=true)` so `verilog_simulate(module=\"{}\")` automatically runs its submodule testbenches by default.\n"
+					                   "- **One-Off Run**: Run `verilog_simulate(module=\"{}\", hierarchical=true)` to verify `{}` bottom-up via its submodule testbenches.\n"
+					                   "- **Or Add Direct Testbench**: Associate a direct testbench using `verilog_configure_testbench(testbench=\"path/to/tb.sv\", modules=[\"{}\"])`.",
+					                   resolved_mod, sub_tbs.size(), submods_str,
+					                   resolved_mod, args_.requested_module,
+					                   args_.requested_module, resolved_mod, resolved_mod);
 				} else {
 					msg << std::format("No testbenches are associated with module `{}`", resolved_mod);
-					if (args_.hierarchical && target_hierarchy.size() > 1) {
+					if (effective_hierarchical && target_hierarchy.size() > 1) {
 						msg << " (or its submodules)";
 					}
 					msg << ".\nAssociate a testbench using `verilog_configure_testbench(testbench=\"path/to/tb.sv\", modules=[\""
@@ -890,10 +906,15 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 	// Multi-testbench or module-targeted summary report
 	std::ostringstream report;
 	if (!args_.requested_module.empty()) {
+		std::string root_mod_label = target_hierarchy.empty() ? args_.requested_module : target_hierarchy.back();
 		report << std::format("## Module Verification Report: `{}`{}\n\n",
-		                      target_hierarchy.empty() ? args_.requested_module : target_hierarchy.back(),
-		                      args_.hierarchical ? " (Hierarchical)" : "");
-		if (args_.hierarchical && target_hierarchy.size() > 1) {
+		                      root_mod_label,
+		                      effective_hierarchical ? " (Hierarchical)" : "");
+		if (hier_from_project_settings) {
+			report << std::format("- **Hierarchy Mode**: Ran with `hierarchical=true` due to project settings for `{}` in `turbostar.json` (pass `hierarchical=false` to override)\n",
+			                      root_mod_label);
+		}
+		if (effective_hierarchical && target_hierarchy.size() > 1) {
 			std::string chain;
 			for (size_t i = 0; i < target_hierarchy.size(); ++i) {
 				if (i > 0) chain += " -> ";

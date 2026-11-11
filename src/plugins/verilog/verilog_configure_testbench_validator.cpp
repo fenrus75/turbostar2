@@ -19,14 +19,15 @@ bool verilog_configure_testbench_validator::is_pure(const nlohmann::json &untrus
 	bool has_modules = untrusted_args.contains("modules") && !untrusted_args["modules"].empty();
 	bool has_level = untrusted_args.contains("level") && untrusted_args["level"].is_string() &&
 	                 !untrusted_args["level"].get<std::string>().empty();
-	return !has_tb && !has_remove && !has_modules && !has_level;
+	bool has_hier = untrusted_args.contains("hierarchical") && untrusted_args["hierarchical"].is_boolean();
+	return !has_tb && !has_remove && !has_modules && !has_level && !has_hier;
 }
 
 std::string verilog_configure_testbench_validator::get_description() const
 {
 	return "Configures, lists, or removes associations between SystemVerilog/Verilog testbenches (e.g. 'tb/tb_alu.sv') "
 	       "and the RTL modules they verify (e.g. 'alu_mod' or 'sv/alu/alu.sv'), along with a test duration/rigor tier "
-	       "('quick', 'comprehensive', or 'extreme') persisted in turbostar.json.";
+	       "('quick', 'comprehensive', or 'extreme') and optional per-module default 'hierarchical' setting in turbostar.json.";
 }
 
 nlohmann::json verilog_configure_testbench_validator::get_parameters_schema() const
@@ -36,17 +37,21 @@ nlohmann::json verilog_configure_testbench_validator::get_parameters_schema() co
 		{"properties", {
 			{"testbench", {
 				{"type", "string"},
-				{"description", "Path to the testbench .sv/.v file (e.g. 'tb/tb_alu.sv'). Omit to list all configured and auto-discovered testbenches."}
+				{"description", "Path to the testbench .sv/.v file (e.g. 'tb/tb_alu.sv'). Omit to list all configured/auto-discovered testbenches, or when configuring per-module 'hierarchical' default."}
 			}},
 			{"modules", {
 				{"type", "array"},
 				{"items", {{"type", "string"}}},
-				{"description", "One or more RTL module names or source file paths tested by this testbench (e.g. ['alu_mod'] or ['sv/alu/alu.sv']). If omitted when adding a testbench, modules instantiated by the testbench are auto-detected."}
+				{"description", "One or more RTL module names or source file paths (e.g. ['alu_mod'] or ['sv/alu/alu.sv']). If omitted when adding a testbench, modules instantiated by the testbench are auto-detected."}
 			}},
 			{"level", {
 				{"type", "string"},
 				{"enum", {"quick", "comprehensive", "extreme"}},
 				{"description", "Test tier for filtering in verilog_simulate: 'quick' (fast unit/smoke tests), 'comprehensive' (thorough tests), or 'extreme' (exhaustive/long-running tests). Default: 'quick'."}
+			}},
+			{"hierarchical", {
+				{"type", "boolean"},
+				{"description", "Optional per-module default for 'hierarchical' in verilog_simulate. When set alongside 'modules'/'module', persists whether verilog_simulate(module=...) automatically includes submodule testbenches by default in turbostar.json."}
 			}},
 			{"remove", {
 				{"type", "boolean"},
@@ -145,13 +150,23 @@ bool verilog_configure_testbench_validator::validate_args_impl(const nlohmann::j
 		}
 	}
 
-	if (args_.requested_testbench.empty() && !args_.remove && (!args_.requested_modules.empty() || !args_.level.empty())) {
-		out_error = "Parameter 'testbench' is required when configuring module associations or test level";
+	if (untrusted_args.contains("hierarchical") && untrusted_args["hierarchical"].is_boolean()) {
+		args_.hierarchical = untrusted_args["hierarchical"].get<bool>();
+	}
+
+	if (args_.hierarchical.has_value() && args_.requested_modules.empty() && args_.requested_testbench.empty()) {
+		out_error = "Parameter 'modules' (or 'module') is required when configuring 'hierarchical'";
+		return false;
+	}
+
+	if (args_.requested_testbench.empty() && !args_.remove && !args_.hierarchical.has_value() &&
+	    (!args_.requested_modules.empty() || !args_.level.empty())) {
+		out_error = "Parameter 'testbench' is required when configuring module associations or test level (or pass 'hierarchical' to configure a module's default hierarchy setting)";
 		return false;
 	}
 
 	// If modifying configuration, verify write access to turbostar.json in workspace root
-	if (!args_.requested_testbench.empty() || args_.remove) {
+	if (!args_.requested_testbench.empty() || args_.remove || args_.hierarchical.has_value()) {
 		std::string root_dir = ctx.fs_security.get_working_directory().string();
 		if (root_dir.empty()) {
 			root_dir = ".";

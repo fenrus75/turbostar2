@@ -100,6 +100,7 @@ bool verilog_simulate_validator::validate_args_impl(const nlohmann::json &untrus
 
 	if (untrusted_args.contains("hierarchical") && untrusted_args["hierarchical"].is_boolean()) {
 		args_.hierarchical = untrusted_args["hierarchical"].get<bool>();
+		args_.hierarchical_explicit = true;
 	}
 
 	if (untrusted_args.contains("level") && untrusted_args["level"].is_string()) {

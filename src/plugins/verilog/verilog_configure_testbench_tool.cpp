@@ -55,6 +55,10 @@ std::string verilog_configure_testbench_tool::execute(agentlib::tool_context &ct
 		return std::format("Error loading testbench configuration: {}", load_err);
 	}
 
+	std::vector<std::string> hier_modules;
+	std::string hier_err;
+	verilog::fpga_project_settings::load_hierarchical_modules(project_root, hier_modules, hier_err);
+
 	auto normalize_tb_rel = [&](std::string_view path_str) -> std::string {
 		fs::path p(path_str);
 		if (!p.is_absolute()) {
@@ -92,6 +96,7 @@ std::string verilog_configure_testbench_tool::execute(agentlib::tool_context &ct
 
 	std::string action_summary;
 	bool modified = false;
+	bool modified_hier = false;
 
 	if (args_.remove) {
 		if (!args_.requested_testbench.empty()) {
@@ -138,12 +143,21 @@ std::string verilog_configure_testbench_tool::execute(agentlib::tool_context &ct
 					++it;
 				}
 			}
+			for (const auto &rm : resolved_modules) {
+				auto hit = std::find(hier_modules.begin(), hier_modules.end(), rm);
+				if (hit != hier_modules.end()) {
+					hier_modules.erase(hit);
+					modified_hier = true;
+				}
+			}
 			modified = true;
 			action_summary = std::format("Removed module(s) from {} testbench association(s).", removed_cnt);
 		} else {
 			size_t count = entries.size();
 			entries.clear();
+			hier_modules.clear();
 			modified = true;
+			modified_hier = true;
 			action_summary = std::format("Cleared all {} configured testbench association(s).", count);
 		}
 	} else if (!args_.requested_testbench.empty()) {
@@ -179,12 +193,41 @@ std::string verilog_configure_testbench_tool::execute(agentlib::tool_context &ct
 		modified = true;
 	}
 
+	if (!args_.remove && args_.hierarchical.has_value() && !resolved_modules.empty()) {
+		std::string mods_joined;
+		for (size_t i = 0; i < resolved_modules.size(); ++i) {
+			if (i > 0) mods_joined += ", ";
+			mods_joined += std::format("`{}`", resolved_modules[i]);
+			auto hit = std::find(hier_modules.begin(), hier_modules.end(), resolved_modules[i]);
+			if (*args_.hierarchical) {
+				if (hit == hier_modules.end()) {
+					hier_modules.push_back(resolved_modules[i]);
+				}
+			} else {
+				if (hit != hier_modules.end()) {
+					hier_modules.erase(hit);
+				}
+			}
+		}
+		modified_hier = true;
+		std::string hier_msg = std::format("Set default `hierarchical={}` for module(s) {}.",
+		                                   *args_.hierarchical ? "true" : "false", mods_joined);
+		action_summary = action_summary.empty() ? hier_msg : (action_summary + " " + hier_msg);
+	}
+
 	std::string saved_path = config_path;
 	if (modified) {
 		std::string save_err;
 		if (!verilog::fpga_project_settings::save_testbenches(project_root, entries, saved_path, save_err)) {
 			set_failure(ctx, save_err);
 			return std::format("Error saving testbench configuration: {}", save_err);
+		}
+	}
+	if (modified_hier) {
+		std::string save_err;
+		if (!verilog::fpga_project_settings::save_hierarchical_modules(project_root, hier_modules, saved_path, save_err)) {
+			set_failure(ctx, save_err);
+			return std::format("Error saving hierarchical module configuration: {}", save_err);
 		}
 	}
 
@@ -201,6 +244,14 @@ std::string verilog_configure_testbench_tool::execute(agentlib::tool_context &ct
 	if (!saved_path.empty()) {
 		fs::path rel_cfg = fs::relative(saved_path, root_path, ec);
 		ss << std::format("- **Config File**: `{}`\n", (!ec && !rel_cfg.empty()) ? rel_cfg.generic_string() : saved_path);
+	}
+	if (!hier_modules.empty()) {
+		std::string hm_str;
+		for (size_t i = 0; i < hier_modules.size(); ++i) {
+			if (i > 0) hm_str += ", ";
+			hm_str += std::format("`{}`", hier_modules[i]);
+		}
+		ss << std::format("- **Modules with Default `hierarchical=true`**: {}\n", hm_str);
 	}
 
 	ss << "\n#### Configured Testbenches\n";

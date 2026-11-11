@@ -3,7 +3,7 @@
 ## Goals & Constraints
 
 - **Purpose**: Validates arguments for `verilog_configure_testbench`, enforcing sandbox path checks on `testbench` and write permissions on `turbostar.json` when mutating associations.
-- **Flexible Schema**: Accepts `modules` as either a single string or an array of strings (with alias `module`), normalizes `level` (`quick`, `comprehensive`, `extreme`), and supports `remove` (aliases `delete`, `clear`).
+- **Flexible Schema**: Accepts `modules` as either a single string or an array of strings (with alias `module`), normalizes `level` (`quick`, `comprehensive`, `extreme`), supports per-module `hierarchical` boolean defaults (with or without `testbench`), and supports `remove` (aliases `delete`, `clear`).
 - **Conditional Purity**: Overrides `is_pure(untrusted_args)` to return `true` when invoked with no mutation arguments (list/inspect mode).
 
 ## Lessons Learned
