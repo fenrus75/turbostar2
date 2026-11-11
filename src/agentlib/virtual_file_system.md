@@ -16,3 +16,4 @@ The `virtual_file_system` (VFS) class abstracts file and memory storage across c
 ## Lessons Learned
 - **Preventing Physical Disk Pollution**: Providing `tmp://` and in-memory VFS providers prevents autonomous subagents from littering scratch files across the host user's project workspace.
 - **Zero-Copy Memory Mapping**: Using `mmap_content_buffer` for large virtual files and binary containers prevents high heap churn when inspecting multi-megabyte files.
+- **Dynamic `tmp://` Base Directory Resolution**: Because `virtual_file_system` instances (such as the `skill_manager` singleton VFS) may be constructed before the active project root is set or switched, the `tmp` `file_vfs_provider` must resolve `fs_utils::get_project_tmp_dir()` dynamically per request rather than caching a static root directory at construction time.

@@ -542,7 +542,25 @@ system_vfs_provider::system_vfs_provider()
 					for (auto it = props.begin(); it != props.end(); ++it) {
 						std::string param_name = it.key();
 						const auto &param_info = it.value();
-						std::string p_type = param_info.value("type", "unknown");
+						std::string p_type = "unknown";
+						if (param_info.contains("type")) {
+							if (param_info["type"].is_string()) {
+								p_type = param_info["type"].get<std::string>();
+							} else if (param_info["type"].is_array()) {
+								p_type.clear();
+								for (const auto &t_elem : param_info["type"]) {
+									if (t_elem.is_string()) {
+										if (!p_type.empty()) {
+											p_type += "|";
+										}
+										p_type += t_elem.get<std::string>();
+									}
+								}
+								if (p_type.empty()) {
+									p_type = "unknown";
+								}
+							}
+						}
 						std::string p_desc = param_info.value("description", "");
 						bool is_required = false;
 						for (const auto &req_item : req_array) {

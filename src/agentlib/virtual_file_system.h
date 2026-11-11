@@ -267,6 +267,7 @@ class file_vfs_provider : public vfs_provider
       private:
 	std::string scheme_;
 	std::string root_dir_;
+	std::string get_base_dir() const;
 	std::string parse_uri(const std::string &uri) const;
 };
 

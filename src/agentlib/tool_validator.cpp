@@ -36,6 +36,9 @@ void tool_validator::normalize_object_args(nlohmann::json &args, const nlohmann:
 					 "directory_path", "search_directory", "search_dir", "folder"});
 	register_aliases("pattern", {"query", "search_query", "regex", "regexp", "file_pattern", "glob",
 				     "include_pattern", "text"});
+	if ((args.contains("regex") || args.contains("regexp")) && props.contains("is_regex") && !args.contains("is_regex")) {
+		args["is_regex"] = true;
+	}
 	register_aliases("query", {"pattern", "search_query", "sql", "question"});
 	register_aliases("command", {"command_line", "cmd", "shell_command", "script"});
 	register_aliases("content", {"code_content", "text", "file_content", "data", "body"});

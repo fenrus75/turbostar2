@@ -382,6 +382,36 @@ void test_include_vfs_provider()
 
 
 
+void test_tmp_vfs_dynamic_project_dir()
+{
+	virtual_file_system vfs;
+
+	std::string orig_proj = fs_utils::get_project_dir();
+	std::filesystem::path new_proj = std::filesystem::absolute("test_vfs_dynamic_tmp_proj");
+	std::filesystem::create_directories(new_proj);
+
+	// Change project dir AFTER virtual_file_system was constructed
+	fs_utils::set_override_project_dir(new_proj.string());
+	std::string expected_tmp_dir = fs_utils::get_project_tmp_dir();
+
+	// Write a file directly to the current project tmp dir (as tools like verilog_compile do)
+	std::filesystem::path direct_file = std::filesystem::path(expected_tmp_dir) / "synthesis.log";
+	{
+		std::ofstream ofs(direct_file);
+		ofs << "Executing SCC pass\nFound 0 SCCs.\n";
+	}
+
+	// VFS tmp:// must resolve to the current project tmp dir, not the stale construction-time dir
+	assert(vfs.exists("tmp://synthesis.log"));
+	auto handle = vfs.read_file("tmp://synthesis.log");
+	assert(handle.has_value());
+	assert((*handle)->view().find("Found 0 SCCs.") != std::string_view::npos);
+
+	fs_utils::set_override_project_dir(orig_proj);
+	std::error_code ec;
+	std::filesystem::remove_all(new_proj, ec);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -398,6 +428,7 @@ int main()
 	test_http_vfs_provider();
 	test_memory_vfs_edge_cases();
 	test_include_vfs_provider();
+	test_tmp_vfs_dynamic_project_dir();
 	std::cout << "virtual_file_system tests passed.\n";
 	return 0;
 }

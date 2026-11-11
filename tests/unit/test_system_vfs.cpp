@@ -20,7 +20,8 @@ public:
 		return {
 			{"type", "object"},
 			{"properties", {
-				{"path", {{"type", "string"}, {"description", "Path to file"}}}
+				{"path", {{"type", "string"}, {"description", "Path to file"}}},
+				{"offset", {{"type", nlohmann::json::array({"integer", "string"})}, {"description", "Offset"}}}
 			}},
 			{"required", nlohmann::json::array({"path"})}
 		};

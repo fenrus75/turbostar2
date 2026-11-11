@@ -610,6 +610,71 @@ int main()
 		assert(log_msg.find("throughput=") != std::string::npos);
 	}
 
+	// Test 15: VFS tmp:// search with adjacent matching lines (context_lines=0), regex fallback, and single-file include_ext
+	{
+		agentlib::virtual_file_system vfs;
+		ctx.fs_security.set_vfs(&vfs);
+
+		std::string synth_log =
+		    "12.42.3. Executing SCC pass (detecting logic loops).\n"
+		    "Found 0 SCCs in module main.\n"
+		    "Found 0 SCCs.\n"
+		    "Info: Max frequency for clock: 60.44 MHz (PASS at 60.00 MHz)\n";
+		assert(!vfs.write_file("tmp://synthesis.log", synth_log.data(), synth_log.size()).empty());
+
+		tools::fs_grep_files_validator val;
+		std::string err;
+
+		// 15a: Literal search for "SCC" on tmp://synthesis.log with context_lines=0 must emit separate Line 1, Line 2, Line 3 bullets
+		nlohmann::json scc_args = {
+		    {"path", "tmp://synthesis.log"},
+		    {"pattern", "SCC"}
+		};
+		assert(val.validate_args(scc_args, ctx, err) && err.empty());
+		std::string scc_res = val.create_tool(scc_args)->execute(ctx);
+		assert(scc_res.find("Found 3 matches across 1 files:") != std::string::npos);
+		assert(scc_res.find("* **Line 1**:") != std::string::npos);
+		assert(scc_res.find("* **Line 2**:") != std::string::npos);
+		assert(scc_res.find("* **Line 3**:") != std::string::npos);
+
+		// 15b: Alternation pattern "SCC|Max frequency" without explicit is_regex=true should emit a clear regex warning
+		nlohmann::json alt_args = {
+		    {"path", "tmp://synthesis.log"},
+		    {"pattern", "SCC|Max frequency"}
+		};
+		assert(val.validate_args(alt_args, ctx, err) && err.empty());
+		std::string alt_res = val.create_tool(alt_args)->execute(ctx);
+		assert(alt_res.find("No matches found.") != std::string::npos);
+		assert(alt_res.find("Warning: 'is_regex' is false") != std::string::npos);
+		assert(alt_res.find("is_regex=true") != std::string::npos);
+
+		// Re-running with is_regex=true matches all 4 lines
+		nlohmann::json alt_regex_args = {
+		    {"path", "tmp://synthesis.log"},
+		    {"pattern", "SCC|Max frequency"},
+		    {"is_regex", true}
+		};
+		assert(val.validate_args(alt_regex_args, ctx, err) && err.empty());
+		std::string alt_regex_res = val.create_tool(alt_regex_args)->execute(ctx);
+		assert(alt_regex_res.find("Found 4 matches across 1 files:") != std::string::npos);
+
+		// 15c: Explicit single-file path="log" with mismatched include_ext=".log" should still search the explicit target file
+		fs::path plain_log = temp_dir / "log";
+		{
+			std::ofstream ofs(plain_log);
+			ofs << synth_log;
+		}
+		nlohmann::json single_file_args = {
+		    {"path", plain_log.string()},
+		    {"include_ext", ".log"},
+		    {"pattern", "Max frequency"}
+		};
+		assert(val.validate_args(single_file_args, ctx, err) && err.empty());
+		std::string single_res = val.create_tool(single_file_args)->execute(ctx);
+		assert(single_res.find("Found 1 matches across 1 files:") != std::string::npos);
+		fs::remove(plain_log);
+	}
+
 	std::cout << "fs_grep_files unit test passed!\n";
 	return 0;
 }

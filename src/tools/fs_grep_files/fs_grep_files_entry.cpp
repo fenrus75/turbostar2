@@ -736,14 +736,17 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 
 			collect_uris(raw_search_path);
 
+			const bool is_single_vfs_file = (file_uris.size() == 1 && file_uris[0] == raw_search_path);
 			for (const auto &file_uri : file_uris) {
 				fs::path p(file_uri);
-				if (is_file_excluded(p, file_uri)) {
-					continue;
-				}
-				if (args_.include_ext) {
-					if (p.extension().string() != *args_.include_ext) {
+				if (!is_single_vfs_file) {
+					if (is_file_excluded(p, file_uri)) {
 						continue;
+					}
+					if (args_.include_ext) {
+						if (p.extension().string() != *args_.include_ext) {
+							continue;
+						}
 					}
 				}
 
@@ -789,8 +792,10 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 				}
 			}
 		} else if (fs::is_regular_file(search_path)) {
-			std::string rel_path_str;
-			if (is_candidate_path(search_path, rel_path_str)) {
+			std::string safe_file_path;
+			std::string access_err;
+			if (ctx.fs_security.validate_access(search_path.string(), agentlib::access_type::read, safe_file_path, access_err)) {
+				std::string rel_path_str = fs::relative(search_path, root_path).string();
 				process_candidate_file(search_path, rel_path_str);
 			}
 		} else if (fs::is_directory(search_path)) {
@@ -981,7 +986,7 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 						merged_blocks.push_back({block_start, block_end});
 					} else {
 						auto &last_block = merged_blocks.back();
-						if (block_start <= last_block.second + 1) { // Overlaps or is adjacent
+						if (args_.context_lines > 0 && block_start <= last_block.second + 1) { // Overlaps or is adjacent
 							last_block.second = std::max(last_block.second, block_end);
 						} else {
 							merged_blocks.push_back({block_start, block_end});
@@ -1017,15 +1022,27 @@ std::string fs_grep_files_tool::execute(agentlib::tool_context &ctx)
 					 args_.pattern, display_path, duration_ms, files_scanned, bytes_scanned, total_match_count,
 					 raw_matches.size(), throughput_mb_s);
 
+	std::string regex_hint;
+	if (!args_.is_regex && !is_literal_regex_pattern(args_.pattern)) {
+		regex_hint = std::format(
+		    "\n\nWarning: 'is_regex' is false (defaulting to literal substring search), but pattern '{}' contains "
+		    "regular expression metacharacters (e.g. '|', '.*', '[...]', '\\'). Re-run fs_grep_files with "
+		    "is_regex=true to evaluate it as a regular expression.",
+		    args_.pattern);
+	}
+
 	if (detailed_matches.empty() && overflow_files.empty() && lsp_section.empty()) {
-		return "No matches found.";
+		if (regex_hint.empty()) {
+			return "No matches found.";
+		}
+		return fs_utils::wrap_prompt_untrusted_data_tag("fs_grep_files_result", "No matches found." + regex_hint);
 	}
 
 	std::string result_str;
 	if (detailed_matches.empty() && overflow_files.empty()) {
-		result_str = std::format("No textual matches found for '{}'.\n\n### Related Symbol Index Definitions (no textual "
+		result_str = std::format("No textual matches found for '{}'.{}\n\n### Related Symbol Index Definitions (no textual "
 					 "occurrences in searched scope):\n{}",
-					 args_.pattern, lsp_section);
+					 args_.pattern, regex_hint, lsp_section);
 	} else {
 		std::stringstream ss;
 		ss << "Found " << total_detailed_matches;

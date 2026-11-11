@@ -219,7 +219,7 @@ virtual_file_system::virtual_file_system()
 	auto file_prov = std::make_shared<file_vfs_provider>();
 	register_provider("file", file_prov);
 
-	auto tmp_prov = std::make_shared<file_vfs_provider>("tmp", fs_utils::get_project_tmp_dir());
+	auto tmp_prov = std::make_shared<file_vfs_provider>("tmp");
 	register_provider("tmp", tmp_prov);
 
 	auto images_prov = std::make_shared<images_vfs_provider>();
@@ -748,6 +748,17 @@ void github_vfs_provider::update_lru(const std::string &key) const
 // file_vfs_provider Implementation
 // -------------------------------------------------------------------------
 
+std::string file_vfs_provider::get_base_dir() const
+{
+	if (!root_dir_.empty()) {
+		return root_dir_;
+	}
+	if (scheme_ == "tmp") {
+		return fs_utils::get_project_tmp_dir();
+	}
+	return fs_utils::get_project_dir();
+}
+
 std::string file_vfs_provider::parse_uri(const std::string &uri) const
 {
 	std::string prefix = scheme_ + "://";
@@ -761,7 +772,7 @@ std::string file_vfs_provider::parse_uri(const std::string &uri) const
 
 	std::filesystem::path p(path);
 	if (p.is_relative()) {
-		std::string base_dir = root_dir_.empty() ? fs_utils::get_project_dir() : root_dir_;
+		std::string base_dir = get_base_dir();
 		p = std::filesystem::absolute(base_dir) / p;
 	}
 	return std::filesystem::weakly_canonical(p).string();
@@ -832,7 +843,7 @@ std::vector<vfs_file_info> file_vfs_provider::list_directory(const std::string &
 		if (scheme_ == "file") {
 			item_uri = scheme_ + "://" + entry_path;
 		} else {
-			std::filesystem::path rel = std::filesystem::relative(entry.path(), root_dir_, ec);
+			std::filesystem::path rel = std::filesystem::relative(entry.path(), get_base_dir(), ec);
 			if (ec) {
 				item_uri = scheme_ + "://" + entry_path;
 			} else {
@@ -861,8 +872,8 @@ std::optional<vfs_write_handle> file_vfs_provider::create_file(const std::string
 	}
 
 	std::filesystem::path target = std::filesystem::weakly_canonical(raw_path);
-	std::string base_dir = root_dir_.empty() ? fs_utils::get_project_dir() : root_dir_;
-	std::filesystem::path project_root = std::filesystem::canonical(base_dir);
+	std::string base_dir = get_base_dir();
+	std::filesystem::path project_root = std::filesystem::weakly_canonical(base_dir);
 
 	std::string target_str = target.string();
 	std::string root_str = project_root.string();
@@ -917,8 +928,8 @@ bool file_vfs_provider::create_directory(const std::string &uri)
 	}
 
 	std::filesystem::path target = std::filesystem::weakly_canonical(raw_path);
-	std::string base_dir = root_dir_.empty() ? fs_utils::get_project_dir() : root_dir_;
-	std::filesystem::path project_root = std::filesystem::canonical(base_dir);
+	std::string base_dir = get_base_dir();
+	std::filesystem::path project_root = std::filesystem::weakly_canonical(base_dir);
 
 	std::string target_str = target.string();
 	std::string root_str = project_root.string();
