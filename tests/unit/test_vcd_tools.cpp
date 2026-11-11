@@ -1557,8 +1557,15 @@ int main()
 		assert(!std::filesystem::exists(sim_dir + "/sim_out.previous.vcd"));
 		assert(verilog::vcd_parser_cache::get_instance().size() == 1);
 
+		// Re-run simulation without changing DUT: verify automatic comparison reports IDENTICAL and saves a vcd_compare call
+		auto sim_tool_identical = sim_val.create_tool(sim_args);
+		std::string sim_out_identical = sim_tool_identical->execute(sim_ctx);
+		assert(sim_out_identical.find("Comparison vs. Previous (`sim_out.previous.vcd`)**: **IDENTICAL**") != std::string::npos);
+		assert(sim_out_identical.find("waveforms are **IDENTICAL**") != std::string::npos);
+		assert(sim_out_identical.find("no `vcd_compare` needed") != std::string::npos);
+
 		// Mutate DUT so the next simulation run produces a failing result, and verify both
-		// sim_out.previous.vcd and sim_out.lastpass.vcd are preserved and suggested for vcd_compare
+		// sim_out.previous.vcd and sim_out.lastpass.vcd are preserved, DIVERGED is reported, and vcd_compare is suggested
 		{
 			std::ofstream dut_ofs(sim_dir + "/sv/dut.sv");
 			dut_ofs << "`timescale 1ns/1ps\n"
@@ -1575,7 +1582,8 @@ int main()
 		assert(sim_out_2.find("OUT=ff FAIL") != std::string::npos);
 		assert(std::filesystem::exists(sim_dir + "/sim_out.previous.vcd"));
 		assert(std::filesystem::exists(sim_dir + "/sim_out.lastpass.vcd"));
-		assert(sim_out_2.find("Previous result saved as `sim_out.previous.vcd`. To compare the current result to this file use `vcd_compare(path_a=\"sim_out.previous.vcd\", path_b=\"sim_out.vcd\", scope=\"tb_dut.uut\")`") != std::string::npos);
+		assert(sim_out_2.find("Comparison vs. Previous (`sim_out.previous.vcd`)**: **DIVERGED**") != std::string::npos);
+		assert(sim_out_2.find("To compare the current result to this file use `vcd_compare(path_a=\"sim_out.previous.vcd\", path_b=\"sim_out.vcd\", scope=\"tb_dut.uut\")`") != std::string::npos);
 		assert(sim_out_2.find("To compare to the last passing run, use `vcd_compare(path_a=\"sim_out.lastpass.vcd\", path_b=\"sim_out.vcd\", scope=\"tb_dut.uut\")`") != std::string::npos);
 
 		// Run a 3rd simulation that also fails (8'hee); verify sim_out.lastpass.vcd STILL holds the passing 8'ha5 trace
@@ -1594,7 +1602,6 @@ int main()
 		std::string sim_out_3 = sim_tool_3->execute(sim_ctx);
 		assert(sim_out_3.find("OUT=ee FAIL") != std::string::npos);
 		assert(sim_out_3.find("To compare to the last passing run, use `vcd_compare(path_a=\"sim_out.lastpass.vcd\", path_b=\"sim_out.vcd\", scope=\"tb_dut.uut\")`") != std::string::npos);
-
 		tools::vcd_compare_validator cmp_val;
 		nlohmann::json cmp_args = {
 			{"path_a", "sim_out.lastpass.vcd"},

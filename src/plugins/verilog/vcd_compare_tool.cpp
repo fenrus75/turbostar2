@@ -416,4 +416,156 @@ std::string vcd_compare_tool::execute(agentlib::tool_context &ctx)
 	return ss.str();
 }
 
+vcd_compare_tool::quick_compare_summary vcd_compare_tool::quick_compare(
+	std::string_view safe_path_a,
+	std::string_view safe_path_b,
+	std::string_view scope
+)
+{
+	quick_compare_summary res;
+
+	std::string err_a;
+	auto parser_ptr_a = verilog::vcd_parser_cache::get_instance().get_or_parse(std::string(safe_path_a), err_a);
+	if (!parser_ptr_a) {
+		return res;
+	}
+	const auto &parser_a = *parser_ptr_a;
+
+	std::string err_b;
+	auto parser_ptr_b = verilog::vcd_parser_cache::get_instance().get_or_parse(std::string(safe_path_b), err_b);
+	if (!parser_ptr_b) {
+		return res;
+	}
+	const auto &parser_b = *parser_ptr_b;
+
+	std::string clock_name;
+	if (auto detected_b = parser_b.detect_clock()) {
+		clock_name = detected_b->signal_name;
+	} else if (auto detected_a = parser_a.detect_clock()) {
+		clock_name = detected_a->signal_name;
+	} else {
+		return res;
+	}
+
+	if (!parser_a.find_signal(clock_name) || !parser_b.find_signal(clock_name)) {
+		return res;
+	}
+
+	auto get_filtered_signals = [&](const verilog::vcd_parser &parser, std::string_view target_scope) -> std::set<std::string> {
+		std::set<std::string> out;
+		for (const auto &sig : parser.get_signals()) {
+			if (sig.full_name == clock_name) {
+				continue;
+			}
+			if (!target_scope.empty()) {
+				std::string sc(target_scope);
+				if (sig.scope != sc && !sig.scope.starts_with(sc + ".")) {
+					continue;
+				}
+			}
+			out.insert(sig.full_name);
+		}
+		return out;
+	};
+
+	std::set<std::string> sigs_a = get_filtered_signals(parser_a, scope);
+	std::set<std::string> sigs_b = get_filtered_signals(parser_b, scope);
+	if (sigs_a.empty() || sigs_b.empty()) {
+		sigs_a = get_filtered_signals(parser_a, "");
+		sigs_b = get_filtered_signals(parser_b, "");
+	}
+
+	std::vector<std::string> common_signals;
+	for (const auto &s : sigs_a) {
+		if (sigs_b.contains(s)) {
+			common_signals.push_back(s);
+		} else {
+			res.unique_a_signals++;
+		}
+	}
+	for (const auto &s : sigs_b) {
+		if (!sigs_a.contains(s)) {
+			res.unique_b_signals++;
+		}
+	}
+
+	res.common_signals = common_signals.size();
+	if (common_signals.empty()) {
+		return res;
+	}
+
+	std::string sample_err_a;
+	auto samples_a = parser_a.sample_wave(
+		clock_name,
+		"posedge",
+		common_signals,
+		std::nullopt,
+		std::nullopt,
+		std::nullopt,
+		std::nullopt,
+		0,
+		sample_err_a,
+		false
+	);
+	if (!sample_err_a.empty()) {
+		return res;
+	}
+
+	std::string sample_err_b;
+	auto samples_b = parser_b.sample_wave(
+		clock_name,
+		"posedge",
+		common_signals,
+		std::nullopt,
+		std::nullopt,
+		std::nullopt,
+		std::nullopt,
+		0,
+		sample_err_b,
+		false
+	);
+	if (!sample_err_b.empty()) {
+		return res;
+	}
+
+	res.cycles_a = samples_a.size();
+	res.cycles_b = samples_b.size();
+
+	size_t compared_cycles = std::min(samples_a.size(), samples_b.size());
+	std::set<std::string> diff_sigs;
+
+	for (size_t i = 0; i < compared_cycles; ++i) {
+		const auto &sa = samples_a[i];
+		const auto &sb = samples_b[i];
+		bool cycle_diff = false;
+
+		for (const auto &sig : common_signals) {
+			auto it_a = sa.signal_values.find(sig);
+			auto it_b = sb.signal_values.find(sig);
+			std::string_view va = (it_a != sa.signal_values.end()) ? std::string_view(it_a->second) : std::string_view{};
+			std::string_view vb = (it_b != sb.signal_values.end()) ? std::string_view(it_b->second) : std::string_view{};
+
+			if (va == "-" && vb == "-") {
+				continue;
+			}
+			if (va != vb) {
+				cycle_diff = true;
+				diff_sigs.insert(sig);
+			}
+		}
+
+		if (cycle_diff) {
+			if (res.divergent_cycles == 0) {
+				res.first_divergent_tick = sa.tick;
+			}
+			res.divergent_cycles++;
+		}
+	}
+
+	res.divergent_signals = diff_sigs.size();
+	res.ok = true;
+	res.identical = (res.divergent_cycles == 0 && res.cycles_a == res.cycles_b && res.common_signals > 0);
+	return res;
+}
+
 } // namespace tools

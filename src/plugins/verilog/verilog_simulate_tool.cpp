@@ -8,11 +8,10 @@
 #include <vector>
 #include "fs_utils.h"
 #include "plugins/verilog/fpga_project_settings.h"
+#include "plugins/verilog/vcd_compare_tool.h"
 #include "plugins/verilog/vcd_parser.h"
 #include "plugins/verilog/vcd_parser_cache.h"
 #include "plugins/verilog/verilog_module_scanner.h"
-
-#include <cctype>
 #include <ctre.hpp>
 
 namespace tools
@@ -357,18 +356,54 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 
 			ss << std::format("- **Total Signals**: {} across {} hierarchy scope(s)\n",
 			                  signals.size(), scopes.size());
+
+			vcd_compare_tool::quick_compare_summary prev_cmp;
+			if (saved_previous) {
+				prev_cmp = vcd_compare_tool::quick_compare(vcd_prev_full_path.string(), vcd_full_path.string(), suggested_scope);
+				if (prev_cmp.ok) {
+					if (prev_cmp.identical) {
+						ss << std::format("- **Comparison vs. Previous (`{}`)**: **IDENTICAL** (0 differences across {} signal(s) and {} clock cycle(s))\n",
+						                  prev_rel, prev_cmp.common_signals, prev_cmp.cycles_b);
+					} else if (prev_cmp.divergent_cycles > 0) {
+						ss << std::format("- **Comparison vs. Previous (`{}`)**: **DIVERGED** ({} signal(s) differ across {} of {} cycle(s); first difference at tick {})\n",
+						                  prev_rel, prev_cmp.divergent_signals, prev_cmp.divergent_cycles,
+						                  std::min(prev_cmp.cycles_a, prev_cmp.cycles_b), prev_cmp.first_divergent_tick);
+					} else {
+						ss << std::format("- **Comparison vs. Previous (`{}`)**: **LENGTH MISMATCH** ({} vs {} cycles)\n",
+						                  prev_rel, prev_cmp.cycles_a, prev_cmp.cycles_b);
+					}
+				}
+			}
+
 			ss << "\n#### Next Steps\n";
 			ss << std::format("- Use `vcd_file_info(path=\"{}\", scope=\"{}\")` to get more information.\n",
 			                  dump_rel, suggested_scope);
 			ss << std::format("- Use `vcd_wave(path=\"{}\", signals={})` to see the waveforms.\n",
 			                  dump_rel, sigs_arg);
 			if (saved_previous) {
-				ss << std::format("- Previous result saved as `{}`. To compare the current result to this file use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
-				                  prev_rel, prev_rel, dump_rel, suggested_scope);
+				if (prev_cmp.ok && prev_cmp.identical) {
+					ss << std::format("- Previous result saved as `{}`: waveforms are **IDENTICAL** across all {} signal(s) ({} cycles) — no `vcd_compare` needed.\n",
+					                  prev_rel, prev_cmp.common_signals, prev_cmp.cycles_b);
+				} else if (prev_cmp.ok && prev_cmp.divergent_cycles > 0) {
+					ss << std::format("- Previous result saved as `{}` (diverged at tick {}, {} signal(s) differ). To compare the current result to this file use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
+					                  prev_rel, prev_cmp.first_divergent_tick, prev_cmp.divergent_signals, prev_rel, dump_rel, suggested_scope);
+				} else {
+					ss << std::format("- Previous result saved as `{}`. To compare the current result to this file use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
+					                  prev_rel, prev_rel, dump_rel, suggested_scope);
+				}
 			}
 			if (!suite_passed && lastpass_exists) {
-				ss << std::format("- To compare to the last passing run, use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
-				                  lastpass_rel, dump_rel, suggested_scope);
+				auto lp_cmp = vcd_compare_tool::quick_compare(vcd_lastpass_full_path.string(), vcd_full_path.string(), suggested_scope);
+				if (lp_cmp.ok && lp_cmp.identical) {
+					ss << std::format("- Last passing run (`{}`) waveform is **IDENTICAL** to the current result ({} signal(s), {} cycles).\n",
+					                  lastpass_rel, lp_cmp.common_signals, lp_cmp.cycles_b);
+				} else if (lp_cmp.ok && lp_cmp.divergent_cycles > 0) {
+					ss << std::format("- Compared to last passing run (`{}`): diverged at tick {} ({} signal(s) differ). To compare to the last passing run, use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
+					                  lastpass_rel, lp_cmp.first_divergent_tick, lp_cmp.divergent_signals, lastpass_rel, dump_rel, suggested_scope);
+				} else {
+					ss << std::format("- To compare to the last passing run, use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
+					                  lastpass_rel, dump_rel, suggested_scope);
+				}
 			}
 		} else {
 			ss << std::format("\n> [!WARNING] VCD file `{}` was generated but could not be parsed: {}\n",

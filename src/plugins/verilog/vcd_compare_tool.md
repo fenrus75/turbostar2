@@ -16,3 +16,4 @@ Key capabilities:
 - In regression test debugging, identifying the *first* cycle of divergence is critical; subsequent cycles often cascade as divergent state spreads throughout downstream registers.
 - Distinguishing between value mismatches and validity mismatches (e.g. active transaction vs unasserted strobe) gives clear diagnostic insight into whether timing or logic drifted.
 - Sidecar qualifiers must always be applied symmetrically across both files under comparison; otherwise, an unmasked golden file compared against a masked candidate file triggers false positive validity mismatches at tick 0 before simulation even begins.
+- Providing `vcd_compare_tool::quick_compare` allows `verilog_simulate` to perform an immediate in-memory comparison against `<stem>.previous.vcd` and `<stem>.lastpass.vcd` using `vcd_parser_cache` without requiring a separate agent tool round-trip when traces match.

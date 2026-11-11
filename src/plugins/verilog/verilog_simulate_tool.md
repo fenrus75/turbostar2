@@ -14,3 +14,4 @@ Key capabilities:
 - Passing `CCACHE_DISABLE=1 OBJCACHE=` to `verilator` prevents Verilator's generated Makefile from failing when `~/.cache/ccache` is mounted read-only inside the subprocess execution sandbox.
 - Warming `vcd_parser_cache` at the end of `verilog_simulate` eliminates redundant VCD parsing on the immediately following `vcd_file_info` or `vcd_wave` call.
 - Keeping both `<stem>.previous.vcd` and `<stem>.lastpass.vcd` prevents multi-step debugging loops from overwriting the last known-good waveform when two or more consecutive edits fail.
+- Running `vcd_compare_tool::quick_compare` automatically at the end of `verilog_simulate` reports immediately when the new waveform is **IDENTICAL** to `<stem>.previous.vcd` (saving a `vcd_compare` tool call in the common refactoring case) or highlights the exact first divergence tick when differences exist.

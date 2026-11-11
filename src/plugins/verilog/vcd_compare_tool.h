@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <vector>
 #include <optional>
 #include <cstdint>
@@ -30,10 +31,29 @@ struct vcd_compare_args {
 class vcd_compare_tool : public agentlib::llm_tool_action
 {
       public:
+	struct quick_compare_summary {
+		bool ok{false};
+		bool identical{false};
+		size_t common_signals{0};
+		size_t unique_a_signals{0};
+		size_t unique_b_signals{0};
+		size_t cycles_a{0};
+		size_t cycles_b{0};
+		size_t divergent_cycles{0};
+		size_t divergent_signals{0};
+		size_t first_divergent_tick{0};
+	};
+
 	explicit vcd_compare_tool(vcd_compare_args args);
 
 	bool validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const override;
 	std::string execute(agentlib::tool_context &ctx) override;
+
+	static quick_compare_summary quick_compare(
+		std::string_view safe_path_a,
+		std::string_view safe_path_b,
+		std::string_view scope = ""
+	);
 
       private:
 	vcd_compare_args args_;
