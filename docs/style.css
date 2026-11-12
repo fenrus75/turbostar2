@@ -415,10 +415,12 @@ h1 span {
 
 .detail-info {
   flex: 1;
+  min-width: 0;
 }
 
 .detail-visual {
   flex: 1;
+  min-width: 0;
 }
 
 .detail-subtitle {
@@ -513,6 +515,14 @@ code {
   border-radius: 4px;
   font-size: 0.9rem;
   color: var(--accent-yellow);
+}
+
+pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+  color: inherit;
 }
 
 /* Footer */

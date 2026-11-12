@@ -99,13 +99,15 @@
 <span class="keyword"># Verilog Lint Report: `cpu`</span>
 
 - <span class="keyword">Status</span>: <span class="literal">PASSED</span> (Lint Only, 0.13s)
-- <span class="keyword">Target Scope</span>: `cpu` (10 of 12 workspace RTL files in hierarchy)
-- <span class="keyword">Diagnostics</span>: 0 correctness warning(s), 14 style/unused note(s)
+- <span class="keyword">Target Scope</span>: `cpu` (10 of 12 workspace RTL files)
+- <span class="keyword">Diagnostics</span>: 0 correctness warnings, 14 style/unused notes
 - <span class="keyword">Full Log</span>: `tmp://synthesis.log` (68 lines, 5481 bytes)
 
 <span class="keyword">## Style &amp; Unused Resource Notes (14)</span>
-- <span class="type">UNUSEDPARAM</span> (2 occurrences) — e.g. Parameter is not used: 'AC_BIT' (src/alu8.sv:43)
-- <span class="type">UNUSEDSIGNAL</span> (12 occurrences) — e.g. Bits of signal are not used: 'mem_req_addr'[15:14] (src/cpu.sv:30)</code></pre>
+- <span class="type">UNUSEDPARAM</span> (2x) — Parameter not used: 'AC_BIT'
+  (src/alu8.sv:43)
+- <span class="type">UNUSEDSIGNAL</span> (12x) — Bits not used: 'mem_req_addr'[15:14]
+  (src/cpu.sv:30)</code></pre>
       </div>
     </section>
 
@@ -126,16 +128,16 @@
         <pre><code><span class="comment"># Tool call: verilog_simulate(hierarchical=true, module="top")</span>
 <span class="keyword">## Module Verification Report: `top` (Hierarchical)</span>
 
-- <span class="keyword">Bottom-Up Order</span>: decode_mod -&gt; alu8 -&gt; alu16 -&gt; ... -&gt; cpu -&gt; top
+- <span class="keyword">Order</span>: decode_mod -&gt; alu8 -&gt; alu16 -&gt; ... -&gt; cpu -&gt; top
 - <span class="keyword">Level Filter</span>: comprehensive
-- <span class="keyword">Summary</span>: <span class="literal">34 Passed</span>, 0 Failed (out of 34 testbench run(s))
+- <span class="keyword">Summary</span>: <span class="literal">34 Passed</span>, 0 Failed (out of 34 testbench runs)
 
-| Testbench            | Module(s)  | Level | Result   | Waveform                   | vs. Previous |
-| :---                 | :---       | :---  | :---     | :---                       | :---         |
-| `tb/decode_tb.sv`    | decode_mod | quick | <span class="literal">PASS</span>     | `wave/dump_decode_tb.vcd`  | IDENTICAL    |
-| `tb/push_pop_tb.sv`  | cpu        | quick | <span class="literal">PASS</span>     | `wave/dump_push_pop_tb.vcd`| IDENTICAL    |
-| `tb/call_ret_tb.sv`  | cpu        | quick | <span class="literal">PASS</span>     | `wave/dump_call_ret_tb.vcd`| IDENTICAL    |
-| `tb/lhld_shld_tb.sv` | cpu        | quick | <span class="literal">PASS</span>     | `wave/dump_lhld_shld_tb.vcd`| IDENTICAL   |</code></pre>
+| Testbench            | Module     | Result | vs. Previous |
+| :---                 | :---       | :---   | :---         |
+| `tb/decode_tb.sv`    | decode_mod | <span class="literal">PASS</span>   | IDENTICAL    |
+| `tb/push_pop_tb.sv`  | cpu        | <span class="literal">PASS</span>   | IDENTICAL    |
+| `tb/call_ret_tb.sv`  | cpu        | <span class="literal">PASS</span>   | IDENTICAL    |
+| `tb/lhld_shld_tb.sv` | cpu        | <span class="literal">PASS</span>   | IDENTICAL    |</code></pre>
       </div>
     </section>
 
@@ -153,20 +155,20 @@
         </ul>
       </div>
       <div class="detail-visual">
-        <pre><code><span class="comment"># Tool call: vcd_wave(path="wave/dump_call_ret_tb.vcd", signals=[...], start_tick=1, end_tick=8)</span>
+        <pre><code><span class="comment"># Tool call: vcd_wave(path="wave/dump_call_ret_tb.vcd", ...)</span>
 <span class="keyword">### VCD Waveform: wave/dump_call_ret_tb.vcd</span>
-Sampled on: `clk` (posedge) | Timescale: 1ps | Total Rows: 8
+Sampled on: `clk` (posedge) | Timescale: 1ps | Rows: 8
 
-| Tick | Time (1ps) | clk | dut.sequencer.state | dut.decode.pc | dut.opcode  | dut.sp_val |
-|:-----|:-----------|:----|:--------------------|:--------------|:------------|:-----------|
-| 1    | 15000      | 1   | <span class="type">0x8 (HALT)</span>          | 0x0000        | <span class="literal">0x00 (NOP)</span>  | 0x0200     |
-| 3    | 35000      | 1   | <span class="type">0x0 (FETCH)</span>         | 0x0001        | <span class="literal">0xCD (CALL)</span> | 0x0200     |
-| 5    | 55000      | 1   | <span class="type">0x1 (DECODE)</span>        | 0x0003        | <span class="literal">0xCD (CALL)</span> | 0x0200     |
-| 6    | 65000      | 1   | <span class="type">0x6 (STORE16_1)</span>     | 0x0003        | <span class="literal">0xCD (CALL)</span> | 0x0200     |
-| 7    | 75000      | 1   | <span class="type">0x7 (STORE16_2)</span>     | 0x0003        | <span class="literal">0xCD (CALL)</span> | 0x0200     |
-| 8    | 85000      | 1   | <span class="type">0x8 (RETIRE)</span>        | 0x0003        | <span class="literal">0xCD (CALL)</span> | 0x0200     |
-| 9    | 95000      | 1   | <span class="type">0x0 (FETCH)</span>         | 0x0050        | <span class="literal">0xCD (CALL)</span> | 0x01FE     |
-| 10   | 105000     | 1   | <span class="type">0x0 (FETCH)</span>         | 0x0051        | <span class="literal">0x3E (MVI)</span>  | 0x01FE     |</code></pre>
+| Tick | state           | pc     | opcode      | sp_val |
+|:-----|:----------------|:-------|:------------|:-------|
+| 1    | <span class="type">0x8 (HALT)</span>      | 0x0000 | <span class="literal">0x00 (NOP)</span>  | 0x0200 |
+| 3    | <span class="type">0x0 (FETCH)</span>     | 0x0001 | <span class="literal">0xCD (CALL)</span> | 0x0200 |
+| 5    | <span class="type">0x1 (DECODE)</span>    | 0x0003 | <span class="literal">0xCD (CALL)</span> | 0x0200 |
+| 6    | <span class="type">0x6 (STORE16_1)</span> | 0x0003 | <span class="literal">0xCD (CALL)</span> | 0x0200 |
+| 7    | <span class="type">0x7 (STORE16_2)</span> | 0x0003 | <span class="literal">0xCD (CALL)</span> | 0x0200 |
+| 8    | <span class="type">0x8 (RETIRE)</span>    | 0x0003 | <span class="literal">0xCD (CALL)</span> | 0x0200 |
+| 9    | <span class="type">0x0 (FETCH)</span>     | 0x0050 | <span class="literal">0xCD (CALL)</span> | 0x01FE |
+| 10   | <span class="type">0x0 (FETCH)</span>     | 0x0051 | <span class="literal">0x3E (MVI)</span>  | 0x01FE |</code></pre>
       </div>
     </section>
 
@@ -189,23 +191,23 @@ Sampled on: `clk` (posedge) | Timescale: 1ps | Total Rows: 8
 Max Internal Reg -&gt; Reg Depth: 25
 
 <span class="keyword">## Worst Combinational Paths (Grouped by Bottleneck Sink)</span>
-<span class="keyword">Path #1 [Reg -&gt; Reg] Depth: 25 (9 LUTs + 16 carry) — Converging on `alu.flags`</span>
-- Sources: `alu.flags` (src/alu8.sv:53), `decode.addr_hi_valid` (src/decode.sv:135)
+<span class="keyword">Path #1 [Reg -&gt; Reg] Depth: 25 (9 LUTs + 16 carry) -&gt; `alu.flags`</span>
+- Sources: `alu.flags` (alu8.sv:53), `addr_hi_valid` (decode.sv:135)
   1. `cells_map.v` (5 LUTs) -&gt; `store_addr_in`
   2. `alu16.sv:74` (1 LUT) -&gt; `lo_val`
-  3. `alu16.sv:80` (16 carry, from `value_reg`, `A_reg.value_reg`) -&gt; `A_load`
+  3. `alu16.sv:80` (16 carry, `A_reg.value_reg`) -&gt; `A_load`
   4. `alu8.sv:49` (1 LUT) -&gt; `alu.next_flags[0]`
 - End: `alu.flags` (src/alu8.sv:53)
 
 <span class="keyword">## Area Summary</span>
 - LUTs: 1103 | Flip-Flops: 173 | Carry: 196 | Total Cells: 1487
 
-<span class="comment"># Tool call: verilog_update_timing() — 12/12 .timing.md sidecars updated</span>
-| Module        | Sidecar Path                | Reg-&gt;Reg | LUTs | FFs | Status |
-| :---          | :---                        | :---:    | :---:| :---:| :---   |
-| `alu8`        | `src/alu8.timing.md`        | 15       | 329  | 6   | OK     |
-| `decode_mod`  | `src/decode_mod.timing.md`  | 16       | 484  | 84  | OK     |
-| `cpu`         | `src/cpu.timing.md`         | 25       | 1103 | 173 | OK     |</code></pre>
+<span class="comment"># Tool call: verilog_update_timing() — 12/12 sidecars updated</span>
+| Module       | Sidecar Path               | Depth | LUTs | FFs |
+| :---         | :---                       | :---: | :---:| :---:|
+| `alu8`       | `src/alu8.timing.md`       | 15    | 329  | 6   |
+| `decode_mod` | `src/decode_mod.timing.md` | 16    | 484  | 84  |
+| `cpu`        | `src/cpu.timing.md`        | 25    | 1103 | 173 |</code></pre>
       </div>
     </section>
 
