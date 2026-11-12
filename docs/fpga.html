@@ -53,11 +53,31 @@
           <strong>With raw shell commands, RTL design is hostile to AI agents. With the right primitives, the workflow becomes effortless.</strong>
         </p>
         <p class="detail-text">
-          Ask an unassisted coding agent to build or debug an CPU core in SystemVerilog using only bash and grep: a single simulation emits a 500&nbsp;MB <code>.vcd</code> dump that overflows the context window, running Verilator on a multi-testbench directory fails with duplicate <code>top</code> modules, and "optimizing" a critical path blindly unrolls multiplexers until LUT area explodes and physical routing fails timing.
+          Ask an unassisted coding agent to build or debug a CPU core in SystemVerilog using only bash and grep: a single simulation emits a 500&nbsp;MB <code>.vcd</code> dump that overflows the context window, running Verilator on a multi-testbench directory fails with duplicate <code>top</code> modules, and "optimizing" a critical path blindly unrolls multiplexers until LUT area explodes and physical routing fails timing.
         </p>
         <p class="detail-text">
-          Turbostar acts as the domain-aware translation layer between open-source EDA toolchains (<code>Verilator</code>, <code>Yosys</code>, <code>Icarus Verilog</code>, and <code>nextpnr</code>) and the agent. Every tool accepts high-level intent—module names, clock-cycle windows, enum state symbols, and target frequencies—and returns compact, line-attributed engineering reports. Tested end-to-end by autonomous agents designing complete 8008/8080-class CPU cores from scratch, the tools feel completely natural to the model at every step of the RTL lifecycle.
+          Turbostar acts as the domain-aware translation layer between open-source EDA toolchains (<code>Verilator</code>, <code>Yosys</code>, and <code>nextpnr</code>) and the agent. Every tool accepts high-level intent—module names, clock-cycle windows, enum state symbols, and target frequencies—and returns compact, line-attributed engineering reports. Tested end-to-end by autonomous agents designing a 12-module, 34-testbench Intel 8080 CPU core from scratch, the tools feel completely natural to the model at every step of the RTL lifecycle.
         </p>
+      </div>
+      <div class="detail-visual">
+        <pre><code><span class="comment"># The Sub-Second Hardware Agent Inner Loop</span>
+<span class="keyword">1. Edit SystemVerilog RTL</span>
+   fs_replace_content / fs_write_file
+
+<span class="keyword">2. Fast Syntax &amp; Lint Triage (~0.13s)</span>
+   verilog_compile(module=<span class="literal">"cpu"</span>, lint_only=<span class="type">true</span>)
+
+<span class="keyword">3. Focused Unit Testbench (~0.40s)</span>
+   verilog_simulate(module=<span class="literal">"alu8"</span>)
+
+<span class="keyword">4. Full Bottom-Up Tree Regression (Parallel Multi-Core)</span>
+   verilog_simulate(hierarchical=<span class="type">true</span>, module=<span class="literal">"top"</span>)
+
+<span class="keyword">5. Logic Depth, LUT Area &amp; .timing.md Contracts</span>
+   verilog_logic_depth(module=<span class="literal">"cpu"</span>) / verilog_update_timing()
+
+<span class="keyword">6. Physical Place-and-Route Sign-Off</span>
+   verilog_pnr_timing(top_k=<span class="type">3</span>)</code></pre>
       </div>
     </section>
 
@@ -98,7 +118,7 @@
         </p>
         <ul class="detail-list">
           <li><strong>Quick, Comprehensive &amp; Extreme Levels:</strong> Classify testbenches by level (<code>level="quick"</code>) so the agent runs sub-second unit tests after every edit and full instruction-set regressions before committing.</li>
-          <li><strong>Hierarchical Bottom-Up Verification:</strong> Pass <code>hierarchical=true</code> on top modules to automatically discover and run all submodule testbenches in topological dependency order (e.g. <code>alu8</code> &rarr; <code>decode_mod</code> &rarr; <code>cpu</code> &rarr; <code>top</code>).</li>
+          <li><strong>Hierarchical Bottom-Up Verification:</strong> Pass <code>hierarchical=true</code> on top modules to automatically compile all testbenches in parallel across CPU cores and run them in topological dependency order (e.g. <code>decode_mod</code> &rarr; <code>alu8</code> &rarr; <code>cpu</code> &rarr; <code>top</code>).</li>
           <li><strong>Automatic Waveform Snapshots &amp; Diffs:</strong> Passing runs snapshot <code>.lastpass.vcd</code> while every run preserves <code>.previous.vcd</code>. When a change breaks a testbench, <code>verilog_simulate</code> automatically diffs the new trace against the baseline and reports the exact diverging clock cycle and signal.</li>
         </ul>
       </div>
@@ -137,15 +157,16 @@
 <span class="keyword">### VCD Waveform: wave/dump_call_ret_tb.vcd</span>
 Sampled on: `clk` (posedge) | Timescale: 1ps | Total Rows: 8
 
-| Tick | Time (1ps) | clk | dut.sequencer.state | dut.decode.pc | dut.opcode | dut.sp_val |
-|:-----|:-----------|:----|:-------------------|:--------------|:-----------|:-----------|
-| 1    | 15000      | 1   | <span class="type">0x8 (HALT)</span>         | 16'h0000      | 8'h00      | 16'h0200   |
-| 3    | 35000      | 1   | <span class="type">0x0 (FETCH)</span>        | 16'h0001      | 8'hCD      | 16'h0200   |
-| 5    | 55000      | 1   | <span class="type">0x1 (DECODE)</span>       | 16'h0003      | 8'hCD      | 16'h0200   |
-| 6    | 65000      | 1   | <span class="type">0x6 (STORE16_1)</span>    | 16'h0003      | 8'hCD      | 16'h0200   |
-| 7    | 75000      | 1   | <span class="type">0x7 (STORE16_2)</span>    | 16'h0003      | 8'hCD      | 16'h0200   |
-| 8    | 85000      | 1   | <span class="type">0x8 (RETIRE)</span>       | 16'h0003      | 8'hCD      | 16'h0200   |
-| 9    | 95000      | 1   | <span class="type">0x0 (FETCH)</span>        | 16'h0050      | 8'hCD      | 16'h01FE   |</code></pre>
+| Tick | Time (1ps) | clk | dut.sequencer.state | dut.decode.pc | dut.opcode  | dut.sp_val |
+|:-----|:-----------|:----|:--------------------|:--------------|:------------|:-----------|
+| 1    | 15000      | 1   | <span class="type">0x8 (HALT)</span>          | 0x0000        | <span class="literal">0x00 (NOP)</span>  | 0x0200     |
+| 3    | 35000      | 1   | <span class="type">0x0 (FETCH)</span>         | 0x0001        | <span class="literal">0xCD (CALL)</span> | 0x0200     |
+| 5    | 55000      | 1   | <span class="type">0x1 (DECODE)</span>        | 0x0003        | <span class="literal">0xCD (CALL)</span> | 0x0200     |
+| 6    | 65000      | 1   | <span class="type">0x6 (STORE16_1)</span>     | 0x0003        | <span class="literal">0xCD (CALL)</span> | 0x0200     |
+| 7    | 75000      | 1   | <span class="type">0x7 (STORE16_2)</span>     | 0x0003        | <span class="literal">0xCD (CALL)</span> | 0x0200     |
+| 8    | 85000      | 1   | <span class="type">0x8 (RETIRE)</span>        | 0x0003        | <span class="literal">0xCD (CALL)</span> | 0x0200     |
+| 9    | 95000      | 1   | <span class="type">0x0 (FETCH)</span>         | 0x0050        | <span class="literal">0xCD (CALL)</span> | 0x01FE     |
+| 10   | 105000     | 1   | <span class="type">0x0 (FETCH)</span>         | 0x0051        | <span class="literal">0x3E (MVI)</span>  | 0x01FE     |</code></pre>
       </div>
     </section>
 
@@ -177,7 +198,14 @@ Max Internal Reg -&gt; Reg Depth: 25
 - End: `alu.flags` (src/alu8.sv:53)
 
 <span class="keyword">## Area Summary</span>
-- LUTs: 1103 | Flip-Flops: 173 | Carry: 196 | Total Cells: 1487</code></pre>
+- LUTs: 1103 | Flip-Flops: 173 | Carry: 196 | Total Cells: 1487
+
+<span class="comment"># Tool call: verilog_update_timing() — 12/12 .timing.md sidecars updated</span>
+| Module        | Sidecar Path                | Reg-&gt;Reg | LUTs | FFs | Status |
+| :---          | :---                        | :---:    | :---:| :---:| :---   |
+| `alu8`        | `src/alu8.timing.md`        | 15       | 329  | 6   | OK     |
+| `decode_mod`  | `src/decode_mod.timing.md`  | 16       | 484  | 84  | OK     |
+| `cpu`         | `src/cpu.timing.md`         | 25       | 1103 | 173 | OK     |</code></pre>
       </div>
     </section>
 
@@ -320,7 +348,7 @@ Max Wire Delay: 2.14 ns on net `mem_read_addr[4]` (dx=4, dy=7, fanout=16)</code>
 turbomcp --project-dir /path/to/rtl-project
 
 <span class="comment"># 3. Or run standalone batch timing &amp; area analysis</span>
-turbostar-verilog-update-timing --target ice40</code></pre>
+turbostar-verilog-update-timing --target iCE40</code></pre>
         </div>
       </div>
     </section>
