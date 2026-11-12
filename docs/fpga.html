@@ -188,26 +188,26 @@ Sampled on: `clk` (posedge) | Timescale: 1ps | Rows: 8
       <div class="detail-visual">
         <pre><code><span class="comment"># Tool call: verilog_logic_depth(module="cpu", top_k=2)</span>
 <span class="keyword"># Timing: `cpu` (Target: iCE40)</span>
-Max Internal Reg -&gt; Reg Depth: 25
+Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
 
 <span class="keyword">## Worst Combinational Paths (Grouped by Bottleneck Sink)</span>
-<span class="keyword">Path #1 [Reg -&gt; Reg] Depth: 25 (9 LUTs + 16 carry) -&gt; `alu.flags`</span>
-- Sources: `alu.flags` (alu8.sv:53), `addr_hi_valid` (decode.sv:135)
-  1. `cells_map.v` (5 LUTs) -&gt; `store_addr_in`
-  2. `alu16.sv:74` (1 LUT) -&gt; `lo_val`
-  3. `alu16.sv:80` (16 carry, `A_reg.value_reg`) -&gt; `A_load`
-  4. `alu8.sv:49` (1 LUT) -&gt; `alu.next_flags[0]`
-- End: `alu.flags` (src/alu8.sv:53)
+<span class="keyword">Path #1 [Reg -&gt; Reg] Depth: 25 (10 LUTs + 15 carry) -&gt; `value_reg`</span>
+- Sources: `alu.flags` (alu8.sv:62), `decode.opcode_valid` (decode.sv:138)
+  1. `cells_map.v` (5 LUTs) -&gt; `C_load`
+  2. `alu16.sv:68` (1 LUT) -&gt; `C_load`
+  3. `alu16.sv:80` (15 carry, from `value_reg`) -&gt; `alu.next_flags`
+  4. `register.sv:11` (1 LUT) -&gt; `hi_val[7]`
+- End: `cpu_8080.value_reg` (src/register.sv:23)
 
-<span class="keyword">## Area Summary</span>
-- LUTs: 1103 | Flip-Flops: 173 | Carry: 196 | Total Cells: 1487
+<span class="keyword">## Area Summary (`cpu`)</span>
+- LUTs: 1221 | Flip-Flops: 173 | Carry: 247 | Total Cells: 1656
 
 <span class="comment"># Tool call: verilog_update_timing() — 12/12 sidecars updated</span>
 | Module       | Sidecar Path               | Depth | LUTs | FFs |
 | :---         | :---                       | :---: | :---:| :---:|
-| `alu8`       | `src/alu8.timing.md`       | 15    | 329  | 6   |
-| `decode_mod` | `src/decode_mod.timing.md` | 16    | 484  | 84  |
-| `cpu`        | `src/cpu.timing.md`        | 25    | 1103 | 173 |</code></pre>
+| `alu8`       | `src/alu8.timing.md`       | 17    | 353  | 6   |
+| `decode_mod` | `src/decode_mod.timing.md` | 16    | 545  | 84  |
+| `cpu`        | `src/cpu.timing.md`        | 25    | 1221 | 173 |</code></pre>
       </div>
     </section>
 
@@ -225,18 +225,27 @@ Max Internal Reg -&gt; Reg Depth: 25
         </ul>
       </div>
       <div class="detail-visual">
-        <pre><code><span class="comment"># Tool call: verilog_pnr_timing(top_k=3)</span>
+        <pre><code><span class="comment"># Tool call: verilog_pnr_timing(top_k=2)</span>
+<span class="keyword">## Clock Domain &amp; Frequency Timing</span>
+| Clock Domain            | Constraint | Achieved Fmax | Slack     | Status |
+| :---                    | :---:      | :---:         | :---:     | :---:  |
+| `clk$SB_IO_IN_$glb_clk` | 50.00 MHz  | <span class="literal">53.25 MHz</span>     | <span class="literal">+1.219 ns</span>| <span class="type">MET</span>    |
+
 <span class="keyword">## Hardware Resource Utilization (iCE40-HX8K)</span>
 | Resource       | Used | Available | Utilization |
 | :---           |:---:|:---:      |:---:        |
-| `ICESTORM_LC`  | 1103 | 7680      | 14.3%       |
-| `ICESTORM_RAM` | 1    | 32        | 3.1%        |
+| `ICESTORM_LC`  | 1386 | 7680      | 18.0%       |
+| `ICESTORM_RAM` | 8    | 32        | 25.0% (4KB) |
+| `SB_GB`        | 3    | 8         | 37.5%       |
 | `SB_IO`        | 10   | 256       | 3.9%        |
 
-<span class="keyword">=== Physical Timing Summary ===</span>
-Target: 100.00 MHz (10.00 ns) | Achieved: <span class="literal">104.2 MHz (+0.42 ns slack)</span>
-Critical Path Delay: 9.58 ns (<span class="type">39.1% logic</span>, <span class="literal">60.9% routing</span>)
-Max Wire Delay: 2.14 ns on net `mem_read_addr[4]` (dx=4, dy=7, fanout=16)</code></pre>
+<span class="keyword">## Physical Critical Paths (Grouped by Bottleneck Sink)</span>
+<span class="keyword">Path #1 [Reg -&gt; Reg] Delay: 18.781 ns</span> (<span class="type">29% logic</span>, <span class="literal">69% routing</span>)
+- Converging on: `cpu_8080.value_reg` (src/register.sv:23)
+- Carry/LUT Chain: 15 carry/LUT hops (alu16.sv:80 -&gt; hi_val[6])
+- Dominant Routing Delays:
+  &bull; <span class="literal">1.589 ns</span> routing via `cpu_8080.lo_val` (4 sinks, span: 8 tiles)
+  &bull; <span class="literal">1.274 ns</span> routing via `cpu_8080.A_load` (14 sinks, span: 5 tiles)</code></pre>
       </div>
     </section>
 
