@@ -66,28 +66,26 @@
       <div class="detail-info">
         <h2 class="detail-subtitle">Dual-Engine Lint &amp; Synthesis Triage</h2>
         <p class="detail-text">
-          Catch hardware bugs before a single clock cycle is simulated. <code>verilog_compile</code> combines ultra-fast Verilator static linting with Yosys RTL synthesis checks in a single call.
+          Catch hardware bugs before a single clock cycle is simulated. <code>verilog_compile</code> combines ultra-fast Verilator static linting (<code>lint_only=true</code> in ~0.13s) with full Yosys RTL synthesis checks in a single unified tool.
         </p>
         <ul class="detail-list">
-          <li><strong>Automatic Hierarchy Isolation:</strong> Pass <code>module="alu"</code> and Turbostar automatically scans your RTL tree, resolves transitive package and submodule dependencies, and excludes unrelated testbenches—preventing duplicate symbol errors.</li>
-          <li><strong>Hardware Hazard Categorization:</strong> Raw compiler logs are distilled into prioritized sections highlighting <em>Combinational Loops</em>, <em>Inferred Latches</em>, <em>Multi-Driven Nets</em>, and <em>Width Mismatches</em> with exact <code>file.sv:line</code> locations.</li>
-          <li><strong>SystemVerilog Package Ordering:</strong> Automatically orders <code>package</code> definitions and header includes ahead of dependent RTL modules without manual filelists.</li>
+          <li><strong>Automatic Hierarchy Isolation:</strong> Pass <code>module="cpu"</code> and Turbostar automatically scopes the module's hierarchy across the RTL tree, resolves dependencies, and excludes unrelated testbenches—preventing duplicate symbol errors.</li>
+          <li><strong>Structured Diagnostic Reporting:</strong> Compiler logs are cleanly separated into synthesis hazards vs. style and unused resource notes (<code>UNUSEDPARAM</code>, <code>UNUSEDSIGNAL</code>, <code>PINMISSING</code>) with exact <code>file.sv:line</code> locations.</li>
+          <li><strong>Fast Inner Loop to Full PnR:</strong> Use <code>lint_only=true</code> for lightning-fast sub-second syntax checks during coding, then run full synthesis + <code>nextpnr</code> place-and-route with cell statistics before committing.</li>
         </ul>
       </div>
       <div class="detail-visual">
-        <pre><code><span class="comment"># Tool call: verilog_compile(module="cpu_8080_core")</span>
-<span class="keyword">=== Compilation &amp; Synthesis Triage: cpu_8080_core ===</span>
-Status: <span class="type">WARNING (0 errors, 2 synthesis hazards)</span>
-Scoped Sources: pkg_types.sv, alu.sv, regfile.sv, cpu_8080_core.sv
+        <pre><code><span class="comment"># Tool call: verilog_compile(module="cpu", lint_only=true)</span>
+<span class="keyword"># Verilog Lint Report: `cpu`</span>
 
-<span class="keyword">[Inferred Latches]</span>
-  rtl/cpu_8080_core.sv:142: Warning: Latch inferred for signal
-  'next_mem_wdata[7:0]' in always_comb block (missing default assignment
-  when state == STATE_HALT).
+- <span class="keyword">Status</span>: <span class="literal">PASSED</span> (Lint Only, 0.13s)
+- <span class="keyword">Target Scope</span>: `cpu` (10 of 12 workspace RTL files in hierarchy)
+- <span class="keyword">Diagnostics</span>: 0 correctness warning(s), 14 style/unused note(s)
+- <span class="keyword">Full Log</span>: `tmp://synthesis.log` (68 lines, 5481 bytes)
 
-<span class="keyword">[Width Mismatches]</span>
-  rtl/alu.sv:68: Warning-WIDTH: Operator ADD expects 9 bits on
-  RHS, but 'carry_in' provides 1 bit.</code></pre>
+<span class="keyword">## Style &amp; Unused Resource Notes (14)</span>
+- <span class="type">UNUSEDPARAM</span> (2 occurrences) — e.g. Parameter is not used: 'AC_BIT' (src/alu8.sv:43)
+- <span class="type">UNUSEDSIGNAL</span> (12 occurrences) — e.g. Bits of signal are not used: 'mem_req_addr'[15:14] (src/cpu.sv:30)</code></pre>
       </div>
     </section>
 
@@ -99,22 +97,25 @@ Scoped Sources: pkg_types.sv, alu.sv, regfile.sv, cpu_8080_core.sv
           Hardware verification requires fast inner loops during active debugging and exhaustive sweeps before sign-off. <code>verilog_simulate</code> and <code>verilog_configure_testbench</code> manage testbench execution and waveform history automatically.
         </p>
         <ul class="detail-list">
-          <li><strong>Quick, Comprehensive &amp; Extreme Tiers:</strong> Classify testbenches by execution tier so the agent runs sub-second smoke tests after every edit and full instruction-set regressions before committing.</li>
-          <li><strong>Zero-Friction Hex &amp; ROM Staging:</strong> Automatically stages <code>$readmemh</code> and <code>$readmemb</code> firmware images into the simulation sandbox so relative paths always resolve cleanly.</li>
-          <li><strong>Automatic Waveform Snapshots &amp; Diffs:</strong> Passing runs snapshot <code>.lastpass.vcd</code> while every run preserves <code>.previous.vcd</code>. When a change breaks a testbench, <code>verilog_simulate</code> automatically diffs the new trace against the last passing waveform and reports the exact first diverging clock cycle and signal.</li>
+          <li><strong>Quick, Comprehensive &amp; Extreme Levels:</strong> Classify testbenches by level (<code>level="quick"</code>) so the agent runs sub-second unit tests after every edit and full instruction-set regressions before committing.</li>
+          <li><strong>Hierarchical Bottom-Up Verification:</strong> Pass <code>hierarchical=true</code> on top modules to automatically discover and run all submodule testbenches in topological dependency order (e.g. <code>alu8</code> &rarr; <code>decode_mod</code> &rarr; <code>cpu</code> &rarr; <code>top</code>).</li>
+          <li><strong>Automatic Waveform Snapshots &amp; Diffs:</strong> Passing runs snapshot <code>.lastpass.vcd</code> while every run preserves <code>.previous.vcd</code>. When a change breaks a testbench, <code>verilog_simulate</code> automatically diffs the new trace against the baseline and reports the exact diverging clock cycle and signal.</li>
         </ul>
       </div>
       <div class="detail-visual">
-        <pre><code><span class="comment"># Tool call: verilog_simulate(tier="quick")</span>
-<span class="keyword">=== Simulation Summary (Tier: quick) ===</span>
-[PASS] tb_alu            (0.18s) - 256 vectors verified
-[FAIL] tb_cpu_8080_core  (0.42s) - Assertion failed at t=145000ps
+        <pre><code><span class="comment"># Tool call: verilog_simulate(hierarchical=true, module="top")</span>
+<span class="keyword">## Module Verification Report: `top` (Hierarchical)</span>
 
-<span class="keyword">[Automatic Waveform Regression vs. tb_cpu_8080_core.lastpass.vcd]</span>
-First divergence at <span class="literal">t = 115000 ps</span> (posedge clk #11):
-  dut.state        : <span class="type">STATE_EXEC_ALU</span> (expected: <span class="literal">STATE_WRITEBACK</span>)
-  dut.reg_a[7:0]   : <span class="type">8'h3C</span>          (expected: <span class="literal">8'h3D</span>)
-  dut.alu_cin      : <span class="type">1'b0</span>           (expected: <span class="literal">1'b1</span>)</code></pre>
+- <span class="keyword">Bottom-Up Order</span>: decode_mod -&gt; alu8 -&gt; alu16 -&gt; ... -&gt; cpu -&gt; top
+- <span class="keyword">Level Filter</span>: comprehensive
+- <span class="keyword">Summary</span>: <span class="literal">34 Passed</span>, 0 Failed (out of 34 testbench run(s))
+
+| Testbench            | Module(s)  | Level | Result   | Waveform                   | vs. Previous |
+| :---                 | :---       | :---  | :---     | :---                       | :---         |
+| `tb/decode_tb.sv`    | decode_mod | quick | <span class="literal">PASS</span>     | `wave/dump_decode_tb.vcd`  | IDENTICAL    |
+| `tb/push_pop_tb.sv`  | cpu        | quick | <span class="literal">PASS</span>     | `wave/dump_push_pop_tb.vcd`| IDENTICAL    |
+| `tb/call_ret_tb.sv`  | cpu        | quick | <span class="literal">PASS</span>     | `wave/dump_call_ret_tb.vcd`| IDENTICAL    |
+| `tb/lhld_shld_tb.sv` | cpu        | quick | <span class="literal">PASS</span>     | `wave/dump_lhld_shld_tb.vcd`| IDENTICAL   |</code></pre>
       </div>
     </section>
 
@@ -123,24 +124,28 @@ First divergence at <span class="literal">t = 115000 ps</span> (posedge clk #11)
       <div class="detail-info">
         <h2 class="detail-subtitle">Cycle-Accurate VCD Waveform Intelligence</h2>
         <p class="detail-text">
-          Instead of dumping raw VCD text into the prompt, Turbostar's 7-tool VCD suite gives the agent an interactive logic analyzer tailored for LLM reasoning.
+          Instead of dumping megabyte VCD text into the model's prompt, Turbostar's 7-tool VCD suite gives the agent an interactive logic analyzer tailored specifically for LLM context windows.
         </p>
         <ul class="detail-list">
-          <li><strong>Live SystemVerilog Enum Discovery:</strong> Automatically parses <code>typedef enum</code> declarations across your RTL and headers—rendering state machines as <code>FETCH (0)</code> or <code>DECODE (1)</code> instead of raw hex, and automatically revalidating labels whenever enum states are added or reordered in source code.</li>
-          <li><strong>Strobe &amp; Enable Qualification:</strong> Pair buses with valid strobes via <code>vcd_signal_qualifier</code> so inactive cycles render as <code>-</code>, keeping the agent focused on valid bus transactions.</li>
-          <li><strong>Temporal Search &amp; Idle Collapsing:</strong> Query multi-signal conditions (`state == 3 &amp;&amp; ready == 1`), collapse hundreds of idle clock cycles into a single summary line, and trace any waveform net straight back to its drivers and loads in RTL with <code>vcd_signal_to_code</code>.</li>
+          <li><strong>Live SystemVerilog Enum Discovery:</strong> Automatically parses RTL <code>typedef enum</code> declarations—rendering state machines as <code>0x1 (FETCH)</code>, <code>0x6 (STORE16_1)</code>, or <code>0x8 (RETIRE)</code> instead of cryptic raw numbers.</li>
+          <li><strong>Zero-Toggle Inactive Net Detection:</strong> <code>vcd_file_info</code> flags signals with zero transitions with <code>**</code>, immediately surfacing stuck resets, unwired nets, or dead control logic without manual inspection.</li>
+          <li><strong>Strobe Qualification &amp; Opcode Labels:</strong> Pair data buses with valid strobes via <code>vcd_signal_qualifier</code> so inactive cycles render as <code>-</code>, and register project-wide instruction decodes via <code>vcd_signal_labels</code> to label hex opcodes as readable mnemonics (e.g. <code>0xCD</code> &rarr; <code>CALL</code>).</li>
         </ul>
       </div>
       <div class="detail-visual">
-        <pre><code><span class="comment"># Tool call: vcd_wave(signals=["clk","state","pc","abus","dbus"], ...)</span>
-<span class="keyword">Clock: tb.dut.clk (posedge) | Window: 100ns .. 160ns</span>
-Time(ns) | state          | pc     | abus   | dbus (qual: mem_vld)
----------+----------------+--------+--------+---------------------
-     105 | FETCH_LO (0)   | 16'h0100 | 16'h0100 | 8'hC3 (JMP)
-     115 | FETCH_OP1 (1)  | 16'h0101 | 16'h0101 | 8'h50
-     125 | FETCH_OP2 (2)  | 16'h0102 | 16'h0102 | 8'h02
-  <span class="comment">... [2 idle cycles collapsed: no signal transitions] ...</span>
-     155 | EXEC_JMP (5)   | 16'h0250 | 16'h0250 | -</code></pre>
+        <pre><code><span class="comment"># Tool call: vcd_wave(path="wave/dump_call_ret_tb.vcd", signals=[...], start_tick=1, end_tick=8)</span>
+<span class="keyword">### VCD Waveform: wave/dump_call_ret_tb.vcd</span>
+Sampled on: `clk` (posedge) | Timescale: 1ps | Total Rows: 8
+
+| Tick | Time (1ps) | clk | dut.sequencer.state | dut.decode.pc | dut.opcode | dut.sp_val |
+|:-----|:-----------|:----|:-------------------|:--------------|:-----------|:-----------|
+| 1    | 15000      | 1   | <span class="type">0x8 (HALT)</span>         | 16'h0000      | 8'h00      | 16'h0200   |
+| 3    | 35000      | 1   | <span class="type">0x0 (FETCH)</span>        | 16'h0001      | 8'hCD      | 16'h0200   |
+| 5    | 55000      | 1   | <span class="type">0x1 (DECODE)</span>       | 16'h0003      | 8'hCD      | 16'h0200   |
+| 6    | 65000      | 1   | <span class="type">0x6 (STORE16_1)</span>    | 16'h0003      | 8'hCD      | 16'h0200   |
+| 7    | 75000      | 1   | <span class="type">0x7 (STORE16_2)</span>    | 16'h0003      | 8'hCD      | 16'h0200   |
+| 8    | 85000      | 1   | <span class="type">0x8 (RETIRE)</span>       | 16'h0003      | 8'hCD      | 16'h0200   |
+| 9    | 95000      | 1   | <span class="type">0x0 (FETCH)</span>        | 16'h0050      | 8'hCD      | 16'h01FE   |</code></pre>
       </div>
     </section>
 
@@ -152,27 +157,27 @@ Time(ns) | state          | pc     | abus   | dbus (qual: mem_vld)
           Agents optimizing purely for clock frequency often duplicate logic cones until FPGA resource utilization explodes. <code>verilog_logic_depth</code> and <code>verilog_update_timing</code> give the agent simultaneous visibility into combinational depth and resource area in seconds.
         </p>
         <ul class="detail-list">
-          <li><strong>Bottleneck Sink Grouping:</strong> Critical paths are grouped by destination sink with compacted bit-bus ranges (`pc[0..15]`) and step-by-step LUT/MUX/CARRY hop traces mapped directly to <code>file.sv:line</code>.</li>
-          <li><strong>Module Area Summary:</strong> Every report includes a synthesized cell breakdown (LUTs, Flip-Flops, Carry cells, BRAMs, and DSPs) so the agent balances speed against LUT budget.</li>
-          <li><strong>Persistent <code>.timing.md</code> Sidecars:</strong> <code>verilog_update_timing</code> (and the standalone <code>turbostar-verilog-update-timing</code> CLI) generates per-module Markdown timing contracts across the entire repository in parallel.</li>
+          <li><strong>Bottleneck Sink Grouping:</strong> Critical paths are grouped by destination sink with exact SystemVerilog file/line sources, decomposing each stage into LUT levels and carry chain hops.</li>
+          <li><strong>Module Area Summary:</strong> Every report includes a synthesized cell breakdown (LUTs, Flip-Flops, Carry cells, and Total Cells) so the agent balances speed against logic budgets.</li>
+          <li><strong>Persistent <code>.timing.md</code> Sidecars:</strong> <code>verilog_update_timing</code> (and the standalone CLI) generates per-module Markdown contracts committed to git, tracking Max Reg&rarr;Reg Depth and cell counts across the entire design.</li>
         </ul>
       </div>
       <div class="detail-visual">
-        <pre><code><span class="comment"># Tool call: verilog_update_timing(target="ice40")</span>
-| Module        | Target | Max Depth |LUTs| FFs| Dominant Path               |
-|---------------|--------|-----------|----|----|-----------------------------|
-| alu           | ice40  | 5 levels  | 64 |  0 | a[0] -&gt; flags_out[3]        |
-| cpu_8080_core | ice40  | 7 levels  |312 |128 | state[2] -&gt; mem_addr[15]    |
+        <pre><code><span class="comment"># Tool call: verilog_logic_depth(module="cpu", top_k=2)</span>
+<span class="keyword"># Timing: `cpu` (Target: iCE40)</span>
+Max Internal Reg -&gt; Reg Depth: 25
 
-<span class="keyword">## Area Summary (cpu_8080_core)</span>
-| Resource    | Count |
-|-------------|-------|
-| LUTs        |   312 |
-| Flip-Flops  |   128 |
-| Carry Cells |    32 |
-| Total Cells |   472 |
-<span class="comment">_Note: Area is for this module only; cross-module optimizations</span>
-<span class="comment">may reduce final area._</span></code></pre>
+<span class="keyword">## Worst Combinational Paths (Grouped by Bottleneck Sink)</span>
+<span class="keyword">Path #1 [Reg -&gt; Reg] Depth: 25 (9 LUTs + 16 carry) — Converging on `alu.flags`</span>
+- Sources: `alu.flags` (src/alu8.sv:53), `decode.addr_hi_valid` (src/decode.sv:135)
+  1. `cells_map.v` (5 LUTs) -&gt; `store_addr_in`
+  2. `alu16.sv:74` (1 LUT) -&gt; `lo_val`
+  3. `alu16.sv:80` (16 carry, from `value_reg`, `A_reg.value_reg`) -&gt; `A_load`
+  4. `alu8.sv:49` (1 LUT) -&gt; `alu.next_flags[0]`
+- End: `alu.flags` (src/alu8.sv:53)
+
+<span class="keyword">## Area Summary</span>
+- LUTs: 1103 | Flip-Flops: 173 | Carry: 196 | Total Cells: 1487</code></pre>
       </div>
     </section>
 
@@ -184,23 +189,24 @@ Time(ns) | state          | pc     | abus   | dbus (qual: mem_vld)
           Pre-synthesis logic depth is only half the story—on real FPGAs, long Manhattan wire routes and high-fanout control nets often dominate the critical path. <code>verilog_pnr_timing</code> runs full Yosys synthesis + <code>nextpnr</code> physical placement and routing on demand.
         </p>
         <ul class="detail-list">
-          <li><strong>Achieved Fmax vs. Target Constraint:</strong> Evaluates real post-routing setup slack against your target clock constraint in <code>turbostar.json</code> (configurable via <code>verilog_project_settings</code>).</li>
+          <li><strong>Achieved Fmax vs. Target Constraint:</strong> Evaluates real post-routing setup slack against your target clock constraint configured in <code>turbostar.json</code>.</li>
           <li><strong>Logic vs. Routing Delay Split:</strong> Decomposes every critical path hop into cell propagation delay vs. physical interconnect wire delay.</li>
           <li><strong>Physical Tile Distance &amp; Fanout:</strong> Reports net fanout and physical chip tile delta <code>(dx, dy)</code> alongside exact SystemVerilog source lines, empowering the agent to pipeline long routes or replicate high-fanout registers.</li>
         </ul>
       </div>
       <div class="detail-visual">
-        <pre><code><span class="comment"># Tool call: verilog_pnr_timing(module="cpu_8080_core")</span>
-<span class="keyword">=== Physical Place-and-Route Timing (ice40 / hx8k) ===</span>
-Target Clock : 40.00 MHz (25.00 ns)
-Achieved Fmax: <span class="literal">46.85 MHz</span> (21.34 ns) — <span class="literal">MET (+3.66 ns slack)</span>
-Critical Delay: 21.34 ns (<span class="type">38.2% logic</span>, <span class="literal">61.8% routing</span>)
+        <pre><code><span class="comment"># Tool call: verilog_pnr_timing(top_k=3)</span>
+<span class="keyword">## Hardware Resource Utilization (iCE40-HX8K)</span>
+| Resource       | Used | Available | Utilization |
+| :---           |:---:|:---:      |:---:        |
+| `ICESTORM_LC`  | 1103 | 7680      | 14.3%       |
+| `ICESTORM_RAM` | 1    | 32        | 3.1%        |
+| `SB_IO`        | 10   | 256       | 3.9%        |
 
-Hop | Cell / Net             | Logic   | Route   | Fanout | Tile (dx,dy) | Source
-----+------------------------+---------+---------+--------+--------------+--------------------
-  1 | state_SB_DFF[2]        | 0.54 ns | 1.82 ns |     18 | (3, 4)       | cpu_8080_core.sv:88
-  2 | alu_op_SB_LUT4_I2      | 0.45 ns | 2.40 ns |      9 | (5, 2)       | cpu_8080_core.sv:214
-  3 | alu_inst.carry_SB_CARRY| 0.26 ns | 1.95 ns |      2 | (0, 6)       | alu.sv:68</code></pre>
+<span class="keyword">=== Physical Timing Summary ===</span>
+Target: 100.00 MHz (10.00 ns) | Achieved: <span class="literal">104.2 MHz (+0.42 ns slack)</span>
+Critical Path Delay: 9.58 ns (<span class="type">39.1% logic</span>, <span class="literal">60.9% routing</span>)
+Max Wire Delay: 2.14 ns on net `mem_read_addr[4]` (dx=4, dy=7, fanout=16)</code></pre>
       </div>
     </section>
 
@@ -218,8 +224,8 @@ Hop | Cell / Net             | Logic   | Route   | Fanout | Tile (dx,dy) | Sourc
           <h3 class="card-title">Lint, Synthesis &amp; Config</h3>
           <p class="card-desc">Fast static verification and persistent FPGA target configuration without manual Makefiles.</p>
           <ul class="detail-list" style="margin-bottom: 1rem;">
-            <li><code>verilog_compile</code>: Dual Verilator lint + Yosys synthesis triage with submodule scoping.</li>
-            <li><code>verilog_project_settings</code>: Configure target FPGA family (<code>ice40</code>, <code>ecp5</code>, <code>gowin</code>, <code>xilinx</code>), part, package, and target clock MHz.</li>
+            <li><code>verilog_compile</code>: Dual Verilator lint (<code>lint_only=true</code> in ~0.13s) + Yosys synthesis with submodule scoping.</li>
+            <li><code>verilog_project_settings</code>: Configure target FPGA family (<code>ice40</code>, <code>ecp5</code>, <code>gowin</code>, <code>xilinx</code>), part, package, top module, and target clock MHz.</li>
           </ul>
         </article>
 
@@ -229,8 +235,8 @@ Hop | Cell / Net             | Logic   | Route   | Fanout | Tile (dx,dy) | Sourc
           <h3 class="card-title">Tiered RTL Simulation</h3>
           <p class="card-desc">Automated testbench discovery, tiered execution, and regression waveform snapshots.</p>
           <ul class="detail-list" style="margin-bottom: 1rem;">
-            <li><code>verilog_simulate</code>: Run Icarus Verilog or Verilator testbenches with auto-diffing against <code>.lastpass.vcd</code>.</li>
-            <li><code>verilog_configure_testbench</code>: Assign testbenches to <code>quick</code>, <code>comprehensive</code>, or <code>extreme</code> tiers and register ROM/hex data files.</li>
+            <li><code>verilog_simulate</code>: Run testbenches with <code>hierarchical=true</code> bottom-up verification and auto-diffing against <code>.lastpass.vcd</code>.</li>
+            <li><code>verilog_configure_testbench</code>: Associate testbenches with modules in <code>turbostar.json</code>, assign levels (<code>quick</code>, <code>comprehensive</code>, <code>extreme</code>), and set defaults.</li>
           </ul>
         </article>
 
@@ -240,9 +246,9 @@ Hop | Cell / Net             | Logic   | Route   | Fanout | Tile (dx,dy) | Sourc
           <h3 class="card-title">Waveform Inspection</h3>
           <p class="card-desc">Token-efficient, clock-aligned VCD tables and temporal condition search.</p>
           <ul class="detail-list" style="margin-bottom: 1rem;">
-            <li><code>vcd_file_info</code>: Inspect hierarchy scopes, timescale, time bounds, and clock candidates.</li>
-            <li><code>vcd_wave</code>: Clock-aligned ASCII/Markdown tables with idle-cycle collapsing and bus formatting.</li>
-            <li><code>vcd_search</code>: Find timestamps matching complex multi-signal boolean expressions or edges.</li>
+            <li><code>vcd_file_info</code>: Inspect hierarchy scopes, timescale, clock candidate ticks, and detect zero-toggle (<code>**</code>) inactive nets.</li>
+            <li><code>vcd_wave</code>: Clock-aligned Markdown tables with posedge sampling, enum state names, and idle-cycle collapsing.</li>
+            <li><code>vcd_search</code>: Find timestamps matching multi-signal boolean expressions or edge transitions.</li>
           </ul>
         </article>
 
@@ -252,9 +258,9 @@ Hop | Cell / Net             | Logic   | Route   | Fanout | Tile (dx,dy) | Sourc
           <h3 class="card-title">Semantic Trace &amp; Diffing</h3>
           <p class="card-desc">Bridge raw signal bits back to high-level SystemVerilog types and source lines.</p>
           <ul class="detail-list" style="margin-bottom: 1rem;">
-            <li><code>vcd_signal_labels</code>: Auto-discover <code>typedef enum</code> state names with live RTL change detection.</li>
-            <li><code>vcd_signal_qualifier</code>: Mask bus values during inactive valid/enable cycles.</li>
-            <li><code>vcd_compare</code>: Cycle-by-cycle diff between two VCD traces with clock-edge alignment.</li>
+            <li><code>vcd_signal_labels</code>: Auto-discover <code>typedef enum</code> state names and register project-wide value maps (<code>vcd_labels.json</code>).</li>
+            <li><code>vcd_signal_qualifier</code>: Mask bus values with <code>-</code> during inactive valid/enable cycles.</li>
+            <li><code>vcd_compare</code>: Cycle-by-cycle diff between two VCD traces with clock-edge alignment and divergence reports.</li>
             <li><code>vcd_signal_to_code</code>: Trace VCD nets to RTL declarations, drivers, and loads.</li>
           </ul>
         </article>
@@ -265,8 +271,8 @@ Hop | Cell / Net             | Logic   | Route   | Fanout | Tile (dx,dy) | Sourc
           <h3 class="card-title">Logic Depth &amp; Area</h3>
           <p class="card-desc">Instant combinational LUT cone analysis and module resource tracking.</p>
           <ul class="detail-list" style="margin-bottom: 1rem;">
-            <li><code>verilog_logic_depth</code>: Per-module critical path hop traces, sink grouping, and LUT/FF/Carry/BRAM area summaries.</li>
-            <li><code>verilog_update_timing</code>: Parallel batch updater for <code>&lt;module&gt;.timing.md</code> sidecars across the project.</li>
+            <li><code>verilog_logic_depth</code>: Per-module critical path hop traces, sink grouping, carry chain analysis, and LUT/FF area summaries.</li>
+            <li><code>verilog_update_timing</code>: Parallel batch updater generating <code>&lt;module&gt;.timing.md</code> contracts across the project.</li>
           </ul>
         </article>
 
@@ -309,7 +315,7 @@ Hop | Cell / Net             | Logic   | Route   | Fanout | Tile (dx,dy) | Sourc
   nextpnr-ice40 fpga-icestorm
 
 <span class="comment"># 2. Activate in an agent session or via MCP</span>
-<span class="comment"># Call activate_tool_family(family="verilog")</span>
+<span class="comment"># Call activate_tool_family(name="verilog")</span>
 <span class="comment"># or launch turbomcp with --all-tool-families</span>
 turbomcp --project-dir /path/to/rtl-project
 
