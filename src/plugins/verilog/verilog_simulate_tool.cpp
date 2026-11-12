@@ -1,12 +1,14 @@
 #include "plugins/verilog/verilog_simulate_tool.h"
 
 #include <algorithm>
+#include <atomic>
 #include <filesystem>
 #include <format>
 #include <map>
 #include <optional>
 #include <set>
 #include <sstream>
+#include <thread>
 #include <vector>
 #include "fs_utils.h"
 #include "plugins/verilog/fpga_project_settings.h"
@@ -127,21 +129,25 @@ struct tb_run_outcome {
 	std::string section_markdown;
 };
 
-tb_run_outcome execute_single_testbench(
-	agentlib::tool_context &ctx,
+struct tb_compile_result {
+	std::string top_mod;
+	std::vector<std::string> all_sources;
+	fs::path mdir;
+	fs::path sim_bin;
+	bool compile_failed{false};
+	std::string error_markdown;
+};
+
+tb_compile_result compile_single_testbench(
 	const fs::path &root_path,
 	const std::string &project_root,
 	const std::vector<std::string> &rtl_files,
 	const tb_run_plan &plan,
 	const std::string &override_top_mod,
-	int timeout_sec)
+	size_t plan_idx,
+	size_t build_jobs)
 {
-	tb_run_outcome out;
-	out.display_tb = plan.display_tb;
-	out.level = plan.level;
-	out.matched_modules = plan.matched_modules;
-	out.effective_dump_rel = plan.effective_dump_rel;
-
+	tb_compile_result res;
 	std::error_code ec;
 
 	// 1. Discover top-level testbench module name if not specified
@@ -150,25 +156,102 @@ tb_run_outcome execute_single_testbench(
 		std::vector<std::string> single_tb = {plan.tb_file};
 		auto tb_mods = verilog::verilog_module_scanner::discover_modules_in_files(single_tb);
 		if (tb_mods.empty()) {
-			out.compile_failed = true;
-			out.section_markdown = std::format("Error: Could not find a `module <name>` declaration in testbench `{}`.", plan.display_tb);
-			return out;
+			res.compile_failed = true;
+			res.error_markdown = std::format("Error: Could not find a `module <name>` declaration in testbench `{}`.", plan.display_tb);
+			return res;
 		}
 		top_mod = tb_mods.front().module_name;
 	}
-	out.top_mod = top_mod;
+	res.top_mod = top_mod;
 
 	// 2. Gather synthesizable RTL files + this testbench
 	fs::path canon_tb = fs::weakly_canonical(plan.tb_file, ec);
-	std::vector<std::string> all_sources;
-	all_sources.reserve(rtl_files.size() + 1);
+	res.all_sources.reserve(rtl_files.size() + 1);
 	for (const auto &f : rtl_files) {
 		fs::path canon_f = fs::weakly_canonical(f, ec);
 		if (canon_f != canon_tb) {
-			all_sources.push_back(f);
+			res.all_sources.push_back(f);
 		}
 	}
-	all_sources.push_back(plan.tb_file);
+	res.all_sources.push_back(plan.tb_file);
+
+	// 3. Build an isolated --Mdir per testbench so parallel Verilator compiles never collide,
+	//    even if two testbench files declare the same module name (e.g. `module tb;`).
+	std::string tb_stem = fs::path(plan.display_tb).stem().string();
+	std::string safe_stem;
+	safe_stem.reserve(tb_stem.size());
+	for (unsigned char c : tb_stem) {
+		safe_stem.push_back(std::isalnum(c) ? static_cast<char>(c) : '_');
+	}
+	std::string mdir_leaf;
+	if (safe_stem.empty() || safe_stem == top_mod) {
+		mdir_leaf = std::format("verilator_{}", top_mod);
+	} else {
+		mdir_leaf = std::format("verilator_{}_{}", safe_stem, top_mod);
+	}
+	if (plan_idx > 0 && safe_stem.empty()) {
+		mdir_leaf += std::format("_{}", plan_idx);
+	}
+
+	res.mdir = fs::absolute(fs::path(fs_utils::get_project_tmp_dir()) / mdir_leaf, ec);
+	fs::create_directories(res.mdir, ec);
+	res.sim_bin = res.mdir / std::format("V{}", top_mod);
+	if (fs::exists(res.sim_bin, ec)) {
+		fs::remove(res.sim_bin, ec);
+	}
+
+	std::string compile_cmd = std::format(
+		"cd {} && CCACHE_DISABLE=1 OBJCACHE= verilator --binary --build-jobs {} --timing --trace --timescale 1ns/1ps -Wno-TIMESCALEMOD --Mdir {} --top-module {}",
+		fs_utils::escape_shell_arg(project_root),
+		std::max<size_t>(1, build_jobs),
+		fs_utils::escape_shell_arg(res.mdir.string()),
+		fs_utils::escape_shell_arg(top_mod)
+	);
+	for (const auto &src : res.all_sources) {
+		fs::path rel_src = fs::relative(src, root_path, ec);
+		std::string src_arg = (!ec && !rel_src.empty()) ? rel_src.string() : fs::weakly_canonical(src, ec).string();
+		compile_cmd += " " + fs_utils::escape_shell_arg(src_arg);
+	}
+	compile_cmd += " 2>&1";
+
+	std::string compile_out = fs_utils::execute_command_sync(compile_cmd, 120);
+	if (!fs::exists(res.sim_bin, ec)) {
+		res.compile_failed = true;
+		res.error_markdown = std::format("### Verilog Simulation Failed (Compilation Error)\n\n"
+		                                 "- **Testbench**: `{}` (top module: `{}`)\n\n"
+		                                 "#### Compiler Output\n```\n{}\n```\n",
+		                                 plan.display_tb, top_mod, compile_out);
+	}
+	return res;
+}
+
+tb_run_outcome run_compiled_testbench(
+	agentlib::tool_context &ctx,
+	const fs::path &root_path,
+	const std::string &project_root,
+	const std::vector<std::string> &rtl_files,
+	const tb_run_plan &plan,
+	const tb_compile_result &compiled,
+	int timeout_sec)
+{
+	tb_run_outcome out;
+	out.display_tb = plan.display_tb;
+	out.top_mod = compiled.top_mod;
+	out.level = plan.level;
+	out.matched_modules = plan.matched_modules;
+	out.effective_dump_rel = plan.effective_dump_rel;
+
+	if (compiled.compile_failed) {
+		out.compile_failed = true;
+		out.suite_failed = true;
+		out.section_markdown = compiled.error_markdown;
+		return out;
+	}
+
+	const std::string &top_mod = compiled.top_mod;
+	const std::vector<std::string> &all_sources = compiled.all_sources;
+	const fs::path &sim_bin = compiled.sim_bin;
+	std::error_code ec;
 
 	// 3. Stage any $readmemh / $readmemb initialization files into project_root
 	std::vector<std::string> staged_files = verilog::verilog_module_scanner::stage_readmem_files(all_sources, root_path);
@@ -193,38 +276,6 @@ tb_run_outcome execute_single_testbench(
 		if (raw_vcd_full_path.has_parent_path()) {
 			fs::create_directories(raw_vcd_full_path.parent_path(), ec);
 		}
-	}
-
-	// 5. Compile simulation binary with Verilator
-	fs::path mdir = fs::absolute(fs::path(fs_utils::get_project_tmp_dir()) / std::format("verilator_{}", top_mod), ec);
-	fs::create_directories(mdir, ec);
-	fs::path sim_bin = mdir / std::format("V{}", top_mod);
-	if (fs::exists(sim_bin, ec)) {
-		fs::remove(sim_bin, ec);
-	}
-
-	std::string compile_cmd = std::format(
-		"cd {} && CCACHE_DISABLE=1 OBJCACHE= verilator --binary --timing --trace --timescale 1ns/1ps -Wno-TIMESCALEMOD --Mdir {} --top-module {}",
-		fs_utils::escape_shell_arg(project_root),
-		fs_utils::escape_shell_arg(mdir.string()),
-		fs_utils::escape_shell_arg(top_mod)
-	);
-	for (const auto &src : all_sources) {
-		fs::path rel_src = fs::relative(src, root_path, ec);
-		std::string src_arg = (!ec && !rel_src.empty()) ? rel_src.string() : fs::weakly_canonical(src, ec).string();
-		compile_cmd += " " + fs_utils::escape_shell_arg(src_arg);
-	}
-	compile_cmd += " 2>&1";
-
-	std::string compile_out = fs_utils::execute_command_sync(compile_cmd, 120);
-	if (!fs::exists(sim_bin, ec)) {
-		out.compile_failed = true;
-		out.suite_failed = true;
-		out.section_markdown = std::format("### Verilog Simulation Failed (Compilation Error)\n\n"
-		                                   "- **Testbench**: `{}` (top module: `{}`)\n\n"
-		                                   "#### Compiler Output\n```\n{}\n```\n",
-		                                   plan.display_tb, top_mod, compile_out);
-		return out;
 	}
 
 	// 6. Preserve any existing waveform at effective_dump_rel as <stem>.previous.vcd before running
@@ -872,17 +923,48 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 
-	// Execute all planned testbenches
+	// Phase 1: Compile all planned testbenches in parallel across available CPU cores
+	unsigned int hw_threads = std::thread::hardware_concurrency();
+	size_t total_cores = static_cast<size_t>(std::max(1u, hw_threads == 0 ? 4u : hw_threads));
+	size_t num_workers = std::min(plans.size(), total_cores);
+	size_t build_jobs = std::max<size_t>(1, total_cores / std::max<size_t>(1, num_workers));
+
+	std::vector<tb_compile_result> compiled_plans(plans.size());
+	const std::string single_override_top = (plans.size() == 1) ? override_top_mod : std::string{};
+
+	if (num_workers <= 1) {
+		for (size_t i = 0; i < plans.size(); ++i) {
+			compiled_plans[i] = compile_single_testbench(
+				root_path, project_root, rtl_files, plans[i], single_override_top, i, build_jobs);
+		}
+	} else {
+		std::atomic<size_t> next_idx{0};
+		std::vector<std::jthread> workers;
+		workers.reserve(num_workers);
+		for (size_t w = 0; w < num_workers; ++w) {
+			workers.emplace_back([&]() {
+				while (true) {
+					size_t idx = next_idx.fetch_add(1, std::memory_order_relaxed);
+					if (idx >= plans.size()) {
+						break;
+					}
+					compiled_plans[idx] = compile_single_testbench(
+						root_path, project_root, rtl_files, plans[idx], single_override_top, idx, build_jobs);
+				}
+			});
+		}
+	}
+
+	// Phase 2: Execute compiled simulation binaries and VCD post-processing serially
 	std::vector<tb_run_outcome> outcomes;
 	outcomes.reserve(plans.size());
 	size_t pass_count = 0;
 	size_t completed_count = 0;
 	size_t fail_count = 0;
 
-	for (const auto &plan : plans) {
-		auto outcome = execute_single_testbench(
-			ctx, root_path, project_root, rtl_files, plan,
-			plans.size() == 1 ? override_top_mod : "", args_.timeout_sec);
+	for (size_t i = 0; i < plans.size(); ++i) {
+		auto outcome = run_compiled_testbench(
+			ctx, root_path, project_root, rtl_files, plans[i], compiled_plans[i], args_.timeout_sec);
 		if (outcome.suite_failed || outcome.compile_failed || outcome.timed_out || outcome.has_fatal) {
 			++fail_count;
 		} else if (outcome.suite_passed) {

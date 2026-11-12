@@ -12,6 +12,7 @@ Key capabilities:
 6. **LRU Cache Warming & Actionable Guidance**: Immediately parses the generated `.vcd` into `vcd_parser_cache` and emits copy-pasteable `vcd_file_info(...)`, `vcd_wave(...)`, and `vcd_compare(...)` tool calls tailored to the discovered hierarchy, signals, and pass/fail status.
 
 ## Lessons Learned
+- **Two-Phase Parallel Compile + Serial Run Pipeline**: `verilator --binary` is a pure compilation step that accounts for ~85-90% of wall-clock latency when running multiple testbenches. Splitting `verilog_simulate` into Phase 1 (parallel `verilator --binary --build-jobs <N>` across `std::thread::hardware_concurrency()` workers, with per-testbench `--Mdir` disambiguated by `<tb_stem>_<top_mod>`) followed by Phase 2 (serial native binary execution and VCD post-processing) achieves full multi-core compilation speedup while avoiding race conditions on `project_root`, `$dumpfile` collision stashing, `$readmemh` symlink staging, and the 2-slot `vcd_parser_cache`.
 - Running Verilator without `-flto` and placing `--Mdir` (resolved via `std::filesystem::absolute`) in the project temporary directory avoids polluting the repository with `obj_dir/` while keeping incremental C++ rebuilds fast.
 - Passing `CCACHE_DISABLE=1 OBJCACHE=` to `verilator` prevents Verilator's generated Makefile from failing when `~/.cache/ccache` is mounted read-only inside the subprocess execution sandbox.
 - Warming `vcd_parser_cache` at the end of `verilog_simulate` eliminates redundant VCD parsing on the immediately following `vcd_file_info` or `vcd_wave` call.

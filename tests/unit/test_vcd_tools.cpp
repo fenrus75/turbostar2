@@ -2050,11 +2050,13 @@ int main()
 			assert(out_quick_cpu.find("Skipped higher-tier testbench(es)") != std::string::npos);
 
 			// 4) Add a probe-only testbench (tb_alu_probe.sv: exits 0 cleanly, logs via $display, no PASS/FAIL assertion, no $dumpfile).
+			//    Also intentionally give it the same module name (`module tb_alu;`) as `tb/tb_alu.sv` to verify that Phase 1 parallel
+			//    compilation disambiguates `--Mdir` (`verilator_tb_alu_probe_tb_alu` vs `verilator_tb_alu`) without colliding!
 			//    Verify it is NOT classified as FAIL, does NOT trigger false $dumpfile collision warnings, and reports COMPLETED (no assertions) + 0 Failed!
 			{
 				std::ofstream f(tmp_proj / "tb" / "tb_alu_probe.sv");
 				f << "`timescale 1ns/1ps\n"
-				  << "module tb_alu_probe;\n"
+				  << "module tb_alu;\n"
 				  << "    logic clk = 0;\n"
 				  << "    always #5 clk = ~clk;\n"
 				  << "    logic [7:0] a = 8'd5, b = 8'd6, y;\n"
