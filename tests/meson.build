@@ -2226,6 +2226,8 @@ if tidy_prog.found()
     ['index', 'docs/index.html'],
     ['editor', 'docs/editor.html'],
     ['ai', 'docs/ai.html'],
+    ['mcp', 'docs/mcp.html'],
+    ['fpga', 'docs/fpga.html'],
     ['details', 'docs/details.html']
   ]
   foreach item : html_tests

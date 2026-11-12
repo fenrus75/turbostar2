@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Turbostar provides the missing glue between AI coding agents and hardware engineering—uniting SystemVerilog synthesis triage, cycle-accurate VCD waveform analysis, logic depth &amp; LUT area tracking, and physical place-and-route timing closure.">
+  <title>FPGA &amp; Verilog AI Tooling - Turbostar Workspace</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="shortcut icon" href="assets/logo.jpg" type="image/x-icon">
+  <script src="./overlay.js" defer></script>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header>
+    <div class="header-container">
+      <a href="index.html" class="logo-link" id="nav-brand">
+        <img src="assets/logo.jpg" alt="Turbostar logo" class="logo-img">
+        <span class="logo-text">Turbostar</span>
+      </a>
+      <nav id="main-nav">
+        <a href="index.html" id="nav-home">Home</a>
+        <a href="editor.html" id="nav-editor">Editor Features</a>
+        <a href="ai.html" id="nav-ai">AI Features</a>
+        <a href="mcp.html" id="nav-mcp">MCP Server</a>
+        <a href="fpga.html" class="active" id="nav-fpga">FPGA &amp; Verilog</a>
+        <a href="details.html" id="nav-details">Technical Details</a>
+        <a href="https://github.com/fenrus75/turbostar2/blob/main/docs/tools.md" id="nav-tools" target="_blank" rel="noopener noreferrer">Tools Reference</a>
+        <a href="https://github.com/fenrus75/turbostar2" id="nav-github" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="content-page">
+    <section class="page-header" id="fpga-header">
+      <span class="hero-tag">Hardware, RTL &amp; FPGA Engineering</span>
+      <h1 class="page-title">The Missing Glue Between <span>AI Agents &amp; Hardware Design</span></h1>
+      <p class="page-desc">
+        Software agents thrive on text diffs and stack traces, but digital hardware lives in clock edges, combinational LUT cones, and gigabyte waveform dumps. Turbostar's <code>verilog</code> tool family bridges the divide—giving LLM agents natural, deterministic primitives for SystemVerilog linting, tiered simulation, cycle-accurate VCD inspection, LUT area &amp; logic depth analysis, and physical place-and-route timing closure.
+      </p>
+      <div class="cta-group" style="justify-content: flex-start; margin-top: 2rem; margin-bottom: 0;">
+        <a href="#tools" class="btn btn-primary" id="cta-fpga-tools">Explore the 12 Tools</a>
+        <a href="#quickstart" class="btn btn-secondary" id="cta-fpga-quickstart">Toolchain Setup</a>
+      </div>
+    </section>
+
+    <!-- Philosophy Callout -->
+    <section class="detail-split" id="fpga-philosophy" style="background: rgba(0, 0, 0, 0.2); padding: 3rem; border-radius: 8px; margin-bottom: 4rem;">
+      <div class="detail-info" style="max-width: 100%;">
+        <h2 class="detail-subtitle">Why Hardware Agents Need Purpose-Built Glue</h2>
+        <p class="detail-text" style="font-size: 1.1rem; color: #fff;">
+          <strong>With raw shell commands, RTL design is hostile to AI agents. With the right primitives, the workflow becomes effortless.</strong>
+        </p>
+        <p class="detail-text">
+          Ask an unassisted coding agent to build or debug an CPU core in SystemVerilog using only bash and grep: a single simulation emits a 500&nbsp;MB <code>.vcd</code> dump that overflows the context window, running Verilator on a multi-testbench directory fails with duplicate <code>top</code> modules, and "optimizing" a critical path blindly unrolls multiplexers until LUT area explodes and physical routing fails timing.
+        </p>
+        <p class="detail-text">
+          Turbostar acts as the domain-aware translation layer between open-source EDA toolchains (<code>Verilator</code>, <code>Yosys</code>, <code>Icarus Verilog</code>, and <code>nextpnr</code>) and the agent. Every tool accepts high-level intent—module names, clock-cycle windows, enum state symbols, and target frequencies—and returns compact, line-attributed engineering reports. Tested end-to-end by autonomous agents designing complete 8008/8080-class CPU cores from scratch, the tools feel completely natural to the model at every step of the RTL lifecycle.
+        </p>
+      </div>
+    </section>
+
+    <!-- Feature 1: Hierarchy-Scoped Compilation & Synthesis Triage -->
+    <section class="detail-split" id="synthesis-triage">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Dual-Engine Lint &amp; Synthesis Triage</h2>
+        <p class="detail-text">
+          Catch hardware bugs before a single clock cycle is simulated. <code>verilog_compile</code> combines ultra-fast Verilator static linting with Yosys RTL synthesis checks in a single call.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Automatic Hierarchy Isolation:</strong> Pass <code>module="alu"</code> and Turbostar automatically scans your RTL tree, resolves transitive package and submodule dependencies, and excludes unrelated testbenches—preventing duplicate symbol errors.</li>
+          <li><strong>Hardware Hazard Categorization:</strong> Raw compiler logs are distilled into prioritized sections highlighting <em>Combinational Loops</em>, <em>Inferred Latches</em>, <em>Multi-Driven Nets</em>, and <em>Width Mismatches</em> with exact <code>file.sv:line</code> locations.</li>
+          <li><strong>SystemVerilog Package Ordering:</strong> Automatically orders <code>package</code> definitions and header includes ahead of dependent RTL modules without manual filelists.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <pre><code><span class="comment"># Tool call: verilog_compile(module="cpu_8080_core")</span>
+<span class="keyword">=== Compilation &amp; Synthesis Triage: cpu_8080_core ===</span>
+Status: <span class="type">WARNING (0 errors, 2 synthesis hazards)</span>
+Scoped Sources: pkg_types.sv, alu.sv, regfile.sv, cpu_8080_core.sv
+
+<span class="keyword">[Inferred Latches]</span>
+  rtl/cpu_8080_core.sv:142: Warning: Latch inferred for signal
+  'next_mem_wdata[7:0]' in always_comb block (missing default assignment
+  when state == STATE_HALT).
+
+<span class="keyword">[Width Mismatches]</span>
+  rtl/alu.sv:68: Warning-WIDTH: Operator ADD expects 9 bits on
+  RHS, but 'carry_in' provides 1 bit.</code></pre>
+      </div>
+    </section>
+
+    <!-- Feature 2: Tiered Simulation & Automatic Waveform Regression -->
+    <section class="detail-split reverse" id="tiered-simulation">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Tiered Simulation &amp; Auto-Diffing Waveforms</h2>
+        <p class="detail-text">
+          Hardware verification requires fast inner loops during active debugging and exhaustive sweeps before sign-off. <code>verilog_simulate</code> and <code>verilog_configure_testbench</code> manage testbench execution and waveform history automatically.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Quick, Comprehensive &amp; Extreme Tiers:</strong> Classify testbenches by execution tier so the agent runs sub-second smoke tests after every edit and full instruction-set regressions before committing.</li>
+          <li><strong>Zero-Friction Hex &amp; ROM Staging:</strong> Automatically stages <code>$readmemh</code> and <code>$readmemb</code> firmware images into the simulation sandbox so relative paths always resolve cleanly.</li>
+          <li><strong>Automatic Waveform Snapshots &amp; Diffs:</strong> Passing runs snapshot <code>.lastpass.vcd</code> while every run preserves <code>.previous.vcd</code>. When a change breaks a testbench, <code>verilog_simulate</code> automatically diffs the new trace against the last passing waveform and reports the exact first diverging clock cycle and signal.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <pre><code><span class="comment"># Tool call: verilog_simulate(tier="quick")</span>
+<span class="keyword">=== Simulation Summary (Tier: quick) ===</span>
+[PASS] tb_alu            (0.18s) - 256 vectors verified
+[FAIL] tb_cpu_8080_core  (0.42s) - Assertion failed at t=145000ps
+
+<span class="keyword">[Automatic Waveform Regression vs. tb_cpu_8080_core.lastpass.vcd]</span>
+First divergence at <span class="literal">t = 115000 ps</span> (posedge clk #11):
+  dut.state        : <span class="type">STATE_EXEC_ALU</span> (expected: <span class="literal">STATE_WRITEBACK</span>)
+  dut.reg_a[7:0]   : <span class="type">8'h3C</span>          (expected: <span class="literal">8'h3D</span>)
+  dut.alu_cin      : <span class="type">1'b0</span>           (expected: <span class="literal">1'b1</span>)</code></pre>
+      </div>
+    </section>
+
+    <!-- Feature 3: Cycle-Accurate VCD Waveform Intelligence -->
+    <section class="detail-split" id="vcd-intelligence">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Cycle-Accurate VCD Waveform Intelligence</h2>
+        <p class="detail-text">
+          Instead of dumping raw VCD text into the prompt, Turbostar's 7-tool VCD suite gives the agent an interactive logic analyzer tailored for LLM reasoning.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Live SystemVerilog Enum Discovery:</strong> Automatically parses <code>typedef enum</code> declarations across your RTL and headers—rendering state machines as <code>FETCH (0)</code> or <code>DECODE (1)</code> instead of raw hex, and automatically revalidating labels whenever enum states are added or reordered in source code.</li>
+          <li><strong>Strobe &amp; Enable Qualification:</strong> Pair buses with valid strobes via <code>vcd_signal_qualifier</code> so inactive cycles render as <code>-</code>, keeping the agent focused on valid bus transactions.</li>
+          <li><strong>Temporal Search &amp; Idle Collapsing:</strong> Query multi-signal conditions (`state == 3 &amp;&amp; ready == 1`), collapse hundreds of idle clock cycles into a single summary line, and trace any waveform net straight back to its drivers and loads in RTL with <code>vcd_signal_to_code</code>.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <pre><code><span class="comment"># Tool call: vcd_wave(signals=["clk","state","pc","abus","dbus"], ...)</span>
+<span class="keyword">Clock: tb.dut.clk (posedge) | Window: 100ns .. 160ns</span>
+Time(ns) | state          | pc     | abus   | dbus (qual: mem_vld)
+---------+----------------+--------+--------+---------------------
+     105 | FETCH_LO (0)   | 16'h0100 | 16'h0100 | 8'hC3 (JMP)
+     115 | FETCH_OP1 (1)  | 16'h0101 | 16'h0101 | 8'h50
+     125 | FETCH_OP2 (2)  | 16'h0102 | 16'h0102 | 8'h02
+  <span class="comment">... [2 idle cycles collapsed: no signal transitions] ...</span>
+     155 | EXEC_JMP (5)   | 16'h0250 | 16'h0250 | -</code></pre>
+      </div>
+    </section>
+
+    <!-- Feature 4: Logic Depth, Area Summaries & .timing.md Contracts -->
+    <section class="detail-split reverse" id="logic-depth-area">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Logic Depth, LUT Area &amp; Timing Contracts</h2>
+        <p class="detail-text">
+          Agents optimizing purely for clock frequency often duplicate logic cones until FPGA resource utilization explodes. <code>verilog_logic_depth</code> and <code>verilog_update_timing</code> give the agent simultaneous visibility into combinational depth and resource area in seconds.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Bottleneck Sink Grouping:</strong> Critical paths are grouped by destination sink with compacted bit-bus ranges (`pc[0..15]`) and step-by-step LUT/MUX/CARRY hop traces mapped directly to <code>file.sv:line</code>.</li>
+          <li><strong>Module Area Summary:</strong> Every report includes a synthesized cell breakdown (LUTs, Flip-Flops, Carry cells, BRAMs, and DSPs) so the agent balances speed against LUT budget.</li>
+          <li><strong>Persistent <code>.timing.md</code> Sidecars:</strong> <code>verilog_update_timing</code> (and the standalone <code>turbostar-verilog-update-timing</code> CLI) generates per-module Markdown timing contracts across the entire repository in parallel.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <pre><code><span class="comment"># Tool call: verilog_update_timing(target="ice40")</span>
+| Module        | Target | Max Depth |LUTs| FFs| Dominant Path               |
+|---------------|--------|-----------|----|----|-----------------------------|
+| alu           | ice40  | 5 levels  | 64 |  0 | a[0] -&gt; flags_out[3]        |
+| cpu_8080_core | ice40  | 7 levels  |312 |128 | state[2] -&gt; mem_addr[15]    |
+
+<span class="keyword">## Area Summary (cpu_8080_core)</span>
+| Resource    | Count |
+|-------------|-------|
+| LUTs        |   312 |
+| Flip-Flops  |   128 |
+| Carry Cells |    32 |
+| Total Cells |   472 |
+<span class="comment">_Note: Area is for this module only; cross-module optimizations</span>
+<span class="comment">may reduce final area._</span></code></pre>
+      </div>
+    </section>
+
+    <!-- Feature 5: Physical Place-and-Route Timing Closure -->
+    <section class="detail-split" id="pnr-timing">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Physical Place-and-Route Timing Closure</h2>
+        <p class="detail-text">
+          Pre-synthesis logic depth is only half the story—on real FPGAs, long Manhattan wire routes and high-fanout control nets often dominate the critical path. <code>verilog_pnr_timing</code> runs full Yosys synthesis + <code>nextpnr</code> physical placement and routing on demand.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Achieved Fmax vs. Target Constraint:</strong> Evaluates real post-routing setup slack against your target clock constraint in <code>turbostar.json</code> (configurable via <code>verilog_project_settings</code>).</li>
+          <li><strong>Logic vs. Routing Delay Split:</strong> Decomposes every critical path hop into cell propagation delay vs. physical interconnect wire delay.</li>
+          <li><strong>Physical Tile Distance &amp; Fanout:</strong> Reports net fanout and physical chip tile delta <code>(dx, dy)</code> alongside exact SystemVerilog source lines, empowering the agent to pipeline long routes or replicate high-fanout registers.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <pre><code><span class="comment"># Tool call: verilog_pnr_timing(module="cpu_8080_core")</span>
+<span class="keyword">=== Physical Place-and-Route Timing (ice40 / hx8k) ===</span>
+Target Clock : 40.00 MHz (25.00 ns)
+Achieved Fmax: <span class="literal">46.85 MHz</span> (21.34 ns) — <span class="literal">MET (+3.66 ns slack)</span>
+Critical Delay: 21.34 ns (<span class="type">38.2% logic</span>, <span class="literal">61.8% routing</span>)
+
+Hop | Cell / Net             | Logic   | Route   | Fanout | Tile (dx,dy) | Source
+----+------------------------+---------+---------+--------+--------------+--------------------
+  1 | state_SB_DFF[2]        | 0.54 ns | 1.82 ns |     18 | (3, 4)       | cpu_8080_core.sv:88
+  2 | alu_op_SB_LUT4_I2      | 0.45 ns | 2.40 ns |      9 | (5, 2)       | cpu_8080_core.sv:214
+  3 | alu_inst.carry_SB_CARRY| 0.26 ns | 1.95 ns |      2 | (0, 6)       | alu.sv:68</code></pre>
+      </div>
+    </section>
+
+    <!-- Complete 12-Tool Reference Grid -->
+    <section class="features-section" id="tools">
+      <div class="section-header">
+        <h2 class="section-title">12 Specialized Tools Across the RTL Lifecycle</h2>
+        <p>Activate the <code>verilog</code> tool family in Turbostar or expose it to any external agent CLI via <code>turbomcp</code>.</p>
+      </div>
+
+      <div class="grid">
+        <!-- Card 1: Compilation & Project Config -->
+        <article class="card" id="fpga-card-compile">
+          <span class="card-icon">🛠️</span>
+          <h3 class="card-title">Lint, Synthesis &amp; Config</h3>
+          <p class="card-desc">Fast static verification and persistent FPGA target configuration without manual Makefiles.</p>
+          <ul class="detail-list" style="margin-bottom: 1rem;">
+            <li><code>verilog_compile</code>: Dual Verilator lint + Yosys synthesis triage with submodule scoping.</li>
+            <li><code>verilog_project_settings</code>: Configure target FPGA family (<code>ice40</code>, <code>ecp5</code>, <code>gowin</code>, <code>xilinx</code>), part, package, and target clock MHz.</li>
+          </ul>
+        </article>
+
+        <!-- Card 2: Simulation & Testbenches -->
+        <article class="card" id="fpga-card-sim">
+          <span class="card-icon">⚡</span>
+          <h3 class="card-title">Tiered RTL Simulation</h3>
+          <p class="card-desc">Automated testbench discovery, tiered execution, and regression waveform snapshots.</p>
+          <ul class="detail-list" style="margin-bottom: 1rem;">
+            <li><code>verilog_simulate</code>: Run Icarus Verilog or Verilator testbenches with auto-diffing against <code>.lastpass.vcd</code>.</li>
+            <li><code>verilog_configure_testbench</code>: Assign testbenches to <code>quick</code>, <code>comprehensive</code>, or <code>extreme</code> tiers and register ROM/hex data files.</li>
+          </ul>
+        </article>
+
+        <!-- Card 3: VCD Inspection & Search -->
+        <article class="card" id="fpga-card-vcd-inspect">
+          <span class="card-icon">📈</span>
+          <h3 class="card-title">Waveform Inspection</h3>
+          <p class="card-desc">Token-efficient, clock-aligned VCD tables and temporal condition search.</p>
+          <ul class="detail-list" style="margin-bottom: 1rem;">
+            <li><code>vcd_file_info</code>: Inspect hierarchy scopes, timescale, time bounds, and clock candidates.</li>
+            <li><code>vcd_wave</code>: Clock-aligned ASCII/Markdown tables with idle-cycle collapsing and bus formatting.</li>
+            <li><code>vcd_search</code>: Find timestamps matching complex multi-signal boolean expressions or edges.</li>
+          </ul>
+        </article>
+
+        <!-- Card 4: VCD Semantic Annotations -->
+        <article class="card" id="fpga-card-vcd-semantic">
+          <span class="card-icon">🏷️</span>
+          <h3 class="card-title">Semantic Trace &amp; Diffing</h3>
+          <p class="card-desc">Bridge raw signal bits back to high-level SystemVerilog types and source lines.</p>
+          <ul class="detail-list" style="margin-bottom: 1rem;">
+            <li><code>vcd_signal_labels</code>: Auto-discover <code>typedef enum</code> state names with live RTL change detection.</li>
+            <li><code>vcd_signal_qualifier</code>: Mask bus values during inactive valid/enable cycles.</li>
+            <li><code>vcd_compare</code>: Cycle-by-cycle diff between two VCD traces with clock-edge alignment.</li>
+            <li><code>vcd_signal_to_code</code>: Trace VCD nets to RTL declarations, drivers, and loads.</li>
+          </ul>
+        </article>
+
+        <!-- Card 5: Pre-PNR Timing & Area -->
+        <article class="card" id="fpga-card-timing">
+          <span class="card-icon">⏱️</span>
+          <h3 class="card-title">Logic Depth &amp; Area</h3>
+          <p class="card-desc">Instant combinational LUT cone analysis and module resource tracking.</p>
+          <ul class="detail-list" style="margin-bottom: 1rem;">
+            <li><code>verilog_logic_depth</code>: Per-module critical path hop traces, sink grouping, and LUT/FF/Carry/BRAM area summaries.</li>
+            <li><code>verilog_update_timing</code>: Parallel batch updater for <code>&lt;module&gt;.timing.md</code> sidecars across the project.</li>
+          </ul>
+        </article>
+
+        <!-- Card 6: Physical Place & Route -->
+        <article class="card" id="fpga-card-pnr">
+          <span class="card-icon">📐</span>
+          <h3 class="card-title">Physical Place &amp; Route</h3>
+          <p class="card-desc">Post-routing timing closure with physical chip coordinates and routing delay breakdowns.</p>
+          <ul class="detail-list" style="margin-bottom: 1rem;">
+            <li><code>verilog_pnr_timing</code>: Full Yosys + <code>nextpnr</code> physical timing analysis reporting Fmax, slack, logic vs. wire delay, fanout, and <code>(dx, dy)</code> tile distance.</li>
+            <li><code>turbostar-verilog-update-timing</code>: Standalone CLI binary for CI pipelines and git hooks.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- Quickstart / EDA Toolchain Section -->
+    <section class="features-section" id="quickstart">
+      <div class="section-header">
+        <h2 class="section-title">Open-Source FPGA Toolchain Setup</h2>
+        <p>Turbostar integrates directly with standard open-source SystemVerilog and FPGA synthesis packages.</p>
+      </div>
+
+      <div class="detail-split">
+        <div class="detail-info">
+          <h3 class="detail-subtitle">1. Install EDA Dependencies &amp; Project Template</h3>
+          <p class="detail-text">
+            Install the open-source verification and synthesis tools from your distribution package manager or OSS CAD Suite. Turbostar also ships with a ready-to-use <code>systemverilog</code> project template containing a pre-configured <code>turbostar.json</code> and an agent workflow guide (<code>AGENT.md</code>).
+          </p>
+          <ul class="detail-list">
+            <li><strong>Lint &amp; Simulation:</strong> <code>verilator</code> and <code>iverilog</code> (Icarus Verilog + <code>vvp</code>).</li>
+            <li><strong>Synthesis &amp; Logic Depth:</strong> <code>yosys</code> (supports generic gate synthesis plus <code>ice40</code>, <code>ecp5</code>, <code>gowin</code>, and <code>xilinx</code> targets).</li>
+            <li><strong>Physical Place &amp; Route:</strong> <code>nextpnr-ice40</code>, <code>nextpnr-ecp5</code>, or <code>nextpnr-gowin</code> alongside <code>fpga-icestorm</code> / <code>prjtrellis</code>.</li>
+          </ul>
+        </div>
+
+        <div class="detail-visual">
+          <pre><code><span class="comment"># 1. Install open-source RTL &amp; FPGA tools (Debian/Ubuntu)</span>
+<span class="keyword">sudo</span> apt install yosys verilator iverilog \
+  nextpnr-ice40 fpga-icestorm
+
+<span class="comment"># 2. Activate in an agent session or via MCP</span>
+<span class="comment"># Call activate_tool_family(family="verilog")</span>
+<span class="comment"># or launch turbomcp with --all-tool-families</span>
+turbomcp --project-dir /path/to/rtl-project
+
+<span class="comment"># 3. Or run standalone batch timing &amp; area analysis</span>
+turbostar-verilog-update-timing --target ice40</code></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-container">
+      <span class="footer-text">&copy; 2026 Turbostar Project. Open source and available under the terms of the GPLv3 license.</span>
+      <div class="footer-links">
+        <a href="index.html" id="foot-home">Home</a>
+        <a href="editor.html" id="foot-editor">Editor</a>
+        <a href="ai.html" id="foot-ai">AI Agents</a>
+        <a href="mcp.html" id="foot-mcp">MCP Server</a>
+        <a href="fpga.html" id="foot-fpga">FPGA &amp; Verilog</a>
+        <a href="details.html" id="foot-details">Technical Details</a>
+        <a href="ai.html#see-also" id="foot-presentations">Presentations</a>
+        <a href="https://github.com/fenrus75/turbostar2/blob/main/docs/tools.md" id="foot-tools" target="_blank" rel="noopener noreferrer">Tools Reference</a>
+        <a href="https://github.com/fenrus75/turbostar2" id="foot-github" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
