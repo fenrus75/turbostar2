@@ -20,6 +20,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 # short term fixes -- not in priority order, agents can add and remove items as they come up (do not delete this header line)
 
+- [009141ms] [INFO] Thread exited: document highlighter_thread_loop (timing.json)  
+	thread does not exit
+
 - consider a btw feature
 
 - have a "non-agent" turbostar binary option in meson
