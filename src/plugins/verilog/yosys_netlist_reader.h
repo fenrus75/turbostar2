@@ -66,6 +66,18 @@ public:
 	// Infer the true RTL register name for a techmapped flip-flop cell from its always_ff source location and cell name
 	static std::string infer_register_from_src(std::string_view raw_src, std::string_view raw_cell_name, std::string_view base_dir = "");
 
+	struct netlist_correlation_tables {
+		std::map<std::string, std::string> net_alias_map;
+		std::map<int, std::string> bit_to_user_net;
+		std::map<std::string, std::string> dff_to_reg_name;
+		std::map<std::string, std::string> cell_to_output_user_net;
+		std::map<std::string, std::string> lut_to_packed_dff;
+		std::map<std::string, std::set<std::string>> file_to_scopes;
+	};
+
+	// Build wire-connectivity correlation tables from a Yosys module JSON object
+	static netlist_correlation_tables build_correlation_tables(const nlohmann::json &mod_obj, std::string_view base_dir = "");
+
 	// Format source location for concise display (strips techmap line numbers e.g. cells_map.v:26-27 -> cells_map.v)
 	static std::string clean_display_location(std::string_view loc);
 
@@ -77,7 +89,6 @@ public:
 
 	// Returns true if the netlist appears to be post-synthesis / gate-level without hierarchical nets
 	bool is_flat_gate_level() const;
-
 private:
 	struct parsed_net {
 		std::string name;

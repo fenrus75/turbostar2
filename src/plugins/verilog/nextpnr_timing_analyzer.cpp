@@ -81,6 +81,8 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 	net_alias_map_.clear();
 	lut_to_packed_dff_.clear();
 	dff_to_reg_name_.clear();
+	cell_to_output_user_net_.clear();
+	file_to_scopes_.clear();
 	netlist_ports_.clear();
 	bit_sink_counts_.clear();
 	net_fanouts_.clear();
@@ -115,23 +117,6 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 		}
 	}
 
-	std::map<int, std::string> bit_driver_file;
-	std::map<int, std::string> bit_to_dff_d;
-	std::map<std::string, std::vector<int>> dff_q_bits;
-	std::map<std::string, int> lut_o_bit;
-	auto extract_src_file = [](std::string_view raw) -> std::string {
-		if (raw.empty()) {
-			return "";
-		}
-		size_t bar = raw.find('|');
-		std::string_view first = (bar != std::string_view::npos) ? raw.substr(0, bar) : raw;
-		size_t colon = first.rfind(':');
-		if (colon != std::string_view::npos) {
-			return std::string(first.substr(0, colon));
-		}
-		return std::string(first);
-	};
-
 	if (mod_obj->contains("cells") && (*mod_obj)["cells"].is_object()) {
 		for (const auto &[cname, cdata] : (*mod_obj)["cells"].items()) {
 			cell_info ci;
@@ -139,10 +124,6 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 			if (cdata.contains("attributes") && cdata["attributes"].is_object()) {
 				ci.src_raw = cdata["attributes"].value("src", "");
 			}
-			std::string c_file = extract_src_file(ci.src_raw);
-			bool valid_c_file = !c_file.empty() && !yosys_netlist_reader::is_library_source(c_file);
-			bool is_dff = (ci.type.find("DFF") != std::string::npos);
-			bool is_lut = (ci.type.find("LUT") != std::string::npos);
 			netlist_cells_[cname] = std::move(ci);
 
 			// Track input port connections to compute net sink fanout
@@ -165,26 +146,12 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 						is_input = (pname != "Y" && pname != "Q" && pname != "O" && pname != "CO" && pname != "COUT");
 					}
 
-					if (conn_val.is_array()) {
+					if (is_input && conn_val.is_array()) {
 						for (const auto &b_val : conn_val) {
 							if (b_val.is_number_integer()) {
 								int b = b_val.get<int>();
 								if (b >= 0) {
-									if (is_input) {
-										bit_sink_counts_[b]++;
-										if (is_dff && pname == "D") {
-											bit_to_dff_d[b] = cname;
-										}
-									} else {
-										if (valid_c_file) {
-											bit_driver_file[b] = c_file;
-										}
-										if (is_dff && pname == "Q") {
-											dff_q_bits[cname].push_back(b);
-										} else if (is_lut && pname == "O") {
-											lut_o_bit[cname] = b;
-										}
-									}
+									bit_sink_counts_[b]++;
 								}
 							}
 						}
@@ -194,11 +161,9 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 		}
 	}
 
-	std::map<std::vector<int>, std::vector<std::pair<std::string, std::string>>> bits_to_user_nets;
 	if (mod_obj->contains("netnames") && (*mod_obj)["netnames"].is_object()) {
 		for (const auto &[nname, ndata] : (*mod_obj)["netnames"].items()) {
 			net_info ni;
-			int hide_name = ndata.value("hide_name", 0);
 			if (ndata.contains("attributes") && ndata["attributes"].is_object()) {
 				ni.src_raw = ndata["attributes"].value("src", "");
 			}
@@ -216,64 +181,16 @@ void nextpnr_timing_analyzer::parse_netlist_json(const nlohmann::json &j)
 				}
 				net_fanouts_[nname] = total_fanout;
 			}
-			bool is_synth = (nname.find("_SB_") != std::string::npos ||
-			                 nname.find("$SB_") != std::string::npos ||
-			                 nname.find("$sb_") != std::string::npos ||
-			                 nname.find("$func$") != std::string::npos);
-			std::string src_file = extract_src_file(ni.src_raw);
-			bool is_lib = yosys_netlist_reader::is_library_source(src_file);
-			if (hide_name == 0 && !nname.starts_with("$") && !nname.starts_with("new_n") && !is_synth && !is_lib && !ni.bits.empty()) {
-				bits_to_user_nets[ni.bits].emplace_back(nname, src_file);
-			}
 			netlist_nets_[nname] = std::move(ni);
 		}
 	}
 
-	std::map<int, std::string> bit_to_user_net;
-	for (const auto &[bits, candidates] : bits_to_user_nets) {
-		std::string drv_file;
-		for (int b : bits) {
-			if (b > 0 && bit_driver_file.contains(b)) {
-				drv_file = bit_driver_file[b];
-				break;
-			}
-		}
-		auto score_cand = [&](const std::pair<std::string, std::string> &cand) {
-			int driver_match = (!drv_file.empty() && cand.second == drv_file) ? 0 : 1;
-			size_t dots = static_cast<size_t>(std::count(cand.first.begin(), cand.first.end(), '.'));
-			return std::make_tuple(driver_match, dots, cand.first.size(), cand.first);
-		};
-		auto best_it = std::min_element(candidates.begin(), candidates.end(),
-			[&](const auto &a, const auto &b) {
-				return score_cand(a) < score_cand(b);
-			});
-		const std::string &best_name = best_it->first;
-		if (candidates.size() > 1) {
-			for (const auto &[cand_name, cand_file] : candidates) {
-				net_alias_map_[cand_name] = best_name;
-			}
-		}
-		for (int b : bits) {
-			if (b > 0 && !bit_to_user_net.contains(b)) {
-				bit_to_user_net[b] = best_name;
-			}
-		}
-	}
-
-	for (const auto &[dff_name, q_bits] : dff_q_bits) {
-		for (int b : q_bits) {
-			if (b > 0 && bit_to_user_net.contains(b)) {
-				dff_to_reg_name_[dff_name] = bit_to_user_net[b];
-				break;
-			}
-		}
-	}
-
-	for (const auto &[lut_name, o_bit] : lut_o_bit) {
-		if (o_bit > 0 && bit_sink_counts_[o_bit] == 1 && bit_to_dff_d.contains(o_bit)) {
-			lut_to_packed_dff_[lut_name] = bit_to_dff_d[o_bit];
-		}
-	}
+	auto corr = yosys_netlist_reader::build_correlation_tables(*mod_obj, netlist_dir_);
+	net_alias_map_ = std::move(corr.net_alias_map);
+	lut_to_packed_dff_ = std::move(corr.lut_to_packed_dff);
+	dff_to_reg_name_ = std::move(corr.dff_to_reg_name);
+	cell_to_output_user_net_ = std::move(corr.cell_to_output_user_net);
+	file_to_scopes_ = std::move(corr.file_to_scopes);
 }
 
 void nextpnr_timing_analyzer::parse_timing_json(const nlohmann::json &j)
@@ -349,32 +266,38 @@ void nextpnr_timing_analyzer::parse_timing_json(const nlohmann::json &j)
 					h.delay_ns = hop_obj.value("delay", 0.0);
 					h.net_name = hop_obj.value("net", "");
 
+					int x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+					bool has_from_loc = false;
+					bool has_to_loc = false;
+
 					if (hop_obj.contains("from") && hop_obj["from"].is_object()) {
-						h.from_cell = hop_obj["from"].value("cell", "");
-						h.from_port = hop_obj["from"].value("port", "");
+						const auto &f_obj = hop_obj["from"];
+						h.from_cell = f_obj.value("cell", "");
+						h.from_port = f_obj.value("port", "");
+						if (f_obj.contains("loc") && f_obj["loc"].is_array() && f_obj["loc"].size() == 2 &&
+						    f_obj["loc"][0].is_number_integer() && f_obj["loc"][1].is_number_integer()) {
+							x1 = f_obj["loc"][0].get<int>();
+							y1 = f_obj["loc"][1].get<int>();
+							h.from_loc = std::format("({}, {})", x1, y1);
+							has_from_loc = true;
+						}
 					}
 					if (hop_obj.contains("to") && hop_obj["to"].is_object()) {
-						h.to_cell = hop_obj["to"].value("cell", "");
-						h.to_port = hop_obj["to"].value("port", "");
-					}
-
-					if (hop_obj.contains("from") && hop_obj["from"].is_object() &&
-					    hop_obj.contains("to") && hop_obj["to"].is_object()) {
-						const auto &f_obj = hop_obj["from"];
 						const auto &t_obj = hop_obj["to"];
-						if (f_obj.contains("loc") && f_obj["loc"].is_array() && f_obj["loc"].size() == 2 &&
-						    t_obj.contains("loc") && t_obj["loc"].is_array() && t_obj["loc"].size() == 2) {
-							if (f_obj["loc"][0].is_number_integer() && f_obj["loc"][1].is_number_integer() &&
-							    t_obj["loc"][0].is_number_integer() && t_obj["loc"][1].is_number_integer()) {
-								int x1 = f_obj["loc"][0].get<int>();
-								int y1 = f_obj["loc"][1].get<int>();
-								int x2 = t_obj["loc"][0].get<int>();
-								int y2 = t_obj["loc"][1].get<int>();
-								h.distance = std::abs(x1 - x2) + std::abs(y1 - y2);
-							}
+						h.to_cell = t_obj.value("cell", "");
+						h.to_port = t_obj.value("port", "");
+						if (t_obj.contains("loc") && t_obj["loc"].is_array() && t_obj["loc"].size() == 2 &&
+						    t_obj["loc"][0].is_number_integer() && t_obj["loc"][1].is_number_integer()) {
+							x2 = t_obj["loc"][0].get<int>();
+							y2 = t_obj["loc"][1].get<int>();
+							h.to_loc = std::format("({}, {})", x2, y2);
+							has_to_loc = true;
 						}
 					}
 
+					if (has_from_loc && has_to_loc) {
+						h.distance = std::abs(x1 - x2) + std::abs(y1 - y2);
+					}
 					cp.total_delay_ns += h.delay_ns;
 					if (h.type == "logic") {
 						cp.logic_delay_ns += h.delay_ns;
@@ -560,6 +483,55 @@ std::string nextpnr_timing_analyzer::resolve_alias(std::string_view net_name) co
 	return s;
 }
 
+std::string nextpnr_timing_analyzer::resolve_cell_type(std::string_view raw_cell) const
+{
+	if (raw_cell.empty()) {
+		return "";
+	}
+	std::string cand = normalize_cell_name(raw_cell);
+	std::string matched_cell;
+	if (netlist_cells_.contains(cand)) {
+		matched_cell = cand;
+	} else {
+		size_t last_underscore = cand.rfind('_');
+		if (last_underscore != std::string::npos && last_underscore + 1 < cand.size()) {
+			bool all_digits = true;
+			for (size_t i = last_underscore + 1; i < cand.size(); ++i) {
+				if (!std::isdigit(cand[i])) {
+					all_digits = false;
+					break;
+				}
+			}
+			if (all_digits) {
+				std::string sub = cand.substr(0, last_underscore);
+				if (netlist_cells_.contains(sub)) {
+					matched_cell = sub;
+				}
+			}
+		}
+	}
+
+	if (!matched_cell.empty()) {
+		if (raw_cell.ends_with("_DFFLC") && lut_to_packed_dff_.contains(matched_cell)) {
+			const std::string &dff_cell = lut_to_packed_dff_.at(matched_cell);
+			if (netlist_cells_.contains(dff_cell) && !netlist_cells_.at(dff_cell).type.empty()) {
+				return netlist_cells_.at(dff_cell).type;
+			}
+		}
+		const auto &ci = netlist_cells_.at(matched_cell);
+		if (!ci.type.empty()) {
+			return ci.type;
+		}
+	}
+
+	if (raw_cell.ends_with("_DFFLC")) return "ICESTORM_LC (DFF)";
+	if (raw_cell.ends_with("_LC")) return "ICESTORM_LC";
+	if (raw_cell.ends_with("_RAM")) return "SB_RAM40_4K";
+	if (raw_cell.ends_with("$sb_io")) return "SB_IO";
+	if (raw_cell.find("$gbuf") != std::string_view::npos) return "SB_GB";
+	return "";
+}
+
 std::string nextpnr_timing_analyzer::resolve_cell_src(std::string_view raw_cell, std::string &out_hint, bool is_endpoint) const
 {
 	std::string cand = normalize_cell_name(raw_cell);
@@ -604,15 +576,18 @@ std::string nextpnr_timing_analyzer::resolve_cell_src(std::string_view raw_cell,
 		}
 	}
 
-	if (is_endpoint && !matched_cell.empty() && lut_to_packed_dff_.contains(matched_cell)) {
+	if ((is_endpoint || raw_cell.ends_with("_DFFLC")) && !matched_cell.empty() && lut_to_packed_dff_.contains(matched_cell)) {
 		matched_cell = lut_to_packed_dff_.at(matched_cell);
 		cand = matched_cell;
 	}
 
 	std::string src;
+	std::string c_file;
 	if (!matched_cell.empty()) {
 		const auto &ci = netlist_cells_.at(matched_cell);
 		src = yosys_netlist_reader::clean_src_location(ci.src_raw);
+		size_t colon = src.rfind(':');
+		c_file = (colon != std::string::npos) ? src.substr(0, colon) : src;
 		if (dff_to_reg_name_.contains(matched_cell)) {
 			out_hint = resolve_alias(normalize_net_name(dff_to_reg_name_.at(matched_cell)));
 			return src;
@@ -624,9 +599,24 @@ std::string nextpnr_timing_analyzer::resolve_cell_src(std::string_view raw_cell,
 				return src;
 			}
 		}
+		if (cell_to_output_user_net_.contains(matched_cell)) {
+			out_hint = resolve_alias(normalize_net_name(cell_to_output_user_net_.at(matched_cell)));
+			if (src.empty() || yosys_netlist_reader::is_library_source(src)) {
+				std::string net_s = resolve_net_src(out_hint);
+				if (!net_s.empty() && !yosys_netlist_reader::is_library_source(net_s)) {
+					src = net_s;
+				}
+			}
+			return src;
+		}
 	}
 
-	// Netname prefix lookup (prefer clean user nets, skip synthetic LUT/techmap intermediates)
+	// Netname prefix lookup (prefer clean user nets from the same RTL file, skip synthetic LUT/techmap intermediates)
+	bool valid_c_file = !c_file.empty() && !yosys_netlist_reader::is_library_source(c_file);
+	size_t best_same_file_len = 0;
+	std::string best_same_file_net;
+	std::string same_file_net_src;
+
 	size_t best_len = 0;
 	std::string best_net;
 	std::string net_src;
@@ -638,13 +628,25 @@ std::string nextpnr_timing_analyzer::resolve_cell_src(std::string_view raw_cell,
 			continue;
 		}
 
-		if (cand.starts_with(nname) && nname.size() > best_len) {
-			if (cand.size() == nname.size() || cand[nname.size()] == '_' || cand[nname.size()] == '.') {
+		if (cand.starts_with(nname) && (cand.size() == nname.size() || cand[nname.size()] == '_' || cand[nname.size()] == '.')) {
+			size_t n_colon = cleaned_n_src.rfind(':');
+			std::string n_file = (n_colon != std::string::npos) ? cleaned_n_src.substr(0, n_colon) : cleaned_n_src;
+			if (valid_c_file && n_file == c_file && nname.size() > best_same_file_len) {
+				best_same_file_len = nname.size();
+				best_same_file_net = nname;
+				same_file_net_src = cleaned_n_src;
+			}
+			if (nname.size() > best_len) {
 				best_len = nname.size();
 				best_net = nname;
 				net_src = cleaned_n_src;
 			}
 		}
+	}
+
+	if (!best_same_file_net.empty()) {
+		best_net = best_same_file_net;
+		net_src = same_file_net_src;
 	}
 
 	if (!best_net.empty()) {
@@ -686,7 +688,8 @@ void nextpnr_timing_analyzer::correlate_paths()
 {
 	for (auto &cp : critical_paths_) {
 		std::string hint;
-		cp.start_src = resolve_cell_src(cp.startpoint, hint, /*is_endpoint=*/false);
+		bool start_is_seq = (!cp.hops.empty() && cp.hops.front().type == "clk-to-q");
+		cp.start_src = resolve_cell_src(cp.startpoint, hint, /*is_endpoint=*/start_is_seq);
 		if (!hint.empty() && hint != normalize_cell_name(cp.startpoint)) {
 			cp.startpoint = hint;
 		}
@@ -699,7 +702,10 @@ void nextpnr_timing_analyzer::correlate_paths()
 		cp.endpoint = resolve_alias(normalize_net_name(cp.endpoint));
 
 		for (auto &h : cp.hops) {
-			h.cell_src_location = resolve_cell_src(h.to_cell.empty() ? h.from_cell : h.to_cell, h.cell_hint, /*is_endpoint=*/false);
+			std::string target_cell = h.to_cell.empty() ? h.from_cell : h.to_cell;
+			bool hop_is_seq = (h.type == "clk-to-q" || h.type == "setup");
+			h.cell_src_location = resolve_cell_src(target_cell, h.cell_hint, /*is_endpoint=*/hop_is_seq);
+			h.cell_type = resolve_cell_type(target_cell);
 			h.cell_hint = resolve_alias(normalize_net_name(h.cell_hint));
 			h.net_src_location = resolve_net_src(h.net_name);
 			if ((h.cell_src_location.empty() || yosys_netlist_reader::is_library_source(h.cell_src_location)) &&
@@ -1082,7 +1088,7 @@ bool nextpnr_timing_analyzer::synthesize_and_route(const fpga_target_config &cfg
 	return true;
 }
 
-std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_only, bool group_by_sink, size_t top_k, bool collapse) const
+std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_only, bool group_by_sink, size_t top_k, bool collapse, bool show_segments) const
 {
 	std::string md;
 
@@ -1125,6 +1131,7 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 			std::string base_hint;
 			std::string first_cell;
 			std::string last_cell;
+			bool has_routing{false};
 			double logic_delay{0.0};
 			double routing_delay{0.0};
 			size_t luts{0};
@@ -1189,7 +1196,7 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 			bool can_merge = false;
 			if (!stages.empty()) {
 				auto &back = stages.back();
-				if (back.last_cell == from_cell || back.first_cell == from_cell || back.last_cell == hop_cell) {
+				if (!back.has_routing && (back.last_cell == from_cell || back.first_cell == from_cell)) {
 					can_merge = true;
 				} else if (collapse) {
 					bool both_lib = yosys_netlist_reader::is_library_source(back.raw_src) &&
@@ -1211,17 +1218,22 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 			if (can_merge) {
 				auto &st = stages.back();
 				st.hops_count++;
-				st.last_cell = to_cell;
 				if (st.base_hint.empty() && !effective_base.empty()) {
 					st.base_hint = effective_base;
 				}
 				if (h.type == "logic" || h.type == "clk-to-q") {
+					st.last_cell = to_cell;
+					st.has_routing = false;
 					st.logic_delay += h.delay_ns;
 					st.luts++;
 				} else if (h.type == "routing") {
+					st.has_routing = true;
 					st.routing_delay += h.delay_ns;
 					if (!norm_net.empty()) {
 						st.out_net = norm_net;
+					}
+					if ((st.base_hint.empty() || st.base_hint == normalize_cell_name(st.first_cell)) && !cur_base_net.empty()) {
+						st.base_hint = cur_base_net;
 					}
 					st.max_fanout = std::max(st.max_fanout, h.fanout);
 					st.max_distance = std::max(st.max_distance, h.distance);
@@ -1247,6 +1259,7 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 					st.logic_delay = h.delay_ns;
 					st.luts = 1;
 				} else if (h.type == "routing") {
+					st.has_routing = true;
 					st.routing_delay = h.delay_ns;
 					st.out_net = norm_net;
 					st.max_fanout = h.fanout;
@@ -1328,6 +1341,78 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 			                        s_idx + 1, loc_str, hint_str, delay_str, out_str);
 		}
 		return chain_md;
+	};
+
+	auto format_hops_segments = [](std::span<const timing_hop> hops) -> std::string {
+		if (hops.empty()) return "";
+		std::string seg_md = "- **Segments (Hop-by-Hop)**:\n";
+		size_t seg_idx = 0;
+		for (const auto &h : hops) {
+			if (h.type == "source") continue;
+			seg_idx++;
+			if (h.type == "routing") {
+				std::string from_pin = h.from_port.empty() ? h.from_cell : std::format("{}.{}", h.from_cell, h.from_port);
+				std::string to_pin = h.to_port.empty() ? h.to_cell : std::format("{}.{}", h.to_cell, h.to_port);
+				std::string clean_n = h.clean_net.empty() ? normalize_net_name(h.net_name) : h.clean_net;
+				std::string net_str;
+				if (!clean_n.empty()) {
+					if (!h.net_name.empty() && h.net_name != clean_n) {
+						net_str = std::format("net `{}` (raw: `{}`)", clean_n, h.net_name);
+					} else {
+						net_str = std::format("net `{}`", clean_n);
+					}
+				} else if (!h.net_name.empty()) {
+					net_str = std::format("net `{}`", h.net_name);
+				} else {
+					net_str = "interconnect";
+				}
+				std::string meta;
+				if (h.fanout > 0) {
+					meta += std::format("fanout: {}", h.fanout);
+				}
+				if (h.distance > 0) {
+					if (!meta.empty()) meta += ", ";
+					if (!h.from_loc.empty() && !h.to_loc.empty()) {
+						meta += std::format("span: {} tile{} {} -> {}", h.distance, h.distance == 1 ? "" : "s", h.from_loc, h.to_loc);
+					} else {
+						meta += std::format("span: {} tile{}", h.distance, h.distance == 1 ? "" : "s");
+					}
+				}
+				std::string n_loc = clean_display_location(h.net_src_location);
+				if (!n_loc.empty() && !yosys_netlist_reader::is_library_source(h.net_src_location)) {
+					if (!meta.empty()) meta += ", ";
+					meta += std::format("`{}`", n_loc);
+				}
+				std::string meta_str = meta.empty() ? "" : std::format(" [{}]", meta);
+				seg_md += std::format("  {}. `[routing]` **{:.3f} ns** — {} (`{}` -> `{}`){}\n",
+				                      seg_idx, h.delay_ns, net_str, from_pin, to_pin, meta_str);
+			} else {
+				std::string cell_name = h.to_cell.empty() ? h.from_cell : h.to_cell;
+				std::string ctype = h.cell_type.empty() ? "cell" : h.cell_type;
+				std::string pin_str;
+				if (!h.from_port.empty() && !h.to_port.empty() && h.from_port != h.to_port) {
+					pin_str = std::format(" (`{}` -> `{}`)", h.from_port, h.to_port);
+				} else if (!h.to_port.empty()) {
+					pin_str = std::format(" (pin `{}`)", h.to_port);
+				} else if (!h.from_port.empty()) {
+					pin_str = std::format(" (pin `{}`)", h.from_port);
+				}
+				std::string hint_str;
+				std::string norm_cell = normalize_cell_name(cell_name);
+				if (!h.cell_hint.empty() && h.cell_hint != cell_name && h.cell_hint != norm_cell) {
+					hint_str = std::format(" `{}` (cell `{}`)", h.cell_hint, cell_name);
+				} else if (!cell_name.empty()) {
+					hint_str = std::format(" `{}`", cell_name);
+				}
+				std::string loc_coord = !h.to_loc.empty() ? h.to_loc : h.from_loc;
+				std::string coord_str = loc_coord.empty() ? "" : std::format(" @ {}", loc_coord);
+				std::string rtl_loc = clean_display_location(h.cell_src_location);
+				std::string rtl_str = rtl_loc.empty() ? "" : std::format(" [`{}`]", rtl_loc);
+				seg_md += std::format("  {}. `[{}]` **{:.3f} ns** — `{}`{}{}{}{}\n",
+				                      seg_idx, h.type, h.delay_ns, ctype, hint_str, pin_str, coord_str, rtl_str);
+			}
+		}
+		return seg_md;
 	};
 
 	auto format_dominant_routing = [](std::span<const timing_hop> hops) -> std::string {
@@ -1441,6 +1526,9 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 
 				md += "- **Chain**:\n";
 				md += format_hops_chain(b.representative_hops);
+				if (show_segments) {
+					md += format_hops_segments(b.representative_hops);
+				}
 				md += format_dominant_routing(b.representative_hops);
 				std::string b_end_src = clean_display_location(b.end_src);
 				md += std::format("- **End**: `{}` {}\n\n", b.endpoint, b_end_src.empty() ? "" : std::format("(`{}`)", b_end_src));
@@ -1475,6 +1563,9 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 				md += std::format("- **Start**: `{}` {}\n", p.startpoint, p_start_src.empty() ? "" : std::format("(`{}`)", p_start_src));
 				md += "- **Chain**:\n";
 				md += format_hops_chain(p.hops);
+				if (show_segments) {
+					md += format_hops_segments(p.hops);
+				}
 				md += format_dominant_routing(p.hops);
 				std::string p_end_src = clean_display_location(p.end_src);
 				md += std::format("- **End**: `{}` {}\n\n", p.endpoint, p_end_src.empty() ? "" : std::format("(`{}`)", p_end_src));

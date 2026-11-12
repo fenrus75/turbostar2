@@ -1122,6 +1122,182 @@ void test_verilog_compile_tool()
 	std::filesystem::remove_all(tmp_dir, ec);
 }
 
+void test_shared_always_ff_disambiguation_and_segments()
+{
+	using verilog::nextpnr_timing_analyzer;
+
+	std::string tmp_dir = std::format("tests/unit/tmp_shared_ff_{}", (long)getpid());
+	std::filesystem::create_directories(tmp_dir);
+	std::string sv_file = tmp_dir + "/alu_shared.sv";
+	{
+		std::ofstream ofs(sv_file);
+		ofs << "module alu_shared(\n"
+		    << "    input logic clk,\n"
+		    << "    input logic rst,\n"
+		    << "    input logic [7:0] input1,\n"
+		    << "    input logic [7:0] input2,\n"
+		    << "    output logic [3:0] flags_out\n"
+		    << ");\n"
+		    << "    logic [3:0] flags;\n"
+		    << "    logic [7:0] input1_reg, input2_reg;\n"
+		    << "    always_ff @(posedge clk) begin\n"
+		    << "        if (rst) begin\n"
+		    << "            flags <= 0;\n"
+		    << "        end else begin\n"
+		    << "            flags <= input1_reg[3:0] ^ input2_reg[3:0];\n"
+		    << "            input1_reg <= input1;\n"
+		    << "            input2_reg <= input2;\n"
+		    << "        end\n"
+		    << "    end\n"
+		    << "    assign flags_out = flags;\n"
+		    << "endmodule\n";
+	}
+
+	std::string src_span = sv_file + ":10.5-18.8";
+	nlohmann::json netlist_json = {
+		{"modules", {
+			{"top", {
+				{"attributes", {{"top", "1"}}},
+				{"cells", {
+					{"cpu.other.mangled_SB_DFFER_Q_0", {
+						{"type", "SB_DFFER"},
+						{"attributes", {{"src", src_span}}},
+						{"port_directions", {{"C", "input"}, {"D", "input"}, {"E", "input"}, {"Q", "output"}}},
+						{"connections", {{"C", {2}}, {"D", {10}}, {"E", {3}}, {"Q", {20}}}}
+					}},
+					{"lut_xor_0", {
+						{"type", "SB_LUT4"},
+						{"attributes", {{"src", sv_file + ":14.22-14.54"}}},
+						{"port_directions", {{"I0", "input"}, {"I1", "input"}, {"O", "output"}}},
+						{"connections", {{"I0", {20}}, {"I1", {21}}, {"O", {30}}}}
+					}},
+					{"cpu.alu.carry_SB_DFFSR_Q_1", {
+						{"type", "SB_DFFSR"},
+						{"attributes", {{"src", src_span}}},
+						{"port_directions", {{"C", "input"}, {"D", "input"}, {"R", "input"}, {"Q", "output"}}},
+						{"connections", {{"C", {2}}, {"D", {30}}, {"R", {3}}, {"Q", {40}}}}
+					}}
+				}},
+				{"netnames", {
+					{"cpu.alu.input1", {
+						{"hide_name", 0},
+						{"bits", {10, 11, 12, 13, 14, 15, 16, 17}},
+						{"attributes", {{"src", sv_file + ":4.23-4.29"}}}
+					}},
+					{"cpu.alu.input2", {
+						{"hide_name", 0},
+						{"bits", {50, 51, 52, 53, 54, 55, 56, 57}},
+						{"attributes", {{"src", sv_file + ":5.23-5.29"}}}
+					}},
+					{"cpu.alu.carry", {
+						{"hide_name", 0},
+						{"bits", {90, 91}},
+						{"attributes", {{"src", sv_file + ":8.17-8.22"}}}
+					}}
+				}}
+			}}
+		}}
+	};
+
+	nlohmann::json timing_json = {
+		{"fmax", {{"clk", {{"achieved", 75.0}, {"constraint", 60.0}}}}},
+		{"utilization", {{"ICESTORM_LC", {{"used", 3}, {"available", 7680}}}}},
+		{"critical_paths", nlohmann::json::array({
+			nlohmann::json::object({
+				{"from", "posedge clk"},
+				{"to", "posedge clk"},
+				{"path", nlohmann::json::array({
+					nlohmann::json::object({
+						{"type", "clk-to-q"},
+						{"delay", 0.54},
+						{"from", {{"cell", "cpu.other.mangled_SB_DFFER_Q_0_DFFLC"}, {"loc", {4, 5}}, {"port", "CLK"}}},
+						{"to", {{"cell", "cpu.other.mangled_SB_DFFER_Q_0_DFFLC"}, {"loc", {4, 5}}, {"port", "Q"}}}
+					}),
+					nlohmann::json::object({
+						{"type", "routing"},
+						{"delay", 0.65},
+						{"net", "hidden_in1_q"},
+						{"from", {{"cell", "cpu.other.mangled_SB_DFFER_Q_0_DFFLC"}, {"loc", {4, 5}}, {"port", "Q"}}},
+						{"to", {{"cell", "lut_xor_0_LC"}, {"loc", {6, 8}}, {"port", "I0"}}}
+					}),
+					nlohmann::json::object({
+						{"type", "logic"},
+						{"delay", 0.45},
+						{"from", {{"cell", "lut_xor_0_LC"}, {"loc", {6, 8}}, {"port", "I0"}}},
+						{"to", {{"cell", "lut_xor_0_LC"}, {"loc", {6, 8}}, {"port", "O"}}}
+					}),
+					nlohmann::json::object({
+						{"type", "routing"},
+						{"delay", 0.55},
+						{"net", "xor_to_flags_d"},
+						{"from", {{"cell", "lut_xor_0_LC"}, {"loc", {6, 8}}, {"port", "O"}}},
+						{"to", {{"cell", "cpu.alu.carry_SB_DFFSR_Q_1_DFFLC"}, {"loc", {6, 9}}, {"port", "D"}}}
+					}),
+					nlohmann::json::object({
+						{"type", "setup"},
+						{"delay", 0.15},
+						{"from", {{"cell", "cpu.alu.carry_SB_DFFSR_Q_1_DFFLC"}, {"loc", {6, 9}}, {"port", "D"}}},
+						{"to", {{"cell", "cpu.alu.carry_SB_DFFSR_Q_1_DFFLC"}, {"loc", {6, 9}}, {"port", "D"}}}
+					})
+				})}
+			})
+		})}
+	};
+
+	nextpnr_timing_analyzer analyzer;
+	std::string err;
+	assert(analyzer.load_from_json_strings(timing_json.dump(), netlist_json.dump(), err));
+	const auto &paths = analyzer.critical_paths();
+	assert(paths.size() == 1);
+
+	// 1. Verify startpoint disambiguated via D-pin RHS connectivity (input1[0] -> input1_reg[0])
+	assert(paths[0].startpoint == "cpu.alu.input1_reg[0]");
+	// 2. Verify endpoint disambiguated via wire-connectivity elimination (not input1_reg/input2_reg/carry -> flags)
+	assert(paths[0].endpoint == "cpu.alu.flags");
+
+	// 3. Verify show_segments=true prints hop-by-hop segments with cell types, pins, and nets
+	std::string md_seg = analyzer.generate_timing_markdown(true, true, 3, /*collapse=*/true, /*show_segments=*/true);
+	assert(md_seg.find("- **Segments (Hop-by-Hop)**:") != std::string::npos);
+	assert(md_seg.find("`[clk-to-q]`") != std::string::npos);
+	assert(md_seg.find("`SB_DFFER`") != std::string::npos);
+	assert(md_seg.find("(`CLK` -> `Q`)") != std::string::npos);
+	assert(md_seg.find("`[routing]`") != std::string::npos);
+	assert(md_seg.find("`hidden_in1_q`") != std::string::npos);
+	assert(md_seg.find("`[logic]`") != std::string::npos);
+	assert(md_seg.find("`SB_LUT4`") != std::string::npos);
+	assert(md_seg.find("(`I0` -> `O`)") != std::string::npos);
+	assert(md_seg.find("`[setup]`") != std::string::npos);
+	assert(md_seg.find("`SB_DFFSR`") != std::string::npos);
+
+	// 4. Verify verilog_pnr_timing validator accepts verbose=true and show_segments=true
+	std::string timing_path = tmp_dir + "/timing.json";
+	std::string netlist_path = tmp_dir + "/netlist.json";
+	{
+		std::ofstream ofs_t(timing_path);
+		ofs_t << timing_json.dump();
+		std::ofstream ofs_n(netlist_path);
+		ofs_n << netlist_json.dump();
+	}
+
+	tools::verilog_pnr_timing_validator validator;
+	agentlib::tool_context ctx;
+	ctx.fs_security.add_allowed_root(std::filesystem::current_path(), agentlib::access_type::read);
+
+	nlohmann::json tool_args = {
+		{"timing_report", timing_path},
+		{"netlist", netlist_path},
+		{"show_segments", true}
+	};
+	assert(validator.validate_args(tool_args, ctx, err) && err.empty());
+	std::string tool_out = validator.create_tool(tool_args)->execute(ctx);
+	assert(tool_out.find("- **Segments (Hop-by-Hop)**:") != std::string::npos);
+	assert(tool_out.find("cpu.alu.input1_reg[0]") != std::string::npos);
+	assert(tool_out.find("cpu.alu.flags") != std::string::npos);
+
+	std::error_code ec;
+	std::filesystem::remove_all(tmp_dir, ec);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog();
@@ -1142,6 +1318,7 @@ int main()
 	test_verilog_pnr_timing_tool();
 	test_verilog_pnr_timing_on_demand();
 	test_verilog_compile_tool();
+	test_shared_always_ff_disambiguation_and_segments();
 
 	std::cout << "All verilog timing tool tests passed successfully!" << std::endl;
 	return 0;

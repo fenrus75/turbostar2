@@ -19,8 +19,8 @@ struct verilog_pnr_timing_args {
 	bool group_by_sink{true};
 	bool reg_to_reg_only{true};
 	bool collapse{true};
+	bool verbose{false};
 };
-
 class verilog_pnr_timing_tool : public agentlib::llm_tool_action
 {
 public:

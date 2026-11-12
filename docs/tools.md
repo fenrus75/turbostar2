@@ -1051,11 +1051,13 @@ Tools in this family assist in digital ASIC and FPGA hardware engineering, simul
     *   `timing_report` *(string, optional)*: Optional path to pre-generated nextpnr timing report (e.g. `'synth/timing.json'`). If omitted, runs automated on-demand synthesis and P&R.
     *   `netlist` *(string, optional)*: Optional path to Yosys synthesis netlist JSON (e.g. `'synth/main.json'`) for cell-to-RTL correlation.
     *   `file` *(string, optional)*: Optional RTL source file in the design to anchor on-demand synthesis scan (e.g. `'sv/main.sv'`).
+    *   `module` *(string, optional)*: Optional target RTL module name or source file (e.g. `'top'` or `'cpu'`). Defaults to the configured `top_module` in `turbostar.json`; if a submodule is given, runs out-of-context unconstrained PnR for that submodule.
     *   `top_k` *(integer, optional)*: Maximum number of worst critical paths or bottlenecks to display (default: `3`).
+    *   `seeds` *(integer, optional)*: Optional number of placement seeds (accepted for compatibility with `verilog_compile`; default: `1`).
     *   `group_by_sink` *(boolean, optional)*: Whether to collapse redundant paths converging on the same bottleneck sink into single entries (default: `true`).
     *   `path_filter` *(string, optional)*: Path category filter: `'reg_to_reg'` to focus exclusively on internal clock-limiting register paths (default), or `'all'` to include async IO pads.
     *   `collapse` *(boolean, optional)*: Whether to collapse noisy multi-hop carry chains and intermediate techmap routing hops into concise stages with logic/routing breakdown, fanout, and physical span (default: `true`).
-
+    *   `verbose` / `show_segments` *(boolean, optional)*: When `true`, prints the full hop-by-hop segment list (cell type, input/output pins, tile coordinates, and intermediate nets) for each critical path in addition to the stage summary (default: `false`; aliases: `segments`, `detailed`, `full_path`).
 ### `verilog_simulate` (Family: `verilog`)
 *   **Description:** Compiles and runs one or more SystemVerilog/Verilog testbenches together with project RTL using Verilator (`--binary --timing --trace`), supporting module-targeted unit testing (`module`), optional bottom-up submodule testing (`hierarchical`), and test tier filtering (`level`: `'quick'`, `'comprehensive'`, `'extreme'`). Automatically stages relative `$readmemh`/`$readmemb` initialization files, detects `$dumpfile` VCD collisions across testbenches (renaming colliding outputs to `<tb_stem>.vcd` and warning the agent), preserves prior waveforms as `<stem>.previous.vcd` (and `<stem>.lastpass.vcd` on passing runs), automatically compares the new waveform against `.previous.vcd` and `.lastpass.vcd`, warms `vcd_parser_cache`, and returns simulation stdout along with pass/fail summaries and next-step `vcd_file_info`, `vcd_wave`, and `vcd_compare` commands.
 *   **Arguments:**

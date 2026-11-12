@@ -61,14 +61,16 @@ struct timing_hop {
 	std::string net_name;
 
 	// Correlated RTL locations & physical properties
+	std::string cell_type;
 	std::string cell_src_location;
 	std::string cell_hint;
 	std::string net_src_location;
 	std::string clean_net;
+	std::string from_loc;
+	std::string to_loc;
 	int distance{0};
 	size_t fanout{0};
 };
-
 /**
  * @brief Analyzed physical critical path.
  */
@@ -166,8 +168,7 @@ public:
 	std::vector<timing_endpoint_summary> get_top_endpoint_timings(bool reg_to_reg_only = true, bool group_by_sink = true, size_t top_k = 5) const;
 
 	// Format complete timing analysis report in Markdown
-	std::string generate_timing_markdown(bool reg_to_reg_only = true, bool group_by_sink = true, size_t top_k = 5, bool collapse = true) const;
-
+	std::string generate_timing_markdown(bool reg_to_reg_only = true, bool group_by_sink = true, size_t top_k = 5, bool collapse = true, bool show_segments = false) const;
 private:
 	// Helpers for netlist correlation
 	void parse_timing_json(const nlohmann::json &j);
@@ -175,6 +176,7 @@ private:
 	void correlate_paths();
 
 	std::string resolve_cell_src(std::string_view raw_cell, std::string &out_hint, bool is_endpoint = false) const;
+	std::string resolve_cell_type(std::string_view raw_cell) const;
 	std::string resolve_net_src(std::string_view raw_net) const;
 	std::string resolve_alias(std::string_view net_name) const;
 	static std::string normalize_cell_name(std::string_view raw_cell);
@@ -200,6 +202,8 @@ private:
 	std::map<std::string, std::string> net_alias_map_;
 	std::map<std::string, std::string> lut_to_packed_dff_;
 	std::map<std::string, std::string> dff_to_reg_name_;
+	std::map<std::string, std::string> cell_to_output_user_net_;
+	std::map<std::string, std::set<std::string>> file_to_scopes_;
 	std::map<std::string, std::string> netlist_ports_; // port_name -> direction
 	std::map<int, size_t> bit_sink_counts_;
 	std::map<std::string, size_t> net_fanouts_;

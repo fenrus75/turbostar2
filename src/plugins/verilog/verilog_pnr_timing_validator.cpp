@@ -55,6 +55,14 @@ nlohmann::json verilog_pnr_timing_validator::get_parameters_schema() const
 			{"collapse", {
 				{"type", "boolean"},
 				{"description", "Whether to collapse noisy multi-hop carry chains and intermediate techmap routing hops into concise stages with logic/routing breakdown (default: true)."}
+			}},
+			{"verbose", {
+				{"type", "boolean"},
+				{"description", "When true (or show_segments=true), prints the full segment-by-segment critical path (cell type, input/output pins, tile coordinates, and intermediate nets) in addition to the stage summary (default: false)."}
+			}},
+			{"show_segments", {
+				{"type", "boolean"},
+				{"description", "Alias for verbose: when true, prints the full hop-by-hop segment list (cell type, input/output pins, and intermediate nets) for each critical path (default: false)."}
 			}}
 		}},
 		{"required", nlohmann::json::array()}
@@ -67,7 +75,11 @@ std::unordered_map<std::string, std::string> verilog_pnr_timing_validator::get_c
 		{"top_module", "module"},
 		{"rtl_module", "module"},
 		{"top", "module"},
-		{"seed", "seeds"}
+		{"seed", "seeds"},
+		{"show_segments", "verbose"},
+		{"segments", "verbose"},
+		{"detailed", "verbose"},
+		{"full_path", "verbose"}
 	};
 }
 
@@ -151,6 +163,13 @@ bool verilog_pnr_timing_validator::validate_args_impl(const nlohmann::json &untr
 
 	if (untrusted_args.contains("collapse") && untrusted_args["collapse"].is_boolean()) {
 		args_.collapse = untrusted_args["collapse"].get<bool>();
+	}
+
+	if (untrusted_args.contains("verbose") && untrusted_args["verbose"].is_boolean()) {
+		args_.verbose = untrusted_args["verbose"].get<bool>();
+	}
+	if (untrusted_args.contains("show_segments") && untrusted_args["show_segments"].is_boolean()) {
+		args_.verbose = untrusted_args["show_segments"].get<bool>();
 	}
 
 	if (untrusted_args.contains("path_filter") && untrusted_args["path_filter"].is_string()) {

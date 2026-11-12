@@ -249,6 +249,8 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 	all_in_to_out_paths_.clear();
 	max_reg_to_reg_depth_ = 0;
 	area_summary_ = {};
+	auto corr_tables = yosys_netlist_reader::build_correlation_tables(mod_obj, netlist_dir_);
+
 	// Pre-scan cells to identify which RTL source file drives each bit ID
 	std::map<int, std::string> bit_driver_file;
 	if (mod_obj.contains("cells") && mod_obj["cells"].is_object()) {
@@ -566,19 +568,24 @@ void netlist_graph_analyzer::build_graph(const nlohmann::json &mod_obj)
 			// If sequential cell, resolve human register name and declaration line
 			if (c.is_sequential) {
 				c.register_src = format_src_loc(c.src_raw);
-				for (const auto &[pname, con_bits] : c.output_conns) {
-					if (is_sequential_source_pin(c.type, pname)) {
-						for (int b : con_bits) {
-							if (b > 0 && bit_to_user_name_.contains(b)) {
-								c.register_name = bit_to_user_name_[b];
-								if (c.register_src.empty() && bit_to_src_loc_.contains(b)) {
-									c.register_src = bit_to_src_loc_[b];
+				if (corr_tables.dff_to_reg_name.contains(c.name)) {
+					c.register_name = corr_tables.dff_to_reg_name.at(c.name);
+				}
+				if (c.register_name.empty()) {
+					for (const auto &[pname, con_bits] : c.output_conns) {
+						if (is_sequential_source_pin(c.type, pname)) {
+							for (int b : con_bits) {
+								if (b > 0 && bit_to_user_name_.contains(b)) {
+									c.register_name = bit_to_user_name_[b];
+									if (c.register_src.empty() && bit_to_src_loc_.contains(b)) {
+										c.register_src = bit_to_src_loc_[b];
+									}
+									break;
 								}
+							}
+							if (!c.register_name.empty()) {
 								break;
 							}
-						}
-						if (!c.register_name.empty()) {
-							break;
 						}
 					}
 				}

@@ -37,7 +37,7 @@ std::string verilog_pnr_timing_tool::execute(agentlib::tool_context &ctx)
 			return std::format("Error loading timing report '{}': {}", args_.safe_timing_report, err);
 		}
 		set_success(ctx);
-		return analyzer.generate_timing_markdown(args_.reg_to_reg_only, args_.group_by_sink, args_.top_k, args_.collapse);
+		return analyzer.generate_timing_markdown(args_.reg_to_reg_only, args_.group_by_sink, args_.top_k, args_.collapse, args_.verbose);
 	}
 
 	// Mode 2: On-demand place-and-route
@@ -126,7 +126,7 @@ std::string verilog_pnr_timing_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	set_success(ctx);
-	return submodule_banner + analyzer.generate_timing_markdown(args_.reg_to_reg_only, args_.group_by_sink, args_.top_k, args_.collapse);
+	return submodule_banner + analyzer.generate_timing_markdown(args_.reg_to_reg_only, args_.group_by_sink, args_.top_k, args_.collapse, args_.verbose);
 }
 
 } // namespace tools
