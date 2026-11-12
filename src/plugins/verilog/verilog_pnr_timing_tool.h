@@ -13,7 +13,9 @@ struct verilog_pnr_timing_args {
 	std::string safe_netlist;
 	std::string requested_file;
 	std::string safe_file;
+	std::string requested_module;
 	size_t top_k{3};
+	int seeds{1};
 	bool group_by_sink{true};
 	bool reg_to_reg_only{true};
 	bool collapse{true};

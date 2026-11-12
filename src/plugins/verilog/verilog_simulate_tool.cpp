@@ -119,6 +119,7 @@ struct tb_run_outcome {
 	std::string level;
 	std::vector<std::string> matched_modules;
 	std::string effective_dump_rel;
+	bool has_collision{false};
 	bool compile_failed{false};
 	bool timed_out{false};
 	bool has_fatal{false};
@@ -240,6 +241,7 @@ tb_run_outcome run_compiled_testbench(
 	out.level = plan.level;
 	out.matched_modules = plan.matched_modules;
 	out.effective_dump_rel = plan.effective_dump_rel;
+	out.has_collision = plan.has_collision;
 
 	if (compiled.compile_failed) {
 		out.compile_failed = true;
@@ -975,7 +977,7 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 		outcomes.push_back(std::move(outcome));
 	}
 
-	if (outcomes.size() == 1 && args_.requested_module.empty()) {
+	if (outcomes.size() == 1 && args_.requested_module.empty() && !args_.summary_only) {
 		const auto &single = outcomes.front();
 		if (single.compile_failed || single.timed_out) {
 			set_failure(ctx, single.compile_failed ? "Verilator compilation failed" : "Simulation timed out");
@@ -1037,8 +1039,29 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 		                      o.compare_status.empty() ? "-" : o.compare_status);
 	}
 
+	size_t omitted_passing_sections = 0;
 	for (const auto &o : outcomes) {
-		report << "\n---\n\n" << o.section_markdown;
+		bool is_notable = o.compile_failed || o.timed_out || o.has_fatal || o.suite_failed ||
+		                  o.completed_no_assertions || o.has_collision ||
+		                  o.compare_status.starts_with("DIVERGED") ||
+		                  o.compare_status.starts_with("LENGTH");
+		bool include_section = false;
+		if (args_.summary_only) {
+			include_section = o.compile_failed || o.timed_out || o.has_fatal || o.suite_failed;
+		} else if (args_.verbose || outcomes.size() <= 2) {
+			include_section = true;
+		} else {
+			include_section = is_notable;
+		}
+		if (include_section) {
+			report << "\n---\n\n" << o.section_markdown;
+		} else {
+			++omitted_passing_sections;
+		}
+	}
+	if (omitted_passing_sections > 0) {
+		report << std::format("\n*(Omitted detailed simulation logs for {} passing testbench(es); pass `verbose=true` or `testbench=\"...\"` to inspect full output.)*\n",
+		                      omitted_passing_sections);
 	}
 
 	if (fail_count > 0) {

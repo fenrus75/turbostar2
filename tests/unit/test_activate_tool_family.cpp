@@ -96,11 +96,26 @@ int main()
 	tool_context ctx;
 	ctx.fs_security.set_working_directory(std::filesystem::current_path());
 
-	// 1. Test basic valid tool execution validation
+	// 1. Test basic valid tool execution validation (including 'family', 'tool_family', 'family_name' aliases)
 	nlohmann::json valid_args = {{"name", "my_test_family"}};
 	auto prep = registry.prepare_tool("activate_tool_family", valid_args.dump(), ctx);
 	assert(prep.tool != nullptr && "Valid tool family activation should pass validation!");
 	assert(prep.error_message.empty());
+
+	nlohmann::json alias_family_args = {{"family", "my_test_family"}};
+	auto prep_alias1 = registry.prepare_tool("activate_tool_family", alias_family_args.dump(), ctx);
+	assert(prep_alias1.tool != nullptr && "Alias 'family' should pass validation!");
+	assert(prep_alias1.error_message.empty());
+
+	nlohmann::json alias_tf_args = {{"tool_family", "my_test_family"}};
+	auto prep_alias2 = registry.prepare_tool("activate_tool_family", alias_tf_args.dump(), ctx);
+	assert(prep_alias2.tool != nullptr && "Alias 'tool_family' should pass validation!");
+	assert(prep_alias2.error_message.empty());
+
+	nlohmann::json alias_fn_args = {{"family_name", "my_test_family"}};
+	auto prep_alias3 = registry.prepare_tool("activate_tool_family", alias_fn_args.dump(), ctx);
+	assert(prep_alias3.tool != nullptr && "Alias 'family_name' should pass validation!");
+	assert(prep_alias3.error_message.empty());
 
 	// 2. Test execution of tool updates active families
 	bool family_activated = false;

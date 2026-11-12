@@ -47,6 +47,28 @@ std::string binary_to_hex(std::string_view bin)
 	return hex;
 }
 
+std::string binary_to_dec(std::string_view bin)
+{
+	if (bin.empty()) return "0";
+	if (bin.front() == 'b' || bin.front() == 'B') {
+		bin.remove_prefix(1);
+	}
+	if (bin.find('x') != std::string_view::npos || bin.find('X') != std::string_view::npos) {
+		return "x";
+	}
+	if (bin.find('z') != std::string_view::npos || bin.find('Z') != std::string_view::npos) {
+		return "z";
+	}
+	if (bin.size() > 64) {
+		return binary_to_hex(bin);
+	}
+	uint64_t val = 0;
+	for (char c : bin) {
+		val = (val << 1) | (c == '1' ? 1ULL : 0ULL);
+	}
+	return std::to_string(val);
+}
+
 // Simple wildcard match for glob (* and ?)
 bool wildcard_match(std::string_view pattern, std::string_view text)
 {
@@ -473,7 +495,8 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 	std::optional<uint64_t> end_time,
 	size_t max_rows,
 	std::string &out_error,
-	bool collapse_idle
+	bool collapse_idle,
+	char default_radix
 ) const
 {
 	const vcd_signal *clk_sig = find_signal(clock_signal);
@@ -491,7 +514,7 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 	// Prepare signal mappings and formats
 	struct requested_desc {
 		std::string key;
-		char format_override{' '}; // 'x' for hex, 'b' for binary
+		char format_override{' '}; // 'x' for hex, 'b' for binary, 'd' for decimal
 		const vcd_signal *signal{nullptr};
 		const vcd_signal *qualifier_signal{nullptr};
 		bool qualifier_active_low{false};
@@ -504,7 +527,7 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 		requested_desc desc;
 		desc.key = req_str;
 		std::string_view lookup_name = req_str;
-		if (lookup_name.starts_with("x:") || lookup_name.starts_with("b:")) {
+		if (lookup_name.starts_with("x:") || lookup_name.starts_with("b:") || lookup_name.starts_with("d:")) {
 			desc.format_override = lookup_name[0];
 			lookup_name.remove_prefix(2);
 		}
@@ -649,17 +672,15 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 			if (raw.empty()) raw = "x";
 
 			std::string formatted;
-			if (r.format_override == 'b') {
+			char eff_fmt = (r.format_override != ' ')
+				? r.format_override
+				: (r.signal->bit_width > 1 ? default_radix : 'b');
+			if (eff_fmt == 'b') {
 				formatted = raw;
-			} else if (r.format_override == 'x') {
-				formatted = binary_to_hex(raw);
+			} else if (eff_fmt == 'd') {
+				formatted = binary_to_dec(raw);
 			} else {
-				// Default format: Hex for multi-bit, raw 0/1/x/z for 1-bit
-				if (r.signal->bit_width > 1) {
-					formatted = binary_to_hex(raw);
-				} else {
-					formatted = raw;
-				}
+				formatted = binary_to_hex(raw);
 			}
 			pt.signal_values[r.key] = formatted;
 			pt.signal_raw_values[r.key] = raw;

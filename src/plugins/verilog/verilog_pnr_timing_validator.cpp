@@ -31,9 +31,17 @@ nlohmann::json verilog_pnr_timing_validator::get_parameters_schema() const
 				{"type", "string"},
 				{"description", "Optional RTL source file in the design to anchor on-demand synthesis scan (e.g. 'sv/main.sv')."}
 			}},
+			{"module", {
+				{"type", "string"},
+				{"description", "Optional target RTL module name or source file (e.g. 'top' or 'cpu'). Defaults to the configured top_module in turbostar.json; if a submodule is given, runs out-of-context unconstrained PnR for that submodule."}
+			}},
 			{"top_k", {
 				{"type", "integer"},
 				{"description", "Maximum number of worst critical paths or bottlenecks to display. Defaults to 3."}
+			}},
+			{"seeds", {
+				{"type", "integer"},
+				{"description", "Optional number of placement seeds (accepted for compatibility with verilog_compile; default: 1)."}
 			}},
 			{"group_by_sink", {
 				{"type", "boolean"},
@@ -50,6 +58,16 @@ nlohmann::json verilog_pnr_timing_validator::get_parameters_schema() const
 			}}
 		}},
 		{"required", nlohmann::json::array()}
+	};
+}
+
+std::unordered_map<std::string, std::string> verilog_pnr_timing_validator::get_custom_parameter_aliases() const
+{
+	return {
+		{"top_module", "module"},
+		{"rtl_module", "module"},
+		{"top", "module"},
+		{"seed", "seeds"}
 	};
 }
 
@@ -92,6 +110,31 @@ bool verilog_pnr_timing_validator::validate_args_impl(const nlohmann::json &untr
 				return false;
 			}
 			args_.safe_file = canon;
+		}
+	}
+
+	if (untrusted_args.contains("module") && untrusted_args["module"].is_string()) {
+		std::string untrusted_mod = untrusted_args["module"].get<std::string>();
+		if (!untrusted_mod.empty()) {
+			if (!fs_utils::is_safe_for_ui(untrusted_mod)) {
+				out_error = "Invalid characters in 'module' parameter";
+				return false;
+			}
+			args_.requested_module = untrusted_mod;
+			std::string canon;
+			std::string dummy_err;
+			if (args_.safe_file.empty() &&
+			    ctx.fs_security.validate_access(untrusted_mod, agentlib::access_type::read, canon, dummy_err) &&
+			    fs_utils::is_regular_file(canon)) {
+				args_.safe_file = canon;
+			}
+		}
+	}
+
+	if (untrusted_args.contains("seeds") && untrusted_args["seeds"].is_number_integer()) {
+		int s = untrusted_args["seeds"].get<int>();
+		if (s > 0) {
+			args_.seeds = s;
 		}
 	}
 

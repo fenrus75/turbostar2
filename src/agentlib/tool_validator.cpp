@@ -47,11 +47,18 @@ void tool_validator::normalize_object_args(nlohmann::json &args, const nlohmann:
 			 {"old_string", "old_str", "old_text", "original_text", "target", "search"});
 	register_aliases("replacement_content",
 			 {"new_string", "new_str", "new_text", "replace_with", "replacement", "replace"});
+	register_aliases("original_text",
+			 {"old_content", "target_content", "old_string", "old_str", "old_text", "target"});
+	register_aliases("replace_with",
+			 {"new_content", "content", "replacement", "replacement_content", "new_string", "new_str", "new_text"});
+	register_aliases("new_content",
+			 {"replace_with", "content", "replacement", "replacement_content", "new_string", "new_str", "new_text"});
 	register_aliases("chunks", {"replacement_chunks", "edits", "replacements"});
-	register_aliases("start_line", {"start", "from_line", "begin_line", "offset_line"});
-	register_aliases("end_line", {"end", "to_line", "stop_line"});
-	register_aliases("start", {"start_line", "from_line", "begin_line", "offset_line"});
-	register_aliases("end", {"end_line", "to_line", "stop_line"});
+	register_aliases("start_line", {"start", "from_line", "begin_line", "offset_line", "line_start", "first_line", "line_number", "line"});
+	register_aliases("end_line", {"end", "to_line", "stop_line", "line_end", "last_line"});
+	register_aliases("line_number", {"start_line", "line_start", "line", "start", "from_line", "begin_line", "first_line"});
+	register_aliases("start", {"start_line", "from_line", "begin_line", "offset_line", "line_start", "first_line"});
+	register_aliases("end", {"end_line", "to_line", "stop_line", "line_end", "last_line"});
 	register_aliases("url", {"uri", "link", "web_url"});
 	register_aliases("async", {"is_async", "run_in_background", "is_background", "background"});
 	register_aliases("case_insensitive", {"ignore_case"});

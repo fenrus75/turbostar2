@@ -89,7 +89,8 @@ class vcd_parser
 		std::optional<uint64_t> end_time,
 		size_t max_rows,
 		std::string &out_error,
-		bool collapse_idle = false
+		bool collapse_idle = false,
+		char default_radix = 'x'
 	) const;
 
 	// Compute toggle statistics for a signal

@@ -15,7 +15,9 @@ struct verilog_simulate_args {
 	std::string level{"comprehensive"};
 	bool level_explicit{false};
 	std::string top_module;
-	int timeout_sec{30};
+	int timeout_sec{10};
+	bool summary_only{false};
+	bool verbose{false};
 };
 
 class verilog_simulate_tool : public agentlib::llm_tool_action

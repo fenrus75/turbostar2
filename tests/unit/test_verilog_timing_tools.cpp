@@ -760,6 +760,17 @@ void test_verilog_pnr_timing_on_demand()
 	assert(tool != nullptr);
 
 	std::string res = tool->execute(ctx);
+
+	// Also verify module="main" and seeds=1 parameter support
+	nlohmann::json args_mod = {
+		{"module", "main"},
+		{"seeds", 1},
+		{"top_k", 2}
+	};
+	assert(validator.validate_args(args_mod, ctx, err) && err.empty());
+	std::string res_mod = validator.create_tool(args_mod)->execute(ctx);
+	assert(res_mod.find("Clock Domain & Frequency Timing") != std::string::npos);
+
 	std::filesystem::remove_all(tmp_dir, ec_sym);
 
 

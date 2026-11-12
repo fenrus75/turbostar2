@@ -25,7 +25,12 @@ nlohmann::json vcd_wave_validator::get_parameters_schema() const
 			{"signals", {
 				{"type", "array"},
 				{"items", {{"type", "string"}}},
-				{"description", "List of signal names or paths to sample. Can use 'b:signal' for binary or 'x:signal' for hex."}
+				{"description", "List of signal names or paths to sample. Multi-bit signals (>1 bit) default to hexadecimal ('0x...'); prefix with 'b:signal' for binary, 'd:signal' for decimal, or 'x:signal' for hex."}
+			}},
+			{"radix", {
+				{"type", "string"},
+				{"enum", {"hex", "bin", "dec"}},
+				{"description", "Default display radix for multi-bit signals when no 'x:'/'b:'/'d:' prefix is given: 'hex' (default), 'bin', or 'dec'. Alias: 'format'."}
 			}},
 			{"clock_signal", {
 				{"type", "string"},
@@ -69,6 +74,13 @@ nlohmann::json vcd_wave_validator::get_parameters_schema() const
 				{"description", "Optional output file path to write a GTKWave save file (.gtkw) with all requested signals, display radices, and marker/window time."}
 			}}
 		}},
+	};
+}
+
+std::unordered_map<std::string, std::string> vcd_wave_validator::get_custom_parameter_aliases() const
+{
+	return {
+		{"format", "radix"}
 	};
 }
 
@@ -166,6 +178,23 @@ bool vcd_wave_validator::validate_args_impl(const nlohmann::json &raw_json,
 		args_.collapse_idle = raw_json["collapse_idle"].get<bool>();
 	} else {
 		args_.collapse_idle = true;
+	}
+
+	if (raw_json.contains("radix") && raw_json["radix"].is_string()) {
+		std::string r = raw_json["radix"].get<std::string>();
+		for (char &c : r) {
+			c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+		}
+		if (r == "hex" || r == "hexadecimal" || r == "x") {
+			args_.radix = "hex";
+		} else if (r == "bin" || r == "binary" || r == "b") {
+			args_.radix = "bin";
+		} else if (r == "dec" || r == "decimal" || r == "d") {
+			args_.radix = "dec";
+		} else {
+			out_error = "Invalid value for 'radix'. Must be 'hex', 'bin', or 'dec'";
+			return false;
+		}
 	}
 
 	if (raw_json.contains("max_rows")) {

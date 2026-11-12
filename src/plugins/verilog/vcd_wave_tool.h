@@ -21,6 +21,7 @@ struct vcd_wave_args {
 	std::optional<uint64_t> end_time;
 	size_t max_rows{50};
 	bool collapse_idle{true};
+	std::string radix{"hex"}; // "hex", "bin", "dec"
 	std::string requested_gtkw;
 	std::string safe_gtkw;
 };

@@ -42,6 +42,12 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	std::string sample_err;
+	char default_radix = 'x';
+	if (args_.radix == "bin") {
+		default_radix = 'b';
+	} else if (args_.radix == "dec") {
+		default_radix = 'd';
+	}
 	auto samples = parser.sample_wave(
 		clock_name,
 		args_.edge,
@@ -52,7 +58,8 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 		args_.end_time,
 		args_.max_rows,
 		sample_err,
-		args_.collapse_idle
+		args_.collapse_idle,
+		default_radix
 	);
 
 	if (!sample_err.empty()) {
@@ -131,7 +138,7 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 			}
 
 			std::string_view lookup_sig = sig;
-			if (lookup_sig.starts_with("x:") || lookup_sig.starts_with("b:")) {
+			if (lookup_sig.starts_with("x:") || lookup_sig.starts_with("b:") || lookup_sig.starts_with("d:")) {
 				lookup_sig.remove_prefix(2);
 			}
 			auto name_it = first_sample.signal_full_names.find(sig);
@@ -201,7 +208,7 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 
 			// Check if a label exists for this signal and value
 			std::string_view lookup_sig = sig;
-			if (lookup_sig.starts_with("x:") || lookup_sig.starts_with("b:")) {
+			if (lookup_sig.starts_with("x:") || lookup_sig.starts_with("b:") || lookup_sig.starts_with("d:")) {
 				lookup_sig.remove_prefix(2);
 			}
 			auto name_it = sample.signal_full_names.find(sig);
@@ -235,7 +242,7 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 	std::vector<std::string> expanded_items;
 	for (const auto &sig : args_.signals) {
 		std::string_view display_name = sig;
-		if (display_name.starts_with("x:") || display_name.starts_with("b:")) {
+		if (display_name.starts_with("x:") || display_name.starts_with("b:") || display_name.starts_with("d:")) {
 			display_name.remove_prefix(2);
 		}
 
@@ -285,7 +292,7 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 			std::set<std::string> tree_scopes;
 			for (const auto &sig : args_.signals) {
 				std::string_view name = sig;
-				if (name.starts_with("x:") || name.starts_with("b:")) {
+				if (name.starts_with("x:") || name.starts_with("b:") || name.starts_with("d:")) {
 					name.remove_prefix(2);
 				}
 				auto it = full_names_map.find(sig);
@@ -310,8 +317,9 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 			for (const auto &sig : args_.signals) {
 				bool is_hex = sig.starts_with("x:");
 				bool is_bin = sig.starts_with("b:");
+				bool is_dec = sig.starts_with("d:");
 				std::string_view clean_name = sig;
-				if (is_hex || is_bin) {
+				if (is_hex || is_bin || is_dec) {
 					clean_name.remove_prefix(2);
 				}
 
@@ -357,7 +365,7 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 	resolved_sigs.reserve(args_.signals.size());
 	for (const auto &sig : args_.signals) {
 		std::string_view clean_sv = sig;
-		if (clean_sv.starts_with("x:") || clean_sv.starts_with("b:")) {
+		if (clean_sv.starts_with("x:") || clean_sv.starts_with("b:") || clean_sv.starts_with("d:")) {
 			clean_sv.remove_prefix(2);
 		}
 		std::string clean_arg(clean_sv);

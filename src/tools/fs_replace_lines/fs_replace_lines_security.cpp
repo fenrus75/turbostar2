@@ -27,6 +27,10 @@ bool fs_replace_lines_validator::validate_args_impl(const nlohmann::json &raw_js
 			int start_line = 0;
 			if (raw_json.contains("start_line") && raw_json["start_line"].is_number()) {
 				start_line = raw_json["start_line"].get<int>();
+			} else if (raw_json.contains("line_start") && raw_json["line_start"].is_number()) {
+				start_line = raw_json["line_start"].get<int>();
+			} else if (raw_json.contains("first_line") && raw_json["first_line"].is_number()) {
+				start_line = raw_json["first_line"].get<int>();
 			} else if (raw_json.contains("line_number") && raw_json["line_number"].is_number()) {
 				start_line = raw_json["line_number"].get<int>();
 			} else if (raw_json.contains("line") && raw_json["line"].is_number()) {
@@ -37,6 +41,10 @@ bool fs_replace_lines_validator::validate_args_impl(const nlohmann::json &raw_js
 				nlohmann::json single_edit = {{"line_number", start_line}};
 				if (raw_json.contains("end_line") && raw_json["end_line"].is_number()) {
 					single_edit["end_line"] = raw_json["end_line"].get<int>();
+				} else if (raw_json.contains("line_end") && raw_json["line_end"].is_number()) {
+					single_edit["end_line"] = raw_json["line_end"].get<int>();
+				} else if (raw_json.contains("last_line") && raw_json["last_line"].is_number()) {
+					single_edit["end_line"] = raw_json["last_line"].get<int>();
 				}
 				if (raw_json.contains("type") && raw_json["type"].is_string()) {
 					single_edit["type"] = raw_json["type"].get<std::string>();
@@ -102,6 +110,10 @@ bool fs_replace_lines_validator::validate_args_impl(const nlohmann::json &raw_js
 				line_number = edit_json["line_number"].get<int>();
 			} else if (edit_json.contains("start_line") && edit_json["start_line"].is_number()) {
 				line_number = edit_json["start_line"].get<int>();
+			} else if (edit_json.contains("line_start") && edit_json["line_start"].is_number()) {
+				line_number = edit_json["line_start"].get<int>();
+			} else if (edit_json.contains("first_line") && edit_json["first_line"].is_number()) {
+				line_number = edit_json["first_line"].get<int>();
 			} else if (edit_json.contains("line") && edit_json["line"].is_number()) {
 				line_number = edit_json["line"].get<int>();
 			} else {
@@ -142,6 +154,10 @@ bool fs_replace_lines_validator::validate_args_impl(const nlohmann::json &raw_js
 			int end_line = line_number;
 			if (edit_json.contains("end_line") && edit_json["end_line"].is_number()) {
 				end_line = edit_json["end_line"].get<int>();
+			} else if (edit_json.contains("line_end") && edit_json["line_end"].is_number()) {
+				end_line = edit_json["line_end"].get<int>();
+			} else if (edit_json.contains("last_line") && edit_json["last_line"].is_number()) {
+				end_line = edit_json["last_line"].get<int>();
 			}
 
 			if (orig_text.empty() && (edit.type == "remove" || edit.type == "replace")) {

@@ -44,7 +44,19 @@ nlohmann::json verilog_simulate_validator::get_parameters_schema() const
 			}},
 			{"timeout_sec", {
 				{"type", "integer"},
-				{"description", "Maximum simulation runtime in seconds per testbench before timing out (default: 30)."}
+				{"description", "Maximum simulation runtime in seconds per testbench before timing out (default: 10)."}
+			}},
+			{"timeout_ms", {
+				{"type", "integer"},
+				{"description", "Optional maximum simulation runtime in milliseconds per testbench (rounded up to seconds)."}
+			}},
+			{"summary_only", {
+				{"type", "boolean"},
+				{"description", "When true (or by default for >2 passing testbenches), omit per-testbench stdout/VCD detail sections for passing runs and show only the summary table and any failures (default: false). Alias: 'quiet'."}
+			}},
+			{"verbose", {
+				{"type", "boolean"},
+				{"description", "When true, include full per-testbench stdout and VCD summary sections even for all passing testbenches in large multi-testbench runs (default: false)."}
 			}}
 		}},
 		{"required", nlohmann::json::array()}
@@ -61,7 +73,10 @@ std::unordered_map<std::string, std::string> verilog_simulate_validator::get_cus
 		{"rtl_module", "module"},
 		{"tier", "level"},
 		{"top", "top_module"},
-		{"timeout", "timeout_sec"}
+		{"timeout", "timeout_sec"},
+		{"timeout_cycles", "timeout_ms"},
+		{"max_cycles", "timeout_ms"},
+		{"quiet", "summary_only"}
 	};
 }
 
@@ -145,6 +160,21 @@ bool verilog_simulate_validator::validate_args_impl(const nlohmann::json &untrus
 			return false;
 		}
 		args_.timeout_sec = untrusted_timeout;
+	} else if (untrusted_args.contains("timeout_ms") && untrusted_args["timeout_ms"].is_number_integer()) {
+		int untrusted_ms = untrusted_args["timeout_ms"].get<int>();
+		if (untrusted_ms < 1) {
+			out_error = "Parameter 'timeout_ms' must be >= 1";
+			return false;
+		}
+		args_.timeout_sec = std::clamp((untrusted_ms + 999) / 1000, 1, 300);
+	}
+
+	if (untrusted_args.contains("summary_only") && untrusted_args["summary_only"].is_boolean()) {
+		args_.summary_only = untrusted_args["summary_only"].get<bool>();
+	}
+
+	if (untrusted_args.contains("verbose") && untrusted_args["verbose"].is_boolean()) {
+		args_.verbose = untrusted_args["verbose"].get<bool>();
 	}
 
 	return true;

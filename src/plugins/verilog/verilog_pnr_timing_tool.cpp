@@ -58,6 +58,11 @@ std::string verilog_pnr_timing_tool::execute(agentlib::tool_context &ctx)
 		cfg.target = sys_tools.available_targets.front();
 	}
 
+	std::string configured_top = cfg.top_module;
+	if (!args_.requested_module.empty() && cfg.top_module.empty()) {
+		cfg.top_module = args_.requested_module;
+	}
+
 	std::vector<std::string> missing;
 	if (!verilog::fpga_project_settings::is_complete(cfg, missing)) {
 		set_success(ctx);
@@ -99,13 +104,29 @@ std::string verilog_pnr_timing_tool::execute(agentlib::tool_context &ctx)
 		return "Error: No synthesizable SystemVerilog/Verilog source files found in workspace.";
 	}
 
+	std::string submodule_banner;
+	if (!args_.requested_module.empty()) {
+		std::string resolved_mod = verilog::verilog_module_scanner::resolve_module_name(
+			args_.requested_module, args_.safe_file, sources);
+		if (!resolved_mod.empty()) {
+			cfg.top_module = resolved_mod;
+			if (!configured_top.empty() && resolved_mod != configured_top) {
+				// Out-of-context submodule PnR: omit top-level PCF pin constraints so nextpnr places submodule I/Os freely
+				cfg.pcf_file.clear();
+				submodule_banner = std::format(
+					"> [!NOTE] **Out-of-Context Submodule PnR (`{}`)**: Analyzed submodule `{}` with unconstrained I/O placement (configured project `top_module` is `{}`).\n\n",
+					resolved_mod, resolved_mod, configured_top);
+			}
+		}
+	}
+
 	if (!analyzer.synthesize_and_route(cfg, sources, err)) {
 		set_failure(ctx, err);
 		return std::format("On-demand synthesis and place-and-route failed: {}", err);
 	}
 
 	set_success(ctx);
-	return analyzer.generate_timing_markdown(args_.reg_to_reg_only, args_.group_by_sink, args_.top_k, args_.collapse);
+	return submodule_banner + analyzer.generate_timing_markdown(args_.reg_to_reg_only, args_.group_by_sink, args_.top_k, args_.collapse);
 }
 
 } // namespace tools

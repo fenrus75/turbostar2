@@ -2115,6 +2115,40 @@ int main()
 			assert(out_soc_default_hier.find("Ran with `hierarchical=true` due to project settings for `soc_top` in `turbostar.json`") != std::string::npos);
 			assert(out_soc_default_hier.find("`alu_mod` -> `cpu_mod` -> `soc_top`") != std::string::npos);
 
+			// Run with level="comprehensive" so 3 testbenches run (> 2):
+			// clean passing tb_cpu.sv detail section is omitted by default, while probe-only tb_alu_probe.sv is still shown
+			nlohmann::json sim_soc_comp = {
+				{"module", "soc_top"},
+				{"level", "comprehensive"}
+			};
+			assert(sim_val.validate_args(sim_soc_comp, mctx, err) && err.empty());
+			std::string out_soc_comp = sim_val.create_tool(sim_soc_comp)->execute(mctx);
+			assert(out_soc_comp.find("### Verilog Simulation: `tb/tb_cpu.sv`") == std::string::npos);
+			assert(out_soc_comp.find("Omitted detailed simulation logs for") != std::string::npos);
+			assert(out_soc_comp.find("### Verilog Simulation: `tb/tb_alu_probe.sv`") != std::string::npos);
+
+			// With verbose=true, all per-testbench sections (including clean passing tb_cpu.sv) are shown
+			nlohmann::json sim_soc_verbose = {
+				{"module", "soc_top"},
+				{"level", "comprehensive"},
+				{"verbose", true},
+				{"timeout_ms", 15000}
+			};
+			assert(sim_val.validate_args(sim_soc_verbose, mctx, err) && err.empty());
+			std::string out_soc_verbose = sim_val.create_tool(sim_soc_verbose)->execute(mctx);
+			assert(out_soc_verbose.find("### Verilog Simulation: `tb/tb_cpu.sv`") != std::string::npos);
+
+			// With summary_only=true (or quiet=true), even a single-testbench run omits passing detail sections
+			nlohmann::json sim_cpu_quiet = {
+				{"module", "cpu_mod"},
+				{"level", "comprehensive"},
+				{"quiet", true}
+			};
+			assert(sim_val.validate_args(sim_cpu_quiet, mctx, err) && err.empty());
+			std::string out_cpu_quiet = sim_val.create_tool(sim_cpu_quiet)->execute(mctx);
+			assert(out_cpu_quiet.find("## Module Verification Report: `cpu_mod`") != std::string::npos);
+			assert(out_cpu_quiet.find("### Verilog Simulation: `tb/tb_cpu.sv`") == std::string::npos);
+
 			nlohmann::json sim_soc_explicit_false = {
 				{"module", "soc_top"},
 				{"hierarchical", false}
@@ -2153,6 +2187,36 @@ int main()
 		std::string stale_warn = verilog::vcd_parser_cache::check_stale_rtl_warning(wave_vcd.string(), "wave/dump_main.vcd");
 		assert(stale_warn.find("Stale VCD") != std::string::npos);
 		assert(stale_warn.find("main.sv") != std::string::npos);
+
+		// 3) Verify vcd_wave radix="dec" and d:signal prefix formatting
+		{
+			tools::vcd_wave_validator wave_val;
+			agentlib::tool_context wctx;
+			wctx.fs_security.add_allowed_root("tests/fixtures", agentlib::access_type::read);
+			wctx.fs_security.set_working_directory(".");
+			std::string werr;
+
+			nlohmann::json wave_dec_args = {
+				{"path", vcd_path},
+				{"signals", nlohmann::json::array({"current_ip", "x:current_ip", "b:current_ip"})},
+				{"radix", "dec"},
+				{"start_tick", 0},
+				{"end_tick", 10}
+			};
+			assert(wave_val.validate_args(wave_dec_args, wctx, werr) && werr.empty());
+			std::string wave_dec_out = wave_val.create_tool(wave_dec_args)->execute(wctx);
+			assert(wave_dec_out.find("| 0 | 0x0000 ") != std::string::npos);
+
+			nlohmann::json wave_prefix_args = {
+				{"path", vcd_path},
+				{"signals", nlohmann::json::array({"d:current_ip"})},
+				{"start_tick", 0},
+				{"end_tick", 10}
+			};
+			assert(wave_val.validate_args(wave_prefix_args, wctx, werr) && werr.empty());
+			std::string wave_prefix_out = wave_val.create_tool(wave_prefix_args)->execute(wctx);
+			assert(wave_prefix_out.find("| 0 |") != std::string::npos);
+		}
 
 		std::filesystem::remove_all(wave_proj);
 	}

@@ -49,8 +49,17 @@ class activate_tool_family_validator : public agentlib::tool_validator
 	nlohmann::json get_parameters_schema() const override
 	{
 		return {{"type", "object"},
-			{"properties", {{"name", {{"type", "string"}, {"description", "The name of the tool family to activate."}}}}},
+			{"properties", {{"name", {{"type", "string"}, {"description", "The name of the tool family to activate. Alias: 'family'."}}}}},
 			{"required", nlohmann::json::array({"name"})}};
+	}
+
+	std::unordered_map<std::string, std::string> get_custom_parameter_aliases() const override
+	{
+		return {
+			{"family", "name"},
+			{"tool_family", "name"},
+			{"family_name", "name"}
+		};
 	}
 
       protected:

@@ -408,6 +408,23 @@ int main()
 		in.close();
 		assert(content == "Line 1\nReplaced Block 2-3\nLine 4\n");
 
+		// Test line_start / line_end aliases at top-level and inside edits[]
+		nlohmann::json line_start_top = {
+		    {"path", single_file}, {"line_start", 2}, {"line_end", 2}, {"replacement", "Replaced Line 2\nRestored Line 3"}};
+		std::string res_ls = registry.execute_tool("fs_replace_lines", line_start_top.dump(), ctx);
+		assert(res_ls.find("Successfully applied") != std::string::npos);
+
+		nlohmann::json line_start_edits = {
+		    {"path", single_file},
+		    {"edits", nlohmann::json::array({{{"line_start", 2}, {"line_end", 3}, {"new_content", "Final Block 2-3"}}})}};
+		std::string res_ls_edits = registry.execute_tool("fs_replace_lines", line_start_edits.dump(), ctx);
+		assert(res_ls_edits.find("Successfully applied") != std::string::npos);
+
+		std::ifstream in2(single_file);
+		std::string content2((std::istreambuf_iterator<char>(in2)), std::istreambuf_iterator<char>());
+		in2.close();
+		assert(content2 == "Line 1\nFinal Block 2-3\nLine 4\n");
+
 		std::remove(single_file.c_str());
 	}
 

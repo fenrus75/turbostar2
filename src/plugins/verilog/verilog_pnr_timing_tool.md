@@ -9,3 +9,4 @@
 ## Lessons Learned
 
 - **Filtering Testbenches**: When scanning workspace RTL for on-demand synthesis, automatically respecting `sv_path` and using `verilog_module_scanner::find_synthesizable_files` prevents top-level duplicate module collisions in Yosys from testbench files.
+- **Out-of-Context Submodule PnR (`module`) & Seed Count (`seeds`)**: Accepts `module` (aliases `top_module`, `rtl_module`, `top`) and `seeds`. When `module` matches `cfg.top_module`, runs normal top-level PnR; when `module` targets a submodule, temporarily overrides `cfg.top_module` and clears top-level pin constraints (`cfg.pcf_file.clear()`) to run out-of-context unconstrained PnR with a clear note in the report.
