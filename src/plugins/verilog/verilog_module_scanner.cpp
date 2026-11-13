@@ -138,9 +138,7 @@ std::vector<discovered_module> verilog_module_scanner::discover_modules_in_files
 			}
 			std::string mod_name = match.get<1>().to_string();
 			if (mod_name != "endmodule" && mod_name != "begin" && mod_name != "task" && mod_name != "function") {
-				std::filesystem::path src_p(fpath);
-				std::filesystem::path sidecar_p = src_p.parent_path() / (mod_name + ".timing.md");
-				results.push_back({std::move(mod_name), fpath, sidecar_p.string()});
+				results.push_back({std::move(mod_name), fpath});
 			}
 			start = match.data() + match.size();
 		}

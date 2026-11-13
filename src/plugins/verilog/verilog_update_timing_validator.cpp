@@ -6,7 +6,7 @@ namespace tools
 
 std::string verilog_update_timing_validator::get_description() const
 {
-	return "Scans Verilog/SystemVerilog modules across the project or specified directory, computes logic depth metrics, and updates all <module>.timing.md sidecar files in one batch.";
+	return "Scans Verilog/SystemVerilog modules across the project or specified directory, computes logic depth metrics, and annotates module port declarations in-place with // [timing: ...] comments.";
 }
 
 nlohmann::json verilog_update_timing_validator::get_parameters_schema() const

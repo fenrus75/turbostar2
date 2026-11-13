@@ -13,7 +13,7 @@ namespace tools
 {
 
 verilog_update_timing_tool::verilog_update_timing_tool(verilog_update_timing_args args)
-	: agentlib::llm_tool_action(std::format("Updating timing sidecars in {}", args.requested_path)),
+	: agentlib::llm_tool_action(std::format("Updating in-place Verilog port timing annotations in {}", args.requested_path)),
 	  args_(std::move(args))
 {
 }
@@ -70,12 +70,13 @@ std::string verilog_update_timing_tool::execute(agentlib::tool_context &ctx)
 
 	struct update_stat {
 		std::string module_name;
-		std::string sidecar_path;
+		std::string source_file;
 		size_t reg_depth{0};
 		size_t luts{0};
 		size_t ffs{0};
 		size_t inputs{0};
 		size_t outputs{0};
+		size_t annotated_ports{0};
 		bool success{false};
 		std::string err;
 	};
@@ -95,7 +96,7 @@ std::string verilog_update_timing_tool::execute(agentlib::tool_context &ctx)
 
 		update_stat st;
 		st.module_name = decl.module_name;
-		st.sidecar_path = decl.sidecar_path;
+		st.source_file = decl.source_file;
 
 		if (!loaded) {
 			st.success = false;
@@ -108,18 +109,21 @@ std::string verilog_update_timing_tool::execute(agentlib::tool_context &ctx)
 			st.inputs = analyzer.get_input_ports().size();
 			st.outputs = analyzer.get_output_ports().size();
 
-			std::string md_content = analyzer.generate_timing_markdown(target_mode);
-
 			std::string safe_out_path;
 			std::string sec_err;
-			if (ctx.fs_security.validate_access(st.sidecar_path, agentlib::access_type::write, safe_out_path, sec_err)) {
-				std::ofstream ofs(safe_out_path);
-				if (ofs.is_open()) {
-					ofs << md_content;
+			if (ctx.fs_security.validate_access(st.source_file, agentlib::access_type::write, safe_out_path, sec_err)) {
+				std::string up_err;
+				if (analyzer.update_verilog_file_annotations(safe_out_path, st.annotated_ports, up_err)) {
 					st.success = true;
+					// Remove legacy <module>.timing.md sidecar if present
+					std::filesystem::path legacy_sidecar = std::filesystem::path(safe_out_path).parent_path() / (st.module_name + ".timing.md");
+					std::error_code rm_ec;
+					if (std::filesystem::exists(legacy_sidecar, rm_ec)) {
+						std::filesystem::remove(legacy_sidecar, rm_ec);
+					}
 				} else {
 					st.success = false;
-					st.err = "Failed to open file for writing";
+					st.err = up_err;
 				}
 			} else {
 				st.success = false;
@@ -138,26 +142,27 @@ std::string verilog_update_timing_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	std::string comb_col = (target_mode == "Generic Gates") ? "Gates" : "LUTs";
-	std::string report = std::format("### Timing Sidecars Updated ({}/{} modules)\n\n", success_count, stats.size());
+	std::string report = std::format("### Timing Annotations Updated ({}/{} modules)\n\n", success_count, stats.size());
 	report += std::format("Target: {}\n\n", target_mode);
-	report += std::format("| Module | Sidecar Path | Reg -> Reg Depth | {} | FFs | Inputs | Outputs | Status |\n", comb_col);
+	report += std::format("| Module | Source File | Reg -> Reg Depth | {} | FFs | Inputs | Outputs | Status |\n", comb_col);
 	report += "| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :--- |\n";
 
 	for (const auto &st : stats) {
+		std::string disp_src = fs_utils::make_relative_to_project(st.source_file, project_root);
 		if (st.success) {
 			report += std::format("| `{}` | `{}` | {} | {} | {} | {} | {} | OK |\n",
-			                      st.module_name, st.sidecar_path, st.reg_depth, st.luts, st.ffs, st.inputs, st.outputs);
+			                      st.module_name, disp_src, st.reg_depth, st.luts, st.ffs, st.inputs, st.outputs);
 		} else {
 			report += std::format("| `{}` | `{}` | - | - | - | - | - | Failed ({}) |\n",
-			                      st.module_name, st.sidecar_path, st.err);
+			                      st.module_name, disp_src, st.err);
 		}
 	}
-	report += std::format("\n_Note: Area ({}/FFs) is for each module only; cross-module optimizations may reduce final area._\n", comb_col);
+	report += std::format("\n_Note: Port lines in each module are annotated in-place with `// [timing: ...]`. Area ({}/FFs) is for each module only; cross-module optimizations may reduce final area._\n", comb_col);
 
 	if (success_count > 0) {
 		set_success(ctx);
 	} else {
-		set_failure(ctx, "Failed to update any timing sidecars");
+		set_failure(ctx, "Failed to update any module timing annotations");
 	}
 
 	return report;

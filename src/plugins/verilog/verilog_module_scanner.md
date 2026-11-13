@@ -7,9 +7,7 @@
 - Fast, regex-assisted scanning of synthesizable `.sv` and `.v` files without invoking an external synthesis tool.
 - Filters out testbenches (`tb_*`, `*_tb.sv`, `*_tb.v`, `testbench/`, `tb/`), build artifacts (`build/`, `obj_dir/`), version control and editor swap/backup files (`~`, `.bak`, `.orig`, `.org`, `#*#`).
 - Accurate module declaration extraction by first stripping C-style and C++-style comments, avoiding false matches in commented-out module blocks or docstrings.
-- Resolves default sidecar file paths next to the source file declaring the module (`<module_name>.timing.md`).
-- Fully reusable across the MCP agent tools (`verilog_update_timing_tool`) and standalone CLI executables (`turbostar-verilog-update-timing`).
-
+- Fully reusable across the MCP agent tools (`verilog_update_timing_tool`) and standalone CLI executables (`turbostar-verilog-timing`).
 ## Lessons Learned
 
 - **Comment Stripping**: Verilog code frequently contains commented-out module headers (e.g. `// module old_alu(...)`). Regex-based module discovery directly on raw text caused dead modules or legacy headers to be synthesized, leading to false synthesis errors. Stripping comments with string-literal awareness before regex search resolved this cleanly.

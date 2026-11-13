@@ -55,5 +55,6 @@ Limit the use of SystemVerilog language constructs to those supported by both `y
 ## Timing optimization strategy
 - Timing optimization works best when you consider both the structural view and the post-routing physical timing view:
   - `verilog_logic_depth` provides a structural view of LUT logic depth between flip-flops
+  - `verilog_update_timing` annotates module port declarations in-place with `// [timing: ...]` comments so you have instant visibility into which module inputs and outputs carry deep combinational chains when instantiating or wiring modules
   - `verilog_pnr_timing` gives the critical path timing after routing, decomposing logic vs. wire delay and reporting fan-out and $F_{\max}$
 - Often, the structural view provides the underlying architectural reason for the more fine-grained (local) post-routing timing bottlenecks, and it is generally beneficial to have the two views augment each other.

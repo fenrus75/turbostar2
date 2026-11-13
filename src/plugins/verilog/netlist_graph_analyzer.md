@@ -13,7 +13,7 @@
   - Internal Register to Register (`Reg -> Reg`)
   - Combinational feedthrough (`In -> Out`)
 - Traverses the Directed Acyclic Graph (DAG) using memoized dynamic programming with cycle detection to prevent infinite recursion on unexpected combinational loops.
-- Formats token-efficient sidecar Markdown documents (`<module>.timing.md`) with Inputs (`Name | Width | Layers to | Sinks to`), Outputs (`Name | Width | Layers from | Driven from`), and a standalone module `Area Summary` (LUTs, Flip-Flops, Carry, RAM, DSP, and total cells).
+- Annotates module port declaration lines in-place inside `.sv`/`.v` files (`format_port_timing_tag`, `annotate_verilog_source`, `update_verilog_file_annotations`) with vertically aligned `// [timing: ...]` comments (`clock`, `N -> Reg`, `N -> Out (comb)`, `N <- Reg`, `N <- In (comb)`, `const`, `FLOATING`, `unused`), while also providing standalone Markdown report generation (`generate_logic_depth_report_markdown`, `generate_timing_markdown`).
 - Extracts detailed critical paths with source RTL coordinates (`file.sv:line`) for module optimization.
 ## Lessons Learned
 - In Yosys JSON netlists, port connections can reference constant strings (`"0"`, `"1"`, `"x"`, `"z"`) in addition to integer bit IDs; the bit parser must treat non-integer tokens safely as constant drivers/sinks.

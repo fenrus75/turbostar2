@@ -74,7 +74,7 @@
 <span class="keyword">4. Full Bottom-Up Tree Regression (Parallel Multi-Core)</span>
    verilog_simulate(hierarchical=<span class="type">true</span>, module=<span class="literal">"top"</span>)
 
-<span class="keyword">5. Logic Depth, LUT Area &amp; .timing.md Contracts</span>
+<span class="keyword">5. Logic Depth, LUT Area &amp; In-Place Port Timing Annotations</span>
    verilog_logic_depth(module=<span class="literal">"cpu"</span>) / verilog_update_timing()
 
 <span class="keyword">6. Physical Place-and-Route Sign-Off</span>
@@ -173,17 +173,17 @@ Sampled on: `clk` (posedge) | Timescale: 1ps | Rows: 8
       </div>
     </section>
 
-    <!-- Feature 4: Logic Depth, Area Summaries & .timing.md Contracts -->
+    <!-- Feature 4: Logic Depth, Area Summaries & In-Place Port Annotations -->
     <section class="detail-split reverse" id="logic-depth-area">
       <div class="detail-info">
-        <h2 class="detail-subtitle">Logic Depth, LUT Area &amp; Timing Contracts</h2>
+        <h2 class="detail-subtitle">Logic Depth, LUT Area &amp; In-Place Port Annotations</h2>
         <p class="detail-text">
           Agents optimizing purely for clock frequency often duplicate logic cones until FPGA resource utilization explodes. <code>verilog_logic_depth</code> and <code>verilog_update_timing</code> give the agent simultaneous visibility into combinational depth and resource area in seconds.
         </p>
         <ul class="detail-list">
           <li><strong>Bottleneck Sink Grouping &amp; Inline RTL:</strong> Critical paths are grouped by destination sink with project-relative <code>file.sv:line</code> coordinates and inline 1-line SystemVerilog statements (<code>show_code=1</code> default), decomposing each stage into LUT levels and carry chain hops.</li>
           <li><strong>Module Area Summary:</strong> Every report includes a synthesized cell breakdown (LUTs, Flip-Flops, Carry cells, and Total Cells) so the agent balances speed against logic budgets.</li>
-          <li><strong>Persistent <code>.timing.md</code> Sidecars:</strong> <code>verilog_update_timing</code> (and the standalone CLI) generates per-module Markdown contracts committed to git, tracking Max Reg&rarr;Reg Depth and cell counts across the entire design.</li>
+          <li><strong>In-Place <code>// [timing: ...]</code> Port Annotations:</strong> <code>verilog_update_timing</code> (and <code>turbostar-verilog-timing -u</code>) writes and updates vertically aligned timing comments directly on module port declarations in <code>.sv</code> files—giving agents instant awareness of deep inputs and outputs as they wire modules together.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -200,15 +200,14 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
   4. `src/cpu.sv:102` (1 LUT) -&gt; `hi_val[7]` | <span class="literal">`wire [7:0] hi_val = sel ? wz_hi : alu_out;`</span>
 - End: `cpu_8080.H_reg.value` (src/register.sv:20-26 | <span class="literal">`value_reg &lt;= load_value;`</span>)
 
-<span class="keyword">## Area Summary (`cpu`)</span>
-- LUTs: 1221 | Flip-Flops: 173 | Carry: 247 | Total Cells: 1656
-
-<span class="comment"># Tool call: verilog_update_timing() — 12/12 sidecars updated</span>
-| Module       | Sidecar Path               | Depth | LUTs | FFs |
-| :---         | :---                       | :---: | :---:| :---:|
-| `alu8`       | `src/alu8.timing.md`       | 17    | 353  | 6   |
-| `decode_mod` | `src/decode_mod.timing.md` | 16    | 545  | 84  |
-| `cpu`        | `src/cpu.timing.md`        | 25    | 1221 | 173 |</code></pre>
+<span class="comment"># Tool call: verilog_update_timing() — annotates .sv ports in-place</span>
+<span class="keyword">module</span> alu_mod (
+    <span class="type">input  wire</span>        clk,     <span class="comment">// [timing: clock]</span>
+    <span class="type">input  wire</span>  [7:0] input1,  <span class="comment">// [timing: 0 -&gt; Reg]</span>
+    <span class="type">input  wire</span>  [7:0] opcode,  <span class="comment">// [timing: 8 -&gt; Reg]</span>
+    <span class="type">output logic</span> [7:0] alu_out, <span class="comment">// [timing: 13 &lt;- Reg]</span>
+    <span class="type">output logic</span> [7:0] flags    <span class="comment">// [timing: 0 &lt;- Reg]</span>
+);</code></pre>
       </div>
     </section>
 
@@ -250,12 +249,12 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
       <div class="detail-info">
         <h2 class="detail-subtitle">Standalone 3-in-1 CLI for Human Engineers</h2>
         <p class="detail-text">
-          Why should AI agents have all the fun? <code>turbostar-verilog-timing</code> packages all three timing engines—combinational logic depth, physical place-and-route timing closure, and batch sidecar updates—into a standalone command-line binary you can run directly in your terminal, Makefiles, or CI pipelines without launching the editor or MCP server.
+          Why should AI agents have all the fun? <code>turbostar-verilog-timing</code> packages all three timing engines—combinational logic depth, physical place-and-route timing closure, and batch in-place port timing annotations—into a standalone command-line binary you can run directly in your terminal, Makefiles, or CI pipelines without launching the editor or MCP server.
         </p>
         <ul class="detail-list">
           <li><strong>Default Logic Depth Mode:</strong> Run <code>turbostar-verilog-timing -m alu_mod</code> (or omit <code>-m</code> to analyze your <code>turbostar.json</code> top module) for instant input/output layer tables, critical combinational cones, inline RTL statements (<code>-c, --show-code</code>), and LUT/FF area summaries.</li>
           <li><strong>Physical Place &amp; Route Mode (<code>--pnr</code>):</strong> Pass <code>--pnr</code> for full Yosys + multi-seed <code>nextpnr</code> timing closure (<code>--seeds 4</code>), hop-by-hop cell/routing segment traces (<code>--segments</code>), or out-of-context submodule PnR (<code>--pnr -m alu_mod</code>).</li>
-          <li><strong>Human-Friendly UTF-8 Framed Tables:</strong> Automatically formats terminal output with aligned UTF-8 box-drawing tables, while writing clean, standard Markdown tables when updating <code>&lt;module&gt;.timing.md</code> sidecars on disk (<code>-u, --update</code>).</li>
+          <li><strong>Human-Friendly Framed Tables &amp; Aligned Chains:</strong> Automatically formats terminal output with UTF-8 box-drawing tables and vertically aligned critical-path chains, while <code>-u, --update</code> updates aligned <code>// [timing: ...]</code> port annotations directly inside your <code>.sv</code> files.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -351,7 +350,7 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
           <p class="card-desc">Instant combinational LUT cone analysis and module resource tracking.</p>
           <ul class="detail-list" style="margin-bottom: 1rem;">
             <li><code>verilog_logic_depth</code>: Per-module critical path hop traces, sink grouping, carry chain analysis, and LUT/FF area summaries.</li>
-            <li><code>verilog_update_timing</code>: Parallel batch updater generating <code>&lt;module&gt;.timing.md</code> contracts across the project.</li>
+            <li><code>verilog_update_timing</code>: Batch updater writing aligned <code>// [timing: ...]</code> port annotations directly in <code>.sv</code> module interfaces.</li>
           </ul>
         </article>
 
@@ -362,7 +361,7 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
           <p class="card-desc">Post-routing timing closure with physical chip coordinates and routing delay breakdowns.</p>
           <ul class="detail-list" style="margin-bottom: 1rem;">
             <li><code>verilog_pnr_timing</code>: Full Yosys + <code>nextpnr</code> physical timing analysis reporting Fmax, slack, logic vs. wire delay, fanout, and <code>(dx, dy)</code> tile distance.</li>
-            <li><code>turbostar-verilog-timing</code>: Unified 3-in-1 standalone CLI for logic depth, physical PnR (<code>--pnr</code>), and batch sidecar updates (<code>-u</code>) with UTF-8 framed terminal tables.</li>
+            <li><code>turbostar-verilog-timing</code>: Unified 3-in-1 standalone CLI for logic depth, physical PnR (<code>--pnr</code>), and batch in-place port annotations (<code>-u</code>) with UTF-8 framed terminal tables.</li>
           </ul>
         </article>
       </div>

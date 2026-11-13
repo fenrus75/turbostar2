@@ -15,7 +15,6 @@ namespace verilog
 struct discovered_module {
 	std::string module_name;
 	std::string source_file;
-	std::string sidecar_path;
 };
 
 /**
@@ -40,10 +39,9 @@ public:
 	static std::vector<std::string> find_synthesizable_files(const std::filesystem::path &root);
 
 	/**
-	 * @brief Parses source files and extracts declared module names and default sidecar paths.
+	 * @brief Parses source files and extracts declared module names and source file paths.
 	 */
 	static std::vector<discovered_module> discover_modules_in_files(std::span<const std::string> files);
-
 	/**
 	 * @brief Convenience method to find files and discover modules in one step.
 	 */

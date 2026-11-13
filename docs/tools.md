@@ -1028,11 +1028,10 @@ Tools in this family assist in digital ASIC and FPGA hardware engineering, simul
     *   `show_code` *(integer or boolean, optional)*: Number of RTL source code lines to display per hop/endpoint: `1` (default, or `true`) shows a concise 1-line statement snippet inline, `>1` prints a multi-line code block of up to $N$ lines, and `0` (or `false`) disables code snippets (aliases: `code_lines`, `snippet_lines`, `include_code`).
 
 ### `verilog_update_timing` (Family: `verilog`)
-*   **Description:** Scans a directory or project workspace for Verilog/SystemVerilog modules, synthesizes them using Yosys against the selected target architecture, creates or updates `<module>.timing.md` interface timing and area contract sidecars, and returns a per-module depth and LUT/FF area summary table. Only registered when `yosys` is present in system PATH.
+*   **Description:** Scans a directory or project workspace for Verilog/SystemVerilog modules, synthesizes them using Yosys against the selected target architecture, annotates each module's port declaration lines in-place inside its `.sv`/`.v` source file with vertically aligned `// [timing: ...]` comments (e.g., `// [timing: 0 -> Reg]`, `// [timing: 13 <- Reg]`), and returns a per-module depth and LUT/FF area summary table. Only registered when `yosys` is present in system PATH.
 *   **Arguments:**
     *   `path` *(string, optional)*: Directory path to scan for Verilog modules (defaults to `sv_path` from project settings, or auto-detected `sv/`, `rtl/`, `src/`).
     *   `target` *(string, optional)*: Synthesis target mode (`"Generic LUT4"`, `"Generic LUT6"`, `"Generic Gates"`, or `"iCE40"`). Defaults to project target architecture or `"Generic LUT4"`.
-
 ### `verilog_project_settings` (Family: `verilog`)
 *   **Description:** Inspects or updates FPGA hardware project configuration (persisted in `turbostar.json` or `project.json`). When called without parameters or with `action='get'`, reports current settings, detected EDA tools (`nextpnr-ice40`, `nextpnr-generic`, `yosys`), discovered `.pcf` pin constraint files, and missing parameter guidance. When called with configuration parameters or `action='set'`, updates and saves the project settings.
 *   **Arguments:**

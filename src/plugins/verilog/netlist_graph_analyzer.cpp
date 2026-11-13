@@ -1576,6 +1576,419 @@ std::string netlist_graph_analyzer::generate_timing_markdown(std::string_view ta
 	return md;
 }
 
+std::string netlist_graph_analyzer::format_port_timing_tag(const port_timing_info &port)
+{
+	int layers = std::max(0, port.layers);
+	if (port.direction == "input") {
+		switch (port.endpoint) {
+		case endpoint_kind::clock:
+			return "clock";
+		case endpoint_kind::register_cell:
+			return std::format("{} -> Reg", layers);
+		case endpoint_kind::output_port:
+			return std::format("{} -> Out (comb)", layers);
+		case endpoint_kind::unconnected:
+		case endpoint_kind::floating:
+			return "unused";
+		default:
+			if (port.layers < 0) return "unused";
+			return std::format("{} -> {}", layers, port.endpoint_desc);
+		}
+	} else {
+		switch (port.endpoint) {
+		case endpoint_kind::register_cell:
+			return std::format("{} <- Reg", layers);
+		case endpoint_kind::input_port:
+			return std::format("{} <- In (comb)", layers);
+		case endpoint_kind::constant:
+			return "const";
+		case endpoint_kind::floating:
+			return "FLOATING";
+		case endpoint_kind::unconnected:
+			return "unused";
+		default:
+			if (port.layers < 0) return "unused";
+			return std::format("{} <- {}", layers, port.endpoint_desc);
+		}
+	}
+}
+
+std::string netlist_graph_analyzer::annotate_verilog_source(std::string_view untrusted_sv_content, size_t &out_ports_annotated) const
+{
+	out_ports_annotated = 0;
+	if (untrusted_sv_content.empty() || module_name_.empty()) {
+		return std::string(untrusted_sv_content);
+	}
+
+	std::map<std::string, const port_timing_info *> port_map;
+	for (const auto &p : input_ports_) {
+		port_map[p.name] = &p;
+	}
+	for (const auto &p : output_ports_) {
+		port_map[p.name] = &p;
+	}
+	if (port_map.empty()) {
+		return std::string(untrusted_sv_content);
+	}
+
+	// Split content into lines preserving line endings
+	bool use_crlf = (untrusted_sv_content.find("\r\n") != std::string_view::npos);
+	bool trailing_nl = untrusted_sv_content.ends_with('\n');
+	std::vector<std::string> lines;
+	{
+		size_t pos = 0;
+		while (pos < untrusted_sv_content.size()) {
+			size_t nl = untrusted_sv_content.find('\n', pos);
+			if (nl == std::string_view::npos) {
+				std::string_view l = untrusted_sv_content.substr(pos);
+				if (!l.empty() && l.back() == '\r') l.remove_suffix(1);
+				lines.emplace_back(l);
+				break;
+			}
+			std::string_view l = untrusted_sv_content.substr(pos, nl - pos);
+			if (!l.empty() && l.back() == '\r') l.remove_suffix(1);
+			lines.emplace_back(l);
+			pos = nl + 1;
+		}
+	}
+
+	struct sv_tok {
+		std::string text;
+		size_t line_idx;
+	};
+	std::vector<sv_tok> toks;
+	std::vector<bool> line_starts_in_block_comment(lines.size(), false);
+	std::vector<size_t> line_comment_pos(lines.size(), std::string::npos);
+
+	bool in_block = false;
+	for (size_t li = 0; li < lines.size(); ++li) {
+		line_starts_in_block_comment[li] = in_block;
+		const std::string &ln = lines[li];
+		bool in_str = false;
+		size_t i = 0;
+		while (i < ln.size()) {
+			if (in_block) {
+				if (i + 1 < ln.size() && ln[i] == '*' && ln[i + 1] == '/') {
+					in_block = false;
+					i += 2;
+				} else {
+					++i;
+				}
+				continue;
+			}
+			if (in_str) {
+				if (ln[i] == '\\' && i + 1 < ln.size()) {
+					i += 2;
+				} else if (ln[i] == '"') {
+					in_str = false;
+					++i;
+				} else {
+					++i;
+				}
+				continue;
+			}
+			if (i + 1 < ln.size() && ln[i] == '/' && ln[i + 1] == '/') {
+				line_comment_pos[li] = i;
+				break;
+			}
+			if (i + 1 < ln.size() && ln[i] == '/' && ln[i + 1] == '*') {
+				in_block = true;
+				i += 2;
+				continue;
+			}
+			if (ln[i] == '"') {
+				in_str = true;
+				++i;
+				continue;
+			}
+			char c = ln[i];
+			if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$') {
+				size_t start = i++;
+				while (i < ln.size()) {
+					char cc = ln[i];
+					if ((cc >= 'a' && cc <= 'z') || (cc >= 'A' && cc <= 'Z') ||
+					    (cc >= '0' && cc <= '9') || cc == '_' || cc == '$') {
+						++i;
+					} else {
+						break;
+					}
+				}
+				toks.push_back({ln.substr(start, i - start), li});
+			} else if (c == '(' || c == ')' || c == '[' || c == ']' || c == '#' || c == ',' || c == ';' || c == '=') {
+				toks.push_back({std::string(1, c), li});
+				++i;
+			} else {
+				++i;
+			}
+		}
+	}
+
+	std::map<size_t, std::vector<const port_timing_info *>> line_to_ports;
+	std::set<std::string> matched_ports;
+
+	for (size_t i = 0; i + 1 < toks.size(); ++i) {
+		if (toks[i].text != "module" || toks[i + 1].text != module_name_) {
+			continue;
+		}
+		size_t idx = i + 2;
+		// Skip optional #( ... ) parameter list
+		if (idx + 1 < toks.size() && toks[idx].text == "#" && toks[idx + 1].text == "(") {
+			idx += 2;
+			int pdepth = 1;
+			while (idx < toks.size() && pdepth > 0) {
+				if (toks[idx].text == "(") ++pdepth;
+				else if (toks[idx].text == ")") --pdepth;
+				++idx;
+			}
+		}
+		// Match port list ( ... )
+		size_t port_open = std::string::npos;
+		size_t port_close = std::string::npos;
+		if (idx < toks.size() && toks[idx].text == "(") {
+			port_open = idx++;
+			int pdepth = 1;
+			while (idx < toks.size() && pdepth > 0) {
+				if (toks[idx].text == "(") ++pdepth;
+				else if (toks[idx].text == ")") {
+					--pdepth;
+					if (pdepth == 0) {
+						port_close = idx;
+					}
+				}
+				++idx;
+			}
+		}
+
+		bool is_ansi = false;
+		if (port_open != std::string::npos && port_close != std::string::npos) {
+			for (size_t k = port_open + 1; k < port_close; ++k) {
+				if (toks[k].text == "input" || toks[k].text == "output" || toks[k].text == "inout") {
+					is_ansi = true;
+					break;
+				}
+			}
+		}
+
+		auto try_match_port_token = [&](size_t k) {
+			auto it = port_map.find(toks[k].text);
+			if (it == port_map.end() || matched_ports.contains(toks[k].text)) {
+				return;
+			}
+			// Look ahead past any unpacked dimensions [ ... ]
+			size_t next_k = k + 1;
+			while (next_k < toks.size() && toks[next_k].text == "[") {
+				int bdepth = 1;
+				++next_k;
+				while (next_k < toks.size() && bdepth > 0) {
+					if (toks[next_k].text == "[") ++bdepth;
+					else if (toks[next_k].text == "]") --bdepth;
+					++next_k;
+				}
+			}
+			if (next_k < toks.size()) {
+				const std::string &nt = toks[next_k].text;
+				if (nt == "," || nt == ")" || nt == ";" || nt == "=") {
+					matched_ports.insert(toks[k].text);
+					line_to_ports[toks[k].line_idx].push_back(it->second);
+				}
+			}
+		};
+
+		if (is_ansi && port_open != std::string::npos && port_close != std::string::npos) {
+			int pdepth = 0;
+			int bdepth = 0;
+			for (size_t k = port_open + 1; k < port_close; ++k) {
+				if (toks[k].text == "(") ++pdepth;
+				else if (toks[k].text == ")") --pdepth;
+				else if (toks[k].text == "[") ++bdepth;
+				else if (toks[k].text == "]") --bdepth;
+				else if (pdepth == 0 && bdepth == 0) {
+					try_match_port_token(k);
+				}
+			}
+		} else {
+			// Non-ANSI: scan body up to endmodule for input/output/inout declarations
+			bool in_port_decl = false;
+			int pdepth = 0;
+			int bdepth = 0;
+			for (size_t k = idx; k < toks.size() && toks[k].text != "endmodule"; ++k) {
+				if (toks[k].text == "input" || toks[k].text == "output" || toks[k].text == "inout") {
+					in_port_decl = true;
+					pdepth = 0;
+					bdepth = 0;
+					continue;
+				}
+				if (!in_port_decl) continue;
+				if (toks[k].text == ";") {
+					in_port_decl = false;
+					continue;
+				}
+				if (toks[k].text == "(") ++pdepth;
+				else if (toks[k].text == ")") --pdepth;
+				else if (toks[k].text == "[") ++bdepth;
+				else if (toks[k].text == "]") --bdepth;
+				else if (pdepth == 0 && bdepth == 0) {
+					try_match_port_token(k);
+				}
+			}
+			// Fallback to header port list if any port wasn't matched in body
+			if (port_open != std::string::npos && port_close != std::string::npos) {
+				for (size_t k = port_open + 1; k < port_close; ++k) {
+					try_match_port_token(k);
+				}
+			}
+		}
+		break;
+	}
+
+	if (line_to_ports.empty()) {
+		return std::string(untrusted_sv_content);
+	}
+
+	auto rtrim_str = [](std::string_view sv) -> std::string {
+		while (!sv.empty() && (sv.back() == ' ' || sv.back() == '\t')) {
+			sv.remove_suffix(1);
+		}
+		return std::string(sv);
+	};
+
+	auto trim_str = [](std::string_view sv) -> std::string {
+		while (!sv.empty() && (sv.front() == ' ' || sv.front() == '\t')) {
+			sv.remove_prefix(1);
+		}
+		while (!sv.empty() && (sv.back() == ' ' || sv.back() == '\t')) {
+			sv.remove_suffix(1);
+		}
+		return std::string(sv);
+	};
+
+	auto strip_timing_tags = [&](std::string_view comment) -> std::string {
+		std::string res;
+		size_t pos = 0;
+		while (pos < comment.size()) {
+			size_t tag_start = comment.find("[timing:", pos);
+			if (tag_start == std::string_view::npos) {
+				res.append(comment.substr(pos));
+				break;
+			}
+			res.append(comment.substr(pos, tag_start - pos));
+			size_t tag_end = comment.find(']', tag_start);
+			if (tag_end == std::string_view::npos) {
+				break;
+			}
+			pos = tag_end + 1;
+		}
+		return rtrim_str(res);
+	};
+
+	auto vis_col_width = [](std::string_view sv) -> size_t {
+		size_t col = 0;
+		for (char c : sv) {
+			if (c == '\t') {
+				col = (col / 8 + 1) * 8;
+			} else {
+				++col;
+			}
+		}
+		return col;
+	};
+
+	struct line_edit_info {
+		std::string code_part;
+		std::string user_comment;
+		std::string tag_str;
+		size_t vis_col{0};
+	};
+	std::map<size_t, line_edit_info> edits;
+	size_t max_align_col = 0;
+
+	for (const auto &[li, ports_vec] : line_to_ports) {
+		line_edit_info info;
+		size_t cpos = line_comment_pos[li];
+		if (cpos == std::string::npos) {
+			info.code_part = rtrim_str(lines[li]);
+		} else {
+			info.code_part = rtrim_str(std::string_view(lines[li]).substr(0, cpos));
+			std::string cleaned_comment = strip_timing_tags(std::string_view(lines[li]).substr(cpos + 2));
+			if (!trim_str(cleaned_comment).empty()) {
+				info.user_comment = cleaned_comment;
+			}
+		}
+
+		if (ports_vec.size() == 1) {
+			info.tag_str = std::format("[timing: {}]", format_port_timing_tag(*ports_vec[0]));
+		} else {
+			std::string joined;
+			for (size_t p_i = 0; p_i < ports_vec.size(); ++p_i) {
+				if (p_i > 0) joined += ", ";
+				joined += std::format("{}: {}", ports_vec[p_i]->name, format_port_timing_tag(*ports_vec[p_i]));
+			}
+			info.tag_str = std::format("[timing: {}]", joined);
+		}
+		out_ports_annotated += ports_vec.size();
+
+		info.vis_col = vis_col_width(info.code_part);
+		if (info.user_comment.empty() && info.vis_col <= 80) {
+			max_align_col = std::max(max_align_col, info.vis_col);
+		}
+		edits[li] = std::move(info);
+	}
+
+	if (max_align_col == 0) {
+		for (const auto &[li, info] : edits) {
+			if (info.user_comment.empty()) {
+				max_align_col = std::max(max_align_col, info.vis_col);
+			}
+		}
+	}
+	size_t target_col = max_align_col + 2;
+
+	for (const auto &[li, info] : edits) {
+		if (!info.user_comment.empty()) {
+			std::string sp = info.user_comment.starts_with(' ') ? "" : " ";
+			lines[li] = std::format("{} //{}{} {}", info.code_part, sp, info.user_comment, info.tag_str);
+		} else {
+			size_t pad = (info.vis_col + 1 <= target_col) ? (target_col - info.vis_col) : 1;
+			lines[li] = std::format("{}{}// {}", info.code_part, std::string(pad, ' '), info.tag_str);
+		}
+	}
+
+	std::string sep = use_crlf ? "\r\n" : "\n";
+	std::string result;
+	result.reserve(untrusted_sv_content.size() + edits.size() * 28);
+	for (size_t li = 0; li < lines.size(); ++li) {
+		result += lines[li];
+		if (li + 1 < lines.size() || trailing_nl) {
+			result += sep;
+		}
+	}
+	return result;
+}
+
+bool netlist_graph_analyzer::update_verilog_file_annotations(std::string_view safe_sv_path, size_t &out_ports_annotated, std::string &out_error) const
+{
+	out_ports_annotated = 0;
+	std::filesystem::path p(safe_sv_path);
+	std::ifstream ifs(p, std::ios::binary);
+	if (!ifs.is_open()) {
+		out_error = std::format("Failed to open '{}' for reading", safe_sv_path);
+		return false;
+	}
+	std::string original((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+	ifs.close();
+
+	std::string updated = annotate_verilog_source(original, out_ports_annotated);
+	if (updated != original) {
+		std::ofstream ofs(p, std::ios::binary | std::ios::trunc);
+		if (!ofs.is_open()) {
+			out_error = std::format("Failed to open '{}' for writing", safe_sv_path);
+			return false;
+		}
+		ofs << updated;
+	}
+	return true;
+}
+
 std::string netlist_graph_analyzer::generate_logic_depth_report_markdown(std::string_view target_mode,
                                                                          size_t top_k,
                                                                          bool group_by_sink,

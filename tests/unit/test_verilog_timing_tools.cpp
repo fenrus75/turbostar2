@@ -237,7 +237,11 @@ void test_verilog_update_timing_execution()
 
 	std::string mod1_path = tmp_dir + "/counter.sv";
 	std::ofstream ofs1(mod1_path);
-	ofs1 << "module counter(input logic clk, input logic rst, output logic [3:0] q);\n"
+	ofs1 << "module counter(\n"
+	     << "\tinput logic clk, /* main clock */\n"
+	     << "\tinput logic rst, // sync reset\n"
+	     << "\toutput logic [3:0] q\n"
+	     << ");\n"
 	     << "/* todo: make this a module so the top level is only modules and wires */\n"
 	     << "always_ff @(posedge clk) begin\n"
 	     << "  if (rst) q <= 0;\n"
@@ -245,6 +249,13 @@ void test_verilog_update_timing_execution()
 	     << "end\n"
 	     << "endmodule\n";
 	ofs1.close();
+
+	// Create a stale legacy .timing.md sidecar that should be cleaned up automatically
+	std::string stale_sidecar = tmp_dir + "/counter.timing.md";
+	{
+		std::ofstream ofs_stale(stale_sidecar);
+		ofs_stale << "# Legacy sidecar\n";
+	}
 
 	// Create a backup file that should be ignored
 	std::string backup_path = tmp_dir + "/counter.sv~";
@@ -255,12 +266,15 @@ void test_verilog_update_timing_execution()
 	// Create a top module that instantiates counter to verify hierarchy flattening
 	std::string mod2_path = tmp_dir + "/top_wrapper.sv";
 	std::ofstream ofs2(mod2_path);
-	ofs2 << "module top_wrapper(input logic clk, input logic rst, output logic [3:0] count_out);\n"
+	ofs2 << "module top_wrapper(\n"
+	     << "\tinput logic clk,\n"
+	     << "\tinput logic rst,\n"
+	     << "\toutput logic [3:0] count_out);\n"
 	     << "  counter u_counter(.clk(clk), .rst(rst), .q(count_out));\n"
 	     << "endmodule\n";
 	ofs2.close();
 
-	// Create a module with an unassigned (floating) output port to verify "Floating" classification
+	// Create a module with an unassigned (floating) output port to verify "FLOATING" classification
 	std::string mod_flt_path = tmp_dir + "/floating_mod.sv";
 	std::ofstream ofs_flt(mod_flt_path);
 	ofs_flt << "module floating_mod(input logic clk, output logic [3:0] unassigned_out);\n"
@@ -291,34 +305,32 @@ void test_verilog_update_timing_execution()
 		assert(result.find("| LUTs | FFs |") != std::string::npos);
 		assert(result.find("cross-module optimizations may reduce final area") != std::string::npos);
 
-		std::string sidecar_file = tmp_dir + "/counter.timing.md";
-		assert(std::filesystem::exists(sidecar_file));
+		// Legacy sidecar should be removed
+		assert(!std::filesystem::exists(stale_sidecar));
 
-		std::ifstream s_ifs(sidecar_file);
+		std::ifstream s_ifs(mod1_path);
 		std::string s_content((std::istreambuf_iterator<char>(s_ifs)), std::istreambuf_iterator<char>());
-		assert(s_content.find("# Timing: `counter`") != std::string::npos);
-		assert(s_content.find("| `clk` | 1 | - | Clock |") != std::string::npos);
-		assert(s_content.find("| `rst` | 1 | 0 | Register |") != std::string::npos);
-		assert(s_content.find("| `q` | 4 | 0 | Register |") != std::string::npos);
-		assert(s_content.find("## Area Summary") != std::string::npos);
-		assert(s_content.find("**LUTs**:") != std::string::npos);
-		assert(s_content.find("**Flip-Flops**: 4") != std::string::npos);
-		assert(s_content.find("Area is for this module only; cross-module optimizations may reduce final area.") != std::string::npos);
-		// Verify top_wrapper flattened counter and recognizes count_out as driven by Register, not Constant!
-		std::string top_sidecar = tmp_dir + "/top_wrapper.timing.md";
-		assert(std::filesystem::exists(top_sidecar));
-		std::ifstream top_ifs(top_sidecar);
-		std::string top_content((std::istreambuf_iterator<char>(top_ifs)), std::istreambuf_iterator<char>());
-		assert(top_content.find("# Timing: `top_wrapper`") != std::string::npos);
-		assert(top_content.find("| `count_out` | 4 | 0 | Register |") != std::string::npos);
+		s_ifs.close();
+		assert(s_content.find("input logic clk, /* main clock */  // [timing: clock]") != std::string::npos);
+		assert(s_content.find("input logic rst, // sync reset [timing: 0 -> Reg]") != std::string::npos);
+		assert(s_content.find("output logic [3:0] q               // [timing: 0 <- Reg]") != std::string::npos);
 
-		// Verify floating_mod marks unassigned_out as Floating
-		std::string flt_sidecar = tmp_dir + "/floating_mod.timing.md";
-		assert(std::filesystem::exists(flt_sidecar));
-		std::ifstream flt_ifs(flt_sidecar);
+		// Run a second time to verify idempotency (updating existing [timing: ...] comments in-place)
+		std::string result2 = validator.create_tool(args)->execute(ctx);
+		assert(result2.find("counter") != std::string::npos);
+		std::ifstream s_ifs2(mod1_path);
+		std::string s_content2((std::istreambuf_iterator<char>(s_ifs2)), std::istreambuf_iterator<char>());
+		assert(s_content2 == s_content);
+
+		// Verify top_wrapper flattened counter and recognizes count_out as driven by Register (0 <- Reg)
+		std::ifstream top_ifs(mod2_path);
+		std::string top_content((std::istreambuf_iterator<char>(top_ifs)), std::istreambuf_iterator<char>());
+		assert(top_content.find("output logic [3:0] count_out);  // [timing: 0 <- Reg]") != std::string::npos);
+
+		// Verify floating_mod marks unassigned_out as FLOATING (and single-line module combines port tags)
+		std::ifstream flt_ifs(mod_flt_path);
 		std::string flt_content((std::istreambuf_iterator<char>(flt_ifs)), std::istreambuf_iterator<char>());
-		assert(flt_content.find("# Timing: `floating_mod`") != std::string::npos);
-		assert(flt_content.find("| `unassigned_out` | 4 | - | Floating |") != std::string::npos);
+		assert(flt_content.find("[timing: clk: unused, unassigned_out: FLOATING]") != std::string::npos);
 	}
 
 	std::error_code ec;
@@ -362,9 +374,9 @@ void test_verilog_module_scanner()
 	auto mods = verilog_module_scanner::discover_modules_in_files(files);
 	assert(mods.size() == 2);
 	assert(mods[0].module_name == "alpha");
-	assert(mods[0].sidecar_path == tmp_dir + "/alpha.timing.md");
+	assert(mods[0].source_file == sv_file);
 	assert(mods[1].module_name == "beta");
-	assert(mods[1].sidecar_path == tmp_dir + "/beta.timing.md");
+	assert(mods[1].source_file == sv_file);
 
 	std::vector<std::string> out_files;
 	auto scanned = verilog_module_scanner::scan(tmp_dir, out_files);

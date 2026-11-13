@@ -328,7 +328,7 @@ int main(int argc, char **argv)
 		"TurboStar Verilog Timing & PnR Analyzer (turbostar-verilog-timing)\n"
 		"  Default mode : Analyze pre-PnR logic depth, critical paths & area for a module (verilog_logic_depth)\n"
 		"  --pnr        : Run physical place-and-route timing closure analysis (verilog_pnr_timing)\n"
-		"  -u, --update : Batch-synthesize all modules and update <module>.timing.md sidecars (verilog_update_timing)"
+		"  -u, --update : Batch-synthesize all modules and update in-place // [timing: ...] port annotations (verilog_update_timing)"
 	};
 
 	bool mode_pnr = false;
@@ -354,7 +354,7 @@ int main(int argc, char **argv)
 	bool verbose = false;
 
 	app.add_flag("--pnr", mode_pnr, "Run physical place-and-route timing analysis (nextpnr)");
-	app.add_flag("-u,--update", mode_update, "Batch-synthesize all workspace modules and update .timing.md sidecars");
+	app.add_flag("-u,--update", mode_update, "Batch-synthesize all workspace modules and annotate .sv port lines in-place");
 
 	app.add_option("path,-p,--path", untrusted_path, "Target directory, RTL source file, or module name (default: from turbostar.json or '.')");
 	app.add_option("-m,--module", untrusted_module, "Target RTL module name or source file (e.g. 'alu8', 'cpu', 'src/alu8.sv')");
@@ -371,7 +371,7 @@ int main(int argc, char **argv)
 	app.add_flag("--no-collapse", no_collapse, "Do not collapse multi-hop carry/LUT stages");
 	app.add_flag("--no-frames", no_frames, "Use plain pipe Markdown tables instead of UTF-8 box-drawing frames");
 
-	app.add_flag("-d,--dry-run", dry_run, "Dry run in --update mode: analyze all modules without writing .timing.md files");
+	app.add_flag("-d,--dry-run", dry_run, "Dry run in --update mode: analyze all modules without modifying .sv files");
 	app.add_flag("-q,--quiet", quiet, "Quiet mode in --update mode: suppress progress output");
 	app.add_flag("-v,--verbose", verbose, "Verbose mode: print synthesis failure logs (or enable --segments in --pnr mode)");
 
@@ -609,7 +609,7 @@ int main(int argc, char **argv)
 	}
 
 	// =========================================================================
-	// MODE 2: Batch Update Sidecars (-u / --update)
+	// MODE 2: Batch Update In-Place Port Timing Annotations (-u / --update)
 	// =========================================================================
 	if (mode_update) {
 		auto declared_modules = verilog::verilog_module_scanner::discover_modules_in_files(sv_files);
@@ -621,12 +621,13 @@ int main(int argc, char **argv)
 
 		struct module_result {
 			std::string module_name;
-			std::string sidecar_path;
+			std::string source_file;
 			size_t reg_depth{0};
 			size_t luts{0};
 			size_t ffs{0};
 			size_t inputs{0};
 			size_t outputs{0};
+			size_t annotated_ports{0};
 			bool success{false};
 			std::string err;
 		};
@@ -652,7 +653,7 @@ int main(int argc, char **argv)
 
 			module_result res;
 			res.module_name = decl.module_name;
-			res.sidecar_path = decl.sidecar_path;
+			res.source_file = decl.source_file;
 
 			if (!loaded) {
 				res.success = false;
@@ -671,14 +672,17 @@ int main(int argc, char **argv)
 				if (dry_run) {
 					res.success = true;
 				} else {
-					std::string md_content = analyzer.generate_timing_markdown(safe_target);
-					std::ofstream ofs(res.sidecar_path);
-					if (ofs.is_open()) {
-						ofs << md_content;
+					std::string up_err;
+					if (analyzer.update_verilog_file_annotations(res.source_file, res.annotated_ports, up_err)) {
 						res.success = true;
+						fs::path legacy_sidecar = fs::path(res.source_file).parent_path() / (res.module_name + ".timing.md");
+						std::error_code rm_ec;
+						if (fs::exists(legacy_sidecar, rm_ec)) {
+							fs::remove(legacy_sidecar, rm_ec);
+						}
 					} else {
 						res.success = false;
-						res.err = "Failed to open sidecar file for writing";
+						res.err = up_err;
 					}
 				}
 			}
@@ -694,7 +698,7 @@ int main(int argc, char **argv)
 		}
 
 		if (!quiet) {
-			std::string table_md = "| Module | Reg->Reg Depth | LUTs | FFs | Inputs | Outputs | Status | Sidecar Path |\n"
+			std::string table_md = "| Module | Reg->Reg Depth | LUTs | FFs | Inputs | Outputs | Status | Source File |\n"
 			                       "| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |\n";
 
 			for (const auto &r : results) {
@@ -704,10 +708,10 @@ int main(int argc, char **argv)
 				std::string in_str = r.success ? std::format("{}", r.inputs) : "-";
 				std::string out_str = r.success ? std::format("{}", r.outputs) : "-";
 				std::string status_str = r.success ? (dry_run ? "DRY-RUN" : "OK") : "FAILED";
-				std::string rel_sidecar = verilog::nextpnr_timing_analyzer::clean_display_location(r.sidecar_path, cwd_str);
+				std::string rel_source = verilog::nextpnr_timing_analyzer::clean_display_location(r.source_file, cwd_str);
 
 				table_md += std::format("| {} | {} | {} | {} | {} | {} | {} | {} |\n",
-				                        r.module_name, depth_str, lut_str, ff_str, in_str, out_str, status_str, rel_sidecar);
+				                        r.module_name, depth_str, lut_str, ff_str, in_str, out_str, status_str, rel_source);
 			}
 			std::cout << "\n" << format_for_terminal(table_md, framed_tables) << "\n";
 			std::cout << std::format("{}: {}/{} modules processed (Target: {})\n",
@@ -746,7 +750,7 @@ int main(int argc, char **argv)
 						                        fs::path(discovered[i].source_file).filename().string());
 					}
 					std::cerr << "Error: Multiple modules found and no module specified (nor top_module in turbostar.json).\n"
-					          << "Pass -m <module> (or -u to batch-update all .timing.md sidecars).\n";
+					          << "Pass -m <module> (or -u to batch-update port timing annotations in .sv files).\n";
 					if (!mod_list.empty()) {
 						std::cerr << std::format("Available modules: {}\n", mod_list);
 					}
@@ -754,7 +758,6 @@ int main(int argc, char **argv)
 				}
 			}
 		}
-
 		if (!analyzer.synthesize_and_load(resolved_module, sv_files, safe_target, err)) {
 			std::cerr << std::format("Synthesis/analysis failed for module '{}': {}\n", resolved_module, err);
 			return 1;

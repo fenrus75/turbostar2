@@ -121,7 +121,7 @@ class netlist_graph_analyzer
 	static std::string format_source_ranges(std::span<const source_signal_info> sources);
 	static std::string compact_signal_names(std::span<const std::string> names);
 
-	// Format sidecar markdown (.timing.md), full logic-depth report, and standalone area summary section
+	// Format port timing tables, full logic-depth report, standalone area summary, and in-place .sv port annotations
 	std::string generate_timing_markdown(std::string_view target_mode = "Generic LUT4", bool include_area = true) const;
 	std::string generate_logic_depth_report_markdown(std::string_view target_mode = "Generic LUT4",
 	                                                 size_t top_k = 3,
@@ -130,6 +130,10 @@ class netlist_graph_analyzer
 	                                                 int show_code = 1,
 	                                                 std::string_view base_dir = "") const;
 	std::string format_area_markdown(std::string_view target_mode = "Generic LUT4") const;
+	static std::string format_port_timing_tag(const port_timing_info &port);
+	std::string annotate_verilog_source(std::string_view untrusted_sv_content, size_t &out_ports_annotated) const;
+	bool update_verilog_file_annotations(std::string_view safe_sv_path, size_t &out_ports_annotated, std::string &out_error) const;
+
 	// Helper to check if a cell type is a sequential element
 	static bool is_sequential_cell_type(std::string_view type) noexcept;
 	static bool is_lut_cell_type(std::string_view type) noexcept;
