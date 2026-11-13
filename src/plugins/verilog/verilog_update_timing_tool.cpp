@@ -115,14 +115,7 @@ std::string verilog_update_timing_tool::execute(agentlib::tool_context &ctx)
 				std::string up_err;
 				if (analyzer.update_verilog_file_annotations(safe_out_path, st.annotated_ports, up_err)) {
 					st.success = true;
-					// Remove legacy <module>.timing.md sidecar if present
-					std::filesystem::path legacy_sidecar = std::filesystem::path(safe_out_path).parent_path() / (st.module_name + ".timing.md");
-					std::error_code rm_ec;
-					if (std::filesystem::exists(legacy_sidecar, rm_ec)) {
-						std::filesystem::remove(legacy_sidecar, rm_ec);
-					}
 				} else {
-					st.success = false;
 					st.err = up_err;
 				}
 			} else {

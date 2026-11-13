@@ -250,13 +250,6 @@ void test_verilog_update_timing_execution()
 	     << "endmodule\n";
 	ofs1.close();
 
-	// Create a stale legacy .timing.md sidecar that should be cleaned up automatically
-	std::string stale_sidecar = tmp_dir + "/counter.timing.md";
-	{
-		std::ofstream ofs_stale(stale_sidecar);
-		ofs_stale << "# Legacy sidecar\n";
-	}
-
 	// Create a backup file that should be ignored
 	std::string backup_path = tmp_dir + "/counter.sv~";
 	std::ofstream ofs_bak(backup_path);
@@ -304,9 +297,6 @@ void test_verilog_update_timing_execution()
 		assert(result.find("top_wrapper") != std::string::npos);
 		assert(result.find("| LUTs | FFs |") != std::string::npos);
 		assert(result.find("cross-module optimizations may reduce final area") != std::string::npos);
-
-		// Legacy sidecar should be removed
-		assert(!std::filesystem::exists(stale_sidecar));
 
 		std::ifstream s_ifs(mod1_path);
 		std::string s_content((std::istreambuf_iterator<char>(s_ifs)), std::istreambuf_iterator<char>());

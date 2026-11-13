@@ -675,13 +675,7 @@ int main(int argc, char **argv)
 					std::string up_err;
 					if (analyzer.update_verilog_file_annotations(res.source_file, res.annotated_ports, up_err)) {
 						res.success = true;
-						fs::path legacy_sidecar = fs::path(res.source_file).parent_path() / (res.module_name + ".timing.md");
-						std::error_code rm_ec;
-						if (fs::exists(legacy_sidecar, rm_ec)) {
-							fs::remove(legacy_sidecar, rm_ec);
-						}
 					} else {
-						res.success = false;
 						res.err = up_err;
 					}
 				}
