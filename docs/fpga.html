@@ -259,28 +259,33 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
         </ul>
       </div>
       <div class="detail-visual">
-        <pre><code><span class="comment">$ turbostar-verilog-timing -m alu_mod</span>
-<span class="keyword"># Timing: `alu_mod` (Target: iCE40)</span>
-Max Internal Reg -&gt; Reg Depth: 12 (5 LUTs + 7 carry)
+        <pre><code><span class="comment">$ turbostar-verilog-timing -m alu_mod -k 1</span>
+<span class="keyword"># Timing: `alu_mod`</span> (Target: iCE40, Max Reg -&gt; Reg Depth: 14)
 
 <span class="keyword">## Inputs</span>
-┌────────────┬───────┬───────────┬──────────┐
-│ Name       │ Width │ Layers to │ Sinks to │
-├────────────┼───────┼───────────┼──────────┤
-│ clk        │ 1     │ -         │ Clock    │
-│ input1     │ 8     │ 1         │ Register │
-│ operation  │ 5     │ 11        │ Register │
-└────────────┴───────┴───────────┴──────────┘
+┌────────┬───────┬───────────┬──────────┐
+│ Name   │ Width │ Layers to │ Sinks to │
+├────────┼───────┼───────────┼──────────┤
+│ clk    │ 1     │ -         │ Clock    │
+│ input1 │ 8     │ 0         │ Register │
+│ input2 │ 8     │ 0         │ Register │
+│ opcode │ 8     │ 8         │ Register │
+│ retire │ 1     │ 1         │ Register │
+└────────┴───────┴───────────┴──────────┘
 
-<span class="keyword">## Worst Combinational Paths (Grouped by Bottleneck Sink)</span>
-<span class="keyword">Path #1 [Reg -&gt; Reg] Depth: 12 (5 LUTs + 7 carry) -&gt; `flags`</span>
-- Sources: `input1_reg[0..7]` (sv/alu/alu.sv:22-32), `input2_reg[0..7]`
-  1. `sv/alu/alu.sv:53` (1 LUT + 7 carry) -&gt; `alu_out` | <span class="literal">`{carry, alu_out} = input1_reg - input2_reg;`</span>
-  2. `sv/alu/alu.sv:109` (2 LUTs) -&gt; `next_flags` | <span class="literal">`next_flags[ZERO_BIT] = (alu_out == 8'b0);`</span>
-- End: `flags` (sv/alu/alu.sv:22-32 | <span class="literal">`flags &lt;= next_flags;`</span>)
+<span class="keyword">### Path #1 [Reg -&gt; Reg] Depth: 14 (6 LUTs + 8 carry)</span>
+- Start: `input2_reg[0]` (`alu.sv:22-32` | <span class="literal">`input2_reg &lt;= input2;`</span>)
+  1. `alu.sv:163` (1 LUT + 7 carry) -&gt; `carry` | <span class="literal">`{carry, alu_out} = input1_reg - input2_reg;`</span>
+  2. `alu.sv:143` (1 LUT + 1 carry) -&gt; `carry` | <span class="literal">`{carry, alu_out} = input1_reg - input2_reg - ...;`</span>
+- End: `flags[0]` (`alu.sv:22-32` | <span class="literal">`flags &lt;= next_flags;`</span>)
+- Area: LUTs: 190 | Flip-Flops: 20 | Carry: 46 | Total Cells: 256
 
-<span class="comment">$ turbostar-verilog-timing --pnr --seeds 4 --segments -k 2</span>
-<span class="comment">$ turbostar-verilog-timing -u</span></code></pre>
+<span class="comment">$ turbostar-verilog-timing --pnr -m alu_mod -k 1</span>
+┌───────────────────────┬────────────┬──────────────────────────────────────────────────┬───────────┬────────┐
+│ Clock Domain          │ Constraint │ Achieved Fmax                                    │ Slack     │ Status │
+├───────────────────────┼────────────┼──────────────────────────────────────────────────┼───────────┼────────┤
+│ clk$SB_IO_IN_$glb_clk │ 80.00 MHz  │ <span class="literal">102.63 MHz</span> (median of 5 seeds: 99.90-103.90 MHz) │ <span class="literal">+2.756 ns</span> │ <span class="type">MET</span>    │
+└───────────────────────┴────────────┴──────────────────────────────────────────────────┴───────────┴────────┘</code></pre>
       </div>
     </section>
 

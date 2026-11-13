@@ -1405,7 +1405,7 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 		return std::format("(`{}`)", disp);
 	};
 
-	auto format_hops_segments = [](std::span<const timing_hop> hops) -> std::string {
+	auto format_hops_segments = [show_code, this](std::span<const timing_hop> hops) -> std::string {
 		if (hops.empty()) return "";
 		std::string seg_md = "- **Segments (Hop-by-Hop)**:\n";
 		size_t seg_idx = 0;
@@ -1469,9 +1469,28 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 				std::string loc_coord = !h.to_loc.empty() ? h.to_loc : h.from_loc;
 				std::string coord_str = loc_coord.empty() ? "" : std::format(" @ {}", loc_coord);
 				std::string rtl_loc = clean_display_location(h.cell_src_location);
-				std::string rtl_str = rtl_loc.empty() ? "" : std::format(" [`{}`]", rtl_loc);
-				seg_md += std::format("  {}. `[{}]` **{:.3f} ns** — `{}`{}{}{}{}\n",
-				                      seg_idx, h.type, h.delay_ns, ctype, hint_str, pin_str, coord_str, rtl_str);
+				std::string rtl_str;
+				std::string snippet_block;
+				if (!rtl_loc.empty()) {
+					std::string sig_hint = !h.cell_hint.empty() ? h.cell_hint : norm_cell;
+					if (show_code > 0 && !yosys_netlist_reader::is_library_source(h.cell_src_location)) {
+						std::string snip = yosys_netlist_reader::extract_source_snippet(h.cell_src_location, sig_hint, netlist_dir_, show_code);
+						if (!snip.empty()) {
+							if (show_code == 1) {
+								rtl_str = std::format(" [`{}` | `{}`]", rtl_loc, snip);
+							} else {
+								rtl_str = std::format(" [`{}`]", rtl_loc);
+								snippet_block = std::format("     ```systemverilog\n{}     ```\n", snip);
+							}
+						} else {
+							rtl_str = std::format(" [`{}`]", rtl_loc);
+						}
+					} else {
+						rtl_str = std::format(" [`{}`]", rtl_loc);
+					}
+				}
+				seg_md += std::format("  {}. `[{}]` **{:.3f} ns** — `{}`{}{}{}{}\n{}",
+				                      seg_idx, h.type, h.delay_ns, ctype, hint_str, pin_str, coord_str, rtl_str, snippet_block);
 			}
 		}
 		return seg_md;

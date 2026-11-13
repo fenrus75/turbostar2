@@ -42,10 +42,25 @@ static std::string format_for_terminal(const std::string &md, bool framed_tables
 					++i;
 					continue;
 				}
+				// Replace UTF-8 en-dash/em-dash inside table cells with ASCII '-' so byte-width padding aligns visually
+				if (i + 2 < line.size() &&
+				    static_cast<unsigned char>(line[i]) == 0xE2 &&
+				    static_cast<unsigned char>(line[i + 1]) == 0x80 &&
+				    (static_cast<unsigned char>(line[i + 2]) == 0x93 || static_cast<unsigned char>(line[i + 2]) == 0x94)) {
+					prepped.push_back('-');
+					i += 2;
+					continue;
+				}
 				prepped.push_back(line[i]);
 			}
 		} else {
-			prepped.append(line);
+			for (size_t i = 0; i < line.size(); ++i) {
+				if (i + 1 < line.size() && line[i] == '*' && line[i + 1] == '*') {
+					++i;
+					continue;
+				}
+				prepped.push_back(line[i]);
+			}
 		}
 		if (nl != std::string::npos) {
 			prepped.push_back('\n');

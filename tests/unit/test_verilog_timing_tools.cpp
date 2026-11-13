@@ -1306,7 +1306,8 @@ void test_shared_always_ff_disambiguation_and_segments()
 	// 5. Verify default show_code=1 includes inline 1-line RTL statements and relative path
 	assert(tool_out.find("| `flags <= input1_reg[3:0] ^ input2_reg[3:0];`") != std::string::npos);
 	assert(tool_out.find("alu_shared.sv:10-18` | `flags <= input1_reg[3:0] ^ input2_reg[3:0];`") != std::string::npos);
-
+	assert(tool_out.find("[`tests/unit/tmp_test_shared_ff_") == std::string::npos); // relative path check
+	assert(tool_out.find("alu_shared.sv:10-18` | `flags <= input1_reg[3:0] ^ input2_reg[3:0];`]") != std::string::npos);
 	// 6. Verify show_code=0 and show_code=false suppress RTL code snippets
 	nlohmann::json no_code_args = {
 		{"timing_report", timing_path},
