@@ -594,11 +594,16 @@ std::string verilog_compile_tool::execute(agentlib::tool_context &ctx)
 		}
 		synth_pass += " -top " + target_mod + " -json " + synth_json.string() + "; check";
 	} else if (cfg.target == "ecp5") {
-		synth_pass = "synth_ecp5 -top " + target_mod + " -json " + synth_json.string() + "; check";
+		synth_pass = "synth_ecp5";
+		if (!cfg.yosys_synth_args.empty()) {
+			synth_pass += " " + cfg.yosys_synth_args;
+		} else {
+			synth_pass += " -abc9";
+		}
+		synth_pass += " -top " + target_mod + " -json " + synth_json.string() + "; check";
 	} else {
 		synth_pass = "synth -top " + target_mod + "; check; stat; write_json " + synth_json.string();
 	}
-
 	std::string yosys_cmd = fs_utils::escape_shell_arg(yosys_bin) + " -p " + fs_utils::escape_shell_arg(synth_pass);
 	for (const auto &src : active_sources) {
 		yosys_cmd += " " + fs_utils::escape_shell_arg(src);

@@ -927,9 +927,14 @@ bool nextpnr_timing_analyzer::synthesize_and_route(const fpga_target_config &cfg
 		}
 		synth_pass += " -top " + top_mod + " -json " + synth_json.string();
 	} else if (cfg.target == "ecp5") {
-		synth_pass = "synth_ecp5 -top " + top_mod + " -json " + synth_json.string();
+		synth_pass = "synth_ecp5";
+		if (!cfg.yosys_synth_args.empty()) {
+			synth_pass += " " + cfg.yosys_synth_args;
+		} else {
+			synth_pass += " -abc9";
+		}
+		synth_pass += " -top " + top_mod + " -json " + synth_json.string();
 	} else {
-		// Generic
 		synth_pass = "synth -top " + top_mod + "; write_json " + synth_json.string();
 	}
 

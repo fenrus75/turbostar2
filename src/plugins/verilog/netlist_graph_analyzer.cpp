@@ -2362,9 +2362,15 @@ bool netlist_graph_analyzer::synthesize_and_load(std::string_view module_name, s
 	std::string synth_pipeline;
 	if (target_mode == "iCE40") {
 		if (module_name.empty()) {
-			synth_pipeline = std::format("synth_ice40 -json {}", tmp_json);
+			synth_pipeline = std::format("synth_ice40 -abc9 -json {}", tmp_json);
 		} else {
-			synth_pipeline = std::format("synth_ice40 -top {} -json {}", module_name, tmp_json);
+			synth_pipeline = std::format("synth_ice40 -abc9 -top {} -json {}", module_name, tmp_json);
+		}
+	} else if (target_mode == "ECP5") {
+		if (module_name.empty()) {
+			synth_pipeline = std::format("synth_ecp5 -abc9 -json {}", tmp_json);
+		} else {
+			synth_pipeline = std::format("synth_ecp5 -abc9 -top {} -json {}", module_name, tmp_json);
 		}
 	} else if (target_mode == "Generic LUT6") {
 		std::string top_arg = module_name.empty() ? "-auto-top" : std::format("-top {}", module_name);
