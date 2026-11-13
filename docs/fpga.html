@@ -41,6 +41,7 @@
       </p>
       <div class="cta-group" style="justify-content: flex-start; margin-top: 2rem; margin-bottom: 0;">
         <a href="#tools" class="btn btn-primary" id="cta-fpga-tools">Explore the 12 Tools</a>
+        <a href="#standalone-cli" class="btn btn-secondary" id="cta-fpga-cli">Standalone Human CLI</a>
         <a href="#quickstart" class="btn btn-secondary" id="cta-fpga-quickstart">Toolchain Setup</a>
       </div>
     </section>
@@ -241,6 +242,45 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
 - <span class="keyword">Dominant Routing Bottlenecks</span>:
   &bull; <span class="literal">1.589 ns</span> routing via `cpu_8080.lo_val` (4 sinks, span: 6 tiles)
 - <span class="keyword">End</span>: `cpu_8080.H_reg.value[6]` (src/register.sv:20-26 | <span class="literal">`value_reg &lt;= load_value;`</span>)</code></pre>
+      </div>
+    </section>
+
+    <!-- Feature 6: Standalone 3-in-1 Human CLI (turbostar-verilog-timing) -->
+    <section class="detail-split reverse" id="standalone-cli">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Standalone 3-in-1 CLI for Human Engineers</h2>
+        <p class="detail-text">
+          Why should AI agents have all the fun? <code>turbostar-verilog-timing</code> packages all three timing engines—combinational logic depth, physical place-and-route timing closure, and batch sidecar updates—into a standalone command-line binary you can run directly in your terminal, Makefiles, or CI pipelines without launching the editor or MCP server.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Default Logic Depth Mode:</strong> Run <code>turbostar-verilog-timing -m alu_mod</code> (or omit <code>-m</code> to analyze your <code>turbostar.json</code> top module) for instant input/output layer tables, critical combinational cones, inline RTL statements (<code>-c, --show-code</code>), and LUT/FF area summaries.</li>
+          <li><strong>Physical Place &amp; Route Mode (<code>--pnr</code>):</strong> Pass <code>--pnr</code> for full Yosys + multi-seed <code>nextpnr</code> timing closure (<code>--seeds 4</code>), hop-by-hop cell/routing segment traces (<code>--segments</code>), or out-of-context submodule PnR (<code>--pnr -m alu_mod</code>).</li>
+          <li><strong>Human-Friendly UTF-8 Framed Tables:</strong> Automatically formats terminal output with aligned UTF-8 box-drawing tables, while writing clean, standard Markdown tables when updating <code>&lt;module&gt;.timing.md</code> sidecars on disk (<code>-u, --update</code>).</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <pre><code><span class="comment">$ turbostar-verilog-timing -m alu_mod</span>
+<span class="keyword"># Timing: `alu_mod` (Target: iCE40)</span>
+Max Internal Reg -&gt; Reg Depth: 12 (5 LUTs + 7 carry)
+
+<span class="keyword">## Inputs</span>
+┌────────────┬───────┬───────────┬──────────┐
+│ Name       │ Width │ Layers to │ Sinks to │
+├────────────┼───────┼───────────┼──────────┤
+│ clk        │ 1     │ -         │ Clock    │
+│ input1     │ 8     │ 1         │ Register │
+│ operation  │ 5     │ 11        │ Register │
+└────────────┴───────┴───────────┴──────────┘
+
+<span class="keyword">## Worst Combinational Paths (Grouped by Bottleneck Sink)</span>
+<span class="keyword">Path #1 [Reg -&gt; Reg] Depth: 12 (5 LUTs + 7 carry) -&gt; `flags`</span>
+- Sources: `input1_reg[0..7]` (sv/alu/alu.sv:22-32), `input2_reg[0..7]`
+  1. `sv/alu/alu.sv:53` (1 LUT + 7 carry) -&gt; `alu_out` | <span class="literal">`{carry, alu_out} = input1_reg - input2_reg;`</span>
+  2. `sv/alu/alu.sv:109` (2 LUTs) -&gt; `next_flags` | <span class="literal">`next_flags[ZERO_BIT] = (alu_out == 8'b0);`</span>
+- End: `flags` (sv/alu/alu.sv:22-32 | <span class="literal">`flags &lt;= next_flags;`</span>)
+
+<span class="comment">$ turbostar-verilog-timing --pnr --seeds 4 --segments -k 2</span>
+<span class="comment">$ turbostar-verilog-timing -u</span></code></pre>
       </div>
     </section>
 
