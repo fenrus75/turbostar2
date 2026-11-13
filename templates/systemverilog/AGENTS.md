@@ -20,14 +20,28 @@ Limit the use of SystemVerilog language constructs to those supported by both `y
 - Expansion IO (Alchitry IO Shield LEDs, DIP switches, pushbuttons, and 7-segment display) pinouts are documented in `pins.pcf` and `8segbits.txt`.
 
 ## SystemVerilog guidelines
-- Language Standard: @@LANGUAGE_STD@@
 - Default: one module per `.sv` file (possible exception: very small local helper modules)
 - Option: group related modules into subdirectories within `src/` for logical organization
 - Use modern SystemVerilog best practices (within the subset supported by both `yosys` and `verilator`):
   - `always_ff` for flip-flops/registers
   - `always_comb` for all combinational logic
-  - favor `logic` over `reg` or `wire` for signals and wires
-  - use `typedef enum` for FSM states (automatically discovered from RTL by the waveform tools)
+  - favor `logic` over `reg` or `wire` for signals and wires, replace legacy wire/reg occurances with logic when editing components
+  - use `typedef enum` and "unique case" for FSMs
+- For larger designs where the top levels are exclusively modules connected by wires, avoid adding direct logic
+	- instead create new modules or integrate the logic into existing modules.
+
+## Guidelines for high performance (high frequency) designs
+- Avoid using reset signals to internal registers for which reset behavior is not required for correctness
+- For modules that contain registers, favor registering the final output whenver possible over registering intermediate results.
+- Don't mix async and sync reset
+- **STRONGLY** avoid non-0 reset values whenever the design allows
+- For FPGA targets, use this construct for registers with a load/enable input:
+```verilog
+    always_ff @(posedge clk, posedge rst) begin
+        if (rst)       value <= 8'h00;
+        else if (load) value <= load_value;
+    end
+```
 
 ## Testing strategy
 - Create *at least* one testbench for each module
@@ -58,3 +72,11 @@ Limit the use of SystemVerilog language constructs to those supported by both `y
   - `verilog_update_timing` annotates module port declarations in-place with `// [timing: ...]` comments so you have instant visibility into which module inputs and outputs carry deep combinational chains when instantiating or wiring modules
   - `verilog_pnr_timing` gives the critical path timing after routing, decomposing logic vs. wire delay and reporting fan-out and $F_{\max}$
 - Often, the structural view provides the underlying architectural reason for the more fine-grained (local) post-routing timing bottlenecks, and it is generally beneficial to have the two views augment each other.
+
+
+## Learnings
+
+### "Control-Set Homogeneity Beats Reset Stripping"
+  Within a module, it is better for all flip-flops to share the same reset style (e.g. all always_ff @(posedge clk or posedge rst)) than to selectively strip reset from half of them. Keeping control sets identical allows NextPNR to
+  pack 8 flip-flops tightly into single physical tiles with zero inter-tile routing hops.
+
