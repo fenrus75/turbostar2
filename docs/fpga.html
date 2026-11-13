@@ -56,7 +56,7 @@
           Ask an unassisted coding agent to build or debug a CPU core in SystemVerilog using only bash and grep: a single simulation emits a 500&nbsp;MB <code>.vcd</code> dump that overflows the context window, running Verilator on a multi-testbench directory fails with duplicate <code>top</code> modules, and "optimizing" a critical path blindly unrolls multiplexers until LUT area explodes and physical routing fails timing.
         </p>
         <p class="detail-text">
-          Turbostar acts as the domain-aware translation layer between open-source EDA toolchains (<code>Verilator</code>, <code>Yosys</code>, and <code>nextpnr</code>) and the agent. Every tool accepts high-level intent—module names, clock-cycle windows, enum state symbols, and target frequencies—and returns compact, line-attributed engineering reports. Tested end-to-end by autonomous agents designing a 12-module, 34-testbench Intel 8080 CPU core from scratch, the tools feel completely natural to the model at every step of the RTL lifecycle.
+          Turbostar acts as the domain-aware translation layer between open-source EDA toolchains (<code>Verilator</code>, <code>Yosys</code>, and <code>nextpnr</code>) and the agent. Every tool accepts high-level intent—module names, clock-cycle windows, enum state symbols, and target frequencies—and returns compact, line-attributed engineering reports with inline RTL statements. Tested end-to-end by autonomous agents designing a 12-module, 34-testbench Intel 8080 CPU core from scratch—and subsequently used to push a design's physical place-and-route clock frequency from <strong>50&nbsp;MHz to 75&nbsp;MHz F<sub>max</sub> (+50%) in just a couple of hours</strong>—the tools feel completely natural to the model at every step of the RTL lifecycle.
         </p>
       </div>
       <div class="detail-visual">
@@ -180,7 +180,7 @@ Sampled on: `clk` (posedge) | Timescale: 1ps | Rows: 8
           Agents optimizing purely for clock frequency often duplicate logic cones until FPGA resource utilization explodes. <code>verilog_logic_depth</code> and <code>verilog_update_timing</code> give the agent simultaneous visibility into combinational depth and resource area in seconds.
         </p>
         <ul class="detail-list">
-          <li><strong>Bottleneck Sink Grouping:</strong> Critical paths are grouped by destination sink with exact SystemVerilog file/line sources, decomposing each stage into LUT levels and carry chain hops.</li>
+          <li><strong>Bottleneck Sink Grouping &amp; Inline RTL:</strong> Critical paths are grouped by destination sink with project-relative <code>file.sv:line</code> coordinates and inline 1-line SystemVerilog statements (<code>show_code=1</code> default), decomposing each stage into LUT levels and carry chain hops.</li>
           <li><strong>Module Area Summary:</strong> Every report includes a synthesized cell breakdown (LUTs, Flip-Flops, Carry cells, and Total Cells) so the agent balances speed against logic budgets.</li>
           <li><strong>Persistent <code>.timing.md</code> Sidecars:</strong> <code>verilog_update_timing</code> (and the standalone CLI) generates per-module Markdown contracts committed to git, tracking Max Reg&rarr;Reg Depth and cell counts across the entire design.</li>
         </ul>
@@ -191,13 +191,13 @@ Sampled on: `clk` (posedge) | Timescale: 1ps | Rows: 8
 Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
 
 <span class="keyword">## Worst Combinational Paths (Grouped by Bottleneck Sink)</span>
-<span class="keyword">Path #1 [Reg -&gt; Reg] Depth: 25 (10 LUTs + 15 carry) -&gt; `value_reg`</span>
-- Sources: `alu.flags` (alu8.sv:62), `decode.opcode_valid` (decode.sv:138)
-  1. `cells_map.v` (5 LUTs) -&gt; `C_load`
-  2. `alu16.sv:68` (1 LUT) -&gt; `C_load`
-  3. `alu16.sv:80` (15 carry, from `value_reg`) -&gt; `alu.next_flags`
-  4. `register.sv:11` (1 LUT) -&gt; `hi_val[7]`
-- End: `cpu_8080.value_reg` (src/register.sv:23)
+<span class="keyword">Path #1 [Reg -&gt; Reg] Depth: 25 (10 LUTs + 15 carry) -&gt; `H_reg.value`</span>
+- Sources: `alu.flags` (src/alu8.sv:62), `decode.opcode_valid` (src/decode.sv:138)
+  1. `src/alu8.sv:178` (5 LUTs) -&gt; `alu_out` | <span class="literal">`{carry, alu_out} = in1_reg - imm8_reg;`</span>
+  2. `src/alu16.sv:68` (1 LUT) -&gt; `C_load` | <span class="literal">`assign C_load = (op == 4'd2) &amp;&amp; valid;`</span>
+  3. `src/alu16.sv:80` (15 carry, from `value_reg`) -&gt; `alu.next_flags`
+  4. `src/cpu.sv:102` (1 LUT) -&gt; `hi_val[7]` | <span class="literal">`wire [7:0] hi_val = sel ? wz_hi : alu_out;`</span>
+- End: `cpu_8080.H_reg.value` (src/register.sv:20-26 | <span class="literal">`value_reg &lt;= load_value;`</span>)
 
 <span class="keyword">## Area Summary (`cpu`)</span>
 - LUTs: 1221 | Flip-Flops: 173 | Carry: 247 | Total Cells: 1656
@@ -216,12 +216,12 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
       <div class="detail-info">
         <h2 class="detail-subtitle">Physical Place-and-Route Timing Closure</h2>
         <p class="detail-text">
-          Pre-synthesis logic depth is only half the story—on real FPGAs, long Manhattan wire routes and high-fanout control nets often dominate the critical path. <code>verilog_pnr_timing</code> runs full Yosys synthesis + <code>nextpnr</code> physical placement and routing on demand.
+          Pre-synthesis logic depth is only half the story—on real FPGAs, long Manhattan wire routes and high-fanout control nets often dominate the critical path. <code>verilog_pnr_timing</code> runs full Yosys synthesis + <code>nextpnr</code> physical placement and routing on demand, enabling agents to drive a design from <strong>50&nbsp;MHz to 75&nbsp;MHz F<sub>max</sub> (+50%) in a couple of hours</strong>.
         </p>
         <ul class="detail-list">
-          <li><strong>Achieved Fmax vs. Target Constraint:</strong> Evaluates real post-routing setup slack against your target clock constraint configured in <code>turbostar.json</code>.</li>
-          <li><strong>Logic vs. Routing Delay Split:</strong> Decomposes every critical path hop into cell propagation delay vs. physical interconnect wire delay.</li>
-          <li><strong>Physical Tile Distance &amp; Fanout:</strong> Reports net fanout and physical chip tile delta <code>(dx, dy)</code> alongside exact SystemVerilog source lines, empowering the agent to pipeline long routes or replicate high-fanout registers.</li>
+          <li><strong>Multi-Seed Fmax &amp; Submodule PnR:</strong> Evaluates real post-routing setup slack across placement seeds against your target clock constraint, or runs unconstrained out-of-context PnR on individual submodules (<code>module="alu8"</code>).</li>
+          <li><strong>Wire-Driver Disambiguation &amp; Inline Code:</strong> Resolves shared <code>always_ff</code> blocks and multi-instance submodules to their exact register names via Yosys wire connectivity, displaying the offending RTL statement inline at every hop without extra <code>read_file</code> round-trips.</li>
+          <li><strong>Physical Tile Distance, Fanout &amp; Segments:</strong> Reports net fanout and chip tile span alongside logic vs. routing delay splits, with optional hop-by-hop cell/pin inspection (<code>show_segments=true</code>).</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -229,23 +229,18 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
 <span class="keyword">## Clock Domain &amp; Frequency Timing</span>
 | Clock Domain            | Constraint | Achieved Fmax | Slack     | Status |
 | :---                    | :---:      | :---:         | :---:     | :---:  |
-| `clk$SB_IO_IN_$glb_clk` | 50.00 MHz  | <span class="literal">53.25 MHz</span>     | <span class="literal">+1.219 ns</span>| <span class="type">MET</span>    |
-
-<span class="keyword">## Hardware Resource Utilization (iCE40-HX8K)</span>
-| Resource       | Used | Available | Utilization |
-| :---           |:---:|:---:      |:---:        |
-| `ICESTORM_LC`  | 1386 | 7680      | 18.0%       |
-| `ICESTORM_RAM` | 8    | 32        | 25.0% (4KB) |
-| `SB_GB`        | 3    | 8         | 37.5%       |
-| `SB_IO`        | 10   | 256       | 3.9%        |
+| `clk$SB_IO_IN_$glb_clk` | 75.00 MHz  | <span class="literal">75.42 MHz</span>     | <span class="literal">+0.074 ns</span>| <span class="type">MET</span>    |
 
 <span class="keyword">## Physical Critical Paths (Grouped by Bottleneck Sink)</span>
-<span class="keyword">Path #1 [Reg -&gt; Reg] Delay: 18.781 ns</span> (<span class="type">29% logic</span>, <span class="literal">69% routing</span>)
-- Converging on: `cpu_8080.value_reg` (src/register.sv:23)
-- Carry/LUT Chain: 15 carry/LUT hops (alu16.sv:80 -&gt; hi_val[6])
-- Dominant Routing Delays:
-  &bull; <span class="literal">1.589 ns</span> routing via `cpu_8080.lo_val` (4 sinks, span: 8 tiles)
-  &bull; <span class="literal">1.274 ns</span> routing via `cpu_8080.A_load` (14 sinks, span: 5 tiles)</code></pre>
+<span class="keyword">### Path #1 [Reg -&gt; Reg] Delay: 13.259 ns</span> (<span class="type">30% logic</span>, <span class="literal">70% routing</span>)
+- <span class="keyword">Start</span>: `cpu_8080.alu.imm8_reg[2]` (src/alu8.sv:94-101 | <span class="literal">`imm8_reg &lt;= imm8;`</span>)
+- <span class="keyword">Chain</span>:
+  1. `src/alu8.sv:109` — 1.260 ns (1 LUT) | <span class="literal">`next_flags = flags;`</span>
+  2. `src/alu8.sv:178` — 1.974 ns (3 LUTs) | <span class="literal">`{carry, alu_out} = in1_reg - imm8_reg;`</span>
+  3. `src/cpu.sv:102`  — 1.589 ns (1 LUT, span: 6 tiles) | <span class="literal">`wire [7:0] hi_val = ... : alu_out;`</span>
+- <span class="keyword">Dominant Routing Bottlenecks</span>:
+  &bull; <span class="literal">1.589 ns</span> routing via `cpu_8080.lo_val` (4 sinks, span: 6 tiles)
+- <span class="keyword">End</span>: `cpu_8080.H_reg.value[6]` (src/register.sv:20-26 | <span class="literal">`value_reg &lt;= load_value;`</span>)</code></pre>
       </div>
     </section>
 
