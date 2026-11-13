@@ -29,7 +29,7 @@ sections updated as enhancements are made to the project.
 | `docs/design-subagents.md` | Subagent Library and Manager architecture |
 | `docs/design-website.md` | Project website structure, styling guidelines, and update rules |
 | `docs/design-selection.md` | Dual-mode selection architecture and specification |
-
+| `docs/design-verilog.md` | Verilog, SystemVerilog, VCD waveform, and FPGA timing architecture |
 
 
 # Git policy
@@ -367,12 +367,7 @@ Turbostar supports dynamic plugin loading to extend the editor's capabilities at
 For details on dynamic loading architecture, C-linkage entry points, dynamic symbol linkage, tool registration lifecycles, and unit test lifecycle initialization, refer to `docs/design-plugin.md`.
 
 ### Verilog & FPGA Hardware Design Subsystem
-The `verilog` plugin provides simulation and physical implementation intelligence:
-- **Simulation Waveform Inspection**: Fast binary VCD stream parsing (`vcd_parser`), multi-bit bus rendering (`vcd_wave`), wildcard value label substitutions (`vcd_signal_labels`), valid/strobe masking qualifiers (`vcd_signal_qualifier`), synchronous multi-condition edge searches (`vcd_search`), and cycle-accurate golden trace differential comparisons (`vcd_compare`).
-- **Structural Logic Depth, Area & In-Place Port Timing Annotations**: Analyzes pre-PNR layers of logic and standalone module resource utilization (LUTs, Flip-Flops, Carry, RAM/DSP) (`netlist_graph_analyzer`, `verilog_logic_depth`) across timing boundaries, and batch-annotates module port declaration lines in-place inside `.sv`/`.v` source files with vertically aligned `// [timing: ...]` comments (`verilog_update_timing`).
-- **Physical Place-and-Route Timing Analysis (`nextpnr_timing_analyzer`, `verilog_pnr_timing`)**: Correlates post-route nextpnr timing reports (`timing.json`) against Yosys netlists (`main.json`), normalizing physical logic cell names (`_LC`, `_DFFLC`, `_RAM`, `$sb_io`) and performing netname prefix matching to attribute timing delays back to original SystemVerilog `file:line` anchors. Delays are decomposed into logic vs. routing wire contributions, focusing strictly on synchronous Reg -> Reg bottlenecks determining clock frequency ($F_{\max}$).
-- **FPGA Project Settings (`fpga_project_settings`, `verilog_project_settings`)**: Manages target hardware parameters (`target`, `device`, `package`, `top_module`, `freq_mhz`, `pcf_file`, `sv_path`) persisted in `turbostar.json` (or `project.json`). Automatically scans for single `.pcf` constraint files, detects synthesizable RTL source paths (`sv`, `rtl`, `src`), and installed nextpnr EDA toolchains, providing actionable remediation guidance when settings are missing and enabling zero-argument structural and physical timing queries.
-
+For details on the `verilog` plugin (`verilog_compile`, `verilog_simulate`, `vcd_*` waveform analysis, `netlist_graph_analyzer` logic depth and in-place `// [timing: ...]` port annotations, `nextpnr_timing_analyzer` physical place-and-route timing closure, and the standalone `turbostar-verilog-timing` CLI), refer to `docs/design-verilog.md`.
 ## Project Templates
 Turbostar provides a built-in project creation wizard (`ui_dialog_project`) and template engine (`project_template_manager`).
 - **Template Embedding**: Template files in `templates/` are embedded at build time into `src/project_templates_embedded.h` via `scripts/embed_templates.py`. This ensures TurboStar can instantiate new projects without runtime dependency on external filesystem assets.
@@ -410,8 +405,4 @@ The LSP subsystem uses the **Strategy Pattern** to separate protocol abstraction
   - Databases are keyed by git commit SHA (`semcode_<commit_hash>.db`), allowing permanent cache reuse across editing sessions and code reviews for clean git trees.
   - **LRU Cache Pruning & Retention**: Automatically enforces a strict retention limit (`--max-dbs`, default: 2) via `semcode_indexer::prune_cache_directory()`, sorting databases by access/modification time and purging oldest databases along with companion journal/wal/shm files to prevent disk bloating. Opening a database automatically updates its modification time for LRU tracking.
   - **Git Blob Hash Filtering**: To eliminate stale historical function and type definitions exported by `semcode dump-*` scans across multi-commit databases, `semcode_indexer` queries git tree blob SHAs via `git ls-tree -r <ref>` (and hashes uncommitted working tree modifications via `git status --porcelain` and `git hash-object`). Ingestion streams filter each record's `git_file_hash` against this valid set in O(1) time, ensuring zero historical duplicates or stale code definitions are indexed.
-- **Verilog Timing Analysis & Standalone CLI (`turbostar-verilog-timing`, `verilog_module_scanner`, `netlist_graph_analyzer`, `nextpnr_timing_analyzer`)**:
-  - Provides a unified 3-in-1 standalone CLI binary (`turbostar-verilog-timing`, with a `turbostar-verilog-update-timing` symlink for backwards compatibility) alongside the agent MCP tools (`verilog_logic_depth`, `verilog_pnr_timing`, `verilog_update_timing`) for terminal workflows, Makefiles, and CI pipelines without requiring the editor or MCP server.
-  - Supports three operating modes: default single-module **Logic Depth Mode** (`turbostar-verilog-timing [module]`), **Physical Place & Route Mode** (`turbostar-verilog-timing --pnr [-m module] [--seeds N] [--segments]`), and **Batch In-Place Port Annotation Mode** (`turbostar-verilog-timing -u [--dry-run]`).
-  - Renders terminal tables with UTF-8 box-drawing frames via `markdown_utils::align_all_tables` (configurable with `--no-frames`), vertically aligns numbered critical path/segment chains, and displays inline RTL code snippets (`-c, --show-code`), while `-u` updates vertically aligned `// [timing: ...]` comments directly on module port declarations in `.sv`/`.v` source files.
 - **Extensibility & Mocking**: Enables alternative backends and mock backends in unit tests to achieve high test coverage without requiring external server binaries.

@@ -89,6 +89,7 @@ The `docs/` directory contains crucial context. Keep these files updated as we m
 | `design-perf-integration.md` | Architecture for CPU cycle profiling using perf_event_open and libturbocatch.so. |
 | `design-plugin.md` | Plugin architecture, lifecycles, and tool registration. |
 | `design-pure.md` | Tool purity, state domain classification, and read-only agent security rules. |
+| `design-verilog.md` | Verilog, SystemVerilog, VCD waveform, and FPGA timing architecture. |
 | `file-dialog.md` | Specification for the Turbo Pascal style file dialog. |
 | `general-c++.md` | C++20 coding guidelines and rules. |
 | `joe-keys.md` | Reference for the "joe" dialect Wordstar keybindings. |
