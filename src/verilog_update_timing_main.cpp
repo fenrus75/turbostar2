@@ -15,6 +15,232 @@
 
 namespace fs = std::filesystem;
 
+static std::string_view trim_sv(std::string_view sv)
+{
+	while (!sv.empty() && (sv.front() == ' ' || sv.front() == '\t')) {
+		sv.remove_prefix(1);
+	}
+	while (!sv.empty() && (sv.back() == ' ' || sv.back() == '\t')) {
+		sv.remove_suffix(1);
+	}
+	return sv;
+}
+
+static std::string pad_right(std::string_view sv, size_t width)
+{
+	std::string res(sv);
+	if (res.size() < width) {
+		res.append(width - res.size(), ' ');
+	}
+	return res;
+}
+
+static std::string pad_left(std::string_view sv, size_t width)
+{
+	std::string res;
+	if (sv.size() < width) {
+		res.append(width - sv.size(), ' ');
+	}
+	res.append(sv);
+	return res;
+}
+
+static bool is_numbered_chain_line(std::string_view line, std::string_view &num_tok, std::string_view &rest)
+{
+	if (line.size() < 5 || line[0] != ' ' || line[1] != ' ') {
+		return false;
+	}
+	size_t idx = 2;
+	while (idx < line.size() && line[idx] >= '0' && line[idx] <= '9') {
+		++idx;
+	}
+	if (idx == 2 || idx + 1 >= line.size() || line[idx] != '.' || line[idx + 1] != ' ') {
+		return false;
+	}
+	num_tok = line.substr(2, idx - 1); // e.g. "1."
+	rest = line.substr(idx + 2);
+	return true;
+}
+
+static std::string align_chain_block(const std::vector<std::string> &block_lines)
+{
+	struct parsed_row {
+		bool is_item = false;
+		std::string raw;
+		std::string num;
+		std::string c1;
+		std::string c2;
+		std::string c3;
+		std::string c4;
+		std::string c5;
+	};
+
+	std::vector<parsed_row> rows;
+	rows.reserve(block_lines.size());
+
+	int block_kind = 0; // 1 = segments, 2 = pnr chain, 3 = logic_depth chain
+	for (const auto &line : block_lines) {
+		std::string_view num_tok;
+		std::string_view rest;
+		if (!is_numbered_chain_line(line, num_tok, rest)) {
+			rows.push_back({false, line, {}, {}, {}, {}, {}, {}});
+			continue;
+		}
+		if (block_kind == 0) {
+			if (rest.starts_with("`[") || rest.starts_with("[")) {
+				block_kind = 1;
+			} else if (rest.find(" \xe2\x80\x94 ") != std::string_view::npos) {
+				block_kind = 2;
+			} else if (rest.find(" -> ") != std::string_view::npos) {
+				block_kind = 3;
+			}
+		}
+
+		parsed_row r;
+		r.is_item = true;
+		r.raw = line;
+		r.num = std::string(num_tok);
+
+		if (block_kind == 1) {
+			// Segment: `[type]` 0.540 ns — body
+			constexpr std::string_view emdash = " \xe2\x80\x94 ";
+			size_t dash_pos = rest.find(emdash);
+			if (dash_pos != std::string_view::npos) {
+				std::string_view left = trim_sv(rest.substr(0, dash_pos));
+				std::string_view right = trim_sv(rest.substr(dash_pos + emdash.size()));
+				size_t sp = left.find(' ');
+				if (sp != std::string_view::npos) {
+					r.c1 = std::string(trim_sv(left.substr(0, sp)));   // `[logic]`
+					r.c2 = std::string(trim_sv(left.substr(sp + 1)));  // 0.315 ns
+				} else {
+					r.c1 = std::string(left);
+				}
+				r.c3 = std::string(right);
+			} else {
+				r.is_item = false;
+			}
+		} else if (block_kind == 2) {
+			// PnR Chain: `loc` (hint) [| `snippet`] — delay [-> out] [meta]
+			constexpr std::string_view emdash = " \xe2\x80\x94 ";
+			size_t dash_pos = rest.find(emdash);
+			if (dash_pos != std::string_view::npos) {
+				std::string_view left = trim_sv(rest.substr(0, dash_pos));
+				std::string_view right = trim_sv(rest.substr(dash_pos + emdash.size()));
+
+				std::string_view loc_hint = left;
+				std::string_view snippet;
+				size_t pipe_pos = left.find(" | ");
+				if (pipe_pos != std::string_view::npos) {
+					loc_hint = trim_sv(left.substr(0, pipe_pos));
+					snippet = trim_sv(left.substr(pipe_pos + 3));
+				}
+
+				size_t paren_pos = loc_hint.find(" (");
+				if (paren_pos != std::string_view::npos) {
+					r.c1 = std::string(trim_sv(loc_hint.substr(0, paren_pos)));
+					r.c2 = std::string(trim_sv(loc_hint.substr(paren_pos + 1)));
+				} else {
+					r.c1 = std::string(loc_hint);
+				}
+				r.c3 = std::string(snippet);
+
+				size_t close_paren = right.find(')');
+				if (close_paren != std::string_view::npos) {
+					r.c4 = std::string(trim_sv(right.substr(0, close_paren + 1)));
+					r.c5 = std::string(trim_sv(right.substr(close_paren + 1)));
+				} else {
+					r.c4 = std::string(right);
+				}
+			} else {
+				r.is_item = false;
+			}
+		} else if (block_kind == 3) {
+			// Logic Depth Chain: `loc` (lut_info) -> `out` [| `snippet`]
+			std::string_view main_part = rest;
+			std::string_view snippet;
+			size_t pipe_pos = rest.find(" | ");
+			if (pipe_pos != std::string_view::npos) {
+				main_part = trim_sv(rest.substr(0, pipe_pos));
+				snippet = trim_sv(rest.substr(pipe_pos + 3));
+			}
+			size_t arrow_pos = main_part.rfind(" -> ");
+			if (arrow_pos != std::string_view::npos) {
+				std::string_view loc_hint = trim_sv(main_part.substr(0, arrow_pos));
+				std::string_view out_net = trim_sv(main_part.substr(arrow_pos + 1)); // "-> `carry`"
+				size_t paren_pos = loc_hint.find(" (");
+				if (paren_pos != std::string_view::npos) {
+					r.c1 = std::string(trim_sv(loc_hint.substr(0, paren_pos)));
+					r.c2 = std::string(trim_sv(loc_hint.substr(paren_pos + 1)));
+				} else {
+					r.c1 = std::string(loc_hint);
+				}
+				r.c3 = std::string(out_net);
+				r.c4 = std::string(snippet);
+			} else {
+				r.is_item = false;
+			}
+		} else {
+			r.is_item = false;
+		}
+		rows.push_back(std::move(r));
+	}
+
+	if (block_kind == 0) {
+		std::string out;
+		for (const auto &l : block_lines) {
+			out += l + "\n";
+		}
+		return out;
+	}
+
+	size_t w_num = 0, w1 = 0, w2 = 0, w3 = 0, w4 = 0;
+	for (const auto &r : rows) {
+		if (!r.is_item) continue;
+		w_num = std::max(w_num, r.num.size());
+		w1 = std::max(w1, r.c1.size());
+		w2 = std::max(w2, r.c2.size());
+		w3 = std::max(w3, r.c3.size());
+		w4 = std::max(w4, r.c4.size());
+	}
+
+	std::string out;
+	for (const auto &r : rows) {
+		if (!r.is_item) {
+			out += r.raw + "\n";
+			continue;
+		}
+		if (block_kind == 1) {
+			out += std::format("  {} {} {} \xe2\x80\x94 {}\n",
+			                   pad_left(r.num, w_num),
+			                   pad_right(r.c1, w1),
+			                   pad_left(r.c2, w2),
+			                   r.c3);
+		} else if (block_kind == 2) {
+			std::string line = std::format("  {} {}", pad_left(r.num, w_num), pad_right(r.c1, w1));
+			if (w2 > 0) {
+				line += " " + pad_right(r.c2, w2);
+			}
+			if (w3 > 0) {
+				line += " | " + pad_right(r.c3, w3);
+			}
+			line += " \xe2\x80\x94 " + (r.c5.empty() ? r.c4 : (pad_right(r.c4, w4) + " " + r.c5));
+			out += line + "\n";
+		} else if (block_kind == 3) {
+			std::string line = std::format("  {} {}", pad_left(r.num, w_num), pad_right(r.c1, w1));
+			if (w2 > 0) {
+				line += " " + pad_right(r.c2, w2);
+			}
+			if (!r.c4.empty()) {
+				line += " " + pad_right(r.c3, w3) + " | " + r.c4;
+			} else {
+				line += " " + r.c3;
+			}
+			out += line + "\n";
+		}
+	}
+	return out;
+}
+
 static std::string format_for_terminal(const std::string &md, bool framed_tables)
 {
 	if (!framed_tables) {
@@ -23,6 +249,14 @@ static std::string format_for_terminal(const std::string &md, bool framed_tables
 	// Strip inline markdown markers (` and **) inside table rows so terminal column widths match visual width
 	std::string prepped;
 	prepped.reserve(md.size());
+	std::vector<std::string> pending_chain;
+	auto flush_chain = [&]() {
+		if (!pending_chain.empty()) {
+			prepped += align_chain_block(pending_chain);
+			pending_chain.clear();
+		}
+	};
+
 	size_t pos = 0;
 	while (pos < md.size()) {
 		size_t nl = md.find('\n', pos);
@@ -34,6 +268,7 @@ static std::string format_for_terminal(const std::string &md, bool framed_tables
 			trimmed.remove_prefix(1);
 		}
 		if (!trimmed.empty() && trimmed.front() == '|') {
+			flush_chain();
 			for (size_t i = 0; i < line.size(); ++i) {
 				if (line[i] == '`') {
 					continue;
@@ -53,25 +288,40 @@ static std::string format_for_terminal(const std::string &md, bool framed_tables
 				}
 				prepped.push_back(line[i]);
 			}
+			if (nl != std::string::npos) {
+				prepped.push_back('\n');
+			}
 		} else {
+			std::string cleaned_line;
+			cleaned_line.reserve(line.size());
 			for (size_t i = 0; i < line.size(); ++i) {
 				if (i + 1 < line.size() && line[i] == '*' && line[i + 1] == '*') {
 					++i;
 					continue;
 				}
-				prepped.push_back(line[i]);
+				cleaned_line.push_back(line[i]);
+			}
+			std::string_view num_tok, rest_tok;
+			if (is_numbered_chain_line(cleaned_line, num_tok, rest_tok) ||
+			    (!pending_chain.empty() && cleaned_line.starts_with("     "))) {
+				pending_chain.push_back(std::move(cleaned_line));
+			} else {
+				flush_chain();
+				prepped += cleaned_line;
+				if (nl != std::string::npos) {
+					prepped.push_back('\n');
+				}
 			}
 		}
 		if (nl != std::string::npos) {
-			prepped.push_back('\n');
 			pos = nl + 1;
 		} else {
 			break;
 		}
 	}
+	flush_chain();
 	return markdown_utils::align_all_tables(prepped, true);
 }
-
 int main(int argc, char **argv)
 {
 	CLI::App app{
