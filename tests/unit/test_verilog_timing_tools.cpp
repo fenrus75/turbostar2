@@ -377,15 +377,15 @@ void test_verilog_module_scanner()
 
 void test_standalone_verilog_update_timing_cli()
 {
-	std::string cli_bin = "build/turbostar-verilog-update-timing";
+	std::string cli_bin = "build/turbostar-verilog-timing";
 	if (!std::filesystem::exists(cli_bin)) {
 		return;
 	}
 	// Test --help
 	std::string help_out = fs_utils::execute_command_sync(cli_bin + " --help");
-	assert(help_out.find("TurboStar Verilog Timing Sidecar Updater") != std::string::npos);
+	assert(help_out.find("TurboStar Verilog Timing & PnR Analyzer") != std::string::npos);
 
-	// Test dry-run on synthetic directory
+	// Test dry-run (--update mode) on synthetic directory
 	std::string tmp_dir = std::format("tests/unit/tmp_test_vut_cli_{}", (long)getpid());
 	std::filesystem::create_directories(tmp_dir);
 	std::string sv_file = tmp_dir + "/simple_mod.sv";
@@ -400,6 +400,15 @@ void test_standalone_verilog_update_timing_cli()
 	std::string out = fs_utils::execute_command_sync(run_cmd);
 	assert(out.find("simple_mod") != std::string::npos);
 	assert(out.find("DRY-RUN") != std::string::npos);
+
+	// Test default mode (logic_depth) on synthetic module
+	if (!fs_utils::find_executable("yosys").empty()) {
+		std::string ld_cmd = std::format("{} -p {} -m simple_mod", cli_bin, tmp_dir);
+		std::string ld_out = fs_utils::execute_command_sync(ld_cmd);
+		assert(ld_out.find("# Timing: `simple_mod`") != std::string::npos);
+		assert(ld_out.find("## Inputs") != std::string::npos);
+		assert(ld_out.find("## Area Summary") != std::string::npos);
+	}
 
 	// Test auto-detection of sv_path and target from turbostar.json when no path is provided
 	std::string cfg_dir = std::format("tests/unit/tmp_test_vut_cfg_{}", (long)getpid());

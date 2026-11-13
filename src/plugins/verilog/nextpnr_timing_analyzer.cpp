@@ -1365,7 +1365,7 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 			std::string snippet_inline;
 			std::string snippet_block;
 			if (show_code > 0 && !st.raw_src.empty() && !yosys_netlist_reader::is_library_source(st.raw_src)) {
-				std::string sig_hint = !st.out_net.empty() ? st.out_net : st.base_hint;
+				std::string sig_hint = !st.base_hint.empty() ? st.base_hint : st.out_net;
 				std::string snip = yosys_netlist_reader::extract_source_snippet(st.raw_src, sig_hint, netlist_dir_, show_code);
 				if (!snip.empty()) {
 					if (show_code == 1) {

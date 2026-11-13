@@ -121,10 +121,15 @@ class netlist_graph_analyzer
 	static std::string format_source_ranges(std::span<const source_signal_info> sources);
 	static std::string compact_signal_names(std::span<const std::string> names);
 
-	// Format sidecar markdown (.timing.md) and standalone area summary section
+	// Format sidecar markdown (.timing.md), full logic-depth report, and standalone area summary section
 	std::string generate_timing_markdown(std::string_view target_mode = "Generic LUT4", bool include_area = true) const;
+	std::string generate_logic_depth_report_markdown(std::string_view target_mode = "Generic LUT4",
+	                                                 size_t top_k = 3,
+	                                                 bool group_by_sink = true,
+	                                                 bool collapse = true,
+	                                                 int show_code = 1,
+	                                                 std::string_view base_dir = "") const;
 	std::string format_area_markdown(std::string_view target_mode = "Generic LUT4") const;
-
 	// Helper to check if a cell type is a sequential element
 	static bool is_sequential_cell_type(std::string_view type) noexcept;
 	static bool is_lut_cell_type(std::string_view type) noexcept;

@@ -924,22 +924,33 @@ std::string yosys_netlist_reader::clean_display_location(std::string_view loc, s
 	}
 	std::string rel_file(file_part);
 	if (std::filesystem::path(file_part).is_absolute() || file_part.starts_with("file://")) {
-		bool resolved_from_wd = false;
+		std::string_view clean_fp = file_part.starts_with("file://") ? file_part.substr(7) : file_part;
+		std::filesystem::path target_p = std::filesystem::path(clean_fp).lexically_normal();
+
+		std::vector<std::filesystem::path> roots;
+		std::error_code ec;
 		if (!working_dir.empty()) {
-			std::error_code ec;
 			std::filesystem::path wd_p(working_dir);
 			if (std::filesystem::is_regular_file(wd_p, ec)) {
 				wd_p = wd_p.parent_path();
 			}
-			std::string_view clean_fp = file_part.starts_with("file://") ? file_part.substr(7) : file_part;
-			auto rel = std::filesystem::relative(std::filesystem::path(clean_fp).lexically_normal(), wd_p.lexically_normal(), ec);
+			roots.push_back(wd_p.lexically_normal());
+		}
+		std::string proj_dir = fs_utils::get_project_dir();
+		if (!proj_dir.empty()) {
+			roots.push_back(std::filesystem::path(proj_dir).lexically_normal());
+		}
+		auto cwd = std::filesystem::current_path(ec);
+		if (!ec && !cwd.empty()) {
+			roots.push_back(cwd.lexically_normal());
+		}
+
+		for (const auto &root_p : roots) {
+			auto rel = std::filesystem::relative(target_p, root_p, ec);
 			if (!ec && !rel.empty() && !rel.string().starts_with("..")) {
 				rel_file = rel.string();
-				resolved_from_wd = true;
+				break;
 			}
-		}
-		if (!resolved_from_wd) {
-			rel_file = fs_utils::make_relative_to_project(file_part, working_dir);
 		}
 	}
 	if (colon != std::string_view::npos && !line_part.empty()) {
@@ -1010,9 +1021,19 @@ std::string yosys_netlist_reader::extract_source_snippet(std::string_view src_lo
 		for (const char *sub : {"sv", "src", "rtl"}) {
 			if (try_resolve(dir / sub / file_part)) return true;
 		}
+		if (file_part.find('/') == std::string::npos) {
+			for (const fs::path &search_root : {dir, dir / "sv", dir / "src", dir / "rtl"}) {
+				if (fs::is_directory(search_root, ec)) {
+					for (const auto &entry : fs::directory_iterator(search_root, ec)) {
+						if (entry.is_directory(ec) && try_resolve(entry.path() / file_part)) {
+							return true;
+						}
+					}
+				}
+			}
+		}
 		return false;
 	};
-
 	if (!try_resolve(fs::path(file_part)) && !base_dir.empty()) {
 		fs::path bpath(base_dir);
 		if (fs::is_regular_file(bpath, ec)) {

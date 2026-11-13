@@ -317,7 +317,7 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
           <p class="card-desc">Post-routing timing closure with physical chip coordinates and routing delay breakdowns.</p>
           <ul class="detail-list" style="margin-bottom: 1rem;">
             <li><code>verilog_pnr_timing</code>: Full Yosys + <code>nextpnr</code> physical timing analysis reporting Fmax, slack, logic vs. wire delay, fanout, and <code>(dx, dy)</code> tile distance.</li>
-            <li><code>turbostar-verilog-update-timing</code>: Standalone CLI binary for CI pipelines and git hooks.</li>
+            <li><code>turbostar-verilog-timing</code>: Unified 3-in-1 standalone CLI for logic depth, physical PnR (<code>--pnr</code>), and batch sidecar updates (<code>-u</code>) with UTF-8 framed terminal tables.</li>
           </ul>
         </article>
       </div>
@@ -353,8 +353,10 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
 <span class="comment"># or launch turbomcp with --all-tool-families</span>
 turbomcp --project-dir /path/to/rtl-project
 
-<span class="comment"># 3. Or run standalone batch timing &amp; area analysis</span>
-turbostar-verilog-update-timing --target iCE40</code></pre>
+<span class="comment"># 3. Or run the standalone 3-in-1 human CLI</span>
+turbostar-verilog-timing -m alu_mod
+turbostar-verilog-timing --pnr --seeds 4
+turbostar-verilog-timing -u --target iCE40</code></pre>
         </div>
       </div>
     </section>
