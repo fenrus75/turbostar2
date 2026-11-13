@@ -367,7 +367,7 @@ Turbostar supports dynamic plugin loading to extend the editor's capabilities at
 For details on dynamic loading architecture, C-linkage entry points, dynamic symbol linkage, tool registration lifecycles, and unit test lifecycle initialization, refer to `docs/design-plugin.md`.
 
 ### Verilog & FPGA Hardware Design Subsystem
-For details on the `verilog` plugin (`verilog_compile`, `verilog_simulate`, `vcd_*` waveform analysis, `netlist_graph_analyzer` logic depth and in-place `// [timing: ...]` port annotations, `nextpnr_timing_analyzer` physical place-and-route timing closure, and the standalone `turbostar-verilog-timing` CLI), refer to `docs/design-verilog.md`.
+For details on the `verilog` plugin (`verilog_compile`, `verilog_simulate`, `vcd_*` waveform analysis, `netlist_graph_analyzer` logic depth and in-place `// [timing: ...]` port annotations, `nextpnr_timing_analyzer` physical place-and-route timing closure, and the standalone `turbostar-verilog` CLI), refer to `docs/design-verilog.md`.
 ## Project Templates
 Turbostar provides a built-in project creation wizard (`ui_dialog_project`) and template engine (`project_template_manager`).
 - **Template Embedding**: Template files in `templates/` are embedded at build time into `src/project_templates_embedded.h` via `scripts/embed_templates.py`. This ensures TurboStar can instantiate new projects without runtime dependency on external filesystem assets.

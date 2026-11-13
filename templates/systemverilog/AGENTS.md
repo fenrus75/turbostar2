@@ -77,6 +77,7 @@ Limit the use of SystemVerilog language constructs to those supported by both `y
 ## Learnings
 
 ### "Control-Set Homogeneity Beats Reset Stripping"
-  Within a module, it is better for all flip-flops to share the same reset style (e.g. all always_ff @(posedge clk or posedge rst)) than to selectively strip reset from half of them. Keeping control sets identical allows NextPNR to
-  pack 8 flip-flops tightly into single physical tiles with zero inter-tile routing hops.
-
+  Within a module, it is better for all flip-flops to share the same reset style (e.g. all always_ff @(posedge clk or posedge rst)) than to
+  selectively strip reset from half of them. Keeping control sets identical allows NextPNR to pack flip-flops tightly into single physical
+  tiles with zero inter-tile routing hops. This rule overrides other guidance that recommends not using rst - many real-design simulations
+  have shown that it is more important to have homogeneity than to do the avoid-rst optimization (which is valid in the more general case).

@@ -253,6 +253,9 @@ remember to describe features in terms of the benefit to the user or the agent, 
 
 
 # Done
+## 13-11-2026
+- Unified standalone `turbostar-verilog` CLI (`src/verilog_update_timing_main.cpp`, `libverilog_core`): upgraded `turbostar-verilog-timing` to `turbostar-verilog`, factored the 36 Verilog/VCD tool and analyzer sources into `libverilog_core` in `src/plugins/meson.build`, and exposed `config` (`verilog_project_settings` + `verilog_configure_testbench`), `timing` (logic depth, `--pnr`, `-u/--update`), `compile` (`verilog_compile`), `sim` (`verilog_simulate`), and `vcd-info`/`vcd-wave`/`vcd-search`/`vcd-compare`/`vcd-trace`/`vcd-labels`/`vcd-qualifier` subcommands with UTF-8 framed terminal tables. (Completed)
+- In-place `// [timing: ...]` port annotations (`netlist_graph_analyzer`, `verilog_update_timing_tool`), `-abc9` Yosys synthesis consistency across `synth_ice40`/`synth_ecp5`, and `docs/design-verilog.md` architectural documentation split. (Completed)
 ## 07-11-2026
 - Optimize build & link performance: split libturbostar_core into modular libraries (libturbostar_base, libturbostar_highlighter, libturbostar_codeintel, libturbostar_hex, libturbostar_document, libturbostar_inspector, libturbostar_core), decoupled test_watchdog.h and llm_types.h, configured lld linker integration (-fuse-ld=lld), and pruned test dependencies, cutting ninja rebuilt tasks by 48% and reducing wall-clock turnaround from 43.4s to 30.3s. (Completed)
 ## 03-11-2026

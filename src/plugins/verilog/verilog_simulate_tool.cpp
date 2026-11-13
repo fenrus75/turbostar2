@@ -194,7 +194,10 @@ tb_compile_result compile_single_testbench(
 		mdir_leaf += std::format("_{}", plan_idx);
 	}
 
-	res.mdir = fs::absolute(fs::path(fs_utils::get_project_tmp_dir()) / mdir_leaf, ec);
+	fs::path base_tmp = (fs::weakly_canonical(root_path, ec) == fs::weakly_canonical(fs::current_path(ec), ec))
+		? fs::path(fs_utils::get_project_tmp_dir())
+		: (root_path / ".turbostar_tmp");
+	res.mdir = fs::absolute(base_tmp / mdir_leaf, ec);
 	fs::create_directories(res.mdir, ec);
 	res.sim_bin = res.mdir / std::format("V{}", top_mod);
 	if (fs::exists(res.sim_bin, ec)) {

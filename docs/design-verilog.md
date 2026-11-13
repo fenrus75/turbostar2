@@ -1,7 +1,6 @@
 # Verilog & FPGA Hardware Design Architecture
 
-The `verilog` plugin (`src/plugins/verilog/`) and standalone CLI (`turbostar-verilog-timing`) provide an integrated hardware engineering suite for Verilog/SystemVerilog RTL linting, synthesis triage, testbench simulation, VCD waveform analysis, structural logic-depth analysis, in-place port timing annotations, and post-routing physical timing closure.
-
+The `verilog` plugin (`src/plugins/verilog/`) and standalone CLI (`turbostar-verilog`) provide an integrated hardware engineering suite for Verilog/SystemVerilog RTL linting, synthesis triage, testbench simulation, VCD waveform analysis, structural logic-depth analysis, in-place port timing annotations, and post-routing physical timing closure.
 ---
 
 ## 1. Project Configuration & Discovery (`fpga_project_settings`, `verilog_module_scanner`)
@@ -71,11 +70,15 @@ The `verilog` plugin (`src/plugins/verilog/`) and standalone CLI (`turbostar-ver
 
 ---
 
-## 6. Standalone 3-in-1 CLI (`turbostar-verilog-timing`)
+## 6. Standalone Unified CLI (`turbostar-verilog`)
 
-- **Unified Terminal & CI Utility (`src/verilog_update_timing_main.cpp`)**:
-  - Packages all three timing engines into a standalone binary (`turbostar-verilog-timing`, with a backwards-compatible `turbostar-verilog-update-timing` symlink) usable in developer terminals, Makefiles, and CI pipelines without launching the TUI or MCP server:
-    1. **Logic Depth Mode (default)**: `turbostar-verilog-timing [-m module] [-k top_k] [-c lines]`
-    2. **Physical Place & Route Mode**: `turbostar-verilog-timing --pnr [-m module] [--seeds N] [--segments]`
-    3. **Batch In-Place Port Annotation Mode**: `turbostar-verilog-timing -u [--dry-run]`
+- **Unified Terminal & CI Utility (`src/verilog_update_timing_main.cpp`, `libverilog_core`)**:
+  - Packages the entire Verilog, FPGA timing, and VCD waveform toolset into a standalone binary (`turbostar-verilog`) usable in developer terminals, Makefiles, and CI pipelines without launching the TUI or MCP server:
+    1. **Project & Testbench Configuration (`config`)**: `turbostar-verilog config [--target ice40 --device hx8k --package cb132 --top main --freq 80 --pcf pins.pcf --sv-path sv] [--tb tb/tb_alu.sv]`
+    2. **Timing Analysis (`timing` or default top-level mode)**:
+       - Logic Depth Mode: `turbostar-verilog [timing] [-m module] [-k top_k] [-c lines]`
+       - Physical Place & Route Mode: `turbostar-verilog [timing] --pnr [-m module] [--seeds N] [--segments]`
+       - Batch In-Place Port Annotation Mode: `turbostar-verilog [timing] -u [--dry-run]`
+    3. **Compilation & Simulation (`compile`, `sim`)**: `turbostar-verilog compile [-m mod] [--lint-only]` and `turbostar-verilog sim [-m mod] [-H]`
+    4. **VCD Waveform Suite (`vcd-info`, `vcd-wave`, `vcd-search`, `vcd-compare`, `vcd-trace`, `vcd-labels`, `vcd-qualifier`)**: Clock-aligned waveform tables, multi-signal condition search, cycle-by-cycle VCD diffing, and RTL net traceability.
   - Formats terminal output with UTF-8 box-drawing tables via `markdown_utils::align_all_tables` (disable via `--no-frames`) and vertically aligns numbered critical-path and segment chains for human readability.

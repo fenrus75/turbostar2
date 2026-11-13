@@ -274,21 +274,11 @@ turbostar_semcode_indexer_exe = executable('turbostar-semcode-indexer',
   include_directories: inc,
   install : true)
 
-turbostar_verilog_timing_exe = executable('turbostar-verilog-timing',
-  ['src/verilog_update_timing_main.cpp',
-   'src/plugins/verilog/verilog_module_scanner.cpp',
-   'src/plugins/verilog/netlist_graph_analyzer.cpp',
-   'src/plugins/verilog/nextpnr_timing_analyzer.cpp',
-   'src/plugins/verilog/yosys_netlist_reader.cpp',
-   'src/plugins/verilog/fpga_project_settings.cpp'],
-  dependencies : [core_dep, nlohmann_json_dep, ctre_dep],
+turbostar_verilog_exe = executable('turbostar-verilog',
+  'src/verilog_update_timing_main.cpp',
+  dependencies : [verilog_core_dep],
   include_directories: inc,
   install : true)
-
-install_symlink('turbostar-verilog-update-timing',
-  install_dir: 'bin',
-  pointing_to: 'turbostar-verilog-timing'
-)
 run_clang_tidy_sh = files('scripts/run_clang_tidy.sh')
 run_target('clang-tidy-critical',
   command: [run_clang_tidy_sh, '--critical', meson.project_build_root()]

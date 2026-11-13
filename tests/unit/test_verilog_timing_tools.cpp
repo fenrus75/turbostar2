@@ -379,13 +379,15 @@ void test_verilog_module_scanner()
 
 void test_standalone_verilog_update_timing_cli()
 {
-	std::string cli_bin = "build/turbostar-verilog-timing";
+	std::string cli_bin = "build/turbostar-verilog";
 	if (!std::filesystem::exists(cli_bin)) {
 		return;
 	}
 	// Test --help
 	std::string help_out = fs_utils::execute_command_sync(cli_bin + " --help");
-	assert(help_out.find("TurboStar Verilog Timing & PnR Analyzer") != std::string::npos);
+	assert(help_out.find("TurboStar SystemVerilog, FPGA & VCD Toolkit (turbostar-verilog)") != std::string::npos);
+	assert(help_out.find("config") != std::string::npos);
+	assert(help_out.find("vcd-wave") != std::string::npos);
 
 	// Test dry-run (--update mode) on synthetic directory
 	std::string tmp_dir = std::format("tests/unit/tmp_test_vut_cli_{}", (long)getpid());
@@ -403,22 +405,18 @@ void test_standalone_verilog_update_timing_cli()
 	assert(out.find("simple_mod") != std::string::npos);
 	assert(out.find("DRY-RUN") != std::string::npos);
 
-	// Test default mode (logic_depth) on synthetic module
+	// Test default mode (logic_depth) and 'timing' subcommand on synthetic module
 	if (!fs_utils::find_executable("yosys").empty()) {
-		std::string ld_cmd = std::format("{} -p {} -m simple_mod", cli_bin, tmp_dir);
+		std::string ld_cmd = std::format("{} timing -p {} -m simple_mod", cli_bin, tmp_dir);
 		std::string ld_out = fs_utils::execute_command_sync(ld_cmd);
 		assert(ld_out.find("# Timing: `simple_mod`") != std::string::npos);
 		assert(ld_out.find("## Inputs") != std::string::npos);
 		assert(ld_out.find("## Area Summary") != std::string::npos);
 	}
 
-	// Test auto-detection of sv_path and target from turbostar.json when no path is provided
+	// Test 'config' subcommand to populate turbostar.json, then run --dry-run
 	std::string cfg_dir = std::format("tests/unit/tmp_test_vut_cfg_{}", (long)getpid());
 	std::filesystem::create_directories(cfg_dir + "/hdl");
-	{
-		std::ofstream c_ofs(cfg_dir + "/turbostar.json");
-		c_ofs << "{\n  \"fpga\": {\n    \"target\": \"ice40\",\n    \"sv_path\": \"hdl\"\n  }\n}\n";
-	}
 	{
 		std::ofstream s_ofs(cfg_dir + "/hdl/cfg_mod.sv");
 		s_ofs << "module cfg_mod(input clk, input d, output reg q);\n"
@@ -427,10 +425,29 @@ void test_standalone_verilog_update_timing_cli()
 	}
 
 	std::string abs_cli_bin = std::filesystem::canonical(cli_bin).string();
+	std::string set_cfg_cmd = std::format(
+		"cd {} && {} config --target ice40 --device hx8k --package cb132 --top cfg_mod --freq 75 --sv-path hdl",
+		cfg_dir, abs_cli_bin);
+	std::string set_cfg_out = fs_utils::execute_command_sync(set_cfg_cmd);
+	assert(set_cfg_out.find("Successfully saved FPGA project configuration") != std::string::npos);
+	assert(std::filesystem::exists(cfg_dir + "/turbostar.json"));
+
 	std::string cfg_cmd = std::format("cd {} && {} --dry-run", cfg_dir, abs_cli_bin);
 	std::string cfg_out = fs_utils::execute_command_sync(cfg_cmd);
 	assert(cfg_out.find("cfg_mod") != std::string::npos);
 	assert(cfg_out.find("Target: iCE40") != std::string::npos);
+
+	// Test 'vcd-info' and 'vcd-wave' subcommands on fixture VCD
+	if (std::filesystem::exists("tests/fixtures/test_dump.vcd")) {
+		std::string vinfo_out = fs_utils::execute_command_sync(
+			std::format("{} vcd-info tests/fixtures/test_dump.vcd", cli_bin));
+		assert(vinfo_out.find("Timescale") != std::string::npos);
+
+		std::string vwave_out = fs_utils::execute_command_sync(
+			std::format("{} vcd-wave tests/fixtures/test_dump.vcd -s current_ip,instruction_data --max-rows 10", cli_bin));
+		assert(vwave_out.find("current_ip") != std::string::npos);
+		assert(vwave_out.find("instruction_data") != std::string::npos);
+	}
 
 	std::error_code ec;
 	std::filesystem::remove_all(tmp_dir, ec);

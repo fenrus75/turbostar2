@@ -13,10 +13,10 @@ public:
     interaction_role get_role() const override { return interaction_role::agent; }
 
     void set_status(status s, const std::string& result_message = "");
+    status get_status() const noexcept { return status_; }
     void set_action_text(const std::string& text);
 
     std::string get_raw_text() const override;
-
 protected:
     std::vector<interaction_line> format_lines(int width, background_mode bg) const override;
     

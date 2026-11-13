@@ -1855,7 +1855,7 @@ int main()
 		register_verilog_configure_testbench();
 		unregister_verilog_configure_testbench();
 
-		std::filesystem::path tmp_proj = std::filesystem::temp_directory_path() / "turbostar_test_mod_sim";
+		std::filesystem::path tmp_proj = std::format("tests/unit/tmp_mod_sim_{}", (long)getpid());
 		std::filesystem::remove_all(tmp_proj);
 		std::filesystem::create_directories(tmp_proj / "sv" / "alu");
 		std::filesystem::create_directories(tmp_proj / "sv" / "cpu");

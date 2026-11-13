@@ -28,7 +28,7 @@ bool verilog_module_scanner::is_ignored_file(const std::filesystem::path &p)
 	}
 	for (const auto &part : p) {
 		std::string s = part.string();
-		if (s == ".git" || s == ".antigravitycli" || s == ".turbostar" || s == "build" ||
+		if ((s.size() > 1 && s[0] == '.' && s != "..") || s == "build" ||
 		    s == "obj_dir" || s == "tb" || s == "testbench" || s == "templates") {
 			return true;
 		}
@@ -100,15 +100,22 @@ std::vector<std::string> verilog_module_scanner::find_synthesizable_files(const 
 			}
 		}
 	} else if (std::filesystem::is_directory(root, ec)) {
-		for (const auto &entry : std::filesystem::recursive_directory_iterator(root)) {
-			if (entry.is_regular_file()) {
-				if (is_ignored_file(entry.path())) {
-					continue;
+		std::filesystem::recursive_directory_iterator it(
+		    root, std::filesystem::directory_options::skip_permission_denied, ec);
+		std::filesystem::recursive_directory_iterator end;
+		while (!ec && it != end) {
+			std::error_code entry_ec;
+			if (it->is_regular_file(entry_ec) && !entry_ec) {
+				if (!is_ignored_file(it->path())) {
+					auto ext = it->path().extension().string();
+					if (ext == ".sv" || ext == ".v") {
+						sv_files.push_back(it->path().string());
+					}
 				}
-				auto ext = entry.path().extension().string();
-				if (ext == ".sv" || ext == ".v") {
-					sv_files.push_back(entry.path().string());
-				}
+			}
+			it.increment(ec);
+			if (ec) {
+				ec.clear();
 			}
 		}
 	}
@@ -169,7 +176,7 @@ bool verilog_module_scanner::is_testbench_file(const std::filesystem::path &p)
 	}
 	for (const auto &part : p) {
 		std::string s = part.string();
-		if (s == ".git" || s == ".antigravitycli" || s == ".turbostar" || s == "build" ||
+		if ((s.size() > 1 && s[0] == '.' && s != "..") || s == "build" ||
 		    s == "obj_dir" || s == "templates") {
 			return false;
 		}
@@ -198,9 +205,17 @@ std::vector<std::string> verilog_module_scanner::find_testbench_files(const std:
 			tb_files.push_back(root.string());
 		}
 	} else if (std::filesystem::is_directory(root, ec)) {
-		for (const auto &entry : std::filesystem::recursive_directory_iterator(root, ec)) {
-			if (entry.is_regular_file(ec) && is_testbench_file(entry.path())) {
-				tb_files.push_back(entry.path().string());
+		std::filesystem::recursive_directory_iterator it(
+		    root, std::filesystem::directory_options::skip_permission_denied, ec);
+		std::filesystem::recursive_directory_iterator end;
+		while (!ec && it != end) {
+			std::error_code entry_ec;
+			if (it->is_regular_file(entry_ec) && !entry_ec && is_testbench_file(it->path())) {
+				tb_files.push_back(it->path().string());
+			}
+			it.increment(ec);
+			if (ec) {
+				ec.clear();
 			}
 		}
 	}
@@ -248,14 +263,21 @@ std::vector<std::string> verilog_module_scanner::stage_readmem_files(std::span<c
 			if (std::filesystem::is_regular_file(src_dir / ref_p, ec)) {
 				found_p = src_dir / ref_p;
 			} else if (ref_p.filename() == ref_p) {
-				for (const auto &entry : std::filesystem::recursive_directory_iterator(work_dir, ec)) {
-					if (entry.is_regular_file(ec) && entry.path().filename() == ref_p) {
-						found_p = entry.path();
+				std::filesystem::recursive_directory_iterator it(
+				    work_dir, std::filesystem::directory_options::skip_permission_denied, ec);
+				std::filesystem::recursive_directory_iterator end;
+				while (!ec && it != end) {
+					std::error_code entry_ec;
+					if (it->is_regular_file(entry_ec) && !entry_ec && it->path().filename() == ref_p) {
+						found_p = it->path();
 						break;
+					}
+					it.increment(ec);
+					if (ec) {
+						ec.clear();
 					}
 				}
 			}
-
 			if (!found_p.empty()) {
 				if (dest_p.has_parent_path()) {
 					std::filesystem::create_directories(dest_p.parent_path(), ec);

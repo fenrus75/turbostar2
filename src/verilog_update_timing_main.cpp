@@ -2,6 +2,19 @@
 #include "plugins/verilog/nextpnr_timing_analyzer.h"
 #include "plugins/verilog/verilog_module_scanner.h"
 #include "plugins/verilog/fpga_project_settings.h"
+#include "plugins/verilog/verilog_project_settings_validator.h"
+#include "plugins/verilog/verilog_configure_testbench_validator.h"
+#include "plugins/verilog/verilog_compile_validator.h"
+#include "plugins/verilog/verilog_simulate_validator.h"
+#include "plugins/verilog/vcd_file_info_validator.h"
+#include "plugins/verilog/vcd_wave_validator.h"
+#include "plugins/verilog/vcd_search_validator.h"
+#include "plugins/verilog/vcd_compare_validator.h"
+#include "plugins/verilog/vcd_signal_to_code_validator.h"
+#include "plugins/verilog/vcd_signal_labels_validator.h"
+#include "plugins/verilog/vcd_signal_qualifier_validator.h"
+#include "agentlib/interactions/action.h"
+#include "agentlib/tool_context.h"
 #include "fs_utils.h"
 #include "markdown_utils.h"
 
@@ -10,11 +23,12 @@
 #include <fstream>
 #include <format>
 #include <iostream>
+#include <nlohmann/json.hpp>
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace fs = std::filesystem;
-
 static std::string_view trim_sv(std::string_view sv)
 {
 	while (!sv.empty() && (sv.front() == ' ' || sv.front() == '\t')) {
@@ -295,7 +309,8 @@ static std::string format_for_terminal(const std::string &md, bool framed_tables
 			std::string cleaned_line;
 			cleaned_line.reserve(line.size());
 			for (size_t i = 0; i < line.size(); ++i) {
-				if (i + 1 < line.size() && line[i] == '*' && line[i + 1] == '*') {
+				if (i + 1 < line.size() && line[i] == '*' && line[i + 1] == '*' &&
+				    !(i > 0 && line[i - 1] == '`' && i + 2 < line.size() && line[i + 2] == '`')) {
 					++i;
 					continue;
 				}
@@ -322,14 +337,109 @@ static std::string format_for_terminal(const std::string &md, bool framed_tables
 	flush_chain();
 	return markdown_utils::align_all_tables(prepped, true);
 }
+static std::vector<std::string> split_csv_list(const std::vector<std::string> &raw_items)
+{
+	std::vector<std::string> out;
+	for (const auto &item : raw_items) {
+		size_t pos = 0;
+		while (pos < item.size()) {
+			size_t comma = item.find(',', pos);
+			std::string_view tok = (comma == std::string::npos)
+				? std::string_view(item).substr(pos)
+				: std::string_view(item).substr(pos, comma - pos);
+			tok = trim_sv(tok);
+			if (!tok.empty()) {
+				out.emplace_back(tok);
+			}
+			if (comma == std::string::npos) {
+				break;
+			}
+			pos = comma + 1;
+		}
+	}
+	return out;
+}
+
+static bool parse_kv_pairs(const std::vector<std::string> &raw_items,
+                           nlohmann::json &out_obj,
+                           std::string &out_err)
+{
+	out_obj = nlohmann::json::object();
+	for (const auto &item : raw_items) {
+		for (const auto &tok : split_csv_list({item})) {
+			size_t eq = tok.find('=');
+			if (eq == std::string::npos || eq == 0) {
+				out_err = std::format("Expected 'key=value' pair, got '{}'", tok);
+				return false;
+			}
+			std::string_view k = trim_sv(std::string_view(tok).substr(0, eq));
+			size_t val_start = eq + 1;
+			if (val_start < tok.size() && tok[val_start] == '=') {
+				++val_start; // Support 'sig==val' as well as 'sig=val'
+			}
+			std::string_view v = trim_sv(std::string_view(tok).substr(val_start));
+			if (k.empty() || v.empty()) {
+				out_err = std::format("Empty key or value in '{}'", tok);
+				return false;
+			}
+			out_obj[std::string(k)] = std::string(v);
+		}
+	}
+	return true;
+}
+
+template <typename ValidatorT>
+static int run_validator_tool(const nlohmann::json &args, const std::string &cwd_str, bool framed_tables)
+{
+	agentlib::tool_context ctx;
+	std::error_code ec;
+	if (fs::is_directory(cwd_str, ec)) {
+		ctx.fs_security.set_working_directory(cwd_str);
+	}
+	ctx.fs_security.add_allowed_root(cwd_str, agentlib::access_type::write);
+	ctx.fs_security.add_allowed_root("/tmp", agentlib::access_type::write);
+
+	ValidatorT validator;
+	std::string err;
+	if (!validator.validate_args(args, ctx, err)) {
+		std::cerr << std::format("Error: {}\n", err);
+		return 1;
+	}
+	auto tool = validator.create_tool(args);
+	if (!tool) {
+		std::cerr << "Error: Failed to create tool instance.\n";
+		return 1;
+	}
+	std::string out = tool->execute(ctx);
+	std::cout << format_for_terminal(out, framed_tables);
+	if (!out.empty() && out.back() != '\n') {
+		std::cout << "\n";
+	}
+	auto inter = std::dynamic_pointer_cast<agentlib::interaction_action>(tool->get_interaction());
+	if (inter && inter->get_status() == agentlib::interaction_action::status::failure) {
+		return 1;
+	}
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	CLI::App app{
-		"TurboStar Verilog Timing & PnR Analyzer (turbostar-verilog-timing)\n"
-		"  Default mode : Analyze pre-PnR logic depth, critical paths & area for a module (verilog_logic_depth)\n"
-		"  --pnr        : Run physical place-and-route timing closure analysis (verilog_pnr_timing)\n"
-		"  -u, --update : Batch-synthesize all modules and update in-place // [timing: ...] port annotations (verilog_update_timing)"
+		"TurboStar SystemVerilog, FPGA & VCD Toolkit (turbostar-verilog)\n"
+		"  Subcommands:\n"
+		"    config        Inspect or update turbostar.json FPGA & testbench settings\n"
+		"    timing        Logic depth (default), physical PnR (--pnr), or in-place port annotations (-u)\n"
+		"    compile       Run Verilator lint, Yosys synthesis & nextpnr triage\n"
+		"    sim           Compile and run SystemVerilog testbenches\n"
+		"    vcd-info      Inspect VCD timescale, clock, hierarchy scopes, and signal list\n"
+		"    vcd-wave      Render clock-aligned VCD waveform tables\n"
+		"    vcd-search    Search VCD trace for clock cycles matching signal conditions\n"
+		"    vcd-compare   Compare two VCD traces cycle-by-cycle for divergence\n"
+		"    vcd-trace     Trace a VCD signal back to its RTL driver and consumer lines\n"
+		"    vcd-labels    Register or list symbolic value labels for VCD signals\n"
+		"    vcd-qualifier Register or list validity qualifiers for VCD buses"
 	};
+	app.require_subcommand(0, 1);
 
 	bool mode_pnr = false;
 	bool mode_update = false;
@@ -375,11 +485,350 @@ int main(int argc, char **argv)
 	app.add_flag("-q,--quiet", quiet, "Quiet mode in --update mode: suppress progress output");
 	app.add_flag("-v,--verbose", verbose, "Verbose mode: print synthesis failure logs (or enable --segments in --pnr mode)");
 
+	// Subcommand: timing (aliases top-level options via fallthrough)
+	auto *sub_timing = app.add_subcommand("timing", "Analyze logic depth, physical PnR (--pnr), or update port annotations (-u)");
+	sub_timing->fallthrough();
+	sub_timing->add_option("path", untrusted_path, "Target directory, RTL source file, or module name");
+
+	// Subcommand: config (verilog_project_settings + verilog_configure_testbench)
+	auto *sub_config = app.add_subcommand("config", "Inspect or update FPGA project and testbench configuration in turbostar.json");
+	sub_config->fallthrough();
+	std::string cfg_target, cfg_device, cfg_package, cfg_top, cfg_pcf, cfg_sv_path, cfg_yosys_args;
+	double cfg_freq = 0.0;
+	std::string cfg_tb, cfg_tb_level;
+	std::vector<std::string> cfg_tb_modules;
+	bool cfg_tb_hier = false;
+	bool cfg_tb_no_hier = false;
+	bool cfg_tb_remove = false;
+	bool cfg_tb_list = false;
+	sub_config->add_option("--target", cfg_target, "Target FPGA architecture (e.g. 'ice40', 'ecp5', 'generic')");
+	sub_config->add_option("--device", cfg_device, "FPGA device part (e.g. 'hx8k', 'lp8k')");
+	sub_config->add_option("--package", cfg_package, "FPGA package (e.g. 'cb132', 'sg48')");
+	sub_config->add_option("--top,--top-module", cfg_top, "Synthesizable top-level module name (e.g. 'main', 'top')");
+	sub_config->add_option("--freq,--freq-mhz", cfg_freq, "Target clock frequency in MHz (e.g. 75.0)");
+	sub_config->add_option("--pcf,--pcf-file", cfg_pcf, "Path to physical pin constraint file (*.pcf)");
+	sub_config->add_option("--sv-path", cfg_sv_path, "Root directory for synthesizable RTL sources (e.g. 'sv', 'src')");
+	sub_config->add_option("--yosys-args", cfg_yosys_args, "Optional extra Yosys synthesis arguments (e.g. '-abc9')");
+	sub_config->add_option("-b,--tb,--testbench", cfg_tb, "Testbench file to associate in turbostar.json (e.g. 'tb/tb_alu.sv')");
+	sub_config->add_option("--modules", cfg_tb_modules, "RTL module(s) verified by --tb (comma-separated or repeatable)");
+	sub_config->add_option("--level", cfg_tb_level, "Testbench tier ('quick', 'comprehensive', 'extreme')");
+	sub_config->add_flag("--hierarchical", cfg_tb_hier, "Enable hierarchical submodule testing by default for --modules");
+	sub_config->add_flag("--no-hierarchical", cfg_tb_no_hier, "Disable hierarchical submodule testing default for --modules");
+	sub_config->add_flag("--remove-tb", cfg_tb_remove, "Remove testbench association specified by --tb");
+	sub_config->add_flag("--list-tb", cfg_tb_list, "List configured and auto-discovered testbenches");
+
+	// Subcommand: compile (verilog_compile)
+	auto *sub_compile = app.add_subcommand("compile", "Compile and verify RTL with Verilator lint, Yosys synthesis, and nextpnr");
+	sub_compile->fallthrough();
+	std::string cmp_module, cmp_output;
+	bool cmp_lint_only = false;
+	bool cmp_synth_only = false;
+	sub_compile->add_option("module,-m,--module", cmp_module, "Target RTL module name or source file (default: top_module)");
+	sub_compile->add_flag("-l,--lint-only", cmp_lint_only, "Run fast Verilator static lint only");
+	sub_compile->add_flag("-s,--synth-only", cmp_synth_only, "Run Verilator lint + Yosys synthesis without nextpnr");
+	sub_compile->add_option("-o,--output", cmp_output, "Path to write full raw compilation log");
+
+	// Subcommand: sim (verilog_simulate)
+	auto *sub_sim = app.add_subcommand("sim", "Compile and run SystemVerilog/Verilog testbenches");
+	sub_sim->alias("simulate");
+	sub_sim->fallthrough();
+	std::string sim_module, sim_tb, sim_level, sim_top;
+	int sim_timeout = 0;
+	bool sim_hier = false;
+	bool sim_quiet = false;
+	bool sim_verbose = false;
+	sub_sim->add_option("module,-m,--module", sim_module, "Target RTL module name or source file");
+	sub_sim->add_option("-b,--tb,--testbench", sim_tb, "Specific testbench file to run");
+	sub_sim->add_flag("-H,--hierarchical", sim_hier, "Also run testbenches for all transitive submodules bottom-up");
+	sub_sim->add_option("-l,--level", sim_level, "Test tier filter ('quick', 'comprehensive', 'extreme')");
+	sub_sim->add_option("--top", sim_top, "Override top-level testbench module identifier");
+	sub_sim->add_option("--timeout", sim_timeout, "Simulation timeout in seconds per testbench");
+	sub_sim->add_flag("-q,--quiet,--summary-only", sim_quiet, "Show summary table only for passing testbenches");
+	sub_sim->add_flag("-v,--verbose", sim_verbose, "Include full stdout and VCD details for all passing testbenches");
+
+	// Subcommand: vcd-info (vcd_file_info)
+	auto *sub_vcd_info = app.add_subcommand("vcd-info", "Inspect VCD file timescale, clock, hierarchy scopes, and signals");
+	sub_vcd_info->fallthrough();
+	std::string vinfo_path, vinfo_clock, vinfo_scope, vinfo_filter;
+	size_t vinfo_max_signals = 0;
+	bool vinfo_stats = false;
+	std::optional<size_t> vinfo_start, vinfo_end;
+	sub_vcd_info->add_option("path,-f,--file", vinfo_path, "Path to VCD file (auto-detected from testbench if omitted)");
+	sub_vcd_info->add_option("--clock", vinfo_clock, "Reference clock signal name");
+	sub_vcd_info->add_option("--scope", vinfo_scope, "Filter signals by hierarchical scope prefix");
+	sub_vcd_info->add_option("--filter", vinfo_filter, "Filter signal names by wildcard pattern (e.g. '*addr*')");
+	sub_vcd_info->add_option("--max-signals", vinfo_max_signals, "Maximum number of signals to display (default: 100)");
+	sub_vcd_info->add_flag("--stats", vinfo_stats, "Include First Toggle tick and Toggle Rate columns");
+	sub_vcd_info->add_option("--start,--start-tick", vinfo_start, "Starting clock tick for toggle statistics");
+	sub_vcd_info->add_option("--end,--end-tick", vinfo_end, "Ending clock tick for toggle statistics");
+
+	// Subcommand: vcd-wave (vcd_wave)
+	auto *sub_vcd_wave = app.add_subcommand("vcd-wave", "Sample and format clock-aligned VCD waveform tables");
+	sub_vcd_wave->fallthrough();
+	std::string vwave_path, vwave_radix, vwave_clock, vwave_edge, vwave_gtkw;
+	std::vector<std::string> vwave_signals;
+	std::optional<size_t> vwave_start, vwave_end, vwave_max_rows;
+	std::optional<uint64_t> vwave_start_time, vwave_end_time;
+	bool vwave_no_collapse = false;
+	sub_vcd_wave->add_option("path,-f,--file", vwave_path, "Path to VCD file (auto-detected if omitted)");
+	sub_vcd_wave->add_option("-s,--signals", vwave_signals, "Signal names to sample (comma-separated or repeatable)")->required();
+	sub_vcd_wave->add_option("--radix,--format", vwave_radix, "Default multi-bit radix: 'hex', 'bin', or 'dec'");
+	sub_vcd_wave->add_option("--clock", vwave_clock, "Clock signal to sample on");
+	sub_vcd_wave->add_option("--edge", vwave_edge, "Clock edge: 'posedge' (default), 'negedge', or 'both'");
+	sub_vcd_wave->add_option("--start,--start-tick", vwave_start, "Starting clock tick index");
+	sub_vcd_wave->add_option("--end,--end-tick", vwave_end, "Ending clock tick index");
+	sub_vcd_wave->add_option("--start-time", vwave_start_time, "Start time in VCD timescale units");
+	sub_vcd_wave->add_option("--end-time", vwave_end_time, "End time in VCD timescale units");
+	sub_vcd_wave->add_option("--max-rows,--cycles", vwave_max_rows, "Maximum rows to display (default: 50)");
+	sub_vcd_wave->add_flag("--no-collapse", vwave_no_collapse, "Do not collapse consecutive idle clock cycles");
+	sub_vcd_wave->add_option("--gtkw", vwave_gtkw, "Write GTKWave save file (.gtkw)");
+
+	// Subcommand: vcd-search (vcd_search)
+	auto *sub_vcd_search = app.add_subcommand("vcd-search", "Search VCD trace for clock cycles matching signal values");
+	sub_vcd_search->fallthrough();
+	std::string vsearch_path, vsearch_sig, vsearch_val, vsearch_clock, vsearch_edge;
+	std::vector<std::string> vsearch_conds;
+	std::optional<size_t> vsearch_limit, vsearch_start, vsearch_end;
+	std::optional<uint64_t> vsearch_start_time, vsearch_end_time;
+	bool vsearch_first = false, vsearch_last = false, vsearch_backward = false;
+	sub_vcd_search->add_option("path,-f,--file", vsearch_path, "Path to VCD file (auto-detected if omitted)");
+	sub_vcd_search->add_option("-c,--cond,--condition", vsearch_conds, "Signal match condition(s) 'sig=val' (comma-separated or repeatable)");
+	sub_vcd_search->add_option("-s,--signal", vsearch_sig, "Signal name for single-signal search");
+	sub_vcd_search->add_option("--value", vsearch_val, "Expected value for single-signal search");
+	sub_vcd_search->add_option("--clock", vsearch_clock, "Clock signal to sample on");
+	sub_vcd_search->add_option("--edge", vsearch_edge, "Clock edge: 'posedge', 'negedge', or 'both'");
+	sub_vcd_search->add_flag("--backward", vsearch_backward, "Search backward from end of trace");
+	sub_vcd_search->add_option("-l,--limit", vsearch_limit, "Maximum matched intervals to return (default: 10)");
+	sub_vcd_search->add_flag("--first", vsearch_first, "Return only the first matched interval");
+	sub_vcd_search->add_flag("--last", vsearch_last, "Return only the last matched interval");
+	sub_vcd_search->add_option("--start,--start-tick", vsearch_start, "Starting clock tick index");
+	sub_vcd_search->add_option("--end,--end-tick", vsearch_end, "Ending clock tick index");
+	sub_vcd_search->add_option("--start-time", vsearch_start_time, "Start time in VCD timescale units");
+	sub_vcd_search->add_option("--end-time", vsearch_end_time, "End time in VCD timescale units");
+
+	// Subcommand: vcd-compare (vcd_compare)
+	auto *sub_vcd_cmp = app.add_subcommand("vcd-compare", "Compare two VCD traces cycle-by-cycle for divergence");
+	sub_vcd_cmp->fallthrough();
+	std::string vcmp_a, vcmp_b, vcmp_scope, vcmp_clock, vcmp_edge;
+	std::vector<std::string> vcmp_signals;
+	std::optional<size_t> vcmp_start, vcmp_end;
+	bool vcmp_strict = false;
+	sub_vcd_cmp->add_option("path_a", vcmp_a, "First (golden/reference) VCD file")->required();
+	sub_vcd_cmp->add_option("path_b", vcmp_b, "Second (candidate/test) VCD file")->required();
+	sub_vcd_cmp->add_option("-s,--signals", vcmp_signals, "Optional signal names or wildcard patterns to compare");
+	sub_vcd_cmp->add_option("--scope", vcmp_scope, "Optional scope prefix filter");
+	sub_vcd_cmp->add_option("--clock", vcmp_clock, "Clock signal to sample on");
+	sub_vcd_cmp->add_option("--edge", vcmp_edge, "Clock edge: 'posedge', 'negedge', or 'both'");
+	sub_vcd_cmp->add_option("--start,--start-tick", vcmp_start, "Starting clock tick index");
+	sub_vcd_cmp->add_option("--end,--end-tick", vcmp_end, "Ending clock tick index");
+	sub_vcd_cmp->add_flag("--strict", vcmp_strict, "Fail if signal manifests differ between files");
+
+	// Subcommand: vcd-trace (vcd_signal_to_code)
+	auto *sub_vcd_trace = app.add_subcommand("vcd-trace", "Trace a VCD simulation signal to RTL declarations, drivers, and loads");
+	sub_vcd_trace->fallthrough();
+	std::string vtrace_sig, vtrace_netlist;
+	sub_vcd_trace->add_option("signal,-s,--signal", vtrace_sig, "Simulation signal name (e.g. 'cpu8008.A_val')")->required();
+	sub_vcd_trace->add_option("-n,--netlist", vtrace_netlist, "Optional hierarchy-preserving Yosys JSON netlist");
+
+	// Subcommand: vcd-labels (vcd_signal_labels)
+	auto *sub_vcd_labels = app.add_subcommand("vcd-labels", "Register, query, or clear symbolic value labels for VCD signals");
+	sub_vcd_labels->fallthrough();
+	std::string vlbl_sig, vlbl_path;
+	std::vector<std::string> vlbl_maps;
+	bool vlbl_clear = false, vlbl_local = false;
+	sub_vcd_labels->add_option("signal,-s,--signal", vlbl_sig, "Signal name or wildcard pattern (e.g. 'opcode', '*state*')");
+	sub_vcd_labels->add_option("-m,--map", vlbl_maps, "Value-to-label mappings 'val=label' (comma-separated or repeatable)");
+	sub_vcd_labels->add_option("-f,--file", vlbl_path, "Optional VCD file path");
+	sub_vcd_labels->add_flag("--clear", vlbl_clear, "Clear labels for the specified signal (or all signals if omitted)");
+	sub_vcd_labels->add_flag("--local", vlbl_local, "Save to '<vcd>.labels.json' instead of project-wide 'vcd_labels.json'");
+
+	// Subcommand: vcd-qualifier (vcd_signal_qualifier)
+	auto *sub_vcd_qual = app.add_subcommand("vcd-qualifier", "Register, query, or clear validity qualifiers for VCD signals");
+	sub_vcd_qual->fallthrough();
+	std::string vqual_sig, vqual_qual, vqual_path;
+	bool vqual_clear = false, vqual_local = false;
+	sub_vcd_qual->add_option("signal,-s,--signal", vqual_sig, "Signal name or wildcard pattern to qualify");
+	sub_vcd_qual->add_option("-q,--qualifier,--valid", vqual_qual, "1-bit qualifier signal (prefix '~' for active-low)");
+	sub_vcd_qual->add_option("-f,--file", vqual_path, "Optional VCD file path");
+	sub_vcd_qual->add_flag("--clear", vqual_clear, "Clear qualifier for the specified signal (or all if omitted)");
+	sub_vcd_qual->add_flag("--local", vqual_local, "Save to '<vcd>.labels.json' instead of project-wide 'vcd_labels.json'");
+
 	CLI11_PARSE(app, argc, argv);
 	const bool framed_tables = !no_frames;
 
-	std::string prog_name = (argc > 0 && argv[0]) ? fs::path(argv[0]).filename().string() : "";
-	if (prog_name.find("update-timing") != std::string::npos || dry_run) {
+	std::error_code ec;
+	std::string cwd_str = fs::current_path(ec).string();
+	if (cwd_str.empty()) {
+		cwd_str = ".";
+	}
+
+	// Dispatch subcommands
+	if (*sub_config) {
+		bool has_fpga_opts = !cfg_target.empty() || !cfg_device.empty() || !cfg_package.empty() ||
+		                     !cfg_top.empty() || (cfg_freq > 0.0) || !cfg_pcf.empty() ||
+		                     !cfg_sv_path.empty() || !cfg_yosys_args.empty();
+		bool has_tb_opts = !cfg_tb.empty() || !cfg_tb_modules.empty() || !cfg_tb_level.empty() ||
+		                   cfg_tb_hier || cfg_tb_no_hier || cfg_tb_remove || cfg_tb_list;
+
+		int rc = 0;
+		if (has_fpga_opts || !has_tb_opts) {
+			nlohmann::json j = nlohmann::json::object();
+			j["action"] = has_fpga_opts ? "set" : "get";
+			if (!cfg_target.empty()) j["target"] = cfg_target;
+			if (!cfg_device.empty()) j["device"] = cfg_device;
+			if (!cfg_package.empty()) j["package"] = cfg_package;
+			if (!cfg_top.empty()) j["top_module"] = cfg_top;
+			if (cfg_freq > 0.0) j["freq_mhz"] = cfg_freq;
+			if (!cfg_pcf.empty()) j["pcf_file"] = cfg_pcf;
+			if (!cfg_sv_path.empty()) j["sv_path"] = cfg_sv_path;
+			if (!cfg_yosys_args.empty()) j["yosys_synth_args"] = cfg_yosys_args;
+			rc = run_validator_tool<tools::verilog_project_settings_validator>(j, cwd_str, framed_tables);
+		}
+		if (has_tb_opts) {
+			nlohmann::json j = nlohmann::json::object();
+			if (!cfg_tb.empty()) j["testbench"] = cfg_tb;
+			auto mods = split_csv_list(cfg_tb_modules);
+			if (!mods.empty()) j["modules"] = mods;
+			if (!cfg_tb_level.empty()) j["level"] = cfg_tb_level;
+			if (cfg_tb_hier) j["hierarchical"] = true;
+			else if (cfg_tb_no_hier) j["hierarchical"] = false;
+			if (cfg_tb_remove) j["remove"] = true;
+			int tb_rc = run_validator_tool<tools::verilog_configure_testbench_validator>(j, cwd_str, framed_tables);
+			if (tb_rc != 0) rc = tb_rc;
+		}
+		return rc;
+	}
+
+	if (*sub_compile) {
+		nlohmann::json j = nlohmann::json::object();
+		if (!cmp_module.empty()) j["module"] = cmp_module;
+		if (cmp_lint_only) j["lint_only"] = true;
+		if (cmp_synth_only) j["synth_only"] = true;
+		if (!cmp_output.empty()) j["output_file"] = cmp_output;
+		return run_validator_tool<tools::verilog_compile_validator>(j, cwd_str, framed_tables);
+	}
+
+	if (*sub_sim) {
+		nlohmann::json j = nlohmann::json::object();
+		if (!sim_module.empty()) j["module"] = sim_module;
+		if (!sim_tb.empty()) j["testbench"] = sim_tb;
+		if (sim_hier) j["hierarchical"] = true;
+		if (!sim_level.empty()) j["level"] = sim_level;
+		if (!sim_top.empty()) j["top_module"] = sim_top;
+		if (sim_timeout > 0) j["timeout_sec"] = sim_timeout;
+		if (sim_quiet) j["summary_only"] = true;
+		if (sim_verbose) j["verbose"] = true;
+		return run_validator_tool<tools::verilog_simulate_validator>(j, cwd_str, framed_tables);
+	}
+
+	if (*sub_vcd_info) {
+		nlohmann::json j = nlohmann::json::object();
+		if (!vinfo_path.empty()) j["path"] = vinfo_path;
+		if (!vinfo_clock.empty()) j["clock_signal"] = vinfo_clock;
+		if (!vinfo_scope.empty()) j["scope"] = vinfo_scope;
+		if (!vinfo_filter.empty()) j["filter"] = vinfo_filter;
+		if (vinfo_max_signals > 0) j["max_signals"] = vinfo_max_signals;
+		if (vinfo_stats) j["stats"] = true;
+		if (vinfo_start) j["start_tick"] = *vinfo_start;
+		if (vinfo_end) j["end_tick"] = *vinfo_end;
+		return run_validator_tool<tools::vcd_file_info_validator>(j, cwd_str, framed_tables);
+	}
+
+	if (*sub_vcd_wave) {
+		nlohmann::json j = nlohmann::json::object();
+		if (!vwave_path.empty()) j["path"] = vwave_path;
+		j["signals"] = split_csv_list(vwave_signals);
+		if (!vwave_radix.empty()) j["radix"] = vwave_radix;
+		if (!vwave_clock.empty()) j["clock_signal"] = vwave_clock;
+		if (!vwave_edge.empty()) j["edge"] = vwave_edge;
+		if (vwave_start) j["start_tick"] = *vwave_start;
+		if (vwave_end) j["end_tick"] = *vwave_end;
+		if (vwave_start_time) j["start_time"] = *vwave_start_time;
+		if (vwave_end_time) j["end_time"] = *vwave_end_time;
+		if (vwave_max_rows) j["max_rows"] = *vwave_max_rows;
+		if (vwave_no_collapse) j["collapse_idle"] = false;
+		if (!vwave_gtkw.empty()) j["gtkw_output"] = vwave_gtkw;
+		return run_validator_tool<tools::vcd_wave_validator>(j, cwd_str, framed_tables);
+	}
+
+	if (*sub_vcd_search) {
+		nlohmann::json j = nlohmann::json::object();
+		if (!vsearch_path.empty()) j["path"] = vsearch_path;
+		if (!vsearch_conds.empty()) {
+			nlohmann::json cond_obj;
+			std::string kv_err;
+			if (!parse_kv_pairs(vsearch_conds, cond_obj, kv_err)) {
+				std::cerr << std::format("Error: {}\n", kv_err);
+				return 1;
+			}
+			j["conditions"] = std::move(cond_obj);
+		}
+		if (!vsearch_sig.empty()) j["signal"] = vsearch_sig;
+		if (!vsearch_val.empty()) j["value"] = vsearch_val;
+		if (!vsearch_clock.empty()) j["clock_signal"] = vsearch_clock;
+		if (!vsearch_edge.empty()) j["edge"] = vsearch_edge;
+		if (vsearch_backward) j["direction"] = "backward";
+		if (vsearch_limit) j["limit"] = *vsearch_limit;
+		if (vsearch_first) j["first"] = true;
+		if (vsearch_last) j["last"] = true;
+		if (vsearch_start) j["start_tick"] = *vsearch_start;
+		if (vsearch_end) j["end_tick"] = *vsearch_end;
+		if (vsearch_start_time) j["start_time"] = *vsearch_start_time;
+		if (vsearch_end_time) j["end_time"] = *vsearch_end_time;
+		return run_validator_tool<tools::vcd_search_validator>(j, cwd_str, framed_tables);
+	}
+
+	if (*sub_vcd_cmp) {
+		nlohmann::json j = nlohmann::json::object();
+		j["path_a"] = vcmp_a;
+		j["path_b"] = vcmp_b;
+		auto sigs = split_csv_list(vcmp_signals);
+		if (!sigs.empty()) j["signals"] = sigs;
+		if (!vcmp_scope.empty()) j["scope"] = vcmp_scope;
+		if (!vcmp_clock.empty()) j["clock_signal"] = vcmp_clock;
+		if (!vcmp_edge.empty()) j["edge"] = vcmp_edge;
+		if (vcmp_start) j["start_tick"] = *vcmp_start;
+		if (vcmp_end) j["end_tick"] = *vcmp_end;
+		if (vcmp_strict) j["strict"] = true;
+		return run_validator_tool<tools::vcd_compare_validator>(j, cwd_str, framed_tables);
+	}
+
+	if (*sub_vcd_trace) {
+		nlohmann::json j = nlohmann::json::object();
+		j["signal"] = vtrace_sig;
+		if (!vtrace_netlist.empty()) j["netlist"] = vtrace_netlist;
+		return run_validator_tool<tools::vcd_signal_to_code_validator>(j, cwd_str, framed_tables);
+	}
+
+	if (*sub_vcd_labels) {
+		nlohmann::json j = nlohmann::json::object();
+		if (!vlbl_path.empty()) j["path"] = vlbl_path;
+		if (!vlbl_sig.empty()) j["signal"] = vlbl_sig;
+		if (!vlbl_maps.empty()) {
+			nlohmann::json lbl_obj;
+			std::string kv_err;
+			if (!parse_kv_pairs(vlbl_maps, lbl_obj, kv_err)) {
+				std::cerr << std::format("Error: {}\n", kv_err);
+				return 1;
+			}
+			j["labels"] = std::move(lbl_obj);
+		}
+		if (vlbl_clear) j["clear"] = true;
+		if (vlbl_local) j["global"] = false;
+		return run_validator_tool<tools::vcd_signal_labels_validator>(j, cwd_str, framed_tables);
+	}
+
+	if (*sub_vcd_qual) {
+		nlohmann::json j = nlohmann::json::object();
+		if (!vqual_path.empty()) j["path"] = vqual_path;
+		if (!vqual_sig.empty()) j["signal"] = vqual_sig;
+		if (!vqual_qual.empty()) j["qualifier"] = vqual_qual;
+		if (vqual_clear) j["clear"] = true;
+		if (vqual_local) j["global"] = false;
+		return run_validator_tool<tools::vcd_signal_qualifier_validator>(j, cwd_str, framed_tables);
+	}
+
+	if (dry_run) {
 		mode_update = true;
 	}
 	if (!untrusted_timing_report.empty()) {
@@ -393,12 +842,6 @@ int main(int argc, char **argv)
 	}
 	if (top_k == 0) {
 		top_k = 3;
-	}
-
-	std::error_code ec;
-	std::string cwd_str = fs::current_path(ec).string();
-	if (cwd_str.empty()) {
-		cwd_str = ".";
 	}
 
 	// Load FPGA project settings from current directory if present

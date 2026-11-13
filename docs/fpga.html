@@ -183,7 +183,7 @@ Sampled on: `clk` (posedge) | Timescale: 1ps | Rows: 8
         <ul class="detail-list">
           <li><strong>Bottleneck Sink Grouping &amp; Inline RTL:</strong> Critical paths are grouped by destination sink with project-relative <code>file.sv:line</code> coordinates and inline 1-line SystemVerilog statements (<code>show_code=1</code> default), decomposing each stage into LUT levels and carry chain hops.</li>
           <li><strong>Module Area Summary:</strong> Every report includes a synthesized cell breakdown (LUTs, Flip-Flops, Carry cells, and Total Cells) so the agent balances speed against logic budgets.</li>
-          <li><strong>In-Place <code>// [timing: ...]</code> Port Annotations:</strong> <code>verilog_update_timing</code> (and <code>turbostar-verilog-timing -u</code>) writes and updates vertically aligned timing comments directly on module port declarations in <code>.sv</code> files—giving agents instant awareness of deep inputs and outputs as they wire modules together.</li>
+          <li><strong>In-Place <code>// [timing: ...]</code> Port Annotations:</strong> <code>verilog_update_timing</code> (and <code>turbostar-verilog -u</code>) writes and updates vertically aligned timing comments directly on module port declarations in <code>.sv</code> files—giving agents instant awareness of deep inputs and outputs as they wire modules together.</li>
         </ul>
       </div>
       <div class="detail-visual">
@@ -244,21 +244,21 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
       </div>
     </section>
 
-    <!-- Feature 6: Standalone 3-in-1 Human CLI (turbostar-verilog-timing) -->
+    <!-- Feature 6: Standalone Unified Human CLI (turbostar-verilog) -->
     <section class="detail-split reverse" id="standalone-cli">
       <div class="detail-info">
-        <h2 class="detail-subtitle">Standalone 3-in-1 CLI for Human Engineers</h2>
+        <h2 class="detail-subtitle">Standalone Unified CLI for Human Engineers</h2>
         <p class="detail-text">
-          Why should AI agents have all the fun? <code>turbostar-verilog-timing</code> packages all three timing engines—combinational logic depth, physical place-and-route timing closure, and batch in-place port timing annotations—into a standalone command-line binary you can run directly in your terminal, Makefiles, or CI pipelines without launching the editor or MCP server.
+          Why should AI agents have all the fun? <code>turbostar-verilog</code> packages the entire FPGA timing, configuration, compilation, simulation, and VCD waveform suite into a standalone command-line binary you can run directly in your terminal, Makefiles, or CI pipelines without launching the editor or MCP server.
         </p>
         <ul class="detail-list">
-          <li><strong>Default Logic Depth Mode:</strong> Run <code>turbostar-verilog-timing -m alu_mod</code> (or omit <code>-m</code> to analyze your <code>turbostar.json</code> top module) for instant input/output layer tables, critical combinational cones, inline RTL statements (<code>-c, --show-code</code>), and LUT/FF area summaries.</li>
-          <li><strong>Physical Place &amp; Route Mode (<code>--pnr</code>):</strong> Pass <code>--pnr</code> for full Yosys + multi-seed <code>nextpnr</code> timing closure (<code>--seeds 4</code>), hop-by-hop cell/routing segment traces (<code>--segments</code>), or out-of-context submodule PnR (<code>--pnr -m alu_mod</code>).</li>
-          <li><strong>Human-Friendly Framed Tables &amp; Aligned Chains:</strong> Automatically formats terminal output with UTF-8 box-drawing tables and vertically aligned critical-path chains, while <code>-u, --update</code> updates aligned <code>// [timing: ...]</code> port annotations directly inside your <code>.sv</code> files.</li>
+          <li><strong>Timing &amp; In-Place Port Annotations (<code>timing</code> / default):</strong> Run <code>turbostar-verilog -m alu_mod</code> for instant LUT depth tables, <code>--pnr</code> for multi-seed Yosys + <code>nextpnr</code> physical timing closure, or <code>-u, --update</code> to write aligned <code>// [timing: ...]</code> port annotations directly in <code>.sv</code> files.</li>
+          <li><strong>Project Setup, Compile &amp; Simulate (<code>config</code>, <code>compile</code>, <code>sim</code>):</strong> Populate <code>turbostar.json</code> and register testbenches via <code>turbostar-verilog config --target ice40 --device hx8k --top main</code>, lint/synthesize with <code>compile</code>, and run simulations with <code>sim</code>.</li>
+          <li><strong>VCD Waveform Inspection (<code>vcd-*</code>):</strong> Inspect and debug simulation dumps from the command line with <code>vcd-info</code>, <code>vcd-wave</code>, <code>vcd-search</code>, <code>vcd-compare</code>, <code>vcd-trace</code>, <code>vcd-labels</code>, and <code>vcd-qualifier</code>—all rendered with UTF-8 box-drawing tables.</li>
         </ul>
       </div>
       <div class="detail-visual">
-        <pre><code><span class="comment">$ turbostar-verilog-timing -m alu_mod -k 1</span>
+        <pre><code><span class="comment">$ turbostar-verilog -m alu_mod -k 1</span>
 <span class="keyword"># Timing: `alu_mod`</span> (Target: iCE40, Max Reg -&gt; Reg Depth: 14)
 
 <span class="keyword">## Inputs</span>
@@ -279,7 +279,7 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
 - End: `flags[0]` (`alu.sv:22-32` | <span class="literal">`flags &lt;= next_flags;`</span>)
 - Area: LUTs: 190 | Flip-Flops: 20 | Carry: 46 | Total Cells: 256
 
-<span class="comment">$ turbostar-verilog-timing --pnr -m alu_mod -k 1</span>
+<span class="comment">$ turbostar-verilog --pnr -m alu_mod -k 1</span>
 ┌───────────────────────┬────────────┬──────────────────────────────────────────────────┬───────────┬────────┐
 │ Clock Domain          │ Constraint │ Achieved Fmax                                    │ Slack     │ Status │
 ├───────────────────────┼────────────┼──────────────────────────────────────────────────┼───────────┼────────┤
@@ -361,7 +361,7 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
           <p class="card-desc">Post-routing timing closure with physical chip coordinates and routing delay breakdowns.</p>
           <ul class="detail-list" style="margin-bottom: 1rem;">
             <li><code>verilog_pnr_timing</code>: Full Yosys + <code>nextpnr</code> physical timing analysis reporting Fmax, slack, logic vs. wire delay, fanout, and <code>(dx, dy)</code> tile distance.</li>
-            <li><code>turbostar-verilog-timing</code>: Unified 3-in-1 standalone CLI for logic depth, physical PnR (<code>--pnr</code>), and batch in-place port annotations (<code>-u</code>) with UTF-8 framed terminal tables.</li>
+            <li><code>turbostar-verilog</code>: Unified standalone CLI for project config (<code>config</code>), logic depth, physical PnR (<code>--pnr</code>), batch in-place port annotations (<code>-u</code>), compile/sim, and <code>vcd-*</code> waveform tools with UTF-8 framed terminal tables.</li>
           </ul>
         </article>
       </div>
@@ -397,10 +397,11 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
 <span class="comment"># or launch turbomcp with --all-tool-families</span>
 turbomcp --project-dir /path/to/rtl-project
 
-<span class="comment"># 3. Or run the standalone 3-in-1 human CLI</span>
-turbostar-verilog-timing -m alu_mod
-turbostar-verilog-timing --pnr --seeds 4
-turbostar-verilog-timing -u --target iCE40</code></pre>
+<span class="comment"># 3. Or run the standalone human CLI</span>
+turbostar-verilog config --target ice40 --device hx8k --top main
+turbostar-verilog -m alu_mod
+turbostar-verilog --pnr --seeds 4
+turbostar-verilog -u</code></pre>
         </div>
       </div>
     </section>

@@ -202,9 +202,8 @@ markdown_extract_plugin = shared_module('markdown_extract',
   install_dir: plugin_dir
 )
 
-verilog_plugin = shared_module('verilog',
-  ['verilog/plugin.cpp',
-   'verilog/vcd_parser.cpp',
+libverilog_core = static_library('verilog_core',
+  ['verilog/vcd_parser.cpp',
    'verilog/vcd_parser_cache.cpp',
    'verilog/vcd_label_manager.cpp',
    'verilog/vcd_file_info_tool.cpp',
@@ -219,10 +218,10 @@ verilog_plugin = shared_module('verilog',
    'verilog/vcd_signal_qualifier_validator.cpp',
    'verilog/vcd_compare_tool.cpp',
    'verilog/vcd_compare_validator.cpp',
-    'verilog/yosys_netlist_reader.cpp',
-    'verilog/netlist_graph_analyzer.cpp',
-    'verilog/verilog_module_scanner.cpp',
-    'verilog/vcd_signal_to_code_tool.cpp',
+   'verilog/yosys_netlist_reader.cpp',
+   'verilog/netlist_graph_analyzer.cpp',
+   'verilog/verilog_module_scanner.cpp',
+   'verilog/vcd_signal_to_code_tool.cpp',
    'verilog/vcd_signal_to_code_validator.cpp',
    'verilog/verilog_logic_depth_tool.cpp',
    'verilog/verilog_logic_depth_validator.cpp',
@@ -241,10 +240,20 @@ verilog_plugin = shared_module('verilog',
    'verilog/verilog_compile_tool.cpp',
    'verilog/verilog_compile_validator.cpp'],
   dependencies: [nlohmann_json_dep, ctre_dep],
+  include_directories: inc
+)
+
+verilog_core_dep = declare_dependency(
+  link_with: libverilog_core,
+  dependencies: [agent_dep, core_dep, nlohmann_json_dep, ctre_dep, sqlite3_dep, lsp_dep]
+)
+
+verilog_plugin = shared_module('verilog',
+  'verilog/plugin.cpp',
+  link_whole: libverilog_core,
+  dependencies: [nlohmann_json_dep, ctre_dep],
   include_directories: inc,
   install: true,
   name_prefix: '',
   install_dir: plugin_dir
 )
-
-
