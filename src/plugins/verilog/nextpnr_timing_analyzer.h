@@ -146,11 +146,10 @@ public:
 	static std::string normalize_net_name(std::string_view raw_net) {
 		return yosys_netlist_reader::normalize_net_name(raw_net);
 	}
-	// Format source location for concise display (strips techmap line numbers e.g. cells_map.v:26-27 -> cells_map.v)
-	static std::string clean_display_location(std::string_view loc) {
-		return yosys_netlist_reader::clean_display_location(loc);
+	// Format source location for concise display (strips techmap line numbers e.g. cells_map.v:26-27 -> cells_map.v, and makes paths project-relative)
+	static std::string clean_display_location(std::string_view loc, std::string_view working_dir = "") {
+		return yosys_netlist_reader::clean_display_location(loc, working_dir);
 	}
-
 	// Get fanout (sink count) of a net or bit
 	size_t get_net_fanout(std::string_view net_name) const;
 
@@ -168,7 +167,7 @@ public:
 	std::vector<timing_endpoint_summary> get_top_endpoint_timings(bool reg_to_reg_only = true, bool group_by_sink = true, size_t top_k = 5) const;
 
 	// Format complete timing analysis report in Markdown
-	std::string generate_timing_markdown(bool reg_to_reg_only = true, bool group_by_sink = true, size_t top_k = 5, bool collapse = true, bool show_segments = false) const;
+	std::string generate_timing_markdown(bool reg_to_reg_only = true, bool group_by_sink = true, size_t top_k = 5, bool collapse = true, bool show_segments = false, int show_code = 1) const;
 private:
 	// Helpers for netlist correlation
 	void parse_timing_json(const nlohmann::json &j);

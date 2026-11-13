@@ -63,6 +63,10 @@ nlohmann::json verilog_pnr_timing_validator::get_parameters_schema() const
 			{"show_segments", {
 				{"type", "boolean"},
 				{"description", "Alias for verbose: when true, prints the full hop-by-hop segment list (cell type, input/output pins, and intermediate nets) for each critical path (default: false)."}
+			}},
+			{"show_code", {
+				{"type", "integer"},
+				{"description", "Number of RTL source code lines to display per hop/endpoint: 1 (default) shows a concise 1-line statement snippet inline, >1 prints a multi-line code block of up to N lines, and 0 (or false) disables code snippets."}
 			}}
 		}},
 		{"required", nlohmann::json::array()}
@@ -79,7 +83,10 @@ std::unordered_map<std::string, std::string> verilog_pnr_timing_validator::get_c
 		{"show_segments", "verbose"},
 		{"segments", "verbose"},
 		{"detailed", "verbose"},
-		{"full_path", "verbose"}
+		{"full_path", "verbose"},
+		{"code_lines", "show_code"},
+		{"snippet_lines", "show_code"},
+		{"include_code", "show_code"}
 	};
 }
 
@@ -170,6 +177,15 @@ bool verilog_pnr_timing_validator::validate_args_impl(const nlohmann::json &untr
 	}
 	if (untrusted_args.contains("show_segments") && untrusted_args["show_segments"].is_boolean()) {
 		args_.verbose = untrusted_args["show_segments"].get<bool>();
+	}
+
+	if (untrusted_args.contains("show_code")) {
+		if (untrusted_args["show_code"].is_boolean()) {
+			args_.show_code = untrusted_args["show_code"].get<bool>() ? 1 : 0;
+		} else if (untrusted_args["show_code"].is_number_integer()) {
+			int sc = untrusted_args["show_code"].get<int>();
+			args_.show_code = (sc < 0) ? 0 : std::min(sc, 50);
+		}
 	}
 
 	if (untrusted_args.contains("path_filter") && untrusted_args["path_filter"].is_string()) {

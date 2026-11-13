@@ -42,8 +42,21 @@ nlohmann::json verilog_logic_depth_validator::get_parameters_schema() const
 			{"collapse", {
 				{"type", "boolean"},
 				{"description", "Optional. Collapse consecutive unlabeled logic hops into single stages and demangle noisy signal names (default true)."}
+			}},
+			{"show_code", {
+				{"type", "integer"},
+				{"description", "Optional. Number of RTL source code lines to display per hop/endpoint: 1 (default) shows a concise 1-line statement snippet inline, >1 prints a multi-line code block of up to N lines, and 0 (or false) disables code snippets."}
 			}}
 		}}
+	};
+}
+
+std::unordered_map<std::string, std::string> verilog_logic_depth_validator::get_custom_parameter_aliases() const
+{
+	return {
+		{"code_lines", "show_code"},
+		{"snippet_lines", "show_code"},
+		{"include_code", "show_code"}
 	};
 }
 
@@ -115,9 +128,17 @@ bool verilog_logic_depth_validator::validate_args_impl(const nlohmann::json &raw
 		args_.collapse = raw_json["Collapse"].get<bool>();
 	}
 
+	if (raw_json.contains("show_code")) {
+		if (raw_json["show_code"].is_boolean()) {
+			args_.show_code = raw_json["show_code"].get<bool>() ? 1 : 0;
+		} else if (raw_json["show_code"].is_number_integer()) {
+			int sc = raw_json["show_code"].get<int>();
+			args_.show_code = (sc < 0) ? 0 : std::min(sc, 50);
+		}
+	}
+
 	return true;
 }
-
 std::unique_ptr<agentlib::llm_tool> verilog_logic_depth_validator::create_tool_impl(const nlohmann::json &/*raw_json*/) const
 {
 	return std::make_unique<verilog_logic_depth_tool>(args_);

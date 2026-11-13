@@ -19,6 +19,7 @@ struct verilog_logic_depth_args {
 	size_t top_k{3};
 	bool group_by_sink{true};
 	bool collapse{true};
+	int show_code{1};
 };
 
 class verilog_logic_depth_tool : public agentlib::llm_tool_action

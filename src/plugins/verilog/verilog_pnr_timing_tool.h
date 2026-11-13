@@ -20,6 +20,7 @@ struct verilog_pnr_timing_args {
 	bool reg_to_reg_only{true};
 	bool collapse{true};
 	bool verbose{false};
+	int show_code{1};
 };
 class verilog_pnr_timing_tool : public agentlib::llm_tool_action
 {

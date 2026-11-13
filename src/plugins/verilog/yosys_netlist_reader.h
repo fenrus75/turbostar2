@@ -78,8 +78,16 @@ public:
 	// Build wire-connectivity correlation tables from a Yosys module JSON object
 	static netlist_correlation_tables build_correlation_tables(const nlohmann::json &mod_obj, std::string_view base_dir = "");
 
-	// Format source location for concise display (strips techmap line numbers e.g. cells_map.v:26-27 -> cells_map.v)
-	static std::string clean_display_location(std::string_view loc);
+	// Format source location for concise display (strips techmap line numbers e.g. cells_map.v:26-27 -> cells_map.v, and makes paths project-relative)
+	static std::string clean_display_location(std::string_view loc, std::string_view working_dir = "");
+	// Extract up to max_lines of RTL source code for a source location ("file.sv:133" or "file.sv:22-32").
+	// When max_lines == 1, returns a single whitespace-collapsed statement (<= 80 chars), selecting the
+	// best matching assignment line inside a multi-line range when signal_hint is provided.
+	// When max_lines > 1, returns up to max_lines of numbered source lines.
+	static std::string extract_source_snippet(std::string_view src_loc,
+	                                          std::string_view signal_hint = "",
+	                                          std::string_view base_dir = "",
+	                                          int max_lines = 1);
 
 	// Format trace as a token-efficient markdown block for LLMs
 	static std::string format_trace_summary(const signal_source_trace &trace);

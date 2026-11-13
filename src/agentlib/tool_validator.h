@@ -192,6 +192,9 @@ class tool_validator
 					} else if (expected_type == "integer") {
 						if (it.value().is_number_integer()) {
 							type_ok = true;
+						} else if (it.value().is_boolean()) {
+							it.value() = it.value().get<bool>() ? 1 : 0;
+							type_ok = true;
 						} else if (it.value().is_string()) {
 							std::string dummy_err;
 							int64_t dummy_val = 0;
@@ -200,9 +203,14 @@ class tool_validator
 								type_ok = true;
 							}
 						}
-					} else if (expected_type == "boolean" && it.value().is_boolean())
-						type_ok = true;
-					else if (expected_type == "array") {
+					} else if (expected_type == "boolean") {
+						if (it.value().is_boolean()) {
+							type_ok = true;
+						} else if (it.value().is_number_integer()) {
+							it.value() = (it.value().get<int64_t>() != 0);
+							type_ok = true;
+						}
+					} else if (expected_type == "array") {
 						if (it.value().is_array()) {
 							type_ok = true;
 						} else if (it.value().is_string()) {

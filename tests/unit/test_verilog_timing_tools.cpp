@@ -1294,6 +1294,35 @@ void test_shared_always_ff_disambiguation_and_segments()
 	assert(tool_out.find("cpu.alu.input1_reg[0]") != std::string::npos);
 	assert(tool_out.find("cpu.alu.flags") != std::string::npos);
 
+	// 5. Verify default show_code=1 includes inline 1-line RTL statements and relative path
+	assert(tool_out.find("| `flags <= input1_reg[3:0] ^ input2_reg[3:0];`") != std::string::npos);
+	assert(tool_out.find("alu_shared.sv:10-18` | `flags <= input1_reg[3:0] ^ input2_reg[3:0];`") != std::string::npos);
+
+	// 6. Verify show_code=0 and show_code=false suppress RTL code snippets
+	nlohmann::json no_code_args = {
+		{"timing_report", timing_path},
+		{"netlist", netlist_path},
+		{"show_code", false}
+	};
+	assert(validator.validate_args(no_code_args, ctx, err) && err.empty());
+	std::string no_code_out = validator.create_tool(no_code_args)->execute(ctx);
+	assert(no_code_out.find("flags <= input1_reg[3:0] ^ input2_reg[3:0];") == std::string::npos);
+
+	// 7. Verify show_code=5 prints multi-line fenced systemverilog block
+	nlohmann::json multi_code_args = {
+		{"timing_report", timing_path},
+		{"netlist", netlist_path},
+		{"show_code", 5}
+	};
+	assert(validator.validate_args(multi_code_args, ctx, err) && err.empty());
+	std::string multi_code_out = validator.create_tool(multi_code_args)->execute(ctx);
+	assert(multi_code_out.find("```systemverilog") != std::string::npos);
+	assert(multi_code_out.find("14:             flags <= input1_reg[3:0] ^ input2_reg[3:0];") != std::string::npos);
+
+	// 8. Verify clean_display_location makes absolute paths project-relative
+	std::string abs_sv = (std::filesystem::current_path() / "src" / "alu8.sv").string() + ":178";
+	assert(nextpnr_timing_analyzer::clean_display_location(abs_sv) == "src/alu8.sv:178");
+
 	std::error_code ec;
 	std::filesystem::remove_all(tmp_dir, ec);
 }

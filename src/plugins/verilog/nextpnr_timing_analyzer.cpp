@@ -33,7 +33,11 @@ bool nextpnr_timing_analyzer::load_from_files(std::string_view timing_json_path,
 	}
 
 	if (!netlist_json_path.empty()) {
-		netlist_dir_ = fs::path(netlist_json_path).parent_path().string();
+		fs::path nd = fs::path(netlist_json_path).parent_path();
+		if ((nd.filename() == "synth" || nd.filename() == "build") && nd.has_parent_path()) {
+			nd = nd.parent_path();
+		}
+		netlist_dir_ = nd.string();
 		std::ifstream n_file{std::string(netlist_json_path)};
 		if (n_file.is_open()) {
 			try {
@@ -43,6 +47,12 @@ bool nextpnr_timing_analyzer::load_from_files(std::string_view timing_json_path,
 			} catch (...) {
 			}
 		}
+	} else {
+		fs::path td = fs::path(timing_json_path).parent_path();
+		if ((td.filename() == "synth" || td.filename() == "build") && td.has_parent_path()) {
+			td = td.parent_path();
+		}
+		netlist_dir_ = td.string();
 	}
 
 	parse_timing_json(t_json);
@@ -1055,8 +1065,22 @@ bool nextpnr_timing_analyzer::synthesize_and_route(const fpga_target_config &cfg
 		}
 	}
 
+	auto update_rtl_base_dir = [&]() {
+		if (!rtl_sources.empty()) {
+			fs::path sdir = fs::path(rtl_sources.front()).parent_path();
+			if ((sdir.filename() == "sv" || sdir.filename() == "src" || sdir.filename() == "rtl") && sdir.has_parent_path()) {
+				sdir = sdir.parent_path();
+			}
+			netlist_dir_ = sdir.string();
+		}
+	};
+
 	if (seed_runs.empty()) {
-		return load_from_files(seed1_timing.string(), synth_json.string(), out_error);
+		if (!load_from_files(seed1_timing.string(), synth_json.string(), out_error)) {
+			return false;
+		}
+		update_rtl_base_dir();
+		return true;
 	}
 
 	std::sort(seed_runs.begin(), seed_runs.end(), [](const seed_run &a, const seed_run &b) {
@@ -1067,6 +1091,7 @@ bool nextpnr_timing_analyzer::synthesize_and_route(const fpga_target_config &cfg
 	if (!load_from_files(median_run.timing_path.string(), synth_json.string(), out_error)) {
 		return false;
 	}
+	update_rtl_base_dir();
 
 	if (seed_runs.size() > 1) {
 		for (auto &cd : clock_domains_) {
@@ -1088,7 +1113,7 @@ bool nextpnr_timing_analyzer::synthesize_and_route(const fpga_target_config &cfg
 	return true;
 }
 
-std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_only, bool group_by_sink, size_t top_k, bool collapse, bool show_segments) const
+std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_only, bool group_by_sink, size_t top_k, bool collapse, bool show_segments, int show_code) const
 {
 	std::string md;
 
@@ -1124,7 +1149,7 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 		md += "\n";
 	}
 
-	auto format_hops_chain = [collapse](std::span<const timing_hop> hops) -> std::string {
+	auto format_hops_chain = [collapse, show_code, this](std::span<const timing_hop> hops) -> std::string {
 		struct stage {
 			std::string raw_src;
 			std::string display_loc;
@@ -1337,10 +1362,47 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 				}
 			}
 
-			chain_md += std::format("  {}. {}{} {}{}\n",
-			                        s_idx + 1, loc_str, hint_str, delay_str, out_str);
+			std::string snippet_inline;
+			std::string snippet_block;
+			if (show_code > 0 && !st.raw_src.empty() && !yosys_netlist_reader::is_library_source(st.raw_src)) {
+				std::string sig_hint = !st.out_net.empty() ? st.out_net : st.base_hint;
+				std::string snip = yosys_netlist_reader::extract_source_snippet(st.raw_src, sig_hint, netlist_dir_, show_code);
+				if (!snip.empty()) {
+					if (show_code == 1) {
+						snippet_inline = std::format(" | `{}`", snip);
+					} else {
+						snippet_block = "    ```systemverilog\n";
+						size_t pos = 0;
+						while (pos < snip.size()) {
+							size_t nl = snip.find('\n', pos);
+							std::string_view line_v = (nl == std::string::npos)
+								? std::string_view(snip).substr(pos)
+								: std::string_view(snip).substr(pos, nl - pos);
+							snippet_block += std::format("    {}\n", line_v);
+							if (nl == std::string::npos) break;
+							pos = nl + 1;
+						}
+						snippet_block += "    ```\n";
+					}
+				}
+			}
+
+			chain_md += std::format("  {}. {}{}{} {}{}\n{}",
+			                        s_idx + 1, loc_str, hint_str, snippet_inline, delay_str, out_str, snippet_block);
 		}
 		return chain_md;
+	};
+
+	auto format_end_loc = [show_code, this](std::string_view raw_src, std::string_view ep_name) -> std::string {
+		std::string disp = clean_display_location(raw_src);
+		if (disp.empty()) return "";
+		if (show_code == 1 && !yosys_netlist_reader::is_library_source(raw_src)) {
+			std::string snip = yosys_netlist_reader::extract_source_snippet(raw_src, ep_name, netlist_dir_, 1);
+			if (!snip.empty()) {
+				return std::format("(`{}` | `{}`)", disp, snip);
+			}
+		}
+		return std::format("(`{}`)", disp);
 	};
 
 	auto format_hops_segments = [](std::span<const timing_hop> hops) -> std::string {
@@ -1472,7 +1534,18 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 			if (!ep.clean_net.empty()) {
 				std::string drv_loc = clean_display_location(ep.driver_src);
 				std::string meta;
-				if (!drv_loc.empty()) meta += std::format("`{}`", drv_loc);
+				if (!drv_loc.empty()) {
+					if (show_code == 1 && !yosys_netlist_reader::is_library_source(ep.driver_src)) {
+						std::string snip = yosys_netlist_reader::extract_source_snippet(ep.driver_src, ep.clean_net, netlist_dir_, 1);
+						if (!snip.empty()) {
+							meta += std::format("`{}` | `{}`", drv_loc, snip);
+						} else {
+							meta += std::format("`{}`", drv_loc);
+						}
+					} else {
+						meta += std::format("`{}`", drv_loc);
+					}
+				}
 				if (ep.fanout > 0) {
 					if (!meta.empty()) meta += ", ";
 					meta += std::format("{} sink{}", ep.fanout, ep.fanout == 1 ? "" : "s");
@@ -1481,7 +1554,18 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 			}
 			std::string ep_loc = clean_display_location(ep.end_src);
 			std::string end_meta;
-			if (!ep_loc.empty()) end_meta += std::format("`{}`", ep_loc);
+			if (!ep_loc.empty()) {
+				if (show_code == 1 && !yosys_netlist_reader::is_library_source(ep.end_src)) {
+					std::string snip = yosys_netlist_reader::extract_source_snippet(ep.end_src, ep.endpoint, netlist_dir_, 1);
+					if (!snip.empty()) {
+						end_meta += std::format("`{}` | `{}`", ep_loc, snip);
+					} else {
+						end_meta += std::format("`{}`", ep_loc);
+					}
+				} else {
+					end_meta += std::format("`{}`", ep_loc);
+				}
+			}
 			if (!ep.port.empty()) {
 				if (!end_meta.empty()) end_meta += ", ";
 				end_meta += std::format("port `{}`", ep.port);
@@ -1530,8 +1614,8 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 					md += format_hops_segments(b.representative_hops);
 				}
 				md += format_dominant_routing(b.representative_hops);
-				std::string b_end_src = clean_display_location(b.end_src);
-				md += std::format("- **End**: `{}` {}\n\n", b.endpoint, b_end_src.empty() ? "" : std::format("(`{}`)", b_end_src));
+				std::string b_end_loc = format_end_loc(b.end_src, b.endpoint);
+				md += std::format("- **End**: `{}` {}\n\n", b.endpoint, b_end_loc);
 			}
 			append_additional_endpoints(bottlenecks.size(), printed_endpoints);
 		} else {
@@ -1559,16 +1643,16 @@ std::string nextpnr_timing_analyzer::generate_timing_markdown(bool reg_to_reg_on
 
 				md += std::format("### Path #{} [Reg -> Reg] Delay: **{:.3f} ns** ({:.0f}% logic, {:.0f}% routing)\n",
 				                  i + 1, p.total_delay_ns, p_l_pct, p_r_pct);
-				std::string p_start_src = clean_display_location(p.start_src);
-				md += std::format("- **Start**: `{}` {}\n", p.startpoint, p_start_src.empty() ? "" : std::format("(`{}`)", p_start_src));
+				std::string p_start_loc = format_end_loc(p.start_src, p.startpoint);
+				md += std::format("- **Start**: `{}` {}\n", p.startpoint, p_start_loc);
 				md += "- **Chain**:\n";
 				md += format_hops_chain(p.hops);
 				if (show_segments) {
 					md += format_hops_segments(p.hops);
 				}
 				md += format_dominant_routing(p.hops);
-				std::string p_end_src = clean_display_location(p.end_src);
-				md += std::format("- **End**: `{}` {}\n\n", p.endpoint, p_end_src.empty() ? "" : std::format("(`{}`)", p_end_src));
+				std::string p_end_loc = format_end_loc(p.end_src, p.endpoint);
+				md += std::format("- **End**: `{}` {}\n\n", p.endpoint, p_end_loc);
 			}
 			append_additional_endpoints(paths.size(), printed_endpoints);
 		} else {

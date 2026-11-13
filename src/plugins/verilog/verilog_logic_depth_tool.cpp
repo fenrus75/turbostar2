@@ -168,8 +168,36 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 		return (depth == 1) ? "1 LUT" : std::format("{} LUTs", depth);
 	};
 
+	std::string base_dir = ctx.fs_security.get_working_directory().string();
+	if (!args_.safe_file.empty()) {
+		std::filesystem::path sdir = std::filesystem::path(args_.safe_file).parent_path();
+		if ((sdir.filename() == "sv" || sdir.filename() == "src" || sdir.filename() == "rtl") && sdir.has_parent_path()) {
+			sdir = sdir.parent_path();
+		}
+		base_dir = sdir.string();
+	} else if (!args_.safe_netlist.empty()) {
+		std::filesystem::path ndir = std::filesystem::path(args_.safe_netlist).parent_path();
+		if ((ndir.filename() == "synth" || ndir.filename() == "build") && ndir.has_parent_path()) {
+			ndir = ndir.parent_path();
+		}
+		base_dir = ndir.string();
+	}
+
+	auto format_end_loc = [&](std::string_view raw_src, std::string_view signal_hint) -> std::string {
+		std::string loc = verilog::nextpnr_timing_analyzer::clean_display_location(raw_src, base_dir);
+		if (loc.empty()) return "";
+		if (args_.show_code == 1 && !verilog::yosys_netlist_reader::is_library_source(raw_src)) {
+			std::string snip = verilog::yosys_netlist_reader::extract_source_snippet(raw_src, signal_hint, base_dir, 1);
+			if (!snip.empty()) {
+				return std::format("(`{}` | `{}`)", loc, snip);
+			}
+		}
+		return std::format("(`{}`)", loc);
+	};
+
 	auto format_hops_chain = [&](std::span<const verilog::path_hop> hops) -> std::string {
 		struct collapsed_stage {
+			std::string raw_src;
 			std::string src_location;
 			size_t count{0};
 			size_t lut_count{0};
@@ -180,7 +208,7 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 		std::vector<collapsed_stage> stages;
 
 		for (const auto &hop : hops) {
-			std::string hop_loc = verilog::nextpnr_timing_analyzer::clean_display_location(hop.src_location);
+			std::string hop_loc = verilog::nextpnr_timing_analyzer::clean_display_location(hop.src_location, base_dir);
 			bool is_carry = is_carry_cell(hop.cell_type);
 			bool can_merge = false;
 			if (!stages.empty()) {
@@ -206,6 +234,7 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 				}
 			} else {
 				collapsed_stage st;
+				st.raw_src = hop.src_location;
 				st.src_location = hop_loc;
 				st.count = 1;
 				if (is_carry) {
@@ -273,7 +302,32 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 				out_str = std::format(" -> `{}`", norm_out);
 			}
 
-			chain_md += std::format("  {}. {} ({}{}){}\n", s_idx + 1, loc_str, stage_units, hint_str, out_str);
+			std::string inline_code_str;
+			std::string multiline_code_block;
+			if (args_.show_code > 0 && !st.raw_src.empty() && !verilog::yosys_netlist_reader::is_library_source(st.raw_src)) {
+				std::string snippet = verilog::yosys_netlist_reader::extract_source_snippet(
+					st.raw_src, norm_out, base_dir, args_.show_code);
+				if (!snippet.empty()) {
+					if (args_.show_code == 1 && snippet.find('\n') == std::string::npos) {
+						inline_code_str = std::format(" | `{}`", snippet);
+					} else {
+						std::string indented;
+						size_t pos = 0;
+						while (pos < snippet.size()) {
+							size_t nl = snippet.find('\n', pos);
+							std::string_view line_v = (nl == std::string::npos)
+								? std::string_view(snippet).substr(pos)
+								: std::string_view(snippet).substr(pos, nl - pos);
+							indented += std::format("     {}\n", line_v);
+							if (nl == std::string::npos) break;
+							pos = nl + 1;
+						}
+						multiline_code_block = std::format("     ```systemverilog\n{}     ```\n", indented);
+					}
+				}
+			}
+
+			chain_md += std::format("  {}. {} ({}{}){}{}\n{}", s_idx + 1, loc_str, stage_units, hint_str, out_str, inline_code_str, multiline_code_block);
 		}
 		return chain_md;
 	};
@@ -314,19 +368,17 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 					                        b.sources.size(), src_list);
 				} else if (b.sources.size() == 1) {
 					paths_md += std::format("### Path #{} [{}] Depth: {}\n", i + 1, cat_str, depth_str);
-					std::string start_src = verilog::nextpnr_timing_analyzer::clean_display_location(b.sources.front().src_location);
-					paths_md += std::format("- **Start**: `{}` {}\n",
-					                        verilog::nextpnr_timing_analyzer::normalize_net_name(b.sources.front().name),
-					                        start_src.empty() ? "" : std::format("(`{}`)", start_src));
+					std::string norm_start = verilog::nextpnr_timing_analyzer::normalize_net_name(b.sources.front().name);
+					paths_md += std::format("- **Start**: `{}` {}\n", norm_start,
+					                        format_end_loc(b.sources.front().src_location, norm_start));
 				} else {
 					paths_md += std::format("### Path #{} [{}] Depth: {}\n", i + 1, cat_str, depth_str);
 				}
 
 				paths_md += format_hops_chain(b.hops);
 
-				std::string end_src = verilog::nextpnr_timing_analyzer::clean_display_location(b.end_src);
 				paths_md += std::format("- **End**: `{}` {}\n", norm_b_endpoint,
-				                        end_src.empty() ? "" : std::format("(`{}`)", end_src));
+				                        format_end_loc(b.end_src, norm_b_endpoint));
 				if (!b.note.empty()) {
 					paths_md += std::format("  > Note: {}\n", b.note);
 				}
@@ -353,17 +405,15 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 
 				std::string norm_start = verilog::nextpnr_timing_analyzer::normalize_net_name(p.startpoint);
 				std::string norm_end = verilog::nextpnr_timing_analyzer::normalize_net_name(p.endpoint);
-				std::string start_src = verilog::nextpnr_timing_analyzer::clean_display_location(p.start_src);
-				std::string end_src = verilog::nextpnr_timing_analyzer::clean_display_location(p.end_src);
 
 				paths_md += std::format("### Path #{} [{}] Depth: {}\n", i + 1, cat_str, depth_str);
 				paths_md += std::format("- **Start**: `{}` {}\n", norm_start,
-				                        start_src.empty() ? "" : std::format("(`{}`)", start_src));
+				                        format_end_loc(p.start_src, norm_start));
 
 				paths_md += format_hops_chain(p.hops);
 
 				paths_md += std::format("- **End**: `{}` {}\n", norm_end,
-				                        end_src.empty() ? "" : std::format("(`{}`)", end_src));
+				                        format_end_loc(p.end_src, norm_end));
 				if (!p.note.empty()) {
 					paths_md += std::format("  > Note: {}\n", p.note);
 				}

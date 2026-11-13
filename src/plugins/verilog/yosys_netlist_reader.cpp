@@ -1,4 +1,5 @@
-#include "yosys_netlist_reader.h"
+#include "plugins/verilog/yosys_netlist_reader.h"
+#include "fs_utils.h"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -911,16 +912,329 @@ yosys_netlist_reader::netlist_correlation_tables yosys_netlist_reader::build_cor
 
 	return tables;
 }
-std::string yosys_netlist_reader::clean_display_location(std::string_view loc)
+
+std::string yosys_netlist_reader::clean_display_location(std::string_view loc, std::string_view working_dir)
 {
 	if (loc.empty()) return "";
+	size_t colon = loc.rfind(':');
+	std::string_view file_part = (colon != std::string_view::npos) ? loc.substr(0, colon) : loc;
+	std::string_view line_part = (colon != std::string_view::npos) ? loc.substr(colon + 1) : "";
 	if (is_library_source(loc)) {
-		size_t colon = loc.find(':');
-		std::string_view file_part = (colon != std::string_view::npos) ? loc.substr(0, colon) : loc;
 		return std::filesystem::path(file_part).filename().string();
 	}
-	return std::string(loc);
+	std::string rel_file(file_part);
+	if (std::filesystem::path(file_part).is_absolute() || file_part.starts_with("file://")) {
+		bool resolved_from_wd = false;
+		if (!working_dir.empty()) {
+			std::error_code ec;
+			std::filesystem::path wd_p(working_dir);
+			if (std::filesystem::is_regular_file(wd_p, ec)) {
+				wd_p = wd_p.parent_path();
+			}
+			std::string_view clean_fp = file_part.starts_with("file://") ? file_part.substr(7) : file_part;
+			auto rel = std::filesystem::relative(std::filesystem::path(clean_fp).lexically_normal(), wd_p.lexically_normal(), ec);
+			if (!ec && !rel.empty() && !rel.string().starts_with("..")) {
+				rel_file = rel.string();
+				resolved_from_wd = true;
+			}
+		}
+		if (!resolved_from_wd) {
+			rel_file = fs_utils::make_relative_to_project(file_part, working_dir);
+		}
+	}
+	if (colon != std::string_view::npos && !line_part.empty()) {
+		return std::format("{}:{}", rel_file, line_part);
+	}
+	return rel_file;
 }
+
+std::string yosys_netlist_reader::extract_source_snippet(std::string_view src_loc,
+                                                         std::string_view signal_hint,
+                                                         std::string_view base_dir,
+                                                         int max_lines)
+{
+	if (max_lines <= 0 || src_loc.empty() || is_library_source(src_loc)) {
+		return "";
+	}
+
+	std::string cleaned = clean_src_location(src_loc);
+	if (cleaned.empty() || is_library_source(cleaned)) {
+		return "";
+	}
+
+	size_t colon_pos = cleaned.rfind(':');
+	if (colon_pos == std::string::npos) {
+		return "";
+	}
+
+	std::string file_part = cleaned.substr(0, colon_pos);
+	std::string_view range_part = std::string_view(cleaned).substr(colon_pos + 1);
+
+	int start_line = 0;
+	int end_line = 0;
+	size_t idx = 0;
+	while (idx < range_part.size() && std::isdigit(static_cast<unsigned char>(range_part[idx]))) {
+		start_line = start_line * 10 + (range_part[idx] - '0');
+		++idx;
+	}
+	if (idx < range_part.size() && range_part[idx] == '-') {
+		++idx;
+		while (idx < range_part.size() && std::isdigit(static_cast<unsigned char>(range_part[idx]))) {
+			end_line = end_line * 10 + (range_part[idx] - '0');
+			++idx;
+		}
+	} else {
+		end_line = start_line;
+	}
+
+	if (start_line <= 0) {
+		return "";
+	}
+	if (end_line < start_line) {
+		end_line = start_line;
+	}
+
+	namespace fs = std::filesystem;
+	std::error_code ec;
+	fs::path resolved;
+	auto try_resolve = [&](const fs::path &cand) -> bool {
+		if (!cand.empty() && fs::exists(cand, ec) && fs::is_regular_file(cand, ec)) {
+			resolved = cand;
+			return true;
+		}
+		return false;
+	};
+
+	auto try_resolve_in_dir = [&](const fs::path &dir) -> bool {
+		if (try_resolve(dir / file_part)) return true;
+		for (const char *sub : {"sv", "src", "rtl"}) {
+			if (try_resolve(dir / sub / file_part)) return true;
+		}
+		return false;
+	};
+
+	if (!try_resolve(fs::path(file_part)) && !base_dir.empty()) {
+		fs::path bpath(base_dir);
+		if (fs::is_regular_file(bpath, ec)) {
+			bpath = bpath.parent_path();
+		}
+		if (!try_resolve_in_dir(bpath) && bpath.has_parent_path()) {
+			if (!try_resolve_in_dir(bpath.parent_path()) && bpath.parent_path().has_parent_path()) {
+				try_resolve_in_dir(bpath.parent_path().parent_path());
+			}
+		}
+	}
+	if (resolved.empty()) {
+		return "";
+	}
+
+	std::ifstream ifs(resolved);
+	if (!ifs.is_open()) {
+		return "";
+	}
+
+	std::vector<std::string> file_lines;
+	std::string raw_line;
+	int max_needed = end_line + std::max(1, max_lines);
+	while (static_cast<int>(file_lines.size()) < max_needed && std::getline(ifs, raw_line)) {
+		if (!raw_line.empty() && raw_line.back() == '\r') {
+			raw_line.pop_back();
+		}
+		file_lines.push_back(std::move(raw_line));
+	}
+
+	if (start_line > static_cast<int>(file_lines.size())) {
+		return "";
+	}
+	end_line = std::min(end_line, static_cast<int>(file_lines.size()));
+
+	auto collapse_ws = [](std::string_view s) -> std::string {
+		std::string out;
+		out.reserve(s.size());
+		bool in_ws = true;
+		for (char c : s) {
+			if (std::isspace(static_cast<unsigned char>(c))) {
+				if (!in_ws) {
+					out.push_back(' ');
+					in_ws = true;
+				}
+			} else {
+				out.push_back(c);
+				in_ws = false;
+			}
+		}
+		if (!out.empty() && out.back() == ' ') {
+			out.pop_back();
+		}
+		return out;
+	};
+
+	auto strip_line_comment = [](std::string_view s) -> std::string_view {
+		size_t p = s.find("//");
+		std::string_view sub = (p != std::string_view::npos) ? s.substr(0, p) : s;
+		while (!sub.empty() && std::isspace(static_cast<unsigned char>(sub.back()))) {
+			sub.remove_suffix(1);
+		}
+		return sub;
+	};
+
+	auto is_boilerplate = [&](std::string_view collapsed) -> bool {
+		std::string_view code = strip_line_comment(collapsed);
+		if (code.empty() || code.starts_with("/*") || code.starts_with("*")) {
+			return true;
+		}
+		if (code == "begin" || code == "end" || code == "else" || code == "else begin" ||
+		    code == "end else" || code == "end else begin" || code == "endmodule" || code == "endcase") {
+			return true;
+		}
+		if ((code.starts_with("always_ff") || code.starts_with("always_comb") ||
+		     code.starts_with("always @") || code.starts_with("always@")) &&
+		    code.find('=') == std::string_view::npos) {
+			return true;
+		}
+		return false;
+	};
+
+	// Extract leaf signal name from signal_hint
+	std::string leaf_sig;
+	if (!signal_hint.empty()) {
+		std::string norm = normalize_net_name(signal_hint);
+		size_t br = norm.find('[');
+		if (br != std::string::npos) {
+			norm = norm.substr(0, br);
+		}
+		size_t dot = norm.rfind('.');
+		leaf_sig = (dot != std::string::npos) ? norm.substr(dot + 1) : norm;
+	}
+
+	auto contains_ident = [](std::string_view text, std::string_view ident) -> size_t {
+		if (ident.empty()) return std::string_view::npos;
+		auto is_id_ch = [](char c) {
+			return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '$';
+		};
+		size_t pos = 0;
+		while ((pos = text.find(ident, pos)) != std::string_view::npos) {
+			bool left_ok = (pos == 0) || !is_id_ch(text[pos - 1]);
+			size_t end_p = pos + ident.size();
+			bool right_ok = (end_p >= text.size()) || !is_id_ch(text[end_p]);
+			if (left_ok && right_ok) {
+				return pos;
+			}
+			pos += ident.size();
+		}
+		return std::string_view::npos;
+	};
+
+	int best_line = start_line;
+	if (end_line > start_line) {
+		int best_score = -1;
+		for (int ln = start_line; ln <= end_line; ++ln) {
+			std::string collapsed = collapse_ws(file_lines[ln - 1]);
+			if (is_boilerplate(collapsed)) {
+				continue;
+			}
+			std::string_view code = strip_line_comment(collapsed);
+			int score = 0;
+			size_t eq_pos = code.find("<=");
+			size_t eq_len = 2;
+			if (eq_pos == std::string_view::npos) {
+				// Look for single '=' that is not '==', '!=', '>=', '<='
+				for (size_t i = 0; i < code.size(); ++i) {
+					if (code[i] == '=') {
+						char prev = (i > 0) ? code[i - 1] : '\0';
+						char next = (i + 1 < code.size()) ? code[i + 1] : '\0';
+						if (prev != '=' && prev != '!' && prev != '<' && prev != '>' && next != '=') {
+							eq_pos = i;
+							eq_len = 1;
+							break;
+						}
+					}
+				}
+			}
+
+			bool has_assign = (eq_pos != std::string_view::npos);
+			bool is_const_rhs = false;
+			if (has_assign) {
+				std::string_view rhs = code.substr(eq_pos + eq_len);
+				size_t semi = rhs.find(';');
+				if (semi != std::string_view::npos) {
+					rhs = rhs.substr(0, semi);
+				}
+				is_const_rhs = is_verilog_constant_rhs(rhs);
+			}
+
+			if (!leaf_sig.empty()) {
+				size_t id_pos = contains_ident(code, leaf_sig);
+				if (id_pos != std::string_view::npos) {
+					if (has_assign && id_pos < eq_pos) {
+						score = is_const_rhs ? 30 : 40;
+					} else {
+						score = 20;
+					}
+				}
+			}
+			if (score == 0 && has_assign) {
+				score = is_const_rhs ? 5 : 10;
+			}
+
+			if (score > best_score) {
+				best_score = score;
+				best_line = ln;
+			}
+		}
+	}
+
+	if (max_lines == 1) {
+		std::string collapsed = collapse_ws(file_lines[best_line - 1]);
+		if (is_boilerplate(collapsed)) {
+			return "";
+		}
+		for (char &c : collapsed) {
+			if (c == '`') c = '\'';
+		}
+		if (collapsed.size() > 80) {
+			collapsed = collapsed.substr(0, 77) + "...";
+		}
+		return collapsed;
+	}
+
+	// Multi-line mode (max_lines > 1)
+	int win_start = start_line;
+	int win_end = end_line;
+	if (start_line == end_line) {
+		int half = (max_lines - 1) / 2;
+		win_start = std::max(1, start_line - half);
+		win_end = std::min(static_cast<int>(file_lines.size()), win_start + max_lines - 1);
+	} else if ((end_line - start_line + 1) > max_lines) {
+		int half = (max_lines - 1) / 2;
+		win_start = std::clamp(best_line - half, start_line, end_line - max_lines + 1);
+		win_end = std::min(end_line, win_start + max_lines - 1);
+	}
+
+	std::string out;
+	for (int ln = win_start; ln <= win_end; ++ln) {
+		std::string line_str;
+		for (char c : file_lines[ln - 1]) {
+			if (c == '\t') {
+				line_str += "  ";
+			} else {
+				line_str.push_back(c);
+			}
+		}
+		while (!line_str.empty() && std::isspace(static_cast<unsigned char>(line_str.back()))) {
+			line_str.pop_back();
+		}
+		if (line_str.size() > 100) {
+			line_str = line_str.substr(0, 97) + "...";
+		}
+		if (!out.empty()) {
+			out.push_back('\n');
+		}
+		out += std::format("{}: {}", ln, line_str);
+	}
+	return out;
+}
+
 std::string yosys_netlist_reader::clean_src_location(std::string_view raw_src)
 {
 	if (raw_src.empty()) return "";
