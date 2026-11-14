@@ -1605,6 +1605,8 @@ int main()
 		auto sim_tool_3 = sim_val.create_tool(sim_args);
 		std::string sim_out_3 = sim_tool_3->execute(sim_ctx);
 		assert(sim_out_3.find("OUT=ee FAIL") != std::string::npos);
+		assert(sim_out_3.find("Comparison vs. Previous (`sim_out.previous.vcd`)**: **DIVERGED**") != std::string::npos);
+		assert(sim_out_3.find("Comparison vs. Last Passing (`sim_out.lastpass.vcd`)**: **DIVERGED**") != std::string::npos);
 		assert(sim_out_3.find("To compare to the last passing run, use `vcd_compare(path_a=\"sim_out.lastpass.vcd\", path_b=\"sim_out.vcd\", scope=\"tb_dut.uut\")`") != std::string::npos);
 		tools::vcd_compare_validator cmp_val;
 		nlohmann::json cmp_args = {
@@ -1617,6 +1619,25 @@ int main()
 		std::string cmp_out = cmp_tool->execute(sim_ctx);
 		assert(cmp_out.find("0xA5") != std::string::npos);
 		assert(cmp_out.find("0xEE") != std::string::npos);
+
+		// Run a 4th simulation where the bug is fixed (back to 8'ha5 PASS); verify that it compares against
+		// BOTH the failed previous run (DIVERGED) AND the prior lastpass baseline (IDENTICAL) before updating lastpass!
+		{
+			std::ofstream dut_ofs(sim_dir + "/sv/dut.sv");
+			dut_ofs << "`timescale 1ns/1ps\n"
+			        << "module dut(input logic clk, input logic rst, output logic [7:0] out_val);\n"
+			        << "    always_ff @(posedge clk) begin\n"
+			        << "        if (rst) out_val <= 8'h42;\n"
+			        << "        else out_val <= 8'ha5;\n"
+			        << "    end\n"
+			        << "endmodule\n";
+		}
+		auto sim_tool_4 = sim_val.create_tool(sim_args);
+		std::string sim_out_4 = sim_tool_4->execute(sim_ctx);
+		assert(sim_out_4.find("OUT=a5 PASS") != std::string::npos);
+		assert(sim_out_4.find("Comparison vs. Previous (`sim_out.previous.vcd`)**: **DIVERGED**") != std::string::npos);
+		assert(sim_out_4.find("Comparison vs. Last Passing (`sim_out.lastpass.vcd`)**: **IDENTICAL**") != std::string::npos);
+		assert(sim_out_4.find("Prior passing baseline (`sim_out.lastpass.vcd`) waveform is **IDENTICAL** to the current result") != std::string::npos);
 
 		// Verify vcd_file_info resolves the VCD filename from the testbench's $dumpfile("sim_out.vcd")
 		// when path is omitted OR when a mismatched prefix like "sim/sim_out.vcd" is passed

@@ -4,6 +4,7 @@
 #include <atomic>
 #include <filesystem>
 #include <format>
+#include <fstream>
 #include <map>
 #include <optional>
 #include <set>
@@ -421,20 +422,28 @@ tb_run_outcome run_compiled_testbench(
 		ss << "\n#### Simulation Output\n```\n" << sim_out << "\n```\n";
 	}
 
-	// 8. Parse and cache the generated VCD file, update <stem>.lastpass.vcd on PASS, and emit next-step commands
+	// 8. Parse and cache the generated VCD file, compare against .previous.vcd and prior .lastpass.vcd,
+	//    update <stem>.lastpass.vcd on PASS, and emit next-step commands
 	bool vcd_exists = expects_vcd && fs::exists(vcd_full_path, ec) && fs::is_regular_file(vcd_full_path, ec);
 	bool vcd_updated = vcd_exists && (plan.has_collision ? raw_updated : (!pre_sim_time.has_value() || fs::last_write_time(vcd_full_path, ec) >= *pre_sim_time));
 
-	bool saved_lastpass = false;
-	if (vcd_exists && vcd_updated && out.suite_passed) {
-		std::string canon_lp;
-		std::string lp_err;
-		if (ctx.fs_security.validate_access(vcd_lastpass_full_path.string(), agentlib::access_type::write, canon_lp, lp_err)) {
-			fs::copy_file(vcd_full_path, vcd_lastpass_full_path, fs::copy_options::overwrite_existing, ec);
-			saved_lastpass = !ec && fs::exists(vcd_lastpass_full_path, ec);
+	bool had_prior_lastpass = expects_vcd && fs::exists(vcd_lastpass_full_path, ec) && fs::is_regular_file(vcd_lastpass_full_path, ec);
+	auto files_byte_identical = [](const fs::path &a, const fs::path &b) -> bool {
+		std::error_code f_ec;
+		if (fs::file_size(a, f_ec) != fs::file_size(b, f_ec) || f_ec) {
+			return false;
 		}
-	}
-	bool lastpass_exists = expects_vcd && fs::exists(vcd_lastpass_full_path, ec) && fs::is_regular_file(vcd_lastpass_full_path, ec);
+		std::ifstream fa(a, std::ios::binary);
+		std::ifstream fb(b, std::ios::binary);
+		if (!fa.is_open() || !fb.is_open()) {
+			return false;
+		}
+		return std::equal(std::istreambuf_iterator<char>(fa.rdbuf()),
+		                  std::istreambuf_iterator<char>(),
+		                  std::istreambuf_iterator<char>(fb.rdbuf()));
+	};
+	bool prev_differs_from_lastpass = saved_previous && had_prior_lastpass &&
+	                                  !files_byte_identical(vcd_prev_full_path, vcd_lastpass_full_path);
 
 	if (vcd_exists && vcd_updated) {
 		std::string parse_err;
@@ -442,6 +451,45 @@ tb_run_outcome run_compiled_testbench(
 		if (parser_ptr) {
 			const auto &parser = *parser_ptr;
 			uintmax_t fsize = fs::file_size(vcd_full_path, ec);
+
+			const auto &signals = parser.get_signals();
+			std::set<std::string> scopes;
+			std::string suggested_scope = top_mod;
+			for (const auto &sig : signals) {
+				if (!sig.scope.empty()) {
+					scopes.insert(sig.scope);
+					if (sig.scope.starts_with(top_mod + ".") &&
+					    sig.scope.find('.', top_mod.size() + 1) == std::string::npos) {
+						suggested_scope = sig.scope;
+					}
+				}
+			}
+
+			// Compare against .previous.vcd and prior .lastpass.vcd BEFORE overwriting .lastpass.vcd on PASS
+			vcd_compare_tool::quick_compare_summary prev_cmp;
+			if (saved_previous) {
+				prev_cmp = vcd_compare_tool::quick_compare(vcd_prev_full_path.string(), vcd_full_path.string(), suggested_scope);
+			}
+			vcd_compare_tool::quick_compare_summary lp_cmp;
+			if (had_prior_lastpass) {
+				if (saved_previous && !prev_differs_from_lastpass) {
+					lp_cmp = prev_cmp;
+				} else {
+					lp_cmp = vcd_compare_tool::quick_compare(vcd_lastpass_full_path.string(), vcd_full_path.string(), suggested_scope);
+				}
+			}
+
+			// Now update <stem>.lastpass.vcd if the current run passed
+			bool saved_lastpass = false;
+			if (out.suite_passed) {
+				std::string canon_lp;
+				std::string lp_err;
+				if (ctx.fs_security.validate_access(vcd_lastpass_full_path.string(), agentlib::access_type::write, canon_lp, lp_err)) {
+					fs::copy_file(vcd_full_path, vcd_lastpass_full_path, fs::copy_options::overwrite_existing, ec);
+					saved_lastpass = !ec && fs::exists(vcd_lastpass_full_path, ec);
+				}
+			}
+			bool lastpass_exists = had_prior_lastpass || saved_lastpass;
 
 			ss << std::format("\n#### Generated VCD Summary (`{}`)\n", dump_rel);
 			ss << std::format("- **Waveform File**: `{}` ({} bytes, loaded into LRU cache)\n", dump_rel, fsize);
@@ -466,19 +514,6 @@ tb_run_outcome run_compiled_testbench(
 				                  parser.get_timescale());
 				size_t dot = clk_info->signal_name.rfind('.');
 				clk_short_name = (dot != std::string::npos) ? clk_info->signal_name.substr(dot + 1) : clk_info->signal_name;
-			}
-
-			const auto &signals = parser.get_signals();
-			std::set<std::string> scopes;
-			std::string suggested_scope = top_mod;
-			for (const auto &sig : signals) {
-				if (!sig.scope.empty()) {
-					scopes.insert(sig.scope);
-					if (sig.scope.starts_with(top_mod + ".") &&
-					    sig.scope.find('.', top_mod.size() + 1) == std::string::npos) {
-						suggested_scope = sig.scope;
-					}
-				}
 			}
 
 			std::vector<std::string> sample_sigs;
@@ -512,25 +547,57 @@ tb_run_outcome run_compiled_testbench(
 			ss << std::format("- **Total Signals**: {} across {} hierarchy scope(s)\n",
 			                  signals.size(), scopes.size());
 
-			vcd_compare_tool::quick_compare_summary prev_cmp;
-			if (saved_previous) {
-				prev_cmp = vcd_compare_tool::quick_compare(vcd_prev_full_path.string(), vcd_full_path.string(), suggested_scope);
-				if (prev_cmp.ok) {
-					if (prev_cmp.identical) {
-						out.compare_status = "IDENTICAL to previous";
-						ss << std::format("- **Comparison vs. Previous (`{}`)**: **IDENTICAL** (0 differences across {} signal(s) and {} clock cycle(s))\n",
-						                  prev_rel, prev_cmp.common_signals, prev_cmp.cycles_b);
-					} else if (prev_cmp.divergent_cycles > 0) {
-						out.compare_status = std::format("DIVERGED at tick {} ({} sigs)", prev_cmp.first_divergent_tick, prev_cmp.divergent_signals);
-						ss << std::format("- **Comparison vs. Previous (`{}`)**: **DIVERGED** ({} signal(s) differ across {} of {} cycle(s); first difference at tick {})\n",
-						                  prev_rel, prev_cmp.divergent_signals, prev_cmp.divergent_cycles,
-						                  std::min(prev_cmp.cycles_a, prev_cmp.cycles_b), prev_cmp.first_divergent_tick);
-					} else {
-						out.compare_status = std::format("LENGTH MISMATCH ({} vs {} cycles)", prev_cmp.cycles_a, prev_cmp.cycles_b);
-						ss << std::format("- **Comparison vs. Previous (`{}`)**: **LENGTH MISMATCH** ({} vs {} cycles)\n",
-						                  prev_rel, prev_cmp.cycles_a, prev_cmp.cycles_b);
-					}
+			auto format_cmp_bullet = [&](std::string_view label, std::string_view ref_rel, const vcd_compare_tool::quick_compare_summary &cmp) {
+				if (!cmp.ok) {
+					return;
 				}
+				if (cmp.identical) {
+					ss << std::format("- **Comparison vs. {} (`{}`)**: **IDENTICAL** (0 differences across {} signal(s) and {} clock cycle(s))\n",
+					                  label, ref_rel, cmp.common_signals, cmp.cycles_b);
+				} else if (cmp.divergent_cycles > 0) {
+					ss << std::format("- **Comparison vs. {} (`{}`)**: **DIVERGED** ({} signal(s) differ across {} of {} cycle(s); first difference at tick {})\n",
+					                  label, ref_rel, cmp.divergent_signals, cmp.divergent_cycles,
+					                  std::min(cmp.cycles_a, cmp.cycles_b), cmp.first_divergent_tick);
+				} else {
+					ss << std::format("- **Comparison vs. {} (`{}`)**: **LENGTH MISMATCH** ({} vs {} cycles)\n",
+					                  label, ref_rel, cmp.cycles_a, cmp.cycles_b);
+				}
+			};
+
+			if (saved_previous && prev_cmp.ok) {
+				format_cmp_bullet("Previous", prev_rel, prev_cmp);
+			}
+			if (had_prior_lastpass && prev_differs_from_lastpass && lp_cmp.ok) {
+				format_cmp_bullet("Last Passing", lastpass_rel, lp_cmp);
+			}
+
+			// Populate compact table compare_status
+			auto short_cmp_tag = [](const vcd_compare_tool::quick_compare_summary &cmp, std::string_view target_name) -> std::string {
+				if (cmp.identical) {
+					return std::format("IDENTICAL to {}", target_name);
+				}
+				if (cmp.divergent_cycles > 0) {
+					return std::format("DIVERGED at tick {} ({} sigs)", cmp.first_divergent_tick, cmp.divergent_signals);
+				}
+				return std::format("LENGTH MISMATCH ({} vs {} cycles)", cmp.cycles_a, cmp.cycles_b);
+			};
+
+			if (prev_differs_from_lastpass && prev_cmp.ok && lp_cmp.ok) {
+				if (lp_cmp.identical) {
+					if (prev_cmp.divergent_cycles > 0) {
+						out.compare_status = std::format("IDENTICAL to lastpass (vs prev: DIVERGED at tick {})", prev_cmp.first_divergent_tick);
+					} else {
+						out.compare_status = "IDENTICAL to lastpass";
+					}
+				} else if (prev_cmp.identical) {
+					out.compare_status = std::format("IDENTICAL to previous; vs lastpass: {}", short_cmp_tag(lp_cmp, "lastpass"));
+				} else {
+					out.compare_status = std::format("vs lastpass: {}; vs prev: {}",
+					                                 short_cmp_tag(lp_cmp, "lastpass"),
+					                                 short_cmp_tag(prev_cmp, "previous"));
+				}
+			} else if (saved_previous && prev_cmp.ok) {
+				out.compare_status = short_cmp_tag(prev_cmp, "previous");
 			}
 
 			ss << "\n#### Next Steps\n";
@@ -550,15 +617,19 @@ tb_run_outcome run_compiled_testbench(
 					                  prev_rel, prev_rel, dump_rel, suggested_scope);
 				}
 			}
-			if (!out.suite_passed && lastpass_exists) {
-				auto lp_cmp = vcd_compare_tool::quick_compare(vcd_lastpass_full_path.string(), vcd_full_path.string(), suggested_scope);
+			if (had_prior_lastpass && (!out.suite_passed || prev_differs_from_lastpass)) {
 				if (lp_cmp.ok && lp_cmp.identical) {
-					ss << std::format("- Last passing run (`{}`) waveform is **IDENTICAL** to the current result ({} signal(s), {} cycles).\n",
+					ss << std::format("- Prior passing baseline (`{}`) waveform is **IDENTICAL** to the current result ({} signal(s), {} cycles).\n",
 					                  lastpass_rel, lp_cmp.common_signals, lp_cmp.cycles_b);
 				} else if (lp_cmp.ok && lp_cmp.divergent_cycles > 0) {
-					ss << std::format("- Compared to last passing run (`{}`): diverged at tick {} ({} signal(s) differ). To compare to the last passing run, use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
-					                  lastpass_rel, lp_cmp.first_divergent_tick, lp_cmp.divergent_signals, lastpass_rel, dump_rel, suggested_scope);
-				} else {
+					if (!out.suite_passed && lastpass_exists) {
+						ss << std::format("- Compared to last passing run (`{}`): diverged at tick {} ({} signal(s) differ). To compare to the last passing run, use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
+						                  lastpass_rel, lp_cmp.first_divergent_tick, lp_cmp.divergent_signals, lastpass_rel, dump_rel, suggested_scope);
+					} else {
+						ss << std::format("- Prior passing baseline (`{}`) diverged from the current passing result at tick {} ({} signal(s) differ) before `{}` was updated.\n",
+						                  lastpass_rel, lp_cmp.first_divergent_tick, lp_cmp.divergent_signals, lastpass_rel);
+					}
+				} else if (!out.suite_passed && lastpass_exists) {
 					ss << std::format("- To compare to the last passing run, use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
 					                  lastpass_rel, dump_rel, suggested_scope);
 				}
@@ -1047,7 +1118,8 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 		bool is_notable = o.compile_failed || o.timed_out || o.has_fatal || o.suite_failed ||
 		                  o.completed_no_assertions || o.has_collision ||
 		                  o.compare_status.starts_with("DIVERGED") ||
-		                  o.compare_status.starts_with("LENGTH");
+		                  o.compare_status.starts_with("LENGTH") ||
+		                  o.compare_status.starts_with("vs lastpass:");
 		bool include_section = false;
 		if (args_.summary_only) {
 			include_section = o.compile_failed || o.timed_out || o.has_fatal || o.suite_failed;
