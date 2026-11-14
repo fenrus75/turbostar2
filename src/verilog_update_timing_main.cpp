@@ -646,11 +646,21 @@ int main(int argc, char **argv)
 	bool vlbl_clear = false, vlbl_local = false, vlbl_list = false;
 	sub_vcd_labels->add_option("target", vlbl_pos, "Optional VCD file path or signal name");
 	sub_vcd_labels->add_option("-s,--signal", vlbl_sig, "Signal name or wildcard pattern (e.g. 'opcode', '*state*')");
-	sub_vcd_labels->add_option("-m,--map,-l,--labels", vlbl_maps, "Value-to-label mappings 'val=label' (comma-separated or repeatable)");
+	sub_vcd_labels->add_option("-m,--map,-l,--labels", vlbl_maps, "Value-to-label mappings 'val=label' (hex e.g. '0x3e=MVI_A' or binary with '?' wildcards e.g. 'b01?????" "?=MOV')");
 	sub_vcd_labels->add_option("-f,--file", vlbl_path, "Optional VCD file path");
 	sub_vcd_labels->add_flag("--list", vlbl_list, "List configured signal labels");
 	sub_vcd_labels->add_flag("--clear", vlbl_clear, "Clear labels for the specified signal (or all signals if omitted)");
 	sub_vcd_labels->add_flag("--local", vlbl_local, "Save to '<vcd>.labels.json' instead of project-wide 'vcd_labels.json'");
+	sub_vcd_labels->footer(
+		"Examples:\n"
+		"  # Map exact hex values on 'opcode' (saved to project-wide vcd_labels.json):\n"
+		"  turbostar-verilog vcd-labels -s opcode -l 0x00=NOP,0x3e=MVI_A,0x76=HLT\n\n"
+		"  # Map binary bit-patterns with '?' don't-care wildcards (e.g. instruction families):\n"
+		"  turbostar-verilog vcd-labels -s \"*opcode\" -l \"b01?????" "?=MOV,b10000??" "?=ADD,b00???110=MVI\"\n\n"
+		"  # List or clear registered labels:\n"
+		"  turbostar-verilog vcd-labels --list\n"
+		"  turbostar-verilog vcd-labels -s opcode --clear"
+	);
 
 	// Subcommand: vcd-qualifier (vcd_signal_qualifier)
 	auto *sub_vcd_qual = app.add_subcommand("vcd-qualifier", "Register, query, or clear validity qualifiers for VCD signals");
