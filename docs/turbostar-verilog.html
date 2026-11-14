@@ -403,7 +403,7 @@ Critical Path Summary: 9.744 ns (3.543 ns logic [36%], 5.803 ns routing [60%]), 
         </p>
         <ul class="detail-list">
           <li><strong>Zero-Config Enum Auto-Discovery:</strong> <code>vcd-info</code>, <code>vcd-wave</code>, and <code>vcd-search</code> automatically scan your SystemVerilog <code>typedef enum</code> declarations so FSM states render as <code>0x1 (FETCH)</code>, <code>0x2 (DECODE)</code>, and <code>0x4 (RETIRE)</code> without manual setup.</li>
-          <li><strong>Shorthand Signal Names &amp; Idle Collapsing:</strong> Pass leaf names like <code>-s sequencer.state,current_ip,alu_out</code>; <code>vcd-wave</code> resolves full hierarchical paths automatically and collapses identical idle clock cycles.</li>
+          <li><strong>Module Boundary &amp; Shorthand Signal Sampling:</strong> Pass an instance or module name like <code>-i alu</code> (or <code>vcd-wave alu</code>) to automatically sample all of its input and output ports, or pass leaf names like <code>-s sequencer.state,current_ip,alu_out</code>; <code>vcd-wave</code> resolves full hierarchical paths automatically and collapses identical idle clock cycles.</li>
           <li><strong>Structural Net Traceability (<code>vcd-trace</code>):</strong> Map any VCD signal back to every module port, wire declaration, driving cell, and sink load across your RTL hierarchy.</li>
         </ul>
       </div>
@@ -577,8 +577,8 @@ Sampled on: `tb_main.clk` (posedge) | Timescale: 1ps | Total Rows: 13
             </tr>
             <tr>
               <td><code>vcd-wave</code></td>
-              <td><code>[vcd]</code>, <code>-s, --signals</code>, <code>--start-tick</code>, <code>--end-tick</code>, <code>--max-rows</code>, <code>--radix</code>, <code>--no-collapse</code>, <code>--gtkw</code></td>
-              <td>Render clock-aligned waveform tables with automatic enum state decoding, idle cycle collapsing, and optional <code>.gtkw</code> export.</td>
+              <td><code>[vcd|instance]</code>, <code>-i, --instance, -m, --module</code>, <code>-s, --signals</code>, <code>--start-tick</code>, <code>--end-tick</code>, <code>--max-rows</code>, <code>--radix</code>, <code>--no-collapse</code>, <code>--gtkw</code></td>
+              <td>Render clock-aligned waveform tables for all I/O ports of a module instance (<code>-i</code>) or explicit signals (<code>-s</code>), with automatic enum state decoding, idle cycle collapsing, and optional <code>.gtkw</code> export.</td>
             </tr>
             <tr>
               <td><code>vcd-search</code></td>

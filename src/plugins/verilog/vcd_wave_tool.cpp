@@ -2,6 +2,7 @@
 #include "vcd_parser.h"
 #include "vcd_parser_cache.h"
 #include "vcd_label_manager.h"
+#include "plugins/verilog/verilog_module_scanner.h"
 #include <format>
 #include <sstream>
 #include <fstream>
@@ -40,6 +41,107 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 		}
 		clock_name = detected->signal_name;
 	}
+	const auto *clk_sig_obj = parser.find_signal(clock_name);
+	std::string clock_short_name = clk_sig_obj ? clk_sig_obj->short_name : clock_name;
+
+	std::string preferred_scope;
+	std::optional<verilog::resolved_vcd_instance> resolved_inst;
+	std::vector<std::string> input_port_names;
+	std::vector<std::string> output_port_names;
+
+	if (!args_.instance.empty()) {
+		resolved_inst = verilog::verilog_module_scanner::resolve_vcd_instance_scope(
+			parser, args_.instance, ctx.fs_security.get_working_directory()
+		);
+		if (!resolved_inst.has_value()) {
+			std::vector<std::string> avail_scopes;
+			std::set<std::string> seen;
+			for (const auto &s : parser.get_signals()) {
+				if (!s.scope.empty() && seen.insert(s.scope).second) {
+					avail_scopes.push_back(s.scope);
+				}
+			}
+			std::string scopes_list;
+			for (size_t i = 0; i < avail_scopes.size(); ++i) {
+				if (i > 0) scopes_list += ", ";
+				scopes_list += std::format("`{}`", avail_scopes[i]);
+			}
+			std::string err_msg = std::format(
+				"Error: Instance or module '{}' not found in VCD '{}'. Available scopes: {}",
+				args_.instance, args_.requested_path, scopes_list.empty() ? "(none)" : scopes_list
+			);
+			set_failure(ctx, err_msg);
+			return err_msg;
+		}
+
+		preferred_scope = resolved_inst->scope;
+		std::vector<std::string> auto_signals;
+		std::set<std::string> seen_sigs;
+
+		auto try_add_port = [&](const std::string &port_name, const std::string &dir) {
+			if (port_name == clock_name || port_name == clock_short_name) {
+				return;
+			}
+			const auto *found = parser.find_signal(port_name, preferred_scope);
+			if (!found || found->scope != preferred_scope) {
+				return;
+			}
+			if (seen_sigs.insert(port_name).second) {
+				auto_signals.push_back(port_name);
+				if (dir == "output") {
+					output_port_names.push_back(port_name);
+				} else {
+					input_port_names.push_back(port_name);
+				}
+			}
+		};
+
+		// Add inputs/inouts first, then outputs
+		for (const auto &p : resolved_inst->ports) {
+			if (p.direction != "output") {
+				try_add_port(p.name, p.direction);
+			}
+		}
+		for (const auto &p : resolved_inst->ports) {
+			if (p.direction == "output") {
+				try_add_port(p.name, p.direction);
+			}
+		}
+
+		// Fallback if no RTL source ports were discovered (e.g. standalone VCD without RTL files):
+		// include all non-clock signals in the resolved scope.
+		if (auto_signals.empty()) {
+			for (const auto &sig : parser.get_signals()) {
+				if (sig.scope == preferred_scope &&
+				    sig.short_name != clock_short_name &&
+				    sig.full_name != clock_name &&
+				    seen_sigs.insert(sig.short_name).second) {
+					auto_signals.push_back(sig.short_name);
+				}
+			}
+		}
+
+		// Append any explicit extra signals passed alongside 'instance'
+		for (const auto &extra : args_.signals) {
+			std::string_view clean_extra = extra;
+			if (clean_extra.starts_with("x:") || clean_extra.starts_with("b:") || clean_extra.starts_with("d:")) {
+				clean_extra.remove_prefix(2);
+			}
+			if (seen_sigs.insert(std::string(clean_extra)).second) {
+				auto_signals.push_back(extra);
+			}
+		}
+
+		args_.signals = std::move(auto_signals);
+		if (args_.signals.empty()) {
+			std::string err_msg = std::format(
+				"Error: No non-clock signals found for instance '{}' (scope '{}') in VCD '{}'.",
+				args_.instance, preferred_scope, args_.requested_path
+			);
+			set_failure(ctx, err_msg);
+			return err_msg;
+		}
+	}
 
 	std::string sample_err;
 	char default_radix = 'x';
@@ -59,7 +161,8 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 		args_.max_rows,
 		sample_err,
 		args_.collapse_idle,
-		default_radix
+		default_radix,
+		preferred_scope
 	);
 
 	if (!sample_err.empty()) {
@@ -75,6 +178,33 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 	std::ostringstream ss;
 	ss << verilog::vcd_parser_cache::check_stale_rtl_warning(args_.safe_path, args_.requested_path);
 	ss << std::format("### VCD Waveform: `{}`\n", args_.requested_path);
+	if (resolved_inst.has_value()) {
+		auto join_backtick = [](const std::vector<std::string> &items) -> std::string {
+			if (items.empty()) return "(none)";
+			std::string out;
+			for (size_t i = 0; i < items.size(); ++i) {
+				if (i > 0) out += ", ";
+				out += std::format("`{}`", items[i]);
+			}
+			return out;
+		};
+		if (!resolved_inst->module_name.empty() && resolved_inst->module_name != resolved_inst->scope) {
+			ss << std::format("Instance: `{}` (module `{}`)", resolved_inst->scope, resolved_inst->module_name);
+		} else {
+			ss << std::format("Instance: `{}`", resolved_inst->scope);
+		}
+		if (!input_port_names.empty() || !output_port_names.empty()) {
+			ss << std::format(" | Inputs: {} | Outputs: {}",
+			                  join_backtick(input_port_names), join_backtick(output_port_names));
+		}
+		ss << "\n";
+		if (!resolved_inst->other_scopes.empty()) {
+			ss << std::format("> [!NOTE] Multiple instances of `{}` exist in this VCD; showing first instance `{}`. Other instances: {}.\n",
+			                  resolved_inst->module_name.empty() ? args_.instance : resolved_inst->module_name,
+			                  resolved_inst->scope,
+			                  join_backtick(resolved_inst->other_scopes));
+		}
+	}
 	if (total_cycles != samples.size()) {
 		ss << std::format("Sampled on: `{}` ({}) | Timescale: {} | Rows: {} (representing {} cycles)\n\n",
 			clock_name, args_.edge, parser.get_timescale(), samples.size(), total_cycles);
@@ -146,7 +276,7 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 				lookup_sig = name_it->second;
 			}
 
-			const auto *sig_obj = parser.find_signal(lookup_sig);
+			const auto *sig_obj = parser.find_signal(lookup_sig, preferred_scope);
 			if (!sig_obj) {
 				ss << "| - ";
 				continue;
@@ -249,7 +379,7 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 		auto it = full_names_map.find(sig);
 		std::string full_name = (it != full_names_map.end()) ? it->second : "";
 		if (full_name.empty()) {
-			const auto *s = parser.find_signal(display_name);
+			const auto *s = parser.find_signal(display_name, preferred_scope);
 			if (s) full_name = s->full_name;
 		}
 
@@ -298,7 +428,7 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 				auto it = full_names_map.find(sig);
 				std::string full_name = (it != full_names_map.end()) ? it->second : "";
 				if (full_name.empty()) {
-					const auto *s = parser.find_signal(name);
+					const auto *s = parser.find_signal(name, preferred_scope);
 					if (s) full_name = s->full_name;
 				}
 				if (!full_name.empty()) {
@@ -326,7 +456,7 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 				auto it = full_names_map.find(sig);
 				std::string full_name = (it != full_names_map.end()) ? it->second : "";
 				if (full_name.empty()) {
-					const auto *s = parser.find_signal(clean_name);
+					const auto *s = parser.find_signal(clean_name, preferred_scope);
 					if (s) full_name = s->full_name;
 				}
 				if (full_name.empty()) {
@@ -371,7 +501,7 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 		std::string clean_arg(clean_sv);
 		auto it = full_names_map.find(sig);
 		std::string full_name = (it != full_names_map.end()) ? it->second : "";
-		const auto *sig_obj = !full_name.empty() ? parser.find_signal(full_name) : parser.find_signal(clean_arg);
+		const auto *sig_obj = !full_name.empty() ? parser.find_signal(full_name) : parser.find_signal(clean_arg, preferred_scope);
 		if (full_name.empty() && sig_obj) {
 			full_name = sig_obj->full_name;
 		}

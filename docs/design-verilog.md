@@ -35,7 +35,7 @@ The `verilog` plugin (`src/plugins/verilog/`) and standalone CLI (`turbostar-ver
 ## 3. Simulation Waveform Inspection (`vcd_*`)
 
 - **Streaming VCD Parser & Signal Analysis (`vcd_parser`, `vcd_label_manager`, `vcd_qualifier_manager`)**:
-  - **Waveform Rendering (`vcd_wave`)**: Renders clock-aligned multi-bit bus and control waveforms over specified cycle or timestamp windows, supporting clock edge filtering (`posedge`/`negedge`) and hierarchical scope inspection (`vcd_file_info`).
+  - **Waveform Rendering (`vcd_wave`)**: Renders clock-aligned multi-bit bus and control waveforms over specified cycle or timestamp windows, supporting explicit `signals` lists as well as whole-module I/O boundary inspection via `instance` (accepting either a VCD instance name/path or an RTL module name and automatically sampling all `input`/`inout`/`output` ports of that module), clock edge filtering (`posedge`/`negedge`), and hierarchical scope inspection (`vcd_file_info`).
   - **Semantic Value Labels (`vcd_signal_labels`)**: Substitutes raw hex/binary bus values with human-readable state and instruction names from `vcd_labels.json` and live-discovered SystemVerilog `enum` types.
   - **Valid/Strobe Qualifiers (`vcd_signal_qualifier`)**: Associates data buses with valid/enable qualifiers (`vcd_qualifiers.json`) to mask inactive clock cycles (`-`).
   - **Synchronous Condition Search & Trace Diffing (`vcd_search`, `vcd_compare`)**: Evaluates multi-signal boolean conditions (`==`, `!=`, `$rose`, `$fell`, `$stable`, `$changed`) synchronized to clock edges, and performs cycle-by-cycle differential comparisons between two VCD traces to pinpoint the exact cycle and signal of first divergence.

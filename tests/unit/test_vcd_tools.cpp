@@ -2274,6 +2274,143 @@ int main()
 		std::filesystem::remove_all(wave_proj);
 	}
 
+	// Test vcd_wave 'instance' parameter (instance name, RTL module name, and multi-instance first-match)
+	{
+		std::filesystem::path inst_proj = std::filesystem::temp_directory_path() / "turbostar_vcd_wave_instance_test";
+		std::filesystem::remove_all(inst_proj);
+		std::filesystem::create_directories(inst_proj / "rtl");
+		std::filesystem::create_directories(inst_proj / "tb");
+
+		{
+			std::ofstream ofs(inst_proj / "rtl" / "alu_mod.sv");
+			ofs << "module alu_mod(\n"
+			       "    input logic clk,\n"
+			       "    input logic rst,\n"
+			       "    input logic [7:0] a, b,\n"
+			       "    output logic [7:0] y\n"
+			       ");\n"
+			       "    assign y = rst ? 8'h00 : (a + b);\n"
+			       "endmodule\n";
+		}
+		{
+			std::ofstream ofs(inst_proj / "rtl" / "reg_cell.sv");
+			ofs << "module reg_cell(\n"
+			       "    input logic clk,\n"
+			       "    input logic rst,\n"
+			       "    input logic [7:0] d,\n"
+			       "    output logic [7:0] q\n"
+			       ");\n"
+			       "endmodule\n";
+		}
+		{
+			std::ofstream ofs(inst_proj / "rtl" / "top_mod.sv");
+			ofs << "module top_mod(input logic clk, input logic rst);\n"
+			       "    alu_mod alu(.clk(clk), .rst(rst), .a(8'h10), .b(8'h20), .y());\n"
+			       "    reg_cell reg_a(.clk(clk), .rst(rst), .d(8'h11), .q());\n"
+			       "    reg_cell reg_b(.clk(clk), .rst(rst), .d(8'h22), .q());\n"
+			       "endmodule\n";
+		}
+		{
+			std::ofstream ofs(inst_proj / "tb" / "tb_top.sv");
+			ofs << "module tb_top;\n"
+			       "    logic clk;\n"
+			       "    top_mod uut(.clk(clk), .rst(1'b0));\n"
+			       "    initial begin $dumpfile(\"dump.vcd\"); $dumpvars(0, tb_top); end\n"
+			       "endmodule\n";
+		}
+		{
+			std::ofstream ofs(inst_proj / "dump.vcd");
+			ofs << "$timescale 1ns $end\n"
+			       "$scope module tb_top $end\n"
+			       "$var wire 1 ! clk $end\n"
+			       "$scope module uut $end\n"
+			       "$scope module alu $end\n"
+			       "$var wire 1 ! clk $end\n"
+			       "$var wire 1 \" rst $end\n"
+			       "$var wire 8 # a [7:0] $end\n"
+			       "$var wire 8 $ b [7:0] $end\n"
+			       "$var wire 8 % y [7:0] $end\n"
+			       "$upscope $end\n"
+			       "$scope module reg_a $end\n"
+			       "$var wire 1 ! clk $end\n"
+			       "$var wire 1 \" rst $end\n"
+			       "$var wire 8 & d [7:0] $end\n"
+			       "$var wire 8 ' q [7:0] $end\n"
+			       "$upscope $end\n"
+			       "$scope module reg_b $end\n"
+			       "$var wire 1 ! clk $end\n"
+			       "$var wire 1 \" rst $end\n"
+			       "$var wire 8 ( d [7:0] $end\n"
+			       "$var wire 8 ) q [7:0] $end\n"
+			       "$upscope $end\n"
+			       "$upscope $end\n"
+			       "$upscope $end\n"
+			       "$enddefinitions $end\n"
+			       "#0\n0!\n1\"\nb00010000 #\nb00100000 $\nb00000000 %\nb00010001 &\nb00000000 '\nb00100010 (\nb00000000 )\n"
+			       "#5\n1!\n"
+			       "#10\n0!\n0\"\nb00110000 %\nb00010001 '\nb00100010 )\n"
+			       "#15\n1!\n"
+			       "#20\n0!\n";
+		}
+
+		tools::vcd_wave_validator wave_val;
+		agentlib::tool_context ictx;
+		ictx.fs_security.add_allowed_root(inst_proj.string(), agentlib::access_type::read);
+		ictx.fs_security.set_working_directory(inst_proj.string());
+
+		// 1) Instance by name ("alu") with auto-detected VCD path
+		{
+			std::string ierr;
+			nlohmann::json args_inst = {
+				{"instance", "alu"}
+			};
+			assert(wave_val.validate_args(args_inst, ictx, ierr) && ierr.empty());
+			std::string out_inst = wave_val.create_tool(args_inst)->execute(ictx);
+			assert(out_inst.find("Instance: `tb_top.uut.alu` (module `alu_mod`)") != std::string::npos);
+			assert(out_inst.find("Inputs: `rst`, `a`, `b` | Outputs: `y`") != std::string::npos);
+			assert(out_inst.find("| `rst` | `a` | `b` | `y` |") != std::string::npos);
+			assert(out_inst.find("0x30") != std::string::npos);
+		}
+
+		// 2) By RTL module name via 'module' alias ("alu_mod")
+		{
+			std::string ierr;
+			nlohmann::json args_mod = {
+				{"module", "alu_mod"}
+			};
+			assert(wave_val.validate_args(args_mod, ictx, ierr) && ierr.empty());
+			std::string out_mod = wave_val.create_tool(args_mod)->execute(ictx);
+			assert(out_mod.find("Instance: `tb_top.uut.alu` (module `alu_mod`)") != std::string::npos);
+		}
+
+		// 3) Multi-instance module ("reg_cell") picks first instance (reg_a) and notes reg_b
+		{
+			std::string ierr;
+			nlohmann::json args_multi = {
+				{"instance", "reg_cell"}
+			};
+			assert(wave_val.validate_args(args_multi, ictx, ierr) && ierr.empty());
+			std::string out_multi = wave_val.create_tool(args_multi)->execute(ictx);
+			assert(out_multi.find("Instance: `tb_top.uut.reg_a` (module `reg_cell`)") != std::string::npos);
+			assert(out_multi.find("Other instances: `tb_top.uut.reg_b`") != std::string::npos);
+			assert(out_multi.find("0x11") != std::string::npos);
+		}
+
+		// 4) Nonexistent instance reports available scopes
+		{
+			std::string ierr;
+			nlohmann::json args_bad = {
+				{"instance", "does_not_exist"}
+			};
+			assert(wave_val.validate_args(args_bad, ictx, ierr) && ierr.empty());
+			std::string out_bad = wave_val.create_tool(args_bad)->execute(ictx);
+			assert(out_bad.find("not found in VCD") != std::string::npos);
+			assert(out_bad.find("tb_top.uut.alu") != std::string::npos);
+		}
+
+		std::filesystem::remove_all(inst_proj);
+	}
+
 	std::filesystem::remove(vcd_path + ".labels.json");
 	std::filesystem::remove("tests/fixtures/test_dump_org.vcd.labels.json");
 	std::filesystem::remove("tests/fixtures/test_dump_org.vcd.qualifiers.json");

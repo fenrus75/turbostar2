@@ -1,6 +1,7 @@
 #include "plugins/verilog/verilog_module_scanner.h"
 
 #include "mapped_file.h"
+#include "plugins/verilog/vcd_parser.h"
 
 #include <algorithm>
 #include <cctype>
@@ -324,7 +325,9 @@ std::string verilog_module_scanner::extract_dumpfile_path(const std::filesystem:
 	return "";
 }
 
-std::string verilog_module_scanner::resolve_vcd_path(const std::filesystem::path &project_root, std::string_view requested_path)
+std::string verilog_module_scanner::resolve_vcd_path(const std::filesystem::path &project_root,
+                                                     std::string_view requested_path,
+                                                     std::string_view requested_instance)
 {
 	std::error_code ec;
 	std::filesystem::path root = project_root.empty() ? std::filesystem::path(".") : project_root;
@@ -336,19 +339,6 @@ std::string verilog_module_scanner::resolve_vcd_path(const std::filesystem::path
 		}
 	}
 
-	// Discover the VCD path declared by $dumpfile("...") in the project's testbench file(s)
-	std::string tb_dump = "dump.vcd";
-	auto tbs = find_testbench_files(root);
-	for (const auto &tb : tbs) {
-		std::string extracted = extract_dumpfile_path(tb);
-		if (!extracted.empty()) {
-			tb_dump = extracted;
-			if (extracted != "dump.vcd") {
-				break;
-			}
-		}
-	}
-
 	auto qualify_with_root = [&](const std::filesystem::path &rel_p) -> std::string {
 		if (!std::filesystem::exists(rel_p, ec) && std::filesystem::exists(root / rel_p, ec)) {
 			return (root / rel_p).string();
@@ -356,7 +346,64 @@ std::string verilog_module_scanner::resolve_vcd_path(const std::filesystem::path
 		return rel_p.string();
 	};
 
+	// Discover the VCD path declared by $dumpfile("...") in the project's testbench file(s)
+	std::string tb_dump = "dump.vcd";
+	auto tbs = find_testbench_files(root);
+	std::vector<std::string> candidate_vcds;
+	auto add_candidate_vcd = [&](std::string_view vcd_rel) {
+		if (vcd_rel.empty()) {
+			return;
+		}
+		std::string q = qualify_with_root(vcd_rel);
+		if (std::filesystem::exists(q, ec) && std::ranges::find(candidate_vcds, q) == candidate_vcds.end()) {
+			candidate_vcds.push_back(std::move(q));
+		}
+	};
+
+	add_candidate_vcd("dump.vcd");
+	for (const auto &tb : tbs) {
+		std::string extracted = extract_dumpfile_path(tb);
+		if (!extracted.empty()) {
+			if (tb_dump == "dump.vcd" || extracted != "dump.vcd") {
+				if (tb_dump == "dump.vcd") {
+					tb_dump = extracted;
+				}
+			}
+			add_candidate_vcd(extracted);
+		}
+	}
+
 	if (requested_path.empty()) {
+		if (candidate_vcds.size() > 1) {
+			std::ranges::stable_sort(candidate_vcds, [&](const std::string &a, const std::string &b) {
+				if (!requested_instance.empty()) {
+					bool a_match = std::filesystem::path(a).stem().string().find(requested_instance) != std::string::npos;
+					bool b_match = std::filesystem::path(b).stem().string().find(requested_instance) != std::string::npos;
+					if (a_match != b_match) {
+						return a_match;
+					}
+				}
+				std::error_code ec_a, ec_b;
+				auto ta = std::filesystem::last_write_time(a, ec_a);
+				auto tb_time = std::filesystem::last_write_time(b, ec_b);
+				if (!ec_a && !ec_b && ta != tb_time) {
+					return ta > tb_time;
+				}
+				return false;
+			});
+			if (!requested_instance.empty()) {
+				for (const auto &cand : candidate_vcds) {
+					vcd_parser vp;
+					std::string err;
+					if (vp.parse_header(cand, err) && resolve_vcd_instance_scope(vp, requested_instance, root).has_value()) {
+						return cand;
+					}
+				}
+			}
+			return candidate_vcds.front();
+		} else if (candidate_vcds.size() == 1) {
+			return candidate_vcds.front();
+		}
 		return qualify_with_root(tb_dump);
 	}
 
@@ -1272,6 +1319,466 @@ std::vector<std::string> verilog_module_scanner::discover_submodule_hierarchy(st
 
 	dfs(dfs, std::string(root_module));
 	return post_order;
+}
+
+std::vector<module_port_info> verilog_module_scanner::extract_module_ports(std::string_view module_name,
+                                                                           std::span<const std::string> all_rtl_sources)
+{
+	if (module_name.empty()) {
+		return {};
+	}
+
+	auto tokenize_sv = [](std::string_view clean_sv) -> std::vector<std::string> {
+		std::vector<std::string> toks;
+		size_t i = 0;
+		const size_t n = clean_sv.size();
+		while (i < n) {
+			char c = clean_sv[i];
+			if (c == '"') {
+				++i;
+				while (i < n) {
+					if (clean_sv[i] == '\\' && i + 1 < n) {
+						i += 2;
+						continue;
+					}
+					if (clean_sv[i] == '"') {
+						++i;
+						break;
+					}
+					++i;
+				}
+				continue;
+			}
+			if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$') {
+				size_t start = i++;
+				while (i < n) {
+					char cc = clean_sv[i];
+					if ((cc >= 'a' && cc <= 'z') || (cc >= 'A' && cc <= 'Z') ||
+					    (cc >= '0' && cc <= '9') || cc == '_' || cc == '$') {
+						++i;
+					} else {
+						break;
+					}
+				}
+				toks.emplace_back(clean_sv.substr(start, i - start));
+			} else if (c == '(' || c == ')' || c == '[' || c == ']' || c == '#' || c == ',' || c == ';' || c == '=') {
+				toks.emplace_back(1, c);
+				++i;
+			} else {
+				++i;
+			}
+		}
+		return toks;
+	};
+
+	for (const auto &fpath : all_rtl_sources) {
+		std::string err;
+		auto mf = mapped_file::get_cached(fpath, err, /*populate=*/false);
+		if (!mf || !mf->is_open()) {
+			continue;
+		}
+		std::string_view raw_sv = mf->string_view();
+		if (raw_sv.size() < module_name.size() ||
+		    ::memmem(raw_sv.data(), raw_sv.size(), module_name.data(), module_name.size()) == nullptr) {
+			continue;
+		}
+
+		std::string clean = strip_comments(raw_sv);
+		auto toks = tokenize_sv(clean);
+		for (size_t i = 0; i + 1 < toks.size(); ++i) {
+			if (toks[i] != "module") {
+				continue;
+			}
+			size_t name_idx = i + 1;
+			if (name_idx < toks.size() && (toks[name_idx] == "automatic" || toks[name_idx] == "static")) {
+				++name_idx;
+			}
+			if (name_idx >= toks.size() || toks[name_idx] != module_name) {
+				continue;
+			}
+
+			size_t idx = name_idx + 1;
+			// Skip optional #( ... ) parameter list
+			if (idx + 1 < toks.size() && toks[idx] == "#" && toks[idx + 1] == "(") {
+				idx += 2;
+				int pdepth = 1;
+				while (idx < toks.size() && pdepth > 0) {
+					if (toks[idx] == "(") ++pdepth;
+					else if (toks[idx] == ")") --pdepth;
+					++idx;
+				}
+			}
+
+			// Match port list ( ... )
+			size_t port_open = std::string::npos;
+			size_t port_close = std::string::npos;
+			if (idx < toks.size() && toks[idx] == "(") {
+				port_open = idx++;
+				int pdepth = 1;
+				while (idx < toks.size() && pdepth > 0) {
+					if (toks[idx] == "(") ++pdepth;
+					else if (toks[idx] == ")") {
+						--pdepth;
+						if (pdepth == 0) {
+							port_close = idx;
+						}
+					}
+					++idx;
+				}
+			}
+
+			bool is_ansi = false;
+			if (port_open != std::string::npos && port_close != std::string::npos) {
+				for (size_t k = port_open + 1; k < port_close; ++k) {
+					if (toks[k] == "input" || toks[k] == "output" || toks[k] == "inout") {
+						is_ansi = true;
+						break;
+					}
+				}
+			}
+
+			std::vector<module_port_info> ports;
+			std::set<std::string> seen_ports;
+			auto try_extract_port = [&](size_t &k, const std::string &dir) {
+				if (dir.empty() || !is_valid_sv_identifier(toks[k])) {
+					return;
+				}
+				const std::string &cand = toks[k];
+				size_t next_k = k + 1;
+				while (next_k < toks.size() && toks[next_k] == "[") {
+					int bdepth = 1;
+					++next_k;
+					while (next_k < toks.size() && bdepth > 0) {
+						if (toks[next_k] == "[") ++bdepth;
+						else if (toks[next_k] == "]") --bdepth;
+						++next_k;
+					}
+				}
+				if (next_k < toks.size()) {
+					const std::string &nt = toks[next_k];
+					if (nt == "," || nt == ")" || nt == ";" || nt == "=") {
+						if (seen_ports.insert(cand).second) {
+							ports.push_back({cand, dir});
+						}
+						if (nt == "=") {
+							// Skip default value expression until ',' or ')' or ';' at depth 0
+							int pd = 0;
+							int bd = 0;
+							size_t skip_k = next_k + 1;
+							while (skip_k < toks.size()) {
+								if (toks[skip_k] == "(") ++pd;
+								else if (toks[skip_k] == ")") {
+									if (pd == 0) break;
+									--pd;
+								} else if (toks[skip_k] == "[") ++bd;
+								else if (toks[skip_k] == "]") --bd;
+								else if (pd == 0 && bd == 0 && (toks[skip_k] == "," || toks[skip_k] == ";")) {
+									break;
+								}
+								++skip_k;
+							}
+							k = skip_k - 1;
+						}
+					}
+				}
+			};
+
+			if (is_ansi && port_open != std::string::npos && port_close != std::string::npos) {
+				std::string current_dir;
+				int pdepth = 0;
+				int bdepth = 0;
+				for (size_t k = port_open + 1; k < port_close; ++k) {
+					if (toks[k] == "(") ++pdepth;
+					else if (toks[k] == ")") --pdepth;
+					else if (toks[k] == "[") ++bdepth;
+					else if (toks[k] == "]") --bdepth;
+					else if (pdepth == 0 && bdepth == 0) {
+						if (toks[k] == "input" || toks[k] == "output" || toks[k] == "inout") {
+							current_dir = toks[k];
+						} else {
+							try_extract_port(k, current_dir);
+						}
+					}
+				}
+			} else {
+				std::string current_dir;
+				bool in_port_decl = false;
+				int pdepth = 0;
+				int bdepth = 0;
+				for (size_t k = idx; k < toks.size() && toks[k] != "endmodule"; ++k) {
+					if (toks[k] == "input" || toks[k] == "output" || toks[k] == "inout") {
+						in_port_decl = true;
+						current_dir = toks[k];
+						pdepth = 0;
+						bdepth = 0;
+						continue;
+					}
+					if (!in_port_decl) {
+						continue;
+					}
+					if (toks[k] == ";") {
+						in_port_decl = false;
+						continue;
+					}
+					if (toks[k] == "(") ++pdepth;
+					else if (toks[k] == ")") --pdepth;
+					else if (toks[k] == "[") ++bdepth;
+					else if (toks[k] == "]") --bdepth;
+					else if (pdepth == 0 && bdepth == 0) {
+						try_extract_port(k, current_dir);
+					}
+				}
+			}
+
+			return ports;
+		}
+	}
+
+	return {};
+}
+
+std::optional<resolved_vcd_instance> verilog_module_scanner::resolve_vcd_instance_scope(
+	const vcd_parser &parser,
+	std::string_view requested_instance,
+	const std::filesystem::path &project_root)
+{
+	std::string_view req_sv = trim_sv(requested_instance);
+	if (req_sv.empty()) {
+		return std::nullopt;
+	}
+	std::string req(req_sv);
+
+	// Collect all unique VCD scopes in declaration order (including ancestor prefixes)
+	std::vector<std::string> vcd_scopes;
+	std::set<std::string> seen_scopes;
+	std::map<std::string, std::set<std::string>> scope_signals;
+	auto add_scope_with_ancestors = [&](std::string_view sc) {
+		if (sc.empty()) {
+			return;
+		}
+		size_t pos = 0;
+		while (pos < sc.size()) {
+			size_t dot = sc.find('.', pos);
+			std::string prefix(sc.substr(0, dot == std::string_view::npos ? sc.size() : dot));
+			if (seen_scopes.insert(prefix).second) {
+				vcd_scopes.push_back(std::move(prefix));
+			}
+			if (dot == std::string_view::npos) {
+				break;
+			}
+			pos = dot + 1;
+		}
+	};
+	for (const auto &sig : parser.get_signals()) {
+		add_scope_with_ancestors(sig.scope);
+		if (!sig.scope.empty()) {
+			scope_signals[sig.scope].insert(sig.short_name);
+		}
+	}
+	if (vcd_scopes.empty()) {
+		return std::nullopt;
+	}
+
+	std::filesystem::path root = project_root.empty() ? std::filesystem::path(".") : project_root;
+	auto rtl_files = find_synthesizable_files(root);
+	auto tb_files = find_testbench_files(root);
+	std::vector<std::string> all_files = rtl_files;
+	for (const auto &tb : tb_files) {
+		if (std::ranges::find(all_files, tb) == all_files.end()) {
+			all_files.push_back(tb);
+		}
+	}
+
+	auto all_mods = discover_modules_in_files(all_files);
+	std::set<std::string> known_mods;
+	for (const auto &m : all_mods) {
+		known_mods.insert(m.module_name);
+	}
+
+	// Build (parent_mod, inst_name) -> child_mod_type and inst_name -> child_mod_type maps
+	std::map<std::pair<std::string, std::string>, std::string> scoped_inst_to_mod;
+	std::map<std::string, std::string> inst_to_mod;
+	for (const auto &fpath : all_files) {
+		std::string err;
+		auto mf = mapped_file::get_cached(fpath, err, /*populate=*/false);
+		if (!mf || !mf->is_open()) {
+			continue;
+		}
+		std::string clean = strip_comments(mf->string_view());
+		auto spans = find_module_spans(clean);
+		for (const auto &ms : spans) {
+			std::string_view body = std::string_view(clean).substr(ms.header_end_pos, ms.end_pos - ms.header_end_pos);
+			const char *base = body.data();
+			const char *start = base;
+			const char *end = base + body.size();
+			while (start < end) {
+				auto match = ctre::search<R"(\b([a-zA-Z_][a-zA-Z_0-9]*)\s+([a-zA-Z_][a-zA-Z_0-9]*)\s*\()">(start, end);
+				if (!match) {
+					break;
+				}
+				std::string mod_type = match.get<1>().to_string();
+				std::string inst_name = match.get<2>().to_string();
+				if (mod_type != ms.name && known_mods.contains(mod_type) && is_valid_sv_identifier(inst_name)) {
+					scoped_inst_to_mod.try_emplace({ms.name, inst_name}, mod_type);
+					inst_to_mod.try_emplace(inst_name, mod_type);
+				}
+				start = match.data() + match.size();
+			}
+			start = base;
+			while (start < end) {
+				auto match = ctre::search<R"re(\b([a-zA-Z_][a-zA-Z_0-9]*)\s*#\s*\([^;]*?\)\s*([a-zA-Z_][a-zA-Z_0-9]*)\s*\()re">(start, end);
+				if (!match) {
+					break;
+				}
+				std::string mod_type = match.get<1>().to_string();
+				std::string inst_name = match.get<2>().to_string();
+				if (mod_type != ms.name && known_mods.contains(mod_type) && is_valid_sv_identifier(inst_name)) {
+					scoped_inst_to_mod.try_emplace({ms.name, inst_name}, mod_type);
+					inst_to_mod.try_emplace(inst_name, mod_type);
+				}
+				start = match.data() + match.size();
+			}
+		}
+	}
+
+	auto last_segment = [](std::string_view sc) -> std::string {
+		auto pos = sc.rfind('.');
+		return std::string(pos == std::string_view::npos ? sc : sc.substr(pos + 1));
+	};
+
+	// Infer module type for each VCD scope
+	std::map<std::string, std::string> scope_to_mod;
+	for (const auto &sc : vcd_scopes) {
+		std::string cur_mod;
+		size_t pos = 0;
+		bool first = true;
+		while (pos < sc.size()) {
+			size_t dot = sc.find('.', pos);
+			std::string seg(sc.substr(pos, dot == std::string_view::npos ? std::string_view::npos : dot - pos));
+			if (first) {
+				first = false;
+				if (known_mods.contains(seg)) {
+					cur_mod = seg;
+				} else if (auto it = inst_to_mod.find(seg); it != inst_to_mod.end()) {
+					cur_mod = it->second;
+				}
+			} else {
+				if (!cur_mod.empty()) {
+					if (auto it = scoped_inst_to_mod.find({cur_mod, seg}); it != scoped_inst_to_mod.end()) {
+						cur_mod = it->second;
+					} else if (auto git = inst_to_mod.find(seg); git != inst_to_mod.end()) {
+						cur_mod = git->second;
+					} else if (known_mods.contains(seg)) {
+						cur_mod = seg;
+					} else {
+						cur_mod.clear();
+					}
+				} else if (auto git = inst_to_mod.find(seg); git != inst_to_mod.end()) {
+					cur_mod = git->second;
+				} else if (known_mods.contains(seg)) {
+					cur_mod = seg;
+				}
+			}
+			if (dot == std::string_view::npos) {
+				break;
+			}
+			pos = dot + 1;
+		}
+		if (cur_mod.empty() && !rtl_files.empty()) {
+			std::string leaf_seg = last_segment(sc);
+			std::string resolved = resolve_module_name(leaf_seg, "", rtl_files);
+			if (resolved != leaf_seg || known_mods.contains(resolved)) {
+				cur_mod = std::move(resolved);
+			}
+		}
+		if (!cur_mod.empty()) {
+			scope_to_mod[sc] = std::move(cur_mod);
+		}
+	}
+
+	auto iequals = [](std::string_view a, std::string_view b) -> bool {
+		if (a.size() != b.size()) return false;
+		for (size_t i = 0; i < a.size(); ++i) {
+			if (std::tolower(static_cast<unsigned char>(a[i])) != std::tolower(static_cast<unsigned char>(b[i]))) {
+				return false;
+			}
+		}
+		return true;
+	};
+
+	std::vector<std::string> matched_scopes;
+
+	// 1. Direct VCD instance scope match (exact or dot-suffix match, e.g. "alu" or "cpu8008.alu")
+	std::string dot_req = "." + req;
+	for (const auto &sc : vcd_scopes) {
+		if (sc == req || sc.ends_with(dot_req)) {
+			matched_scopes.push_back(sc);
+		}
+	}
+	if (matched_scopes.empty()) {
+		for (const auto &sc : vcd_scopes) {
+			if (iequals(sc, req) || (sc.size() > dot_req.size() && iequals(std::string_view(sc).substr(sc.size() - dot_req.size()), dot_req))) {
+				matched_scopes.push_back(sc);
+			}
+		}
+	}
+
+	// 2. RTL module name match (e.g. "register", "alu_mod", "alu8", or "sv/alu/alu.sv")
+	std::string target_mod = resolve_module_name(req, "", rtl_files);
+	if (matched_scopes.empty() && !target_mod.empty()) {
+		for (const auto &sc : vcd_scopes) {
+			auto it = scope_to_mod.find(sc);
+			if (it != scope_to_mod.end() && (it->second == target_mod || iequals(it->second, target_mod))) {
+				matched_scopes.push_back(sc);
+			}
+		}
+		// Fallback when testbench is not on disk: match VCD scope whose signals contain the RTL module's ports
+		if (matched_scopes.empty()) {
+			auto cand_ports = extract_module_ports(target_mod, rtl_files);
+			if (!cand_ports.empty()) {
+				for (const auto &sc : vcd_scopes) {
+					const auto &sigs = scope_signals[sc];
+					if (sigs.empty()) continue;
+					size_t matched_port_cnt = 0;
+					for (const auto &p : cand_ports) {
+						if (sigs.contains(p.name)) {
+							++matched_port_cnt;
+						}
+					}
+					if (matched_port_cnt == cand_ports.size() ||
+					    (cand_ports.size() >= 2 && matched_port_cnt * 2 >= cand_ports.size())) {
+						matched_scopes.push_back(sc);
+						scope_to_mod[sc] = target_mod;
+					}
+				}
+			}
+		}
+	}
+
+	if (matched_scopes.empty()) {
+		return std::nullopt;
+	}
+
+	resolved_vcd_instance result;
+	result.scope = matched_scopes.front();
+	if (matched_scopes.size() > 1) {
+		result.other_scopes.assign(matched_scopes.begin() + 1, matched_scopes.end());
+	}
+
+	if (auto it = scope_to_mod.find(result.scope); it != scope_to_mod.end()) {
+		result.module_name = it->second;
+	} else if (!target_mod.empty()) {
+		result.module_name = target_mod;
+	}
+
+	if (!result.module_name.empty()) {
+		result.ports = extract_module_ports(result.module_name, rtl_files);
+		if (result.ports.empty()) {
+			result.ports = extract_module_ports(result.module_name, all_files);
+		}
+	}
+
+	return result;
 }
 
 } // namespace verilog

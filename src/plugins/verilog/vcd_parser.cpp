@@ -496,7 +496,8 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 	size_t max_rows,
 	std::string &out_error,
 	bool collapse_idle,
-	char default_radix
+	char default_radix,
+	std::string_view initial_preferred_scope
 ) const
 {
 	const vcd_signal *clk_sig = find_signal(clock_signal);
@@ -521,7 +522,7 @@ std::vector<vcd_sample_point> vcd_parser::sample_wave(
 	};
 
 	std::vector<requested_desc> reqs;
-	std::string last_resolved_scope;
+	std::string last_resolved_scope(initial_preferred_scope);
 
 	for (const auto &req_str : requested_signals) {
 		requested_desc desc;

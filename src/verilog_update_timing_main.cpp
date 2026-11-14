@@ -567,13 +567,14 @@ int main(int argc, char **argv)
 	// Subcommand: vcd-wave (vcd_wave)
 	auto *sub_vcd_wave = app.add_subcommand("vcd-wave", "Sample and format clock-aligned VCD waveform tables");
 	sub_vcd_wave->fallthrough();
-	std::string vwave_path, vwave_radix, vwave_clock, vwave_edge, vwave_gtkw;
+	std::string vwave_path, vwave_instance, vwave_radix, vwave_clock, vwave_edge, vwave_gtkw;
 	std::vector<std::string> vwave_signals;
 	std::optional<size_t> vwave_start, vwave_end, vwave_max_rows;
 	std::optional<uint64_t> vwave_start_time, vwave_end_time;
 	bool vwave_no_collapse = false;
-	sub_vcd_wave->add_option("path,-f,--file", vwave_path, "Path to VCD file (auto-detected if omitted)");
-	sub_vcd_wave->add_option("-s,--signals", vwave_signals, "Signal names to sample (comma-separated or repeatable)")->required();
+	sub_vcd_wave->add_option("path,-f,--file", vwave_path, "Path to VCD file (auto-detected if omitted), or instance/module name when -i/-s are omitted");
+	sub_vcd_wave->add_option("-i,--instance,-m,--module", vwave_instance, "Module instance name/path or RTL module name to sample all I/O ports");
+	sub_vcd_wave->add_option("-s,--signals", vwave_signals, "Signal names to sample (comma-separated or repeatable)");
 	sub_vcd_wave->add_option("--radix,--format", vwave_radix, "Default multi-bit radix: 'hex', 'bin', or 'dec'");
 	sub_vcd_wave->add_option("--clock", vwave_clock, "Clock signal to sample on");
 	sub_vcd_wave->add_option("--edge", vwave_edge, "Clock edge: 'posedge' (default), 'negedge', or 'both'");
@@ -749,8 +750,15 @@ int main(int argc, char **argv)
 
 	if (*sub_vcd_wave) {
 		nlohmann::json j = nlohmann::json::object();
+		auto sigs = split_csv_list(vwave_signals);
+		if (!vwave_path.empty() && vwave_instance.empty() && sigs.empty() &&
+		    !vwave_path.ends_with(".vcd") && !fs::exists(vwave_path, ec)) {
+			vwave_instance = std::move(vwave_path);
+			vwave_path.clear();
+		}
 		if (!vwave_path.empty()) j["path"] = vwave_path;
-		j["signals"] = split_csv_list(vwave_signals);
+		if (!vwave_instance.empty()) j["instance"] = vwave_instance;
+		if (!sigs.empty()) j["signals"] = sigs;
 		if (!vwave_radix.empty()) j["radix"] = vwave_radix;
 		if (!vwave_clock.empty()) j["clock_signal"] = vwave_clock;
 		if (!vwave_edge.empty()) j["edge"] = vwave_edge;

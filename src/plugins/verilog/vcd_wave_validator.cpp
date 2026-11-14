@@ -10,6 +10,8 @@ std::string vcd_wave_validator::get_description() const
 {
 	return "Samples and formats VCD simulation signals into a cycle-by-cycle markdown waveform table "
 	       "aligned with clock transitions (posedge, negedge, or both). "
+	       "Specify 'signals' explicitly or pass 'instance' (module instance name or RTL module name) "
+	       "to automatically sample all input and output ports of that module. "
 	       "Supports hexadecimal (default for multi-bit, or 'x:name') and binary ('b:name') formats.";
 }
 
@@ -22,10 +24,14 @@ nlohmann::json vcd_wave_validator::get_parameters_schema() const
 				{"type", "string"},
 				{"description", "Path to the VCD file."}
 			}},
+			{"instance", {
+				{"type", "string"},
+				{"description", "Module instance name/path (e.g. 'alu', 'cpu8008.alu', 'A_reg') or RTL module name (e.g. 'alu_mod', 'register') whose input and output ports should be sampled. If multiple instances of a module exist in the VCD, the first instance is selected. Alias: 'module'."}
+			}},
 			{"signals", {
 				{"type", "array"},
 				{"items", {{"type", "string"}}},
-				{"description", "List of signal names or paths to sample. Multi-bit signals (>1 bit) default to hexadecimal ('0x...'); prefix with 'b:signal' for binary, 'd:signal' for decimal, or 'x:signal' for hex."}
+				{"description", "List of signal names or paths to sample (optional when 'instance' is specified; if both are provided, extra signals are appended to the module's I/O ports). Multi-bit signals (>1 bit) default to hexadecimal ('0x...'); prefix with 'b:signal' for binary, 'd:signal' for decimal, or 'x:signal' for hex."}
 			}},
 			{"radix", {
 				{"type", "string"},
@@ -80,7 +86,12 @@ nlohmann::json vcd_wave_validator::get_parameters_schema() const
 std::unordered_map<std::string, std::string> vcd_wave_validator::get_custom_parameter_aliases() const
 {
 	return {
-		{"format", "radix"}
+		{"format", "radix"},
+		{"module", "instance"},
+		{"rtl_module", "instance"},
+		{"mod", "instance"},
+		{"inst", "instance"},
+		{"scope", "instance"}
 	};
 }
 
@@ -88,18 +99,34 @@ bool vcd_wave_validator::validate_args_impl(const nlohmann::json &raw_json,
 					    const agentlib::tool_context &ctx,
 					    std::string &out_error) const
 {
-	if (!raw_json.contains("signals") || !raw_json["signals"].is_array() || raw_json["signals"].empty()) {
-		out_error = "Missing required non-empty array argument 'signals'";
+	args_ = vcd_wave_args{};
+
+	if (raw_json.contains("instance") && raw_json["instance"].is_string()) {
+		args_.instance = raw_json["instance"].get<std::string>();
+	}
+
+	if (raw_json.contains("signals") && raw_json["signals"].is_array()) {
+		for (const auto &item : raw_json["signals"]) {
+			if (item.is_string()) {
+				std::string s = item.get<std::string>();
+				if (!s.empty()) {
+					args_.signals.push_back(std::move(s));
+				}
+			}
+		}
+	}
+
+	if (args_.signals.empty() && args_.instance.empty()) {
+		out_error = "Missing required argument: specify non-empty 'signals' array or 'instance' (module instance / RTL module name)";
 		return false;
 	}
 
-	args_ = vcd_wave_args{};
 	std::string untrusted_path;
 	if (raw_json.contains("path") && raw_json["path"].is_string()) {
 		untrusted_path = raw_json["path"].get<std::string>();
 	}
 	args_.requested_path = verilog::verilog_module_scanner::resolve_vcd_path(
-		ctx.fs_security.get_working_directory(), untrusted_path
+		ctx.fs_security.get_working_directory(), untrusted_path, args_.instance
 	);
 
 	if (args_.requested_path.empty()) {
@@ -113,20 +140,6 @@ bool vcd_wave_validator::validate_args_impl(const nlohmann::json &raw_json,
 		return false;
 	}
 	args_.safe_path = canonical_path;
-
-	for (const auto &item : raw_json["signals"]) {
-		if (item.is_string()) {
-			std::string s = item.get<std::string>();
-			if (!s.empty()) {
-				args_.signals.push_back(std::move(s));
-			}
-		}
-	}
-
-	if (args_.signals.empty()) {
-		out_error = "Argument 'signals' must contain at least one valid signal name";
-		return false;
-	}
 
 	if (raw_json.contains("clock_signal") && raw_json["clock_signal"].is_string()) {
 		args_.clock_signal = raw_json["clock_signal"].get<std::string>();

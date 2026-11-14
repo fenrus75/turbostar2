@@ -12,6 +12,7 @@ namespace tools
 struct vcd_wave_args {
 	std::string requested_path;
 	std::string safe_path;
+	std::string instance;
 	std::vector<std::string> signals;
 	std::string clock_signal;
 	std::string edge{"posedge"}; // "posedge", "negedge", "both"
