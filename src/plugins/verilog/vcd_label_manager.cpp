@@ -148,6 +148,20 @@ bool vcd_label_manager::signal_pattern_matches(std::string_view pattern, std::st
 		return true;
 	}
 	if (pattern.find('*') != std::string::npos || pattern.find('?') != std::string::npos) {
+		// If pattern is '*<suffix>' where <suffix> starts with an identifier char and has no other wildcards
+		// (e.g. '*alu_out', '*opcode', '*sequencer.state'), match on a hierarchy '.' boundary rather than
+		// inside a longer identifier like 'reg_alu_out'.
+		if (pattern.starts_with('*') && pattern.size() > 1 && pattern[1] != '.' && pattern[1] != '_' &&
+		    pattern.find('*', 1) == std::string_view::npos && pattern.find('?', 1) == std::string_view::npos) {
+			std::string_view suffix = pattern.substr(1);
+			if (signal_name == suffix ||
+			    (signal_name.size() > suffix.size() &&
+			     signal_name.ends_with(suffix) &&
+			     signal_name[signal_name.size() - suffix.size() - 1] == '.')) {
+				return true;
+			}
+			return false;
+		}
 		if (wildcard_match(pattern, signal_name)) {
 			return true;
 		}
@@ -852,11 +866,31 @@ std::pair<std::string, bool> vcd_label_manager::find_qualifier(std::string_view 
 		if (it != qual_map.end()) {
 			return parse_expr(it->second);
 		}
-		// 2. Pattern / wildcard / suffix match
+		// 2. Non-wildcard suffix/leaf match (longest/most-specific pattern first, e.g. "alu.alu_out" before "alu_out")
+		const std::string *best_nonwild_expr = nullptr;
+		size_t best_nonwild_len = 0;
 		for (const auto &[reg_sig, q_expr] : qual_map) {
-			if (signal_pattern_matches(reg_sig, signal_name)) {
-				return parse_expr(q_expr);
+			if (reg_sig.find('*') == std::string::npos && reg_sig.find('?') == std::string::npos) {
+				if (signal_pattern_matches(reg_sig, signal_name) && reg_sig.size() > best_nonwild_len) {
+					best_nonwild_len = reg_sig.size();
+					best_nonwild_expr = &q_expr;
+				}
 			}
+		}
+		if (best_nonwild_expr) {
+			return parse_expr(*best_nonwild_expr);
+		}
+		// 3. Wildcard pattern match (longest pattern first)
+		const std::string *best_wild_expr = nullptr;
+		size_t best_wild_len = 0;
+		for (const auto &[reg_sig, q_expr] : qual_map) {
+			if (signal_pattern_matches(reg_sig, signal_name) && reg_sig.size() > best_wild_len) {
+				best_wild_len = reg_sig.size();
+				best_wild_expr = &q_expr;
+			}
+		}
+		if (best_wild_expr) {
+			return parse_expr(*best_wild_expr);
 		}
 		return {"", false};
 	};

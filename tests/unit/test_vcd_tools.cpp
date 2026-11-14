@@ -2429,6 +2429,27 @@ int main()
 			assert(out_bad.find("tb_top.uut.alu") != std::string::npos);
 		}
 
+		// 5) Wildcard qualifier binding ("*y" -> "*rst") resolves qualifier signal in scope and
+		//    does not falsely match partial identifier names (e.g. "*alu_out" must not match "reg_alu_out")
+		{
+			assert(verilog::vcd_label_manager::signal_pattern_matches("*alu_out", "top_tb.dut.cpu.alu.alu_out"));
+			assert(!verilog::vcd_label_manager::signal_pattern_matches("*alu_out", "top_tb.dut.cpu.alu.reg_alu_out"));
+
+			bool q_saved = false;
+			std::string q_msg;
+			verilog::vcd_label_manager::get_instance().set_qualifier(
+				(inst_proj / "dump.vcd").string(), "*y", "*rst", false, q_saved, q_msg, true
+			);
+			std::string ierr;
+			nlohmann::json args_q = {
+				{"instance", "alu"}
+			};
+			assert(wave_val.validate_args(args_q, ictx, ierr) && ierr.empty());
+			std::string out_q = wave_val.create_tool(args_q)->execute(ictx);
+			// On tick 1 (time 15), rst is 0 so y (qualified by *rst) must be masked as '-'
+			assert(out_q.find("| 1 | 15 | 0 | 0x10 | 0x20 | - |") != std::string::npos);
+		}
+
 		std::filesystem::remove_all(inst_proj);
 	}
 

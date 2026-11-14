@@ -302,6 +302,13 @@ void vcd_parser::parse_body_tokens(const std::string &content)
 
 const vcd_signal *vcd_parser::find_signal(std::string_view name_or_path, std::string_view preferred_scope) const
 {
+	while (!name_or_path.empty() && (name_or_path.front() == '*' || name_or_path.front() == '.')) {
+		name_or_path.remove_prefix(1);
+	}
+	if (name_or_path.empty()) {
+		return nullptr;
+	}
+
 	// 1. Exact full-name match
 	auto it = name_to_signal_idx_.find(std::string(name_or_path));
 	if (it != name_to_signal_idx_.end()) {
@@ -376,6 +383,19 @@ const vcd_signal *vcd_parser::find_signal(std::string_view name_or_path, std::st
 
 	if (!leaf_matches.empty()) {
 		return pick_preferred(leaf_matches);
+	}
+
+	// 3. Wildcard fallback if name_or_path contains '*' or '?'
+	if (name_or_path.find('*') != std::string_view::npos || name_or_path.find('?') != std::string_view::npos) {
+		std::vector<const vcd_signal *> wild_matches;
+		for (const auto &sig : signals_) {
+			if (wildcard_match(name_or_path, sig.full_name) || wildcard_match(name_or_path, sig.short_name)) {
+				wild_matches.push_back(&sig);
+			}
+		}
+		if (!wild_matches.empty()) {
+			return pick_preferred(wild_matches);
+		}
 	}
 
 	return nullptr;
