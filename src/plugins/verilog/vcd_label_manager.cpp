@@ -86,18 +86,36 @@ bool vcd_label_manager::value_matches(
 		return false;
 	}
 
-	// 1. Label match (case-insensitive)
+	// 1. Label match (case-insensitive, also matching '/'-separated tied labels)
 	if (!label.empty()) {
-		if (target_val.size() == label.size()) {
-			bool eq = true;
-			for (size_t i = 0; i < target_val.size(); ++i) {
-				if (std::tolower(static_cast<unsigned char>(target_val[i])) !=
-				    std::tolower(static_cast<unsigned char>(label[i]))) {
-					eq = false;
-					break;
+		auto eq_ci = [](std::string_view a, std::string_view b) -> bool {
+			if (a.size() != b.size()) return false;
+			for (size_t i = 0; i < a.size(); ++i) {
+				if (std::tolower(static_cast<unsigned char>(a[i])) !=
+				    std::tolower(static_cast<unsigned char>(b[i]))) {
+					return false;
 				}
 			}
-			if (eq) return true;
+			return true;
+		};
+		if (eq_ci(target_val, label)) {
+			return true;
+		}
+		if (label.find('/') != std::string_view::npos) {
+			size_t pos = 0;
+			while (pos < label.size()) {
+				size_t slash = label.find('/', pos);
+				std::string_view part = (slash == std::string_view::npos)
+					? label.substr(pos)
+					: label.substr(pos, slash - pos);
+				if (eq_ci(target_val, part)) {
+					return true;
+				}
+				if (slash == std::string_view::npos) {
+					break;
+				}
+				pos = slash + 1;
+			}
 		}
 	}
 
@@ -666,47 +684,84 @@ std::string vcd_label_manager::find_label(
 
 	// Helper to search a specific signal's val_map
 	auto match_in_val_map = [&](const std::map<std::string, std::string> &val_map) -> std::string {
-		// 1. Direct match on normalized hex key
+		// Precompute binary string from hex_val if needed for 'b...' pattern matching
+		std::string gen_bin;
+		if (hex_val.starts_with("0x")) {
+			try {
+				uint64_t n = std::stoull(std::string(hex_val), nullptr, 16);
+				for (int b = 63; b >= 0; --b) {
+					gen_bin.push_back((n & (1ULL << b)) ? '1' : '0');
+				}
+				size_t f1 = gen_bin.find('1');
+				if (f1 != std::string::npos) {
+					gen_bin = gen_bin.substr(f1);
+				} else {
+					gen_bin = "0";
+				}
+			} catch (...) {
+				gen_bin.clear();
+			}
+		}
+
+		// Evaluate all matching entries in val_map, ranking by fewest wildcards (0 wildcards beats >0 wildcards).
+		// If multiple distinct labels tie with the exact same minimum wildcard count, join them with '/'.
+		size_t min_wildcards = std::string::npos;
+		std::vector<std::string> best_labels;
+
+		auto record_candidate = [&](size_t wc_count, const std::string &lbl) {
+			if (wc_count < min_wildcards) {
+				min_wildcards = wc_count;
+				best_labels.clear();
+				best_labels.push_back(lbl);
+			} else if (wc_count == min_wildcards) {
+				if (std::ranges::find(best_labels, lbl) == best_labels.end()) {
+					best_labels.push_back(lbl);
+				}
+			}
+		};
+
+		// 1. Direct match on normalized hex key (0 wildcards)
 		auto it = val_map.find(norm_hex);
 		if (it != val_map.end()) {
-			return it->second;
+			record_candidate(0, it->second);
 		}
 
 		// 1b. Match on hex digits ignoring leading zeros (e.g. "0x0" vs "0x00", "0x6" vs "0x06")
 		if (!norm_hex_stripped.empty()) {
 			for (const auto &[k, label] : val_map) {
 				if (strip_hex_zeros(k) == norm_hex_stripped) {
-					return label;
+					record_candidate(0, label);
 				}
 			}
 		}
 
-		// 2. Binary wildcard pattern match
+		// 2. Binary literal or wildcard pattern match (e.g. "b01110110" with 0 wildcards or "b01??????" with 6 wildcards)
 		for (const auto &[pattern, label] : val_map) {
-			if (pattern.starts_with('b') && pattern.find('?') != std::string::npos) {
-				if (!raw_bin_val.empty() && binary_pattern_matches(pattern, raw_bin_val)) {
-					return label;
-				}
-				// Also try against hex_val converted to binary
-				if (hex_val.starts_with("0x")) {
-					try {
-						uint64_t n = std::stoull(std::string(hex_val), nullptr, 16);
-						std::string gen_bin;
-						for (int b = 63; b >= 0; --b) {
-							gen_bin.push_back((n & (1ULL << b)) ? '1' : '0');
+			if (pattern.starts_with('b')) {
+				bool matched = (!raw_bin_val.empty() && binary_pattern_matches(pattern, raw_bin_val)) ||
+				               (!gen_bin.empty() && binary_pattern_matches(pattern, gen_bin));
+				if (matched) {
+					size_t wc_count = 0;
+					for (size_t i = 1; i < pattern.size(); ++i) {
+						char c = pattern[i];
+						if (c == '?' || c == 'x' || c == 'X') {
+							++wc_count;
 						}
-						// Strip leading zeros
-						size_t f1 = gen_bin.find('1');
-						if (f1 != std::string::npos) gen_bin = gen_bin.substr(f1);
-						else gen_bin = "0";
-						if (binary_pattern_matches(pattern, gen_bin)) {
-							return label;
-						}
-					} catch (...) {}
+					}
+					record_candidate(wc_count, label);
 				}
 			}
 		}
-		return "";
+
+		if (best_labels.empty()) {
+			return "";
+		}
+		std::string joined = best_labels.front();
+		for (size_t i = 1; i < best_labels.size(); ++i) {
+			joined += "/";
+			joined += best_labels[i];
+		}
+		return joined;
 	};
 
 	auto search_sig_map = [&](const std::map<std::string, std::map<std::string, std::string>> &sig_map) -> std::string {

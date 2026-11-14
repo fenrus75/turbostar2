@@ -2467,6 +2467,31 @@ int main()
 			verilog::fpga_project_settings::set_cli_mode(false);
 		}
 
+		// 7) Binary label matching: exact binary ('b01110110'), fewest-wildcards tie-breaker ('HLT' beats 'MOV'),
+		//    and equal-wildcard true tie ('FAM_A/FAM_B')
+		{
+			auto &lm = verilog::vcd_label_manager::get_instance();
+			bool l_saved = false;
+			std::string l_msg;
+			std::string vcd_p = (inst_proj / "dump.vcd").string();
+			lm.set_labels(vcd_p, "opcode", {
+				{"b01110110", "HLT"},
+				{"b01??????", "MOV"},
+				{"b10???110", "FAM_A"},
+				{"b10110???", "FAM_B"}
+			}, false, l_saved, l_msg, true);
+
+			// 0x76 (01110110) matches both b01110110 (0 wildcards) and b01?????? (6 wildcards) -> HLT wins
+			assert(lm.find_label(vcd_p, "tb_top.uut.opcode", "0x76", "01110110") == "HLT");
+			// 0x41 (01000001) matches only b01?????? -> MOV
+			assert(lm.find_label(vcd_p, "tb_top.uut.opcode", "0x41", "01000001") == "MOV");
+			// 0xb6 (10110110) matches both b10???110 (3 wildcards) and b10110??? (3 wildcards) -> FAM_B/FAM_A
+			std::string tied = lm.find_label(vcd_p, "tb_top.uut.opcode", "0xb6", "10110110");
+			assert(tied == "FAM_B/FAM_A" || tied == "FAM_A/FAM_B");
+			assert(verilog::vcd_label_manager::value_matches("FAM_A", "0xb6", "10110110", tied));
+			assert(verilog::vcd_label_manager::value_matches("FAM_B", "0xb6", "10110110", tied));
+		}
+
 		std::filesystem::remove_all(inst_proj);
 	}
 
