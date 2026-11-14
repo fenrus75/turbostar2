@@ -2158,6 +2158,59 @@ int main()
 			assert(out_soc_override_false.find("No direct testbench is associated with module `soc_top`") != std::string::npos);
 		}
 
+		// 7) Test scan=true mode, string-literal scrubbing, and dut/uut preference over helper modules
+		{
+			{
+				std::ofstream f(tmp_proj / "sv" / "helper_ram.sv");
+				f << "module helper_ram(input logic clk);\n"
+				  << "endmodule\n";
+			}
+			{
+				std::ofstream f(tmp_proj / "tb" / "tb_cpu_with_ram.sv");
+				f << "`timescale 1ns/1ps\n"
+				  << "module tb_cpu_with_ram;\n"
+				  << "    logic clk = 0;\n"
+				  << "    logic [7:0] a = 8'd1, b = 8'd2, y;\n"
+				  << "    cpu_mod dut(.clk(clk), .in_a(a), .in_b(b), .out_y(y));\n"
+				  << "    helper_ram mem(.clk(clk));\n"
+				  << "    initial begin\n"
+				  << "        $display(\"PASS: alu_mod pairs (1234)\");\n"
+				  << "        $finish;\n"
+				  << "    end\n"
+				  << "endmodule\n";
+			}
+			auto updated_rtl = verilog::verilog_module_scanner::find_synthesizable_files(tmp_proj / "sv");
+			auto dut_mods = verilog::verilog_module_scanner::discover_instantiated_modules(
+				tmp_proj / "tb" / "tb_cpu_with_ram.sv", updated_rtl);
+			// Should prefer 'dut' (cpu_mod) over 'mem' (helper_ram), and ignore 'alu_mod pairs (' inside $display string literal
+			assert(dut_mods.size() == 1 && dut_mods[0] == "cpu_mod");
+
+			// Clear all existing testbenches & hierarchical_modules, then run scan=true
+			nlohmann::json cfg_clear_all = {{"remove", true}};
+			assert(cfg_val.validate_args(cfg_clear_all, mctx, err) && err.empty());
+			cfg_val.create_tool(cfg_clear_all)->execute(mctx);
+
+			nlohmann::json cfg_scan = {{"scan", true}};
+			assert(!cfg_val.is_pure(cfg_scan));
+			assert(cfg_val.validate_args(cfg_scan, mctx, err) && err.empty());
+			std::string scan_out = cfg_val.create_tool(cfg_scan)->execute(mctx);
+			assert(scan_out.find("Scanned ") != std::string::npos);
+			assert(scan_out.find("enabled default `hierarchical=true` on 2 composite module(s)") != std::string::npos);
+			assert(scan_out.find("`cpu_mod`") != std::string::npos);
+			assert(scan_out.find("`soc_top`") != std::string::npos);
+
+			std::vector<verilog::testbench_entry> scanned_entries;
+			std::string used_cfg, load_err;
+			assert(verilog::fpga_project_settings::load_testbenches(tmp_proj.string(), scanned_entries, used_cfg, load_err));
+			assert(scanned_entries.size() >= 4);
+
+			std::vector<std::string> scanned_hier;
+			assert(verilog::fpga_project_settings::load_hierarchical_modules(tmp_proj.string(), scanned_hier, load_err));
+			assert(std::find(scanned_hier.begin(), scanned_hier.end(), "cpu_mod") != scanned_hier.end());
+			assert(std::find(scanned_hier.begin(), scanned_hier.end(), "soc_top") != scanned_hier.end());
+			assert(std::find(scanned_hier.begin(), scanned_hier.end(), "alu_mod") == scanned_hier.end());
+		}
+
 		std::filesystem::remove_all(tmp_proj);
 	}
 

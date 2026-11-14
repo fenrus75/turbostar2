@@ -1067,13 +1067,43 @@ std::map<std::string, std::map<std::string, std::string>> verilog_module_scanner
 namespace
 {
 
-std::vector<std::string> extract_instantiated_mods_from_text(std::string_view text,
+std::vector<std::string> extract_instantiated_mods_from_text(std::string_view raw_text,
                                                              const std::set<std::string> &known_mods,
-                                                             std::string_view self_mod)
+                                                             std::string_view self_mod,
+                                                             bool prefer_dut_instance = false)
 {
+	// Blank out string literals ("...") so text inside $display("...") cannot match module instantiations
+	std::string scrubbed(raw_text);
+	bool in_str = false;
+	for (size_t i = 0; i < scrubbed.size(); ++i) {
+		char c = scrubbed[i];
+		if (in_str) {
+			if (c == '\\' && i + 1 < scrubbed.size()) {
+				scrubbed[i] = ' ';
+				scrubbed[++i] = ' ';
+				continue;
+			}
+			if (c == '"') {
+				in_str = false;
+			} else if (c != '\n') {
+				scrubbed[i] = ' ';
+			}
+		} else if (c == '"') {
+			in_str = true;
+		}
+	}
+	std::string_view text(scrubbed);
+
+	auto is_dut_inst_name = [](std::string_view inst) -> bool {
+		return inst == "dut" || inst == "uut" || inst == "u_dut" || inst == "i_dut" ||
+		       inst == "DUT" || inst == "UUT" ||
+		       inst.starts_with("dut_") || inst.starts_with("uut_");
+	};
+
 	struct hit_entry {
 		size_t offset;
 		std::string mod_type;
+		bool is_dut;
 	};
 	std::vector<hit_entry> hits;
 
@@ -1089,7 +1119,8 @@ std::vector<std::string> extract_instantiated_mods_from_text(std::string_view te
 		std::string mod_type = match.get<1>().to_string();
 		std::string inst_name = match.get<2>().to_string();
 		if (mod_type != self_mod && known_mods.contains(mod_type) && is_valid_sv_identifier(inst_name)) {
-			hits.push_back({static_cast<size_t>(match.data() - base), std::move(mod_type)});
+			bool is_dut = is_dut_inst_name(inst_name);
+			hits.push_back({static_cast<size_t>(match.data() - base), std::move(mod_type), is_dut});
 		}
 		start = match.data() + match.size();
 	}
@@ -1103,7 +1134,8 @@ std::vector<std::string> extract_instantiated_mods_from_text(std::string_view te
 		std::string mod_type = match.get<1>().to_string();
 		std::string inst_name = match.get<2>().to_string();
 		if (mod_type != self_mod && known_mods.contains(mod_type) && is_valid_sv_identifier(inst_name)) {
-			hits.push_back({static_cast<size_t>(match.data() - base), std::move(mod_type)});
+			bool is_dut = is_dut_inst_name(inst_name);
+			hits.push_back({static_cast<size_t>(match.data() - base), std::move(mod_type), is_dut});
 		}
 		start = match.data() + match.size();
 	}
@@ -1112,9 +1144,22 @@ std::vector<std::string> extract_instantiated_mods_from_text(std::string_view te
 		return a.offset < b.offset;
 	});
 
+	bool has_explicit_dut = false;
+	if (prefer_dut_instance) {
+		for (const auto &h : hits) {
+			if (h.is_dut) {
+				has_explicit_dut = true;
+				break;
+			}
+		}
+	}
+
 	std::vector<std::string> ordered;
 	std::set<std::string> seen;
 	for (auto &h : hits) {
+		if (has_explicit_dut && !h.is_dut) {
+			continue;
+		}
 		if (seen.insert(h.mod_type).second) {
 			ordered.push_back(std::move(h.mod_type));
 		}
@@ -1153,17 +1198,18 @@ std::vector<std::string> verilog_module_scanner::discover_instantiated_modules(c
 		return {};
 	}
 
+	const bool prefer_dut = is_testbench_file(source_file);
 	std::string clean = strip_comments(raw_sv);
 	auto spans = find_module_spans(clean);
 	if (spans.empty()) {
-		return extract_instantiated_mods_from_text(clean, known_mods, "");
+		return extract_instantiated_mods_from_text(clean, known_mods, "", prefer_dut);
 	}
 
 	std::vector<std::string> result;
 	std::set<std::string> seen;
 	for (const auto &ms : spans) {
 		std::string_view body = std::string_view(clean).substr(ms.header_end_pos, ms.end_pos - ms.header_end_pos);
-		for (auto &sub : extract_instantiated_mods_from_text(body, known_mods, ms.name)) {
+		for (auto &sub : extract_instantiated_mods_from_text(body, known_mods, ms.name, prefer_dut)) {
 			if (seen.insert(sub).second) {
 				result.push_back(std::move(sub));
 			}

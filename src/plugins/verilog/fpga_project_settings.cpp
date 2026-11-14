@@ -40,7 +40,7 @@ std::string fpga_project_settings::detect_sv_path(std::string_view project_root)
 	auto has_verilog_files = [](const fs::path &dir) -> bool {
 		std::error_code ec;
 		if (!fs::exists(dir, ec) || !fs::is_directory(dir, ec)) return false;
-		for (const auto &entry : fs::directory_iterator(dir, fs::directory_options::skip_permission_denied, ec)) {
+		for (const auto &entry : fs::recursive_directory_iterator(dir, fs::directory_options::skip_permission_denied, ec)) {
 			if (entry.is_regular_file(ec)) {
 				auto ext = entry.path().extension();
 				if (ext == ".sv" || ext == ".v") return true;

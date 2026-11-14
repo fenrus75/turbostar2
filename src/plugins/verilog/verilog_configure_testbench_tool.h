@@ -15,6 +15,7 @@ struct verilog_configure_testbench_args {
 	std::string level;
 	std::optional<bool> hierarchical;
 	bool remove{false};
+	bool scan{false};
 };
 
 class verilog_configure_testbench_tool : public agentlib::llm_tool_action

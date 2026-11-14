@@ -94,50 +94,41 @@ Successfully saved FPGA project configuration to `/home/user/test8008/turbostar.
     <section class="detail-full" id="step-testbenches">
       <div class="detail-info">
         <span class="step-badge">Step 2 &bull; Verification Mapping</span>
-        <h2 class="detail-subtitle">Bind Testbenches &amp; Verification Tiers to RTL Modules</h2>
+        <h2 class="detail-subtitle">Auto-Scan Testbenches &amp; Bind Verification Tiers (<code>config --scan</code>)</h2>
         <p class="detail-text">
-          In multi-module designs, running every system testbench after a one-line ALU edit wastes minutes, while running only a leaf testbench misses integration bugs. <code>turbostar-verilog config --tb &lt;file&gt; --modules &lt;list&gt; --level &lt;tier&gt;</code> records module-to-testbench bindings and test tiers directly in <code>turbostar.json</code>. It also scans the workspace to list any unconfigured testbenches alongside the RTL modules they instantiate and their <code>$dumpfile</code> VCD outputs—warning immediately if two testbenches collide on the same VCD filename.
+          In multi-module designs, running every system testbench after a one-line ALU edit wastes minutes, while running only a leaf testbench misses integration bugs. On an existing project, <code>turbostar-verilog config --scan</code> inspects every testbench in your workspace, identifies the Device Under Test (preferring explicit <code>dut</code>/<code>uut</code> instances over helper RAM/bus models), marks composite parent modules with <code>hierarchical=true</code>, and writes the complete mapping to <code>turbostar.json</code> in one step—warning immediately if two testbenches collide on the same <code>$dumpfile</code> VCD path.
         </p>
         <ul class="detail-list">
-          <li><strong>Cumulative Test Tiers (<code>--level</code>):</strong> Classify fast unit tests as <code>quick</code>, subsystem integration tests as <code>comprehensive</code>, and long soak tests as <code>extreme</code>.</li>
-          <li><strong>Default Bottom-Up Hierarchy (<code>--hierarchical</code>):</strong> Mark composite parent modules (such as <code>cpu</code> or <code>main</code>) with <code>--hierarchical</code> so simulating <code>cpu</code> automatically runs all leaf submodule testbenches in bottom-up topological order before running the full CPU testbench.</li>
+          <li><strong>One-Command Auto-Discovery (<code>-s, --scan</code>):</strong> Populates <code>turbostar.json</code> for all workspace testbenches (9 testbenches in <code>examples/test8008</code>, or all 38 testbenches in <code>examples/test8080</code>) and enables bottom-up hierarchical verification on composite parent modules (<code>cpu</code>, <code>main</code>, <code>top</code>).</li>
+          <li><strong>Cumulative Test Tiers (<code>--tb ... --level</code>):</strong> Fine-tune individual testbenches as <code>quick</code> (fast unit tests), <code>comprehensive</code> (subsystem integration tests), or <code>extreme</code> (long soak tests).</li>
         </ul>
       </div>
       <div class="detail-visual">
-        <pre><code><span class="comment"># Bind unit testbenches to their leaf RTL modules at tier 'quick'</span>
-<span class="comment">$ turbostar-verilog config --tb tb/tb_alu.sv       --modules alu_mod       --level quick</span>
-<span class="comment">$ turbostar-verilog config --tb tb/tb_register.sv  --modules register      --level quick</span>
-<span class="comment">$ turbostar-verilog config --tb tb/tb_sequencer.sv --modules sequencer_mod --level quick</span>
-<span class="comment">$ turbostar-verilog config --tb tb/tb_stack.sv     --modules stack_mod     --level quick</span>
-
-<span class="comment"># Bind top-level integration testbench to 'cpu' and 'main', and enable hierarchical mode for 'cpu'</span>
-<span class="comment">$ turbostar-verilog config --tb tb/tb_main.sv --modules cpu,main --level comprehensive --hierarchical</span>
+        <pre><code><span class="comment"># 1. Auto-scan the workspace to bind all testbenches and detect composite parent modules:</span>
+<span class="comment">$ turbostar-verilog config --scan</span>
 <span class="keyword">### Verilog Testbench Configuration</span>
 
-- Action: Configured testbench `tb/tb_main.sv` (level: `comprehensive`). Set default `hierarchical=true` for module(s) `cpu`, `main`.
+- Action: Scanned 9 workspace testbench(es): added 9 new association(s), enabled default `hierarchical=true` on 2 composite module(s).
 - Config File: `turbostar.json`
 - Modules with Default `hierarchical=true`: `cpu`, `main`
 
 <span class="keyword">#### Configured Testbenches</span>
-┌────────────────────┬────────────────────┬───────────────┬────────────────────┐
-│ Testbench          │ Associated Modules │ Level         │ $dumpfile VCD      │
-├────────────────────┼────────────────────┼───────────────┼────────────────────┤
-│ tb/tb_alu.sv       │ alu_mod            │ quick         │ dump_alu.vcd       │
-│ tb/tb_register.sv  │ register           │ quick         │ dump_register.vcd  │
-│ tb/tb_sequencer.sv │ sequencer_mod      │ quick         │ dump_sequencer.vcd │
-│ tb/tb_stack.sv     │ stack_mod          │ quick         │ dump_stack.vcd     │
-│ tb/tb_main.sv      │ cpu, main          │ comprehensive │ dump.vcd           │
-└────────────────────┴────────────────────┴───────────────┴────────────────────┘
+┌───────────────────────┬────────────────────┬───────┬───────────────────────┐
+│ Testbench             │ Associated Modules │ Level │ $dumpfile VCD         │
+├───────────────────────┼────────────────────┼───────┼───────────────────────┤
+│ tb/tb_alu.sv          │ alu_mod            │ quick │ dump_alu.vcd          │
+│ tb/tb_main.sv         │ main               │ quick │ dump.vcd              │
+│ tb/tb_register.sv     │ register           │ quick │ dump_register.vcd     │
+│ tb/tb_regsel.sv       │ regsel             │ quick │ dump_regsel.vcd       │
+│ tb/tb_regsel_write.sv │ regsel_write       │ quick │ dump_regsel_write.vcd │
+│ tb/tb_sequencer.sv    │ sequencer_mod      │ quick │ dump_sequencer.vcd    │
+│ tb/tb_stack.sv        │ stack_mod          │ quick │ dump_stack.vcd        │
+│ tb/tb_stack_probe.sv  │ stack_mod          │ quick │ *(none)*              │
+│ tb/tb_stackprobe.sv   │ stack_mod          │ quick │ *(none)*              │
+└───────────────────────┴────────────────────┴───────┴───────────────────────┘
 
-<span class="keyword">#### Unconfigured Workspace Testbenches (Auto-Discovered)</span>
-┌───────────────────────┬────────────────────────────────────┬───────────────────────┐
-│ Testbench             │ Auto-Detected Instantiated Modules │ $dumpfile VCD         │
-├───────────────────────┼────────────────────────────────────┼───────────────────────┤
-│ tb/tb_regsel.sv       │ regsel                             │ dump_regsel.vcd       │
-│ tb/tb_regsel_write.sv │ regsel_write                       │ dump_regsel_write.vcd │
-│ tb/tb_stack_probe.sv  │ stack_mod                          │ *(none)*              │
-│ tb/tb_stackprobe.sv   │ stack_mod                          │ *(none)*              │
-└───────────────────────┴────────────────────────────────────┴───────────────────────┘
+<span class="comment"># 2. Optionally customize specific testbenches (e.g. bind tb_main.sv to both 'cpu' and 'main' at tier 'comprehensive'):</span>
+<span class="comment">$ turbostar-verilog config --tb tb/tb_main.sv --modules cpu,main --level comprehensive</span>
 
 <span class="comment"># Resulting turbostar.json written in the project root:</span>
 {
@@ -150,16 +141,16 @@ Successfully saved FPGA project configuration to `/home/user/test8008/turbostar.
     <span class="keyword">"target"</span>: <span class="literal">"ice40"</span>,
     <span class="keyword">"top_module"</span>: <span class="literal">"main"</span>
   },
-  <span class="keyword">"verilog"</span>: {
-    <span class="keyword">"hierarchical_modules"</span>: [ <span class="literal">"cpu"</span>, <span class="literal">"main"</span> ],
-    <span class="keyword">"testbenches"</span>: [
-      { <span class="keyword">"level"</span>: <span class="literal">"quick"</span>,         <span class="keyword">"modules"</span>: [ <span class="literal">"alu_mod"</span> ],       <span class="keyword">"testbench"</span>: <span class="literal">"tb/tb_alu.sv"</span> },
-      { <span class="keyword">"level"</span>: <span class="literal">"quick"</span>,         <span class="keyword">"modules"</span>: [ <span class="literal">"register"</span> ],      <span class="keyword">"testbench"</span>: <span class="literal">"tb/tb_register.sv"</span> },
-      { <span class="keyword">"level"</span>: <span class="literal">"quick"</span>,         <span class="keyword">"modules"</span>: [ <span class="literal">"sequencer_mod"</span> ], <span class="keyword">"testbench"</span>: <span class="literal">"tb/tb_sequencer.sv"</span> },
-      { <span class="keyword">"level"</span>: <span class="literal">"quick"</span>,         <span class="keyword">"modules"</span>: [ <span class="literal">"stack_mod"</span> ],     <span class="keyword">"testbench"</span>: <span class="literal">"tb/tb_stack.sv"</span> },
-      { <span class="keyword">"level"</span>: <span class="literal">"comprehensive"</span>, <span class="keyword">"modules"</span>: [ <span class="literal">"cpu"</span>, <span class="literal">"main"</span> ],   <span class="keyword">"testbench"</span>: <span class="literal">"tb/tb_main.sv"</span> }
-    ]
-  }
+  <span class="keyword">"hierarchical_modules"</span>: [ <span class="literal">"cpu"</span>, <span class="literal">"main"</span> ],
+  <span class="keyword">"testbenches"</span>: [
+    { <span class="keyword">"level"</span>: <span class="literal">"quick"</span>,         <span class="keyword">"modules"</span>: [ <span class="literal">"alu_mod"</span> ],       <span class="keyword">"testbench"</span>: <span class="literal">"tb/tb_alu.sv"</span> },
+    { <span class="keyword">"level"</span>: <span class="literal">"comprehensive"</span>, <span class="keyword">"modules"</span>: [ <span class="literal">"main"</span>, <span class="literal">"cpu"</span> ],   <span class="keyword">"testbench"</span>: <span class="literal">"tb/tb_main.sv"</span> },
+    { <span class="keyword">"level"</span>: <span class="literal">"quick"</span>,         <span class="keyword">"modules"</span>: [ <span class="literal">"register"</span> ],      <span class="keyword">"testbench"</span>: <span class="literal">"tb/tb_register.sv"</span> },
+    { <span class="keyword">"level"</span>: <span class="literal">"quick"</span>,         <span class="keyword">"modules"</span>: [ <span class="literal">"regsel"</span> ],        <span class="keyword">"testbench"</span>: <span class="literal">"tb/tb_regsel.sv"</span> },
+    { <span class="keyword">"level"</span>: <span class="literal">"quick"</span>,         <span class="keyword">"modules"</span>: [ <span class="literal">"regsel_write"</span> ],  <span class="keyword">"testbench"</span>: <span class="literal">"tb/tb_regsel_write.sv"</span> },
+    { <span class="keyword">"level"</span>: <span class="literal">"quick"</span>,         <span class="keyword">"modules"</span>: [ <span class="literal">"sequencer_mod"</span> ], <span class="keyword">"testbench"</span>: <span class="literal">"tb/tb_sequencer.sv"</span> },
+    { <span class="keyword">"level"</span>: <span class="literal">"quick"</span>,         <span class="keyword">"modules"</span>: [ <span class="literal">"stack_mod"</span> ],     <span class="keyword">"testbench"</span>: <span class="literal">"tb/tb_stack.sv"</span> }
+  ]
 }</code></pre>
       </div>
     </section>
@@ -506,8 +497,8 @@ Sampled on: `tb_main.clk` (posedge) | Timescale: 1ps | Total Rows: 13
           <tbody>
             <tr>
               <td><code>config</code></td>
-              <td><code>--target</code>, <code>--device</code>, <code>--package</code>, <code>--top</code>, <code>--freq</code>, <code>--pcf</code>, <code>--sv-path</code>, <code>--tb</code>, <code>--modules</code>, <code>--level</code>, <code>--hierarchical</code></td>
-              <td>Inspect or populate FPGA target settings and module-to-testbench bindings in <code>turbostar.json</code>.</td>
+              <td><code>-s, --scan</code>, <code>--target</code>, <code>--device</code>, <code>--package</code>, <code>--top</code>, <code>--freq</code>, <code>--pcf</code>, <code>--sv-path</code>, <code>--tb</code>, <code>--modules</code>, <code>--level</code>, <code>--hierarchical</code></td>
+              <td>Inspect, auto-scan testbenches (<code>--scan</code>), or populate FPGA target settings and module-to-testbench bindings in <code>turbostar.json</code>.</td>
             </tr>
             <tr>
               <td><code>timing</code> <em>(or default)</em></td>

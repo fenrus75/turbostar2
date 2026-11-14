@@ -20,14 +20,17 @@ bool verilog_configure_testbench_validator::is_pure(const nlohmann::json &untrus
 	bool has_level = untrusted_args.contains("level") && untrusted_args["level"].is_string() &&
 	                 !untrusted_args["level"].get<std::string>().empty();
 	bool has_hier = untrusted_args.contains("hierarchical") && untrusted_args["hierarchical"].is_boolean();
-	return !has_tb && !has_remove && !has_modules && !has_level && !has_hier;
+	bool has_scan = untrusted_args.contains("scan") && untrusted_args["scan"].is_boolean() &&
+	                untrusted_args["scan"].get<bool>();
+	return !has_tb && !has_remove && !has_modules && !has_level && !has_hier && !has_scan;
 }
 
 std::string verilog_configure_testbench_validator::get_description() const
 {
-	return "Configures, lists, or removes associations between SystemVerilog/Verilog testbenches (e.g. 'tb/tb_alu.sv') "
+	return "Configures, scans, lists, or removes associations between SystemVerilog/Verilog testbenches (e.g. 'tb/tb_alu.sv') "
 	       "and the RTL modules they verify (e.g. 'alu_mod' or 'sv/alu/alu.sv'), along with a test duration/rigor tier "
-	       "('quick', 'comprehensive', or 'extreme') and optional per-module default 'hierarchical' setting in turbostar.json.";
+	       "('quick', 'comprehensive', or 'extreme') and optional per-module default 'hierarchical' setting in turbostar.json. "
+	       "Pass scan=true to auto-discover all workspace testbenches and persist their RTL module bindings in one step.";
 }
 
 nlohmann::json verilog_configure_testbench_validator::get_parameters_schema() const
@@ -37,7 +40,7 @@ nlohmann::json verilog_configure_testbench_validator::get_parameters_schema() co
 		{"properties", {
 			{"testbench", {
 				{"type", "string"},
-				{"description", "Path to the testbench .sv/.v file (e.g. 'tb/tb_alu.sv'). Omit to list all configured/auto-discovered testbenches, or when configuring per-module 'hierarchical' default."}
+				{"description", "Path to the testbench .sv/.v file (e.g. 'tb/tb_alu.sv'). Omit to list all configured/auto-discovered testbenches, when running with scan=true, or when configuring per-module 'hierarchical' default."}
 			}},
 			{"modules", {
 				{"type", "array"},
@@ -52,6 +55,10 @@ nlohmann::json verilog_configure_testbench_validator::get_parameters_schema() co
 			{"hierarchical", {
 				{"type", "boolean"},
 				{"description", "Optional per-module default for 'hierarchical' in verilog_simulate. When set alongside 'modules'/'module', persists whether verilog_simulate(module=...) automatically includes submodule testbenches by default in turbostar.json."}
+			}},
+			{"scan", {
+				{"type", "boolean"},
+				{"description", "When true, scans the workspace for all unconfigured testbenches, auto-discovers the RTL modules they instantiate, marks composite parent modules with hierarchical=true, and saves all bindings to turbostar.json (default: false)."}
 			}},
 			{"remove", {
 				{"type", "boolean"},
@@ -72,6 +79,9 @@ std::unordered_map<std::string, std::string> verilog_configure_testbench_validat
 		{"module", "modules"},
 		{"rtl_module", "modules"},
 		{"tier", "level"},
+		{"auto", "scan"},
+		{"discover", "scan"},
+		{"auto_discover", "scan"},
 		{"delete", "remove"},
 		{"clear", "remove"}
 	};
@@ -85,6 +95,9 @@ bool verilog_configure_testbench_validator::validate_args_impl(const nlohmann::j
 
 	if (untrusted_args.contains("remove") && untrusted_args["remove"].is_boolean()) {
 		args_.remove = untrusted_args["remove"].get<bool>();
+	}
+	if (untrusted_args.contains("scan") && untrusted_args["scan"].is_boolean()) {
+		args_.scan = untrusted_args["scan"].get<bool>();
 	}
 
 	if (untrusted_args.contains("testbench") && untrusted_args["testbench"].is_string()) {
@@ -159,14 +172,14 @@ bool verilog_configure_testbench_validator::validate_args_impl(const nlohmann::j
 		return false;
 	}
 
-	if (args_.requested_testbench.empty() && !args_.remove && !args_.hierarchical.has_value() &&
+	if (args_.requested_testbench.empty() && !args_.remove && !args_.hierarchical.has_value() && !args_.scan &&
 	    (!args_.requested_modules.empty() || !args_.level.empty())) {
-		out_error = "Parameter 'testbench' is required when configuring module associations or test level (or pass 'hierarchical' to configure a module's default hierarchy setting)";
+		out_error = "Parameter 'testbench' is required when configuring module associations or test level (or pass 'scan=true' / 'hierarchical')";
 		return false;
 	}
 
 	// If modifying configuration, verify write access to turbostar.json in workspace root
-	if (!args_.requested_testbench.empty() || args_.remove || args_.hierarchical.has_value()) {
+	if (!args_.requested_testbench.empty() || args_.remove || args_.hierarchical.has_value() || args_.scan) {
 		std::string root_dir = ctx.fs_security.get_working_directory().string();
 		if (root_dir.empty()) {
 			root_dir = ".";

@@ -193,6 +193,62 @@ std::string verilog_configure_testbench_tool::execute(agentlib::tool_context &ct
 		modified = true;
 	}
 
+	// Discover all testbenches on disk (used by scan mode, unconfigured table, and VCD collision checks)
+	std::vector<std::string> disk_tbs = verilog::verilog_module_scanner::find_testbench_files(root_path);
+
+	if (!args_.remove && args_.scan) {
+		size_t scanned_added = 0;
+		size_t scanned_updated = 0;
+		for (const auto &dtb : disk_tbs) {
+			std::string rel_tb = normalize_tb_rel(dtb);
+			auto it = std::find_if(entries.begin(), entries.end(), [&](const verilog::testbench_entry &e) {
+				return normalize_tb_rel(e.testbench) == rel_tb;
+			});
+			auto auto_mods = verilog::verilog_module_scanner::discover_instantiated_modules(dtb, rtl_files);
+			if (it == entries.end()) {
+				if (!auto_mods.empty()) {
+					verilog::testbench_entry new_entry;
+					new_entry.testbench = rel_tb;
+					new_entry.modules = std::move(auto_mods);
+					new_entry.level = args_.level.empty() ? "quick" : args_.level;
+					entries.push_back(std::move(new_entry));
+					++scanned_added;
+					modified = true;
+				}
+			} else if (it->modules.empty() && !auto_mods.empty()) {
+				it->modules = std::move(auto_mods);
+				if (!args_.level.empty()) {
+					it->level = args_.level;
+				}
+				++scanned_updated;
+				modified = true;
+			}
+		}
+
+		size_t added_hier = 0;
+		if (!args_.hierarchical.has_value() || *args_.hierarchical) {
+			auto all_rtl_mods = verilog::verilog_module_scanner::discover_modules_in_files(rtl_files);
+			for (const auto &dm : all_rtl_mods) {
+				auto sub_hier = verilog::verilog_module_scanner::discover_submodule_hierarchy(dm.module_name, rtl_files);
+				if (sub_hier.size() > 1) {
+					if (std::find(hier_modules.begin(), hier_modules.end(), dm.module_name) == hier_modules.end()) {
+						hier_modules.push_back(dm.module_name);
+						++added_hier;
+						modified_hier = true;
+					}
+				}
+			}
+		}
+
+		std::string scan_msg = std::format(
+			"Scanned {} workspace testbench(es): added {} new association(s){}{}.",
+			disk_tbs.size(),
+			scanned_added,
+			scanned_updated > 0 ? std::format(", updated {}", scanned_updated) : "",
+			added_hier > 0 ? std::format(", enabled default `hierarchical=true` on {} composite module(s)", added_hier) : "");
+		action_summary = action_summary.empty() ? scan_msg : (action_summary + " " + scan_msg);
+	}
+
 	if (!args_.remove && args_.hierarchical.has_value() && !resolved_modules.empty()) {
 		std::string mods_joined;
 		for (size_t i = 0; i < resolved_modules.size(); ++i) {
@@ -231,8 +287,6 @@ std::string verilog_configure_testbench_tool::execute(agentlib::tool_context &ct
 		}
 	}
 
-	// Discover all testbenches on disk to show both configured and unconfigured testbenches and check VCD collisions
-	std::vector<std::string> disk_tbs = verilog::verilog_module_scanner::find_testbench_files(root_path);
 	std::set<std::string> configured_rels;
 	std::map<std::string, std::vector<std::string>> dumpfile_to_tbs;
 

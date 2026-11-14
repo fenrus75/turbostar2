@@ -10,3 +10,4 @@
 ## Lessons Learned
 
 - **List Mode Purity**: Calling `verilog_configure_testbench()` with no arguments operates in read-only inspection mode, displaying configured testbenches, unconfigured workspace testbenches (and their auto-detected instantiated modules), and any `$dumpfile` VCD collisions.
+- **One-Step Workspace Scan (`scan=true` / `config --scan`)**: Non-destructively scans all workspace testbenches, registers any unconfigured testbenches using their auto-discovered instantiated RTL modules, and automatically populates `hierarchical_modules` for composite parent modules (`discover_submodule_hierarchy().size() > 1`).

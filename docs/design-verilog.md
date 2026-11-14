@@ -26,7 +26,7 @@ The `verilog` plugin (`src/plugins/verilog/`) and standalone CLI (`turbostar-ver
   - Categorizes diagnostics into correctness/synthesis hazards (combinational loops, inferred latches, multi-driven nets) vs. style and unused-resource notes (`UNUSEDPARAM`, `UNUSEDSIGNAL`, `PINMISSING`) while saving full compiler output to `tmp://synthesis.log`.
 
 - **Tiered & Parallel Simulation (`verilog_simulate_tool`, `verilog_configure_testbench_tool`)**:
-  - Associates one or more testbenches with each RTL module in `turbostar.json` (with `hierarchical=true` support for bottom-up submodule + top-level regression suites) and falls back to automatic testbench discovery when unconfigured.
+  - Associates one or more testbenches with each RTL module in `turbostar.json` (with `hierarchical=true` support for bottom-up submodule + top-level regression suites) and supports one-command workspace auto-registration via `scan=true` / `turbostar-verilog config --scan`, which discovers all workspace testbenches, binds them to their instantiated DUT modules, and enables `hierarchical=true` on composite parent modules.
   - Executes multi-bench suites in parallel across CPU cores (`std::async`), using `iverilog`/`vvp` for fast single-bench compilation and switching to parallelized C++ `verilator --binary -j 0` when simulation runtime dominates.
   - Automatically stages `$readmemh` / `$readmemb` memory initialization files (`stage_readmem_files`) and auto-invokes cycle-accurate VCD differential comparison against `.golden.vcd` reference traces when present.
 
@@ -74,7 +74,7 @@ The `verilog` plugin (`src/plugins/verilog/`) and standalone CLI (`turbostar-ver
 
 - **Unified Terminal & CI Utility (`src/verilog_update_timing_main.cpp`, `libverilog_core`)**:
   - Packages the entire Verilog, FPGA timing, and VCD waveform toolset into a standalone binary (`turbostar-verilog`) usable in developer terminals, Makefiles, and CI pipelines without launching the TUI or MCP server:
-    1. **Project & Testbench Configuration (`config`)**: `turbostar-verilog config [--target ice40 --device hx8k --package cb132 --top main --freq 80 --pcf pins.pcf --sv-path sv] [--tb tb/tb_alu.sv]`
+    1. **Project & Testbench Configuration (`config`)**: `turbostar-verilog config [--target ice40 --device hx8k --package cb132 --top main --freq 80 --pcf pins.pcf --sv-path sv] [--scan] [--tb tb/tb_alu.sv]`
     2. **Timing Analysis (`timing` or default top-level mode)**:
        - Logic Depth Mode: `turbostar-verilog [timing] [-m module] [-k top_k] [-c lines]`
        - Physical Place & Route Mode: `turbostar-verilog [timing] --pnr [-m module] [--seeds N] [--segments]`

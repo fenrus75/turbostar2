@@ -501,6 +501,7 @@ int main(int argc, char **argv)
 	bool cfg_tb_no_hier = false;
 	bool cfg_tb_remove = false;
 	bool cfg_tb_list = false;
+	bool cfg_tb_scan = false;
 	sub_config->add_option("--target", cfg_target, "Target FPGA architecture (e.g. 'ice40', 'ecp5', 'generic')");
 	sub_config->add_option("--device", cfg_device, "FPGA device part (e.g. 'hx8k', 'lp8k')");
 	sub_config->add_option("--package", cfg_package, "FPGA package (e.g. 'cb132', 'sg48')");
@@ -514,6 +515,7 @@ int main(int argc, char **argv)
 	sub_config->add_option("--level", cfg_tb_level, "Testbench tier ('quick', 'comprehensive', 'extreme')");
 	sub_config->add_flag("--hierarchical", cfg_tb_hier, "Enable hierarchical submodule testing by default for --modules");
 	sub_config->add_flag("--no-hierarchical", cfg_tb_no_hier, "Disable hierarchical submodule testing default for --modules");
+	sub_config->add_flag("-s,--scan", cfg_tb_scan, "Scan workspace for all testbenches and save auto-discovered RTL bindings to turbostar.json");
 	sub_config->add_flag("--remove-tb", cfg_tb_remove, "Remove testbench association specified by --tb");
 	sub_config->add_flag("--list-tb", cfg_tb_list, "List configured and auto-discovered testbenches");
 
@@ -678,7 +680,7 @@ int main(int argc, char **argv)
 		                     !cfg_top.empty() || (cfg_freq > 0.0) || !cfg_pcf.empty() ||
 		                     !cfg_sv_path.empty() || !cfg_yosys_args.empty();
 		bool has_tb_opts = !cfg_tb.empty() || !cfg_tb_modules.empty() || !cfg_tb_level.empty() ||
-		                   cfg_tb_hier || cfg_tb_no_hier || cfg_tb_remove || cfg_tb_list;
+		                   cfg_tb_hier || cfg_tb_no_hier || cfg_tb_remove || cfg_tb_list || cfg_tb_scan;
 
 		int rc = 0;
 		if (has_fpga_opts || !has_tb_opts) {
@@ -702,6 +704,7 @@ int main(int argc, char **argv)
 			if (!cfg_tb_level.empty()) j["level"] = cfg_tb_level;
 			if (cfg_tb_hier) j["hierarchical"] = true;
 			else if (cfg_tb_no_hier) j["hierarchical"] = false;
+			if (cfg_tb_scan) j["scan"] = true;
 			if (cfg_tb_remove) j["remove"] = true;
 			int tb_rc = run_validator_tool<tools::verilog_configure_testbench_validator>(j, cwd_str, framed_tables);
 			if (tb_rc != 0) rc = tb_rc;
