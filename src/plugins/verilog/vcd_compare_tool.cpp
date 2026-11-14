@@ -2,6 +2,7 @@
 #include "vcd_parser.h"
 #include "vcd_parser_cache.h"
 #include "vcd_label_manager.h"
+#include "plugins/verilog/fpga_project_settings.h"
 #include <format>
 #include <sstream>
 #include <algorithm>
@@ -402,15 +403,26 @@ std::string vcd_compare_tool::execute(agentlib::tool_context &ctx)
 	// Actionable wave inspection tip
 	size_t wave_start = (first_div.tick > 2) ? (first_div.tick - 2) : 0;
 	size_t wave_end = first_div.tick + 3;
-	std::string sig_str;
-	for (size_t i = 0; i < divergent_sig_names.size(); ++i) {
-		if (i > 0) sig_str += ", ";
-		sig_str += std::format("\"{}\"", divergent_sig_names[i]);
-	}
+	if (verilog::fpga_project_settings::is_cli_mode()) {
+		std::string cli_sigs;
+		for (size_t i = 0; i < divergent_sig_names.size(); ++i) {
+			if (i > 0) cli_sigs += ",";
+			cli_sigs += divergent_sig_names[i];
+		}
+		ss << std::format("\n> [!TIP] To inspect waveforms around divergence in File B (ticks {}–{}), run:\n"
+		                  "> `turbostar-verilog vcd-wave {} -s {} --start {} --end {}`\n",
+		                  wave_start, wave_end, args_.requested_path_b, cli_sigs, wave_start, wave_end);
+	} else {
+		std::string sig_str;
+		for (size_t i = 0; i < divergent_sig_names.size(); ++i) {
+			if (i > 0) sig_str += ", ";
+			sig_str += std::format("\"{}\"", divergent_sig_names[i]);
+		}
 
-	ss << std::format("\n> [!TIP] To inspect waveforms around divergence in File B (ticks {}–{}), run:\n"
-	                  "> `vcd_wave(path=\"{}\", signals=[{}], start_tick={}, end_tick={})`\n",
-	                  wave_start, wave_end, args_.requested_path_b, sig_str, wave_start, wave_end);
+		ss << std::format("\n> [!TIP] To inspect waveforms around divergence in File B (ticks {}–{}), run:\n"
+		                  "> `vcd_wave(path=\"{}\", signals=[{}], start_tick={}, end_tick={})`\n",
+		                  wave_start, wave_end, args_.requested_path_b, sig_str, wave_start, wave_end);
+	}
 
 	set_success(ctx);
 	return ss.str();

@@ -281,16 +281,26 @@ std::string vcd_label_manager::get_global_sidecar_path(std::string_view safe_pat
 	if (dir.has_parent_path()) {
 		std::filesystem::path parent = dir.parent_path();
 		std::error_code ec;
-		if (dir_name == "sim" || dir_name == "tb" || dir_name == "testbench" ||
-		    dir_name == "wave" || dir_name == "waves" || dir_name == "vcd" ||
-		    dir_name == "build" || dir_name == "obj_dir" || dir_name == "out" ||
-		    (!std::filesystem::exists(dir / "vcd_labels.json", ec) &&
-		     (std::filesystem::exists(parent / "vcd_labels.json", ec) ||
-		      std::filesystem::exists(parent / "turbostar.json", ec) ||
-		      std::filesystem::exists(parent / "project.json", ec) ||
-		      std::filesystem::exists(parent / "src", ec) ||
-		      std::filesystem::exists(parent / "sv", ec) ||
-		      std::filesystem::exists(parent / "rtl", ec)))) {
+		const auto tmp_dir = std::filesystem::temp_directory_path(ec);
+		const bool parent_is_tmp_or_root = (parent == dir.root_path()) || (!tmp_dir.empty() && parent == tmp_dir);
+		const bool dir_is_project_root =
+			std::filesystem::exists(dir / "vcd_labels.json", ec) ||
+			std::filesystem::exists(dir / "turbostar.json", ec) ||
+			std::filesystem::exists(dir / "project.json", ec) ||
+			std::filesystem::exists(dir / "src", ec) ||
+			std::filesystem::exists(dir / "sv", ec) ||
+			std::filesystem::exists(dir / "rtl", ec);
+		if (!parent_is_tmp_or_root &&
+		    (dir_name == "sim" || dir_name == "tb" || dir_name == "testbench" ||
+		     dir_name == "wave" || dir_name == "waves" || dir_name == "vcd" ||
+		     dir_name == "build" || dir_name == "obj_dir" || dir_name == "out" ||
+		     (!dir_is_project_root &&
+		      (std::filesystem::exists(parent / "vcd_labels.json", ec) ||
+		       std::filesystem::exists(parent / "turbostar.json", ec) ||
+		       std::filesystem::exists(parent / "project.json", ec) ||
+		       std::filesystem::exists(parent / "src", ec) ||
+		       std::filesystem::exists(parent / "sv", ec) ||
+		       std::filesystem::exists(parent / "rtl", ec))))) {
 			return canonicalize_path_key((parent / "vcd_labels.json").string());
 		}
 	}

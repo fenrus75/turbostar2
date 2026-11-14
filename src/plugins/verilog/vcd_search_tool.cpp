@@ -2,6 +2,7 @@
 #include "vcd_parser.h"
 #include "vcd_parser_cache.h"
 #include "vcd_label_manager.h"
+#include "plugins/verilog/fpga_project_settings.h"
 #include <format>
 #include <sstream>
 #include <algorithm>
@@ -58,6 +59,10 @@ std::string vcd_search_tool::execute(agentlib::tool_context &ctx)
 		const auto *target_sig = parser.find_signal(lookup_name);
 		if (!target_sig) {
 			set_failure(ctx, std::format("Signal '{}' not found in VCD file", cond.signal));
+			if (verilog::fpga_project_settings::is_cli_mode()) {
+				return std::format("Error: Signal '{}' not found in `{}`. Run `turbostar-verilog vcd-info {}` to confirm available signal names.",
+				                   cond.signal, args_.requested_path, args_.requested_path);
+			}
 			return std::format("Error: Signal '{}' not found in `{}`. Check `vcd_file_info` to confirm available signal names.",
 			                   cond.signal, args_.requested_path);
 		}
@@ -257,14 +262,25 @@ std::string vcd_search_tool::execute(agentlib::tool_context &ctx)
 		const auto &first_inv = all_intervals.front();
 		size_t wave_start = (first_inv.start_tick > 1) ? (first_inv.start_tick - 1) : 0;
 		size_t wave_end = first_inv.end_tick + 1;
-		std::string sig_list_str;
-		for (size_t i = 0; i < sample_signals.size(); ++i) {
-			if (i > 0) sig_list_str += ", ";
-			sig_list_str += std::format("\"{}\"", sample_signals[i]);
+		if (verilog::fpga_project_settings::is_cli_mode()) {
+			std::string cli_sigs;
+			for (size_t i = 0; i < sample_signals.size(); ++i) {
+				if (i > 0) cli_sigs += ",";
+				cli_sigs += sample_signals[i];
+			}
+			ss << std::format("\n> [!TIP] To inspect waveforms around match 1, run:\n"
+			                  "> `turbostar-verilog vcd-wave {} -s {} --start {} --end {}`\n",
+			                  args_.requested_path, cli_sigs, wave_start, wave_end);
+		} else {
+			std::string sig_list_str;
+			for (size_t i = 0; i < sample_signals.size(); ++i) {
+				if (i > 0) sig_list_str += ", ";
+				sig_list_str += std::format("\"{}\"", sample_signals[i]);
+			}
+			ss << std::format("\n> [!TIP] To inspect waveforms around match 1, run:\n"
+			                  "> `vcd_wave(path=\"{}\", signals=[{}], start_tick={}, end_tick={})`\n",
+			                  args_.requested_path, sig_list_str, wave_start, wave_end);
 		}
-		ss << std::format("\n> [!TIP] To inspect waveforms around match 1, run:\n"
-		                  "> `vcd_wave(path=\"{}\", signals=[{}], start_tick={}, end_tick={})`\n",
-		                  args_.requested_path, sig_list_str, wave_start, wave_end);
 	}
 
 	set_success(ctx);

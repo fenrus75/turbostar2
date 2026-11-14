@@ -96,6 +96,10 @@ std::string verilog_logic_depth_tool::execute(agentlib::tool_context &ctx)
 					resolved_module = discovered.front().module_name;
 				} else {
 					set_failure(ctx, "No module name specified and no top_module configured in project settings");
+					if (verilog::fpga_project_settings::is_cli_mode()) {
+						return "Error: No module name specified and no top_module configured in turbostar.json. "
+						       "Pass `-m <module>` or configure `top_module` via `turbostar-verilog config --top <module>`.";
+					}
 					return "Error: No module name specified and no top_module configured in turbostar.json. "
 					       "Please pass 'module' parameter or configure 'top_module' via verilog_project_settings.";
 				}

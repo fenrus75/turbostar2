@@ -2,6 +2,7 @@
 #include "vcd_parser.h"
 #include "vcd_parser_cache.h"
 #include "vcd_label_manager.h"
+#include "plugins/verilog/fpga_project_settings.h"
 #include "plugins/verilog/verilog_module_scanner.h"
 #include <format>
 #include <sstream>
@@ -526,10 +527,18 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 			bool has_qual = !label_mgr.find_qualifier(args_.safe_path, b_info.full_name).first.empty() ||
 			                !label_mgr.find_qualifier(args_.safe_path, b_info.clean_arg).first.empty();
 			if (!has_qual && label_mgr.try_consume_qualifier_hint()) {
-				ss << std::format(
-					"\n> [!TIP] Both `{}` and `{}` were requested. To mask invalid cycles of `{}` as `-` (and collapse idle rows automatically), use `vcd_signal_qualifier(path=\"{}\", signal=\"{}\", qualifier=\"{}\")`.\n",
-					b_info.clean_arg, v_info.clean_arg, b_info.clean_arg,
-					args_.requested_path, b_info.clean_arg, v_info.clean_arg);
+				if (verilog::fpga_project_settings::is_cli_mode()) {
+					ss << std::format(
+						"\n> [!TIP] Both `{}` and `{}` were requested. To mask invalid cycles of `{}` as `-` (and collapse idle rows automatically), run:\n"
+						"> `turbostar-verilog vcd-qualifier {} -s {} -q {}`\n",
+						b_info.clean_arg, v_info.clean_arg, b_info.clean_arg,
+						args_.requested_path, b_info.clean_arg, v_info.clean_arg);
+				} else {
+					ss << std::format(
+						"\n> [!TIP] Both `{}` and `{}` were requested. To mask invalid cycles of `{}` as `-` (and collapse idle rows automatically), use `vcd_signal_qualifier(path=\"{}\", signal=\"{}\", qualifier=\"{}\")`.\n",
+						b_info.clean_arg, v_info.clean_arg, b_info.clean_arg,
+						args_.requested_path, b_info.clean_arg, v_info.clean_arg);
+				}
 				hint_emitted = true;
 			}
 			break;
@@ -577,14 +586,26 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 						}
 					}
 				}
-				std::string labels_example = sample_hex.empty()
-					? R"({"0x00": "IDLE", "0x01": "ACTIVE"})"
-					: (sample_hex.size() == 1
-						? std::format(R"({{"{}": "<NAME_1>"}})", sample_hex[0])
-						: std::format(R"({{"{}": "<NAME_1>", "{}": "<NAME_2>"}})", sample_hex[0], sample_hex[1]));
-				ss << std::format(
-					"\n> [!TIP] Signal `{}` has no symbolic labels yet. To display enum names alongside hex values (and search by name in `vcd_search`), use `vcd_signal_labels(path=\"{}\", signal=\"{}\", labels={})`.\n",
-					s_info.clean_arg, args_.requested_path, s_info.clean_arg, labels_example);
+				if (verilog::fpga_project_settings::is_cli_mode()) {
+					std::string cli_labels_example = sample_hex.empty()
+						? "0x00=IDLE,0x01=ACTIVE"
+						: (sample_hex.size() == 1
+							? std::format("{}=<NAME_1>", sample_hex[0])
+							: std::format("{}=<NAME_1>,{}=<NAME_2>", sample_hex[0], sample_hex[1]));
+					ss << std::format(
+						"\n> [!TIP] Signal `{}` has no symbolic labels yet. To display enum names alongside hex values (and search by name in `turbostar-verilog vcd-search`), run:\n"
+						"> `turbostar-verilog vcd-labels {} -s {} -l \"{}\"`\n",
+						s_info.clean_arg, args_.requested_path, s_info.clean_arg, cli_labels_example);
+				} else {
+					std::string labels_example = sample_hex.empty()
+						? R"({"0x00": "IDLE", "0x01": "ACTIVE"})"
+						: (sample_hex.size() == 1
+							? std::format(R"({{"{}": "<NAME_1>"}})", sample_hex[0])
+							: std::format(R"({{"{}": "<NAME_1>", "{}": "<NAME_2>"}})", sample_hex[0], sample_hex[1]));
+					ss << std::format(
+						"\n> [!TIP] Signal `{}` has no symbolic labels yet. To display enum names alongside hex values (and search by name in `vcd_search`), use `vcd_signal_labels(path=\"{}\", signal=\"{}\", labels={})`.\n",
+						s_info.clean_arg, args_.requested_path, s_info.clean_arg, labels_example);
+				}
 				hint_emitted = true;
 				break;
 			}

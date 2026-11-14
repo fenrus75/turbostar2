@@ -52,6 +52,11 @@ struct fpga_system_tools {
  */
 class fpga_project_settings {
 public:
+	// Set/query whether Verilog/VCD tools are running inside the standalone CLI (turbostar-verilog)
+	// so follow-up hints and remediation messages emit CLI commands instead of LLM tool call JSON.
+	static void set_cli_mode(bool cli) noexcept;
+	static bool is_cli_mode() noexcept;
+
 	// Detect EDA tool binaries installed on PATH
 	static fpga_system_tools detect_system_tools();
 

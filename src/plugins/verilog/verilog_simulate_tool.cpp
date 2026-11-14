@@ -536,11 +536,14 @@ tb_run_outcome run_compiled_testbench(
 			}
 
 			std::string sigs_arg = "[";
+			std::string cli_sigs_arg;
 			for (size_t i = 0; i < sample_sigs.size(); ++i) {
 				if (i > 0) {
 					sigs_arg += ", ";
+					cli_sigs_arg += ",";
 				}
 				sigs_arg += std::format("\"{}\"", sample_sigs[i]);
+				cli_sigs_arg += sample_sigs[i];
 			}
 			sigs_arg += "]";
 
@@ -600,21 +603,40 @@ tb_run_outcome run_compiled_testbench(
 				out.compare_status = short_cmp_tag(prev_cmp, "previous");
 			}
 
+			const bool is_cli = verilog::fpga_project_settings::is_cli_mode();
 			ss << "\n#### Next Steps\n";
-			ss << std::format("- Use `vcd_file_info(path=\"{}\", scope=\"{}\")` to get more information.\n",
-			                  dump_rel, suggested_scope);
-			ss << std::format("- Use `vcd_wave(path=\"{}\", signals={})` to see the waveforms.\n",
-			                  dump_rel, sigs_arg);
+			if (is_cli) {
+				ss << std::format("- Run `turbostar-verilog vcd-info {} --scope {}` to inspect signals and hierarchy.\n",
+				                  dump_rel, suggested_scope);
+				ss << std::format("- Run `turbostar-verilog vcd-wave {} -s {}` to see the waveforms.\n",
+				                  dump_rel, cli_sigs_arg);
+			} else {
+				ss << std::format("- Use `vcd_file_info(path=\"{}\", scope=\"{}\")` to get more information.\n",
+				                  dump_rel, suggested_scope);
+				ss << std::format("- Use `vcd_wave(path=\"{}\", signals={})` to see the waveforms.\n",
+				                  dump_rel, sigs_arg);
+			}
 			if (saved_previous) {
 				if (prev_cmp.ok && prev_cmp.identical) {
-					ss << std::format("- Previous result saved as `{}`: waveforms are **IDENTICAL** across all {} signal(s) ({} cycles) — no `vcd_compare` needed.\n",
-					                  prev_rel, prev_cmp.common_signals, prev_cmp.cycles_b);
+					ss << std::format("- Previous result saved as `{}`: waveforms are **IDENTICAL** across all {} signal(s) ({} cycles) — no `{}` needed.\n",
+					                  prev_rel, prev_cmp.common_signals, prev_cmp.cycles_b,
+					                  is_cli ? "turbostar-verilog vcd-compare" : "vcd_compare");
 				} else if (prev_cmp.ok && prev_cmp.divergent_cycles > 0) {
-					ss << std::format("- Previous result saved as `{}` (diverged at tick {}, {} signal(s) differ). To compare the current result to this file use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
-					                  prev_rel, prev_cmp.first_divergent_tick, prev_cmp.divergent_signals, prev_rel, dump_rel, suggested_scope);
+					if (is_cli) {
+						ss << std::format("- Previous result saved as `{}` (diverged at tick {}, {} signal(s) differ). To compare the current result to this file, run `turbostar-verilog vcd-compare {} {} --scope {}`.\n",
+						                  prev_rel, prev_cmp.first_divergent_tick, prev_cmp.divergent_signals, prev_rel, dump_rel, suggested_scope);
+					} else {
+						ss << std::format("- Previous result saved as `{}` (diverged at tick {}, {} signal(s) differ). To compare the current result to this file use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
+						                  prev_rel, prev_cmp.first_divergent_tick, prev_cmp.divergent_signals, prev_rel, dump_rel, suggested_scope);
+					}
 				} else {
-					ss << std::format("- Previous result saved as `{}`. To compare the current result to this file use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
-					                  prev_rel, prev_rel, dump_rel, suggested_scope);
+					if (is_cli) {
+						ss << std::format("- Previous result saved as `{}`. To compare the current result to this file, run `turbostar-verilog vcd-compare {} {} --scope {}`.\n",
+						                  prev_rel, prev_rel, dump_rel, suggested_scope);
+					} else {
+						ss << std::format("- Previous result saved as `{}`. To compare the current result to this file use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
+						                  prev_rel, prev_rel, dump_rel, suggested_scope);
+					}
 				}
 			}
 			if (had_prior_lastpass && (!out.suite_passed || prev_differs_from_lastpass)) {
@@ -623,15 +645,25 @@ tb_run_outcome run_compiled_testbench(
 					                  lastpass_rel, lp_cmp.common_signals, lp_cmp.cycles_b);
 				} else if (lp_cmp.ok && lp_cmp.divergent_cycles > 0) {
 					if (!out.suite_passed && lastpass_exists) {
-						ss << std::format("- Compared to last passing run (`{}`): diverged at tick {} ({} signal(s) differ). To compare to the last passing run, use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
-						                  lastpass_rel, lp_cmp.first_divergent_tick, lp_cmp.divergent_signals, lastpass_rel, dump_rel, suggested_scope);
+						if (is_cli) {
+							ss << std::format("- Compared to last passing run (`{}`): diverged at tick {} ({} signal(s) differ). To compare to the last passing run, run `turbostar-verilog vcd-compare {} {} --scope {}`.\n",
+							                  lastpass_rel, lp_cmp.first_divergent_tick, lp_cmp.divergent_signals, lastpass_rel, dump_rel, suggested_scope);
+						} else {
+							ss << std::format("- Compared to last passing run (`{}`): diverged at tick {} ({} signal(s) differ). To compare to the last passing run, use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
+							                  lastpass_rel, lp_cmp.first_divergent_tick, lp_cmp.divergent_signals, lastpass_rel, dump_rel, suggested_scope);
+						}
 					} else {
 						ss << std::format("- Prior passing baseline (`{}`) diverged from the current passing result at tick {} ({} signal(s) differ) before `{}` was updated.\n",
 						                  lastpass_rel, lp_cmp.first_divergent_tick, lp_cmp.divergent_signals, lastpass_rel);
 					}
 				} else if (!out.suite_passed && lastpass_exists) {
-					ss << std::format("- To compare to the last passing run, use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
-					                  lastpass_rel, dump_rel, suggested_scope);
+					if (is_cli) {
+						ss << std::format("- To compare to the last passing run, run `turbostar-verilog vcd-compare {} {} --scope {}`.\n",
+						                  lastpass_rel, dump_rel, suggested_scope);
+					} else {
+						ss << std::format("- To compare to the last passing run, use `vcd_compare(path_a=\"{}\", path_b=\"{}\", scope=\"{}\")`.\n",
+						                  lastpass_rel, dump_rel, suggested_scope);
+					}
 				}
 			}
 		} else {
@@ -910,9 +942,15 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 					if (i > 0) skipped_str += ", ";
 					skipped_str += skipped_by_level[i];
 				}
-				msg << std::format("No testbenches for module `{}` matched `level=\"{}\"`. Skipped higher-tier testbench(es): {}.\n"
-				                   "Re-run with `verilog_simulate(module=\"{}\", level=\"extreme\")` to include them.",
-				                   resolved_mod, args_.level, skipped_str, args_.requested_module);
+				if (verilog::fpga_project_settings::is_cli_mode()) {
+					msg << std::format("No testbenches for module `{}` matched `level=\"{}\"`. Skipped higher-tier testbench(es): {}.\n"
+					                   "Re-run with `turbostar-verilog sim -m {} -l extreme` to include them.",
+					                   resolved_mod, args_.level, skipped_str, args_.requested_module);
+				} else {
+					msg << std::format("No testbenches for module `{}` matched `level=\"{}\"`. Skipped higher-tier testbench(es): {}.\n"
+					                   "Re-run with `verilog_simulate(module=\"{}\", level=\"extreme\")` to include them.",
+					                   resolved_mod, args_.level, skipped_str, args_.requested_module);
+				}
 			} else {
 				// If effective_hierarchical=false, check whether submodules of resolved_mod have testbenches!
 				std::vector<std::string> sub_hierarchy;
@@ -943,20 +981,35 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 						if (i > 0) submods_str += ", ";
 						submods_str += std::format("`{}`", tested_submods[i]);
 					}
-					msg << std::format("No direct testbench is associated with module `{}`, but **{} testbench(es)** exist for its submodules ({}).\n"
-					                   "- **Recommended (One-Time Project Config)**: Run `verilog_configure_testbench(module=\"{}\", hierarchical=true)` so `verilog_simulate(module=\"{}\")` automatically runs its submodule testbenches by default.\n"
-					                   "- **One-Off Run**: Run `verilog_simulate(module=\"{}\", hierarchical=true)` to verify `{}` bottom-up via its submodule testbenches.\n"
-					                   "- **Or Add Direct Testbench**: Associate a direct testbench using `verilog_configure_testbench(testbench=\"path/to/tb.sv\", modules=[\"{}\"])`.",
-					                   resolved_mod, sub_tbs.size(), submods_str,
-					                   resolved_mod, args_.requested_module,
-					                   args_.requested_module, resolved_mod, resolved_mod);
+					if (verilog::fpga_project_settings::is_cli_mode()) {
+						msg << std::format("No direct testbench is associated with module `{}`, but **{} testbench(es)** exist for its submodules ({}).\n"
+						                   "- **Recommended (One-Time Project Config)**: Run `turbostar-verilog config -m {} --hierarchical` so `turbostar-verilog sim -m {}` automatically runs its submodule testbenches by default.\n"
+						                   "- **One-Off Run**: Run `turbostar-verilog sim -m {} --hierarchical` to verify `{}` bottom-up via its submodule testbenches.\n"
+						                   "- **Or Add Direct Testbench**: Associate a direct testbench using `turbostar-verilog config --tb path/to/tb.sv -m {}`.",
+						                   resolved_mod, sub_tbs.size(), submods_str,
+						                   resolved_mod, args_.requested_module,
+						                   args_.requested_module, resolved_mod, resolved_mod);
+					} else {
+						msg << std::format("No direct testbench is associated with module `{}`, but **{} testbench(es)** exist for its submodules ({}).\n"
+						                   "- **Recommended (One-Time Project Config)**: Run `verilog_configure_testbench(module=\"{}\", hierarchical=true)` so `verilog_simulate(module=\"{}\")` automatically runs its submodule testbenches by default.\n"
+						                   "- **One-Off Run**: Run `verilog_simulate(module=\"{}\", hierarchical=true)` to verify `{}` bottom-up via its submodule testbenches.\n"
+						                   "- **Or Add Direct Testbench**: Associate a direct testbench using `verilog_configure_testbench(testbench=\"path/to/tb.sv\", modules=[\"{}\"])`.",
+						                   resolved_mod, sub_tbs.size(), submods_str,
+						                   resolved_mod, args_.requested_module,
+						                   args_.requested_module, resolved_mod, resolved_mod);
+					}
 				} else {
 					msg << std::format("No testbenches are associated with module `{}`", resolved_mod);
 					if (effective_hierarchical && target_hierarchy.size() > 1) {
 						msg << " (or its submodules)";
 					}
-					msg << ".\nAssociate a testbench using `verilog_configure_testbench(testbench=\"path/to/tb.sv\", modules=[\""
-					    << resolved_mod << "\"])` or pass `testbench=\"path/to/tb.sv\"` directly.";
+					if (verilog::fpga_project_settings::is_cli_mode()) {
+						msg << ".\nAssociate a testbench using `turbostar-verilog config --tb path/to/tb.sv -m "
+						    << resolved_mod << "` or pass `turbostar-verilog sim path/to/tb.sv` directly.";
+					} else {
+						msg << ".\nAssociate a testbench using `verilog_configure_testbench(testbench=\"path/to/tb.sv\", modules=[\""
+						    << resolved_mod << "\"])` or pass `testbench=\"path/to/tb.sv\"` directly.";
+					}
 				}
 			}
 			set_failure(ctx, "No matching testbenches found for module");
@@ -967,6 +1020,10 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 	else {
 		if (catalog.empty()) {
 			set_failure(ctx, "No testbench files found");
+			if (verilog::fpga_project_settings::is_cli_mode()) {
+				return "Error: No testbench files found in workspace (checked `tb/`, `testbench/`, `tb_*.sv`, `*_tb.sv`). "
+				       "Provide a path explicitly via `turbostar-verilog sim path/to/tb.sv`.";
+			}
 			return "Error: No testbench files found in workspace (checked `tb/`, `testbench/`, `tb_*.sv`, `*_tb.sv`). "
 			       "Provide a path explicitly via `verilog_simulate(testbench=\"path/to/tb.sv\")`.";
 		}
@@ -984,13 +1041,22 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 			}
 			if (plans.empty()) {
 				set_failure(ctx, "No testbenches matched level filter");
+				if (verilog::fpga_project_settings::is_cli_mode()) {
+					return std::format("No configured testbenches matched `--level {}`. Try `-l extreme` or specify `<testbench_path>`.",
+					                   args_.level);
+				}
 				return std::format("No configured testbenches matched `level=\"{}\"`. Try `level=\"extreme\"` or specify `testbench=\"...\"`.",
 				                   args_.level);
 			}
 		} else {
 			std::ostringstream msg;
-			msg << "Multiple testbench files were found in the project. Specify which one to run via `verilog_simulate(testbench=\"...\")`, "
-			       "target a module via `verilog_simulate(module=\"...\")`, or configure testbenches via `verilog_configure_testbench`:\n";
+			if (verilog::fpga_project_settings::is_cli_mode()) {
+				msg << "Multiple testbench files were found in the project. Specify which one to run via `turbostar-verilog sim <tb.sv>`, "
+				       "target a module via `turbostar-verilog sim -m <module>`, or auto-scan testbenches via `turbostar-verilog config --scan`:\n";
+			} else {
+				msg << "Multiple testbench files were found in the project. Specify which one to run via `verilog_simulate(testbench=\"...\")`, "
+				       "target a module via `verilog_simulate(module=\"...\")`, or configure testbenches via `verilog_configure_testbench`:\n";
+			}
 			for (const auto &item : catalog) {
 				msg << std::format("- `{}`\n", item.rel_path);
 			}

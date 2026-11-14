@@ -2450,6 +2450,23 @@ int main()
 			assert(out_q.find("| 1 | 15 | 0 | 0x10 | 0x20 | - |") != std::string::npos);
 		}
 
+		// 6) CLI mode (`fpga_project_settings::set_cli_mode(true)`) emits `turbostar-verilog` CLI hints
+		{
+			verilog::fpga_project_settings::set_cli_mode(true);
+			tools::vcd_search_validator search_val;
+			std::string serr;
+			nlohmann::json sargs = {
+				{"path", (inst_proj / "dump.vcd").string()},
+				{"signal", "a"},
+				{"value", "0x10"}
+			};
+			assert(search_val.validate_args(sargs, ictx, serr) && serr.empty());
+			std::string sout = search_val.create_tool(sargs)->execute(ictx);
+			assert(sout.find("turbostar-verilog vcd-wave") != std::string::npos);
+			assert(sout.find("vcd_wave(") == std::string::npos);
+			verilog::fpga_project_settings::set_cli_mode(false);
+		}
+
 		std::filesystem::remove_all(inst_proj);
 	}
 

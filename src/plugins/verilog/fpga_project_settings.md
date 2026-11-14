@@ -12,3 +12,4 @@
 
 - **Indented JSON over flat INI**: Formatted JSON (`dump(2)`) avoids parsing ambiguities, escaping bugs, and allows rich data while remaining human-readable in git diffs.
 - **Deterministic Scanning vs. Regexing Makefiles**: Makefiles vary wildly in structure; scanning for `.pcf` files and installed nextpnr binaries is 100% deterministic, whereas the LLM itself is best suited for interpreting complex Makefiles.
+- **CLI vs. Agent Mode Hint Formatting (`is_cli_mode`)**: Exposing `fpga_project_settings::set_cli_mode(true)` / `is_cli_mode()` allows shared `libverilog_core` tools (`vcd_wave`, `vcd_search`, `vcd_compare`, `vcd_signal_labels`, `vcd_signal_qualifier`, `verilog_simulate`, `verilog_logic_depth`, `fpga_project_settings`) to emit copy-pasteable `turbostar-verilog <subcommand>` shell hints when invoked from the standalone CLI while preserving LLM tool-call syntax in agent sessions.

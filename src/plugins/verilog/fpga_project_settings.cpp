@@ -12,6 +12,20 @@ namespace verilog {
 
 namespace fs = std::filesystem;
 
+namespace {
+bool g_is_cli_mode = false;
+} // namespace
+
+void fpga_project_settings::set_cli_mode(bool cli) noexcept
+{
+	g_is_cli_mode = cli;
+}
+
+bool fpga_project_settings::is_cli_mode() noexcept
+{
+	return g_is_cli_mode;
+}
+
 fpga_system_tools fpga_project_settings::detect_system_tools()
 {
 	fpga_system_tools tools;
@@ -294,7 +308,11 @@ std::string fpga_project_settings::format_guidance(std::string_view /*project_ro
 	is_complete(cfg, missing);
 
 	std::string md = "## Missing FPGA Project Configuration\n\n";
-	md += "To run physical timing analysis (`verilog_pnr_timing`), the design requires hardware target parameters.\n\n";
+	if (is_cli_mode()) {
+		md += "To run physical timing analysis (`turbostar-verilog timing --pnr`), the design requires hardware target parameters.\n\n";
+	} else {
+		md += "To run physical timing analysis (`verilog_pnr_timing`), the design requires hardware target parameters.\n\n";
+	}
 
 	md += "### System & Project Context\n";
 	if (tools.available_targets.size() == 1) {
@@ -351,29 +369,51 @@ std::string fpga_project_settings::format_guidance(std::string_view /*project_ro
 	}
 
 	md += "### Remediation Action\n";
-	md += "Inspect the project files or query the user, then call `verilog_project_settings` to configure and save:\n\n";
-	md += "```json\n";
-	md += "{\n";
 	std::string rec_target = (!cfg.target.empty()) ? cfg.target : ((tools.available_targets.size() == 1) ? tools.available_targets.front() : "ice40");
-	md += std::format("  \"target\": \"{}\",\n", rec_target);
-	md += std::format("  \"device\": \"{}\",\n", cfg.device.empty() ? "hx8k" : cfg.device);
-	if (!cfg.package.empty()) {
-		md += std::format("  \"package\": \"{}\",\n", cfg.package);
-	}
-	md += std::format("  \"top_module\": \"{}\",\n", cfg.top_module.empty() ? "main" : cfg.top_module);
-	md += std::format("  \"freq_mhz\": {},\n", cfg.freq_mhz > 0.0 ? cfg.freq_mhz : 60.0);
-	if (!cfg.sv_path.empty()) {
-		md += std::format("  \"sv_path\": \"{}\",\n", cfg.sv_path);
-	}
-	if (!cfg.pcf_file.empty()) {
-		md += std::format("  \"pcf_file\": \"{}\"\n", cfg.pcf_file);
-	} else if (pcf_files.size() == 1) {
-		md += std::format("  \"pcf_file\": \"{}\"\n", pcf_files.front());
+	std::string rec_device = cfg.device.empty() ? "hx8k" : cfg.device;
+	std::string rec_top = cfg.top_module.empty() ? "main" : cfg.top_module;
+	double rec_freq = cfg.freq_mhz > 0.0 ? cfg.freq_mhz : 60.0;
+	if (is_cli_mode()) {
+		md += "Run `turbostar-verilog config` to configure and save:\n\n";
+		md += "```sh\n";
+		std::string cmd = std::format("turbostar-verilog config --target {} --device {}", rec_target, rec_device);
+		if (!cfg.package.empty()) {
+			cmd += std::format(" --package {}", cfg.package);
+		}
+		cmd += std::format(" --top {} --freq {}", rec_top, rec_freq);
+		if (!cfg.sv_path.empty()) {
+			cmd += std::format(" --sv-path {}", cfg.sv_path);
+		}
+		if (!cfg.pcf_file.empty()) {
+			cmd += std::format(" --pcf {}", cfg.pcf_file);
+		} else if (pcf_files.size() == 1) {
+			cmd += std::format(" --pcf {}", pcf_files.front());
+		}
+		md += cmd + "\n```\n";
 	} else {
-		md += "  \"pcf_file\": \"\"\n";
+		md += "Inspect the project files or query the user, then call `verilog_project_settings` to configure and save:\n\n";
+		md += "```json\n";
+		md += "{\n";
+		md += std::format("  \"target\": \"{}\",\n", rec_target);
+		md += std::format("  \"device\": \"{}\",\n", rec_device);
+		if (!cfg.package.empty()) {
+			md += std::format("  \"package\": \"{}\",\n", cfg.package);
+		}
+		md += std::format("  \"top_module\": \"{}\",\n", rec_top);
+		md += std::format("  \"freq_mhz\": {},\n", rec_freq);
+		if (!cfg.sv_path.empty()) {
+			md += std::format("  \"sv_path\": \"{}\",\n", cfg.sv_path);
+		}
+		if (!cfg.pcf_file.empty()) {
+			md += std::format("  \"pcf_file\": \"{}\"\n", cfg.pcf_file);
+		} else if (pcf_files.size() == 1) {
+			md += std::format("  \"pcf_file\": \"{}\"\n", pcf_files.front());
+		} else {
+			md += "  \"pcf_file\": \"\"\n";
+		}
+		md += "}\n";
+		md += "```\n";
 	}
-	md += "}\n";
-	md += "```\n";
 
 	return md;
 }

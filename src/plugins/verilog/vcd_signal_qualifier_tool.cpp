@@ -2,6 +2,7 @@
 #include "vcd_label_manager.h"
 #include "vcd_parser.h"
 #include "vcd_parser_cache.h"
+#include "plugins/verilog/fpga_project_settings.h"
 #include <format>
 #include <sstream>
 
@@ -60,14 +61,26 @@ std::string vcd_signal_qualifier_tool::execute(agentlib::tool_context &ctx)
 				}
 
 				if (matched_sig == 0) {
-					ss << std::format("> [!WARNING] Signal pattern `{}` currently matches **0 signals** in `{}`. "
-					                  "Check `vcd_file_info` to confirm signal names.\n",
-					                  args_.signal, args_.requested_path);
+					if (verilog::fpga_project_settings::is_cli_mode()) {
+						ss << std::format("> [!WARNING] Signal pattern `{}` currently matches **0 signals** in `{}`. "
+						                  "Run `turbostar-verilog vcd-info {}` to confirm signal names.\n",
+						                  args_.signal, args_.requested_path, args_.requested_path);
+					} else {
+						ss << std::format("> [!WARNING] Signal pattern `{}` currently matches **0 signals** in `{}`. "
+						                  "Check `vcd_file_info` to confirm signal names.\n",
+						                  args_.signal, args_.requested_path);
+					}
 				}
 				if (matched_qual == 0) {
-					ss << std::format("> [!WARNING] Qualifier signal `{}` currently matches **0 signals** in `{}`. "
-					                  "Check `vcd_file_info` to confirm signal names.\n",
-					                  clean_qual, args_.requested_path);
+					if (verilog::fpga_project_settings::is_cli_mode()) {
+						ss << std::format("> [!WARNING] Qualifier signal `{}` currently matches **0 signals** in `{}`. "
+						                  "Run `turbostar-verilog vcd-info {}` to confirm signal names.\n",
+						                  clean_qual, args_.requested_path, args_.requested_path);
+					} else {
+						ss << std::format("> [!WARNING] Qualifier signal `{}` currently matches **0 signals** in `{}`. "
+						                  "Check `vcd_file_info` to confirm signal names.\n",
+						                  clean_qual, args_.requested_path);
+					}
 				}
 				if (matched_sig > 0 && matched_qual > 0) {
 					ss << std::format("> [!NOTE] Bound `{}` (matches {} signal(s)) qualified by `{}` (matches {} signal(s)).\n",

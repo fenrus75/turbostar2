@@ -424,6 +424,7 @@ static int run_validator_tool(const nlohmann::json &args, const std::string &cwd
 
 int main(int argc, char **argv)
 {
+	verilog::fpga_project_settings::set_cli_mode(true);
 	CLI::App app{
 		"TurboStar SystemVerilog, FPGA & VCD Toolkit (turbostar-verilog)\n"
 		"  Subcommands:\n"
@@ -645,7 +646,7 @@ int main(int argc, char **argv)
 	bool vlbl_clear = false, vlbl_local = false, vlbl_list = false;
 	sub_vcd_labels->add_option("target", vlbl_pos, "Optional VCD file path or signal name");
 	sub_vcd_labels->add_option("-s,--signal", vlbl_sig, "Signal name or wildcard pattern (e.g. 'opcode', '*state*')");
-	sub_vcd_labels->add_option("-m,--map", vlbl_maps, "Value-to-label mappings 'val=label' (comma-separated or repeatable)");
+	sub_vcd_labels->add_option("-m,--map,-l,--labels", vlbl_maps, "Value-to-label mappings 'val=label' (comma-separated or repeatable)");
 	sub_vcd_labels->add_option("-f,--file", vlbl_path, "Optional VCD file path");
 	sub_vcd_labels->add_flag("--list", vlbl_list, "List configured signal labels");
 	sub_vcd_labels->add_flag("--clear", vlbl_clear, "Clear labels for the specified signal (or all signals if omitted)");
