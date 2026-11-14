@@ -478,6 +478,61 @@ Sampled on: `tb_main.clk` (posedge) | Timescale: 1ps | Total Rows: 13
       </div>
     </section>
 
+    <!-- Step 8: Cycle-by-Cycle Regression Diffing (vcd-compare) -->
+    <section class="detail-full" id="step-vcd-compare">
+      <div class="detail-info">
+        <span class="step-badge">Step 8 &bull; Regression Triage (<code>vcd-compare</code>)</span>
+        <h2 class="detail-subtitle">Pinpoint First Cycle of Waveform Divergence Across 255 Signals</h2>
+        <p class="detail-text">
+          When an RTL edit or ROM change causes a testbench to diverge, hundreds of downstream registers drift on subsequent clock cycles. Every run of <code>turbostar-verilog sim</code> automatically preserves the prior waveform as <code>.previous.vcd</code> and the last passing waveform as <code>.lastpass.vcd</code>. Running <code>turbostar-verilog vcd-compare</code> diffs the two traces cycle-by-cycle on the reference clock edge and isolates the <strong>exact first clock tick and root-cause signals</strong> where behavior diverged—filtering out the downstream cascade.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Automatic Baseline Diffing in <code>sim</code>:</strong> Removing the <code>FF</code> (<code>HLT</code>) byte from <code>ram_init.hex</code> in <code>examples/test8008</code> immediately triggers a divergence alert in <code>sim</code> at Tick 12.</li>
+          <li><strong>Root-Cause Isolation at Tick 12:</strong> Out of 255 signals and 190 differing cycles, <code>vcd-compare</code> shows that Ticks 0&ndash;11 matched in lock-step and isolates the 9 memory-read and decode bus signals at Tick 12 where <code>0xFF</code> became <code>0x44</code>, complete with a copy-pasteable <code>vcd-wave</code> follow-up command.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <pre><code><span class="comment"># Remove the 'FF' (HLT) byte from ram_init.hex (06 41 36 80 F8 FF 44 -&gt; 06 41 36 80 F8 44) and re-simulate:</span>
+<span class="comment">$ turbostar-verilog sim --tb tb/tb_main.sv</span>
+<span class="keyword">#### Generated VCD Summary (`dump.vcd`)</span>
+- Detected Clock: `tb_main.clk` (202 posedge cycles, period: 10000 1ps)
+- Total Signals: 255 across 18 hierarchy scope(s)
+- Comparison vs. Previous (`dump.previous.vcd`): <span class="literal">DIVERGED (102 signal(s) differ across 190 of 202 cycle(s); first difference at tick 12)</span>
+
+<span class="comment"># Compare the candidate waveform against the previous baseline to isolate the root cause at Tick 12:</span>
+<span class="comment">$ turbostar-verilog vcd-compare dump.previous.vcd dump.vcd</span>
+<span class="keyword">### VCD Compare: DIVERGENCE DETECTED at Tick 12 (Time 1250001ps)</span>
+
+- File A (Reference): `dump.previous.vcd`
+- File B (Candidate): `dump.vcd`
+- Reference Clock: `tb_main.clk` (sampled on `posedge`)
+- In-Sync Prefix: <span class="type">Ticks 0–11 matched identically across all 255 common signals (12 initial cycles in lock-step).</span>
+- First Divergence: <span class="literal">Tick 12 (9 differing signal(s) at this cycle).</span>
+- Post-Divergence Cascade: 190 of 190 subsequent cycles differed as state drifted.
+- Signals Evaluated: 255 common signals
+
+&gt; [!NOTE] Applied 1 qualifier(s) symmetrically to both traces.
+
+<span class="keyword">#### Divergent Signals at First Divergence (Tick 12):</span>
+┌───────────────────────────────────────────────┬────────────────────┬────────────────────┬────────────────┐
+│ Signal                                        │ File A (Reference) │ File B (Candidate) │ Difference     │
+├───────────────────────────────────────────────┼────────────────────┼────────────────────┼────────────────┤
+│ tb_main.LED                                   │ <span class="type">0xFF</span>               │ <span class="literal">0x44</span>               │ Value mismatch │
+│ tb_main.uut.LED                               │ <span class="type">0xFF</span>               │ <span class="literal">0x44</span>               │ Value mismatch │
+│ tb_main.uut.cpu8008.decode.mem_data           │ <span class="type">0xFF</span>               │ <span class="literal">0x44</span>               │ Value mismatch │
+│ tb_main.uut.cpu8008.decode_mem_data           │ <span class="type">0xFF</span>               │ <span class="literal">0x44</span>               │ Value mismatch │
+│ tb_main.uut.cpu8008.mem_arbiter.mem_read_data │ <span class="type">0xFF</span>               │ <span class="literal">0x44</span>               │ Value mismatch │
+│ tb_main.uut.cpu8008.mem_arbiter.port1_data    │ <span class="type">0xFF</span>               │ <span class="literal">0x44</span>               │ Value mismatch │
+│ tb_main.uut.cpu8008.mem_read_data             │ <span class="type">0xFF</span>               │ <span class="literal">0x44</span>               │ Value mismatch │
+│ tb_main.uut.main_memory.rdata                 │ <span class="type">0xFF</span>               │ <span class="literal">0x44</span>               │ Value mismatch │
+│ tb_main.uut.mem_read_data                     │ <span class="type">0xFF</span>               │ <span class="literal">0x44</span>               │ Value mismatch │
+└───────────────────────────────────────────────┴────────────────────┴────────────────────┴────────────────┘
+
+&gt; [!TIP] To inspect waveforms around divergence in File B (ticks 10–15), run:
+&gt; `vcd_wave(path="dump.vcd", signals=["tb_main.LED", "tb_main.uut.LED", "tb_main.uut.cpu8008.decode.mem_data", "tb_main.uut.cpu8008.decode_mem_data", "tb_main.uut.cpu8008.mem_arbiter.mem_read_data", "tb_main.uut.cpu8008.mem_arbiter.port1_data"], start_tick=10, end_tick=15)`</code></pre>
+      </div>
+    </section>
+
     <!-- Subcommand Quick Reference Table -->
     <section class="features-section" id="cli-reference" style="padding-top: 2rem;">
       <div class="section-header">
