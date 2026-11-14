@@ -494,7 +494,7 @@ int main(int argc, char **argv)
 	// Subcommand: config (verilog_project_settings + verilog_configure_testbench)
 	auto *sub_config = app.add_subcommand("config", "Inspect or update FPGA project and testbench configuration in turbostar.json");
 	sub_config->fallthrough();
-	std::string cfg_target, cfg_device, cfg_package, cfg_top, cfg_pcf, cfg_sv_path, cfg_yosys_args;
+	std::string cfg_target, cfg_device, cfg_package, cfg_top, cfg_pcf, cfg_sv_path, cfg_yosys_args, cfg_nextpnr_args;
 	double cfg_freq = 0.0;
 	std::string cfg_tb, cfg_tb_level;
 	std::vector<std::string> cfg_tb_modules;
@@ -510,7 +510,8 @@ int main(int argc, char **argv)
 	sub_config->add_option("--freq,--freq-mhz", cfg_freq, "Target clock frequency in MHz (e.g. 75.0)");
 	sub_config->add_option("--pcf,--pcf-file", cfg_pcf, "Path to physical pin constraint file (*.pcf)");
 	sub_config->add_option("--sv-path", cfg_sv_path, "Root directory for synthesizable RTL sources (e.g. 'sv', 'src')");
-	sub_config->add_option("--yosys-args", cfg_yosys_args, "Optional extra Yosys synthesis arguments (e.g. '-abc9')");
+	sub_config->add_option("--yosys-args", cfg_yosys_args, "Optional extra Yosys synthesis arguments (e.g. '-abc9 -dff')");
+	sub_config->add_option("--nextpnr-args", cfg_nextpnr_args, "Optional extra nextpnr PnR arguments (e.g. '--placer-heap-timingweight 30')");
 	sub_config->add_option("-b,--tb,--testbench", cfg_tb, "Testbench file to associate in turbostar.json (e.g. 'tb/tb_alu.sv')");
 	sub_config->add_option("--modules", cfg_tb_modules, "RTL module(s) verified by --tb (comma-separated or repeatable)");
 	sub_config->add_option("--level", cfg_tb_level, "Testbench tier ('quick', 'comprehensive', 'extreme')");
@@ -690,7 +691,7 @@ int main(int argc, char **argv)
 	if (*sub_config) {
 		bool has_fpga_opts = !cfg_target.empty() || !cfg_device.empty() || !cfg_package.empty() ||
 		                     !cfg_top.empty() || (cfg_freq > 0.0) || !cfg_pcf.empty() ||
-		                     !cfg_sv_path.empty() || !cfg_yosys_args.empty();
+		                     !cfg_sv_path.empty() || !cfg_yosys_args.empty() || !cfg_nextpnr_args.empty();
 		bool has_tb_opts = !cfg_tb.empty() || !cfg_tb_modules.empty() || !cfg_tb_level.empty() ||
 		                   cfg_tb_hier || cfg_tb_no_hier || cfg_tb_remove || cfg_tb_list || cfg_tb_scan;
 
@@ -706,6 +707,7 @@ int main(int argc, char **argv)
 			if (!cfg_pcf.empty()) j["pcf_file"] = cfg_pcf;
 			if (!cfg_sv_path.empty()) j["sv_path"] = cfg_sv_path;
 			if (!cfg_yosys_args.empty()) j["yosys_synth_args"] = cfg_yosys_args;
+			if (!cfg_nextpnr_args.empty()) j["nextpnr_args"] = cfg_nextpnr_args;
 			rc = run_validator_tool<tools::verilog_project_settings_validator>(j, cwd_str, framed_tables);
 		}
 		if (has_tb_opts) {

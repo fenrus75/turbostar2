@@ -20,6 +20,7 @@ struct fpga_target_config {
 	std::string pcf_file;         // Physical constraints file path, e.g. "pcf/cu.pcf"
 	std::string sv_path;          // Root directory for synthesizable RTL, e.g. "sv" or "src"
 	std::string yosys_synth_args; // Additional synthesis args, e.g. "-abc9"
+	std::string nextpnr_args;     // Additional nextpnr PnR args, e.g. "--placer-heap-timingweight 30"
 	std::string active_config_file; // Source file path loaded from or written to
 };
 
@@ -56,6 +57,10 @@ public:
 	// so follow-up hints and remediation messages emit CLI commands instead of LLM tool call JSON.
 	static void set_cli_mode(bool cli) noexcept;
 	static bool is_cli_mode() noexcept;
+
+	// Validate and shell-escape whitespace-separated CLI flags (e.g. nextpnr_args / yosys_synth_args).
+	// Rejects shell metacharacters and '..' traversal; escapes each token with fs_utils::escape_shell_arg.
+	static bool format_safe_cli_args(std::string_view untrusted_args, std::string &out_escaped, std::string &out_error);
 
 	// Detect EDA tool binaries installed on PATH
 	static fpga_system_tools detect_system_tools();

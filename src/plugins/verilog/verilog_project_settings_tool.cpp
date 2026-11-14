@@ -41,7 +41,8 @@ std::string verilog_project_settings_tool::execute(agentlib::tool_context &ctx)
 	                     (args_.freq_mhz > 0.0) ||
 	                     !args_.pcf_file.empty() ||
 	                     !args_.sv_path.empty() ||
-	                     !args_.yosys_synth_args.empty();
+	                     !args_.yosys_synth_args.empty() ||
+	                     !args_.nextpnr_args.empty();
 
 	if (is_set_action) {
 		if (!args_.target.empty()) cfg.target = args_.target;
@@ -52,6 +53,7 @@ std::string verilog_project_settings_tool::execute(agentlib::tool_context &ctx)
 		if (!args_.pcf_file.empty()) cfg.pcf_file = args_.pcf_file;
 		if (!args_.sv_path.empty()) cfg.sv_path = args_.sv_path;
 		if (!args_.yosys_synth_args.empty()) cfg.yosys_synth_args = args_.yosys_synth_args;
+		if (!args_.nextpnr_args.empty()) cfg.nextpnr_args = args_.nextpnr_args;
 
 		// Default PCF if not set and exactly one is present
 		if (cfg.pcf_file.empty() && pcfs.size() == 1) {

@@ -486,6 +486,13 @@ void test_fpga_project_settings()
 	cfg.freq_mhz = 60.0;
 	cfg.pcf_file = "pcf/cu.pcf";
 	cfg.sv_path = "sv";
+	cfg.nextpnr_args = "--placer-heap-timingweight 30 --promote-logic";
+
+	std::string safe_cli, cli_err;
+	assert(verilog::fpga_project_settings::format_safe_cli_args(cfg.nextpnr_args, safe_cli, cli_err));
+	assert(safe_cli == "'--placer-heap-timingweight' '30' '--promote-logic'");
+	assert(!verilog::fpga_project_settings::format_safe_cli_args("--placer heap; rm -rf /", safe_cli, cli_err));
+	assert(!verilog::fpga_project_settings::format_safe_cli_args("--pcf ../secret.pcf", safe_cli, cli_err));
 
 	std::string path_used;
 	std::string err;
@@ -504,6 +511,7 @@ void test_fpga_project_settings()
 	assert(loaded_cfg.freq_mhz == 60.0);
 	assert(loaded_cfg.pcf_file == "pcf/cu.pcf");
 	assert(loaded_cfg.sv_path == "sv");
+	assert(loaded_cfg.nextpnr_args == "--placer-heap-timingweight 30 --promote-logic");
 
 	std::vector<std::string> missing;
 	assert(verilog::fpga_project_settings::is_complete(loaded_cfg, missing));
@@ -553,7 +561,8 @@ void test_verilog_project_settings_tool()
 		{"top_module", "main"},
 		{"freq_mhz", 60.0},
 		{"pcf_file", "pcf/cu.pcf"},
-		{"default_sv_path", "sv"}
+		{"default_sv_path", "sv"},
+		{"nextpnr_args", "--placer-heap-timingweight 25"}
 	};
 	assert(validator.validate_args(set_args, ctx, err));
 	auto set_tool = validator.create_tool(set_args);
@@ -561,9 +570,19 @@ void test_verilog_project_settings_tool()
 	assert(set_out.find("Successfully saved FPGA project configuration") != std::string::npos);
 	assert(set_out.find("- **Config File**: *None (not configured)*") == std::string::npos);
 	assert(set_out.find("- **Config File**: `") != std::string::npos);
+	assert(set_out.find("--placer-heap-timingweight 25") != std::string::npos);
 	assert(std::filesystem::exists(tmp_dir + "/turbostar.json"));
+
+	// Unsafe nextpnr_args should be rejected by validator
+	nlohmann::json bad_pnr_args = {
+		{"action", "set"},
+		{"nextpnr_args", "--freq 60 $(whoami)"}
+	};
+	assert(!validator.validate_args(bad_pnr_args, ctx, err));
 	// 3. Second GET shows configured status without missing guidance
+	assert(validator.validate_args(get_args, ctx, err));
 	auto tool2 = validator.create_tool(get_args);
+	assert(tool2 != nullptr);
 	std::string get_out2 = tool2->execute(ctx);
 	assert(get_out2.find("Missing FPGA Project Configuration") == std::string::npos);
 	assert(get_out2.find("`ice40`") != std::string::npos);

@@ -1,4 +1,5 @@
 #include "plugins/verilog/verilog_project_settings_validator.h"
+#include "plugins/verilog/fpga_project_settings.h"
 #include "agentlib/tool_registry.h"
 #include "fs_utils.h"
 
@@ -58,6 +59,10 @@ nlohmann::json verilog_project_settings_validator::get_parameters_schema() const
 			{"yosys_synth_args", {
 				{"type", "string"},
 				{"description", "Optional extra synthesis arguments for Yosys (e.g. '-abc9')."}
+			}},
+			{"nextpnr_args", {
+				{"type", "string"},
+				{"description", "Optional extra place-and-route arguments for nextpnr (e.g. '--placer-heap-timingweight 30 --promote-logic')."}
 			}}
 		}},
 		{"required", nlohmann::json::array()}
@@ -104,6 +109,16 @@ bool verilog_project_settings_validator::validate_args_impl(const nlohmann::json
 	}
 	if (untrusted_args.contains("yosys_synth_args") && untrusted_args["yosys_synth_args"].is_string()) {
 		args_.yosys_synth_args = untrusted_args["yosys_synth_args"].get<std::string>();
+	}
+	if (untrusted_args.contains("nextpnr_args") && untrusted_args["nextpnr_args"].is_string()) {
+		std::string untrusted_pnr = untrusted_args["nextpnr_args"].get<std::string>();
+		std::string safe_pnr;
+		std::string cli_err;
+		if (!verilog::fpga_project_settings::format_safe_cli_args(untrusted_pnr, safe_pnr, cli_err)) {
+			out_error = std::format("Invalid 'nextpnr_args': {}", cli_err);
+			return false;
+		}
+		args_.nextpnr_args = untrusted_pnr;
 	}
 
 	return true;

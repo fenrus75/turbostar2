@@ -698,6 +698,18 @@ std::string verilog_compile_tool::execute(agentlib::tool_context &ctx)
 					}
 				}
 
+				if (!cfg.nextpnr_args.empty()) {
+					std::string safe_extra_pnr;
+					std::string cli_err;
+					if (!verilog::fpga_project_settings::format_safe_cli_args(cfg.nextpnr_args, safe_extra_pnr, cli_err)) {
+						set_failure(ctx, std::format("Invalid nextpnr_args: {}", cli_err));
+						return std::format("Error: Invalid `nextpnr_args` in project configuration: {}", cli_err);
+					}
+					if (!safe_extra_pnr.empty()) {
+						pnr_args += " " + safe_extra_pnr;
+					}
+				}
+
 				std::string full_pnr_cmd = std::format("{} {} --seed 1 --report {}",
 				                                       fs_utils::escape_shell_arg(pnr_bin), pnr_args,
 				                                       fs_utils::escape_shell_arg(timing_json.string()));

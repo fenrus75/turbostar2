@@ -991,6 +991,18 @@ bool nextpnr_timing_analyzer::synthesize_and_route(const fpga_target_config &cfg
 		}
 	}
 
+	if (!cfg.nextpnr_args.empty()) {
+		std::string safe_extra_pnr;
+		std::string cli_err;
+		if (!fpga_project_settings::format_safe_cli_args(cfg.nextpnr_args, safe_extra_pnr, cli_err)) {
+			out_error = std::format("Invalid nextpnr_args in project configuration: {}", cli_err);
+			return false;
+		}
+		if (!safe_extra_pnr.empty()) {
+			pnr_args += " " + safe_extra_pnr;
+		}
+	}
+
 	struct seed_run {
 		int seed{1};
 		fs::path timing_path;

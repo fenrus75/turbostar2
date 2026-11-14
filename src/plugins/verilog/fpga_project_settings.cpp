@@ -26,6 +26,44 @@ bool fpga_project_settings::is_cli_mode() noexcept
 	return g_is_cli_mode;
 }
 
+bool fpga_project_settings::format_safe_cli_args(std::string_view untrusted_args, std::string &out_escaped, std::string &out_error)
+{
+	out_escaped.clear();
+	out_error.clear();
+	size_t pos = 0;
+	while (pos < untrusted_args.size()) {
+		while (pos < untrusted_args.size() && std::isspace(static_cast<unsigned char>(untrusted_args[pos]))) {
+			++pos;
+		}
+		if (pos >= untrusted_args.size()) {
+			break;
+		}
+		size_t end = pos;
+		while (end < untrusted_args.size() && !std::isspace(static_cast<unsigned char>(untrusted_args[end]))) {
+			++end;
+		}
+		std::string_view tok = untrusted_args.substr(pos, end - pos);
+		if (tok.find("..") != std::string_view::npos) {
+			out_error = std::format("Unsafe '..' sequence in CLI argument '{}'", tok);
+			return false;
+		}
+		for (unsigned char c : tok) {
+			bool ok = std::isalnum(c) ||
+			          std::string_view("/._-:=+,@").find(static_cast<char>(c)) != std::string_view::npos;
+			if (!ok) {
+				out_error = std::format("Disallowed character in CLI argument '{}'", tok);
+				return false;
+			}
+		}
+		if (!out_escaped.empty()) {
+			out_escaped.push_back(' ');
+		}
+		out_escaped += fs_utils::escape_shell_arg(tok);
+		pos = end;
+	}
+	return true;
+}
+
 fpga_system_tools fpga_project_settings::detect_system_tools()
 {
 	fpga_system_tools tools;
@@ -187,6 +225,7 @@ bool fpga_project_settings::load_from_project(std::string_view project_root, fpg
 	}
 
 	out_cfg.yosys_synth_args = fpga.value("yosys_synth_args", "");
+	out_cfg.nextpnr_args = fpga.value("nextpnr_args", "");
 	return true;
 }
 
@@ -229,6 +268,7 @@ bool fpga_project_settings::save_to_project(std::string_view project_root, const
 	if (!cfg.pcf_file.empty()) fpga_obj["pcf_file"] = cfg.pcf_file;
 	if (!cfg.sv_path.empty()) fpga_obj["sv_path"] = cfg.sv_path;
 	if (!cfg.yosys_synth_args.empty()) fpga_obj["yosys_synth_args"] = cfg.yosys_synth_args;
+	if (!cfg.nextpnr_args.empty()) fpga_obj["nextpnr_args"] = cfg.nextpnr_args;
 
 	j["fpga"] = fpga_obj;
 
@@ -276,6 +316,9 @@ std::string fpga_project_settings::format_summary(const fpga_target_config &cfg,
 	md += std::format("- **RTL Source Directory**: {}\n", cfg.sv_path.empty() ? "*Auto-detect (*.sv)*" : std::format("`{}`", cfg.sv_path));
 	if (!cfg.yosys_synth_args.empty()) {
 		md += std::format("- **Synthesis Args**: `{}`\n", cfg.yosys_synth_args);
+	}
+	if (!cfg.nextpnr_args.empty()) {
+		md += std::format("- **nextpnr Args**: `{}`\n", cfg.nextpnr_args);
 	}
 
 	md += "\n### System EDA Environment\n";

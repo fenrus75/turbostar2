@@ -16,6 +16,7 @@ struct verilog_project_settings_args {
 	std::string pcf_file;
 	std::string sv_path;
 	std::string yosys_synth_args;
+	std::string nextpnr_args;
 };
 
 class verilog_project_settings_tool : public agentlib::llm_tool_action
