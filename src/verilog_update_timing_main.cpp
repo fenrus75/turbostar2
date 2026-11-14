@@ -553,10 +553,10 @@ int main(int argc, char **argv)
 	size_t vinfo_max_signals = 0;
 	bool vinfo_stats = false;
 	std::optional<size_t> vinfo_start, vinfo_end;
-	sub_vcd_info->add_option("path,-f,--file", vinfo_path, "Path to VCD file (auto-detected from testbench if omitted)");
+	sub_vcd_info->add_option("path,--file", vinfo_path, "Path to VCD file (auto-detected from testbench if omitted)");
 	sub_vcd_info->add_option("--clock", vinfo_clock, "Reference clock signal name");
 	sub_vcd_info->add_option("--scope", vinfo_scope, "Filter signals by hierarchical scope prefix");
-	sub_vcd_info->add_option("--filter", vinfo_filter, "Filter signal names by wildcard pattern (e.g. '*addr*')");
+	sub_vcd_info->add_option("-f,--filter", vinfo_filter, "Filter signal names by wildcard pattern (e.g. '*addr*')");
 	sub_vcd_info->add_option("--max-signals", vinfo_max_signals, "Maximum number of signals to display (default: 100)");
 	sub_vcd_info->add_flag("--stats", vinfo_stats, "Include First Toggle tick and Toggle Rate columns");
 	sub_vcd_info->add_option("--start,--start-tick", vinfo_start, "Starting clock tick for toggle statistics");
@@ -592,13 +592,13 @@ int main(int argc, char **argv)
 	std::optional<uint64_t> vsearch_start_time, vsearch_end_time;
 	bool vsearch_first = false, vsearch_last = false, vsearch_backward = false;
 	sub_vcd_search->add_option("path,-f,--file", vsearch_path, "Path to VCD file (auto-detected if omitted)");
-	sub_vcd_search->add_option("-c,--cond,--condition", vsearch_conds, "Signal match condition(s) 'sig=val' (comma-separated or repeatable)");
+	sub_vcd_search->add_option("-w,--where,-c,--cond,--condition", vsearch_conds, "Signal match condition(s) 'sig=val' (comma-separated or repeatable)");
 	sub_vcd_search->add_option("-s,--signal", vsearch_sig, "Signal name for single-signal search");
 	sub_vcd_search->add_option("--value", vsearch_val, "Expected value for single-signal search");
 	sub_vcd_search->add_option("--clock", vsearch_clock, "Clock signal to sample on");
 	sub_vcd_search->add_option("--edge", vsearch_edge, "Clock edge: 'posedge', 'negedge', or 'both'");
 	sub_vcd_search->add_flag("--backward", vsearch_backward, "Search backward from end of trace");
-	sub_vcd_search->add_option("-l,--limit", vsearch_limit, "Maximum matched intervals to return (default: 10)");
+	sub_vcd_search->add_option("-l,--limit,--finding", vsearch_limit, "Maximum matched intervals to return (default: 10)");
 	sub_vcd_search->add_flag("--first", vsearch_first, "Return only the first matched interval");
 	sub_vcd_search->add_flag("--last", vsearch_last, "Return only the last matched interval");
 	sub_vcd_search->add_option("--start,--start-tick", vsearch_start, "Starting clock tick index");
@@ -613,8 +613,8 @@ int main(int argc, char **argv)
 	std::vector<std::string> vcmp_signals;
 	std::optional<size_t> vcmp_start, vcmp_end;
 	bool vcmp_strict = false;
-	sub_vcd_cmp->add_option("path_a", vcmp_a, "First (golden/reference) VCD file")->required();
-	sub_vcd_cmp->add_option("path_b", vcmp_b, "Second (candidate/test) VCD file")->required();
+	sub_vcd_cmp->add_option("path_a", vcmp_a, "First (golden/reference) VCD file (auto-detected if omitted)");
+	sub_vcd_cmp->add_option("path_b", vcmp_b, "Second (candidate/test) VCD file (auto-detected if omitted)");
 	sub_vcd_cmp->add_option("-s,--signals", vcmp_signals, "Optional signal names or wildcard patterns to compare");
 	sub_vcd_cmp->add_option("--scope", vcmp_scope, "Optional scope prefix filter");
 	sub_vcd_cmp->add_option("--clock", vcmp_clock, "Clock signal to sample on");
@@ -626,30 +626,40 @@ int main(int argc, char **argv)
 	// Subcommand: vcd-trace (vcd_signal_to_code)
 	auto *sub_vcd_trace = app.add_subcommand("vcd-trace", "Trace a VCD simulation signal to RTL declarations, drivers, and loads");
 	sub_vcd_trace->fallthrough();
-	std::string vtrace_sig, vtrace_netlist;
-	sub_vcd_trace->add_option("signal,-s,--signal", vtrace_sig, "Simulation signal name (e.g. 'cpu8008.A_val')")->required();
+	std::string vtrace_sig, vtrace_vcd, vtrace_netlist, vtrace_top;
+	std::vector<std::string> vtrace_pos;
+	sub_vcd_trace->add_option("args", vtrace_pos, "Signal name (or [vcd] <signal>)");
+	sub_vcd_trace->add_option("-s,--signal", vtrace_sig, "Simulation signal name (e.g. 'cpu8008.A_val')");
+	sub_vcd_trace->add_option("-f,--file,-v,--vcd", vtrace_vcd, "Optional VCD file path");
 	sub_vcd_trace->add_option("-n,--netlist", vtrace_netlist, "Optional hierarchy-preserving Yosys JSON netlist");
+	sub_vcd_trace->add_option("--top", vtrace_top, "Optional top-level RTL module name");
 
 	// Subcommand: vcd-labels (vcd_signal_labels)
 	auto *sub_vcd_labels = app.add_subcommand("vcd-labels", "Register, query, or clear symbolic value labels for VCD signals");
 	sub_vcd_labels->fallthrough();
-	std::string vlbl_sig, vlbl_path;
+	std::string vlbl_pos, vlbl_sig, vlbl_path;
 	std::vector<std::string> vlbl_maps;
-	bool vlbl_clear = false, vlbl_local = false;
-	sub_vcd_labels->add_option("signal,-s,--signal", vlbl_sig, "Signal name or wildcard pattern (e.g. 'opcode', '*state*')");
+	bool vlbl_clear = false, vlbl_local = false, vlbl_list = false;
+	sub_vcd_labels->add_option("target", vlbl_pos, "Optional VCD file path or signal name");
+	sub_vcd_labels->add_option("-s,--signal", vlbl_sig, "Signal name or wildcard pattern (e.g. 'opcode', '*state*')");
 	sub_vcd_labels->add_option("-m,--map", vlbl_maps, "Value-to-label mappings 'val=label' (comma-separated or repeatable)");
 	sub_vcd_labels->add_option("-f,--file", vlbl_path, "Optional VCD file path");
+	sub_vcd_labels->add_flag("--list", vlbl_list, "List configured signal labels");
 	sub_vcd_labels->add_flag("--clear", vlbl_clear, "Clear labels for the specified signal (or all signals if omitted)");
 	sub_vcd_labels->add_flag("--local", vlbl_local, "Save to '<vcd>.labels.json' instead of project-wide 'vcd_labels.json'");
 
 	// Subcommand: vcd-qualifier (vcd_signal_qualifier)
 	auto *sub_vcd_qual = app.add_subcommand("vcd-qualifier", "Register, query, or clear validity qualifiers for VCD signals");
 	sub_vcd_qual->fallthrough();
-	std::string vqual_sig, vqual_qual, vqual_path;
-	bool vqual_clear = false, vqual_local = false;
-	sub_vcd_qual->add_option("signal,-s,--signal", vqual_sig, "Signal name or wildcard pattern to qualify");
+	std::string vqual_pos, vqual_sig, vqual_qual, vqual_path;
+	std::vector<std::string> vqual_bindings;
+	bool vqual_clear = false, vqual_local = false, vqual_list = false;
+	sub_vcd_qual->add_option("target", vqual_pos, "Optional VCD file path or signal name");
+	sub_vcd_qual->add_option("-s,--signal", vqual_sig, "Signal name or wildcard pattern to qualify");
 	sub_vcd_qual->add_option("-q,--qualifier,--valid", vqual_qual, "1-bit qualifier signal (prefix '~' for active-low)");
+	sub_vcd_qual->add_option("-b,--bindings", vqual_bindings, "Batch signal=qualifier bindings (comma-separated or repeatable)");
 	sub_vcd_qual->add_option("-f,--file", vqual_path, "Optional VCD file path");
+	sub_vcd_qual->add_flag("--list", vqual_list, "List configured validity qualifiers");
 	sub_vcd_qual->add_flag("--clear", vqual_clear, "Clear qualifier for the specified signal (or all if omitted)");
 	sub_vcd_qual->add_flag("--local", vqual_local, "Save to '<vcd>.labels.json' instead of project-wide 'vcd_labels.json'");
 
@@ -753,6 +763,10 @@ int main(int argc, char **argv)
 
 	if (*sub_vcd_search) {
 		nlohmann::json j = nlohmann::json::object();
+		if (!vsearch_path.empty() && vsearch_path.find('=') != std::string::npos && !fs::exists(vsearch_path, ec)) {
+			vsearch_conds.insert(vsearch_conds.begin(), vsearch_path);
+			vsearch_path.clear();
+		}
 		if (!vsearch_path.empty()) j["path"] = vsearch_path;
 		if (!vsearch_conds.empty()) {
 			nlohmann::json cond_obj;
@@ -780,8 +794,8 @@ int main(int argc, char **argv)
 
 	if (*sub_vcd_cmp) {
 		nlohmann::json j = nlohmann::json::object();
-		j["path_a"] = vcmp_a;
-		j["path_b"] = vcmp_b;
+		if (!vcmp_a.empty()) j["path_a"] = vcmp_a;
+		if (!vcmp_b.empty()) j["path_b"] = vcmp_b;
 		auto sigs = split_csv_list(vcmp_signals);
 		if (!sigs.empty()) j["signals"] = sigs;
 		if (!vcmp_scope.empty()) j["scope"] = vcmp_scope;
@@ -794,13 +808,27 @@ int main(int argc, char **argv)
 	}
 
 	if (*sub_vcd_trace) {
+		for (const auto &p : vtrace_pos) {
+			if (p.ends_with(".vcd") && vtrace_vcd.empty()) {
+				vtrace_vcd = p;
+			} else if (vtrace_sig.empty()) {
+				vtrace_sig = p;
+			}
+		}
 		nlohmann::json j = nlohmann::json::object();
-		j["signal"] = vtrace_sig;
+		if (!vtrace_sig.empty()) j["signal"] = vtrace_sig;
 		if (!vtrace_netlist.empty()) j["netlist"] = vtrace_netlist;
 		return run_validator_tool<tools::vcd_signal_to_code_validator>(j, cwd_str, framed_tables);
 	}
 
 	if (*sub_vcd_labels) {
+		if (!vlbl_pos.empty()) {
+			if ((vlbl_pos.ends_with(".vcd") || !vlbl_sig.empty()) && vlbl_path.empty()) {
+				vlbl_path = vlbl_pos;
+			} else if (vlbl_sig.empty()) {
+				vlbl_sig = vlbl_pos;
+			}
+		}
 		nlohmann::json j = nlohmann::json::object();
 		if (!vlbl_path.empty()) j["path"] = vlbl_path;
 		if (!vlbl_sig.empty()) j["signal"] = vlbl_sig;
@@ -819,15 +847,30 @@ int main(int argc, char **argv)
 	}
 
 	if (*sub_vcd_qual) {
+		if (!vqual_pos.empty()) {
+			if ((vqual_pos.ends_with(".vcd") || !vqual_sig.empty()) && vqual_path.empty()) {
+				vqual_path = vqual_pos;
+			} else if (vqual_sig.empty()) {
+				vqual_sig = vqual_pos;
+			}
+		}
 		nlohmann::json j = nlohmann::json::object();
 		if (!vqual_path.empty()) j["path"] = vqual_path;
 		if (!vqual_sig.empty()) j["signal"] = vqual_sig;
 		if (!vqual_qual.empty()) j["qualifier"] = vqual_qual;
+		if (!vqual_bindings.empty()) {
+			nlohmann::json bind_obj;
+			std::string kv_err;
+			if (!parse_kv_pairs(vqual_bindings, bind_obj, kv_err)) {
+				std::cerr << std::format("Error: {}\n", kv_err);
+				return 1;
+			}
+			j["bindings"] = std::move(bind_obj);
+		}
 		if (vqual_clear) j["clear"] = true;
 		if (vqual_local) j["global"] = false;
 		return run_validator_tool<tools::vcd_signal_qualifier_validator>(j, cwd_str, framed_tables);
 	}
-
 	if (dry_run) {
 		mode_update = true;
 	}

@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Step-by-step guide to turbostar-verilog: configure FPGA targets, bind testbenches to RTL modules, run Verilator lint and hierarchical simulations, analyze LUT logic depth and physical nextpnr timing, and inspect VCD waveforms from the terminal.">
+  <title>Getting Started with turbostar-verilog - Turbostar Workspace</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="shortcut icon" href="assets/logo.jpg" type="image/x-icon">
+  <script src="./overlay.js" defer></script>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header>
+    <div class="header-container">
+      <a href="index.html" class="logo-link" id="nav-brand">
+        <img src="assets/logo.jpg" alt="Turbostar logo" class="logo-img">
+        <span class="logo-text">Turbostar</span>
+      </a>
+      <nav id="main-nav">
+        <a href="index.html" id="nav-home">Home</a>
+        <a href="editor.html" id="nav-editor">Editor Features</a>
+        <a href="ai.html" id="nav-ai">AI Features</a>
+        <a href="mcp.html" id="nav-mcp">MCP Server</a>
+        <a href="fpga.html" class="active" id="nav-fpga">FPGA &amp; Verilog</a>
+        <a href="details.html" id="nav-details">Technical Details</a>
+        <a href="https://github.com/fenrus75/turbostar2/blob/main/docs/tools.md" id="nav-tools" target="_blank" rel="noopener noreferrer">Tools Reference</a>
+        <a href="https://github.com/fenrus75/turbostar2" id="nav-github" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="content-page">
+    <section class="page-header" id="cli-guide-header">
+      <span class="hero-tag">Standalone Command-Line Toolkit</span>
+      <h1 class="page-title">Getting Started with <span>turbostar-verilog</span></h1>
+      <p class="page-desc">
+        <code>turbostar-verilog</code> packages Turbostar's entire SystemVerilog, FPGA synthesis, timing analysis, and VCD waveform engine into a single command-line binary. Use it interactively in your terminal, wire it into Makefiles and CI pipelines, or use it to bootstrap <code>turbostar.json</code> before launching an AI hardware agent. All examples below use real data from the 11-module Intel 8008 CPU design in <code>examples/test8008</code>.
+      </p>
+      <div class="cta-group" style="justify-content: flex-start; flex-wrap: wrap; margin-top: 2rem; margin-bottom: 0;">
+        <a href="#step-config" class="btn btn-primary" id="cta-cli-config">1. FPGA Config</a>
+        <a href="#step-testbenches" class="btn btn-secondary" id="cta-cli-tb">2. Bind Testbenches</a>
+        <a href="#step-compile" class="btn btn-secondary" id="cta-cli-compile">3. Lint &amp; Compile</a>
+        <a href="#step-sim" class="btn btn-secondary" id="cta-cli-sim">4. Simulate</a>
+        <a href="#step-timing" class="btn btn-secondary" id="cta-cli-timing">5. Logic Depth</a>
+        <a href="#step-pnr" class="btn btn-secondary" id="cta-cli-pnr">6. Physical PnR</a>
+        <a href="#step-vcd" class="btn btn-secondary" id="cta-cli-vcd">7. VCD Waveforms</a>
+        <a href="fpga.html#standalone-cli" class="btn btn-secondary" id="cta-back-fpga">&larr; Back to FPGA Overview</a>
+      </div>
+    </section>
+
+    <!-- Step 1: Configure Target FPGA Architecture -->
+    <section class="detail-full" id="step-config">
+      <div class="detail-info">
+        <span class="step-badge">Step 1 &bull; Project Setup</span>
+        <h2 class="detail-subtitle">Configure Target FPGA Architecture in <code>turbostar.json</code></h2>
+        <p class="detail-text">
+          Every synthesis, timing, and simulation command reads project defaults from <code>turbostar.json</code> in your project root. Instead of hand-editing JSON or maintaining sprawling synthesis Makefiles, run <code>turbostar-verilog config</code> to set your target FPGA family, part, package, top-level module, clock constraint (in MHz), pin constraints (<code>.pcf</code>), and RTL source directory. Running <code>turbostar-verilog config</code> with no flags inspects the current configuration and verifies your installed EDA binaries.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Supported Targets:</strong> <code>ice40</code> (Lattice iCE40 with <code>-abc9</code> LUT4/carry mapping), <code>ecp5</code> (Lattice ECP5), <code>gowin</code>, <code>xilinx</code>, or <code>generic</code>.</li>
+          <li><strong>Zero-Flag Inspection:</strong> Run <code>turbostar-verilog config</code> at any time to inspect active settings, detected <code>yosys</code>/<code>nextpnr</code> binaries, and discovered <code>.pcf</code> files.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <pre><code><span class="comment">$ cd examples/test8008</span>
+<span class="comment">$ turbostar-verilog config --target ice40 --device hx8k --package cb132 \</span>
+<span class="comment">    --top main --freq 80 --pcf pcf/cu.pcf --sv-path sv</span>
+Successfully saved FPGA project configuration to `/home/user/test8008/turbostar.json`.
+
+<span class="keyword">## FPGA Project Settings</span>
+
+- Config File: `/home/user/test8008/turbostar.json`
+- Target Architecture: <span class="literal">`ice40`</span>
+- Device: <span class="literal">`hx8k`</span>
+- Package: <span class="literal">`cb132`</span>
+- Top Module: <span class="literal">`main`</span>
+- Clock Frequency: <span class="literal">80.0 MHz</span>
+- PCF Pin Constraints: `pcf/cu.pcf`
+- RTL Source Directory: `sv`
+
+<span class="keyword">### System EDA Environment</span>
+- Yosys: `/usr/bin/yosys`
+- Installed nextpnr Targets: `ice40, generic`
+
+<span class="keyword">### Discovered Pin Constraints (.pcf)</span>
+- `pcf/cu.pcf`</code></pre>
+      </div>
+    </section>
+
+    <!-- Step 2: Bind Testbenches to RTL Modules -->
+    <section class="detail-full" id="step-testbenches">
+      <div class="detail-info">
+        <span class="step-badge">Step 2 &bull; Verification Mapping</span>
+        <h2 class="detail-subtitle">Bind Testbenches &amp; Verification Tiers to RTL Modules</h2>
+        <p class="detail-text">
+          In multi-module designs, running every system testbench after a one-line ALU edit wastes minutes, while running only a leaf testbench misses integration bugs. <code>turbostar-verilog config --tb &lt;file&gt; --modules &lt;list&gt; --level &lt;tier&gt;</code> records module-to-testbench bindings and test tiers directly in <code>turbostar.json</code>. It also scans the workspace to list any unconfigured testbenches alongside the RTL modules they instantiate and their <code>$dumpfile</code> VCD outputs—warning immediately if two testbenches collide on the same VCD filename.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Cumulative Test Tiers (<code>--level</code>):</strong> Classify fast unit tests as <code>quick</code>, subsystem integration tests as <code>comprehensive</code>, and long soak tests as <code>extreme</code>.</li>
+          <li><strong>Default Bottom-Up Hierarchy (<code>--hierarchical</code>):</strong> Mark composite parent modules (such as <code>cpu</code> or <code>main</code>) with <code>--hierarchical</code> so simulating <code>cpu</code> automatically runs all leaf submodule testbenches in bottom-up topological order before running the full CPU testbench.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <pre><code><span class="comment"># Bind unit testbenches to their leaf RTL modules at tier 'quick'</span>
+<span class="comment">$ turbostar-verilog config --tb tb/tb_alu.sv       --modules alu_mod       --level quick</span>
+<span class="comment">$ turbostar-verilog config --tb tb/tb_register.sv  --modules register      --level quick</span>
+<span class="comment">$ turbostar-verilog config --tb tb/tb_sequencer.sv --modules sequencer_mod --level quick</span>
+<span class="comment">$ turbostar-verilog config --tb tb/tb_stack.sv     --modules stack_mod     --level quick</span>
+
+<span class="comment"># Bind top-level integration testbench to 'cpu' and 'main', and enable hierarchical mode for 'cpu'</span>
+<span class="comment">$ turbostar-verilog config --tb tb/tb_main.sv --modules cpu,main --level comprehensive --hierarchical</span>
+<span class="keyword">### Verilog Testbench Configuration</span>
+
+- Action: Configured testbench `tb/tb_main.sv` (level: `comprehensive`). Set default `hierarchical=true` for module(s) `cpu`, `main`.
+- Config File: `turbostar.json`
+- Modules with Default `hierarchical=true`: `cpu`, `main`
+
+<span class="keyword">#### Configured Testbenches</span>
+┌────────────────────┬────────────────────┬───────────────┬────────────────────┐
+│ Testbench          │ Associated Modules │ Level         │ $dumpfile VCD      │
+├────────────────────┼────────────────────┼───────────────┼────────────────────┤
+│ tb/tb_alu.sv       │ alu_mod            │ quick         │ dump_alu.vcd       │
+│ tb/tb_register.sv  │ register           │ quick         │ dump_register.vcd  │
+│ tb/tb_sequencer.sv │ sequencer_mod      │ quick         │ dump_sequencer.vcd │
+│ tb/tb_stack.sv     │ stack_mod          │ quick         │ dump_stack.vcd     │
+│ tb/tb_main.sv      │ cpu, main          │ comprehensive │ dump.vcd           │
+└────────────────────┴────────────────────┴───────────────┴────────────────────┘
+
+<span class="keyword">#### Unconfigured Workspace Testbenches (Auto-Discovered)</span>
+┌───────────────────────┬────────────────────────────────────┬───────────────────────┐
+│ Testbench             │ Auto-Detected Instantiated Modules │ $dumpfile VCD         │
+├───────────────────────┼────────────────────────────────────┼───────────────────────┤
+│ tb/tb_regsel.sv       │ regsel                             │ dump_regsel.vcd       │
+│ tb/tb_regsel_write.sv │ regsel_write                       │ dump_regsel_write.vcd │
+│ tb/tb_stack_probe.sv  │ stack_mod                          │ *(none)*              │
+│ tb/tb_stackprobe.sv   │ stack_mod                          │ *(none)*              │
+└───────────────────────┴────────────────────────────────────┴───────────────────────┘
+
+<span class="comment"># Resulting turbostar.json written in the project root:</span>
+{
+  <span class="keyword">"fpga"</span>: {
+    <span class="keyword">"device"</span>: <span class="literal">"hx8k"</span>,
+    <span class="keyword">"freq_mhz"</span>: <span class="type">80.0</span>,
+    <span class="keyword">"package"</span>: <span class="literal">"cb132"</span>,
+    <span class="keyword">"pcf_file"</span>: <span class="literal">"pcf/cu.pcf"</span>,
+    <span class="keyword">"sv_path"</span>: <span class="literal">"sv"</span>,
+    <span class="keyword">"target"</span>: <span class="literal">"ice40"</span>,
+    <span class="keyword">"top_module"</span>: <span class="literal">"main"</span>
+  },
+  <span class="keyword">"verilog"</span>: {
+    <span class="keyword">"hierarchical_modules"</span>: [ <span class="literal">"cpu"</span>, <span class="literal">"main"</span> ],
+    <span class="keyword">"testbenches"</span>: [
+      { <span class="keyword">"level"</span>: <span class="literal">"quick"</span>,         <span class="keyword">"modules"</span>: [ <span class="literal">"alu_mod"</span> ],       <span class="keyword">"testbench"</span>: <span class="literal">"tb/tb_alu.sv"</span> },
+      { <span class="keyword">"level"</span>: <span class="literal">"quick"</span>,         <span class="keyword">"modules"</span>: [ <span class="literal">"register"</span> ],      <span class="keyword">"testbench"</span>: <span class="literal">"tb/tb_register.sv"</span> },
+      { <span class="keyword">"level"</span>: <span class="literal">"quick"</span>,         <span class="keyword">"modules"</span>: [ <span class="literal">"sequencer_mod"</span> ], <span class="keyword">"testbench"</span>: <span class="literal">"tb/tb_sequencer.sv"</span> },
+      { <span class="keyword">"level"</span>: <span class="literal">"quick"</span>,         <span class="keyword">"modules"</span>: [ <span class="literal">"stack_mod"</span> ],     <span class="keyword">"testbench"</span>: <span class="literal">"tb/tb_stack.sv"</span> },
+      { <span class="keyword">"level"</span>: <span class="literal">"comprehensive"</span>, <span class="keyword">"modules"</span>: [ <span class="literal">"cpu"</span>, <span class="literal">"main"</span> ],   <span class="keyword">"testbench"</span>: <span class="literal">"tb/tb_main.sv"</span> }
+    ]
+  }
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- Step 3: Fast Static Lint & Synthesis Triage -->
+    <section class="detail-full" id="step-compile">
+      <div class="detail-info">
+        <span class="step-badge">Step 3 &bull; Static Verification &amp; Synthesis</span>
+        <h2 class="detail-subtitle">Fast Verilator Lint &amp; Yosys Synthesis Triage (<code>compile</code>)</h2>
+        <p class="detail-text">
+          Raw synthesis logs bury critical multi-driver nets and latch inferences inside thousands of lines of LUT mapping progress. <code>turbostar-verilog compile</code> runs Verilator static analysis and Yosys synthesis while separating real hardware bugs (undriven nets, width mismatches, inferred latches) from routine style notes (unused wires).
+        </p>
+        <ul class="detail-list">
+          <li><strong>Sub-Second Static Lint (<code>-l, --lint-only</code>):</strong> Checks syntax, port widths, and undriven signals across the module hierarchy in ~0.2 seconds.</li>
+          <li><strong>Submodule Synthesis Scoping (<code>-m &lt;module&gt; -s</code>):</strong> Synthesize a single module or file in isolation without waiting for full-chip place-and-route.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <pre><code><span class="comment">$ turbostar-verilog compile --lint-only</span>
+<span class="keyword"># Verilog Lint Report: `main`</span>
+
+- Status: <span class="type">PASSED (Lint Only, 0.24s)</span>
+- Target Scope: `main` (11 RTL files in hierarchy)
+- Diagnostics Summary: <span class="literal">3 correctness warning(s)</span>, 15 style/unused note(s)
+- Full Log: `tmp://synthesis.log` (89 lines, 8486 bytes)
+
+<span class="keyword">## Correctness &amp; Synthesis Warnings (3)</span>
+
+- [Verilator] `%Warning-UNDRIVEN: sv/cpu/cpu.sv:8:21: Signal is not driven: 'mem_read_en'`
+- [Verilator] `%Warning-UNDRIVEN: sv/mem_arbiter/mem_arbiter.sv:13:22: Signal is not driven: 'port2_data'`
+- [Verilator] `%Warning-UNDRIVEN: sv/mem_arbiter/mem_arbiter.sv:14:20: Signal is not driven: 'port2_valid'`
+
+<span class="keyword">## Style &amp; Unused Resource Notes (15)</span>
+
+- `PINCONNECTEMPTY` (3 occurrences) — e.g. `%Warning-PINCONNECTEMPTY: sv/cpu/cpu.sv:61:10: Instance pin connected by name with empty reference: 'port2_valid'` *(+2 more in `tmp://synthesis.log`)*
+- `UNUSEDSIGNAL` (11 occurrences) — e.g. `%Warning-UNUSEDSIGNAL: sv/cpu/cpu.sv:33:12: Signal is not driven, nor used: 'carry'` *(+10 more in `tmp://synthesis.log`)*
+- `VARHIDDEN` (1): `%Warning-VARHIDDEN: sv/stack/stack.sv:11:15: Declaration of signal hides declaration in upper scope: 'stack'`</code></pre>
+      </div>
+    </section>
+
+    <!-- Step 4: Module-Targeted & Hierarchical Simulation -->
+    <section class="detail-full" id="step-sim">
+      <div class="detail-info">
+        <span class="step-badge">Step 4 &bull; Automated Simulation &amp; Regression Diffing</span>
+        <h2 class="detail-subtitle">Module-Targeted &amp; Bottom-Up Hierarchical Simulation (<code>sim</code>)</h2>
+        <p class="detail-text">
+          <code>turbostar-verilog sim</code> compiles and runs your SystemVerilog testbenches with Verilator (`--timing --trace`), automatically stages any <code>$readmemh</code>/<code>$readmemb</code> initialization files, and compares every generated <code>.vcd</code> dump cycle-by-cycle against the prior run (<code>.previous.vcd</code>) and last passing baseline (<code>.lastpass.vcd</code>).
+        </p>
+        <ul class="detail-list">
+          <li><strong>Single-Module Inner Loop (<code>sim -m alu_mod</code>):</strong> Runs only the testbenches associated with <code>alu_mod</code> and verifies whether the resulting waveform is identical to the previous run.</li>
+          <li><strong>Bottom-Up Hierarchical Verification (<code>sim -m cpu</code> or <code>-H</code>):</strong> Computes the transitive dependency graph of <code>cpu</code>, executes leaf unit testbenches first (`register` &rarr; `regsel` &rarr; `alu_mod` &rarr; `stack_mod` &rarr; `sequencer_mod`), and finishes with the top-level `cpu` integration testbench.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <pre><code><span class="comment"># 1. Fast unit simulation of a single leaf module:</span>
+<span class="comment">$ turbostar-verilog sim -m alu_mod</span>
+<span class="keyword">## Module Verification Report: `alu_mod`</span>
+
+- Level Filter: `comprehensive`
+- Summary: <span class="type">1 Passed, 0 Failed</span> (out of 1 testbench run(s))
+
+┌──────────────┬───────────┬───────┬────────┬──────────────┬───────────────────────┐
+│ Testbench    │ Module(s) │ Level │ Result │ Waveform     │ vs. Previous          │
+├──────────────┼───────────┼───────┼────────┼──────────────┼───────────────────────┤
+│ tb/tb_alu.sv │ alu_mod   │ quick │ <span class="type">PASS</span>   │ dump_alu.vcd │ <span class="literal">IDENTICAL to previous</span> │
+└──────────────┴───────────┴───────┴────────┴──────────────┴───────────────────────┘
+
+<span class="comment"># 2. Full bottom-up hierarchical verification across 'cpu' and all instantiated submodules:</span>
+<span class="comment">$ turbostar-verilog sim -m cpu</span>
+<span class="keyword">## Module Verification Report: `cpu` (Hierarchical)</span>
+
+- Hierarchy Mode: Ran with `hierarchical=true` due to project settings for `cpu` in `turbostar.json`
+- Bottom-Up Module Order: <span class="literal">`mem_arbiter_mod` -&gt; `register` -&gt; `regsel` -&gt; `regsel_write` -&gt; `decode_mod` -&gt; `alu_mod` -&gt; `stack_mod` -&gt; `sequencer_mod` -&gt; `cpu`</span>
+- Level Filter: `comprehensive`
+- Summary: <span class="type">7 Passed, 2 Info (no assertions), 0 Failed</span> (out of 9 testbench run(s))
+
+┌───────────────────────┬───────────────┬───────────────┬──────────────────────┬───────────────────────┬───────────────────────┐
+│ Testbench             │ Module(s)     │ Level         │ Result               │ Waveform              │ vs. Previous          │
+├───────────────────────┼───────────────┼───────────────┼──────────────────────┼───────────────────────┼───────────────────────┤
+│ tb/tb_register.sv     │ register      │ quick         │ <span class="type">PASS</span>                 │ dump_register.vcd     │ <span class="literal">IDENTICAL to previous</span> │
+│ tb/tb_regsel.sv       │ regsel        │ quick         │ <span class="type">PASS</span>                 │ dump_regsel.vcd       │ <span class="literal">IDENTICAL to previous</span> │
+│ tb/tb_regsel_write.sv │ regsel_write  │ quick         │ <span class="type">PASS</span>                 │ dump_regsel_write.vcd │ <span class="literal">IDENTICAL to previous</span> │
+│ tb/tb_alu.sv          │ alu_mod       │ quick         │ <span class="type">PASS</span>                 │ dump_alu.vcd          │ <span class="literal">IDENTICAL to previous</span> │
+│ tb/tb_stack.sv        │ stack_mod     │ quick         │ <span class="type">PASS</span>                 │ dump_stack.vcd        │ <span class="literal">IDENTICAL to previous</span> │
+│ tb/tb_stack_probe.sv  │ stack_mod     │ quick         │ INFO (no assertions) │ *(none)*              │ -                     │
+│ tb/tb_stackprobe.sv   │ stack_mod     │ quick         │ INFO (no assertions) │ *(none)*              │ -                     │
+│ tb/tb_sequencer.sv    │ sequencer_mod │ quick         │ <span class="type">PASS</span>                 │ dump_sequencer.vcd    │ <span class="literal">IDENTICAL to previous</span> │
+│ tb/tb_main.sv         │ cpu           │ comprehensive │ <span class="type">PASS</span>                 │ dump.vcd              │ <span class="literal">IDENTICAL to previous</span> │
+└───────────────────────┴───────────────┴───────────────┴──────────────────────┴───────────────────────┴───────────────────────┘</code></pre>
+      </div>
+    </section>
+
+    <!-- Step 5: Combinational Logic Depth, Area & In-Place Port Annotations -->
+    <section class="detail-full" id="step-timing">
+      <div class="detail-info">
+        <span class="step-badge">Step 5 &bull; Structural Logic Depth &amp; In-Place Port Annotations</span>
+        <h2 class="detail-subtitle">Combinational LUT Depth, Area &amp; In-Place <code>// [timing: ...]</code> Annotations</h2>
+        <p class="detail-text">
+          Timing analysis is the default mode of <code>turbostar-verilog</code> (also accessible via <code>turbostar-verilog timing</code>). It synthesizes the target module into technology-mapped LUTs and carry chains (using <code>synth_ice40 -abc9</code> when configured for iCE40) and extracts input-to-register, register-to-output, and internal register-to-register logic levels alongside a cell area breakdown.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Single-Module Depth &amp; Inline RTL (<code>-m &lt;module&gt; -k &lt;top_k&gt;</code>):</strong> Groups critical paths by bottleneck sink and prints the exact SystemVerilog statement at each hop alongside LUT and carry-chain counts.</li>
+          <li><strong>Project-Wide Dry-Run Summary (<code>--dry-run</code>):</strong> Synthesizes every module in your project and prints a single comparison table of <code>Reg-&gt;Reg Depth</code>, <code>LUTs</code>, and <code>FFs</code>.</li>
+          <li><strong>In-Place Port Annotations (<code>-u, --update</code>):</strong> Writes and updates vertically aligned <code>// [timing: ...]</code> comments directly on module port declarations inside your <code>.sv</code> files.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <pre><code><span class="comment"># 1. Inspect LUT logic depth, critical combinational cones, and area for 'alu_mod':</span>
+<span class="comment">$ turbostar-verilog -m alu_mod -k 2</span>
+<span class="keyword"># Timing: `alu_mod`</span>
+
+Target: iCE40
+Max Internal Reg -&gt; Reg Depth: <span class="literal">14</span>
+
+<span class="keyword">## Inputs</span>
+┌────────┬───────┬───────────┬──────────┐
+│ Name   │ Width │ Layers to │ Sinks to │
+├────────┼───────┼───────────┼──────────┤
+│ clk    │ 1     │ -         │ Clock    │
+│ input1 │ 8     │ 0         │ Register │
+│ input2 │ 8     │ 0         │ Register │
+│ opcode │ 8     │ 8         │ Register │
+│ retire │ 1     │ 1         │ Register │
+│ rst    │ 1     │ 0         │ Register │
+└────────┴───────┴───────────┴──────────┘
+
+<span class="keyword">## Outputs</span>
+┌───────────────┬───────┬─────────────┬──────────────┐
+│ Name          │ Width │ Layers from │ Sourced from │
+├───────────────┼───────┼─────────────┼──────────────┤
+│ alu_out       │ 8     │ 13          │ Register     │
+│ alu_out_valid │ 1     │ 2           │ Register     │
+│ flags_out     │ 4     │ 0           │ Register     │
+└───────────────┴───────┴─────────────┴──────────────┘
+
+<span class="keyword">## Worst Combinational Paths (Grouped by Bottleneck Sink)</span>
+
+Critical Path Summary: 14 levels (6 LUTs + 8 carry), converging on `flags[0]` from 1 source signals
+
+<span class="keyword">### Path #1 [Reg -&gt; Reg] Depth: 14 (6 LUTs + 8 carry)</span>
+- Start: `input2_reg[0]` (`alu.sv:22-32` | <span class="literal">`input2_reg &lt;= input2;`</span>)
+  1. `cells_map.v` (1 LUT, from `input2_reg[0]`)                   -&gt; `carry`
+  2. `alu.sv:163`  (1 LUT + 7 carry)                               -&gt; `carry`    | <span class="literal">`{carry, alu_out} = input1_reg - input2_reg;`</span>
+  3. `alu.sv:143`  (1 LUT + 1 carry)                               -&gt; `carry`    | <span class="literal">`{carry, alu_out} = input1_reg - input2_reg - {7'b0000000, carry_in};`</span>
+  4. `cells_map.v` (2 LUTs, from `input1_reg[7]`, `input1_reg[0]`) -&gt; `carry`
+  5. `alu.sv:13`   (1 LUT)                                         -&gt; `carry`    | <span class="literal">`logic carry;`</span>
+- End: `flags[0]` (`alu.sv:22-32` | <span class="literal">`flags &lt;= next_flags;`</span>)
+
+<span class="keyword">## Area Summary</span>
+- LUTs: <span class="type">190</span> | Flip-Flops: <span class="type">20</span> | Carry: <span class="type">46</span> | Total Cells: <span class="type">256</span>
+
+<span class="comment"># 2. Scan all 11 modules across the project (--dry-run previews without modifying files; -u updates .sv ports in-place):</span>
+<span class="comment">$ turbostar-verilog --dry-run</span>
+┌──────────────────┬────────────────┬──────┬─────┬────────┬─────────┬─────────┬───────────────────────────────┐
+│ Module           │ Reg-&gt;Reg Depth │ LUTs │ FFs │ Inputs │ Outputs │ Status  │ Source File                   │
+├──────────────────┼────────────────┼──────┼─────┼────────┼─────────┼─────────┼───────────────────────────────┤
+│ alu_mod          │ 14 LUTs        │ 190  │ 20  │ 6      │ 3       │ DRY-RUN │ sv/alu/alu.sv                 │
+│ cpu              │ 16 LUTs        │ 505  │ 296 │ 3      │ 5       │ DRY-RUN │ sv/cpu/cpu.sv                 │
+│ decode_mod       │ 17 LUTs        │ 185  │ 88  │ 11     │ 10      │ DRY-RUN │ sv/decode_mod/decode_mod.sv   │
+│ main             │ 16 LUTs        │ 538  │ 301 │ 2      │ 1       │ DRY-RUN │ sv/main.sv                    │
+│ mem_arbiter_mod  │ 0 LUTs         │ 0    │ 1   │ 7      │ 5       │ DRY-RUN │ sv/mem_arbiter/mem_arbiter.sv │
+│ initialized_bram │ 4 LUTs         │ 42   │ 31  │ 5      │ 1       │ DRY-RUN │ sv/ram/ram.sv                 │
+│ register         │ 0 LUTs         │ 0    │ 8   │ 4      │ 1       │ DRY-RUN │ sv/register/register.sv       │
+│ regsel           │ 0 LUTs         │ 55   │ 0   │ 9      │ 1       │ DRY-RUN │ sv/regsel/regsel.sv           │
+│ regsel_write     │ 0 LUTs         │ 7    │ 7   │ 4      │ 7       │ DRY-RUN │ sv/regsel/regsel_write.sv     │
+│ sequencer_mod    │ 2 LUTs         │ 10   │ 3   │ 4      │ 3       │ DRY-RUN │ sv/sequencer/sequencer.sv     │
+│ stack_mod        │ 3 LUTs         │ 111  │ 147 │ 6      │ 1       │ DRY-RUN │ sv/stack/stack.sv             │
+└──────────────────┴────────────────┴──────┴─────┴────────┴─────────┴─────────┴───────────────────────────────┘
+
+<span class="comment"># 3. Running 'turbostar-verilog -u' annotates module ports in-place in sv/alu/alu.sv:</span>
+<span class="keyword">module</span> alu_mod
+	(<span class="type">input logic</span>	    clk,           <span class="comment">// [timing: clock]</span>
+	 <span class="type">input logic</span>	    rst,           <span class="comment">// [timing: 0 -&gt; Reg]</span>
+	 <span class="type">input logic</span> [7:0]  input1,        <span class="comment">// [timing: 0 -&gt; Reg]</span>
+	 <span class="type">input logic</span> [7:0]  input2,        <span class="comment">// [timing: 0 -&gt; Reg]</span>
+	 <span class="type">input logic</span> [7:0]  opcode,        <span class="comment">// [timing: 8 -&gt; Reg]</span>
+	 <span class="type">input logic</span>	    retire,        <span class="comment">// [timing: 1 -&gt; Reg]</span>
+	 <span class="type">output logic</span> [3:0] flags_out,     <span class="comment">// [timing: 0 &lt;- Reg]</span>
+	 <span class="type">output logic</span> [7:0] alu_out,       <span class="comment">// [timing: 13 &lt;- Reg]</span>
+	 <span class="type">output logic</span>	    alu_out_valid  <span class="comment">// [timing: 2 &lt;- Reg]</span>
+);</code></pre>
+      </div>
+    </section>
+
+    <!-- Step 6: Physical Place-and-Route Timing Closure -->
+    <section class="detail-full" id="step-pnr">
+      <div class="detail-info">
+        <span class="step-badge">Step 6 &bull; Post-Routing Physical Timing</span>
+        <h2 class="detail-subtitle">Multi-Seed Place-and-Route Timing Closure (<code>--pnr</code>)</h2>
+        <p class="detail-text">
+          Pass <code>--pnr</code> to run full Yosys synthesis plus <code>nextpnr</code> physical placement and routing. When targeting the project's top module, <code>turbostar-verilog --pnr</code> applies your <code>.pcf</code> pin constraints; when given <code>-m &lt;submodule&gt;</code>, it runs unconstrained out-of-context submodule PnR and automatically evaluates multiple placement seeds to report median and min-max achieved F<sub>max</sub>.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Logic vs. Wire Routing Breakdown:</strong> Every critical path hop displays its exact logic delay, physical routing delay, net fanout (sink count), and chip Manhattan tile span.</li>
+          <li><strong>Detailed Cell Segments (<code>--segments</code>):</strong> Pass <code>--segments</code> to expand any critical path into individual <code>SB_LUT4</code>, <code>SB_CARRY</code>, and routing interconnect hops.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <pre><code><span class="comment">$ turbostar-verilog --pnr -m alu_mod -k 2</span>
+&gt; [!NOTE] Out-of-Context Submodule PnR (`alu_mod`): Analyzed submodule `alu_mod` with unconstrained I/O placement (configured project `top_module` is `main`).
+
+<span class="keyword">## Clock Domain &amp; Frequency Timing</span>
+┌───────────────────────┬────────────┬──────────────────────────────────────────────────┬───────────┬────────┐
+│ Clock Domain          │ Constraint │ Achieved Fmax                                    │ Slack     │ Status │
+├───────────────────────┼────────────┼──────────────────────────────────────────────────┼───────────┼────────┤
+│ clk$SB_IO_IN_$glb_clk │ 80.00 MHz  │ <span class="literal">102.63 MHz (median of 5 seeds: 99.90-103.90 MHz)</span> │ <span class="literal">+2.756 ns</span> │ <span class="type">MET</span>    │
+└───────────────────────┴────────────┴──────────────────────────────────────────────────┴───────────┴────────┘
+
+<span class="keyword">## Hardware Resource Utilization</span>
+┌──────────────┬──────┬───────────┬─────────────┐
+│ Resource     │ Used │ Available │ Utilization │
+├──────────────┼──────┼───────────┼─────────────┤
+│ ICESTORM_LC  │ 217  │ 7680      │ 2.8%        │
+│ ICESTORM_PLL │ 0    │ 2         │ 0.0%        │
+│ ICESTORM_RAM │ 0    │ 32        │ 0.0%        │
+│ SB_GB        │ 1    │ 8         │ 12.5%       │
+│ SB_IO        │ 40   │ 95        │ 42.1%       │
+│ SB_WARMBOOT  │ 0    │ 1         │ 0.0%        │
+└──────────────┴──────┴───────────┴─────────────┘
+
+<span class="keyword">## Physical Critical Paths (Grouped by Bottleneck Sink)</span>
+
+Critical Path Summary: 9.744 ns (3.543 ns logic [36%], 5.803 ns routing [60%]), converging on `flags[3]` from 1 source signals
+
+<span class="keyword">### Path #1 [Reg -&gt; Reg] Delay: 9.744 ns (36% logic, 60% routing) — Converging on `flags[3]`</span>
+- Start: `input2_reg[0]`
+- Chain:
+  1. `sv/alu/alu.sv:22-32` (input2_reg)                 | <span class="literal">`input2_reg &lt;= input2;`</span>                                                — 1.128 ns (0.540 ns logic, 0.588 ns routing) -&gt; `alu_out` [8 sinks, span: 2 tiles]
+  2. `sv/alu/alu.sv:14`    (carry_in)                   | <span class="literal">`logic carry_in;`</span>                                                      — 0.903 ns (0.315 ns logic, 0.588 ns routing) [4 sinks, span: 1 tile]
+  3. `sv/alu/alu.sv:163`   (carry_in)                   | <span class="literal">`{carry, alu_out} = input1_reg - input2_reg;`</span>                          — 1.708 ns (0.378 ns logic, 1.330 ns routing) [2 sinks, span: 4 tiles]
+  4. `sv/alu/alu.sv:14`    (carry_in)                   | <span class="literal">`logic carry_in;`</span>                                                      — 0.231 ns (0.231 ns logic, 0.000 ns routing) [2 sinks]
+  5. `sv/alu/alu.sv:133`   (carry_in, 7 carry/LUT hops) | <span class="literal">`{carry, alu_out} = input1_reg + input2_reg + {7'b0000000, carry_in};`</span> — 1.918 ns (1.071 ns logic, 0.847 ns routing) [max 13 sinks, max span: 1 tile]
+  6. `sv/alu/alu.sv:13`    (carry, 2 carry/LUT hops)    | <span class="literal">`logic carry;`</span>                                                         — 1.869 ns (0.693 ns logic, 1.176 ns routing) [max 1 sink, max span: 2 tiles]
+  7. `sv/alu/alu.sv:10`    (alu_out)                    | <span class="literal">`output logic [7:0] alu_out,`</span>                                          — 1.589 ns (0.315 ns logic, 1.274 ns routing) -&gt; `alu_out[7]` [3 sinks, span: 7 tiles]
+- Dominant Routing Delays:
+  - <span class="literal">1.330 ns</span> routing via `carry_in` (2 sinks, span: 4 tiles)
+  - <span class="literal">1.274 ns</span> routing via `alu_out[7]` (3 sinks, span: 7 tiles)
+  - <span class="literal">0.588 ns</span> routing via `alu_out` (8 sinks, span: 2 tiles)
+- End: `flags[3]` (`sv/alu/alu.sv:22-32` | <span class="literal">`flags &lt;= next_flags;`</span>)</code></pre>
+      </div>
+    </section>
+
+    <!-- Step 7: VCD Waveform Inspection & Signal-to-RTL Tracing -->
+    <section class="detail-full" id="step-vcd">
+      <div class="detail-info">
+        <span class="step-badge">Step 7 &bull; Waveform Debugging from the Terminal</span>
+        <h2 class="detail-subtitle">Cycle-Accurate VCD Inspection, Condition Search &amp; RTL Net Tracing (<code>vcd-*</code>)</h2>
+        <p class="detail-text">
+          Instead of opening a GUI waveform viewer and manually adding signals after every simulation run, <code>turbostar-verilog</code> provides seven <code>vcd-*</code> subcommands that render clock-aligned waveform tables, toggle statistics, condition searches, cycle-by-cycle VCD diffs, and structural RTL net traces directly in your terminal.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Zero-Config Enum Auto-Discovery:</strong> <code>vcd-info</code>, <code>vcd-wave</code>, and <code>vcd-search</code> automatically scan your SystemVerilog <code>typedef enum</code> declarations so FSM states render as <code>0x1 (FETCH)</code>, <code>0x2 (DECODE)</code>, and <code>0x4 (RETIRE)</code> without manual setup.</li>
+          <li><strong>Shorthand Signal Names &amp; Idle Collapsing:</strong> Pass leaf names like <code>-s sequencer.state,current_ip,alu_out</code>; <code>vcd-wave</code> resolves full hierarchical paths automatically and collapses identical idle clock cycles.</li>
+          <li><strong>Structural Net Traceability (<code>vcd-trace</code>):</strong> Map any VCD signal back to every module port, wire declaration, driving cell, and sink load across your RTL hierarchy.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <pre><code><span class="comment"># 1. Inspect VCD signals and toggle activity statistics in the sequencer scope:</span>
+<span class="comment">$ turbostar-verilog vcd-info dump.vcd --stats -f "*sequencer*"</span>
+<span class="keyword">#### Filtered Signals (Scope: `*` | Filter: `*sequencer*` | Count: 8)</span>
+┌─────────────────────────────────────────────────┬───────┬──────┬─────────────────────┬─────────────┐
+│ Signal Name                                     │ Width │ Type │ First Toggle (Tick) │ Toggle Rate │
+├─────────────────────────────────────────────────┼───────┼──────┼─────────────────────┼─────────────┤
+│ tb_main.uut.cpu8008.sequencer.clk               │ 1     │ wire │ 0                   │ [ref clk]   │
+│ tb_main.uut.cpu8008.sequencer.rst               │ 1     │ wire │ 2                   │ 0.5%        │
+│ tb_main.uut.cpu8008.sequencer.decode_phase      │ 1     │ wire │ 4                   │ 3.5%        │
+│ tb_main.uut.cpu8008.sequencer.retire_phase      │ 1     │ wire │ 4                   │ 3.0%        │
+│ tb_main.uut.cpu8008.sequencer.instruction_valid │ 1     │ wire │ 3                   │ 3.5%        │
+│ tb_main.uut.cpu8008.sequencer.opcode            │ 8     │ wire │ 3                   │ 2.0%        │
+│ tb_main.uut.cpu8008.sequencer.state             │ 3     │ wire │ 4                   │ 3.5%        │
+│ tb_main.uut.cpu8008.sequencer.next_state        │ 3     │ wire │ 3                   │ 3.5%        │
+└─────────────────────────────────────────────────┴───────┴──────┴─────────────────────┴─────────────┘
+
+<span class="comment"># 2. Render clock-aligned waveforms across ticks 0..12 (with automatic enum state decoding):</span>
+<span class="comment">$ turbostar-verilog vcd-wave dump.vcd -s sequencer.state,current_ip,instruction_data,alu_out --start-tick 0 --end-tick 12</span>
+<span class="keyword">### VCD Waveform: `dump.vcd`</span>
+Sampled on: `tb_main.clk` (posedge) | Timescale: 1ps | Total Rows: 13
+
+┌──────┬────────────┬─────────────────┬────────────┬──────────────────┬─────────┐
+│ Tick │ Time (1ps) │ sequencer.state │ current_ip │ instruction_data │ alu_out │
+├──────┼────────────┼─────────────────┼────────────┼──────────────────┼─────────┤
+│ 0    │ 5000       │ <span class="type">0x1 (FETCH)</span>     │ 0x0000     │ 0x00             │ 0x01    │
+│ 1    │ 15000      │ <span class="type">0x1 (FETCH)</span>     │ 0x0000     │ 0x00             │ 0x01    │
+│ 2    │ 25000      │ <span class="type">0x1 (FETCH)</span>     │ 0x0000     │ 0x00             │ 0x01    │
+│ 3    │ 35000      │ <span class="type">0x1 (FETCH)</span>     │ 0x0001     │ 0x00             │ 0x00    │
+│ 4    │ 45000      │ <span class="literal">0x2 (DECODE)</span>    │ 0x0002     │ 0x41             │ 0x41    │
+│ 5    │ 55000      │ <span class="type">0x1 (FETCH)</span>     │ 0x0002     │ 0x41             │ 0x41    │
+│ 6    │ 65000      │ <span class="type">0x1 (FETCH)</span>     │ 0x0003     │ 0x41             │ 0x41    │
+│ 7    │ 75000      │ <span class="literal">0x2 (DECODE)</span>    │ 0x0004     │ 0x80             │ 0x80    │
+│ 8    │ 85000      │ <span class="type">0x1 (FETCH)</span>     │ 0x0004     │ 0x80             │ 0x80    │
+│ 9    │ 95000      │ <span class="literal">0x2 (DECODE)</span>    │ 0x0005     │ 0x80             │ 0x41    │
+│ 10   │ 105000     │ <span class="type">0x1 (FETCH)</span>     │ 0x0005     │ 0x80             │ 0x41    │
+│ 11   │ 115000     │ <span class="type">0x1 (FETCH)</span>     │ 0x0006     │ 0x80             │ 0x80    │
+│ 12   │ 125000     │ <span class="keyword">0x4 (RETIRE)</span>    │ 0x0006     │ 0x41             │ 0x41    │
+└──────┴────────────┴─────────────────┴────────────┴──────────────────┴─────────┘
+
+<span class="comment"># 3. Search for clock cycles matching a symbolic enum state or hex condition:</span>
+<span class="comment">$ turbostar-verilog vcd-search dump.vcd -w sequencer.state=RETIRE</span>
+<span class="keyword">### VCD Search: `tb_main.uut.cpu8008.sequencer.state` == `RETIRE` in `dump.vcd`</span>
+┌──────────┬────────────┬──────────┬────────┬───────────────────┬───────────────┐
+│ Interval │ Start Tick │ End Tick │ Cycles │ Time Window (1ps) │ Matched Value │
+├──────────┼────────────┼──────────┼────────┼───────────────────┼───────────────┤
+│ 1        │ 12         │ 201      │ 190    │ 125000 - 2015000  │ <span class="keyword">0x4 (RETIRE)</span>  │
+└──────────┴────────────┴──────────┴────────┴───────────────────┴───────────────┘
+
+<span class="comment"># 4. Trace a simulation net back to its RTL drivers and consumers across module boundaries:</span>
+<span class="comment">$ turbostar-verilog vcd-trace alu_out</span>
+<span class="keyword">### Signal Source Trace: `alu_out`</span>
+- Matched Net: `cpu8008.alu.alu_out` (Width: 8-bit, Bit IDs: 117..124)
+
+<span class="keyword">#### Hierarchy Declarations &amp; Port Connections</span>
+- `mem_write_data` [sv/main.sv:12]: module wire / net
+- `cpu8008.alu_out` [sv/cpu/cpu.sv:32]: module output port
+- `main_memory.wdata` [sv/ram/ram.sv:5]: module wire / net
+- `cpu8008.A_reg.load_value` .. `cpu8008.L_reg.load_value` [sv/register/register.sv:7]: module wire / net
+- `cpu8008.alu.alu_out` [sv/alu/alu.sv:10]: module output port
+
+<span class="keyword">#### Drivers</span>
+- `cpu8008.\alu` [sv/alu/alu.sv:45-172]: multiplexer ($pmux) port Y
+
+<span class="keyword">#### Consumers (Sinks)</span>
+- `cpu8008.\A_reg` .. `cpu8008.\L_reg` [sv/register/register.sv:17]: $mux
+- `cpu8008.\alu` [sv/alu/alu.sv:174, 176, 181]: $logic_not, $mux, $reduce_xor
+- `main_memory` [sv/ram/ram.sv:23]: $mux</code></pre>
+      </div>
+    </section>
+
+    <!-- Subcommand Quick Reference Table -->
+    <section class="features-section" id="cli-reference" style="padding-top: 2rem;">
+      <div class="section-header">
+        <h2 class="section-title">Complete <code>turbostar-verilog</code> Subcommand Reference</h2>
+        <p>Pass <code>--no-frames</code> to any command to emit raw Markdown tables instead of UTF-8 box-drawing borders.</p>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Subcommand</th>
+              <th>Primary Flags &amp; Arguments</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>config</code></td>
+              <td><code>--target</code>, <code>--device</code>, <code>--package</code>, <code>--top</code>, <code>--freq</code>, <code>--pcf</code>, <code>--sv-path</code>, <code>--tb</code>, <code>--modules</code>, <code>--level</code>, <code>--hierarchical</code></td>
+              <td>Inspect or populate FPGA target settings and module-to-testbench bindings in <code>turbostar.json</code>.</td>
+            </tr>
+            <tr>
+              <td><code>timing</code> <em>(or default)</em></td>
+              <td><code>-m &lt;mod&gt;</code>, <code>-k &lt;top_k&gt;</code>, <code>-c &lt;lines&gt;</code>, <code>--pnr</code>, <code>--seeds &lt;N&gt;</code>, <code>--segments</code>, <code>-u, --update</code>, <code>--dry-run</code></td>
+              <td>Run LUT logic depth analysis (default), multi-seed physical PnR timing closure (<code>--pnr</code>), or batch in-place <code>// [timing: ...]</code> port annotations (<code>-u</code>).</td>
+            </tr>
+            <tr>
+              <td><code>compile</code></td>
+              <td><code>[module]</code>, <code>-m, --module</code>, <code>-l, --lint-only</code>, <code>-s, --synth-only</code>, <code>-o, --output</code></td>
+              <td>Run Verilator static lint, Yosys synthesis, and optional <code>nextpnr</code> verification with categorized diagnostics.</td>
+            </tr>
+            <tr>
+              <td><code>sim</code> / <code>simulate</code></td>
+              <td><code>[module]</code>, <code>-m, --module</code>, <code>-b, --tb</code>, <code>-H, --hierarchical</code>, <code>-l, --level</code>, <code>-q, --quiet</code>, <code>-v, --verbose</code></td>
+              <td>Compile and run SystemVerilog testbenches with automatic <code>$readmemh</code> staging and <code>.previous.vcd</code> regression comparison.</td>
+            </tr>
+            <tr>
+              <td><code>vcd-info</code></td>
+              <td><code>[vcd]</code>, <code>--scope</code>, <code>-f, --filter</code>, <code>--stats</code>, <code>--start-tick</code>, <code>--end-tick</code></td>
+              <td>Inspect VCD timescale, detected reference clock, hierarchy scopes, signal bit-widths, and toggle rates.</td>
+            </tr>
+            <tr>
+              <td><code>vcd-wave</code></td>
+              <td><code>[vcd]</code>, <code>-s, --signals</code>, <code>--start-tick</code>, <code>--end-tick</code>, <code>--max-rows</code>, <code>--radix</code>, <code>--no-collapse</code>, <code>--gtkw</code></td>
+              <td>Render clock-aligned waveform tables with automatic enum state decoding, idle cycle collapsing, and optional <code>.gtkw</code> export.</td>
+            </tr>
+            <tr>
+              <td><code>vcd-search</code></td>
+              <td><code>[vcd]</code>, <code>-w, --where</code>, <code>-s, --signal</code>, <code>--value</code>, <code>-l, --limit</code>, <code>--first</code>, <code>--last</code>, <code>--backward</code></td>
+              <td>Search VCD traces for clock intervals matching single or multi-signal conditions (hex, binary wildcards, or enum labels).</td>
+            </tr>
+            <tr>
+              <td><code>vcd-compare</code></td>
+              <td><code>[vcd_a] [vcd_b]</code>, <code>-s, --signals</code>, <code>--scope</code>, <code>--start-tick</code>, <code>--end-tick</code>, <code>--strict</code></td>
+              <td>Compare two VCD traces cycle-by-cycle and pinpoint the exact clock tick and signals where behavior first diverges.</td>
+            </tr>
+            <tr>
+              <td><code>vcd-trace</code></td>
+              <td><code>&lt;signal&gt;</code>, <code>-s, --signal</code>, <code>-n, --netlist</code></td>
+              <td>Trace a simulation signal across hierarchy boundaries to its RTL declarations, driving logic, and consuming sinks.</td>
+            </tr>
+            <tr>
+              <td><code>vcd-labels</code></td>
+              <td><code>[vcd]</code>, <code>-s, --signal</code>, <code>-m, --map &lt;val=name&gt;</code>, <code>--list</code>, <code>--clear</code>, <code>--local</code></td>
+              <td>Register, list, or clear custom symbolic value labels (e.g. opcodes or bus commands) in <code>vcd_labels.json</code>.</td>
+            </tr>
+            <tr>
+              <td><code>vcd-qualifier</code></td>
+              <td><code>[vcd]</code>, <code>-s, --signal</code>, <code>-q, --qualifier</code>, <code>-b, --bindings</code>, <code>--list</code>, <code>--clear</code></td>
+              <td>Bind enable/valid strobe signals to buses so inactive cycles are masked as <code>-</code> in <code>vcd-wave</code> and ignored in <code>vcd-search</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-container">
+      <span class="footer-text">&copy; 2026 Turbostar Project. Open source and available under the terms of the GPLv3 license.</span>
+      <div class="footer-links">
+        <a href="index.html" id="foot-home">Home</a>
+        <a href="editor.html" id="foot-editor">Editor</a>
+        <a href="ai.html" id="foot-ai">AI Agents</a>
+        <a href="mcp.html" id="foot-mcp">MCP Server</a>
+        <a href="fpga.html" id="foot-fpga">FPGA &amp; Verilog</a>
+        <a href="details.html" id="foot-details">Technical Details</a>
+        <a href="ai.html#see-also" id="foot-presentations">Presentations</a>
+        <a href="https://github.com/fenrus75/turbostar2/blob/main/docs/tools.md" id="foot-tools" target="_blank" rel="noopener noreferrer">Tools Reference</a>
+        <a href="https://github.com/fenrus75/turbostar2" id="foot-github" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

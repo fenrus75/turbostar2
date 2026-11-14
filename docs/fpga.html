@@ -256,6 +256,7 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
           <li><strong>Project Setup, Compile &amp; Simulate (<code>config</code>, <code>compile</code>, <code>sim</code>):</strong> Populate <code>turbostar.json</code> and register testbenches via <code>turbostar-verilog config --target ice40 --device hx8k --top main</code>, lint/synthesize with <code>compile</code>, and run simulations with <code>sim</code>.</li>
           <li><strong>VCD Waveform Inspection (<code>vcd-*</code>):</strong> Inspect and debug simulation dumps from the command line with <code>vcd-info</code>, <code>vcd-wave</code>, <code>vcd-search</code>, <code>vcd-compare</code>, <code>vcd-trace</code>, <code>vcd-labels</code>, and <code>vcd-qualifier</code>—all rendered with UTF-8 box-drawing tables.</li>
         </ul>
+        <a href="turbostar-verilog.html" class="btn btn-primary" id="btn-cli-getting-started">Getting Started with turbostar-verilog &rarr;</a>
       </div>
       <div class="detail-visual">
         <pre><code><span class="comment">$ turbostar-verilog -m alu_mod -k 1</span>
@@ -363,6 +364,7 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
             <li><code>verilog_pnr_timing</code>: Full Yosys + <code>nextpnr</code> physical timing analysis reporting Fmax, slack, logic vs. wire delay, fanout, and <code>(dx, dy)</code> tile distance.</li>
             <li><code>turbostar-verilog</code>: Unified standalone CLI for project config (<code>config</code>), logic depth, physical PnR (<code>--pnr</code>), batch in-place port annotations (<code>-u</code>), compile/sim, and <code>vcd-*</code> waveform tools with UTF-8 framed terminal tables.</li>
           </ul>
+          <a href="turbostar-verilog.html" class="card-link" id="link-card-cli-guide">Getting Started Guide &rarr;</a>
         </article>
       </div>
     </section>

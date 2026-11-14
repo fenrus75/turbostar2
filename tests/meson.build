@@ -2184,6 +2184,7 @@ if tidy_prog.found()
     ['ai', 'docs/ai.html'],
     ['mcp', 'docs/mcp.html'],
     ['fpga', 'docs/fpga.html'],
+    ['turbostar_verilog', 'docs/turbostar-verilog.html'],
     ['details', 'docs/details.html']
   ]
   foreach item : html_tests
