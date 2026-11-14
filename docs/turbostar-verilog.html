@@ -447,6 +447,9 @@ Sampled on: `tb_main.clk` (posedge) | Timescale: 1ps | Total Rows: 13
 │ 12   │ 125000     │ <span class="keyword">0x4 (RETIRE)</span>    │ 0x0006     │ 0x41             │ 0x41    │
 └──────┴────────────┴─────────────────┴────────────┴──────────────────┴─────────┘
 
+&gt; [!TIP] Signal `instruction_data` has no symbolic labels yet. To display enum names alongside hex values (and search by name in `turbostar-verilog vcd-search`), run:
+&gt; `turbostar-verilog vcd-labels dump.vcd -s instruction_data -l "0x00=&lt;NAME_1&gt;,0x41=&lt;NAME_2&gt;"`
+
 <span class="comment"># 3. Search for clock cycles matching a symbolic enum state or hex condition:</span>
 <span class="comment">$ turbostar-verilog vcd-search dump.vcd -w sequencer.state=RETIRE</span>
 <span class="keyword">### VCD Search: `tb_main.uut.cpu8008.sequencer.state` == `RETIRE` in `dump.vcd`</span>
@@ -455,6 +458,9 @@ Sampled on: `tb_main.clk` (posedge) | Timescale: 1ps | Total Rows: 13
 ├──────────┼────────────┼──────────┼────────┼───────────────────┼───────────────┤
 │ 1        │ 12         │ 201      │ 190    │ 125000 - 2015000  │ <span class="keyword">0x4 (RETIRE)</span>  │
 └──────────┴────────────┴──────────┴────────┴───────────────────┴───────────────┘
+
+&gt; [!TIP] To inspect waveforms around match 1, run:
+&gt; `turbostar-verilog vcd-wave dump.vcd -s sequencer.state --start 11 --end 13`
 
 <span class="comment"># 4. Trace a simulation net back to its RTL drivers and consumers across module boundaries:</span>
 <span class="comment">$ turbostar-verilog vcd-trace alu_out</span>
@@ -529,7 +535,7 @@ Sampled on: `tb_main.clk` (posedge) | Timescale: 1ps | Total Rows: 13
 └───────────────────────────────────────────────┴────────────────────┴────────────────────┴────────────────┘
 
 &gt; [!TIP] To inspect waveforms around divergence in File B (ticks 10–15), run:
-&gt; `vcd_wave(path="dump.vcd", signals=["tb_main.LED", "tb_main.uut.LED", "tb_main.uut.cpu8008.decode.mem_data", "tb_main.uut.cpu8008.decode_mem_data", "tb_main.uut.cpu8008.mem_arbiter.mem_read_data", "tb_main.uut.cpu8008.mem_arbiter.port1_data"], start_tick=10, end_tick=15)`</code></pre>
+&gt; `turbostar-verilog vcd-wave dump.vcd -s tb_main.LED,tb_main.uut.LED,tb_main.uut.cpu8008.decode.mem_data,tb_main.uut.cpu8008.decode_mem_data,tb_main.uut.cpu8008.mem_arbiter.mem_read_data,tb_main.uut.cpu8008.mem_arbiter.port1_data --start 10 --end 15`</code></pre>
       </div>
     </section>
 
