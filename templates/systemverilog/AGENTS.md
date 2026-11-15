@@ -24,7 +24,7 @@ Limit the use of SystemVerilog language constructs to those supported by both `y
 - Option: group related modules into subdirectories within `src/` for logical organization
 - Use modern SystemVerilog best practices (within the subset supported by both `yosys` and `verilator`):
   - `always_ff` for flip-flops/registers
-  - `always_comb` for all combinational logic
+  - `always_comb` for all combinational logic (assign default values to all outputs at the top of `always_comb` blocks to avoid accidental inferred latches, which FPGA targets such as `synth_ice40` reject as errors)
   - favor `logic` over `reg` or `wire` for signals and wires; replace legacy `wire`/`reg` occurrences with `logic` when editing components
   - use `typedef enum` for FSM states
   - use `unique case` for state machines as much as possible; mandatory for the FSM case
@@ -81,7 +81,7 @@ end
 - Emit explicit `PASS` on success and `FAIL` / `$error` / `$fatal` on failure so `verilog_simulate()` can verify results (benches without assertions are reported as `INFO`)
 - Use `verilog_configure_testbench()` to persistently associate testbenches with modules in `turbostar.json` (and set `hierarchical=true` on integration/top modules so their submodule testbenches are included by default)
 - Create test cases for bugs: whenever possible, write a test that reproduces the bug first, then fix the RTL and confirm the test passes
-- Use `verilog_simulate()` to run the testbenches for a given module
+- Use `verilog_simulate()` to run the testbenches for a given module; passing runs snapshot `.lastpass.vcd` and every run compares against `.previous.vcd` to isolate the exact first diverging cycle and signal (you can also diff any two VCDs directly with `vcd_compare()`).
 
 ## Edit process
 - Use the dedicated tools for the standard "edit - compile - test - commit" cycle:
@@ -93,7 +93,7 @@ end
   - `git_add` / `git_commit` to create the git commit
 
 ## Tool usage
-- On initial project setup, use `verilog_project_settings()` to configure basic project properties (target FPGA, device, package, top module, target frequency, and `sv_path="src"`); ask the user for any properties that are not known to you yet.
+- On initial project setup, use `verilog_project_settings()` to configure basic project properties (target FPGA, device, package, top module, target frequency, and `sv_path="src"`); ask the user for any properties that are not known to you yet. You can also tune synthesis and place-and-route flags via `yosys_synth_args` and `nextpnr_args` (e.g., `--tmg-ripup`, `--opt-timing`) in `verilog_project_settings()`.
 - If a signal is governed by a valid bit (example: `output[7:0]` and `output_valid`), use `vcd_signal_qualifier()` to declare this relationship to help the waveform tooling mask invalid cycles.
 - Consider using `vcd_signal_labels()` to provide readable interpretations for non-enum signals where appropriate (example: `opcode` signals can label individual hex values with instruction names).
 - The `vcd_wave()` / `vcd_compare()` / `vcd_search()` tools provide LLM-optimized views of the signals in the design from `.vcd` simulation waveforms (pass `instance="<inst_or_module>"` to `vcd_wave()` to automatically sample all input and output ports of a module), and `vcd_signal_to_code()` traces a waveform signal back to its RTL driver and consumers.
@@ -104,7 +104,9 @@ end
   - `verilog_logic_depth` provides a structural view of LUT logic depth between flip-flops
   - `verilog_update_timing` annotates module port declarations in-place with `// [timing: ...]` comments so you have instant visibility into which module inputs and outputs carry deep combinational chains when instantiating or wiring modules
   - `verilog_pnr_timing` gives the critical path timing after routing, decomposing logic vs. wire delay and reporting fan-out and $F_{\max}$
-- Often, the structural view provides the underlying architectural reason for the more fine-grained (local) post-routing timing bottlenecks, and it is generally beneficial to have the two views augment each other.
+- Often, the structural view provides the underlying architectural reason for the more fine-grained (local) post-routing timing bottlenecks, and it is generally beneficial to have the two views augment each other:
+  - When an RTL refactor shrinks LUT area without improving `verilog_pnr_timing` $F_{\max}$, inspect `In -> Reg` and `Reg -> Out` paths in `verilog_logic_depth` to see whether a decode cone or cross-module boundary took over.
+  - Evaluate PnR changes against the **multi-seed median** $F_{\max}$ reported by `verilog_pnr_timing` rather than chasing single-seed placement luck.
 - If an optimization attempt does not work, revert to the previous state, but keep a document in git that you update after the revert to avoid repeating the same optimization over and over.
 
 
