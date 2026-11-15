@@ -62,6 +62,10 @@
       </div>
       <div class="detail-visual">
         <pre><code><span class="comment"># The Sub-Second Hardware Agent Inner Loop</span>
+<span class="keyword">0. One-Time Project Setup (turbostar.json)</span>
+   verilog_project_settings(target=<span class="literal">"ice40"</span>, device=<span class="literal">"hx8k"</span>, freq_mhz=<span class="type">75</span>)
+   verilog_configure_testbench(scan=<span class="type">true</span>)
+
 <span class="keyword">1. Edit SystemVerilog RTL</span>
    fs_replace_content / fs_write_file
 
@@ -121,7 +125,7 @@
         </p>
         <ul class="detail-list">
           <li><strong>Quick, Comprehensive &amp; Extreme Levels:</strong> Classify testbenches by level (<code>level="quick"</code>) so the agent runs sub-second unit tests after every edit and full instruction-set regressions before committing.</li>
-          <li><strong>Hierarchical Bottom-Up Verification:</strong> Pass <code>hierarchical=true</code> on top modules to automatically compile all testbenches in parallel across CPU cores and run them in topological dependency order (e.g. <code>decode_mod</code> &rarr; <code>alu8</code> &rarr; <code>cpu</code> &rarr; <code>top</code>).</li>
+          <li><strong>Hierarchical Bottom-Up Verification:</strong> Pass <code>hierarchical=true</code> on top modules to automatically compile and run testbenches in parallel across CPU cores in topological dependency order (e.g. <code>decode_mod</code> &rarr; <code>alu8</code> &rarr; <code>cpu</code> &rarr; <code>top</code>), while automatically detecting and isolating colliding <code>$dumpfile("dump.vcd")</code> paths so parallel runs never clobber each other's waveforms.</li>
           <li><strong>Automatic Waveform Snapshots &amp; Diffs:</strong> Passing runs snapshot <code>.lastpass.vcd</code> while every run preserves <code>.previous.vcd</code>. When a change breaks a testbench, <code>verilog_simulate</code> automatically diffs the new trace against the baseline and reports the exact diverging clock cycle and signal.</li>
         </ul>
       </div>
@@ -216,7 +220,7 @@ Max Internal Reg -&gt; Reg Depth: 25
       <div class="detail-info">
         <h2 class="detail-subtitle">Physical Place-and-Route Timing Closure</h2>
         <p class="detail-text">
-          Pre-synthesis logic depth is only half the story—on real FPGAs, long Manhattan wire routes and high-fanout control nets often dominate the critical path. <code>verilog_pnr_timing</code> runs full Yosys synthesis + <code>nextpnr</code> physical placement and routing on demand, enabling agents to drive a design from <strong>50&nbsp;MHz to 75&nbsp;MHz F<sub>max</sub> (+50%) in a couple of hours</strong>.
+          Pre-synthesis logic depth is only half the story—on real FPGAs, long Manhattan wire routes and high-fanout control nets often dominate the critical path. Together, <code>verilog_logic_depth</code> and <code>verilog_pnr_timing</code> form a tight bottleneck-chasing loop: when an RTL edit shrinks LUT area without moving P&amp;R F<sub>max</sub>, <code>verilog_logic_depth</code> immediately reveals whether a new <code>In &rarr; Reg</code> decode cone took over, while <code>verilog_pnr_timing</code> shows when the physical critical path jumps to a different module (e.g., ALU &rarr; BRAM or decoder)—enabling agents to drive a design from <strong>50&nbsp;MHz to 75&nbsp;MHz F<sub>max</sub> (+50%) in a couple of hours</strong>.
         </p>
         <ul class="detail-list">
           <li><strong>Multi-Seed Fmax &amp; Submodule PnR:</strong> Evaluates real post-routing setup slack across placement seeds against your target clock constraint, or runs unconstrained out-of-context PnR on individual submodules (<code>module="alu8"</code>).</li>
@@ -394,7 +398,7 @@ Max Internal Reg -&gt; Reg Depth: 25
 <span class="keyword">sudo</span> apt install yosys verilator \
   nextpnr-ice40 fpga-icestorm
 <span class="comment"># 2. Activate in an agent session or via MCP</span>
-<span class="comment"># Call activate_tool_family(name="verilog")</span>
+<span class="comment"># Call activate_tool_family(Name="verilog")</span>
 <span class="comment"># or launch turbomcp with --all-tool-families</span>
 turbomcp --project-dir /path/to/rtl-project
 
