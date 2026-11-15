@@ -1488,6 +1488,70 @@ void test_aliased_net_demotes_top_output_port()
 	assert(paths[0].hops[0].clean_net == "cpu.decode.mem_read_data[0]");
 }
 
+void test_additional_endpoints_never_exceed_path1()
+{
+	using verilog::nextpnr_timing_analyzer;
+	nlohmann::json netlist_json = {
+		{"modules", {
+			{"top", {
+				{"ports", {{"clk", {{"direction", "input"}, {"bits", {2}}}}}},
+				{"cells", {
+					{"reg_a", {{"type", "SB_DFF"}, {"attributes", {{"src", "top.sv:10"}}},
+					           {"port_directions", {{"C", "input"}, {"D", "input"}, {"Q", "output"}}},
+					           {"connections", {{"C", {2}}, {"D", {10}}, {"Q", {11}}}}}},
+					{"reg_b", {{"type", "SB_DFF"}, {"attributes", {{"src", "top.sv:11"}}},
+					           {"port_directions", {{"C", "input"}, {"D", "input"}, {"Q", "output"}}},
+					           {"connections", {{"C", {2}}, {"D", {12}}, {"Q", {13}}}}}},
+					{"lut_0", {{"type", "SB_LUT4"}, {"attributes", {{"src", "top.sv:5"}}},
+					           {"port_directions", {{"I0", "input"}, {"O", "output"}}},
+					           {"connections", {{"I0", {11}}, {"O", {10}}}}}}
+				}},
+				{"netnames", {
+					{"net_a", {{"hide_name", 0}, {"bits", {10}}, {"attributes", {{"src", "top.sv:10"}}}}},
+					{"net_b", {{"hide_name", 0}, {"bits", {12}}, {"attributes", {{"src", "top.sv:11"}}}}},
+					{"reg_a_q", {{"hide_name", 0}, {"bits", {11}}, {"attributes", {{"src", "top.sv:10"}}}}}
+				}}
+			}}
+		}}
+	};
+
+	nlohmann::json timing_json = {
+		{"fmax", {{"clk", {{"achieved", 100.0}, {"constraint", 80.0}}}}},
+		{"utilization", {{"ICESTORM_LC", {{"used", 2}, {"available", 7680}}}}},
+		{"critical_paths", {
+			{
+				{"from", "posedge clk"},
+				{"to", "posedge clk"},
+				{"path", {
+					{{"type", "clk-to-q"}, {"delay", 0.5}, {"from", {{"cell", "reg_a_DFFLC"}, {"port", "Q"}}}, {"to", {{"cell", "reg_a_DFFLC"}, {"port", "Q"}}}},
+					{{"type", "routing"}, {"delay", 8.0}, {"net", "net_a"}, {"from", {{"cell", "lut_0_LC"}, {"port", "O"}}}, {"to", {{"cell", "reg_a_DFFLC"}, {"port", "D"}}}},
+					{{"type", "logic"}, {"delay", 1.0}, {"from", {{"cell", "lut_0_LC"}, {"port", "I0"}}}, {"to", {{"cell", "lut_0_LC"}, {"port", "O"}}}},
+					{{"type", "setup"}, {"delay", 0.5}, {"from", {{"cell", "reg_a_DFFLC"}, {"port", "D"}}}, {"to", {{"cell", "reg_a_DFFLC"}, {"port", "D"}}}}
+				}}
+			}
+		}},
+		{"detailed_net_timings", {
+			{
+				{"driver", "lut_0_LC"},
+				{"net", "net_b"},
+				{"event", "posedge clk"},
+				{"endpoints", {
+					{{"cell", "reg_b_DFFLC"}, {"port", "D"}, {"event", "posedge clk"}, {"delay", 9.8}}
+				}}
+			}
+		}}
+	};
+
+	nextpnr_timing_analyzer analyzer;
+	std::string err;
+	assert(analyzer.load_from_json_strings(timing_json.dump(), netlist_json.dump(), err));
+	std::string md = analyzer.generate_timing_markdown(true, true, 3, true, false);
+	assert(md.find("### Path #1 [Reg -> Reg] Delay: **10.000 ns**") != std::string::npos);
+	assert(md.find("### Path #2 [Reg -> Reg]") != std::string::npos);
+	// Path #2 must not report a delay slower than Path #1 (e.g. 10.300 ns)
+	assert(md.find("10.300 ns") == std::string::npos);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog();
@@ -1509,6 +1573,7 @@ int main()
 	test_verilog_pnr_timing_on_demand();
 	test_pnr_stale_synth_rejection();
 	test_aliased_net_demotes_top_output_port();
+	test_additional_endpoints_never_exceed_path1();
 	test_verilog_compile_tool();
 	test_shared_always_ff_disambiguation_and_segments();
 

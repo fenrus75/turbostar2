@@ -341,10 +341,13 @@ void nextpnr_timing_analyzer::parse_timing_json(const nlohmann::json &j)
 	}
 
 	double default_setup_ns = 0.0;
+	double max_reg2reg_ns = 0.0;
 	for (const auto &cp : critical_paths_) {
-		if (cp.path_type == timing_path_type::reg_to_reg && cp.setup_delay_ns > 0.0) {
-			default_setup_ns = cp.setup_delay_ns;
-			break;
+		if (cp.path_type == timing_path_type::reg_to_reg) {
+			if (default_setup_ns == 0.0 && cp.setup_delay_ns > 0.0) {
+				default_setup_ns = cp.setup_delay_ns;
+			}
+			max_reg2reg_ns = std::max(max_reg2reg_ns, cp.total_delay_ns);
 		}
 	}
 
@@ -384,6 +387,10 @@ void nextpnr_timing_analyzer::parse_timing_json(const nlohmann::json &j)
 				tes.port = ep_port;
 				tes.path_type = to_clk ? timing_path_type::reg_to_reg : timing_path_type::reg_to_out;
 				tes.total_delay_ns = arrival_ns + (to_clk ? default_setup_ns : 0.0);
+				if (to_clk && max_reg2reg_ns > 0.0 && tes.total_delay_ns > max_reg2reg_ns) {
+					// Keep arrival+default_setup_ns estimates from exceeding nextpnr's true worst Reg->Reg critical path
+					tes.total_delay_ns = max_reg2reg_ns;
+				}
 				tes.implied_fmax_mhz = (tes.total_delay_ns > 0.0) ? (1000.0 / tes.total_delay_ns) : 0.0;
 				detailed_endpoints_.push_back(std::move(tes));
 			}
