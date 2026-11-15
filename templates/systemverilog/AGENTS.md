@@ -25,7 +25,7 @@ Limit the use of SystemVerilog language constructs to those supported by both `y
 - Use modern SystemVerilog best practices (within the subset supported by both `yosys` and `verilator`):
   - `always_ff` for flip-flops/registers
   - `always_comb` for all combinational logic (assign default values to all outputs at the top of `always_comb` blocks to avoid accidental inferred latches, which FPGA targets such as `synth_ice40` reject as errors)
-  - favor `logic` over `reg` or `wire` for signals and wires; replace legacy `wire`/`reg` occurrences with `logic` when editing components
+  - favor `logic` over `reg` or `wire` for signals and wires; replace legacy `wire`/`reg` occurrences with `logic` when editing components (this is not a simple search/replace and needs careful consideration!)
   - use `typedef enum` for FSM states
   - use `unique case` for state machines as much as possible; mandatory for the FSM case
   - always define a `default:` case in case statements.
@@ -99,3 +99,9 @@ end
   selectively strip reset from half of them. Keeping control sets identical allows `nextpnr` to pack flip-flops tightly into single physical
   tiles with zero inter-tile routing hops. This rule overrides other guidance that recommends not using `rst` - many real-design simulations
   have shown that it is more important to have homogeneity than to do the avoid-rst optimization (which is valid in the more general case).
+
+### "Consolidate Duplicate Arithmetic/Carry Chains to Help Placement" (FPGA)
+   Even when duplicate adders/subtractors or separate register-vs-immediate ALU branches are not individually on the top critical path, 
+   consolidating them (muxing immediate operands at the input register, unifying `ADD`/`ADC`/`SUB`/`SBB`/`CMP` into a single nibble-split add/sub carry chain, 
+   and deriving half-carry directly from the nibble carry bit) cuts `SB_CARRY` and `SB_LUT4` count dramatically. On FPGAs, shrinking the ALU footprint reduces 
+   routing congestion and lets `nextpnr` place the remaining logic tighter, improving both $F_{\max}$ and area.
