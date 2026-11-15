@@ -37,21 +37,12 @@ Limit the use of SystemVerilog language constructs to those supported by both `y
 
 
 ## Guidelines for high frequency designs (non-normative)
-- Know the Goal: Set a frequency goal from the start - when not already provided, ask the user.
-    - Logic Levels: Use target device knowledge to make and document an estimate for the number of reg->reg logic levels that can support this frequency
-    - Use the `verilog_update_timing` toolcall after major changes to keep in-code logic level annotations updated
-- Performance from the start: Always write performing implementations from the very beginning even for non-critical-path components
-	- Synthesis tools work better if there are only a few near-critical-timing paths
-	- Retrofitting performance in large designs is much harder than creating a good design from the start
-- Reset Reduction: Avoid using reset signals on internal registers for which reset behavior is not required for correctness
-	- for FPGA designs, use only one reset strategy within a module (see "Control-Set Homogeneity Beats Reset Stripping") or within closely related modules
-- Async-reset: Don't mix async and sync reset in the design
-- Non-zero reset values: **STRONGLY** avoid non-0 reset values whenever the design allows
-- Case statements instead of long if-then-else chains
-- Register the output: For modules that contain registers, favor registering the final output whenever possible over registering intermediate results.
-	- Exception: If it is possible to register the output of a RAM directly, always do this even if it happens at the input side of another module. This rule overrides the "register the output" general guidance.
-- High-fanout: Duplicate output registers and signals if high-fanout after the module is a fundamental timing issue. Suffix duplicated outputs with `_dup1`, `_dup2`, etc.
-- Load-enable register: For FPGA targets, use this construct for registers with a load/enable input (example shown with synchronous reset, adjust as needed):
+- **Goal & budget:** Set a frequency target from the start (ask if missing) and document the `Reg -> Reg` logic-level budget in `Project Specific Targets`.
+- **Design for speed upfront:** Avoid leaving non-critical paths sloppy—synthesis tools optimize better with fewer near-critical paths, and retrofitting timing in large designs is costly.
+- **Resets:** Avoid resetting internal registers unless required for correctness, **except** keep one uniform reset strategy per module (see *Control-Set Homogeneity* below). Never mix sync and async resets, and **strongly** avoid non-zero reset values.
+- **Structure:** Prefer `case` statements over long `if-else` chains. Register module outputs whenever possible (exception: registering a RAM output directly, even on a downstream module's input, overrides this).
+- **High fanout:** Duplicate output registers/signals (`_dup1`, `_dup2`, ...) when fanout limits timing.
+- **Load-enable register** (prefer synchronous reset on FPGA targets):
 ```verilog
     always_ff @(posedge clk) begin
         if (rst)       value <= 8'h00;
@@ -60,11 +51,8 @@ Limit the use of SystemVerilog language constructs to those supported by both `y
 ```
 
 ## Guidelines for power optimization (non-normative)
-- Priority: Power optimization is important, but secondary to meeting timing constraints
-- Reset: Avoid asynchronous reset whenever possible, follow "Reset Reduction" general guidelines
-- Valid Bit: For output signals on a module that have a corresponding valid bit, clock a 0 into the register (if present) for the non-valid case **if timing allows**
-    - Rationale: (non-valid) data changes add to dynamic power ($C_{\mathrm{dyn}}$) with no ROI
-    - Example snippet below:
+- Secondary to meeting timing constraints; avoid async resets where possible.
+- **Valid-bit gating:** When a registered output has a valid bit and timing allows, clock `'0` when invalid to reduce dynamic power ($C_{\mathrm{dyn}}$):
 ```verilog
 always_ff @(posedge clk) begin
 	valid_out <= data_valid;
@@ -75,39 +63,25 @@ end
 
 
 ## Testing strategy
-- Create *at least* one testbench for each module
-    - Consider splitting into a separate basic and comprehensive testbench
-- For complex modules or modules with a large test space, create multiple testbenches, as they can simulate in parallel (ensure each has a unique `$dumpfile` name)
-- Emit explicit `PASS` on success and `FAIL` / `$error` / `$fatal` on failure so `verilog_simulate()` can verify results (benches without assertions are reported as `INFO`)
-- Use `verilog_configure_testbench()` to persistently associate testbenches with modules in `turbostar.json` (and set `hierarchical=true` on integration/top modules so their submodule testbenches are included by default)
-- Create test cases for bugs: whenever possible, write a test that reproduces the bug first, then fix the RTL and confirm the test passes
-- Use `verilog_simulate()` to run the testbenches for a given module; passing runs snapshot `.lastpass.vcd` and every run compares against `.previous.vcd` to isolate the exact first diverging cycle and signal (you can also diff any two VCDs directly with `vcd_compare()`).
+- Write at least one testbench per module (split basic vs. comprehensive, or split large test spaces into multiple parallel testbenches with unique `$dumpfile` names).
+- Emit explicit `PASS` on success and `FAIL` / `$error` / `$fatal` on failure so `verilog_simulate()` can verify results (benches without assertions report `INFO`).
+- Use `verilog_configure_testbench()` to bind testbenches in `turbostar.json` (set `hierarchical=true` on integration/top modules).
+- For bugs, write a failing reproducing test first, then fix the RTL and verify it passes.
+- Run tests with `verilog_simulate()`; passing runs snapshot `.lastpass.vcd` and every run diffs against `.previous.vcd` to isolate the first diverging cycle/signal (use `vcd_compare()` to diff any two VCDs directly).
 
-## Edit process
-- Use the dedicated tools for the standard "edit - compile - test - commit" cycle:
-  - `fs_replace_lines` / `fs_write_file` for editing files
-  - `verilog_compile` for syntax checking and synthesis health (use `lint_only=true` for a fast first pass)
-  - `verilog_simulate` for running the test cases
-  - `verilog_pnr_timing` for validating timing optimizations (if appropriate)
-  - `verilog_update_timing` to update timing annotations in the codebase
-  - `git_add` / `git_commit` to create the git commit
-
-## Tool usage
-- On initial project setup, use `verilog_project_settings()` to configure basic project properties (target FPGA, device, package, top module, target frequency, and `sv_path="src"`); ask the user for any properties that are not known to you yet. You can also tune synthesis and place-and-route flags via `yosys_synth_args` and `nextpnr_args` (e.g., `--tmg-ripup`, `--opt-timing`) in `verilog_project_settings()`.
-- If a signal is governed by a valid bit (example: `output[7:0]` and `output_valid`), use `vcd_signal_qualifier()` to declare this relationship to help the waveform tooling mask invalid cycles.
-- Consider using `vcd_signal_labels()` to provide readable interpretations for non-enum signals where appropriate (example: `opcode` signals can label individual hex values with instruction names).
-- The `vcd_wave()` / `vcd_compare()` / `vcd_search()` tools provide LLM-optimized views of the signals in the design from `.vcd` simulation waveforms (pass `instance="<inst_or_module>"` to `vcd_wave()` to automatically sample all input and output ports of a module), and `vcd_signal_to_code()` traces a waveform signal back to its RTL driver and consumers.
-- Use `verilog_compile()` to compile a module (or the whole project) for syntax checking, synthesis, and place-and-route. It scopes checks to the target module's hierarchy, groups warnings by severity (correctness/synthesis warnings vs. style notes), flags critical synthesis hazards (combinational loops, inferred latches), and prints synthesis cell statistics while saving the full log to `tmp://synthesis.log`. `lint_only=true` runs just the fast Verilator pass.
+## Edit process & Tool usage
+- Standard loop: `fs_replace_lines` / `fs_write_file` &rarr; `verilog_compile` (`lint_only=true` for sub-second Verilator check; full run writes `tmp://synthesis.log`) &rarr; `verilog_simulate` &rarr; `verilog_pnr_timing` &rarr; `verilog_update_timing` &rarr; `git_add` / `git_commit`.
+- Initial setup: Call `verilog_project_settings()` to set target FPGA, device, package, top module, target frequency, `sv_path="src"`, and optional `yosys_synth_args` / `nextpnr_args` (e.g., `--tmg-ripup`, `--opt-timing`).
+- Waveforms: Use `vcd_signal_qualifier()` to mask invalid bus cycles, `vcd_signal_labels()` to map opcodes/values to names, `vcd_wave(instance=...)` / `vcd_search()` / `vcd_compare()` to inspect traces, and `vcd_signal_to_code()` to trace nets to RTL drivers/sinks.
 
 ## Timing optimization strategy
-- Timing optimization works best when you consider both the structural view and the post-routing physical timing view:
-  - `verilog_logic_depth` provides a structural view of LUT logic depth between flip-flops
-  - `verilog_update_timing` annotates module port declarations in-place with `// [timing: ...]` comments so you have instant visibility into which module inputs and outputs carry deep combinational chains when instantiating or wiring modules
-  - `verilog_pnr_timing` gives the critical path timing after routing, decomposing logic vs. wire delay and reporting fan-out and $F_{\max}$
-- Often, the structural view provides the underlying architectural reason for the more fine-grained (local) post-routing timing bottlenecks, and it is generally beneficial to have the two views augment each other:
-  - When an RTL refactor shrinks LUT area without improving `verilog_pnr_timing` $F_{\max}$, inspect `In -> Reg` and `Reg -> Out` paths in `verilog_logic_depth` to see whether a decode cone or cross-module boundary took over.
-  - Evaluate PnR changes against the **multi-seed median** $F_{\max}$ reported by `verilog_pnr_timing` rather than chasing single-seed placement luck.
-- If an optimization attempt does not work, revert to the previous state, but keep a document in git that you update after the revert to avoid repeating the same optimization over and over.
+- Combine structural and physical views:
+  - `verilog_logic_depth`: LUT depth between FFs (`Reg -> Reg`, `In -> Reg`, `Reg -> Out`).
+  - `verilog_update_timing`: updates in-place `// [timing: ...]` port comments in `.sv` files.
+  - `verilog_pnr_timing`: post-route $F_{\max}$, logic vs. wire delay, and fanout.
+- When an RTL refactor shrinks LUT area without moving `verilog_pnr_timing` $F_{\max}$, check `In -> Reg` and `Reg -> Out` paths in `verilog_logic_depth` to see if a decode cone or module boundary took over.
+- Judge PnR changes by the **multi-seed median** $F_{\max}$ rather than single-seed luck.
+- If an optimization fails, revert it and record the dead end in a git-tracked note so it is not repeated.
 
 
 ## Learnings
