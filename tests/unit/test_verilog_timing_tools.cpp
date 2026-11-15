@@ -1375,6 +1375,53 @@ void test_shared_always_ff_disambiguation_and_segments()
 	std::filesystem::remove_all(tmp_dir, ec);
 }
 
+void test_pnr_stale_synth_rejection()
+{
+	if (fs_utils::find_executable("yosys").empty() || fs_utils::find_executable("nextpnr-ice40").empty()) {
+		return;
+	}
+	namespace fs = std::filesystem;
+	std::string tmp_dir = (fs::path(fs_utils::get_project_tmp_dir()) / ("test_pnr_stale_" + std::to_string(getpid()))).string();
+	fs::create_directories(tmp_dir);
+	std::string sv_path = tmp_dir + "/counter.sv";
+	{
+		std::ofstream ofs(sv_path);
+		ofs << "module counter(input logic clk, output logic [3:0] q);\n"
+		    << "    always_ff @(posedge clk) q <= q + 4'd1;\n"
+		    << "endmodule\n";
+	}
+
+	verilog::fpga_target_config cfg;
+	cfg.target = "ice40";
+	cfg.device = "hx8k";
+	cfg.package = "cb132";
+	cfg.top_module = "counter";
+	cfg.freq_mhz = 50.0;
+
+	verilog::nextpnr_timing_analyzer analyzer;
+	std::vector<std::string> sources = {sv_path};
+	std::string err;
+	bool ok1 = analyzer.synthesize_and_route(cfg, sources, err);
+	if (!ok1 || !err.empty()) {
+		std::cerr << "test_pnr_stale_synth_rejection ok1=" << ok1 << " err=" << err << std::endl;
+	}
+	assert(ok1 && err.empty());
+
+	// Break syntax (missing endmodule); synthesize_and_route must fail loudly instead of reusing stale pnr_synth.json
+	{
+		std::ofstream ofs(sv_path);
+		ofs << "module counter(input logic clk, output logic [3:0] q);\n"
+		    << "    always_ff @(posedge clk) q <= q + 4'd1;\n";
+	}
+	std::string err2;
+	bool ok2 = analyzer.synthesize_and_route(cfg, sources, err2);
+	assert(!ok2);
+	assert(!err2.empty());
+
+	std::error_code ec;
+	fs::remove_all(tmp_dir, ec);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog();
@@ -1394,6 +1441,7 @@ int main()
 	test_timing_chain_collapsing_and_demangling();
 	test_verilog_pnr_timing_tool();
 	test_verilog_pnr_timing_on_demand();
+	test_pnr_stale_synth_rejection();
 	test_verilog_compile_tool();
 	test_shared_always_ff_disambiguation_and_segments();
 

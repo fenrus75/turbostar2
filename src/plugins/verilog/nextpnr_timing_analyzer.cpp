@@ -903,6 +903,10 @@ bool nextpnr_timing_analyzer::synthesize_and_route(const fpga_target_config &cfg
 	std::string tmp_dir = fs_utils::get_project_tmp_dir();
 	fs::path synth_json = fs::path(tmp_dir) / "pnr_synth.json";
 	fs::path asc_file = fs::path(tmp_dir) / "pnr_out.asc";
+	std::error_code ec_rm;
+	// Remove any prior synthesis/routing outputs so a Yosys failure never falls back to stale artifacts.
+	fs::remove(synth_json, ec_rm);
+	fs::remove(asc_file, ec_rm);
 
 	std::vector<std::string> rtl_sources;
 	for (const auto &s : sources) {
@@ -944,7 +948,9 @@ bool nextpnr_timing_analyzer::synthesize_and_route(const fpga_target_config &cfg
 	}
 
 	std::string y_out = fs_utils::execute_command_sync(yosys_cmd);
-	if (!fs::exists(synth_json)) {
+	bool yosys_has_error = y_out.starts_with("ERROR:") || y_out.find("\nERROR:") != std::string::npos;
+	if (!fs::exists(synth_json) || yosys_has_error) {
+		fs::remove(synth_json, ec_rm);
 		out_error = std::format("Yosys synthesis failed to generate netlist:\n{}", y_out);
 		return false;
 	}
@@ -1037,7 +1043,6 @@ bool nextpnr_timing_analyzer::synthesize_and_route(const fpga_target_config &cfg
 	};
 
 	fs::path seed1_timing = fs::path(tmp_dir) / "pnr_timing_seed1.json";
-	std::error_code ec_rm;
 	fs::remove(seed1_timing, ec_rm);
 
 	auto t_start = std::chrono::steady_clock::now();
