@@ -392,10 +392,20 @@ yosys_netlist_reader::netlist_correlation_tables yosys_netlist_reader::build_cor
 	std::map<std::string, raw_cell_conn> cells_map;
 	std::map<int, std::string> bit_driver_file;
 	std::map<int, std::string> bit_driver_cell;
+	std::map<int, std::string> bit_driver_scope;
+	std::set<std::string> top_output_ports;
 	std::map<int, size_t> bit_sink_counts;
 	std::map<int, std::string> bit_to_dff_d;
 	std::map<int, std::string> bit_to_dff_ctrl;
 	std::map<std::string, int> lut_o_bit;
+
+	if (mod_obj.contains("ports") && mod_obj["ports"].is_object()) {
+		for (const auto &[pname, pdata] : mod_obj["ports"].items()) {
+			if (pdata.is_object() && pdata.value("direction", "") == "output") {
+				top_output_ports.insert(pname);
+			}
+		}
+	}
 
 	if (mod_obj.contains("cells") && mod_obj["cells"].is_object()) {
 		for (const auto &[cname, cdata] : mod_obj["cells"].items()) {
@@ -557,13 +567,26 @@ yosys_netlist_reader::netlist_correlation_tables yosys_netlist_reader::build_cor
 		}
 	}
 
+	// Populate bit_driver_scope from bit_driver_cell
+	for (const auto &[b, cname] : bit_driver_cell) {
+		size_t dot = cname.rfind('.');
+		if (dot != std::string::npos) {
+			bit_driver_scope[b] = cname.substr(0, dot);
+		}
+	}
+
 	// Score equivalence classes of identical bit vectors to build net_alias_map
 	for (const auto &[bvec, indices] : by_bits) {
 		std::set<std::string> drv_files;
+		std::set<std::string> drv_scopes;
 		for (int b : bvec) {
 			auto it = bit_driver_file.find(b);
 			if (it != bit_driver_file.end() && !it->second.empty()) {
 				drv_files.insert(it->second);
+			}
+			auto it_s = bit_driver_scope.find(b);
+			if (it_s != bit_driver_scope.end() && !it_s->second.empty()) {
+				drv_scopes.insert(it_s->second);
 			}
 		}
 		std::map<std::string, size_t> src_raw_counts;
@@ -579,12 +602,16 @@ yosys_netlist_reader::netlist_correlation_tables yosys_netlist_reader::build_cor
 		}
 
 		auto score_cand = [&](const user_net_cand &un) {
-			bool matches_drv = (!un.src_file.empty() && drv_files.contains(un.src_file)) || drv_leaf_names.contains(un.leaf);
+			// Demote top-level output ports (pure sinks like LED) when internal/driver nets exist
+			int out_port_rank = top_output_ports.contains(un.name) ? 1 : 0;
+			bool matches_drv = (!un.src_file.empty() && drv_files.contains(un.src_file)) ||
+			                   drv_leaf_names.contains(un.leaf) ||
+			                   (!un.scope.empty() && drv_scopes.contains(un.scope));
 			int drv_rank = matches_drv ? 0 : 1;
 			// Demote replicated submodule input ports (e.g. A_reg.load_value .. L_reg.load_value sharing identical src_raw)
 			int rep_rank = (!un.src_raw.empty() && src_raw_counts[un.src_raw] > 1) ? 1 : 0;
 			size_t dots = static_cast<size_t>(std::count(un.name.begin(), un.name.end(), '.'));
-			return std::make_tuple(drv_rank, rep_rank, dots, un.name.size(), un.name);
+			return std::make_tuple(out_port_rank, drv_rank, rep_rank, dots, un.name.size(), un.name);
 		};
 
 		size_t best_idx = indices.front();
@@ -606,15 +633,17 @@ yosys_netlist_reader::netlist_correlation_tables yosys_netlist_reader::build_cor
 	// Build per-bit canonical user net map (bit_to_user_net)
 	for (const auto &[b, cands] : bit_to_user_cands) {
 		std::string drv_f = bit_driver_file.contains(b) ? bit_driver_file[b] : "";
+		std::string drv_s = bit_driver_scope.contains(b) ? bit_driver_scope[b] : "";
 		std::map<std::string, size_t> src_raw_counts;
 		for (const auto &c : cands) {
 			if (!c.src_raw.empty()) src_raw_counts[c.src_raw]++;
 		}
 		auto score_bit_cand = [&](const bit_user_cand &c) {
-			int drv_rank = (!drv_f.empty() && c.src_file == drv_f) ? 0 : 1;
+			int out_port_rank = top_output_ports.contains(c.name) ? 1 : 0;
+			int drv_rank = ((!drv_f.empty() && c.src_file == drv_f) || (!drv_s.empty() && c.scope == drv_s)) ? 0 : 1;
 			int rep_rank = (!c.src_raw.empty() && src_raw_counts[c.src_raw] > 1) ? 1 : 0;
 			size_t dots = static_cast<size_t>(std::count(c.name.begin(), c.name.end(), '.'));
-			return std::make_tuple(drv_rank, rep_rank, dots, c.name.size(), c.fmt);
+			return std::make_tuple(out_port_rank, drv_rank, rep_rank, dots, c.name.size(), c.fmt);
 		};
 		auto best_it = std::min_element(cands.begin(), cands.end(), [&](const auto &a, const auto &b_cand) {
 			return score_bit_cand(a) < score_bit_cand(b_cand);

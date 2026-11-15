@@ -1422,6 +1422,72 @@ void test_pnr_stale_synth_rejection()
 	fs::remove_all(tmp_dir, ec);
 }
 
+void test_aliased_net_demotes_top_output_port()
+{
+	using verilog::nextpnr_timing_analyzer;
+	nlohmann::json netlist_json = {
+		{"modules", {
+			{"top", {
+				{"ports", {
+					{"clk", {{"direction", "input"}, {"bits", {2}}}},
+					{"LED", {{"direction", "output"}, {"bits", {10, 11}}}}
+				}},
+				{"cells", {
+					{"cpu.decode.lut_0", {
+						{"type", "SB_LUT4"},
+						{"attributes", {{"src", "/usr/share/yosys/ice40/cells_map.v:10"}}},
+						{"port_directions", {{"I0", "input"}, {"O", "output"}}},
+						{"connections", {{"I0", {3}}, {"O", {10}}}}
+					}},
+					{"cpu.decode.reg_0", {
+						{"type", "SB_DFF"},
+						{"attributes", {{"src", "decode.sv:20"}}},
+						{"port_directions", {{"C", "input"}, {"D", "input"}, {"Q", "output"}}},
+						{"connections", {{"C", {2}}, {"D", {10}}, {"Q", {12}}}}
+					}}
+				}},
+				{"netnames", {
+					{"LED", {
+						{"hide_name", 0},
+						{"bits", {10, 11}},
+						{"attributes", {{"src", "top.sv:3"}}}
+					}},
+					{"cpu.decode.mem_read_data", {
+						{"hide_name", 0},
+						{"bits", {10, 11}},
+						{"attributes", {{"src", "decode.sv:12"}}}
+					}}
+				}}
+			}}
+		}}
+	};
+
+	nlohmann::json timing_json = {
+		{"fmax", {{"clk", {{"achieved", 100.0}, {"constraint", 80.0}}}}},
+		{"utilization", {{"ICESTORM_LC", {{"used", 1}, {"available", 7680}}}}},
+		{"critical_paths", {
+			{
+				{"from", "cpu.decode.lut_0_LC"},
+				{"to", "cpu.decode.reg_0_DFFLC"},
+				{"path", {
+					{{"type", "routing"}, {"delay", 1.2}, {"net", "LED[0]"},
+					 {"from", {{"cell", "cpu.decode.lut_0_LC"}, {"port", "O"}, {"loc", {1, 1}}}},
+					 {"to", {{"cell", "cpu.decode.reg_0_DFFLC"}, {"port", "D"}, {"loc", {1, 2}}}}}
+				}}
+			}
+		}}
+	};
+
+	nextpnr_timing_analyzer analyzer;
+	std::string err;
+	assert(analyzer.load_from_json_strings(timing_json.dump(), netlist_json.dump(), err));
+	const auto &paths = analyzer.critical_paths();
+	assert(paths.size() == 1);
+	assert(!paths[0].hops.empty());
+	// Top-level output port LED must be demoted in favor of internal net cpu.decode.mem_read_data
+	assert(paths[0].hops[0].clean_net == "cpu.decode.mem_read_data[0]");
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog();
@@ -1442,6 +1508,7 @@ int main()
 	test_verilog_pnr_timing_tool();
 	test_verilog_pnr_timing_on_demand();
 	test_pnr_stale_synth_rejection();
+	test_aliased_net_demotes_top_output_port();
 	test_verilog_compile_tool();
 	test_shared_always_ff_disambiguation_and_segments();
 
