@@ -69,8 +69,16 @@ end
 - For bugs, write a failing reproducing test first, then fix the RTL and verify it passes.
 - Run tests with `verilog_simulate()`; passing runs snapshot `.lastpass.vcd` and every run diffs against `.previous.vcd` to isolate the first diverging cycle/signal (use `vcd_compare()` to diff any two VCDs directly).
 
-## Edit process & Tool usage
-- Standard loop: `fs_replace_lines` / `fs_write_file` &rarr; `verilog_compile` (`lint_only=true` for sub-second Verilator check; full run writes `tmp://synthesis.log`) &rarr; `verilog_simulate` &rarr; `verilog_pnr_timing` &rarr; `verilog_update_timing` &rarr; `git_add` / `git_commit`.
+## Edit process
+- Use the dedicated tools for the standard "edit - compile - test - commit" cycle:
+  - `fs_replace_lines` / `fs_write_file` for editing files
+  - `verilog_compile` for syntax checking and synthesis health (use `lint_only=true` for a fast first pass; full log in `tmp://synthesis.log`)
+  - `verilog_simulate` for running the test cases
+  - `verilog_pnr_timing` for validating timing optimizations (if appropriate)
+  - `verilog_update_timing` to update timing annotations in the codebase
+  - `git_add` / `git_commit` to create the git commit
+
+## Tool usage
 - Initial setup: Call `verilog_project_settings()` to set target FPGA, device, package, top module, target frequency, `sv_path="src"`, and optional `yosys_synth_args` / `nextpnr_args` (e.g., `--tmg-ripup`, `--opt-timing`).
 - Waveforms: Use `vcd_signal_qualifier()` to mask invalid bus cycles, `vcd_signal_labels()` to map opcodes/values to names, `vcd_wave(instance=...)` / `vcd_search()` / `vcd_compare()` to inspect traces, and `vcd_signal_to_code()` to trace nets to RTL drivers/sinks.
 
