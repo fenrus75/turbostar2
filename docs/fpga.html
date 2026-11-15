@@ -40,7 +40,7 @@
         Software agents thrive on text diffs and stack traces, but digital hardware lives in clock edges, combinational LUT cones, and gigabyte waveform dumps. Turbostar's <code>verilog</code> tool family bridges the divide—giving LLM agents natural, deterministic primitives for SystemVerilog linting, tiered simulation, cycle-accurate VCD inspection, LUT area &amp; logic depth analysis, and physical place-and-route timing closure.
       </p>
       <div class="cta-group" style="justify-content: flex-start; margin-top: 2rem; margin-bottom: 0;">
-        <a href="#tools" class="btn btn-primary" id="cta-fpga-tools">Explore the 12 Tools</a>
+        <a href="#tools" class="btn btn-primary" id="cta-fpga-tools">Explore the 14 Tools</a>
         <a href="#standalone-cli" class="btn btn-secondary" id="cta-fpga-cli">Standalone Human CLI</a>
         <a href="#quickstart" class="btn btn-secondary" id="cta-fpga-quickstart">Toolchain Setup</a>
       </div>
@@ -189,7 +189,7 @@ Sampled on: `clk` (posedge) | Timescale: 1ps | Rows: 8
       <div class="detail-visual">
         <pre><code><span class="comment"># Tool call: verilog_logic_depth(module="cpu", top_k=2)</span>
 <span class="keyword"># Timing: `cpu` (Target: iCE40)</span>
-Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
+Max Internal Reg -&gt; Reg Depth: 25
 
 <span class="keyword">## Worst Combinational Paths (Grouped by Bottleneck Sink)</span>
 <span class="keyword">Path #1 [Reg -&gt; Reg] Depth: 25 (10 LUTs + 15 carry) -&gt; `H_reg.value`</span>
@@ -229,7 +229,7 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
 <span class="keyword">## Clock Domain &amp; Frequency Timing</span>
 | Clock Domain            | Constraint | Achieved Fmax | Slack     | Status |
 | :---                    | :---:      | :---:         | :---:     | :---:  |
-| `clk$SB_IO_IN_$glb_clk` | 75.00 MHz  | <span class="literal">75.42 MHz</span>     | <span class="literal">+0.074 ns</span>| <span class="type">MET</span>    |
+| `clk$SB_IO_IN_$glb_clk` | 75.00 MHz  | <span class="literal">75.42 MHz</span> (median of 5 seeds: 72.10–77.80 MHz) | <span class="literal">+0.074 ns</span> | <span class="type">MET</span> |
 
 <span class="keyword">## Physical Critical Paths (Grouped by Bottleneck Sink)</span>
 <span class="keyword">### Path #1 [Reg -&gt; Reg] Delay: 13.259 ns</span> (<span class="type">30% logic</span>, <span class="literal">70% routing</span>)
@@ -238,7 +238,7 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
   1. `src/alu8.sv:109` — 1.260 ns (1 LUT) | <span class="literal">`next_flags = flags;`</span>
   2. `src/alu8.sv:178` — 1.974 ns (3 LUTs) | <span class="literal">`{carry, alu_out} = in1_reg - imm8_reg;`</span>
   3. `src/cpu.sv:102`  — 1.589 ns (1 LUT, span: 6 tiles) | <span class="literal">`wire [7:0] hi_val = ... : alu_out;`</span>
-- <span class="keyword">Dominant Routing Bottlenecks</span>:
+- <span class="keyword">Dominant Routing Delays</span>:
   &bull; <span class="literal">1.589 ns</span> routing via `cpu_8080.lo_val` (4 sinks, span: 6 tiles)
 - <span class="keyword">End</span>: `cpu_8080.H_reg.value[6]` (src/register.sv:20-26 | <span class="literal">`value_reg &lt;= load_value;`</span>)</code></pre>
       </div>
@@ -289,10 +289,10 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
       </div>
     </section>
 
-    <!-- Complete 12-Tool Reference Grid -->
+    <!-- Complete 14-Tool Reference Grid -->
     <section class="features-section" id="tools">
       <div class="section-header">
-        <h2 class="section-title">12 Specialized Tools Across the RTL Lifecycle</h2>
+        <h2 class="section-title">14 Specialized Tools Across the RTL Lifecycle</h2>
         <p>Activate the <code>verilog</code> tool family in Turbostar or expose it to any external agent CLI via <code>turbomcp</code>.</p>
       </div>
 
@@ -361,7 +361,7 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
           <h3 class="card-title">Physical Place &amp; Route</h3>
           <p class="card-desc">Post-routing timing closure with physical chip coordinates and routing delay breakdowns.</p>
           <ul class="detail-list" style="margin-bottom: 1rem;">
-            <li><code>verilog_pnr_timing</code>: Full Yosys + <code>nextpnr</code> physical timing analysis reporting Fmax, slack, logic vs. wire delay, fanout, and <code>(dx, dy)</code> tile distance.</li>
+            <li><code>verilog_pnr_timing</code>: Full Yosys + <code>nextpnr</code> physical timing analysis reporting Fmax, slack, logic vs. wire delay, fanout, and tile span.</li>
             <li><code>turbostar-verilog</code>: Unified standalone CLI for project config (<code>config</code>), logic depth, physical PnR (<code>--pnr</code>), batch in-place port annotations (<code>-u</code>), compile/sim, and <code>vcd-*</code> waveform tools with UTF-8 framed terminal tables.</li>
           </ul>
           <a href="turbostar-verilog.html" class="card-link" id="link-card-cli-guide">Getting Started Guide &rarr;</a>
@@ -380,10 +380,10 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
         <div class="detail-info">
           <h3 class="detail-subtitle">1. Install EDA Dependencies &amp; Project Template</h3>
           <p class="detail-text">
-            Install the open-source verification and synthesis tools from your distribution package manager or OSS CAD Suite. Turbostar also ships with a ready-to-use <code>systemverilog</code> project template containing a pre-configured <code>turbostar.json</code> and an agent workflow guide (<code>AGENT.md</code>).
+            Install the open-source verification and synthesis tools from your distribution package manager or OSS CAD Suite. Turbostar also ships with a ready-to-use <code>systemverilog</code> project template containing a pre-configured <code>turbostar.json</code> and an agent workflow guide (<code>AGENTS.md</code>).
           </p>
           <ul class="detail-list">
-            <li><strong>Lint &amp; Simulation:</strong> <code>verilator</code> and <code>iverilog</code> (Icarus Verilog + <code>vvp</code>).</li>
+            <li><strong>Lint &amp; Simulation:</strong> <code>verilator</code>.</li>
             <li><strong>Synthesis &amp; Logic Depth:</strong> <code>yosys</code> (supports generic gate synthesis plus <code>ice40</code>, <code>ecp5</code>, <code>gowin</code>, and <code>xilinx</code> targets).</li>
             <li><strong>Physical Place &amp; Route:</strong> <code>nextpnr-ice40</code>, <code>nextpnr-ecp5</code>, or <code>nextpnr-gowin</code> alongside <code>fpga-icestorm</code> / <code>prjtrellis</code>.</li>
           </ul>
@@ -391,9 +391,8 @@ Max Internal Reg -&gt; Reg Depth: 25 (10 LUTs + 15 carry)
 
         <div class="detail-visual">
           <pre><code><span class="comment"># 1. Install open-source RTL &amp; FPGA tools (Debian/Ubuntu)</span>
-<span class="keyword">sudo</span> apt install yosys verilator iverilog \
+<span class="keyword">sudo</span> apt install yosys verilator \
   nextpnr-ice40 fpga-icestorm
-
 <span class="comment"># 2. Activate in an agent session or via MCP</span>
 <span class="comment"># Call activate_tool_family(name="verilog")</span>
 <span class="comment"># or launch turbomcp with --all-tool-families</span>
