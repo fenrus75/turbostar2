@@ -320,6 +320,10 @@ int main(int argc, char *argv[])
 
 	if (has_colors()) {
 		start_color();
+		if (can_change_color()) {
+			// Red, Green, Blue values are on a scale of 0 to 1000
+			init_color(COLOR_BLUE, 0, 0, 500); // Deeper, darker navy blue
+		}
 		auto bright = [](short c) -> short {
 			return COLORS >= 16 ? static_cast<short>(c + 8) : c;
 		};
