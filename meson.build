@@ -279,6 +279,12 @@ turbostar_verilog_exe = executable('turbostar-verilog',
   dependencies : [verilog_core_dep],
   include_directories: inc,
   install : true)
+
+turbostar_toolcall_watcher_exe = executable('turbostar-toolcall-watcher',
+  ['src/toolcall_watcher/toolcall_watcher_main.cpp', 'src/toolcall_watcher/toolcall_parser.cpp'],
+  dependencies : [base_dep, ncurses_dep, nlohmann_json_dep, thread_dep],
+  include_directories: inc,
+  install : false)
 run_clang_tidy_sh = files('scripts/run_clang_tidy.sh')
 run_target('clang-tidy-critical',
   command: [run_clang_tidy_sh, '--critical', meson.project_build_root()]

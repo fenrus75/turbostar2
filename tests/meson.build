@@ -1185,6 +1185,9 @@ test('unit_markdown_utils', test_markdown_utils, suite: 'editor')
 test_utf8 = executable('test_utf8', ['unit/test_utf8.cpp'], dependencies : [base_dep], include_directories: inc)
 test('unit_utf8', test_utf8, suite: 'editor')
 
+test_toolcall_parser = executable('test_toolcall_parser', ['unit/test_toolcall_parser.cpp', '../src/toolcall_watcher/toolcall_parser.cpp'], dependencies : [base_dep, nlohmann_json_dep], include_directories: inc)
+test('unit_toolcall_parser', test_toolcall_parser, suite: 'unit')
+
 test_mime = executable('test_mime', ['unit/test_mime.cpp'], dependencies : [base_dep], include_directories: inc)
 test('unit_mime', test_mime, suite: 'editor')
 
