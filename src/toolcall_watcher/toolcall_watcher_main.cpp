@@ -310,6 +310,7 @@ int main(int argc, char *argv[])
 	}
 
 	std::setlocale(LC_ALL, "");
+	setenv("ESCDELAY", "25", 1);
 	initscr();
 	cbreak();
 	noecho();
@@ -319,13 +320,16 @@ int main(int argc, char *argv[])
 
 	if (has_colors()) {
 		start_color();
+		auto bright = [](short c) -> short {
+			return COLORS >= 16 ? static_cast<short>(c + 8) : c;
+		};
 		init_pair(kPairTitleBar, COLOR_BLACK, COLOR_WHITE);
 		init_pair(kPairTitleAccent, COLOR_RED, COLOR_WHITE);
-		init_pair(kPairBody, COLOR_WHITE, COLOR_BLUE);
-		init_pair(kPairBold, COLOR_YELLOW, COLOR_BLUE);
-		init_pair(kPairCode, COLOR_CYAN, COLOR_BLUE);
-		init_pair(kPairCodeBlock, COLOR_GREEN, COLOR_BLUE);
-		init_pair(kPairAlert, COLOR_CYAN, COLOR_BLUE);
+		init_pair(kPairBody, bright(COLOR_WHITE), COLOR_BLUE);
+		init_pair(kPairBold, bright(COLOR_YELLOW), COLOR_BLUE);
+		init_pair(kPairCode, bright(COLOR_CYAN), COLOR_BLUE);
+		init_pair(kPairCodeBlock, bright(COLOR_GREEN), COLOR_BLUE);
+		init_pair(kPairAlert, bright(COLOR_CYAN), COLOR_BLUE);
 		bkgd(COLOR_PAIR(kPairBody));
 	}
 
