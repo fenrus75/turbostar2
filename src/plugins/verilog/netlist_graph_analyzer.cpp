@@ -2,6 +2,7 @@
 #include "plugins/verilog/yosys_netlist_reader.h"
 #include "plugins/verilog/nextpnr_timing_analyzer.h"
 #include "fs_utils.h"
+#include "mapped_file.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -1968,23 +1969,25 @@ std::string netlist_graph_analyzer::annotate_verilog_source(std::string_view unt
 bool netlist_graph_analyzer::update_verilog_file_annotations(std::string_view safe_sv_path, size_t &out_ports_annotated, std::string &out_error) const
 {
 	out_ports_annotated = 0;
-	std::filesystem::path p(safe_sv_path);
-	std::ifstream ifs(p, std::ios::binary);
-	if (!ifs.is_open()) {
-		out_error = std::format("Failed to open '{}' for reading", safe_sv_path);
+	std::string err;
+	auto mf = mapped_file::get_cached(safe_sv_path, err, /*populate=*/false);
+	if (!mf) {
+		out_error = std::format("Failed to open '{}' for reading: {}", safe_sv_path, err);
 		return false;
 	}
-	std::string original((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-	ifs.close();
-
-	std::string updated = annotate_verilog_source(original, out_ports_annotated);
-	if (updated != original) {
+	std::string_view original_sv = mf->string_view();
+	std::string updated = annotate_verilog_source(original_sv, out_ports_annotated);
+	if (updated != original_sv) {
+		mf.reset();
+		std::filesystem::path p(safe_sv_path);
 		std::ofstream ofs(p, std::ios::binary | std::ios::trunc);
 		if (!ofs.is_open()) {
 			out_error = std::format("Failed to open '{}' for writing", safe_sv_path);
 			return false;
 		}
 		ofs << updated;
+		ofs.close();
+		mapped_file::notify_changed(safe_sv_path);
 	}
 	return true;
 }

@@ -128,13 +128,13 @@ std::vector<discovered_module> verilog_module_scanner::discover_modules_in_files
 {
 	std::vector<discovered_module> results;
 	for (const auto &fpath : files) {
-		std::ifstream ifs(fpath);
-		if (!ifs.is_open()) {
+		std::string err;
+		auto mf = mapped_file::get_cached(fpath, err, /*populate=*/false);
+		if (!mf) {
 			continue;
 		}
 
-		std::string raw_content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-		std::string clean_content = strip_comments(raw_content);
+		std::string clean_content = strip_comments(mf->string_view());
 
 		const char *start = clean_content.data();
 		const char *end = clean_content.data() + clean_content.size();
@@ -230,12 +230,12 @@ std::vector<std::string> verilog_module_scanner::stage_readmem_files(std::span<c
 	std::error_code ec;
 
 	for (const auto &fpath : source_files) {
-		std::ifstream ifs(fpath);
-		if (!ifs.is_open()) {
+		std::string err;
+		auto mf = mapped_file::get_cached(fpath, err, /*populate=*/false);
+		if (!mf) {
 			continue;
 		}
-		std::string raw_content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-		std::string clean_content = strip_comments(raw_content);
+		std::string clean_content = strip_comments(mf->string_view());
 
 		const char *start = clean_content.data();
 		const char *end = clean_content.data() + clean_content.size();
@@ -305,12 +305,12 @@ std::vector<std::string> verilog_module_scanner::stage_readmem_files(std::span<c
 
 std::string verilog_module_scanner::extract_dumpfile_path(const std::filesystem::path &testbench_file)
 {
-	std::ifstream ifs(testbench_file);
-	if (!ifs.is_open()) {
+	std::string err;
+	auto mf = mapped_file::get_cached(testbench_file.string(), err, /*populate=*/false);
+	if (!mf) {
 		return "";
 	}
-	std::string raw_content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-	std::string clean_content = strip_comments(raw_content);
+	std::string clean_content = strip_comments(mf->string_view());
 
 	auto match = ctre::search<R"re(\$dumpfile\s*\(\s*"([^"]+)"\s*\))re">(clean_content);
 	if (match) {
@@ -498,12 +498,12 @@ std::string verilog_module_scanner::resolve_module_name(std::string_view request
 	};
 
 	for (const auto &fpath : all_sources) {
-		std::ifstream ifs(fpath);
-		if (!ifs.is_open()) {
+		std::string err;
+		auto mf = mapped_file::get_cached(fpath, err, /*populate=*/false);
+		if (!mf) {
 			continue;
 		}
-		std::string raw_content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-		std::string clean_content = strip_comments(raw_content);
+		std::string clean_content = strip_comments(mf->string_view());
 
 		const char *start = clean_content.data();
 		const char *end = clean_content.data() + clean_content.size();

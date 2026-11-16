@@ -1,5 +1,6 @@
 #include "plugins/verilog/yosys_netlist_reader.h"
 #include "fs_utils.h"
+#include "mapped_file.h"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -219,12 +220,15 @@ always_ff_info parse_always_ff_block(std::string_view clean_seg, std::string_vie
 		return info;
 	}
 
-	std::ifstream ifs(resolved_path);
-	std::string line;
-	int cur_line = 0;
-	while (cur_line < eline && std::getline(ifs, line)) {
-		cur_line++;
-		if (cur_line < sline) continue;
+	std::string err;
+	auto mf = mapped_file::get_cached(resolved_path.string(), err, /*populate=*/false);
+	if (!mf) {
+		return info;
+	}
+	auto lines = mf->lines();
+	int max_line = std::min(eline, static_cast<int>(lines.size()));
+	for (int cur_line = std::max(1, sline); cur_line <= max_line; ++cur_line) {
+		std::string line(lines[cur_line - 1]);
 		size_t cmt = line.find("//");
 		if (cmt != std::string::npos) line.resize(cmt);
 
@@ -1078,20 +1082,13 @@ std::string yosys_netlist_reader::extract_source_snippet(std::string_view src_lo
 		return "";
 	}
 
-	std::ifstream ifs(resolved);
-	if (!ifs.is_open()) {
+	std::string err;
+	auto mf = mapped_file::get_cached(resolved.string(), err, /*populate=*/false);
+	if (!mf) {
 		return "";
 	}
 
-	std::vector<std::string> file_lines;
-	std::string raw_line;
-	int max_needed = end_line + std::max(1, max_lines);
-	while (static_cast<int>(file_lines.size()) < max_needed && std::getline(ifs, raw_line)) {
-		if (!raw_line.empty() && raw_line.back() == '\r') {
-			raw_line.pop_back();
-		}
-		file_lines.push_back(std::move(raw_line));
-	}
+	auto file_lines = mf->lines();
 
 	if (start_line > static_cast<int>(file_lines.size())) {
 		return "";
