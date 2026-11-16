@@ -145,8 +145,8 @@ class vcd_parser
 	std::map<std::string, std::map<uint64_t, std::string>> id_transitions_;
 	std::vector<uint64_t> timestamps_;
 
-	void parse_header_tokens(const std::string &content, std::string &out_error);
-	void parse_body_tokens(const std::string &content);
+	void parse_header_tokens(std::string_view content, std::string &out_error);
+	void parse_body_tokens(std::string_view content);
 };
 
 } // namespace verilog

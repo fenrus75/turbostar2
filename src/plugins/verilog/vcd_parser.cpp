@@ -1,4 +1,5 @@
 #include "vcd_parser.h"
+#include "mapped_file.h"
 #include "vcd_label_manager.h"
 #include <algorithm>
 #include <fstream>
@@ -98,23 +99,22 @@ bool wildcard_match(std::string_view pattern, std::string_view text)
 
 bool vcd_parser::parse_header(std::string_view untrusted_path, std::string &out_error)
 {
-	std::ifstream file(std::string(untrusted_path), std::ios::in);
-	if (!file.is_open()) {
+	mapped_file mf;
+	std::string map_err;
+	if (!mf.open(untrusted_path, map_err, /*populate=*/false)) {
 		out_error = std::format("Failed to open VCD file: {}", untrusted_path);
 		return false;
 	}
 
-	std::string content;
-	std::string line;
-	while (std::getline(file, line)) {
-		content.append(line);
-		content.push_back('\n');
-		if (line.find("$enddefinitions") != std::string::npos) {
-			break;
-		}
+	std::string_view full_sv = mf.string_view();
+	size_t enddef_pos = full_sv.find("$enddefinitions");
+	std::string_view header_sv = full_sv;
+	if (enddef_pos != std::string_view::npos) {
+		size_t nl = full_sv.find('\n', enddef_pos);
+		header_sv = (nl != std::string_view::npos) ? full_sv.substr(0, nl + 1) : full_sv;
 	}
 
-	parse_header_tokens(content, out_error);
+	parse_header_tokens(header_sv, out_error);
 	if (!out_error.empty()) {
 		return false;
 	}
@@ -126,15 +126,14 @@ bool vcd_parser::parse_header(std::string_view untrusted_path, std::string &out_
 
 bool vcd_parser::parse_all(std::string_view untrusted_path, std::string &out_error)
 {
-	std::ifstream file(std::string(untrusted_path), std::ios::in);
-	if (!file.is_open()) {
+	mapped_file mf;
+	std::string map_err;
+	if (!mf.open(untrusted_path, map_err, /*populate=*/false)) {
 		out_error = std::format("Failed to open VCD file: {}", untrusted_path);
 		return false;
 	}
 
-	std::stringstream buffer;
-	buffer << file.rdbuf();
-	std::string content = buffer.str();
+	std::string_view content = mf.string_view();
 
 	parse_header_tokens(content, out_error);
 	if (!out_error.empty()) {
@@ -149,14 +148,16 @@ bool vcd_parser::parse_all(std::string_view untrusted_path, std::string &out_err
 	return true;
 }
 
-void vcd_parser::parse_header_tokens(const std::string &content, std::string &/*out_error*/)
+void vcd_parser::parse_header_tokens(std::string_view content, std::string &/*out_error*/)
 {
 	signals_.clear();
 	id_to_signals_.clear();
 	name_to_signal_idx_.clear();
 
 	std::vector<std::string> scope_stack;
-	std::istringstream stream(content);
+	size_t enddef_pos = content.find("$enddefinitions");
+	std::string_view header_slice = (enddef_pos != std::string_view::npos) ? content.substr(0, enddef_pos + 15) : content;
+	std::istringstream stream{std::string(header_slice)};
 	std::string token;
 
 	while (stream >> token) {
@@ -239,7 +240,7 @@ void vcd_parser::parse_header_tokens(const std::string &content, std::string &/*
 	}
 }
 
-void vcd_parser::parse_body_tokens(const std::string &content)
+void vcd_parser::parse_body_tokens(std::string_view content)
 {
 	id_transitions_.clear();
 	timestamps_.clear();

@@ -12,6 +12,7 @@
 #include <sstream>
 #include <vector>
 #include "fs_utils.h"
+#include "mapped_file.h"
 #include "plugins/verilog/fpga_project_settings.h"
 #include "plugins/verilog/verilog_module_scanner.h"
 
@@ -725,11 +726,11 @@ std::string verilog_compile_tool::execute(agentlib::tool_context &ctx)
 				pnr_ok = fs::exists(timing_json) && p_diag.errors.empty();
 
 				if (fs::exists(timing_json)) {
-					std::ifstream ifs(timing_json);
-					if (ifs.is_open()) {
+					mapped_file mf;
+					std::string map_err;
+					if (mf.open(timing_json.string(), map_err, /*populate=*/false)) {
 						try {
-							nlohmann::json tj;
-							ifs >> tj;
+							nlohmann::json tj = nlohmann::json::parse(mf.string_view());
 							if (tj.contains("fmax") && tj["fmax"].is_object()) {
 								for (const auto &[dom, f_obj] : tj["fmax"].items()) {
 									if (f_obj.is_object() && f_obj.contains("achieved") && f_obj["achieved"].is_number()) {

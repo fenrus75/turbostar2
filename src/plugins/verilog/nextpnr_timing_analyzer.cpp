@@ -1,6 +1,7 @@
 #include "plugins/verilog/nextpnr_timing_analyzer.h"
 #include "plugins/verilog/yosys_netlist_reader.h"
 #include "fs_utils.h"
+#include "mapped_file.h"
 
 #include <filesystem>
 #include <fstream>
@@ -18,19 +19,21 @@ namespace fs = std::filesystem;
 bool nextpnr_timing_analyzer::load_from_files(std::string_view timing_json_path, std::string_view netlist_json_path, std::string &out_error)
 {
 	netlist_dir_.clear();
-	std::ifstream t_file{std::string(timing_json_path)};
-	if (!t_file.is_open()) {
+	mapped_file t_mf;
+	std::string map_err;
+	if (!t_mf.open(timing_json_path, map_err, /*populate=*/false)) {
 		out_error = std::format("Failed to open timing report '{}'", timing_json_path);
 		return false;
 	}
 
 	nlohmann::json t_json;
 	try {
-		t_file >> t_json;
+		t_json = nlohmann::json::parse(t_mf.string_view());
 	} catch (const std::exception &e) {
 		out_error = std::format("Error parsing timing JSON in '{}': {}", timing_json_path, e.what());
 		return false;
 	}
+	t_mf.close();
 
 	if (!netlist_json_path.empty()) {
 		fs::path nd = fs::path(netlist_json_path).parent_path();
@@ -38,11 +41,11 @@ bool nextpnr_timing_analyzer::load_from_files(std::string_view timing_json_path,
 			nd = nd.parent_path();
 		}
 		netlist_dir_ = nd.string();
-		std::ifstream n_file{std::string(netlist_json_path)};
-		if (n_file.is_open()) {
+		mapped_file n_mf;
+		std::string n_err;
+		if (n_mf.open(netlist_json_path, n_err, /*populate=*/false)) {
 			try {
-				nlohmann::json n_json;
-				n_file >> n_json;
+				nlohmann::json n_json = nlohmann::json::parse(n_mf.string_view());
 				parse_netlist_json(n_json);
 			} catch (...) {
 			}
@@ -1025,11 +1028,11 @@ bool nextpnr_timing_analyzer::synthesize_and_route(const fpga_target_config &cfg
 	std::vector<seed_run> seed_runs;
 
 	auto parse_seed_fmax = [](int seed, const fs::path &t_path, seed_run &out_run) -> bool {
-		std::ifstream ifs(t_path);
-		if (!ifs.is_open()) return false;
+		mapped_file mf;
+		std::string map_err;
+		if (!mf.open(t_path.string(), map_err, /*populate=*/false)) return false;
 		try {
-			nlohmann::json j;
-			ifs >> j;
+			nlohmann::json j = nlohmann::json::parse(mf.string_view());
 			out_run.seed = seed;
 			out_run.timing_path = t_path;
 			if (j.contains("fmax") && j["fmax"].is_object()) {

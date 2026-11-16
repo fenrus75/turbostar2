@@ -146,14 +146,15 @@ bool netlist_graph_analyzer::load_from_file(std::string_view untrusted_path, std
 	auto abs_p = std::filesystem::absolute(safe_path, ec);
 	netlist_dir_ = (!ec && abs_p.has_parent_path()) ? abs_p.parent_path().string() : std::filesystem::path(safe_path).parent_path().string();
 
-	std::ifstream f(safe_path);
-	if (!f.is_open()) {
+	mapped_file mf;
+	std::string map_err;
+	if (!mf.open(safe_path, map_err, /*populate=*/false)) {
 		out_error = std::format("Failed to open file: {}", safe_path);
 		return false;
 	}
 
 	try {
-		nlohmann::json j = nlohmann::json::parse(f);
+		nlohmann::json j = nlohmann::json::parse(mf.string_view());
 		return load_from_json(j, out_error, module_name);
 	} catch (const std::exception &ex) {
 		out_error = std::format("JSON parse error in {}: {}", safe_path, ex.what());

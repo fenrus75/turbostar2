@@ -1361,15 +1361,15 @@ std::string yosys_netlist_reader::clean_src_location(std::string_view raw_src)
 
 bool yosys_netlist_reader::load_from_file(std::string_view netlist_path, std::string &out_error)
 {
-	std::ifstream file{std::string(netlist_path)};
-	if (!file.is_open()) {
+	mapped_file mf;
+	std::string map_err;
+	if (!mf.open(netlist_path, map_err, /*populate=*/false)) {
 		out_error = std::format("Failed to open netlist file: {}", netlist_path);
 		return false;
 	}
 
 	try {
-		nlohmann::json j;
-		file >> j;
+		nlohmann::json j = nlohmann::json::parse(mf.string_view());
 
 		if (!j.contains("modules") || !j["modules"].is_object()) {
 			out_error = "Invalid Yosys netlist: missing 'modules' object";

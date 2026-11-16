@@ -12,6 +12,8 @@
 #include <thread>
 #include <vector>
 #include "fs_utils.h"
+#include "mapped_file.h"
+#include <cstring>
 #include "plugins/verilog/fpga_project_settings.h"
 #include "plugins/verilog/vcd_compare_tool.h"
 #include "plugins/verilog/vcd_parser.h"
@@ -429,18 +431,18 @@ tb_run_outcome run_compiled_testbench(
 
 	bool had_prior_lastpass = expects_vcd && fs::exists(vcd_lastpass_full_path, ec) && fs::is_regular_file(vcd_lastpass_full_path, ec);
 	auto files_byte_identical = [](const fs::path &a, const fs::path &b) -> bool {
-		std::error_code f_ec;
-		if (fs::file_size(a, f_ec) != fs::file_size(b, f_ec) || f_ec) {
+		mapped_file mf_a;
+		mapped_file mf_b;
+		std::string err_a;
+		std::string err_b;
+		if (!mf_a.open(a.string(), err_a, /*populate=*/false) ||
+		    !mf_b.open(b.string(), err_b, /*populate=*/false)) {
 			return false;
 		}
-		std::ifstream fa(a, std::ios::binary);
-		std::ifstream fb(b, std::ios::binary);
-		if (!fa.is_open() || !fb.is_open()) {
+		if (mf_a.size() != mf_b.size()) {
 			return false;
 		}
-		return std::equal(std::istreambuf_iterator<char>(fa.rdbuf()),
-		                  std::istreambuf_iterator<char>(),
-		                  std::istreambuf_iterator<char>(fb.rdbuf()));
+		return mf_a.empty() || std::memcmp(mf_a.data(), mf_b.data(), mf_a.size()) == 0;
 	};
 	bool prev_differs_from_lastpass = saved_previous && had_prior_lastpass &&
 	                                  !files_byte_identical(vcd_prev_full_path, vcd_lastpass_full_path);
