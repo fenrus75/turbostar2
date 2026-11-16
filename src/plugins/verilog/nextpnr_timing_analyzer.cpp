@@ -21,7 +21,7 @@ bool nextpnr_timing_analyzer::load_from_files(std::string_view timing_json_path,
 	netlist_dir_.clear();
 	mapped_file t_mf;
 	std::string map_err;
-	if (!t_mf.open(timing_json_path, map_err, /*populate=*/false)) {
+	if (!t_mf.open(timing_json_path, map_err, /*populate=*/true)) {
 		out_error = std::format("Failed to open timing report '{}'", timing_json_path);
 		return false;
 	}
@@ -43,7 +43,7 @@ bool nextpnr_timing_analyzer::load_from_files(std::string_view timing_json_path,
 		netlist_dir_ = nd.string();
 		mapped_file n_mf;
 		std::string n_err;
-		if (n_mf.open(netlist_json_path, n_err, /*populate=*/false)) {
+		if (n_mf.open(netlist_json_path, n_err, /*populate=*/true)) {
 			try {
 				nlohmann::json n_json = nlohmann::json::parse(n_mf.string_view());
 				parse_netlist_json(n_json);
@@ -1030,7 +1030,7 @@ bool nextpnr_timing_analyzer::synthesize_and_route(const fpga_target_config &cfg
 	auto parse_seed_fmax = [](int seed, const fs::path &t_path, seed_run &out_run) -> bool {
 		mapped_file mf;
 		std::string map_err;
-		if (!mf.open(t_path.string(), map_err, /*populate=*/false)) return false;
+		if (!mf.open(t_path.string(), map_err, /*populate=*/true)) return false;
 		try {
 			nlohmann::json j = nlohmann::json::parse(mf.string_view());
 			out_run.seed = seed;

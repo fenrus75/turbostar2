@@ -435,8 +435,8 @@ tb_run_outcome run_compiled_testbench(
 		mapped_file mf_b;
 		std::string err_a;
 		std::string err_b;
-		if (!mf_a.open(a.string(), err_a, /*populate=*/false) ||
-		    !mf_b.open(b.string(), err_b, /*populate=*/false)) {
+		if (!mf_a.open(a.string(), err_a, /*populate=*/true) ||
+		    !mf_b.open(b.string(), err_b, /*populate=*/true)) {
 			return false;
 		}
 		if (mf_a.size() != mf_b.size()) {

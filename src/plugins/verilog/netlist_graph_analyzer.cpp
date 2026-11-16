@@ -148,7 +148,7 @@ bool netlist_graph_analyzer::load_from_file(std::string_view untrusted_path, std
 
 	mapped_file mf;
 	std::string map_err;
-	if (!mf.open(safe_path, map_err, /*populate=*/false)) {
+	if (!mf.open(safe_path, map_err, /*populate=*/true)) {
 		out_error = std::format("Failed to open file: {}", safe_path);
 		return false;
 	}

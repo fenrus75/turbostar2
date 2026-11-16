@@ -1363,7 +1363,7 @@ bool yosys_netlist_reader::load_from_file(std::string_view netlist_path, std::st
 {
 	mapped_file mf;
 	std::string map_err;
-	if (!mf.open(netlist_path, map_err, /*populate=*/false)) {
+	if (!mf.open(netlist_path, map_err, /*populate=*/true)) {
 		out_error = std::format("Failed to open netlist file: {}", netlist_path);
 		return false;
 	}

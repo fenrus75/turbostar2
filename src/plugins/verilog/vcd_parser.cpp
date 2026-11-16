@@ -128,7 +128,7 @@ bool vcd_parser::parse_all(std::string_view untrusted_path, std::string &out_err
 {
 	mapped_file mf;
 	std::string map_err;
-	if (!mf.open(untrusted_path, map_err, /*populate=*/false)) {
+	if (!mf.open(untrusted_path, map_err, /*populate=*/true)) {
 		out_error = std::format("Failed to open VCD file: {}", untrusted_path);
 		return false;
 	}

@@ -728,7 +728,7 @@ std::string verilog_compile_tool::execute(agentlib::tool_context &ctx)
 				if (fs::exists(timing_json)) {
 					mapped_file mf;
 					std::string map_err;
-					if (mf.open(timing_json.string(), map_err, /*populate=*/false)) {
+					if (mf.open(timing_json.string(), map_err, /*populate=*/true)) {
 						try {
 							nlohmann::json tj = nlohmann::json::parse(mf.string_view());
 							if (tj.contains("fmax") && tj["fmax"].is_object()) {
