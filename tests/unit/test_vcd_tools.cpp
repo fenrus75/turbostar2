@@ -2004,7 +2004,27 @@ int main()
 			{"level", "extreme"}
 		};
 		assert(cfg_val.validate_args(cfg3, mctx, err) && err.empty());
-		cfg_val.create_tool(cfg3)->execute(mctx);
+		std::string cfg3_out = cfg_val.create_tool(cfg3)->execute(mctx);
+		assert(cfg3_out.find("`tb/tb_cpu_extreme.sv`") != std::string::npos);
+
+		// Filtering by Modules shows only matching testbenches, while no-arg list shows all
+		nlohmann::json cfg_filter_alu = {
+			{"testbench", "tb/tb_alu.sv"},
+			{"modules", nlohmann::json::array({"alu_mod"})},
+			{"level", "quick"}
+		};
+		assert(cfg_val.validate_args(cfg_filter_alu, mctx, err) && err.empty());
+		std::string filter_alu_out = cfg_val.create_tool(cfg_filter_alu)->execute(mctx);
+		assert(filter_alu_out.find("`tb/tb_alu.sv`") != std::string::npos);
+		assert(filter_alu_out.find("`tb/tb_cpu.sv`") == std::string::npos);
+		assert(filter_alu_out.find("showing 2 of 3; call with no `Modules` to list all") != std::string::npos);
+
+		nlohmann::json cfg_list_all = nlohmann::json::object();
+		assert(cfg_val.validate_args(cfg_list_all, mctx, err) && err.empty());
+		std::string list_all_out = cfg_val.create_tool(cfg_list_all)->execute(mctx);
+		assert(list_all_out.find("`tb/tb_alu.sv`") != std::string::npos);
+		assert(list_all_out.find("`tb/tb_cpu.sv`") != std::string::npos);
+		assert(list_all_out.find("showing ") == std::string::npos);
 
 		// Test removing alu_mod from tb_cpu_extreme.sv while keeping cpu_mod
 		nlohmann::json cfg_rem_one = {

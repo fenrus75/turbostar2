@@ -308,12 +308,17 @@ std::string verilog_configure_testbench_tool::execute(agentlib::tool_context &ct
 		ss << std::format("- **Modules with Default `hierarchical=true`**: {}\n", hm_str);
 	}
 
-	ss << "\n#### Configured Testbenches\n";
+	const bool filter_by_modules = !resolved_modules.empty();
+	std::set<std::string> filter_mod_set(resolved_modules.begin(), resolved_modules.end());
+	std::string target_tb_rel = args_.requested_testbench.empty()
+		? ""
+		: normalize_tb_rel(args_.safe_testbench.empty() ? args_.requested_testbench : args_.safe_testbench);
+
 	if (entries.empty()) {
+		ss << "\n#### Configured Testbenches\n";
 		ss << "*No testbenches explicitly configured in `turbostar.json`.*\n";
 	} else {
-		ss << "| Testbench | Associated Modules | Level | `$dumpfile` VCD |\n";
-		ss << "| :--- | :--- | :--- | :--- |\n";
+		std::vector<std::string> rendered_rows;
 		for (const auto &e : entries) {
 			std::string rel_tb = normalize_tb_rel(e.testbench);
 			configured_rels.insert(rel_tb);
@@ -325,6 +330,20 @@ std::string verilog_configure_testbench_tool::execute(agentlib::tool_context &ct
 			if (exists_on_disk && !raw_dump.empty()) {
 				dumpfile_to_tbs[raw_dump].push_back(rel_tb);
 			}
+
+			bool matches_filter = !filter_by_modules || (!target_tb_rel.empty() && rel_tb == target_tb_rel);
+			if (!matches_filter) {
+				for (const auto &m : e.modules) {
+					if (filter_mod_set.contains(m)) {
+						matches_filter = true;
+						break;
+					}
+				}
+			}
+			if (!matches_filter) {
+				continue;
+			}
+
 			std::string dump_display = !exists_on_disk
 				? "*(missing file)*"
 				: (raw_dump.empty() ? "*(none)*" : std::format("`{}`", raw_dump));
@@ -339,7 +358,24 @@ std::string verilog_configure_testbench_tool::execute(agentlib::tool_context &ct
 			if (mods_str.empty()) {
 				mods_str = "*none*";
 			}
-			ss << std::format("| `{}` | {} | `{}` | {} |\n", rel_tb, mods_str, e.level, dump_display);
+			rendered_rows.push_back(std::format("| `{}` | {} | `{}` | {} |\n", rel_tb, mods_str, e.level, dump_display));
+		}
+
+		if (filter_by_modules && rendered_rows.size() < entries.size()) {
+			ss << std::format("\n#### Configured Testbenches (showing {} of {}; call with no `Modules` to list all)\n",
+					  rendered_rows.size(), entries.size());
+		} else {
+			ss << "\n#### Configured Testbenches\n";
+		}
+
+		if (rendered_rows.empty()) {
+			ss << "*No testbenches configured for the requested module(s).*\n";
+		} else {
+			ss << "| Testbench | Associated Modules | Level | `$dumpfile` VCD |\n";
+			ss << "| :--- | :--- | :--- | :--- |\n";
+			for (const auto &row : rendered_rows) {
+				ss << row;
+			}
 		}
 	}
 
@@ -356,12 +392,25 @@ std::string verilog_configure_testbench_tool::execute(agentlib::tool_context &ct
 	}
 
 	if (!unconfigured_tbs.empty()) {
-		ss << "\n#### Unconfigured Workspace Testbenches (Auto-Discovered)\n";
-		ss << "| Testbench | Auto-Detected Instantiated Modules | `$dumpfile` VCD |\n";
-		ss << "| :--- | :--- | :--- |\n";
+		std::vector<std::string> unconf_rows;
 		for (const auto &dtb : unconfigured_tbs) {
 			std::string rel_tb = normalize_tb_rel(dtb);
 			auto auto_mods = verilog::verilog_module_scanner::discover_instantiated_modules(dtb, rtl_files);
+			if (filter_by_modules) {
+				bool matches_filter = (!target_tb_rel.empty() && rel_tb == target_tb_rel);
+				if (!matches_filter) {
+					for (const auto &am : auto_mods) {
+						if (filter_mod_set.contains(am)) {
+							matches_filter = true;
+							break;
+						}
+					}
+				}
+				if (!matches_filter) {
+					continue;
+				}
+			}
+
 			std::string mods_str;
 			for (size_t i = 0; i < auto_mods.size(); ++i) {
 				if (i > 0) {
@@ -374,7 +423,16 @@ std::string verilog_configure_testbench_tool::execute(agentlib::tool_context &ct
 			}
 			std::string dump_path = verilog::verilog_module_scanner::extract_dumpfile_path(dtb);
 			std::string dump_display = dump_path.empty() ? "*(none)*" : std::format("`{}`", dump_path);
-			ss << std::format("| `{}` | {} | {} |\n", rel_tb, mods_str, dump_display);
+			unconf_rows.push_back(std::format("| `{}` | {} | {} |\n", rel_tb, mods_str, dump_display));
+		}
+
+		if (!unconf_rows.empty()) {
+			ss << "\n#### Unconfigured Workspace Testbenches (Auto-Discovered)\n";
+			ss << "| Testbench | Auto-Detected Instantiated Modules | `$dumpfile` VCD |\n";
+			ss << "| :--- | :--- | :--- |\n";
+			for (const auto &row : unconf_rows) {
+				ss << row;
+			}
 		}
 	}
 
