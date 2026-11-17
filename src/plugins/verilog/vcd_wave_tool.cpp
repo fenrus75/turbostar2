@@ -4,6 +4,7 @@
 #include "vcd_label_manager.h"
 #include "plugins/verilog/fpga_project_settings.h"
 #include "plugins/verilog/verilog_module_scanner.h"
+#include "plugins/verilog/vcd_protocol_analyzer.h"
 #include <format>
 #include <sstream>
 #include <fstream>
@@ -310,6 +311,18 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 
 	// Rows
 	auto &label_mgr = verilog::vcd_label_manager::get_instance();
+	verilog::vcd_protocol_analyzer proto_analyzer;
+	auto proto_report = proto_analyzer.analyze(parser);
+	std::map<std::pair<size_t, std::string>, std::vector<const verilog::protocol_violation *>> violation_map;
+	for (const auto &iface : proto_report.interfaces) {
+		for (const auto &v : iface.violations) {
+			for (const auto &vsig : v.signals) {
+				violation_map[{v.cycle, vsig}].push_back(&v);
+			}
+		}
+	}
+	std::vector<const verilog::protocol_violation *> shown_violations;
+	std::set<const verilog::protocol_violation *> seen_shown;
 
 	for (const auto &sample : samples) {
 		if (sample.collapsed_count > 0) {
@@ -353,10 +366,27 @@ std::string vcd_wave_tool::execute(agentlib::tool_context &ctx)
 			if (!label.empty()) {
 				val = std::format("{} ({})", val, label);
 			}
+			auto v_it = violation_map.find({sample.tick, std::string(lookup_sig)});
+			if (v_it != violation_map.end()) {
+				val += " (!)";
+				for (const auto *v : v_it->second) {
+					if (seen_shown.insert(v).second) {
+						shown_violations.push_back(v);
+					}
+				}
+			}
 
 			ss << std::format("| {} ", val);
 		}
 		ss << "|\n";
+	}
+
+	if (!shown_violations.empty()) {
+		ss << "\n> [!WARNING] **`(!)` Protocol Violations in Displayed Window**:\n";
+		for (const auto *v : shown_violations) {
+			ss << std::format("> - **{}** (`{}` on `{}` at tick {}): {}\n",
+					  v->rule_id, v->protocol, v->interface_name, v->cycle, v->description);
+		}
 	}
 
 	// Append expanded shorthand signal mappings if any

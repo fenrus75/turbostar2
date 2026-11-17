@@ -5,6 +5,8 @@
 #include "plugins/verilog/vcd_file_info_validator.h"
 #include "plugins/verilog/vcd_parser.h"
 #include "plugins/verilog/vcd_protocol_analyzer.h"
+#include "plugins/verilog/vcd_wave_tool.h"
+#include "plugins/verilog/vcd_wave_validator.h"
 #include "test_watchdog.h"
 
 #include <cassert>
@@ -267,6 +269,13 @@ b00 p
 	std::string cmp_out = cmp_val.create_tool(cmp_args)->execute(ctx);
 	assert(cmp_out.find("Protocol Violation(s) in File B Near Divergence") != std::string::npos);
 	assert(cmp_out.find("AXI_ORPHAN_BVALID") != std::string::npos);
+
+	tools::vcd_wave_validator wave_val;
+	nlohmann::json wave_args = {{"path", bad_path}, {"signals", nlohmann::json::array({"s_axi_bvalid", "s_axi_bready"})}};
+	assert(wave_val.validate_args(wave_args, ctx, err));
+	std::string wave_out = wave_val.create_tool(wave_args)->execute(ctx);
+	assert(wave_out.find("1 (!)") != std::string::npos);
+	assert(wave_out.find("`(!)` Protocol Violations in Displayed Window") != std::string::npos);
 }
 
 void test_axi4_burst_wlast(const std::filesystem::path &dir)
