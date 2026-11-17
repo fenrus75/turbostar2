@@ -209,7 +209,7 @@ tb_compile_result compile_single_testbench(
 	}
 
 	std::string compile_cmd = std::format(
-		"cd {} && CCACHE_DISABLE=1 OBJCACHE= verilator --binary --build-jobs {} --timing --trace --timescale 1ns/1ps -Wno-TIMESCALEMOD --Mdir {} --top-module {}",
+		"cd {} && CCACHE_DISABLE=1 OBJCACHE= verilator --binary --assert --build-jobs {} --timing --trace --timescale 1ns/1ps -Wno-TIMESCALEMOD --Mdir {} --top-module {}",
 		fs_utils::escape_shell_arg(project_root),
 		std::max<size_t>(1, build_jobs),
 		fs_utils::escape_shell_arg(res.mdir.string()),
