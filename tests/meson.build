@@ -180,6 +180,12 @@ test_vcd_tools = executable('test_vcd_tools',
   include_directories: inc)
 test('unit_vcd_tools', test_vcd_tools, suite: 'plugins', workdir: meson.project_source_root(), timeout: 90)
 
+test_vcd_protocol_analyzer = executable('test_vcd_protocol_analyzer',
+  ['unit/test_vcd_protocol_analyzer.cpp'],
+  dependencies : [verilog_core_dep],
+  include_directories: inc)
+test('unit_vcd_protocol_analyzer', test_vcd_protocol_analyzer, suite: 'plugins')
+
 test_netlist_graph_analyzer = executable('test_netlist_graph_analyzer',
   ['unit/test_netlist_graph_analyzer.cpp'],
   dependencies : [verilog_core_dep],

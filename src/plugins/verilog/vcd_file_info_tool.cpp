@@ -2,6 +2,8 @@
 #include "vcd_parser.h"
 #include "vcd_parser_cache.h"
 #include "vcd_label_manager.h"
+#include "plugins/verilog/fpga_project_settings.h"
+#include "plugins/verilog/vcd_protocol_analyzer.h"
 #include <format>
 #include <sstream>
 
@@ -90,7 +92,18 @@ std::string vcd_file_info_tool::execute(agentlib::tool_context &ctx)
 		}
 		ss << "\n";
 	}
+	verilog::vcd_protocol_analyzer proto_analyzer;
+	auto proto_report = proto_analyzer.analyze(parser);
+	if (!proto_report.interfaces.empty()) {
+		ss << std::format("- **Detected Protocols**: {}\n",
+				  verilog::vcd_protocol_analyzer::format_interfaces_summary(proto_report));
+	}
 	ss << "\n";
+	if (proto_report.total_violations() > 0) {
+		ss << verilog::vcd_protocol_analyzer::format_violations_markdown(
+			proto_report, args_.requested_path, verilog::fpga_project_settings::is_cli_mode())
+		   << "\n";
+	}
 
 	// Filter signals
 	auto filtered = parser.filter_signals(args_.scope, args_.filter);

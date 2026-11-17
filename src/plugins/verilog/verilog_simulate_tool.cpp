@@ -18,6 +18,7 @@
 #include "plugins/verilog/vcd_compare_tool.h"
 #include "plugins/verilog/vcd_parser.h"
 #include "plugins/verilog/vcd_parser_cache.h"
+#include "plugins/verilog/vcd_protocol_analyzer.h"
 #include "plugins/verilog/verilog_module_scanner.h"
 #include <ctre.hpp>
 
@@ -552,6 +553,13 @@ tb_run_outcome run_compiled_testbench(
 			ss << std::format("- **Total Signals**: {} across {} hierarchy scope(s)\n",
 			                  signals.size(), scopes.size());
 
+			verilog::vcd_protocol_analyzer proto_analyzer;
+			auto proto_report = proto_analyzer.analyze(parser);
+			if (!proto_report.interfaces.empty()) {
+				ss << std::format("- **Detected Protocols**: {}\n",
+						  verilog::vcd_protocol_analyzer::format_interfaces_summary(proto_report));
+			}
+
 			auto format_cmp_bullet = [&](std::string_view label, std::string_view ref_rel, const vcd_compare_tool::quick_compare_summary &cmp) {
 				if (!cmp.ok) {
 					return;
@@ -606,6 +614,9 @@ tb_run_outcome run_compiled_testbench(
 			}
 
 			const bool is_cli = verilog::fpga_project_settings::is_cli_mode();
+			if (proto_report.total_violations() > 0) {
+				ss << "\n" << verilog::vcd_protocol_analyzer::format_violations_markdown(proto_report, dump_rel, is_cli);
+			}
 			ss << "\n#### Next Steps\n";
 			if (is_cli) {
 				ss << std::format("- Run `turbostar-verilog vcd-info {} --scope {}` to inspect signals and hierarchy.\n",

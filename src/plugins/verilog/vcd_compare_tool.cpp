@@ -3,6 +3,7 @@
 #include "vcd_parser_cache.h"
 #include "vcd_label_manager.h"
 #include "plugins/verilog/fpga_project_settings.h"
+#include "plugins/verilog/vcd_protocol_analyzer.h"
 #include <format>
 #include <sstream>
 #include <algorithm>
@@ -379,6 +380,20 @@ std::string vcd_compare_tool::execute(agentlib::tool_context &ctx)
 	if (!unique_a.empty() || !unique_b.empty()) {
 		ss << std::format("> [!NOTE] {} signal(s) unique to File A and {} unique to File B were omitted from comparison.\n\n",
 		                  unique_a.size(), unique_b.size());
+	}
+
+	verilog::vcd_protocol_analyzer proto_analyzer;
+	auto proto_b = proto_analyzer.analyze(parser_b);
+	auto near_b = verilog::vcd_protocol_analyzer::find_violations_near_tick(proto_b, first_div.tick, 5);
+	if (!near_b.empty()) {
+		ss << std::format("> [!WARNING] **Protocol Violation(s) in File B Near Divergence (Tick {})**\n",
+				  first_div.tick);
+		for (size_t i = 0; i < std::min(near_b.size(), size_t(3)); ++i) {
+			const auto *v = near_b[i];
+			ss << std::format("> - **{}** (`{}` on `{}` at tick {}): {}\n",
+					  v->rule_id, v->protocol, v->interface_name, v->cycle, v->description);
+		}
+		ss << "\n";
 	}
 
 	ss << std::format("#### Divergent Signals at First Divergence (Tick {}):\n", first_div.tick);
