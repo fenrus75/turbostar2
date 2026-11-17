@@ -488,7 +488,7 @@ int main(int argc, char **argv)
 	plugin_loader::get_instance().unload_all_plugins();
 
 	// Print interactive event response latency metrics
-	main_editor.print_latency_report();
+//	main_editor.print_latency_report();
 
 	// Print recorded session errors summary if any occurred
 	event_logger::get_instance().print_exit_error_report();
@@ -505,4 +505,3 @@ int main(int argc, char **argv)
 	logger.clear_all();
 	return 0;
 }
-
