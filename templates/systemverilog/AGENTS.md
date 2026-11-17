@@ -34,7 +34,15 @@ Limit the use of SystemVerilog language constructs to those supported by both `y
 - Use the `_q` suffix when one signal is a one-cycle delayed version of another signal, `_q2` for two cycles and so on.
 - Use the `_n` suffix convention for active-low signals
 - Reset polarity: Pick one reset polarity (rst or rst_n) for the whole design
-- When using tristates (`inout` / `z`), detect multi-driver collisions in simulation with `always_comb assert (!en || bus === val);` (supported cleanly by both `verilator --assert` and `yosys` without `` `ifndef SYNTHESIS ``)
+- When using tristates (`inout` / `'z`), detect multi-driver collisions in simulation with an assertion (supported cleanly by both `verilator --assert` and `yosys` without `` `ifndef SYNTHESIS ``):
+```systemverilog
+assign bus = en ? val : 'z;
+always_comb begin
+	if (en) begin
+		assert (bus === val);
+	end
+end
+```
 
 
 ## Guidelines for high frequency designs (non-normative)
