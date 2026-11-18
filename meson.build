@@ -275,7 +275,7 @@ turbostar_semcode_indexer_exe = executable('turbostar-semcode-indexer',
   install : true)
 
 turbostar_verilog_exe = executable('turbostar-verilog',
-  'src/verilog_update_timing_main.cpp',
+  'src/verilog_cli_tool_main.cpp',
   dependencies : [verilog_core_dep],
   include_directories: inc,
   install : true)

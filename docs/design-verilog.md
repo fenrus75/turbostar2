@@ -72,7 +72,7 @@ The `verilog` plugin (`src/plugins/verilog/`) and standalone CLI (`turbostar-ver
 
 ## 6. Standalone Unified CLI (`turbostar-verilog`)
 
-- **Unified Terminal & CI Utility (`src/verilog_update_timing_main.cpp`, `libverilog_core`)**:
+- **Unified Terminal & CI Utility (`src/verilog_cli_tool_main.cpp`, `libverilog_core`)**:
   - Packages the entire Verilog, FPGA timing, and VCD waveform toolset into a standalone binary (`turbostar-verilog`) usable in developer terminals, Makefiles, and CI pipelines without launching the TUI or MCP server:
     1. **Project & Testbench Configuration (`config`)**: `turbostar-verilog config [--target ice40 --device hx8k --package cb132 --top main --freq 80 --pcf pins.pcf --sv-path sv] [--scan] [--tb tb/tb_alu.sv]`
     2. **Timing Analysis (`timing` or default top-level mode)**:
