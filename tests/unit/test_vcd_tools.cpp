@@ -22,6 +22,7 @@
 #include "plugins/verilog/verilog_simulate_validator.h"
 #include "plugins/verilog/verilog_configure_testbench_tool.h"
 #include "plugins/verilog/verilog_configure_testbench_validator.h"
+#include "plugins/verilog/verilog_project_map_validator.h"
 #include "plugins/verilog/verilog_module_scanner.h"
 #include "plugins/verilog/fpga_project_settings.h"
 #include "agentlib/tool_context.h"
@@ -2521,6 +2522,25 @@ int main()
 	std::filesystem::remove("tests/fixtures/test_dump_mutated.vcd.qualifiers.json");
 	std::filesystem::remove("tests/fixtures/vcd_labels.json");
 	std::filesystem::remove("vcd_labels.json");
+
+	// 27. Test verilog_project_map on examples/test8080
+	{
+		agentlib::tool_context map_ctx;
+		map_ctx.fs_security.set_working_directory("examples/test8080");
+		tools::verilog_project_map_validator map_val;
+		assert(map_val.is_pure());
+		std::string map_err;
+		nlohmann::json map_args = nlohmann::json::object();
+		assert(map_val.validate_args(map_args, map_ctx, map_err));
+		std::string map_out = map_val.create_tool(map_args)->execute(map_ctx);
+		assert(map_out.find("### Verilog Project Map") != std::string::npos);
+		assert(map_out.find("#### Module Hierarchy") != std::string::npos);
+		assert(map_out.find("top (") != std::string::npos);
+		assert(map_out.find("cpu (") != std::string::npos);
+		assert(map_out.find("alu8 (") != std::string::npos);
+		assert(map_out.find("#### RTL Source Directories") != std::string::npos);
+		assert(map_out.find("#### Testbench Directories") != std::string::npos);
+	}
 
 	std::cout << "All VCD unit tests passed!\n";
 	return 0;

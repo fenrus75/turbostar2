@@ -33,6 +33,8 @@ void register_verilog_update_timing(void);
 void unregister_verilog_update_timing(void);
 void register_verilog_project_settings(void);
 void unregister_verilog_project_settings(void);
+void register_verilog_project_map(void);
+void unregister_verilog_project_map(void);
 void register_verilog_pnr_timing(void);
 void unregister_verilog_pnr_timing(void);
 void register_verilog_simulate(void);
@@ -56,6 +58,7 @@ void plugin_run(void)
 	register_verilog_logic_depth();
 	register_verilog_update_timing();
 	register_verilog_project_settings();
+	register_verilog_project_map();
 	register_verilog_pnr_timing();
 	register_verilog_simulate();
 	register_verilog_configure_testbench();
@@ -74,6 +77,8 @@ void plugin_run(void)
 Tools in this family assist in SystemVerilog/Verilog RTL development, FPGA synthesis & place-and-route, simulation verification, timing closure, and waveform analysis.
 
 #### 1. Standard Edit – Compile – Test – Commit Workflow
+- **Get Started (`verilog_project_map`)**:
+  Call `verilog_project_map()` first on an unfamiliar project to see the module instantiation tree, RTL/testbench subdirectories, and testbench coverage so you know which files to inspect with `fs_read_lines()`.
 - **Initial Setup (`verilog_project_settings`, `verilog_configure_testbench`)**:
   Configure target FPGA hardware (`target`, `device`, `package`, `top_module`, `freq_mhz`, and optional `sv_path` — auto-detected from `src/`, `sv/`, `rtl/`, or project root) and associate testbenches with RTL modules (`modules`, `level="quick"|"comprehensive"|"extreme"`, and optional per-module `hierarchical=true` default) in `turbostar.json`.
 - **Compile & Health Check (`verilog_compile`)**:
@@ -124,6 +129,7 @@ void plugin_unload(void)
 	unregister_verilog_logic_depth();
 	unregister_verilog_update_timing();
 	unregister_verilog_project_settings();
+	unregister_verilog_project_map();
 	unregister_verilog_pnr_timing();
 	unregister_verilog_simulate();
 	unregister_verilog_configure_testbench();
