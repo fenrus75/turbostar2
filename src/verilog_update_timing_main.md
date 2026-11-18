@@ -1,13 +1,14 @@
 # turbostar-verilog
 
 `turbostar-verilog` is the unified standalone SystemVerilog, FPGA & VCD CLI utility that exposes the entire `verilog` plugin toolset directly in the developer terminal, Makefiles, and CI pipelines:
-1. **`config`**: Inspects or updates FPGA hardware settings and testbench associations in `turbostar.json` (`verilog_project_settings`, `verilog_configure_testbench`).
-2. **`timing` (or default top-level mode)**:
+1. **`map` (`project-map`)**: Maps the RTL module instantiation hierarchy, subdirectories, and testbench coverage (`verilog_project_map`).
+2. **`config`**: Inspects or updates FPGA hardware settings and testbench associations in `turbostar.json` (`verilog_project_settings`, `verilog_configure_testbench`).
+3. **`timing` (or default top-level mode)**:
    - **Logic Depth Mode (default)**: Runs Yosys synthesis + `netlist_graph_analyzer` for a module (`-m <module>`) and prints Input/Output logic layer tables, Top-$K$ critical combinational paths with inline RTL code (`-c, --show-code`), and the Area Summary.
    - **Physical Place & Route Mode (`--pnr`)**: Runs `nextpnr_timing_analyzer` (on-demand Yosys + multi-seed `nextpnr` or pre-generated `--timing-report`) and prints $F_{\max}$, slack, critical path segments (`--segments`), logic vs. wire delay breakdown, tile Manhattan distance `(dx, dy)`, and inline RTL code snippets.
    - **Batch Update Mode (`-u, --update` or `-d, --dry-run`)**: Scans workspace Verilog/SystemVerilog files, synthesizes all discovered modules, and updates in-place `// [timing: ...]` port annotations in `.sv`/`.v` source files.
-3. **`compile` & `sim`**: Hierarchy-scoped Verilator lint + Yosys synthesis + `nextpnr` triage (`verilog_compile`) and parallel tiered testbench simulation (`verilog_simulate`).
-4. **`vcd-info`, `vcd-wave`, `vcd-search`, `vcd-compare`, `vcd-trace`, `vcd-labels`, `vcd-qualifier`**: Clock-aligned VCD waveform tables, synchronous condition search, cycle-accurate VCD trace diffing, RTL driver/load traceability, and symbolic enum/value labels and validity qualifiers.
+4. **`compile` & `sim`**: Hierarchy-scoped Verilator lint + Yosys synthesis + `nextpnr` triage (`verilog_compile`) and parallel tiered testbench simulation (`verilog_simulate`).
+5. **`vcd-info`, `vcd-wave`, `vcd-search`, `vcd-compare`, `vcd-trace`, `vcd-labels`, `vcd-qualifier`**: Clock-aligned VCD waveform tables, synchronous condition search, cycle-accurate VCD trace diffing, RTL driver/load traceability, and symbolic enum/value labels and validity qualifiers.
 
 ## Goals & Constraints
 

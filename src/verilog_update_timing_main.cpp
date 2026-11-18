@@ -3,6 +3,7 @@
 #include "plugins/verilog/verilog_module_scanner.h"
 #include "plugins/verilog/fpga_project_settings.h"
 #include "plugins/verilog/verilog_project_settings_validator.h"
+#include "plugins/verilog/verilog_project_map_validator.h"
 #include "plugins/verilog/verilog_configure_testbench_validator.h"
 #include "plugins/verilog/verilog_compile_validator.h"
 #include "plugins/verilog/verilog_simulate_validator.h"
@@ -521,6 +522,15 @@ int main(int argc, char **argv)
 	sub_config->add_flag("--remove-tb", cfg_tb_remove, "Remove testbench association specified by --tb");
 	sub_config->add_flag("--list-tb", cfg_tb_list, "List configured and auto-discovered testbenches");
 
+	// Subcommand: map / project-map (verilog_project_map)
+	auto *sub_map = app.add_subcommand("map", "Map RTL module instantiation hierarchy, subdirectories, and testbench coverage");
+	sub_map->alias("project-map");
+	sub_map->fallthrough();
+	std::string map_module;
+	int map_max_depth = 0;
+	sub_map->add_option("module,-m,--module", map_module, "Optional root module name to map (default: top_module)");
+	sub_map->add_option("--max-depth", map_max_depth, "Maximum hierarchy depth to display (default: 16)");
+
 	// Subcommand: compile (verilog_compile)
 	auto *sub_compile = app.add_subcommand("compile", "Compile and verify RTL with Verilator lint, Yosys synthesis, and nextpnr");
 	sub_compile->fallthrough();
@@ -724,6 +734,13 @@ int main(int argc, char **argv)
 			if (tb_rc != 0) rc = tb_rc;
 		}
 		return rc;
+	}
+
+	if (*sub_map) {
+		nlohmann::json j = nlohmann::json::object();
+		if (!map_module.empty()) j["module"] = map_module;
+		if (map_max_depth > 0) j["max_depth"] = map_max_depth;
+		return run_validator_tool<tools::verilog_project_map_validator>(j, cwd_str, framed_tables);
 	}
 
 	if (*sub_compile) {

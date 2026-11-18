@@ -1033,6 +1033,11 @@ Tools in this family assist in digital ASIC and FPGA hardware engineering, simul
 *   **Arguments:**
     *   `path` *(string, optional)*: Directory path to scan for Verilog modules (defaults to `sv_path` from project settings, or auto-detected `sv/`, `rtl/`, `src/`).
     *   `target` *(string, optional)*: Synthesis target mode (`"Generic LUT4"`, `"Generic LUT6"`, `"Generic Gates"`, or `"iCE40"`). Defaults to project target architecture or `"Generic LUT4"`.
+### `verilog_project_map` (Family: `verilog`)
+*   **Description:** Maps a Verilog/SystemVerilog project's module instantiation hierarchy, RTL/testbench subdirectories, and testbench coverage in one fast read-only pass (no Yosys/Verilator invocations). Ideal as the first step when exploring a project.
+*   **Arguments:**
+    *   `module` *(string, optional)*: Root module name to map. Defaults to `top_module` from `turbostar.json` or auto-detected root modules.
+    *   `max_depth` *(integer, optional)*: Maximum hierarchy depth to display (default: `16`).
 ### `verilog_project_settings` (Family: `verilog`)
 *   **Description:** Inspects or updates FPGA hardware project configuration (persisted in `turbostar.json` or `project.json`). When called without parameters or with `action='get'`, reports current settings, detected EDA tools (`nextpnr-ice40`, `nextpnr-generic`, `yosys`), discovered `.pcf` pin constraint files, and missing parameter guidance. When called with configuration parameters or `action='set'`, updates and saves the project settings.
 *   **Arguments:**
