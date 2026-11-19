@@ -2540,6 +2540,22 @@ int main()
 		assert(map_out.find("alu8 (") != std::string::npos);
 		assert(map_out.find("A_reg") != std::string::npos);
 		assert(map_out.find(": register (") != std::string::npos);
+		assert(map_out.find("L) [tb: 1q") != std::string::npos);
+		assert(map_out.find("`top.sv`") != std::string::npos);
+
+		// Verify max_depth=1 hides deeper children cleanly without falsely marking them uninstantiated
+		nlohmann::json depth_args = {{"max_depth", 1}};
+		assert(map_val.validate_args(depth_args, map_ctx, map_err));
+		std::string depth_out = map_val.create_tool(depth_args)->execute(map_ctx);
+		assert(depth_out.find("hidden by max_depth=1") != std::string::npos);
+		assert(depth_out.find("Uninstantiated / Standalone RTL Modules") == std::string::npos);
+
+		// Verify module="cpu" scopes cleanly without marking top/dipswitch/ram uninstantiated
+		nlohmann::json cpu_args = {{"module", "cpu"}};
+		assert(map_val.validate_args(cpu_args, map_ctx, map_err));
+		std::string cpu_out = map_val.create_tool(cpu_args)->execute(map_ctx);
+		assert(cpu_out.find("cpu (src/cpu.sv") != std::string::npos);
+		assert(cpu_out.find("Uninstantiated / Standalone RTL Modules") == std::string::npos);
 		assert(map_out.find("#### RTL Source Directories") != std::string::npos);
 		assert(map_out.find("#### Testbench Directories") != std::string::npos);
 	}
