@@ -7,6 +7,7 @@
 #include <format>
 #include <map>
 #include <set>
+#include <span>
 #include <sstream>
 #include <vector>
 
@@ -63,17 +64,17 @@ std::string verilog_project_map_tool::execute(agentlib::tool_context &ctx)
 	std::vector<verilog::discovered_module> discovered = verilog::verilog_module_scanner::discover_modules_in_files(rtl_files);
 
 	std::map<std::string, std::string> mod_to_rel_file;
-	std::map<std::string, std::vector<std::string>> mod_children;
+	std::map<std::string, std::vector<verilog::discovered_instantiation>> mod_children;
 	std::set<std::string> instantiated_anywhere;
 
 	for (const auto &dm : discovered) {
 		if (!mod_to_rel_file.contains(dm.module_name)) {
 			mod_to_rel_file[dm.module_name] = to_rel(dm.source_file);
 		}
-		auto children = verilog::verilog_module_scanner::discover_instantiated_modules(dm.source_file, rtl_files);
+		auto children = verilog::verilog_module_scanner::discover_instantiations(dm.source_file, rtl_files);
 		for (const auto &ch : children) {
-			if (ch != dm.module_name) {
-				instantiated_anywhere.insert(ch);
+			if (ch.module_name != dm.module_name) {
+				instantiated_anywhere.insert(ch.module_name);
 			}
 		}
 		mod_children[dm.module_name] = std::move(children);
@@ -139,27 +140,36 @@ std::string verilog_project_map_tool::execute(agentlib::tool_context &ctx)
 	std::set<std::string> visited_global;
 	if (!roots.empty()) {
 		ss << "#### Module Hierarchy\n```text\n";
-		auto format_node_label = [&](std::string_view mod_name, size_t count) -> std::string {
+		auto format_node_label = [&](std::string_view mod_name, std::span<const std::string> inst_names) -> std::string {
 			auto fit = mod_to_rel_file.find(std::string(mod_name));
 			std::string file_str = (fit != mod_to_rel_file.end()) ? fit->second : "?";
 			size_t tb_cnt = mod_tb_counts[std::string(mod_name)];
 			std::string tb_str = (tb_cnt > 0) ? std::format("tb: {}", tb_cnt) : "no tb";
-			if (count > 1) {
-				return std::format("{} x{} ({}) [{}]", mod_name, count, file_str, tb_str);
+			if (inst_names.empty()) {
+				return std::format("{} ({}) [{}]", mod_name, file_str, tb_str);
 			}
-			return std::format("{} ({}) [{}]", mod_name, file_str, tb_str);
+			std::string inst_str;
+			size_t show_n = std::min(inst_names.size(), size_t(8));
+			for (size_t i = 0; i < show_n; ++i) {
+				if (i > 0) inst_str += ", ";
+				inst_str += inst_names[i];
+			}
+			if (inst_names.size() > show_n) {
+				inst_str += std::format(", +{} more", inst_names.size() - show_n);
+			}
+			return std::format("{} : {} ({}) [{}]", inst_str, mod_name, file_str, tb_str);
 		};
 
 		auto print_tree = [&](auto &self,
 				      const std::string &mod_name,
+				      std::span<const std::string> inst_names,
 				      const std::string &prefix,
 				      bool is_last,
 				      bool is_root,
-				      size_t repeat_count,
 				      int depth,
 				      std::set<std::string> &path_stack) -> void {
 			visited_global.insert(mod_name);
-			std::string label = format_node_label(mod_name, repeat_count);
+			std::string label = format_node_label(mod_name, inst_names);
 			if (is_root) {
 				ss << label << "\n";
 			} else {
@@ -174,19 +184,30 @@ std::string verilog_project_map_tool::execute(agentlib::tool_context &ctx)
 				return;
 			}
 
-			// Collapse duplicate child module instantiations within the same parent
-			std::vector<std::pair<std::string, size_t>> grouped;
-			std::map<std::string, size_t> pos_map;
+			// Collapse multiple instantiations of the same leaf module into one line with all instance names;
+			// expand non-leaf modules per instance so each subtree stays clear.
+			struct child_group {
+				std::string mod_name;
+				std::vector<std::string> inst_names;
+			};
+			std::vector<child_group> grouped;
+			std::map<std::string, size_t> leaf_pos_map;
 			for (const auto &ch : cit->second) {
-				if (ch == mod_name || !mod_to_rel_file.contains(ch)) {
+				if (ch.module_name == mod_name || !mod_to_rel_file.contains(ch.module_name)) {
 					continue;
 				}
-				auto pit = pos_map.find(ch);
-				if (pit == pos_map.end()) {
-					pos_map[ch] = grouped.size();
-					grouped.emplace_back(ch, 1);
+				auto ch_cit = mod_children.find(ch.module_name);
+				bool is_leaf = (ch_cit == mod_children.end() || ch_cit->second.empty());
+				if (is_leaf) {
+					auto pit = leaf_pos_map.find(ch.module_name);
+					if (pit == leaf_pos_map.end()) {
+						leaf_pos_map[ch.module_name] = grouped.size();
+						grouped.push_back({ch.module_name, {ch.instance_name}});
+					} else {
+						grouped[pit->second].inst_names.push_back(ch.instance_name);
+					}
 				} else {
-					grouped[pit->second].second++;
+					grouped.push_back({ch.module_name, {ch.instance_name}});
 				}
 			}
 
@@ -194,15 +215,15 @@ std::string verilog_project_map_tool::execute(agentlib::tool_context &ctx)
 			std::string child_prefix = is_root ? "" : (prefix + (is_last ? "    " : "│   "));
 			for (size_t i = 0; i < grouped.size(); ++i) {
 				bool last_child = (i + 1 == grouped.size());
-				self(self, grouped[i].first, child_prefix, last_child, false,
-				     grouped[i].second, depth + 1, path_stack);
+				self(self, grouped[i].mod_name, grouped[i].inst_names, child_prefix, last_child, false,
+				     depth + 1, path_stack);
 			}
 			path_stack.erase(mod_name);
 		};
 
 		for (const auto &r : roots) {
 			std::set<std::string> path_stack;
-			print_tree(print_tree, r, "", true, true, 1, 0, path_stack);
+			print_tree(print_tree, r, {}, "", true, true, 0, path_stack);
 		}
 		ss << "```\n\n";
 	}

@@ -2538,6 +2538,8 @@ int main()
 		assert(map_out.find("top (") != std::string::npos);
 		assert(map_out.find("cpu (") != std::string::npos);
 		assert(map_out.find("alu8 (") != std::string::npos);
+		assert(map_out.find("A_reg") != std::string::npos);
+		assert(map_out.find(": register (") != std::string::npos);
 		assert(map_out.find("#### RTL Source Directories") != std::string::npos);
 		assert(map_out.find("#### Testbench Directories") != std::string::npos);
 	}

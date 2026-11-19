@@ -21,6 +21,14 @@ struct discovered_module {
 };
 
 /**
+ * @brief Information about a direct module instantiation inside a Verilog/SystemVerilog file.
+ */
+struct discovered_instantiation {
+	std::string module_name;
+	std::string instance_name;
+};
+
+/**
  * @brief Information about a declared input/output/inout port of a Verilog/SystemVerilog module.
  */
 struct module_port_info {
@@ -137,6 +145,13 @@ public:
 	 */
 	static std::vector<std::string> discover_instantiated_modules(const std::filesystem::path &source_file,
 	                                                              std::span<const std::string> all_rtl_sources);
+
+	/**
+	 * @brief Scans a Verilog/SystemVerilog source or testbench file and returns all direct
+	 *        module instantiations ({module_name, instance_name}) in source order.
+	 */
+	static std::vector<discovered_instantiation> discover_instantiations(const std::filesystem::path &source_file,
+	                                                                     std::span<const std::string> all_rtl_sources);
 
 	/**
 	 * @brief Resolves the transitive submodule hierarchy rooted at root_module across all_rtl_sources

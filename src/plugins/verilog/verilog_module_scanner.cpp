@@ -1114,7 +1114,7 @@ std::map<std::string, std::map<std::string, std::string>> verilog_module_scanner
 namespace
 {
 
-std::vector<std::string> extract_instantiated_mods_from_text(std::string_view raw_text,
+std::vector<discovered_instantiation> extract_instantiated_mods_from_text(std::string_view raw_text,
                                                              const std::set<std::string> &known_mods,
                                                              std::string_view self_mod,
                                                              bool prefer_dut_instance = false)
@@ -1150,6 +1150,7 @@ std::vector<std::string> extract_instantiated_mods_from_text(std::string_view ra
 	struct hit_entry {
 		size_t offset;
 		std::string mod_type;
+		std::string inst_name;
 		bool is_dut;
 	};
 	std::vector<hit_entry> hits;
@@ -1167,7 +1168,7 @@ std::vector<std::string> extract_instantiated_mods_from_text(std::string_view ra
 		std::string inst_name = match.get<2>().to_string();
 		if (mod_type != self_mod && known_mods.contains(mod_type) && is_valid_sv_identifier(inst_name)) {
 			bool is_dut = is_dut_inst_name(inst_name);
-			hits.push_back({static_cast<size_t>(match.data() - base), std::move(mod_type), is_dut});
+			hits.push_back({static_cast<size_t>(match.data() - base), std::move(mod_type), std::move(inst_name), is_dut});
 		}
 		start = match.data() + match.size();
 	}
@@ -1182,7 +1183,7 @@ std::vector<std::string> extract_instantiated_mods_from_text(std::string_view ra
 		std::string inst_name = match.get<2>().to_string();
 		if (mod_type != self_mod && known_mods.contains(mod_type) && is_valid_sv_identifier(inst_name)) {
 			bool is_dut = is_dut_inst_name(inst_name);
-			hits.push_back({static_cast<size_t>(match.data() - base), std::move(mod_type), is_dut});
+			hits.push_back({static_cast<size_t>(match.data() - base), std::move(mod_type), std::move(inst_name), is_dut});
 		}
 		start = match.data() + match.size();
 	}
@@ -1201,14 +1202,14 @@ std::vector<std::string> extract_instantiated_mods_from_text(std::string_view ra
 		}
 	}
 
-	std::vector<std::string> ordered;
-	std::set<std::string> seen;
+	std::vector<discovered_instantiation> ordered;
+	std::set<std::pair<std::string, std::string>> seen;
 	for (auto &h : hits) {
 		if (has_explicit_dut && !h.is_dut) {
 			continue;
 		}
-		if (seen.insert(h.mod_type).second) {
-			ordered.push_back(std::move(h.mod_type));
+		if (seen.emplace(h.mod_type, h.inst_name).second) {
+			ordered.push_back({std::move(h.mod_type), std::move(h.inst_name)});
 		}
 	}
 	return ordered;
@@ -1216,8 +1217,8 @@ std::vector<std::string> extract_instantiated_mods_from_text(std::string_view ra
 
 } // namespace
 
-std::vector<std::string> verilog_module_scanner::discover_instantiated_modules(const std::filesystem::path &source_file,
-                                                                               std::span<const std::string> all_rtl_sources)
+std::vector<discovered_instantiation> verilog_module_scanner::discover_instantiations(const std::filesystem::path &source_file,
+                                                                                      std::span<const std::string> all_rtl_sources)
 {
 	auto all_mods = discover_modules_in_files(all_rtl_sources);
 	std::set<std::string> known_mods;
@@ -1249,17 +1250,31 @@ std::vector<std::string> verilog_module_scanner::discover_instantiated_modules(c
 	std::string clean = strip_comments(raw_sv);
 	auto spans = find_module_spans(clean);
 	if (spans.empty()) {
-		return extract_instantiated_mods_from_text(clean, known_mods, "", prefer_dut);
+		auto hits = extract_instantiated_mods_from_text(clean, known_mods, "", prefer_dut);
+		return hits;
 	}
 
-	std::vector<std::string> result;
-	std::set<std::string> seen;
+	std::vector<discovered_instantiation> result;
+	std::set<std::pair<std::string, std::string>> seen;
 	for (const auto &ms : spans) {
 		std::string_view body = std::string_view(clean).substr(ms.header_end_pos, ms.end_pos - ms.header_end_pos);
 		for (auto &sub : extract_instantiated_mods_from_text(body, known_mods, ms.name, prefer_dut)) {
-			if (seen.insert(sub).second) {
+			if (seen.emplace(sub.module_name, sub.instance_name).second) {
 				result.push_back(std::move(sub));
 			}
+		}
+	}
+	return result;
+}
+
+std::vector<std::string> verilog_module_scanner::discover_instantiated_modules(const std::filesystem::path &source_file,
+                                                                               std::span<const std::string> all_rtl_sources)
+{
+	std::vector<std::string> result;
+	std::set<std::string> seen;
+	for (auto &inst : discover_instantiations(source_file, all_rtl_sources)) {
+		if (seen.insert(inst.module_name).second) {
+			result.push_back(std::move(inst.module_name));
 		}
 	}
 	return result;
@@ -1295,8 +1310,8 @@ std::vector<std::string> verilog_module_scanner::discover_submodule_hierarchy(st
 			auto subs = extract_instantiated_mods_from_text(body, known_mods, ms.name);
 			auto &vec = children_map[ms.name];
 			for (auto &s : subs) {
-				if (std::find(vec.begin(), vec.end(), s) == vec.end()) {
-					vec.push_back(std::move(s));
+				if (std::find(vec.begin(), vec.end(), s.module_name) == vec.end()) {
+					vec.push_back(std::move(s.module_name));
 				}
 			}
 		}
