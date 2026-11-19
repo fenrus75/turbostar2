@@ -25,3 +25,4 @@ assets/
 subprojects/lsp-framework/
 .semcode.db/
 examples/
+tests/unit/tmp_verilog_compile*
