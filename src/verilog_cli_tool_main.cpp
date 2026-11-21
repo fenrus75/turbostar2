@@ -4,6 +4,7 @@
 #include "plugins/verilog/fpga_project_settings.h"
 #include "plugins/verilog/verilog_project_settings_validator.h"
 #include "plugins/verilog/verilog_project_map_validator.h"
+#include "plugins/verilog/gridcad_scene_exporter.h"
 #include "plugins/verilog/verilog_configure_testbench_validator.h"
 #include "plugins/verilog/verilog_compile_validator.h"
 #include "plugins/verilog/verilog_simulate_validator.h"
@@ -531,6 +532,15 @@ int main(int argc, char **argv)
 	sub_map->add_option("module,-m,--module", map_module, "Optional root module name to map (default: top_module)");
 	sub_map->add_option("--max-depth", map_max_depth, "Maximum hierarchy depth to display (default: 16)");
 
+	// Subcommand: gridcad-export (experimental gridcad scene JSON export)
+	auto *sub_gridcad = app.add_subcommand("gridcad-export", "Export module(s) via Yosys techmap/Liberty to gridcad scene JSON");
+	sub_gridcad->fallthrough();
+	std::string gc_module, gc_out;
+	bool gc_shallow = false;
+	sub_gridcad->add_option("module,-m,--module", gc_module, "Target RTL module name (default: top_module)");
+	sub_gridcad->add_option("-o,--output", gc_out, "Output JSON file path (default: gridcad_scene.json)");
+	sub_gridcad->add_flag("--shallow", gc_shallow, "Export only the target module without bundling descendant submodules");
+
 	// Subcommand: compile (verilog_compile)
 	auto *sub_compile = app.add_subcommand("compile", "Compile and verify RTL with Verilator lint, Yosys synthesis, and nextpnr");
 	sub_compile->fallthrough();
@@ -741,6 +751,17 @@ int main(int argc, char **argv)
 		if (!map_module.empty()) j["module"] = map_module;
 		if (map_max_depth > 0) j["max_depth"] = map_max_depth;
 		return run_validator_tool<tools::verilog_project_map_validator>(j, cwd_str, framed_tables);
+	}
+
+	if (*sub_gridcad) {
+		std::string out_p = gc_out.empty() ? "gridcad_scene.json" : gc_out;
+		std::string err;
+		if (!verilog::gridcad_scene_exporter::export_module_to_file(cwd_str, gc_module, out_p, err, !gc_shallow)) {
+			std::cerr << err << "\n";
+			return 1;
+		}
+		std::cout << std::format("Exported gridcad scene JSON to {}\n", out_p);
+		return 0;
 	}
 
 	if (*sub_compile) {
