@@ -459,14 +459,47 @@ std::string read_range_src(const fs::path &root_path, std::string_view cleaned_s
 	bool truncated = (clamped_end - start_line + 1) > kMaxSrcLines;
 	int show_end = truncated ? (start_line + kMaxSrcLines - 1) : clamped_end;
 
+	// Dedent by the longest common leading whitespace prefix across non-empty lines
+	// so single-line snippets trim cleanly while multi-line blocks preserve relative indentation.
+	std::string common_prefix;
+	bool has_non_empty = false;
+	for (int ln = start_line; ln <= show_end; ++ln) {
+		std::string_view sv = lines[static_cast<size_t>(ln) - 1];
+		size_t indent = 0;
+		while (indent < sv.size() && (sv[indent] == ' ' || sv[indent] == '\t')) {
+			++indent;
+		}
+		if (indent == sv.size()) {
+			continue; // blank/whitespace-only line
+		}
+		std::string_view ws = sv.substr(0, indent);
+		if (!has_non_empty) {
+			common_prefix = std::string(ws);
+			has_non_empty = true;
+		} else {
+			size_t match = 0;
+			while (match < common_prefix.size() && match < ws.size() && common_prefix[match] == ws[match]) {
+				++match;
+			}
+			common_prefix.resize(match);
+		}
+	}
+
 	std::string out;
 	for (int ln = start_line; ln <= show_end; ++ln) {
 		if (ln > start_line) {
 			out.push_back('\n');
 		}
 		std::string_view sv = lines[static_cast<size_t>(ln) - 1];
-		while (!sv.empty() && (sv.front() == ' ' || sv.front() == '\t')) {
-			sv.remove_prefix(1);
+		size_t indent = 0;
+		while (indent < sv.size() && (sv[indent] == ' ' || sv[indent] == '\t')) {
+			++indent;
+		}
+		if (indent == sv.size()) {
+			continue;
+		}
+		if (!common_prefix.empty() && sv.starts_with(common_prefix)) {
+			sv.remove_prefix(common_prefix.size());
 		}
 		out.append(sv);
 	}
