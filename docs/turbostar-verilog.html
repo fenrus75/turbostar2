@@ -539,6 +539,44 @@ Sampled on: `tb_main.clk` (posedge) | Timescale: 1ps | Total Rows: 13
       </div>
     </section>
 
+    <!-- Step 9: Interactive Schematic & Waveform Visualization (gridcad-export) -->
+    <section class="detail-full" id="step-gridcad">
+      <div class="detail-info">
+        <span class="step-badge">Step 9 &bull; Interactive Schematic &amp; VCD Replay (<code>gridcad-export</code>)</span>
+        <h2 class="detail-subtitle">Visualize Synthesized Hierarchy &amp; Step Through Simulations Clock-by-Clock</h2>
+        <p class="detail-text">
+          Once you write or refine SystemVerilog inside TurboStar&mdash;or generate and verify it through TurboStar&rsquo;s Verilog and MCP tools&mdash;you can export the entire module hierarchy for visual inspection in <strong>GridCad</strong>. <code>turbostar-verilog gridcad-export</code> synthesizes the design with Yosys into word-level registers, muxes, priority muxes, adders/subtractors, comparators, reductions, memories, and multi-output LUT8 truth tables while preserving module boundaries, named signals, enum label tables, and source-line provenance.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Hierarchical &amp; Word-Level Export:</strong> Preserves submodules and multi-bit buses end-to-end (with automatic <code>gridcad_slice</code>, <code>gridcad_split</code>, and <code>gridcad_concat</code> wiring) so schematics stay readable instead of flattening to raw gates.</li>
+          <li><strong>Clock-by-Clock VCD Replay:</strong> Load the exported JSON alongside your <code>sim</code> VCD trace to scrub through every clock tick and watch every signal, bus probe, and register value update live across the hierarchy.</li>
+          <li><strong>RTL Source Provenance on Hover:</strong> Every component carries its originating <code>file:line</code> and Verilog snippet (<code>src</code> / <code>src_verilog</code>), so hovering over a block in GridCad shows the exact SystemVerilog line behind it.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <pre><code><span class="comment"># Export the top module and all descendant submodules to a GridCad scene JSON:</span>
+<span class="comment">$ turbostar-verilog gridcad-export -m top -o top.json</span>
+Exported gridcad scene JSON to top.json
+
+<span class="comment"># Or export a single module without bundling submodules:</span>
+<span class="comment">$ turbostar-verilog gridcad-export -m register16 --shallow -o register16.json</span></code></pre>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 1.25rem;">
+          <figure style="margin: 0;">
+            <img src="assets/gridcad-rtl.png" alt="register16.sv edited in TurboStar with inline timing annotations" style="width: 100%; border-radius: 6px; border: 1px solid rgba(255,255,255,0.12);">
+            <figcaption style="margin-top: 0.4rem; font-size: 0.85rem; opacity: 0.85;">1. Author &amp; annotate RTL (<code>register16.sv</code>) in TurboStar.</figcaption>
+          </figure>
+          <figure style="margin: 0;">
+            <img src="assets/gridcad-wave-1.png" alt="register16 schematic in GridCad replaying VCD at Tick 12" style="width: 100%; border-radius: 6px; border: 1px solid rgba(255,255,255,0.12);">
+            <figcaption style="margin-top: 0.4rem; font-size: 0.85rem; opacity: 0.85;">2. Inspect the synthesized schematic &amp; bus probes at Tick 12.</figcaption>
+          </figure>
+          <figure style="margin: 0;">
+            <img src="assets/gridcad-wave-2.png" alt="register16 schematic in GridCad stepping to Tick 16 with Verilog source provenance" style="width: 100%; border-radius: 6px; border: 1px solid rgba(255,255,255,0.12);">
+            <figcaption style="margin-top: 0.4rem; font-size: 0.85rem; opacity: 0.85;">3. Step clock-by-clock (Tick 16) &amp; hover blocks for Verilog source.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
     <!-- Subcommand Quick Reference Table -->
     <section class="features-section" id="cli-reference" style="padding-top: 2rem;">
       <div class="section-header">
@@ -610,6 +648,11 @@ Sampled on: `tb_main.clk` (posedge) | Timescale: 1ps | Total Rows: 13
               <td><code>vcd-qualifier</code></td>
               <td><code>[vcd]</code>, <code>-s, --signal</code>, <code>-q, --qualifier</code>, <code>-b, --bindings</code>, <code>--list</code>, <code>--clear</code></td>
               <td>Bind enable/valid strobe signals to buses so inactive cycles are masked as <code>-</code> in <code>vcd-wave</code> and ignored in <code>vcd-search</code>.</td>
+            </tr>
+            <tr>
+              <td><code>gridcad-export</code></td>
+              <td><code>[module]</code>, <code>-m, --module</code>, <code>-o, --output</code>, <code>--shallow</code></td>
+              <td>Synthesize module(s) via Yosys into a hierarchical GridCad scene JSON with <code>vcd_signal</code> bindings, enum label tables, and Verilog source provenance.</td>
             </tr>
           </tbody>
         </table>
