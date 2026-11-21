@@ -293,6 +293,25 @@ Max Internal Reg -&gt; Reg Depth: 25
       </div>
     </section>
 
+    <!-- Feature 7: Interactive Schematic & Waveform Replay (GridCad) -->
+    <section class="detail-split" id="gridcad-visualization">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">Interactive Schematic &amp; Live Waveform Replay</h2>
+        <p class="detail-text">
+          Text-based timing tables and VCD dumps are fast for triage, but sometimes you want to <em>see</em> the circuit. <code>turbostar-verilog gridcad-export</code> synthesizes your SystemVerilog hierarchy into a clean word-level schematic for <strong>GridCad</strong>&mdash;preserving submodules, multi-bit buses, FSM label tables, and Verilog source-line provenance.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Word-Level Clarity:</strong> Maps registers, muxes, priority muxes, adders, comparators, reductions, memories, and multi-output LUT8 truth tables without flattening the hierarchy into a sea of 1-bit gates.</li>
+          <li><strong>Clock-by-Clock VCD Replay:</strong> Pair the exported schematic with any <code>sim</code> VCD trace to scrub through cycles and watch live bus values, register states, and control signals propagate across the design.</li>
+          <li><strong>RTL Source Provenance:</strong> Every block retains its originating <code>file:line</code> and SystemVerilog snippet so you can trace visual hardware straight back to TurboStar.</li>
+        </ul>
+        <a href="turbostar-verilog.html#step-gridcad" class="btn btn-primary" id="btn-gridcad-guide">See the GridCad Export Workflow &rarr;</a>
+      </div>
+      <div class="detail-visual" style="padding: 0.75rem;">
+        <img src="assets/gridcad-wave-1.png" alt="register16 synthesized schematic in GridCad with live VCD waveform replay" style="width: 100%; display: block; border-radius: 6px; border: 1px solid rgba(255,255,255,0.12);">
+      </div>
+    </section>
+
     <!-- Complete 14-Tool Reference Grid -->
     <section class="features-section" id="tools">
       <div class="section-header">
