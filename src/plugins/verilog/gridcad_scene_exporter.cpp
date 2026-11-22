@@ -2,6 +2,7 @@
 #include "fs_utils.h"
 #include "mapped_file.h"
 #include "plugins/verilog/fpga_project_settings.h"
+#include "plugins/verilog/nextpnr_timing_analyzer.h"
 #include "plugins/verilog/vcd_label_manager.h"
 #include "plugins/verilog/verilog_module_scanner.h"
 #include "plugins/verilog/yosys_netlist_reader.h"
@@ -584,6 +585,330 @@ std::string clean_paramod_type(std::string_view raw_type)
 		return std::string(raw_type.substr(0, sep));
 	}
 	return std::string(raw_type);
+}
+
+struct pnr_timing_tag {
+	int rank{999};
+	double delay_ns{0.0};
+	double slack_ns{0.0};
+	int logic_depth{0};
+};
+
+double round3(double v) noexcept
+{
+	return std::round(v * 1000.0) / 1000.0;
+}
+
+bool parse_src_file_range(std::string_view loc, std::string &out_file, int &out_start, int &out_end)
+{
+	size_t colon = loc.rfind(':');
+	if (colon == std::string_view::npos || colon == 0) {
+		return false;
+	}
+	out_file = std::string(loc.substr(0, colon));
+	std::string_view range = loc.substr(colon + 1);
+	size_t dash = range.find('-');
+	try {
+		if (dash == std::string_view::npos) {
+			out_start = std::stoi(std::string(range));
+			out_end = out_start;
+		} else {
+			out_start = std::stoi(std::string(range.substr(0, dash)));
+			out_end = std::stoi(std::string(range.substr(dash + 1)));
+		}
+	} catch (...) {
+		return false;
+	}
+	if (out_end < out_start) {
+		out_end = out_start;
+	}
+	return out_start > 0;
+}
+
+void merge_pnr_tag(pnr_timing_tag &dst, const pnr_timing_tag &src) noexcept
+{
+	if (src.rank < dst.rank) {
+		dst = src;
+	} else if (src.rank == dst.rank) {
+		dst.delay_ns = std::max(dst.delay_ns, src.delay_ns);
+		dst.slack_ns = std::min(dst.slack_ns, src.slack_ns);
+		dst.logic_depth = std::max(dst.logic_depth, src.logic_depth);
+	}
+}
+
+void apply_pnr_tag(nlohmann::json &obj, const pnr_timing_tag &tag)
+{
+	obj["critical_path"] = true;
+	obj["critical_rank"] = tag.rank;
+	obj["timing_delay_ns"] = round3(tag.delay_ns);
+	obj["timing_slack_ns"] = round3(tag.slack_ns);
+	obj["logic_depth"] = tag.logic_depth;
+}
+
+void annotate_pnr_timing(nlohmann::json &scene,
+			 const nextpnr_timing_analyzer &analyzer,
+			 const fs::path &root_path)
+{
+	const auto &domains = analyzer.clock_domains();
+	auto paths = analyzer.get_filtered_paths(/*reg_to_reg_only=*/true, /*top_k=*/3);
+	if (paths.empty()) {
+		paths = analyzer.get_filtered_paths(/*reg_to_reg_only=*/false, /*top_k=*/3);
+	}
+	if (domains.empty() && paths.empty()) {
+		return;
+	}
+
+	double worst_slack_ns = 0.0;
+	double target_period_ns = 0.0;
+	bool has_domain = false;
+	nlohmann::json summary = {{"source", "pnr"}};
+	if (!domains.empty()) {
+		const clock_domain_timing *worst_dom = &domains.front();
+		for (const auto &d : domains) {
+			if (d.slack_ns < worst_dom->slack_ns) {
+				worst_dom = &d;
+			}
+		}
+		has_domain = true;
+		worst_slack_ns = worst_dom->slack_ns;
+		summary["fmax_mhz"] = round3(worst_dom->achieved_mhz);
+		summary["worst_slack_ns"] = round3(worst_dom->slack_ns);
+		if (worst_dom->constraint_mhz > 0.0) {
+			target_period_ns = 1000.0 / worst_dom->constraint_mhz;
+			summary["target_period_ns"] = round3(target_period_ns);
+		}
+	}
+
+	if (!paths.empty()) {
+		int max_depth = 0;
+		for (const auto &h : paths.front().hops) {
+			if (h.type == "logic") {
+				++max_depth;
+			}
+		}
+		summary["critical_delay_ns"] = round3(paths.front().total_delay_ns);
+		summary["max_logic_depth"] = max_depth;
+	}
+	scene["timing_summary"] = std::move(summary);
+
+	struct src_span_tag {
+		int start_ln{0};
+		int end_ln{0};
+		pnr_timing_tag tag;
+	};
+	std::map<std::string, pnr_timing_tag> net_tags;
+	std::map<std::string, std::vector<src_span_tag>> src_tags;
+
+	for (size_t r = 0; r < paths.size(); ++r) {
+		const auto &cp = paths[r];
+		const int rank = static_cast<int>(r) + 1;
+		const double path_slack = (has_domain && target_period_ns > 0.0)
+			? (target_period_ns - cp.total_delay_ns)
+			: worst_slack_ns;
+
+		double cum_delay = 0.0;
+		int cum_depth = 0;
+		for (const auto &hop : cp.hops) {
+			cum_delay += hop.delay_ns;
+			if (hop.type == "logic") {
+				++cum_depth;
+			}
+			pnr_timing_tag tag{rank, cum_delay, path_slack, cum_depth};
+
+			if (!hop.clean_net.empty()) {
+				std::string nbase = hop.clean_net;
+				size_t br = nbase.rfind('[');
+				if (br != std::string::npos && nbase.ends_with(']')) {
+					nbase.resize(br);
+				}
+				auto it = net_tags.find(nbase);
+				if (it == net_tags.end()) {
+					net_tags.emplace(std::move(nbase), tag);
+				} else {
+					merge_pnr_tag(it->second, tag);
+				}
+			}
+
+			for (const std::string &raw_loc : {hop.cell_src_location, hop.net_src_location}) {
+				if (raw_loc.empty()) {
+					continue;
+				}
+				std::string rel = normalize_rel_src(root_path, yosys_netlist_reader::clean_src_location(raw_loc));
+				std::string fpath;
+				int sl = 0, el = 0;
+				if (parse_src_file_range(rel, fpath, sl, el)) {
+					src_tags[fpath].push_back({sl, el, tag});
+				}
+			}
+		}
+	}
+
+	auto match_src = [&](std::string_view src_str, pnr_timing_tag &out_tag) -> bool {
+		std::string fpath;
+		int sl = 0, el = 0;
+		if (!parse_src_file_range(src_str, fpath, sl, el)) {
+			return false;
+		}
+		auto it = src_tags.find(fpath);
+		if (it == src_tags.end()) {
+			return false;
+		}
+		bool matched = false;
+		for (const auto &st : it->second) {
+			if (st.start_ln <= el && st.end_ln >= sl) {
+				if (!matched) {
+					out_tag = st.tag;
+					matched = true;
+				} else {
+					merge_pnr_tag(out_tag, st.tag);
+				}
+			}
+		}
+		return matched;
+	};
+
+	auto match_net = [&](std::string_view wname, pnr_timing_tag &out_tag) -> bool {
+		std::string dot_w = std::format(".{}", wname);
+		bool matched = false;
+		for (const auto &[nname, tag] : net_tags) {
+			bool hit = (nname == wname || nname.ends_with(dot_w));
+			if (hit) {
+				if (!matched) {
+					out_tag = tag;
+					matched = true;
+				} else {
+					merge_pnr_tag(out_tag, tag);
+				}
+			}
+		}
+		return matched;
+	};
+
+	if (!scene.contains("modules") || !scene["modules"].is_object()) {
+		return;
+	}
+
+	std::map<std::string, pnr_timing_tag> mod_summary_tag;
+	for (auto &[mname, mobj] : scene["modules"].items()) {
+		std::map<std::string, pnr_timing_tag> crit_wires;
+		for (auto &wobj : mobj["wires"]) {
+			pnr_timing_tag tag;
+			bool matched = false;
+			if (!wobj.value("is_glue", false)) {
+				pnr_timing_tag ntag;
+				if (match_net(wobj["name"].get<std::string>(), ntag)) {
+					tag = ntag;
+					matched = true;
+				}
+			}
+			if (wobj.contains("src") && wobj["src"].is_string()) {
+				pnr_timing_tag stag;
+				if (match_src(wobj["src"].get<std::string>(), stag)) {
+					if (!matched) {
+						tag = stag;
+						matched = true;
+					} else {
+						merge_pnr_tag(tag, stag);
+					}
+				}
+			}
+			if (matched) {
+				apply_pnr_tag(wobj, tag);
+				crit_wires[wobj["name"].get<std::string>()] = tag;
+			}
+		}
+
+		std::map<std::string, pnr_timing_tag> crit_comps;
+		for (auto &cobj : mobj["components"]) {
+			pnr_timing_tag tag;
+			bool matched = false;
+			if (cobj.contains("src") && cobj["src"].is_string()) {
+				matched = match_src(cobj["src"].get<std::string>(), tag);
+			}
+			if (!matched && cobj.contains("pins") && cobj["pins"].is_object()) {
+				for (const auto &[pname, pinfo] : cobj["pins"].items()) {
+					if (pinfo.value("direction", "") == "output") {
+						auto wit = crit_wires.find(pinfo["wire"].get<std::string>());
+						if (wit != crit_wires.end()) {
+							if (!matched) {
+								tag = wit->second;
+								matched = true;
+							} else {
+								merge_pnr_tag(tag, wit->second);
+							}
+						}
+					}
+				}
+			}
+			if (matched) {
+				apply_pnr_tag(cobj, tag);
+				crit_comps[cobj["id"].get<std::string>()] = tag;
+			}
+		}
+
+		// Propagate critical path onto glue wires connecting two critical components
+		for (auto &wobj : mobj["wires"]) {
+			if (wobj.value("critical_path", false)) {
+				continue;
+			}
+			if (!wobj["driver"].is_object() || wobj["driver"]["kind"] != "component") {
+				continue;
+			}
+			auto dit = crit_comps.find(wobj["driver"]["id"].get<std::string>());
+			if (dit == crit_comps.end()) {
+				continue;
+			}
+			bool sink_crit = false;
+			for (const auto &sk : wobj["sinks"]) {
+				if (sk["kind"] == "component" && crit_comps.contains(sk["id"].get<std::string>())) {
+					sink_crit = true;
+					break;
+				}
+			}
+			if (sink_crit) {
+				apply_pnr_tag(wobj, dit->second);
+			}
+		}
+
+		// Compute aggregate tag for this module so parent submodule instances can highlight
+		bool mod_has_crit = false;
+		pnr_timing_tag mtag;
+		for (const auto &[wn, t] : crit_wires) {
+			if (!mod_has_crit) { mtag = t; mod_has_crit = true; }
+			else { merge_pnr_tag(mtag, t); }
+		}
+		for (const auto &[cn, t] : crit_comps) {
+			if (!mod_has_crit) { mtag = t; mod_has_crit = true; }
+			else { merge_pnr_tag(mtag, t); }
+		}
+		if (mod_has_crit) {
+			mod_summary_tag[mname] = mtag;
+		}
+	}
+
+	// Propagate submodule criticality upward through the hierarchy
+	bool changed = true;
+	while (changed) {
+		changed = false;
+		for (auto &[mname, mobj] : scene["modules"].items()) {
+			for (auto &cobj : mobj["components"]) {
+				if (!cobj.value("is_submodule", false) || cobj.value("critical_path", false)) {
+					continue;
+				}
+				auto sit = mod_summary_tag.find(cobj["type"].get<std::string>());
+				if (sit != mod_summary_tag.end()) {
+					apply_pnr_tag(cobj, sit->second);
+					auto mit = mod_summary_tag.find(mname);
+					if (mit == mod_summary_tag.end()) {
+						mod_summary_tag[mname] = sit->second;
+					} else {
+						merge_pnr_tag(mit->second, sit->second);
+					}
+					changed = true;
+				}
+			}
+		}
+	}
 }
 
 } // namespace
@@ -1686,6 +2011,20 @@ bool gridcad_scene_exporter::export_module_to_file(const fs::path &project_root,
 			mobj["source_file"] = mit->second;
 		}
 		scene["modules"][out_mname] = std::move(mobj);
+	}
+
+	// Optional PnR critical-path timing annotation (gracefully skipped if unconfigured or PnR fails)
+	if (!cfg.target.empty()) {
+		fpga_target_config pnr_cfg = cfg;
+		pnr_cfg.top_module = top_mod;
+		if (top_mod != cfg.top_module) {
+			pnr_cfg.pcf_file.clear();
+		}
+		nextpnr_timing_analyzer analyzer;
+		std::string pnr_err;
+		if (analyzer.synthesize_and_route(pnr_cfg, read_files, pnr_err)) {
+			annotate_pnr_timing(scene, analyzer, root_path);
+		}
 	}
 
 	if (out_json_path.has_parent_path()) {
