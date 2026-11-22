@@ -707,30 +707,40 @@ bool gridcad_scene_exporter::export_module_to_file(const fs::path &project_root,
 		return false;
 	}
 
-	// Build shared label_tables from auto-discovered SystemVerilog enums
+	// Build shared label_tables from vcd_labels.json (virtual enums, highest priority)
+	// and auto-discovered SystemVerilog enums.
+	auto vcd_labels = vcd_label_manager::get_instance().get_labels_for_file((root_path / "vcd_labels.json").string());
 	auto enum_labels = verilog_module_scanner::discover_enum_signal_labels(scan_root);
 	nlohmann::json label_tables = nlohmann::json::object();
-	std::map<std::string, std::string> sig_pattern_to_table;
+	std::vector<std::pair<std::string, std::string>> ordered_pattern_to_table;
 	std::map<std::string, std::string> map_hash_to_table_id;
-	size_t table_idx = 0;
-	for (const auto &[sig_pat, val_map] : enum_labels) {
-		if (val_map.empty()) continue;
-		nlohmann::json tbl = val_map;
-		std::string dumped = tbl.dump();
-		auto it = map_hash_to_table_id.find(dumped);
-		if (it == map_hash_to_table_id.end()) {
-			std::string tid = std::format("enum_{}", table_idx++);
-			label_tables[tid] = std::move(tbl);
-			map_hash_to_table_id[dumped] = tid;
-			sig_pattern_to_table[sig_pat] = tid;
-		} else {
-			sig_pattern_to_table[sig_pat] = it->second;
+	size_t label_idx = 0;
+	size_t enum_idx = 0;
+
+	auto register_label_map = [&](const std::map<std::string, std::map<std::string, std::string>> &src_map,
+				      std::string_view prefix, size_t &counter) {
+		for (const auto &[sig_pat, val_map] : src_map) {
+			if (val_map.empty()) continue;
+			nlohmann::json tbl = val_map;
+			std::string dumped = tbl.dump();
+			auto it = map_hash_to_table_id.find(dumped);
+			if (it == map_hash_to_table_id.end()) {
+				std::string tid = std::format("{}_{}", prefix, counter++);
+				label_tables[tid] = std::move(tbl);
+				map_hash_to_table_id[dumped] = tid;
+				ordered_pattern_to_table.emplace_back(sig_pat, tid);
+			} else {
+				ordered_pattern_to_table.emplace_back(sig_pat, it->second);
+			}
 		}
-	}
+	};
+
+	register_label_map(vcd_labels, "label", label_idx);
+	register_label_map(enum_labels, "enum", enum_idx);
 
 	auto find_label_table_for_wire = [&](std::string_view mod_name, std::string_view wire_name) -> std::string {
-		for (const auto &[pat, tid] : sig_pattern_to_table) {
-			std::string full_cand = std::format("{}.{}", mod_name, wire_name);
+		std::string full_cand = std::format("{}.{}", mod_name, wire_name);
+		for (const auto &[pat, tid] : ordered_pattern_to_table) {
 			if (vcd_label_manager::signal_pattern_matches(pat, full_cand) ||
 			    vcd_label_manager::signal_pattern_matches(pat, wire_name)) {
 				return tid;
