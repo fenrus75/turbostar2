@@ -709,7 +709,8 @@ bool gridcad_scene_exporter::export_module_to_file(const fs::path &project_root,
 
 	// Build shared label_tables from vcd_labels.json (virtual enums, highest priority)
 	// and auto-discovered SystemVerilog enums.
-	auto vcd_labels = vcd_label_manager::get_instance().get_labels_for_file((root_path / "vcd_labels.json").string());
+	const std::string vcd_labels_path = (root_path / "vcd_labels.json").string();
+	auto vcd_labels = vcd_label_manager::get_instance().get_labels_for_file(vcd_labels_path);
 	auto enum_labels = verilog_module_scanner::discover_enum_signal_labels(scan_root);
 	nlohmann::json label_tables = nlohmann::json::object();
 	std::vector<std::pair<std::string, std::string>> ordered_pattern_to_table;
@@ -866,6 +867,26 @@ bool gridcad_scene_exporter::export_module_to_file(const fs::path &project_root,
 					std::string ltbl = find_label_table_for_wire(mname, wname);
 					if (!ltbl.empty()) {
 						wobj["label_table"] = ltbl;
+					}
+					std::string full_cand = std::format("{}.{}", mname, wname);
+					auto [q_sig, q_active_low] = vcd_label_manager::get_instance().find_qualifier(vcd_labels_path, full_cand);
+					if (q_sig.empty()) {
+						std::tie(q_sig, q_active_low) = vcd_label_manager::get_instance().find_qualifier(vcd_labels_path, wname);
+					}
+					if (!q_sig.empty()) {
+						// Normalize to module-local signal name (strip leading '*' or hierarchical scope prefix)
+						while (!q_sig.empty() && q_sig.front() == '*') {
+							q_sig.erase(0, 1);
+						}
+						if (size_t dot = q_sig.rfind('.'); dot != std::string::npos) {
+							q_sig.erase(0, dot + 1);
+						}
+						if (!q_sig.empty() && ymod.contains("netnames") && ymod["netnames"].contains(q_sig)) {
+							wobj["valid_signal"] = q_sig;
+							if (q_active_low) {
+								wobj["valid_active_low"] = true;
+							}
+						}
 					}
 				}
 				if (!src.empty()) wobj["src"] = src;
