@@ -761,6 +761,52 @@ int main(int argc, char **argv)
 			return 1;
 		}
 		std::cout << std::format("Exported gridcad scene JSON to {}\n", out_p);
+
+		// Suggest a ready-to-run gridcad command using the actual JSON and matching VCD if present
+		std::string target_mod = gc_module;
+		verilog::fpga_target_config cfg;
+		std::string cfg_err;
+		if (target_mod.empty() && verilog::fpga_project_settings::load_from_project(cwd_str, cfg, cfg_err)) {
+			target_mod = cfg.top_module;
+		}
+		std::string vcd_rel;
+		std::error_code ec;
+		auto try_vcd = [&](const std::filesystem::path &cand) -> bool {
+			std::filesystem::path full = cand.is_absolute() ? cand : (std::filesystem::path(cwd_str) / cand);
+			if (std::filesystem::is_regular_file(full, ec)) {
+				vcd_rel = cand.generic_string();
+				return true;
+			}
+			return false;
+		};
+
+		std::vector<verilog::testbench_entry> tbs;
+		std::string tb_cfg_path, tb_err;
+		if (!target_mod.empty() && verilog::fpga_project_settings::load_testbenches(cwd_str, tbs, tb_cfg_path, tb_err)) {
+			for (const auto &tb : tbs) {
+				if (std::find(tb.modules.begin(), tb.modules.end(), target_mod) != tb.modules.end()) {
+					std::string stem = std::filesystem::path(tb.testbench).stem().string();
+					if (try_vcd(std::filesystem::path("wave") / std::format("dump_{}.vcd", stem)) ||
+					    try_vcd(std::format("dump_{}.vcd", stem)) ||
+					    try_vcd(std::filesystem::path("wave") / std::format("{}.vcd", stem)) ||
+					    try_vcd(std::format("{}.vcd", stem))) {
+						break;
+					}
+				}
+			}
+		}
+		if (vcd_rel.empty() && !target_mod.empty()) {
+			try_vcd(std::filesystem::path("wave") / std::format("dump_{}_tb.vcd", target_mod)) ||
+			    try_vcd(std::filesystem::path("wave") / std::format("dump_{}.vcd", target_mod)) ||
+			    try_vcd(std::format("dump_{}_tb.vcd", target_mod)) ||
+			    try_vcd(std::format("dump_{}.vcd", target_mod));
+		}
+
+		if (!vcd_rel.empty()) {
+			std::cout << std::format("Run: gridcad --import {} --vcd {}\n", out_p, vcd_rel);
+		} else {
+			std::cout << std::format("Run: gridcad --import {}\n", out_p);
+		}
 		return 0;
 	}
 
