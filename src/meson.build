@@ -51,6 +51,8 @@ hex_sources = files(
 )
 
 codeintel_sources = files(
+  'languages/balance_checker.cpp',
+  'languages/verilog/balance_checker.cpp',
   'languages/cpp/language.cpp',
   'languages/cpp/keywords.cpp',
   'languages/cpp/type_token_extractor.cpp',

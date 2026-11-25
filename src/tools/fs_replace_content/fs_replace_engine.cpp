@@ -1,4 +1,5 @@
 #include "fs_replace_engine.h"
+#include "languages/balance_checker.h"
 
 #include <algorithm>
 #include <cmath>
@@ -83,208 +84,7 @@ static void get_line_byte_range(const std::string &text, int start_line_1based, 
 
 int fs_replace_engine::calculate_brace_balance(const std::vector<std::string> &lines, int start_line_0, int end_line_0)
 {
-	int balance = 0;
-	bool in_block_comment = false;
-	bool in_string = false;
-	char string_quote = '\0';
-
-	for (int i = start_line_0; i <= end_line_0 && i < static_cast<int>(lines.size()); ++i) {
-		const std::string &line = lines[i];
-		size_t len = line.length();
-		size_t j = 0;
-
-		while (j < len) {
-			if (in_block_comment) {
-				if (j + 1 < len && line[j] == '*' && line[j + 1] == '/') {
-					in_block_comment = false;
-					j += 2;
-				} else {
-					j++;
-				}
-				continue;
-			}
-
-			if (in_string) {
-				if (line[j] == '\\' && j + 1 < len) {
-					j += 2;
-				} else if (line[j] == string_quote) {
-					in_string = false;
-					j++;
-				} else {
-					j++;
-				}
-				continue;
-			}
-
-			if (j + 1 < len && line[j] == '/' && line[j + 1] == '/') {
-				break;
-			}
-			if (j + 1 < len && line[j] == '/' && line[j + 1] == '*') {
-				in_block_comment = true;
-				j += 2;
-				continue;
-			}
-
-			if (line[j] == '"' || line[j] == '\'') {
-				in_string = true;
-				string_quote = line[j];
-				j++;
-				continue;
-			}
-
-			if (line[j] == '{') {
-				balance++;
-			} else if (line[j] == '}') {
-				balance--;
-			}
-			j++;
-		}
-	}
-	return balance;
-}
-
-verilog_block_balance fs_replace_engine::calculate_verilog_balance(const std::vector<std::string> &lines, int start_line_0,
-								   int end_line_0)
-{
-	verilog_block_balance bal;
-	bool in_block_comment = false;
-
-	auto is_ident_start = [](char c) noexcept {
-		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
-	};
-	auto is_ident_char = [](char c) noexcept {
-		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '$';
-	};
-
-	for (int i = start_line_0; i <= end_line_0 && i < static_cast<int>(lines.size()); ++i) {
-		const std::string &line = lines[i];
-		const size_t len = line.length();
-		size_t j = 0;
-		bool in_string = false;
-
-		while (j < len) {
-			if (in_block_comment) {
-				if (j + 1 < len && line[j] == '*' && line[j + 1] == '/') {
-					in_block_comment = false;
-					j += 2;
-				} else {
-					j++;
-				}
-				continue;
-			}
-
-			if (in_string) {
-				if (line[j] == '\\' && j + 1 < len) {
-					j += 2;
-				} else if (line[j] == '"') {
-					in_string = false;
-					j++;
-				} else {
-					j++;
-				}
-				continue;
-			}
-
-			if (j + 1 < len && line[j] == '/' && line[j + 1] == '/') {
-				break;
-			}
-			if (j + 1 < len && line[j] == '/' && line[j + 1] == '*') {
-				in_block_comment = true;
-				j += 2;
-				continue;
-			}
-
-			// Verilog strings use double quotes only; single quotes are sized numeric literals (e.g. 1'b0, 8'hFF, '0)
-			if (line[j] == '"') {
-				in_string = true;
-				j++;
-				continue;
-			}
-
-			// Escaped Verilog identifier (\foo ) runs until whitespace
-			if (line[j] == '\\') {
-				j++;
-				while (j < len && line[j] != ' ' && line[j] != '\t' && line[j] != '\r') {
-					j++;
-				}
-				continue;
-			}
-
-			if (line[j] == '{') {
-				bal.curly_braces++;
-				j++;
-				continue;
-			}
-			if (line[j] == '}') {
-				bal.curly_braces--;
-				j++;
-				continue;
-			}
-
-			if (is_ident_start(line[j])) {
-				// Ignore member/port access like `.end(sig)` or `$end`
-				bool preceded_by_dot_or_ident = (j > 0 && (line[j - 1] == '.' || is_ident_char(line[j - 1])));
-				size_t start = j;
-				while (j < len && is_ident_char(line[j])) {
-					j++;
-				}
-				if (!preceded_by_dot_or_ident) {
-					std::string_view tok(line.data() + start, j - start);
-					if (tok == "begin") {
-						bal.begin_end++;
-					} else if (tok == "end") {
-						bal.begin_end--;
-					} else if (tok == "case" || tok == "casex" || tok == "casez") {
-						bal.case_endcase++;
-					} else if (tok == "endcase") {
-						bal.case_endcase--;
-					} else if (tok == "module" || tok == "macromodule") {
-						bal.module_endmodule++;
-					} else if (tok == "endmodule") {
-						bal.module_endmodule--;
-					}
-				}
-				continue;
-			}
-
-			j++;
-		}
-	}
-	return bal;
-}
-
-std::string fs_replace_engine::check_verilog_warnings(const std::vector<std::string> &before_lines,
-						      const std::vector<std::string> &after_lines)
-{
-	if (before_lines.empty() || after_lines.empty()) {
-		return "";
-	}
-	verilog_block_balance before = calculate_verilog_balance(before_lines, 0, static_cast<int>(before_lines.size()) - 1);
-	verilog_block_balance after = calculate_verilog_balance(after_lines, 0, static_cast<int>(after_lines.size()) - 1);
-
-	std::string warnings;
-	auto check_pair = [&](int b, int a, std::string_view label, std::string_view close_tok) {
-		if (b == 0 && a != 0) {
-			if (a > 0) {
-				warnings += std::format(
-				    "⚠️ Warning: Edit introduced unbalanced {} blocks at file scope (net balance: +{}, "
-				    "missing {} closing '{}')\n",
-				    label, a, a, close_tok);
-			} else {
-				int abs_bal = std::abs(a);
-				warnings += std::format(
-				    "⚠️ Warning: Edit introduced unbalanced {} blocks at file scope (net balance: {}, "
-				    "possible extra {} closing '{}')\n",
-				    label, a, abs_bal, close_tok);
-			}
-		}
-	};
-
-	check_pair(before.begin_end, after.begin_end, "begin/end", "end");
-	check_pair(before.case_endcase, after.case_endcase, "case/endcase", "endcase");
-	check_pair(before.module_endmodule, after.module_endmodule, "module/endmodule", "endmodule");
-	check_pair(before.curly_braces, after.curly_braces, "braces", "}");
-	return warnings;
+	return languages::balance_checker::calculate_brace_balance(lines, start_line_0, end_line_0);
 }
 
 std::string fs_replace_engine::check_brace_warnings(const std::string &safe_path, agentlib::tool_context &ctx,
@@ -292,20 +92,8 @@ std::string fs_replace_engine::check_brace_warnings(const std::string &safe_path
 						    const std::vector<std::string> &after_lines,
 						    const std::vector<std::pair<int, int>> &edited_ranges_0based, int net_line_delta)
 {
-	std::string lang = mime::get_language_from_extension(safe_path);
-	if (lang == "verilog" || lang == "systemverilog") {
-		return check_verilog_warnings(before_lines, after_lines);
-	}
-
-	bool file_has_braces = false;
-	for (const auto &l : before_lines) {
-		if (l.find('{') != std::string::npos || l.find('}') != std::string::npos) {
-			file_has_braces = true;
-			break;
-		}
-	}
-	if (!mime::uses_brace_syntax(safe_path) && !file_has_braces) {
-		return "";
+	if (!languages::balance_checker::uses_generic_brace_check(safe_path, before_lines)) {
+		return languages::balance_checker::check_file_warnings(safe_path, before_lines, after_lines);
 	}
 
 	std::string warnings;
@@ -317,17 +105,7 @@ std::string fs_replace_engine::check_brace_warnings(const std::string &safe_path
 
 		// Case A: Global was balanced (0) and became unbalanced (non-0) -> emit file-scope warning
 		if (before_whole == 0 && after_whole != 0) {
-			if (after_whole > 0) {
-				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces at file scope (net balance: +{}, "
-							"missing {} closing '}}' brace{})\n",
-							after_whole, after_whole, (after_whole == 1 ? "" : "s"));
-			} else {
-				int abs_bal = std::abs(after_whole);
-				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces at file scope (net balance: {}, "
-							"possible extra {} closing '}}' brace{})\n",
-							after_whole, abs_bal, (abs_bal == 1 ? "" : "s"));
-			}
-			return warnings;
+			return languages::balance_checker::check_file_warnings(safe_path, before_lines, after_lines);
 		}
 
 		// Case B: Global was balanced before and remains balanced after -> no warning!

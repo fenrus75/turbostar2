@@ -7,10 +7,10 @@
 #include "agentlib/file_health_utils.h"
 #include "fs_replace_lines.h"
 #include "fs_utils.h"
+#include "languages/balance_checker.h"
 #include "mapped_file.h"
 #include "mime.h"
 #include "project_manager.h"
-#include "tools/fs_replace_content/fs_replace_engine.h"
 #include "type_definition_cache.h"
 #include "utf8.h"
 namespace tools
@@ -18,68 +18,6 @@ namespace tools
 
 namespace
 {
-
-static int calculate_brace_balance(const std::vector<std::string> &lines, int start_line_0, int end_line_0)
-{
-	int balance = 0;
-	bool in_block_comment = false;
-
-	for (int i = start_line_0; i <= end_line_0 && i < static_cast<int>(lines.size()); ++i) {
-		const std::string &line = lines[i];
-		size_t len = line.length();
-		size_t j = 0;
-		bool in_string = false;
-		char string_quote = '\0';
-
-		while (j < len) {
-			if (in_block_comment) {
-				if (j + 1 < len && line[j] == '*' && line[j + 1] == '/') {
-					in_block_comment = false;
-					j += 2;
-				} else {
-					j++;
-				}
-				continue;
-			}
-
-			if (in_string) {
-				if (line[j] == '\\' && j + 1 < len) {
-					j += 2;
-				} else if (line[j] == string_quote) {
-					in_string = false;
-					j++;
-				} else {
-					j++;
-				}
-				continue;
-			}
-
-			if (j + 1 < len && line[j] == '/' && line[j + 1] == '/') {
-				break;
-			}
-			if (j + 1 < len && line[j] == '/' && line[j + 1] == '*') {
-				in_block_comment = true;
-				j += 2;
-				continue;
-			}
-
-			if (line[j] == '"' || line[j] == '\'') {
-				in_string = true;
-				string_quote = line[j];
-				j++;
-				continue;
-			}
-
-			if (line[j] == '{') {
-				balance++;
-			} else if (line[j] == '}') {
-				balance--;
-			}
-			j++;
-		}
-	}
-	return balance;
-}
 
 static void collect_functions(const std::vector<lsp_manager::symbol_node> &nodes, std::vector<lsp_manager::symbol_node> &out_funcs)
 {
@@ -94,42 +32,22 @@ static void collect_functions(const std::vector<lsp_manager::symbol_node> &nodes
 static std::string check_brace_warnings(const std::string &safe_path, const std::vector<std::string> &before_lines,
 					const std::vector<std::string> &after_lines, const std::vector<edit_operation> &edits)
 {
-	std::string lang = mime::get_language_from_extension(safe_path);
-	if (lang == "verilog" || lang == "systemverilog") {
-		return fs_replace_engine::check_verilog_warnings(before_lines, after_lines);
-	}
-
-	bool file_has_braces = false;
-	for (const auto &l : before_lines) {
-		if (l.find('{') != std::string::npos || l.find('}') != std::string::npos) {
-			file_has_braces = true;
-			break;
-		}
-	}
-	if (!mime::uses_brace_syntax(safe_path) && !file_has_braces) {
-		return "";
+	if (!languages::balance_checker::uses_generic_brace_check(safe_path, before_lines)) {
+		return languages::balance_checker::check_file_warnings(safe_path, before_lines, after_lines);
 	}
 
 	std::string warnings;
 
 	// 1. Check Whole-File Brace Balance
 	if (!before_lines.empty() && !after_lines.empty()) {
-		int before_whole = calculate_brace_balance(before_lines, 0, static_cast<int>(before_lines.size()) - 1);
-		int after_whole = calculate_brace_balance(after_lines, 0, static_cast<int>(after_lines.size()) - 1);
+		int before_whole =
+		    languages::balance_checker::calculate_brace_balance(before_lines, 0, static_cast<int>(before_lines.size()) - 1);
+		int after_whole =
+		    languages::balance_checker::calculate_brace_balance(after_lines, 0, static_cast<int>(after_lines.size()) - 1);
 
 		// Case A: Global was balanced (0) and became unbalanced (non-0) -> emit file-scope warning
 		if (before_whole == 0 && after_whole != 0) {
-			if (after_whole > 0) {
-				warnings += std::format(
-				    "⚠️ Warning: Edit introduced unbalanced braces (net balance: +{}, missing {} closing '}}' brace{})\n",
-				    after_whole, after_whole, (after_whole == 1 ? "" : "s"));
-			} else {
-				int abs_bal = std::abs(after_whole);
-				warnings += std::format("⚠️ Warning: Edit introduced unbalanced braces (net balance: {}, possible extra {} "
-							"closing '}}' brace{})\n",
-							after_whole, abs_bal, (abs_bal == 1 ? "" : "s"));
-			}
-			return warnings;
+			return languages::balance_checker::check_file_warnings(safe_path, before_lines, after_lines);
 		}
 
 		// Case B: Global was balanced before and remains balanced after -> no warning!
@@ -183,10 +101,10 @@ static std::string check_brace_warnings(const std::string &safe_path, const std:
 			}
 
 			if (intersects_edit) {
-				int before_bal = calculate_brace_balance(before_lines, f_start, f_end);
+				int before_bal = languages::balance_checker::calculate_brace_balance(before_lines, f_start, f_end);
 				int after_end = std::min(static_cast<int>(after_lines.size()) - 1, f_end + line_delta);
 				if (after_end >= f_start) {
-					int after_bal = calculate_brace_balance(after_lines, f_start, after_end);
+					int after_bal = languages::balance_checker::calculate_brace_balance(after_lines, f_start, after_end);
 					if (before_bal == 0 && after_bal != 0) {
 						if (after_bal > 0) {
 							warnings +=
