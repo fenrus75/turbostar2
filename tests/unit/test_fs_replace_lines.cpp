@@ -492,6 +492,64 @@ int main()
 		std::remove(cache_test_file.c_str());
 	}
 
+	// Test 15: Verilog/SystemVerilog begin/end balance & single-quote literal handling
+	{
+		std::string sv_file = "test_replace_lines_verilog.sv";
+		{
+			std::ofstream out(sv_file);
+			out << "module m(input logic clk, input logic [7:0] a, output logic [7:0] y, output logic c);\n"
+			    << "    always_comb begin\n"
+			    << "        case (a)\n"
+			    << "            8'h00: begin\n"
+			    << "                {c, y} = {1'b0, a};\n"
+			    << "            end\n"
+			    << "            default: {c, y} = 9'd0;\n"
+			    << "        endcase\n"
+			    << "    end\n"
+			    << "endmodule\n";
+		}
+
+		// 15a: Valid edit with unpaired ' literals produces no warning in strict mode
+		{
+			nlohmann::json edit_args = {
+			    {"path", sv_file},
+			    {"start_line", 7},
+			    {"end_line", 7},
+			    {"new_content", "            default: {c, y} = {1'b1, 8'hFF};"},
+			    {"strict", true}};
+			std::string res = registry.execute_tool("fs_replace_lines", edit_args.dump(), ctx);
+			assert(res.find("Successfully applied") != std::string::npos);
+			assert(res.find("Warning") == std::string::npos);
+		}
+
+		// 15b: Dropping an 'end' is caught and rejected in strict mode
+		{
+			nlohmann::json edit_args = {
+			    {"path", sv_file},
+			    {"start_line", 6},
+			    {"end_line", 6},
+			    {"new_content", "            // removed end"},
+			    {"strict", true}};
+			std::string res = registry.execute_tool("fs_replace_lines", edit_args.dump(), ctx);
+			assert(res.find("Error: Edit rejected") != std::string::npos);
+			assert(res.find("begin/end") != std::string::npos);
+		}
+
+		// 15c: Dropping 'endcase' is caught and warns
+		{
+			nlohmann::json edit_args = {
+			    {"path", sv_file},
+			    {"start_line", 8},
+			    {"end_line", 8},
+			    {"new_content", "        // removed endcase"}};
+			std::string res = registry.execute_tool("fs_replace_lines", edit_args.dump(), ctx);
+			assert(res.find("Warning") != std::string::npos);
+			assert(res.find("case/endcase") != std::string::npos);
+		}
+
+		std::remove(sv_file.c_str());
+	}
+
 	std::remove(test_file.c_str());
 
 	std::cout << "fs_replace_lines unit test passed!\n";

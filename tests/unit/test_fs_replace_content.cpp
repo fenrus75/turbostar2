@@ -376,6 +376,59 @@ int main()
 			assert(mock_ptr->saved_text == "line 1\nnew value\nline 3\n");
 		}
 
+		// Test 12: Verilog/SystemVerilog begin/end balance & single-quote literal handling
+		{
+			std::string sv_file = project_root + "/tmp/test_replace_verilog_" + std::to_string(getpid()) + ".sv";
+			auto write_sv = [&](const std::string &content) {
+				std::ofstream out(sv_file);
+				out << content;
+			};
+
+			// 12a: Bonus bug repro — unpaired ' in 1'b0 / 8'hFF must NOT break {} balance
+			write_sv("module m(input logic clk, output logic [7:0] y, output logic c);\n"
+				 "    logic [7:0] a, b;\n"
+				 "    always_comb begin\n"
+				 "        if (clk) begin\n"
+				 "            {c, y} = {1'b0, a} + 9'h01;\n"
+				 "        end else begin\n"
+				 "            {c, y} = 9'd0;\n"
+				 "        end\n"
+				 "    end\n"
+				 "endmodule\n");
+			{
+				nlohmann::json args = {{"path", sv_file},
+						       {"target_content", "{c, y} = 9'd0;"},
+						       {"replacement_content", "{c, y} = {1'b1, b};"},
+						       {"strict", true}};
+				std::string res = registry.execute_tool("fs_replace_content", args.dump(), ctx);
+				assert(res.find("Successfully replaced") != std::string::npos);
+				assert(res.find("Warning") == std::string::npos);
+			}
+
+			// 12b: Dropping an 'end' triggers begin/end warning (and strict mode rejects)
+			{
+				nlohmann::json args = {{"path", sv_file},
+						       {"target_content", "        end\n    end\nendmodule"},
+						       {"replacement_content", "        end\nendmodule"},
+						       {"strict", true}};
+				std::string res = registry.execute_tool("fs_replace_content", args.dump(), ctx);
+				assert(res.find("Error: Edit rejected") != std::string::npos);
+				assert(res.find("begin/end") != std::string::npos);
+			}
+
+			// 12c: Identifiers containing begin/end, comments, strings, and port .end() are ignored
+			{
+				nlohmann::json args = {{"path", sv_file},
+						       {"target_content", "logic [7:0] a, b;"},
+						       {"replacement_content", "logic [7:0] a, b, begin_flag, endian; // begin end\n    // \"begin\" .end(clk)"}};
+				std::string res = registry.execute_tool("fs_replace_content", args.dump(), ctx);
+				assert(res.find("Successfully replaced") != std::string::npos);
+				assert(res.find("Warning") == std::string::npos);
+			}
+
+			std::filesystem::remove(sv_file);
+		}
+
 		// Clean up
 		std::filesystem::remove(temp_file);
 		std::cout << "fs_replace_content tool verified successfully!" << std::endl;

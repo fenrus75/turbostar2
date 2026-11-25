@@ -33,6 +33,13 @@ struct replace_engine_result {
 	int chunks_applied{0};
 };
 
+struct verilog_block_balance {
+	int begin_end{0};
+	int case_endcase{0};
+	int module_endmodule{0};
+	int curly_braces{0};
+};
+
 class fs_replace_engine {
 public:
 	// Executes atomic single-chunk or multi-chunk file replacements against disk/VFS
@@ -40,6 +47,14 @@ public:
 
 	// Helper for calculating brace balance (+1 for {, -1 for }) respecting multiline strings and comments
 	static int calculate_brace_balance(const std::vector<std::string> &lines, int start_line_0, int end_line_0);
+
+	// Helper for calculating Verilog/SystemVerilog block balances (begin/end, case/endcase, module/endmodule, {/})
+	// while ignoring comments, double-quoted strings, escaped identifiers, and unpaired single-quote literals (e.g. 1'b0)
+	static verilog_block_balance calculate_verilog_balance(const std::vector<std::string> &lines, int start_line_0, int end_line_0);
+
+	// Generates warning text if a Verilog/SystemVerilog edit introduced unbalanced block delimiters or concatenations
+	static std::string check_verilog_warnings(const std::vector<std::string> &before_lines,
+						  const std::vector<std::string> &after_lines);
 
 	// Generates warning/error text if the edit broke brace balance at file scope or function scope
 	static std::string check_brace_warnings(

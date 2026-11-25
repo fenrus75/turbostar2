@@ -10,6 +10,7 @@
 #include "mapped_file.h"
 #include "mime.h"
 #include "project_manager.h"
+#include "tools/fs_replace_content/fs_replace_engine.h"
 #include "type_definition_cache.h"
 #include "utf8.h"
 namespace tools
@@ -93,6 +94,11 @@ static void collect_functions(const std::vector<lsp_manager::symbol_node> &nodes
 static std::string check_brace_warnings(const std::string &safe_path, const std::vector<std::string> &before_lines,
 					const std::vector<std::string> &after_lines, const std::vector<edit_operation> &edits)
 {
+	std::string lang = mime::get_language_from_extension(safe_path);
+	if (lang == "verilog" || lang == "systemverilog") {
+		return fs_replace_engine::check_verilog_warnings(before_lines, after_lines);
+	}
+
 	bool file_has_braces = false;
 	for (const auto &l : before_lines) {
 		if (l.find('{') != std::string::npos || l.find('}') != std::string::npos) {
