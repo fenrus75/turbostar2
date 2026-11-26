@@ -85,7 +85,7 @@ end
 - Attach property modules at elaboration time with SystemVerilog `bind` (supported by both `yosys` and `verilator`), which can also bind directly to internal signals.
 - Structure each property module around four basics:
   1. **Start-up guard**: track `f_past_valid` (init `0`, set `1` on `posedge clk`) before using `$past(...)`.
-  2. **Reset assumption**: constrain cycle 0 with `if (!f_past_valid) assume(rst);` (matching the design's reset polarity).
+  2. **Reset assumption**: constrain cycle 0 on the clock edge (`always_ff @(posedge clk) if (!f_past_valid) assume (rst);`, matching the design's reset polarity) — avoid `always_comb` for this, as Verilator evaluates `always_comb` at `t=0` before `initial` blocks drive `rst`.
   3. **Invariants (`assert`)**: check safety properties that must hold on every active cycle (e.g., `!(full && empty)`).
   4. **Reachability (`cover`)**: cover interesting states/transitions to verify assumptions are not over-constraining the design.
 - **FSMs**: Add a `cover (state == <STATE>)` for every valid enum state to prove all states are reachable, and `assert` that invalid/unused state encodings can never be reached (plus key illegal transitions if applicable).
@@ -100,9 +100,10 @@ module fifo_props #(parameter WIDTH = 8, parameter DEPTH = 16) (
     input logic [$clog2(DEPTH):0] count
 );
     logic f_past_valid = 1'b0;
-    always_ff @(posedge clk) f_past_valid <= 1'b1;
-
-    always_comb if (!f_past_valid) assume (rst);
+    always_ff @(posedge clk) begin
+        if (!f_past_valid) assume (rst);
+        f_past_valid <= 1'b1;
+    end
 
     always_ff @(posedge clk) if (!rst) begin
         assert (!(full && empty));
