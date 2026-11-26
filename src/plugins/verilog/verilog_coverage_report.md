@@ -9,4 +9,5 @@ Parses and merges Verilator `--coverage-line --coverage-toggle` `.dat` files acr
 - **Session Deltas Without Dirtying Config**: Persists previous per-module percentages in the project tmp directory (`verilog_coverage_last.json`) rather than `turbostar.json`.
 
 ## Lessons Learned
-- Verilator 5.048 encodes the module name in the `page` field (`v_line/<mod>` / `v_toggle/<mod>`) and the full block line span in the `S` field (`132-139,141`), making per-module attribution exact without running `verilator_coverage`.
+- Verilator 5.048 emits `t=line`/`t=toggle` and `:0->1`/`:1->0` toggle suffixes, whereas Verilator 5.032 (Debian) omits the `t` field altogether (encoding type only in `page=v_line/<mod>` / `page=v_toggle/<mod>`) and emits combined toggle counts without `:0->1`/`:1->0`. Supporting both ensures compatibility across Verilator 5.03x and 5.04x.
+- Never report `0/0` instrumented lines as `100.0%` ("All instrumented lines covered"); report `N/A (0/0)` with a warning so missing coverage data is immediately visible.

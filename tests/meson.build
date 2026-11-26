@@ -198,6 +198,12 @@ test_verilog_timing_tools = executable('test_verilog_timing_tools',
   include_directories: inc)
 test('unit_verilog_timing_tools', test_verilog_timing_tools, suite: 'plugins', workdir: meson.project_source_root())
 
+test_verilog_coverage_report = executable('test_verilog_coverage_report',
+  ['unit/test_verilog_coverage_report.cpp'],
+  dependencies : [verilog_core_dep],
+  include_directories: inc)
+test('unit_verilog_coverage_report', test_verilog_coverage_report, suite: 'plugins', workdir: meson.project_source_root())
+
 
 test_history_manager = executable('test_history_manager',
   ['unit/test_history_manager.cpp'], dependencies : [core_dep],

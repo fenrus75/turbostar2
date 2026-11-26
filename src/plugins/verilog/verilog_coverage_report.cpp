@@ -220,7 +220,10 @@ std::vector<module_coverage_stats> verilog_coverage_report::parse_and_merge(
 				acc.rel_file = rel_file;
 			}
 
-			if (f_type == "line") {
+			const bool is_line = (f_type == "line") || (f_type.empty() && f_page.starts_with("v_line/"));
+			const bool is_toggle = (f_type == "toggle") || (f_type.empty() && f_page.starts_with("v_toggle/"));
+
+			if (is_line) {
 				std::vector<int> span_lines;
 				if (!f_spans.empty()) {
 					parse_line_spans(f_spans, span_lines);
@@ -234,20 +237,26 @@ std::vector<module_coverage_stats> verilog_coverage_report::parse_and_merge(
 				for (int ln : span_lines) {
 					acc.line_hits[ln] += count;
 				}
-			} else if (f_type == "toggle" && !f_obj.empty()) {
+			} else if (is_toggle && !f_obj.empty()) {
 				bool is_rise = f_obj.ends_with(":0->1");
 				bool is_fall = f_obj.ends_with(":1->0");
-				if (!is_rise && !is_fall) {
-					continue;
-				}
-				std::string_view sig = f_obj.substr(0, f_obj.size() - 5);
+				std::string_view sig = (is_rise || is_fall)
+					? f_obj.substr(0, f_obj.size() - 5)
+					: f_obj;
 				if (size_t br = sig.find('['); br != std::string_view::npos) {
 					sig = sig.substr(0, br);
 				}
 				if (!sig.empty()) {
 					auto &pair = acc.toggle_hits[std::string(sig)];
-					if (is_rise) pair.first += count;
-					else pair.second += count;
+					if (is_rise) {
+						pair.first += count;
+					} else if (is_fall) {
+						pair.second += count;
+					} else {
+						// Verilator <= 5.03x emits combined toggle counts without :0->1/:1->0
+						pair.first += count;
+						pair.second += count;
+					}
 				}
 			}
 		}
@@ -273,7 +282,7 @@ std::vector<module_coverage_stats> verilog_coverage_report::parse_and_merge(
 		}
 		st.coverage_pct = (st.total_lines > 0)
 			? (100.0 * static_cast<double>(st.covered_lines) / static_cast<double>(st.total_lines))
-			: 100.0;
+			: 0.0;
 
 		// Group contiguous uncovered lines into compact ranges with RTL snippets
 		fs::path full_path = allowed_rtl_by_rel.contains(acc.rel_file)
@@ -387,8 +396,10 @@ std::string verilog_coverage_report::format_summary_markdown(
 		tot_all += st.total_lines;
 		size_t uncov = st.total_lines - st.covered_lines;
 
-		std::string cov_str = std::format("{:.1f}% ({}/{})", st.coverage_pct, st.covered_lines, st.total_lines);
-		if (st.has_prev_pct && std::abs(st.coverage_pct - st.prev_pct) >= 0.05) {
+		std::string cov_str = (st.total_lines > 0)
+			? std::format("{:.1f}% ({}/{})", st.coverage_pct, st.covered_lines, st.total_lines)
+			: std::string("N/A (0/0)");
+		if (st.total_lines > 0 && st.has_prev_pct && std::abs(st.coverage_pct - st.prev_pct) >= 0.05) {
 			double delta = st.coverage_pct - st.prev_pct;
 			cov_str += std::format(" ({:+.1f}%)", delta);
 		}
@@ -440,21 +451,27 @@ std::string verilog_coverage_report::format_detailed_markdown(
 
 	for (const auto &st : stats) {
 		size_t uncov = st.total_lines - st.covered_lines;
-		out << std::format("## Module `{}` (`{}`) — {:.1f}% ({}/{} lines, {} uncovered)\n\n",
-		                   st.module_name, st.rel_file, st.coverage_pct, st.covered_lines, st.total_lines, uncov);
-
-		if (st.uncovered_ranges.empty()) {
-			out << "- All instrumented lines covered.\n";
+		if (st.total_lines == 0) {
+			out << std::format("## Module `{}` (`{}`) — N/A (0/0 lines)\n\n",
+			                   st.module_name, st.rel_file);
+			out << "- Warning: 0 instrumented line coverage points recorded for this module.\n";
 		} else {
-			out << "### Uncovered Line Ranges\n";
-			for (const auto &r : st.uncovered_ranges) {
-				std::string loc = (r.start_line == r.end_line)
-					? std::format("L{}", r.start_line)
-					: std::format("L{}-L{}", r.start_line, r.end_line);
-				if (!r.snippet.empty()) {
-					out << std::format("- `{}`: `{}`\n", loc, r.snippet);
-				} else {
-					out << std::format("- `{}`\n", loc);
+			out << std::format("## Module `{}` (`{}`) — {:.1f}% ({}/{} lines, {} uncovered)\n\n",
+			                   st.module_name, st.rel_file, st.coverage_pct, st.covered_lines, st.total_lines, uncov);
+
+			if (st.uncovered_ranges.empty()) {
+				out << "- All instrumented lines covered.\n";
+			} else {
+				out << "### Uncovered Line Ranges\n";
+				for (const auto &r : st.uncovered_ranges) {
+					std::string loc = (r.start_line == r.end_line)
+						? std::format("L{}", r.start_line)
+						: std::format("L{}-L{}", r.start_line, r.end_line);
+					if (!r.snippet.empty()) {
+						out << std::format("- `{}`: `{}`\n", loc, r.snippet);
+					} else {
+						out << std::format("- `{}`\n", loc);
+					}
 				}
 			}
 		}
