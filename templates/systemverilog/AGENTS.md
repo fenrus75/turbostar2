@@ -16,6 +16,7 @@ Limit the use of SystemVerilog language constructs to those supported by both `y
 ## Directory structure
 - `src/` for main RTL SystemVerilog files (`*.sv`)
 - `tb/` for testbenches
+- `formal/` for formal verification property modules (`*_props.sv`) and SymbiYosys (`.sby`) configs
 - `wave/` for generated waveform outputs 
     - give each testbench a unique filename such as `$dumpfile("wave/dump_<tb>.vcd")` so parallel testbench runs do not collide, and add `wave/` to `.gitignore`. (*If your project prefers a different location for waveforms, change this one convention and adjust the `$dumpfile` strings accordingly.*)
 
@@ -77,6 +78,37 @@ end
 - Use `verilog_configure_testbench()` to bind testbenches in `turbostar.json` (set `hierarchical=true` on integration/top modules).
 - For bugs, write a failing reproducing test first, then fix the RTL and verify it passes.
 - Run tests with `verilog_simulate()`; passing runs snapshot `.lastpass.vcd` and every run diffs against `.previous.vcd` to isolate the first diverging cycle/signal (use `vcd_compare()` to diff any two VCDs directly).
+
+## Formal verification readiness
+- Keep `src/` strictly synthesizable RTL — place formal properties in separate `formal/<module>_props.sv` checker modules instead of `` `ifdef FORMAL `` blocks inside RTL files (avoids macro collisions with Verilator lint/sim and keeps Yosys/SBY clean).
+- Attach property modules at elaboration time with SystemVerilog `bind` (supported by both `yosys` and `verilator`), which can also bind directly to internal signals.
+- Structure each property module around four basics:
+  1. **Start-up guard**: track `f_past_valid` (init `0`, set `1` on `posedge clk`) before using `$past(...)`.
+  2. **Reset assumption**: constrain cycle 0 with `if (!f_past_valid) assume(rst);` (matching the design's reset polarity).
+  3. **Invariants (`assert`)**: check safety properties that must hold on every active cycle (e.g., `!(full && empty)`).
+  4. **Reachability (`cover`)**: cover interesting states/transitions to verify assumptions are not over-constraining the design.
+```systemverilog
+// formal/fifo_props.sv
+module fifo_props #(parameter WIDTH = 8, parameter DEPTH = 16) (
+    input logic clk, input logic rst,
+    input logic full, input logic empty,
+    input logic [$clog2(DEPTH):0] count
+);
+    logic f_past_valid = 1'b0;
+    always_ff @(posedge clk) f_past_valid <= 1'b1;
+
+    always_comb if (!f_past_valid) assume (rst);
+
+    always_ff @(posedge clk) if (!rst) begin
+        assert (!(full && empty));
+        assert (count <= DEPTH);
+        cover (full);
+        cover (f_past_valid && $past(full) && empty);
+    end
+endmodule
+
+bind fifo fifo_props #(.WIDTH(WIDTH), .DEPTH(DEPTH)) u_fifo_props (.*);
+```
 
 ## Edit process
 - Use the dedicated tools for the standard "edit - compile - test - commit" cycle:
