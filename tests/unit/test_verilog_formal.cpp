@@ -26,15 +26,22 @@ static void test_validator()
 	// Default empty args should be valid (mode=all, depth=20, solver=auto, timeout=120)
 	assert(v.validate_args(nlohmann::json::object(), ctx, err));
 
-	// Explicit valid args
+	// Explicit valid args including prove+cover, parameter overrides, and verbose
 	nlohmann::json good = {
 		{"module", "alu8"},
-		{"mode", "prove"},
+		{"mode", "prove+cover"},
 		{"depth", 15},
 		{"solver", "bitwuzla"},
-		{"timeout", 60},
+		{"timeout_sec", 60},
+		{"parameters", {{"COUNTER_BITS", 4}, {"WIDTH", "8'd16"}}},
+		{"verbose", true},
 	};
 	assert(v.validate_args(good, ctx, err));
+	assert(v.validate_args(nlohmann::json{{"mode", "bmc+cover"}}, ctx, err));
+
+	// Invalid parameter name / shell injection rejected
+	assert(!v.validate_args(nlohmann::json{{"parameters", {{"BAD;NAME", "4"}}}}, ctx, err));
+	assert(!v.validate_args(nlohmann::json{{"parameters", {{"COUNTER_BITS", "4; rm -rf /"}}}}, ctx, err));
 
 	// Invalid mode
 	nlohmann::json bad_mode = {{"mode", "bogus"}};

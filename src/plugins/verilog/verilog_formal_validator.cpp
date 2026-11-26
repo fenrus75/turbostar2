@@ -1,6 +1,7 @@
 #include "plugins/verilog/verilog_formal_validator.h"
 
 #include <algorithm>
+#include <ctre.hpp>
 #include "agentlib/tool_registry.h"
 #include "fs_utils.h"
 
@@ -9,11 +10,12 @@ namespace tools
 
 std::string verilog_formal_validator::get_description() const
 {
-	return "Runs SymbiYosys (`sby`) formal verification (`bmc`, `prove`, `cover`, or `all`) on SystemVerilog/Verilog "
-	       "modules using `bind`-based property files in `formal/*_props.sv`. Automatically resolves transitive submodules, "
-	       "stages `$readmem` data files, auto-detects SMT solvers (`bitwuzla`, `yices`, `z3`), reports per-coverpoint "
-	       "reachability with vacuity warnings, and on assertion failures shows the failing source snippet and copies the "
-	       "counterexample VCD for immediate `vcd_wave` inspection.";
+	return "Runs SymbiYosys (`sby`) formal verification (`bmc`, `prove`, `cover`, `prove+cover`, `bmc+cover`, or `all`) "
+	       "on SystemVerilog/Verilog modules using `bind`-based property files in `formal/*_props.sv`. Automatically "
+	       "resolves transitive submodules, stages `$readmem` data files, supports parameter overrides (`parameters`), "
+	       "auto-detects SMT solvers (`bitwuzla`, `yices`, `z3`), reports per-module timing, flags vacuity risks, "
+	       "expands failing/unreachable diagnostics inline (writing full coverpoint details to `system://verilog/formal.md`), "
+	       "and copies counterexample VCDs for immediate `vcd_wave` inspection.";
 }
 
 nlohmann::json verilog_formal_validator::get_parameters_schema() const
@@ -27,12 +29,12 @@ nlohmann::json verilog_formal_validator::get_parameters_schema() const
 			}},
 			{"mode", {
 				{"type", "string"},
-				{"enum", {"bmc", "prove", "cover", "all"}},
-				{"description", "Formal verification mode: 'bmc' (bounded model checking), 'prove' (k-induction unbounded proof), 'cover' (coverpoint reachability), or 'all' (runs both bmc and cover; default: 'all')."}
+				{"enum", {"bmc", "prove", "cover", "prove+cover", "bmc+cover", "all"}},
+				{"description", "Formal verification mode: 'bmc' (bounded model checking), 'prove' (k-induction unbounded proof + basecase), 'cover' (coverpoint reachability), 'prove+cover', 'bmc+cover', or 'all' (runs prove + cover; default: 'all')."}
 			}},
 			{"depth", {
 				{"type", "integer"},
-				{"description", "Maximum step depth for BMC and cover tasks (default: 20, range 1..500)."}
+				{"description", "Maximum step depth for BMC, prove, and cover tasks (default: 20, range 1..500)."}
 			}},
 			{"solver", {
 				{"type", "string"},
@@ -42,6 +44,14 @@ nlohmann::json verilog_formal_validator::get_parameters_schema() const
 			{"timeout_sec", {
 				{"type", "integer"},
 				{"description", "Timeout in seconds per module (default: 60, range 5..600)."}
+			}},
+			{"parameters", {
+				{"type", "object"},
+				{"description", "Optional map of Verilog parameter overrides for the top module (e.g. {\"COUNTER_BITS\": \"4\"}), applied via read_slang -G / chparam."}
+			}},
+			{"verbose", {
+				{"type", "boolean"},
+				{"description", "When true, include all passing coverpoint tables inline. When false (default), only failing/unreachable coverpoints are expanded inline and the full report is written to `system://verilog/formal.md`."}
 			}}
 		}},
 		{"required", nlohmann::json::array()}
@@ -54,7 +64,10 @@ std::unordered_map<std::string, std::string> verilog_formal_validator::get_custo
 		{"rtl_module", "module"},
 		{"task", "mode"},
 		{"steps", "depth"},
-		{"timeout", "timeout_sec"}
+		{"timeout", "timeout_sec"},
+		{"Parameters", "parameters"},
+		{"chparam", "parameters"},
+		{"Verbose", "verbose"}
 	};
 }
 
@@ -78,8 +91,9 @@ bool verilog_formal_validator::validate_args_impl(const nlohmann::json &untruste
 	if (untrusted_args.contains("mode") && untrusted_args["mode"].is_string()) {
 		std::string untrusted_mode = untrusted_args["mode"].get<std::string>();
 		if (untrusted_mode != "bmc" && untrusted_mode != "prove" &&
-		    untrusted_mode != "cover" && untrusted_mode != "all") {
-			out_error = "Parameter 'mode' must be one of: 'bmc', 'prove', 'cover', 'all'";
+		    untrusted_mode != "cover" && untrusted_mode != "prove+cover" &&
+		    untrusted_mode != "bmc+cover" && untrusted_mode != "all") {
+			out_error = "Parameter 'mode' must be one of: 'bmc', 'prove', 'cover', 'prove+cover', 'bmc+cover', 'all'";
 			return false;
 		}
 		args_.mode = untrusted_mode;
@@ -103,6 +117,37 @@ bool verilog_formal_validator::validate_args_impl(const nlohmann::json &untruste
 	if (untrusted_args.contains("timeout_sec") && untrusted_args["timeout_sec"].is_number_integer()) {
 		int untrusted_to = untrusted_args["timeout_sec"].get<int>();
 		args_.timeout_sec = std::clamp(untrusted_to, 5, 600);
+	}
+
+	if (untrusted_args.contains("parameters")) {
+		if (!untrusted_args["parameters"].is_object()) {
+			out_error = "Parameter 'parameters' must be a JSON object mapping parameter names to values";
+			return false;
+		}
+		for (const auto &[untrusted_k, untrusted_v] : untrusted_args["parameters"].items()) {
+			if (!ctre::match<R"([a-zA-Z_][a-zA-Z_0-9]*)">(untrusted_k)) {
+				out_error = "Invalid Verilog parameter name in 'parameters'";
+				return false;
+			}
+			std::string untrusted_val;
+			if (untrusted_v.is_string()) {
+				untrusted_val = untrusted_v.get<std::string>();
+			} else if (untrusted_v.is_number_integer()) {
+				untrusted_val = std::to_string(untrusted_v.get<long long>());
+			} else {
+				out_error = "Parameter values in 'parameters' must be integers or strings";
+				return false;
+			}
+			if (untrusted_val.empty() || !ctre::match<R"([0-9a-zA-Z_'+\-]+)">(untrusted_val)) {
+				out_error = "Invalid Verilog parameter literal in 'parameters'";
+				return false;
+			}
+			args_.parameters[untrusted_k] = untrusted_val;
+		}
+	}
+
+	if (untrusted_args.contains("verbose") && untrusted_args["verbose"].is_boolean()) {
+		args_.verbose = untrusted_args["verbose"].get<bool>();
 	}
 
 	return true;

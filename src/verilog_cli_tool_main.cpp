@@ -582,11 +582,15 @@ int main(int argc, char **argv)
 	std::string frm_module, frm_mode, frm_solver;
 	int frm_depth = 0;
 	int frm_timeout = 0;
+	std::vector<std::string> frm_params;
+	bool frm_verbose = false;
 	sub_formal->add_option("module,-m,--module", frm_module, "Target RTL module name (default: all modules with formal/*_props.sv bindings)");
-	sub_formal->add_option("--mode", frm_mode, "Formal mode: bmc, prove, cover, or all (default: all)");
-	sub_formal->add_option("--depth", frm_depth, "Maximum step depth for BMC and cover tasks (default: 20)");
+	sub_formal->add_option("--mode", frm_mode, "Formal mode: bmc, prove, cover, prove+cover, bmc+cover, or all (default: all = prove+cover)");
+	sub_formal->add_option("--depth", frm_depth, "Maximum step depth for BMC, prove, and cover tasks (default: 20)");
 	sub_formal->add_option("--solver", frm_solver, "SMT solver: auto, bitwuzla, yices, or z3 (default: auto)");
 	sub_formal->add_option("--timeout", frm_timeout, "Timeout in seconds per module (default: 60)");
+	sub_formal->add_option("-P,--param", frm_params, "Override top-module Verilog parameter(s) as KEY=VAL (repeatable or comma-separated)");
+	sub_formal->add_flag("-v,--verbose", frm_verbose, "Print all passing coverpoint tables inline (default collapses passing coverpoints)");
 
 	// Subcommand: vcd-info (vcd_file_info)
 	auto *sub_vcd_info = app.add_subcommand("vcd-info", "Inspect VCD file timescale, clock, hierarchy scopes, and signals");
@@ -861,6 +865,18 @@ int main(int argc, char **argv)
 		if (frm_depth > 0) j["depth"] = frm_depth;
 		if (!frm_solver.empty()) j["solver"] = frm_solver;
 		if (frm_timeout > 0) j["timeout_sec"] = frm_timeout;
+		if (!frm_params.empty()) {
+			nlohmann::json kv = nlohmann::json::object();
+			std::string kv_err;
+			if (!parse_kv_pairs(frm_params, kv, kv_err)) {
+				std::cerr << "Error parsing --param: " << kv_err << "\n";
+				return 1;
+			}
+			if (!kv.empty()) {
+				j["parameters"] = std::move(kv);
+			}
+		}
+		if (frm_verbose) j["verbose"] = true;
 		return run_validator_tool<tools::verilog_formal_validator>(j, cwd_str, framed_tables);
 	}
 

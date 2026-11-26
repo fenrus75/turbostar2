@@ -1,6 +1,7 @@
 #include "plugins/verilog/verilog_formal_tool.h"
 
 #include <algorithm>
+#include <chrono>
 #include <ctre.hpp>
 #include <filesystem>
 #include <format>
@@ -55,6 +56,7 @@ struct sby_module_outcome {
 	std::string checked_in_sby_rel; // non-empty if a checked-in formal/<mod>.sby exists on disk
 	std::vector<sby_task_outcome> tasks;
 	std::string raw_error;
+	double elapsed_sec{0.0};
 	bool timed_out{false};
 };
 
@@ -330,7 +332,9 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 	const bool is_cli = verilog::fpga_project_settings::is_cli_mode();
 
 	std::vector<std::string> task_list;
-	if (args_.mode == "all") {
+	if (args_.mode == "all" || args_.mode == "prove+cover") {
+		task_list = {"prove", "cover"};
+	} else if (args_.mode == "bmc+cover") {
 		task_list = {"bmc", "cover"};
 	} else {
 		task_list = {args_.mode};
@@ -409,9 +413,7 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 			sf << "\n[options]\n";
 			for (const auto &t : task_list) {
 				sf << std::format("{}: mode {}\n", t, t);
-				if (t == "bmc" || t == "cover") {
-					sf << std::format("{}: depth {}\n", t, args_.depth);
-				}
+				sf << std::format("{}: depth {}\n", t, args_.depth);
 			}
 			sf << "\n[engines]\n";
 			sf << std::format("smtbmc {}\n", solver);
@@ -422,10 +424,17 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 				file_args += " " + fs::path(src).filename().string();
 			}
 			if (use_slang) {
+				std::string param_args;
+				for (const auto &[pk, pv] : args_.parameters) {
+					param_args += std::format(" -G {}={}", pk, pv);
+				}
 				sf << "plugin -i slang\n";
-				sf << std::format("read_slang --top {} -DFORMAL{}\n", mod, file_args);
+				sf << std::format("read_slang{} --top {} -DFORMAL{}\n", param_args, mod, file_args);
 			} else {
 				sf << std::format("read -sv -formal{}\n", file_args);
+				for (const auto &[pk, pv] : args_.parameters) {
+					sf << std::format("chparam -set {} {} {}\n", pk, pv, mod);
+				}
 			}
 			sf << std::format("prep -top {}\n", mod);
 
@@ -454,7 +463,10 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 			fs_utils::escape_shell_arg(sby_bin),
 			fs_utils::escape_shell_arg(sby_file.filename().string())
 		);
+		auto t_start = std::chrono::steady_clock::now();
 		std::string sby_out = fs_utils::execute_command_sync(cmd, args_.timeout_sec);
+		auto t_end = std::chrono::steady_clock::now();
+		mout.elapsed_sec = std::chrono::duration<double>(t_end - t_start).count();
 		mout.timed_out = sby_out.find("Command timed out") != std::string::npos;
 
 		// 6. Parse SBY output per task
@@ -574,10 +586,20 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 		outcomes.push_back(std::move(mout));
 	}
 
-	// 7. Format Markdown report
-	std::ostringstream report;
-	report << std::format("## Formal Verification Report (SymbiYosys `smtbmc {}`, depth={})\n\n", solver, args_.depth);
-	report << std::format("*Config: auto-generated `.sby` (`{}`)*", use_slang ? "read_slang" : "read -sv -formal");
+	// 7. Format Markdown reports (compact inline + full report persisted to system://verilog/formal.md)
+	std::ostringstream header;
+	header << std::format("## Formal Verification Report (SymbiYosys `smtbmc {}`, depth={})\n\n", solver, args_.depth);
+	header << std::format("*Config: auto-generated `.sby` (`{}`)*", use_slang ? "read_slang" : "read -sv -formal");
+	if (!args_.parameters.empty()) {
+		header << " — *Parameters: ";
+		bool first_p = true;
+		for (const auto &[pk, pv] : args_.parameters) {
+			if (!first_p) header << ", ";
+			first_p = false;
+			header << std::format("`{}={}`", pk, pv);
+		}
+		header << "*";
+	}
 	std::vector<std::string> ignored_checked_in;
 	for (const auto &mo : outcomes) {
 		if (!mo.checked_in_sby_rel.empty()) {
@@ -585,16 +607,16 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 		}
 	}
 	if (!ignored_checked_in.empty()) {
-		report << " — *checked-in ";
+		header << " — *checked-in ";
 		for (size_t i = 0; i < ignored_checked_in.size(); ++i) {
-			if (i > 0) report << ", ";
-			report << std::format("`{}`", ignored_checked_in[i]);
+			if (i > 0) header << ", ";
+			header << std::format("`{}`", ignored_checked_in[i]);
 		}
-		report << " not used (auto-generated config applies transitive deps, `$readmem` staging, and solver auto-detection)*";
+		header << " not used (auto-generated config applies transitive deps, `$readmem` staging, and solver auto-detection)*";
 	}
-	report << "\n\n";
-	report << "| Module | Property File(s) | Task | Status | Coverpoints | Counterexample VCD |\n";
-	report << "|--------|------------------|------|--------|-------------|--------------------|\n";
+	header << "\n\n";
+	header << "| Module | Property File(s) | Task | Status | Coverpoints | Time | Counterexample VCD |\n";
+	header << "|--------|------------------|------|--------|-------------|------|--------------------|\n";
 
 	size_t pass_tasks = 0;
 	size_t fail_tasks = 0;
@@ -604,7 +626,8 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 			if (i > 0) props_str += ", ";
 			props_str += std::format("`{}`", mo.formal_files_rel[i]);
 		}
-		for (const auto &t : mo.tasks) {
+		for (size_t ti = 0; ti < mo.tasks.size(); ++ti) {
+			const auto &t = mo.tasks[ti];
 			if (t.status == "PASS") ++pass_tasks;
 			else ++fail_tasks;
 
@@ -616,12 +639,19 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 				}
 				cov_str = std::format("{}/{} hit", hit, t.covers.size());
 			}
+			std::string time_str = (ti == 0) ? std::format("{:.1f}s", mo.elapsed_sec) : "-";
 			std::string vcd_str = t.counterexample_vcd_rel.empty() ? "-" : std::format("`{}`", t.counterexample_vcd_rel);
-			report << std::format("| `{}` | {} | `{}` | **{}** | {} | {} |\n",
-			                      mo.module_name, props_str, t.task, t.status, cov_str, vcd_str);
+			header << std::format("| `{}` | {} | `{}` | **{}** | {} | {} | {} |\n",
+			                      mo.module_name, props_str, t.task, t.status, cov_str, time_str, vcd_str);
 		}
 	}
 
+	std::ostringstream report;
+	std::ostringstream full_report;
+	report << header.str();
+	full_report << header.str();
+
+	size_t collapsed_cover_tables = 0;
 	// Detailed per-module diagnostics (failures, coverpoint tables, vacuity warnings)
 	for (const auto &mo : outcomes) {
 		bool proof_passed = false;
@@ -636,14 +666,17 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		if (proof_passed && unreached_covers > 0) {
-			report << std::format("\n> [!WARNING] **Vacuity Risk (`{}`)**: Formal proof/BMC passed, but {} `cover()` statement(s) "
-			                      "were **UNREACHABLE** within depth {}. Check whether an `assume()` is over-constraining the design.\n",
-			                      mo.module_name, unreached_covers, args_.depth);
+			std::string warn = std::format("\n> [!WARNING] **Vacuity Risk (`{}`)**: Formal proof/BMC passed, but {} `cover()` statement(s) "
+			                               "were **UNREACHABLE** within depth {}. Check whether an `assume()` is over-constraining the design.\n",
+			                               mo.module_name, unreached_covers, args_.depth);
+			report << warn;
+			full_report << warn;
 		}
 
 		for (const auto &t : mo.tasks) {
 			if (!t.failures.empty()) {
-				report << std::format("\n#### Assertion Failure Context (`{}` / `{}`)\n", mo.module_name, t.task);
+				std::ostringstream fail_sec;
+				fail_sec << std::format("\n#### Assertion Failure Context (`{}` / `{}`)\n", mo.module_name, t.task);
 				for (const auto &f : t.failures) {
 					std::vector<std::string> search_srcs = rtl_files;
 					search_srcs.insert(search_srcs.end(), formal_files.begin(), formal_files.end());
@@ -657,35 +690,75 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 					std::string kind_label;
 					std::string snip = read_context_snippet(resolved, f.line, kind_label);
 					std::string step_str = (f.step >= 0) ? std::format(" (step {})", f.step) : "";
-					report << std::format("- **{}** at `{}:{}`{}\n", kind_label, disp_f, f.line, step_str);
+					fail_sec << std::format("- **{}** at `{}:{}`{}\n", kind_label, disp_f, f.line, step_str);
 					if (!snip.empty()) {
-						report << "```systemverilog\n" << snip << "```\n";
+						fail_sec << "```systemverilog\n" << snip << "```\n";
 					}
 				}
 				if (!t.counterexample_vcd_rel.empty()) {
 					if (is_cli) {
-						report << std::format("- **Inspect Counterexample**: `turbostar-verilog vcd-wave {}`\n",
-						                      t.counterexample_vcd_rel);
+						fail_sec << std::format("- **Inspect Counterexample**: `turbostar-verilog vcd-wave {}`\n",
+						                        t.counterexample_vcd_rel);
 					} else {
-						report << std::format("- **Inspect Counterexample**: `vcd_wave(path=\"{}\")`\n",
-						                      t.counterexample_vcd_rel);
+						fail_sec << std::format("- **Inspect Counterexample**: `vcd_wave(path=\"{}\")`\n",
+						                        t.counterexample_vcd_rel);
 					}
 				}
+				report << fail_sec.str();
+				full_report << fail_sec.str();
 			}
 
 			if (!t.covers.empty()) {
-				report << std::format("\n#### Coverpoints (`{}` / `{}`)\n\n", mo.module_name, t.task);
-				report << "| Location | Status | Statement |\n";
-				report << "|----------|--------|-----------|\n";
+				bool has_unreachable = false;
+				for (const auto &c : t.covers) {
+					if (!c.reached) {
+						has_unreachable = true;
+						break;
+					}
+				}
+				std::ostringstream cov_sec;
+				cov_sec << std::format("\n#### Coverpoints (`{}` / `{}`)\n\n", mo.module_name, t.task);
+				cov_sec << "| Location | Status | Statement |\n";
+				cov_sec << "|----------|--------|-----------|\n";
 				for (const auto &c : t.covers) {
 					std::string st = c.reached ? std::format("HIT (step {})", c.step) : "**UNREACHABLE**";
-					report << std::format("| `{}:{}` | {} | `{}` |\n", c.file, c.line, st, c.snippet);
+					cov_sec << std::format("| `{}:{}` | {} | `{}` |\n", c.file, c.line, st, c.snippet);
+				}
+				full_report << cov_sec.str();
+				if (has_unreachable || args_.verbose) {
+					report << cov_sec.str();
+				} else {
+					++collapsed_cover_tables;
 				}
 			}
 		}
 
 		if (!mo.raw_error.empty()) {
-			report << std::format("\n#### SBY Error Output (`{}`)\n```\n{}```\n", mo.module_name, mo.raw_error);
+			std::string err_sec = std::format("\n#### SBY Error Output (`{}`)\n```\n{}```\n", mo.module_name, mo.raw_error);
+			report << err_sec;
+			full_report << err_sec;
+		}
+	}
+
+	// Persist full report to <project_tmp>/verilog_formal.md for system://verilog/formal.md
+	{
+		fs::path formal_report_path = base_tmp / "verilog_formal.md";
+		std::ofstream rf(formal_report_path, std::ios::binary | std::ios::trunc);
+		if (rf.is_open()) {
+			rf << full_report.str();
+		}
+	}
+
+	if (collapsed_cover_tables > 0) {
+		if (is_cli) {
+			report << std::format("\n> [!TIP] {} passing coverpoint table(s) collapsed for brevity. "
+			                      "Re-run with `--verbose` to print all coverpoints inline.\n",
+			                      collapsed_cover_tables);
+		} else {
+			report << std::format("\n> [!TIP] {} passing coverpoint table(s) collapsed for brevity. "
+			                      "Full per-coverpoint breakdown is available at `system://verilog/formal.md` "
+			                      "(read with `fs_read_lines(path=\"system://verilog/formal.md\")` or filter with `?search=<module>`).\n",
+			                      collapsed_cover_tables);
 		}
 	}
 

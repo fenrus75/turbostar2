@@ -829,6 +829,18 @@ system_vfs_provider::system_vfs_provider()
 		ss << in.rdbuf();
 		return ss.str();
 	});
+
+	// Dynamic Generator: system://verilog/formal.md
+	register_generator("verilog/formal.md", [](const std::string &) -> std::string {
+		std::filesystem::path frm_path = std::filesystem::path(fs_utils::get_project_tmp_dir()) / "verilog_formal.md";
+		std::ifstream in(frm_path, std::ios::binary);
+		if (!in.is_open()) {
+			return "(No Verilog formal verification report recorded yet. Run verilog_formal.)\n";
+		}
+		std::ostringstream ss;
+		ss << in.rdbuf();
+		return ss.str();
+	});
 	register_description("subagents.md", "Read to check summary index of all active and recent subagents.");
 	register_description("subagents", "Directory containing active subagent dashboards, final results, and execution transcripts.");
 	// Register directory purpose descriptions
