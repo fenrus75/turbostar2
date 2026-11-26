@@ -131,9 +131,9 @@ std::string turbomcp_server::transform_description_for_identity(
 			// Multi-word snake_case parameter names (e.g. start_line) are unambiguous identifiers
 			result = pcre2_regex("\\b" + escaped_old + "\\b").global_replace(result, new_key);
 		} else {
-			// Single-word parameter names (e.g. tail, length, start, end): replace when quoted/backticked
-			// or when part of a slash-delimited parameter list (e.g. start/end/length).
-			result = pcre2_regex("(['\"`])" + escaped_old + "(['\"`])").global_replace(result, "\\1" + new_key + "\\2");
+			// Single-word parameter names (e.g. tail, length, start, end, coverage): replace when quoted/backticked
+			// (including `param=value` forms) or when part of a slash-delimited parameter list (e.g. start/end/length).
+			result = pcre2_regex("(['\"`])" + escaped_old + "(['\"`=])").global_replace(result, "\\1" + new_key + "\\2");
 			if (!param_alt.empty()) {
 				result = pcre2_regex("\\b" + escaped_old + "/(" + param_alt + ")\\b").global_replace(result, new_key + "/\\1");
 				result = pcre2_regex("\\b(" + param_alt + ")/" + escaped_old + "\\b").global_replace(result, "\\1/" + new_key);

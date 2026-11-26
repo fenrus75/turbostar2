@@ -13,8 +13,8 @@ std::string verilog_simulate_validator::get_description() const
 	return "Compiles and runs one or more SystemVerilog/Verilog testbenches together with project RTL using Verilator (`--assert`), "
 	       "supporting module-targeted unit testing (`module`), optional bottom-up submodule testing (`hierarchical`), "
 	       "and test tier filtering (`level`: 'quick', 'comprehensive', 'extreme'). Automatically includes `formal/*.sv` `bind` "
-	       "property modules (`include_formal=true`), generates VCD waveforms with `.previous.vcd`/`.lastpass.vcd` regression diffing, "
-	       "and with `coverage=true` reports merged RTL line coverage, untoggled ports, and formal `cover()` hit counts "
+	       "property modules (`include_formal`), generates VCD waveforms with `.previous.vcd`/`.lastpass.vcd` regression diffing, "
+	       "and with `coverage` enabled reports merged RTL line coverage, untoggled ports, and formal `cover()` hit counts "
 	       "(detailed report in `system://verilog/coverage.md`). Prefer this tool over invoking `verilator` via shell.";
 }
 
