@@ -42,7 +42,9 @@ struct fpga_system_tools {
 	std::string nextpnr_ice40_path;
 	std::string nextpnr_generic_path;
 	std::string nextpnr_ecp5_path;
-	std::vector<std::string> available_targets; // e.g. ["ice40", "generic"]
+	std::string sby_path;
+	std::vector<std::string> available_targets;     // e.g. ["ice40", "generic"]
+	std::vector<std::string> available_smt_solvers; // e.g. ["bitwuzla", "yices", "z3"]
 };
 
 /**
@@ -63,8 +65,8 @@ public:
 	// Rejects shell metacharacters and '..' traversal; escapes each token with fs_utils::escape_shell_arg.
 	static bool format_safe_cli_args(std::string_view untrusted_args, std::string &out_escaped, std::string &out_error);
 
-	// Detect EDA tool binaries installed on PATH
-	static fpga_system_tools detect_system_tools();
+	// Detect EDA tool binaries installed on PATH (and optional configured sby_path)
+	static fpga_system_tools detect_system_tools(std::string_view configured_sby_path = "");
 
 	// Auto-detect synthesizable RTL directory (checks "sv", "rtl", "src", or ".")
 	static std::string detect_sv_path(std::string_view project_root);

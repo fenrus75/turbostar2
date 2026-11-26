@@ -63,9 +63,21 @@ nlohmann::json verilog_project_settings_validator::get_parameters_schema() const
 			{"nextpnr_args", {
 				{"type", "string"},
 				{"description", "Optional extra place-and-route arguments for nextpnr (e.g. '--placer-heap-timingweight 30 --promote-logic')."}
+			}},
+			{"sby_path", {
+				{"type", "string"},
+				{"description", "Optional explicit path to the SymbiYosys (sby) executable (e.g. '~/external/oss-cad-suite/bin/sby')."}
 			}}
 		}},
 		{"required", nlohmann::json::array()}
+	};
+}
+
+std::unordered_map<std::string, std::string> verilog_project_settings_validator::get_custom_parameter_aliases() const
+{
+	return {
+		{"SbyPath", "sby_path"},
+		{"sby", "sby_path"},
 	};
 }
 
@@ -119,6 +131,14 @@ bool verilog_project_settings_validator::validate_args_impl(const nlohmann::json
 			return false;
 		}
 		args_.nextpnr_args = untrusted_pnr;
+	}
+	if (untrusted_args.contains("sby_path") && untrusted_args["sby_path"].is_string()) {
+		std::string untrusted_sby = untrusted_args["sby_path"].get<std::string>();
+		if (!untrusted_sby.empty() && !fs_utils::is_safe_for_ui(untrusted_sby)) {
+			out_error = "Invalid characters in 'sby_path' parameter";
+			return false;
+		}
+		args_.sby_path = untrusted_sby;
 	}
 
 	return true;

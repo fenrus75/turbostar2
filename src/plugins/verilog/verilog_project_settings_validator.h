@@ -1,5 +1,6 @@
 #pragma once
 
+#include <unordered_map>
 #include "agentlib/tool_validator.h"
 #include "plugins/verilog/verilog_project_settings_tool.h"
 
@@ -17,6 +18,7 @@ public:
 	std::string get_description() const override;
 	std::string get_family() const override { return "verilog"; }
 	nlohmann::json get_parameters_schema() const override;
+	std::unordered_map<std::string, std::string> get_custom_parameter_aliases() const override;
 
 protected:
 	bool validate_args_impl(const nlohmann::json &untrusted_args, const agentlib::tool_context &ctx,

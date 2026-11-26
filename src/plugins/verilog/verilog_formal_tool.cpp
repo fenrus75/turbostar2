@@ -52,6 +52,7 @@ struct sby_task_outcome {
 struct sby_module_outcome {
 	std::string module_name;
 	std::vector<std::string> formal_files_rel;
+	std::string checked_in_sby_rel; // non-empty if a checked-in formal/<mod>.sby exists on disk
 	std::vector<sby_task_outcome> tasks;
 	std::string raw_error;
 	bool timed_out{false};
@@ -388,6 +389,15 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 		// Stage $readmemh/$readmemb data files referenced by transitive RTL
 		verilog::verilog_module_scanner::stage_readmem_files(mod_sources, mod_work);
 
+		// Check if a checked-in formal/<mod>.sby exists on disk so we can note provenance in the report
+		{
+			fs::path checked_in_cand = root_path / "formal" / std::format("{}.sby", mod);
+			if (fs::is_regular_file(checked_in_cand, ec)) {
+				mout.checked_in_sby_rel = std::format("formal/{}.sby", mod);
+			}
+			ec.clear();
+		}
+
 		// 4. Generate .sby file
 		fs::path sby_file = mod_work / std::format("{}.sby", mod);
 		{
@@ -567,6 +577,22 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 	// 7. Format Markdown report
 	std::ostringstream report;
 	report << std::format("## Formal Verification Report (SymbiYosys `smtbmc {}`, depth={})\n\n", solver, args_.depth);
+	report << std::format("*Config: auto-generated `.sby` (`{}`)*", use_slang ? "read_slang" : "read -sv -formal");
+	std::vector<std::string> ignored_checked_in;
+	for (const auto &mo : outcomes) {
+		if (!mo.checked_in_sby_rel.empty()) {
+			ignored_checked_in.push_back(mo.checked_in_sby_rel);
+		}
+	}
+	if (!ignored_checked_in.empty()) {
+		report << " — *checked-in ";
+		for (size_t i = 0; i < ignored_checked_in.size(); ++i) {
+			if (i > 0) report << ", ";
+			report << std::format("`{}`", ignored_checked_in[i]);
+		}
+		report << " not used (auto-generated config applies transitive deps, `$readmem` staging, and solver auto-detection)*";
+	}
+	report << "\n\n";
 	report << "| Module | Property File(s) | Task | Status | Coverpoints | Counterexample VCD |\n";
 	report << "|--------|------------------|------|--------|-------------|--------------------|\n";
 

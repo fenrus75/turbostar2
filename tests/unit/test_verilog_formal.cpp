@@ -4,6 +4,7 @@
 #include "plugins/verilog/fpga_project_settings.h"
 #include "plugins/verilog/verilog_formal_tool.h"
 #include "plugins/verilog/verilog_formal_validator.h"
+#include "plugins/verilog/verilog_project_settings_validator.h"
 #include "test_watchdog.h"
 
 #include <cassert>
@@ -104,6 +105,21 @@ static void test_sby_path_settings_roundtrip()
 	verilog::fpga_target_config loaded;
 	assert(verilog::fpga_project_settings::load_from_project(tmp_proj.string(), loaded, err));
 	assert(loaded.sby_path == "~/external/oss-cad-suite/bin/sby");
+
+	// Verify verilog_project_settings_validator accepts sby_path and rejects control chars
+	tools::verilog_project_settings_validator vps;
+	agentlib::tool_context ctx;
+	assert(vps.validate_args(nlohmann::json{{"action", "set"}, {"sby_path", "~/external/oss-cad-suite/bin/sby"}}, ctx, err));
+	assert(!vps.validate_args(nlohmann::json{{"action", "set"}, {"sby_path", "bad\x1bpath"}}, ctx, err));
+
+	// Verify format_summary includes sby_path and System EDA Environment formal entries
+	verilog::fpga_system_tools sys_tools;
+	sys_tools.sby_path = "/opt/oss-cad-suite/bin/sby";
+	sys_tools.available_smt_solvers = {"bitwuzla", "z3"};
+	std::string summary = verilog::fpga_project_settings::format_summary(loaded, sys_tools, {});
+	assert(summary.find("sby_path") != std::string::npos);
+	assert(summary.find("SymbiYosys (`sby`)") != std::string::npos);
+	assert(summary.find("bitwuzla, z3") != std::string::npos);
 
 	fs::remove_all(tmp_proj);
 }

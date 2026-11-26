@@ -17,6 +17,7 @@ struct verilog_project_settings_args {
 	std::string sv_path;
 	std::string yosys_synth_args;
 	std::string nextpnr_args;
+	std::string sby_path;
 };
 
 class verilog_project_settings_tool : public agentlib::llm_tool_action

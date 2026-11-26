@@ -7,6 +7,7 @@
 #include <format>
 #include <algorithm>
 #include <nlohmann/json.hpp>
+#include <unistd.h>
 
 namespace verilog {
 
@@ -64,13 +65,41 @@ bool fpga_project_settings::format_safe_cli_args(std::string_view untrusted_args
 	return true;
 }
 
-fpga_system_tools fpga_project_settings::detect_system_tools()
+fpga_system_tools fpga_project_settings::detect_system_tools(std::string_view configured_sby_path)
 {
 	fpga_system_tools tools;
 	tools.yosys_path = fs_utils::find_executable("yosys");
 	tools.nextpnr_ice40_path = fs_utils::find_executable("nextpnr-ice40");
 	tools.nextpnr_generic_path = fs_utils::find_executable("nextpnr-generic");
 	tools.nextpnr_ecp5_path = fs_utils::find_executable("nextpnr-ecp5");
+
+	if (!configured_sby_path.empty()) {
+		tools.sby_path = fs_utils::find_executable(configured_sby_path);
+	}
+	if (tools.sby_path.empty()) {
+		tools.sby_path = fs_utils::find_executable("sby");
+	}
+
+	fs::path sby_dir = tools.sby_path.empty() ? fs::path{} : fs::path(tools.sby_path).parent_path();
+	auto has_solver = [&](std::string_view exe) -> bool {
+		if (!sby_dir.empty()) {
+			std::error_code ec;
+			fs::path cand = sby_dir / exe;
+			if (fs::exists(cand, ec) && ::access(cand.c_str(), X_OK) == 0) {
+				return true;
+			}
+		}
+		return !fs_utils::find_executable(exe).empty();
+	};
+	if (has_solver("bitwuzla")) {
+		tools.available_smt_solvers.push_back("bitwuzla");
+	}
+	if (has_solver("yices-smt2")) {
+		tools.available_smt_solvers.push_back("yices");
+	}
+	if (has_solver("z3")) {
+		tools.available_smt_solvers.push_back("z3");
+	}
 
 	if (!tools.nextpnr_ice40_path.empty()) {
 		tools.available_targets.push_back("ice40");
@@ -322,6 +351,9 @@ std::string fpga_project_settings::format_summary(const fpga_target_config &cfg,
 	if (!cfg.nextpnr_args.empty()) {
 		md += std::format("- **nextpnr Args**: `{}`\n", cfg.nextpnr_args);
 	}
+	if (!cfg.sby_path.empty()) {
+		md += std::format("- **SymbiYosys Path (`sby_path`)**: `{}`\n", cfg.sby_path);
+	}
 
 	md += "\n### System EDA Environment\n";
 	md += std::format("- **Yosys**: {}\n", tools.yosys_path.empty() ? "*Not found*" : std::format("`{}`", tools.yosys_path));
@@ -334,6 +366,17 @@ std::string fpga_project_settings::format_summary(const fpga_target_config &cfg,
 		md += std::format("- **Installed nextpnr Targets**: `{}`\n", targets_str);
 	} else {
 		md += "- **Installed nextpnr Targets**: *None found on PATH*\n";
+	}
+	md += std::format("- **SymbiYosys (`sby`)**: {}\n", tools.sby_path.empty() ? "*Not found*" : std::format("`{}`", tools.sby_path));
+	if (!tools.available_smt_solvers.empty()) {
+		std::string solvers_str;
+		for (size_t i = 0; i < tools.available_smt_solvers.size(); ++i) {
+			if (i > 0) solvers_str += ", ";
+			solvers_str += tools.available_smt_solvers[i];
+		}
+		md += std::format("- **Available SMT Solvers**: `{}`\n", solvers_str);
+	} else {
+		md += "- **Available SMT Solvers**: *None found (`bitwuzla`, `yices-smt2`, `z3`)*\n";
 	}
 
 	if (!pcf_files.empty()) {

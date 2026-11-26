@@ -30,7 +30,6 @@ std::string verilog_project_settings_tool::execute(agentlib::tool_context &ctx)
 	std::string load_err;
 	verilog::fpga_project_settings::load_from_project(project_root, cfg, load_err);
 
-	auto sys_tools = verilog::fpga_project_settings::detect_system_tools();
 	auto pcfs = verilog::fpga_project_settings::scan_pcf_files(project_root);
 
 	bool is_set_action = (args_.action == "set") ||
@@ -42,7 +41,8 @@ std::string verilog_project_settings_tool::execute(agentlib::tool_context &ctx)
 	                     !args_.pcf_file.empty() ||
 	                     !args_.sv_path.empty() ||
 	                     !args_.yosys_synth_args.empty() ||
-	                     !args_.nextpnr_args.empty();
+	                     !args_.nextpnr_args.empty() ||
+	                     !args_.sby_path.empty();
 
 	if (is_set_action) {
 		if (!args_.target.empty()) cfg.target = args_.target;
@@ -54,6 +54,7 @@ std::string verilog_project_settings_tool::execute(agentlib::tool_context &ctx)
 		if (!args_.sv_path.empty()) cfg.sv_path = args_.sv_path;
 		if (!args_.yosys_synth_args.empty()) cfg.yosys_synth_args = args_.yosys_synth_args;
 		if (!args_.nextpnr_args.empty()) cfg.nextpnr_args = args_.nextpnr_args;
+		if (!args_.sby_path.empty()) cfg.sby_path = args_.sby_path;
 
 		// Default PCF if not set and exactly one is present
 		if (cfg.pcf_file.empty() && pcfs.size() == 1) {
@@ -68,6 +69,7 @@ std::string verilog_project_settings_tool::execute(agentlib::tool_context &ctx)
 		}
 
 		cfg.active_config_file = path_used;
+		auto sys_tools = verilog::fpga_project_settings::detect_system_tools(cfg.sby_path);
 
 		set_success(ctx);
 		std::string out = std::format("Successfully saved FPGA project configuration to `{}`.\n\n", path_used);
@@ -76,6 +78,7 @@ std::string verilog_project_settings_tool::execute(agentlib::tool_context &ctx)
 	}
 
 	// GET mode
+	auto sys_tools = verilog::fpga_project_settings::detect_system_tools(cfg.sby_path);
 	set_success(ctx);
 	std::string summary = verilog::fpga_project_settings::format_summary(cfg, sys_tools, pcfs);
 
