@@ -19,6 +19,7 @@ struct verilog_simulate_args {
 	bool summary_only{false};
 	bool verbose{false};
 	bool coverage{false};
+	bool include_formal{true};
 };
 
 class verilog_simulate_tool : public agentlib::llm_tool_action

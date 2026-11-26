@@ -562,6 +562,7 @@ int main(int argc, char **argv)
 	bool sim_quiet = false;
 	bool sim_verbose = false;
 	bool sim_coverage = false;
+	bool sim_no_formal = false;
 	sub_sim->add_option("module,-m,--module", sim_module, "Target RTL module name or source file");
 	sub_sim->add_option("-b,--tb,--testbench", sim_tb, "Specific testbench file to run");
 	sub_sim->add_flag("-H,--hierarchical", sim_hier, "Also run testbenches for all transitive submodules bottom-up");
@@ -570,7 +571,8 @@ int main(int argc, char **argv)
 	sub_sim->add_option("--timeout", sim_timeout, "Simulation timeout in seconds per testbench");
 	sub_sim->add_flag("-q,--quiet,--summary-only", sim_quiet, "Show summary table only for passing testbenches");
 	sub_sim->add_flag("-v,--verbose", sim_verbose, "Include full stdout and VCD details for all passing testbenches");
-	sub_sim->add_flag("--coverage,--cov", sim_coverage, "Collect and merge Verilator RTL line & port toggle coverage across testbenches");
+	sub_sim->add_flag("--coverage,--cov", sim_coverage, "Collect and merge Verilator RTL line, port toggle, and formal user coverage across testbenches");
+	sub_sim->add_flag("--no-formal", sim_no_formal, "Exclude formal/*.sv property bind files from Verilator simulation");
 
 	// Subcommand: vcd-info (vcd_file_info)
 	auto *sub_vcd_info = app.add_subcommand("vcd-info", "Inspect VCD file timescale, clock, hierarchy scopes, and signals");
@@ -832,6 +834,7 @@ int main(int argc, char **argv)
 		if (sim_quiet) j["summary_only"] = true;
 		if (sim_verbose) j["verbose"] = true;
 		if (sim_coverage) j["coverage"] = true;
+		if (sim_no_formal) j["include_formal"] = false;
 		return run_validator_tool<tools::verilog_simulate_validator>(j, cwd_str, framed_tables);
 	}
 

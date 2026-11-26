@@ -149,6 +149,7 @@ tb_compile_result compile_single_testbench(
 	const fs::path &root_path,
 	const std::string &project_root,
 	const std::vector<std::string> &rtl_files,
+	const std::vector<std::string> &formal_files,
 	const tb_run_plan &plan,
 	const std::string &override_top_mod,
 	size_t plan_idx,
@@ -172,13 +173,20 @@ tb_compile_result compile_single_testbench(
 	}
 	res.top_mod = top_mod;
 
-	// 2. Gather synthesizable RTL files + this testbench
+	// 2. Gather synthesizable RTL files + optional formal property files + this testbench
 	fs::path canon_tb = fs::weakly_canonical(plan.tb_file, ec);
-	res.all_sources.reserve(rtl_files.size() + 1);
+	std::set<std::string> seen_canon;
+	res.all_sources.reserve(rtl_files.size() + formal_files.size() + 1);
 	for (const auto &f : rtl_files) {
 		fs::path canon_f = fs::weakly_canonical(f, ec);
-		if (canon_f != canon_tb) {
+		if (canon_f != canon_tb && seen_canon.insert(canon_f.string()).second) {
 			res.all_sources.push_back(f);
+		}
+	}
+	for (const auto &ff : formal_files) {
+		fs::path canon_f = fs::weakly_canonical(ff, ec);
+		if (canon_f != canon_tb && seen_canon.insert(canon_f.string()).second) {
+			res.all_sources.push_back(ff);
 		}
 	}
 	res.all_sources.push_back(plan.tb_file);
@@ -203,6 +211,9 @@ tb_compile_result compile_single_testbench(
 	if (enable_coverage) {
 		mdir_leaf += "_cov";
 	}
+	if (!formal_files.empty()) {
+		mdir_leaf += "_formal";
+	}
 
 	fs::path base_tmp = (fs::weakly_canonical(root_path, ec) == fs::weakly_canonical(fs::current_path(ec), ec))
 		? fs::path(fs_utils::get_project_tmp_dir())
@@ -218,7 +229,7 @@ tb_compile_result compile_single_testbench(
 		"cd {} && CCACHE_DISABLE=1 OBJCACHE= verilator --binary --assert --build-jobs {} --timing --trace --timescale 1ns/1ps -Wno-TIMESCALEMOD{} --Mdir {} --top-module {}",
 		fs_utils::escape_shell_arg(project_root),
 		std::max<size_t>(1, build_jobs),
-		enable_coverage ? " --coverage-line --coverage-toggle" : "",
+		enable_coverage ? " --coverage-line --coverage-toggle --coverage-user" : "",
 		fs_utils::escape_shell_arg(res.mdir.string()),
 		fs_utils::escape_shell_arg(top_mod)
 	);
@@ -757,6 +768,9 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 		scan_root = root_path;
 	}
 	std::vector<std::string> rtl_files = verilog::verilog_module_scanner::find_synthesizable_files(scan_root);
+	std::vector<std::string> formal_files = args_.include_formal
+		? verilog::verilog_module_scanner::find_formal_files(root_path)
+		: std::vector<std::string>{};
 	std::vector<std::string> discovered_tbs = verilog::verilog_module_scanner::find_testbench_files(root_path);
 
 	auto to_rel_tb = [&](std::string_view p_str) -> std::string {
@@ -1114,7 +1128,7 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 	if (num_workers <= 1) {
 		for (size_t i = 0; i < plans.size(); ++i) {
 			compiled_plans[i] = compile_single_testbench(
-				root_path, project_root, rtl_files, plans[i], single_override_top, i, build_jobs, args_.coverage);
+				root_path, project_root, rtl_files, formal_files, plans[i], single_override_top, i, build_jobs, args_.coverage);
 		}
 	} else {
 		std::atomic<size_t> next_idx{0};
@@ -1128,7 +1142,7 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 						break;
 					}
 					compiled_plans[idx] = compile_single_testbench(
-						root_path, project_root, rtl_files, plans[idx], single_override_top, idx, build_jobs, args_.coverage);
+						root_path, project_root, rtl_files, formal_files, plans[idx], single_override_top, idx, build_jobs, args_.coverage);
 				}
 			});
 		}
@@ -1164,12 +1178,13 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 		}
 		if (!dat_files.empty()) {
 			auto cov_stats = verilog::verilog_coverage_report::parse_and_merge(root_path, rtl_files, dat_files);
+			auto formal_covers = verilog::verilog_coverage_report::parse_formal_coverpoints(root_path, formal_files, dat_files);
 			fs::path cov_tmp_dir(fs_utils::get_project_tmp_dir());
 			verilog::verilog_coverage_report::apply_and_save_deltas(cov_tmp_dir / "verilog_coverage_last.json", cov_stats);
-			std::string detailed_md = verilog::verilog_coverage_report::format_detailed_markdown(cov_stats, dat_files.size());
+			std::string detailed_md = verilog::verilog_coverage_report::format_detailed_markdown(cov_stats, dat_files.size(), formal_covers);
 			verilog::verilog_coverage_report::write_report_file(cov_tmp_dir / "verilog_coverage.md", detailed_md);
 			bool is_cli = verilog::fpga_project_settings::is_cli_mode();
-			coverage_summary_md = verilog::verilog_coverage_report::format_summary_markdown(cov_stats, dat_files.size(), !is_cli);
+			coverage_summary_md = verilog::verilog_coverage_report::format_summary_markdown(cov_stats, dat_files.size(), !is_cli, formal_covers);
 			if (is_cli && (args_.verbose || cov_stats.size() == 1)) {
 				coverage_summary_md += "\n" + detailed_md;
 			}

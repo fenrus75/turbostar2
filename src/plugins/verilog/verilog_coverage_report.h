@@ -22,6 +22,14 @@ struct untoggled_port_info {
 	bool never_fell{false}; // 1->0 count == 0
 };
 
+struct formal_coverpoint {
+	std::string module_name;
+	std::string rel_file;
+	int line{0};
+	uint64_t hits{0};
+	std::string snippet;
+};
+
 struct module_coverage_stats {
 	std::string module_name;
 	std::string rel_file;
@@ -53,17 +61,25 @@ public:
 		const std::filesystem::path &state_json_path,
 		std::vector<module_coverage_stats> &stats);
 
+	// Parse and merge user cover(...) points from formal property files across Verilator .dat files.
+	static std::vector<formal_coverpoint> parse_formal_coverpoints(
+		const std::filesystem::path &project_root,
+		std::span<const std::string> formal_files,
+		std::span<const std::filesystem::path> dat_files);
+
 	// Format compact per-module coverage table for inline tool / CLI output.
 	static std::string format_summary_markdown(
 		std::span<const module_coverage_stats> stats,
 		size_t merged_tb_count,
-		bool include_vfs_pointer);
+		bool include_vfs_pointer,
+		std::span<const formal_coverpoint> formal_covers = {});
 
 	// Format detailed per-module uncovered line ranges + RTL snippets + untoggled ports
 	// for system://verilog/coverage.md (or CLI detailed output).
 	static std::string format_detailed_markdown(
 		std::span<const module_coverage_stats> stats,
-		size_t merged_tb_count);
+		size_t merged_tb_count,
+		std::span<const formal_coverpoint> formal_covers = {});
 
 	// Persist the detailed report to <project_tmp>/verilog_coverage.md so system://verilog/coverage.md serves it.
 	static bool write_report_file(const std::filesystem::path &report_path, std::string_view markdown);

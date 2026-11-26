@@ -24,13 +24,14 @@ bool verilog_module_scanner::is_ignored_file(const std::filesystem::path &p)
 		return true;
 	}
 	if (fname.starts_with("tb_") || fname.ends_with("_tb.sv") || fname.ends_with("_tb.v") ||
+	    fname.ends_with("_props.sv") || fname.ends_with("_props.v") ||
 	    fname.find("testbench") != std::string::npos) {
 		return true;
 	}
 	for (const auto &part : p) {
 		std::string s = part.string();
 		if ((s.size() > 1 && s[0] == '.' && s != "..") || s == "build" ||
-		    s == "obj_dir" || s == "tb" || s == "testbench" || s == "templates") {
+		    s == "obj_dir" || s == "tb" || s == "testbench" || s == "formal" || s == "templates") {
 			return true;
 		}
 	}
@@ -122,6 +123,38 @@ std::vector<std::string> verilog_module_scanner::find_synthesizable_files(const 
 	}
 	std::sort(sv_files.begin(), sv_files.end());
 	return sv_files;
+}
+
+std::vector<std::string> verilog_module_scanner::find_formal_files(const std::filesystem::path &root)
+{
+	std::vector<std::string> formal_files;
+	std::error_code ec;
+	std::filesystem::path formal_dir = root / "formal";
+	if (!std::filesystem::is_directory(formal_dir, ec)) {
+		return formal_files;
+	}
+	std::filesystem::recursive_directory_iterator it(
+	    formal_dir, std::filesystem::directory_options::skip_permission_denied, ec);
+	std::filesystem::recursive_directory_iterator end;
+	while (!ec && it != end) {
+		std::error_code entry_ec;
+		if (it->is_regular_file(entry_ec) && !entry_ec) {
+			const auto &p = it->path();
+			std::string fname = p.filename().string();
+			bool skip = fname.empty() || fname.starts_with('.') || fname.ends_with('~') ||
+				    fname.ends_with(".bak") || fname.ends_with(".orig");
+			auto ext = p.extension().string();
+			if (!skip && (ext == ".sv" || ext == ".v")) {
+				formal_files.push_back(p.string());
+			}
+		}
+		it.increment(ec);
+		if (ec) {
+			ec.clear();
+		}
+	}
+	std::sort(formal_files.begin(), formal_files.end());
+	return formal_files;
 }
 
 std::vector<discovered_module> verilog_module_scanner::discover_modules_in_files(std::span<const std::string> files)

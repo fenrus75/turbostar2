@@ -330,6 +330,127 @@ std::vector<module_coverage_stats> verilog_coverage_report::parse_and_merge(
 	return results;
 }
 
+std::vector<formal_coverpoint> verilog_coverage_report::parse_formal_coverpoints(
+	const fs::path &project_root,
+	std::span<const std::string> formal_files,
+	std::span<const fs::path> dat_files)
+{
+	if (formal_files.empty() || dat_files.empty()) {
+		return {};
+	}
+	std::error_code ec;
+	fs::path canon_root = fs::weakly_canonical(project_root, ec);
+	if (ec) {
+		canon_root = project_root;
+		ec.clear();
+	}
+
+	std::map<std::string, fs::path> allowed_by_rel;
+	std::map<std::string, std::string> canon_to_rel;
+	for (const auto &ff : formal_files) {
+		fs::path p(ff);
+		fs::path canon = fs::weakly_canonical(p, ec);
+		if (ec) {
+			canon = p;
+			ec.clear();
+		}
+		fs::path rel = fs::relative(canon, canon_root, ec);
+		std::string rel_str = (!ec && !rel.empty()) ? rel.generic_string() : p.generic_string();
+		ec.clear();
+		allowed_by_rel[rel_str] = canon;
+		canon_to_rel[canon.generic_string()] = rel_str;
+	}
+
+	auto resolve_rel = [&](std::string_view raw_file) -> std::string {
+		if (raw_file.empty()) return "";
+		fs::path p(raw_file);
+		std::string gen = p.generic_string();
+		if (allowed_by_rel.contains(gen)) return gen;
+		fs::path full = p.is_absolute() ? p : (canon_root / p);
+		fs::path canon = fs::weakly_canonical(full, ec);
+		if (!ec) {
+			auto it = canon_to_rel.find(canon.generic_string());
+			if (it != canon_to_rel.end()) return it->second;
+		}
+		ec.clear();
+		return "";
+	};
+
+	// Key: (module_name, rel_file, line) -> hits
+	std::map<std::tuple<std::string, std::string, int>, uint64_t> cover_hits;
+
+	for (const auto &dat_path : dat_files) {
+		std::ifstream in(dat_path, std::ios::binary);
+		if (!in.is_open()) continue;
+		std::string line;
+		while (std::getline(in, line)) {
+			if (!line.starts_with("C '")) continue;
+			size_t end_q = line.rfind('\'');
+			if (end_q == std::string::npos || end_q <= 3) continue;
+			uint64_t count = 0;
+			try {
+				std::string_view cnt_sv(line.data() + end_q + 1, line.size() - end_q - 1);
+				while (!cnt_sv.empty() && (cnt_sv.front() == ' ' || cnt_sv.front() == '\t')) {
+					cnt_sv.remove_prefix(1);
+				}
+				if (!cnt_sv.empty()) count = std::stoull(std::string(cnt_sv));
+			} catch (...) {
+				continue;
+			}
+
+			std::string_view body(line.data() + 3, end_q - 3);
+			std::string_view f_file, f_line, f_type, f_page;
+			size_t pos = 0;
+			while (pos < body.size()) {
+				size_t kstart = body.find('\x01', pos);
+				if (kstart == std::string_view::npos) break;
+				size_t vsep = body.find('\x02', kstart + 1);
+				if (vsep == std::string_view::npos) break;
+				size_t next_k = body.find('\x01', vsep + 1);
+				std::string_view key = body.substr(kstart + 1, vsep - kstart - 1);
+				std::string_view val = (next_k == std::string_view::npos)
+					? body.substr(vsep + 1)
+					: body.substr(vsep + 1, next_k - vsep - 1);
+				pos = (next_k == std::string_view::npos) ? body.size() : next_k;
+
+				if (key == "f") f_file = val;
+				else if (key == "l") f_line = val;
+				else if (key == "t") f_type = val;
+				else if (key == "page") f_page = val;
+			}
+
+			const bool is_user = (f_type == "user") || (f_type.empty() && f_page.starts_with("v_user/"));
+			if (!is_user) continue;
+
+			std::string rel_file = resolve_rel(f_file);
+			if (rel_file.empty()) continue;
+
+			int ln = 0;
+			try {
+				if (!f_line.empty()) ln = std::stoi(std::string(f_line));
+			} catch (...) {}
+			if (ln <= 0) continue;
+
+			std::string mod_name;
+			if (size_t slash = f_page.rfind('/'); slash != std::string_view::npos && slash + 1 < f_page.size()) {
+				mod_name = std::string(f_page.substr(slash + 1));
+			} else {
+				mod_name = fs::path(rel_file).stem().string();
+			}
+			cover_hits[{std::move(mod_name), std::move(rel_file), ln}] += count;
+		}
+	}
+
+	std::vector<formal_coverpoint> results;
+	results.reserve(cover_hits.size());
+	for (const auto &[key, hits] : cover_hits) {
+		const auto &[mname, rel_f, ln] = key;
+		fs::path full = allowed_by_rel.contains(rel_f) ? allowed_by_rel[rel_f] : (canon_root / rel_f);
+		results.push_back({mname, rel_f, ln, hits, build_range_snippet(full, ln, ln)});
+	}
+	return results;
+}
+
 void verilog_coverage_report::apply_and_save_deltas(
 	const fs::path &state_json_path,
 	std::vector<module_coverage_stats> &stats)
@@ -379,12 +500,13 @@ void verilog_coverage_report::apply_and_save_deltas(
 std::string verilog_coverage_report::format_summary_markdown(
 	std::span<const module_coverage_stats> stats,
 	size_t merged_tb_count,
-	bool include_vfs_pointer)
+	bool include_vfs_pointer,
+	std::span<const formal_coverpoint> formal_covers)
 {
 	std::ostringstream out;
 	out << std::format("\n### RTL Test Coverage Summary (merged {} testbench{})\n\n",
 	                   merged_tb_count, merged_tb_count == 1 ? "" : "es");
-	if (stats.empty()) {
+	if (stats.empty() && formal_covers.empty()) {
 		out << "_No RTL coverage points recorded._\n";
 		return out.str();
 	}
@@ -433,6 +555,16 @@ std::string verilog_coverage_report::format_summary_markdown(
 		                   tot_pct, tot_cov, tot_all, tot_all - tot_cov);
 	}
 
+	if (!formal_covers.empty()) {
+		size_t hit_cnt = 0;
+		for (const auto &fc : formal_covers) {
+			if (fc.hits > 0) ++hit_cnt;
+		}
+		size_t missed_cnt = formal_covers.size() - hit_cnt;
+		out << std::format("\n- **Formal Coverpoints (`formal/`)**: {}/{} hit ({} unhit)\n",
+		                   hit_cnt, formal_covers.size(), missed_cnt);
+	}
+
 	if (include_vfs_pointer) {
 		out << "\n> [!TIP] Detailed uncovered line ranges & RTL snippets are available at `system://verilog/coverage.md` "
 		       "(read with `fs_read_lines(path=\"system://verilog/coverage.md\")` or filter with `?search=<module>`).\n";
@@ -442,12 +574,13 @@ std::string verilog_coverage_report::format_summary_markdown(
 
 std::string verilog_coverage_report::format_detailed_markdown(
 	std::span<const module_coverage_stats> stats,
-	size_t merged_tb_count)
+	size_t merged_tb_count,
+	std::span<const formal_coverpoint> formal_covers)
 {
 	std::ostringstream out;
 	out << std::format("# Verilog RTL Test Coverage Report (merged {} testbench{})\n\n",
 	                   merged_tb_count, merged_tb_count == 1 ? "" : "es");
-	if (stats.empty()) {
+	if (stats.empty() && formal_covers.empty()) {
 		out << "_No RTL coverage data recorded._\n";
 		return out.str();
 	}
@@ -485,6 +618,23 @@ std::string verilog_coverage_report::format_detailed_markdown(
 				std::string state = (p.never_rose && p.never_fell) ? "never toggled"
 					: (p.never_rose ? "stuck 0 (never rose 0->1)" : "stuck 1 (never fell 1->0)");
 				out << std::format("- `{}`: {}\n", p.port_name, state);
+			}
+		}
+		out << "\n";
+	}
+
+	if (!formal_covers.empty()) {
+		size_t hit_cnt = 0;
+		for (const auto &fc : formal_covers) {
+			if (fc.hits > 0) ++hit_cnt;
+		}
+		out << std::format("## Formal Coverpoints ({}/{} hit)\n\n", hit_cnt, formal_covers.size());
+		for (const auto &fc : formal_covers) {
+			std::string status = (fc.hits > 0) ? std::format("HIT ({}x)", fc.hits) : "MISSED (0x)";
+			if (!fc.snippet.empty()) {
+				out << std::format("- `{}:{}` (`{}`) — {}: `{}`\n", fc.rel_file, fc.line, fc.module_name, status, fc.snippet);
+			} else {
+				out << std::format("- `{}:{}` (`{}`) — {}\n", fc.rel_file, fc.line, fc.module_name, status);
 			}
 		}
 		out << "\n";

@@ -1,5 +1,6 @@
 // Tested source file: src/plugins/verilog/verilog_coverage_report.cpp
 #include "plugins/verilog/verilog_coverage_report.h"
+#include "plugins/verilog/verilog_module_scanner.h"
 #include "test_watchdog.h"
 
 #include <cassert>
@@ -131,6 +132,51 @@ int main()
 		verilog::verilog_coverage_report::apply_and_save_deltas(state_path, s3);
 		assert(s3[0].has_prev_pct);
 		assert(s3[0].prev_pct == 60.0);
+	}
+
+	// Test 5: Formal file discovery (excluded from synthesizable RTL) & formal coverpoint parsing
+	{
+		fs::create_directories(tmp_root / "formal");
+		fs::path formal_file = tmp_root / "formal" / "mini_alu_props.sv";
+		{
+			std::ofstream out(formal_file);
+			out << "module mini_alu_props(input logic clk, input logic carry_in);\n"
+			    << "    always_ff @(posedge clk) begin\n"
+			    << "        cover (carry_in == 1'b1);\n"
+			    << "        cover (carry_in == 1'b0);\n"
+			    << "    end\n"
+			    << "endmodule\n";
+		}
+
+		// find_synthesizable_files must exclude formal/ while find_formal_files discovers it
+		auto synth_files = verilog::verilog_module_scanner::find_synthesizable_files(tmp_root);
+		for (const auto &sf : synth_files) {
+			assert(sf.find("mini_alu_props.sv") == std::string::npos);
+		}
+		auto formal_files = verilog::verilog_module_scanner::find_formal_files(tmp_root);
+		assert(formal_files.size() == 1);
+		assert(formal_files[0].find("mini_alu_props.sv") != std::string::npos);
+
+		fs::path dat_user = tmp_root / "cov_user.dat";
+		{
+			std::ofstream out(dat_user, std::ios::binary);
+			out << "# SystemC::Coverage-3\n";
+			out << "C '\x01" "f\x02" "formal/mini_alu_props.sv\x01" "l\x02" "3\x01" "n\x02" "9\x01" "t\x02" "user\x01" "page\x02" "v_user/mini_alu_props\x01" "o\x02" "cover\x01" "h\x02" "tb.dut.u_props' 7\n";
+			out << "C '\x01" "f\x02" "formal/mini_alu_props.sv\x01" "l\x02" "4\x01" "n\x02" "9\x01" "page\x02" "v_user/mini_alu_props\x01" "o\x02" "cover\x01" "h\x02" "tb.dut.u_props' 0\n";
+		}
+		std::vector<fs::path> dats = {dat_user};
+		auto covers = verilog::verilog_coverage_report::parse_formal_coverpoints(tmp_root, formal_files, dats);
+		assert(covers.size() == 2);
+		assert(covers[0].line == 3 && covers[0].hits == 7);
+		assert(covers[1].line == 4 && covers[1].hits == 0);
+
+		std::vector<verilog::module_coverage_stats> empty_stats;
+		std::string summary = verilog::verilog_coverage_report::format_summary_markdown(empty_stats, 1, false, covers);
+		assert(summary.find("1/2 hit (1 unhit)") != std::string::npos);
+		std::string detail = verilog::verilog_coverage_report::format_detailed_markdown(empty_stats, 1, covers);
+		assert(detail.find("Formal Coverpoints (1/2 hit)") != std::string::npos);
+		assert(detail.find("HIT (7x)") != std::string::npos);
+		assert(detail.find("MISSED (0x)") != std::string::npos);
 	}
 
 	fs::remove_all(tmp_root);

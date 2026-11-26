@@ -60,7 +60,11 @@ nlohmann::json verilog_simulate_validator::get_parameters_schema() const
 			}},
 			{"coverage", {
 				{"type", "boolean"},
-				{"description", "When true, instrument with Verilator --coverage-line and --coverage-toggle, merge per-testbench .dat files, return a per-module RTL coverage summary table, and write detailed uncovered line ranges & untoggled ports to system://verilog/coverage.md (default: false)."}
+				{"description", "When true, instrument with Verilator --coverage-line, --coverage-toggle, and --coverage-user, merge per-testbench .dat files, return a per-module RTL coverage summary table (plus formal coverpoint hits), and write detailed uncovered line ranges & untoggled ports to system://verilog/coverage.md (default: false)."}
+			}},
+			{"include_formal", {
+				{"type", "boolean"},
+				{"description", "When true (default), also compile bind-based formal property files from formal/*.sv so their assert/assume/cover statements run live during Verilator simulation."}
 			}}
 		}},
 		{"required", nlohmann::json::array()}
@@ -81,7 +85,8 @@ std::unordered_map<std::string, std::string> verilog_simulate_validator::get_cus
 		{"timeout_cycles", "timeout_ms"},
 		{"max_cycles", "timeout_ms"},
 		{"quiet", "summary_only"},
-		{"cov", "coverage"}
+		{"cov", "coverage"},
+		{"formal", "include_formal"}
 	};
 }
 
@@ -184,6 +189,10 @@ bool verilog_simulate_validator::validate_args_impl(const nlohmann::json &untrus
 
 	if (untrusted_args.contains("coverage") && untrusted_args["coverage"].is_boolean()) {
 		args_.coverage = untrusted_args["coverage"].get<bool>();
+	}
+
+	if (untrusted_args.contains("include_formal") && untrusted_args["include_formal"].is_boolean()) {
+		args_.include_formal = untrusted_args["include_formal"].get<bool>();
 	}
 
 	return true;

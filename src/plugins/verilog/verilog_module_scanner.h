@@ -87,6 +87,11 @@ public:
 	static std::vector<std::string> find_testbench_files(const std::filesystem::path &root);
 
 	/**
+	 * @brief Finds all formal verification property .sv / .v files under <root>/formal/.
+	 */
+	static std::vector<std::string> find_formal_files(const std::filesystem::path &root);
+
+	/**
 	 * @brief Scans source files for $readmemh / $readmemb literals and symlinks or stages missing data files into work_dir.
 	 */
 	static std::vector<std::string> stage_readmem_files(std::span<const std::string> source_files, const std::filesystem::path &work_dir);
