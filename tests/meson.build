@@ -204,6 +204,12 @@ test_verilog_coverage_report = executable('test_verilog_coverage_report',
   include_directories: inc)
 test('unit_verilog_coverage_report', test_verilog_coverage_report, suite: 'plugins', workdir: meson.project_source_root())
 
+test_verilog_formal = executable('test_verilog_formal',
+  ['unit/test_verilog_formal.cpp'],
+  dependencies : [verilog_core_dep],
+  include_directories: inc)
+test('unit_verilog_formal', test_verilog_formal, suite: 'plugins', workdir: meson.project_source_root())
+
 
 test_history_manager = executable('test_history_manager',
   ['unit/test_history_manager.cpp'], dependencies : [core_dep],

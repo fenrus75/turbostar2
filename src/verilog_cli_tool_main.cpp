@@ -8,6 +8,7 @@
 #include "plugins/verilog/verilog_configure_testbench_validator.h"
 #include "plugins/verilog/verilog_compile_validator.h"
 #include "plugins/verilog/verilog_simulate_validator.h"
+#include "plugins/verilog/verilog_formal_validator.h"
 #include "plugins/verilog/vcd_file_info_validator.h"
 #include "plugins/verilog/vcd_wave_validator.h"
 #include "plugins/verilog/vcd_search_validator.h"
@@ -574,6 +575,18 @@ int main(int argc, char **argv)
 	sub_sim->add_flag("--coverage,--cov", sim_coverage, "Collect and merge Verilator RTL line, port toggle, and formal user coverage across testbenches");
 	sub_sim->add_flag("--no-formal", sim_no_formal, "Exclude formal/*.sv property bind files from Verilator simulation");
 
+	// Subcommand: formal (verilog_formal)
+	auto *sub_formal = app.add_subcommand("formal", "Run SymbiYosys (sby) formal verification on formal/*_props.sv bindings");
+	sub_formal->fallthrough();
+	std::string frm_module, frm_mode, frm_solver;
+	int frm_depth = 0;
+	int frm_timeout = 0;
+	sub_formal->add_option("module,-m,--module", frm_module, "Target RTL module name (default: all modules with formal/*_props.sv bindings)");
+	sub_formal->add_option("--mode", frm_mode, "Formal mode: bmc, prove, cover, or all (default: all)");
+	sub_formal->add_option("--depth", frm_depth, "Maximum step depth for BMC and cover tasks (default: 20)");
+	sub_formal->add_option("--solver", frm_solver, "SMT solver: auto, bitwuzla, yices, or z3 (default: auto)");
+	sub_formal->add_option("--timeout", frm_timeout, "Timeout in seconds per module (default: 60)");
+
 	// Subcommand: vcd-info (vcd_file_info)
 	auto *sub_vcd_info = app.add_subcommand("vcd-info", "Inspect VCD file timescale, clock, hierarchy scopes, and signals");
 	sub_vcd_info->fallthrough();
@@ -836,6 +849,16 @@ int main(int argc, char **argv)
 		if (sim_coverage) j["coverage"] = true;
 		if (sim_no_formal) j["include_formal"] = false;
 		return run_validator_tool<tools::verilog_simulate_validator>(j, cwd_str, framed_tables);
+	}
+
+	if (*sub_formal) {
+		nlohmann::json j = nlohmann::json::object();
+		if (!frm_module.empty()) j["module"] = frm_module;
+		if (!frm_mode.empty()) j["mode"] = frm_mode;
+		if (frm_depth > 0) j["depth"] = frm_depth;
+		if (!frm_solver.empty()) j["solver"] = frm_solver;
+		if (frm_timeout > 0) j["timeout_sec"] = frm_timeout;
+		return run_validator_tool<tools::verilog_formal_validator>(j, cwd_str, framed_tables);
 	}
 
 	if (*sub_vcd_info) {

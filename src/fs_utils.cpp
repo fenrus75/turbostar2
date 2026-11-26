@@ -661,15 +661,16 @@ std::string find_executable(std::string_view name)
 	}
 	namespace fs = std::filesystem;
 	std::error_code ec;
-	if (name.starts_with('/')) {
-		if (fs::exists(name, ec) && access(std::string(name).c_str(), X_OK) == 0) {
-			return std::string(name);
+	const char *home = std::getenv("HOME");
+	if (name.starts_with('/') || (name.starts_with("~/") && home && *home)) {
+		fs::path direct = name.starts_with("~/") ? (fs::path(home) / name.substr(2)) : fs::path(name);
+		if (fs::exists(direct, ec) && access(direct.c_str(), X_OK) == 0) {
+			return direct.string();
 		}
 		return "";
 	}
 
 	// 1. Check ~/.local/bin/ (explicit user install prefix)
-	const char *home = std::getenv("HOME");
 	if (home && *home) {
 		fs::path local_bin = fs::path(home) / ".local" / "bin" / name;
 		if (fs::exists(local_bin, ec) && access(local_bin.c_str(), X_OK) == 0) {
@@ -677,7 +678,7 @@ std::string find_executable(std::string_view name)
 		}
 	}
 
-	// 2. Check PATH
+	// 2. Check PATH (expanding leading ~/ when present in user PATH)
 	const char *path_env = std::getenv("PATH");
 	if (path_env && *path_env) {
 		std::string_view path_view(path_env);
@@ -689,7 +690,10 @@ std::string find_executable(std::string_view name)
 			}
 			std::string_view dir = path_view.substr(start, end - start);
 			if (!dir.empty()) {
-				fs::path p = fs::path(dir) / name;
+				fs::path dir_path = (dir.starts_with("~/") && home && *home)
+					? (fs::path(home) / dir.substr(2))
+					: fs::path(dir);
+				fs::path p = dir_path / name;
 				if (fs::exists(p, ec) && access(p.c_str(), X_OK) == 0) {
 					return p.string();
 				}

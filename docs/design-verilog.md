@@ -18,7 +18,7 @@ The `verilog` plugin (`src/plugins/verilog/`) and standalone CLI (`turbostar-ver
 
 ---
 
-## 2. RTL Linting, Synthesis Triage & Simulation (`verilog_compile`, `verilog_simulate`)
+## 2. RTL Linting, Synthesis Triage, Simulation & Formal Verification (`verilog_compile`, `verilog_simulate`, `verilog_formal`)
 
 - **Hierarchy-Scoped Compilation & Synthesis Triage (`verilog_compile_tool`)**:
   - Combines fast Verilator static linting (`lint_only=true`) with Yosys RTL synthesis and optional `nextpnr` place-and-route verification.
@@ -29,6 +29,12 @@ The `verilog` plugin (`src/plugins/verilog/`) and standalone CLI (`turbostar-ver
   - Associates one or more testbenches with each RTL module in `turbostar.json` (with `hierarchical=true` support for bottom-up submodule + top-level regression suites) and supports one-command workspace auto-registration via `scan=true` / `turbostar-verilog config --scan`, which discovers all workspace testbenches, binds them to their instantiated DUT modules, and enables `hierarchical=true` on composite parent modules.
   - Executes multi-bench suites in parallel across CPU cores (`std::async`), using `iverilog`/`vvp` for fast single-bench compilation and switching to parallelized C++ `verilator --binary -j 0` when simulation runtime dominates.
   - Automatically stages `$readmemh` / `$readmemb` memory initialization files (`stage_readmem_files`) and auto-invokes cycle-accurate VCD differential comparison against `.golden.vcd` reference traces when present.
+
+- **SymbiYosys Formal Verification (`verilog_formal_tool`, `verilog_formal_validator`)**:
+  - Auto-discovers SystemVerilog `bind <module> ...` property modules under `formal/*.sv` and supports both single-module iteration (`module="alu8"`) and whole-project summary runs (`module=""`).
+  - Resolves transitive RTL submodule hierarchies (`discover_submodule_hierarchy`) and stages `$readmemh`/`$readmemb` data files into SBY's work directory automatically.
+  - Auto-detects `sby` (from `fpga.sby_path` in `turbostar.json` or `$PATH` with `~/` expansion), prefers Yosys `read_slang` when available so `bind` and SystemVerilog assertions compile cleanly, and auto-selects an available SMT solver (`bitwuzla` → `yices` → `z3`).
+  - Reports per-coverpoint reachability (`HIT (step N)` vs. `UNREACHABLE`), emits an explicit **Vacuity Risk** warning if `bmc`/`prove` passes while any `cover()` is unreachable, displays `-->` ±2-line source context with failing step on assertion failures, and copies counterexample traces to `wave/formal_<module>_<task>.vcd` (pre-loaded into `vcd_parser_cache`) with a `vcd_wave(...)` / `turbostar-verilog vcd-wave` hint.
 
 ---
 
@@ -79,7 +85,7 @@ The `verilog` plugin (`src/plugins/verilog/`) and standalone CLI (`turbostar-ver
        - Logic Depth Mode: `turbostar-verilog [timing] [-m module] [-k top_k] [-c lines]`
        - Physical Place & Route Mode: `turbostar-verilog [timing] --pnr [-m module] [--seeds N] [--segments]`
        - Batch In-Place Port Annotation Mode: `turbostar-verilog [timing] -u [--dry-run]`
-    3. **Compilation & Simulation (`compile`, `sim`)**: `turbostar-verilog compile [-m mod] [--lint-only]` and `turbostar-verilog sim [-m mod] [-H] [--coverage] [--no-formal]` (automatically includes `formal/*.sv` `bind` property modules for live Verilator `assert`/`assume`/`cover` checking; with `--coverage`, merges Verilator `--coverage-line --coverage-toggle --coverage-user` `.dat` files across testbenches, reports per-module RTL coverage, untoggled ports, and formal coverpoint hits, and writes detailed uncovered line ranges & snippets to `system://verilog/coverage.md`)
+    3. **Compilation, Simulation & Formal Verification (`compile`, `sim`, `formal`)**: `turbostar-verilog compile [-m mod] [--lint-only]`, `turbostar-verilog sim [-m mod] [-H] [--coverage] [--no-formal]` (automatically includes `formal/*.sv` `bind` property modules for live Verilator `assert`/`assume`/`cover` checking; with `--coverage`, merges Verilator `--coverage-line --coverage-toggle --coverage-user` `.dat` files across testbenches, reports per-module RTL coverage, untoggled ports, and formal coverpoint hits, and writes detailed uncovered line ranges & snippets to `system://verilog/coverage.md`), and `turbostar-verilog formal [-m mod] [--mode bmc|prove|cover|all] [--depth N] [--solver auto|bitwuzla|yices|z3] [--timeout N]` (runs SymbiYosys `bmc`/`prove`/`cover` on `formal/*.sv` bindings with per-coverpoint tables, vacuity warnings, and counterexample VCD export).
     4. **VCD Waveform Suite (`vcd-info`, `vcd-wave`, `vcd-search`, `vcd-compare`, `vcd-trace`, `vcd-labels`, `vcd-qualifier`)**: Clock-aligned waveform tables, multi-signal condition search, cycle-by-cycle VCD diffing, and RTL net traceability.
     5. **GridCad Scene Export (`gridcad-export`)**: `turbostar-verilog gridcad-export [-m module] [-o output.json] [--shallow]` invokes `gridcad_scene_exporter` (`Yosys` `memory_collect` + `gridcad_blocks.v` techmap + `abc -lut 8`) to emit hierarchical `gridcad` scene JSON with `project_dir`/`project_name`, `gridcad_reg`/`mux`/`pmux`/`add`/`sub`/compare/bitwise/reduction/`mem` blocks, multi-output vector-input `gridcad_lut`s, `gridcad_slice`/`split`/`concat` wiring, `src`/`src_verilog` provenance, and `label_tables`.
   - Formats terminal output with UTF-8 box-drawing tables via `markdown_utils::align_all_tables` (disable via `--no-frames`) and vertically aligns numbered critical-path and segment chains for human readability.

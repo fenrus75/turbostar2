@@ -43,6 +43,8 @@ void register_verilog_configure_testbench(void);
 void unregister_verilog_configure_testbench(void);
 void register_verilog_compile(void);
 void unregister_verilog_compile(void);
+void register_verilog_formal(void);
+void unregister_verilog_formal(void);
 
 /*
  * Plugin dynamic entry point invoked when loaded by plugin_loader.
@@ -63,6 +65,7 @@ void plugin_run(void)
 	register_verilog_simulate();
 	register_verilog_configure_testbench();
 	register_verilog_compile();
+	register_verilog_formal();
 
 	bool has_yosys = !fs_utils::find_executable("yosys").empty();
 	if (has_yosys) {
@@ -85,6 +88,8 @@ Tools in this family assist in SystemVerilog/Verilog RTL development, FPGA synth
   Run `verilog_compile(module="...", lint_only=true)` for a fast Verilator syntax/lint pass, or `verilog_compile(module="...")` for full Verilator + Yosys synthesis + `nextpnr` place-and-route. It scopes files to the module's hierarchy, separates correctness/synthesis warnings from style notes, flags inferred latches and combinational loops, and writes the full raw log to `tmp://synthesis.log`.
 - **Simulate (`verilog_simulate`)**:
   Run associated testbenches in parallel via Verilator (`verilog_simulate(module="...")`). Give each testbench a unique `$dumpfile` path (e.g., `dump_<tb>.vcd` or `wave/dump_<tb>.vcd` per project convention) so parallel runs do not collide, and emit explicit `PASS` or `FAIL`/`$error` assertions so benches are graded `PASS` rather than `INFO (no assertions)`.
+- **Formal Verification (`verilog_formal`)**:
+  Run SymbiYosys (`sby`) bounded model checking, k-induction proofs, and coverability checks on `formal/*_props.sv` `bind` property modules (`verilog_formal(module="alu8", mode="all")` or omit `module` to verify all bound modules). Reports per-coverpoint hits, flags vacuity risks when proofs pass with unreachable covers, and saves counterexample traces to `wave/formal_<module>_<task>.vcd` for `vcd_wave` inspection.
 
 #### 2. Waveform Debugging Workflow (.vcd)
 To debug simulation waveforms without blowing out your context window:
@@ -134,6 +139,7 @@ void plugin_unload(void)
 	unregister_verilog_simulate();
 	unregister_verilog_configure_testbench();
 	unregister_verilog_compile();
+	unregister_verilog_formal();
 
 	agentlib::tool_registry::get_instance().unregister_tool_family("verilog");
 }

@@ -226,6 +226,7 @@ bool fpga_project_settings::load_from_project(std::string_view project_root, fpg
 
 	out_cfg.yosys_synth_args = fpga.value("yosys_synth_args", "");
 	out_cfg.nextpnr_args = fpga.value("nextpnr_args", "");
+	out_cfg.sby_path = fpga.value("sby_path", "");
 	return true;
 }
 
@@ -269,6 +270,7 @@ bool fpga_project_settings::save_to_project(std::string_view project_root, const
 	if (!cfg.sv_path.empty()) fpga_obj["sv_path"] = cfg.sv_path;
 	if (!cfg.yosys_synth_args.empty()) fpga_obj["yosys_synth_args"] = cfg.yosys_synth_args;
 	if (!cfg.nextpnr_args.empty()) fpga_obj["nextpnr_args"] = cfg.nextpnr_args;
+	if (!cfg.sby_path.empty()) fpga_obj["sby_path"] = cfg.sby_path;
 
 	j["fpga"] = fpga_obj;
 

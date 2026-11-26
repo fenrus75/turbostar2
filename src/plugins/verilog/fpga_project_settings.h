@@ -21,6 +21,7 @@ struct fpga_target_config {
 	std::string sv_path;          // Root directory for synthesizable RTL, e.g. "sv" or "src"
 	std::string yosys_synth_args; // Additional synthesis args, e.g. "-abc9"
 	std::string nextpnr_args;     // Additional nextpnr PnR args, e.g. "--placer-heap-timingweight 30"
+	std::string sby_path;         // Optional explicit path to SymbiYosys (sby) executable
 	std::string active_config_file; // Source file path loaded from or written to
 };
 
