@@ -22,6 +22,7 @@ Limit the use of SystemVerilog language constructs to those supported by both `y
 
 ## SystemVerilog guidelines
 - Default: one module per `.sv` file (possible exception: very small local helper modules)
+- Avoid using C++ keywords as module or signal names (e.g., `register`, `switch`, `class`, `default`, `template`), as they can break Verilator C++ code generation/simulation.
 - Option: group related modules into subdirectories within `src/` for logical organization
 - Use modern SystemVerilog best practices (within the subset supported by both `yosys` and `verilator`):
   - `always_ff` for flip-flops/registers
