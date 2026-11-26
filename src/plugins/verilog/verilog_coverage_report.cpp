@@ -353,14 +353,17 @@ void verilog_coverage_report::apply_and_save_deltas(
 		}
 	}
 
-	nlohmann::json next_j = nlohmann::json::object();
+	// Preserve previously recorded percentages for modules not included in this run
+	nlohmann::json next_j = prev_map;
 	for (auto &st : stats) {
 		auto it = prev_map.find(st.module_name);
 		if (it != prev_map.end()) {
 			st.has_prev_pct = true;
 			st.prev_pct = it->second;
 		}
-		next_j[st.module_name] = st.coverage_pct;
+		if (st.total_lines > 0) {
+			next_j[st.module_name] = st.coverage_pct;
+		}
 	}
 
 	std::error_code ec;

@@ -102,6 +102,37 @@ int main()
 		assert(detail.find("All instrumented lines covered") == std::string::npos);
 	}
 
+	// Test 4: Delta state preserves per-module history across interleaved runs (alu8 -> decode_mod -> alu8)
+	{
+		fs::path state_path = tmp_root / "verilog_coverage_last.json";
+
+		verilog::module_coverage_stats alu_run1;
+		alu_run1.module_name = "alu8";
+		alu_run1.total_lines = 100;
+		alu_run1.covered_lines = 60;
+		alu_run1.coverage_pct = 60.0;
+		std::vector<verilog::module_coverage_stats> s1 = {alu_run1};
+		verilog::verilog_coverage_report::apply_and_save_deltas(state_path, s1);
+		assert(!s1[0].has_prev_pct);
+
+		verilog::module_coverage_stats dec_run;
+		dec_run.module_name = "decode_mod";
+		dec_run.total_lines = 100;
+		dec_run.covered_lines = 50;
+		dec_run.coverage_pct = 50.0;
+		std::vector<verilog::module_coverage_stats> s2 = {dec_run};
+		verilog::verilog_coverage_report::apply_and_save_deltas(state_path, s2);
+		assert(!s2[0].has_prev_pct);
+
+		verilog::module_coverage_stats alu_run2 = alu_run1;
+		alu_run2.covered_lines = 95;
+		alu_run2.coverage_pct = 95.0;
+		std::vector<verilog::module_coverage_stats> s3 = {alu_run2};
+		verilog::verilog_coverage_report::apply_and_save_deltas(state_path, s3);
+		assert(s3[0].has_prev_pct);
+		assert(s3[0].prev_pct == 60.0);
+	}
+
 	fs::remove_all(tmp_root);
 	std::cout << "test_verilog_coverage_report passed!\n";
 	return 0;
