@@ -697,11 +697,11 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 				}
 				if (!t.counterexample_vcd_rel.empty()) {
 					if (is_cli) {
-						fail_sec << std::format("- **Inspect Counterexample**: `turbostar-verilog vcd-wave {}`\n",
-						                        t.counterexample_vcd_rel);
+						fail_sec << std::format("- **Inspect Counterexample**: `turbostar-verilog vcd-wave {} -i {}`\n",
+						                        t.counterexample_vcd_rel, mo.module_name);
 					} else {
-						fail_sec << std::format("- **Inspect Counterexample**: `vcd_wave(path=\"{}\")`\n",
-						                        t.counterexample_vcd_rel);
+						fail_sec << std::format("- **Inspect Counterexample**: `vcd_wave(path=\"{}\", instance=\"{}\")`\n",
+						                        t.counterexample_vcd_rel, mo.module_name);
 					}
 				}
 				report << fail_sec.str();
