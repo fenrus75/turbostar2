@@ -1,4 +1,5 @@
 #include "plugins/verilog/verilog_simulate_tool.h"
+#include "plugins/verilog/verilog_coverage_report.h"
 
 #include <algorithm>
 #include <atomic>
@@ -132,6 +133,7 @@ struct tb_run_outcome {
 	bool completed_no_assertions{false};
 	std::string compare_status;
 	std::string section_markdown;
+	fs::path cov_dat_path;
 };
 
 struct tb_compile_result {
@@ -150,7 +152,8 @@ tb_compile_result compile_single_testbench(
 	const tb_run_plan &plan,
 	const std::string &override_top_mod,
 	size_t plan_idx,
-	size_t build_jobs)
+	size_t build_jobs,
+	bool enable_coverage)
 {
 	tb_compile_result res;
 	std::error_code ec;
@@ -197,6 +200,9 @@ tb_compile_result compile_single_testbench(
 	if (plan_idx > 0 && safe_stem.empty()) {
 		mdir_leaf += std::format("_{}", plan_idx);
 	}
+	if (enable_coverage) {
+		mdir_leaf += "_cov";
+	}
 
 	fs::path base_tmp = (fs::weakly_canonical(root_path, ec) == fs::weakly_canonical(fs::current_path(ec), ec))
 		? fs::path(fs_utils::get_project_tmp_dir())
@@ -209,9 +215,10 @@ tb_compile_result compile_single_testbench(
 	}
 
 	std::string compile_cmd = std::format(
-		"cd {} && CCACHE_DISABLE=1 OBJCACHE= verilator --binary --assert --build-jobs {} --timing --trace --timescale 1ns/1ps -Wno-TIMESCALEMOD --Mdir {} --top-module {}",
+		"cd {} && CCACHE_DISABLE=1 OBJCACHE= verilator --binary --assert --build-jobs {} --timing --trace --timescale 1ns/1ps -Wno-TIMESCALEMOD{} --Mdir {} --top-module {}",
 		fs_utils::escape_shell_arg(project_root),
 		std::max<size_t>(1, build_jobs),
+		enable_coverage ? " --coverage-line --coverage-toggle" : "",
 		fs_utils::escape_shell_arg(res.mdir.string()),
 		fs_utils::escape_shell_arg(top_mod)
 	);
@@ -240,7 +247,8 @@ tb_run_outcome run_compiled_testbench(
 	const std::vector<std::string> &rtl_files,
 	const tb_run_plan &plan,
 	const tb_compile_result &compiled,
-	int timeout_sec)
+	int timeout_sec,
+	bool enable_coverage)
 {
 	tb_run_outcome out;
 	out.display_tb = plan.display_tb;
@@ -328,12 +336,28 @@ tb_run_outcome run_compiled_testbench(
 		? std::optional<fs::file_time_type>(fs::last_write_time(raw_vcd_full_path, ec))
 		: std::nullopt;
 
+	fs::path cov_dat_file;
+	std::string cov_arg;
+	if (enable_coverage) {
+		cov_dat_file = compiled.mdir / "coverage.dat";
+		if (fs::exists(cov_dat_file, ec)) {
+			fs::remove(cov_dat_file, ec);
+			ec.clear();
+		}
+		cov_arg = " " + fs_utils::escape_shell_arg(std::format("+verilator+coverage+file+{}", cov_dat_file.string()));
+	}
+
 	std::string run_cmd = std::format(
-		"cd {} && {} 2>&1",
+		"cd {} && {}{} 2>&1",
 		fs_utils::escape_shell_arg(project_root),
-		fs_utils::escape_shell_arg(sim_bin.string())
+		fs_utils::escape_shell_arg(sim_bin.string()),
+		cov_arg
 	);
 	std::string sim_out = fs_utils::execute_command_sync(run_cmd, timeout_sec);
+	if (enable_coverage && fs::is_regular_file(cov_dat_file, ec)) {
+		out.cov_dat_path = cov_dat_file;
+	}
+	ec.clear();
 
 	// If collision renaming is active, move newly generated raw_vcd_full_path -> vcd_full_path
 	bool raw_exists = expects_vcd && fs::exists(raw_vcd_full_path, ec) && fs::is_regular_file(raw_vcd_full_path, ec);
@@ -1090,7 +1114,7 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 	if (num_workers <= 1) {
 		for (size_t i = 0; i < plans.size(); ++i) {
 			compiled_plans[i] = compile_single_testbench(
-				root_path, project_root, rtl_files, plans[i], single_override_top, i, build_jobs);
+				root_path, project_root, rtl_files, plans[i], single_override_top, i, build_jobs, args_.coverage);
 		}
 	} else {
 		std::atomic<size_t> next_idx{0};
@@ -1104,7 +1128,7 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 						break;
 					}
 					compiled_plans[idx] = compile_single_testbench(
-						root_path, project_root, rtl_files, plans[idx], single_override_top, idx, build_jobs);
+						root_path, project_root, rtl_files, plans[idx], single_override_top, idx, build_jobs, args_.coverage);
 				}
 			});
 		}
@@ -1119,7 +1143,7 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 
 	for (size_t i = 0; i < plans.size(); ++i) {
 		auto outcome = run_compiled_testbench(
-			ctx, root_path, project_root, rtl_files, plans[i], compiled_plans[i], args_.timeout_sec);
+			ctx, root_path, project_root, rtl_files, plans[i], compiled_plans[i], args_.timeout_sec, args_.coverage);
 		if (outcome.suite_failed || outcome.compile_failed || outcome.timed_out || outcome.has_fatal) {
 			++fail_count;
 		} else if (outcome.suite_passed) {
@@ -1130,6 +1154,28 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 		outcomes.push_back(std::move(outcome));
 	}
 
+	std::string coverage_summary_md;
+	if (args_.coverage) {
+		std::vector<fs::path> dat_files;
+		for (const auto &o : outcomes) {
+			if (!o.cov_dat_path.empty()) {
+				dat_files.push_back(o.cov_dat_path);
+			}
+		}
+		if (!dat_files.empty()) {
+			auto cov_stats = verilog::verilog_coverage_report::parse_and_merge(root_path, rtl_files, dat_files);
+			fs::path cov_tmp_dir(fs_utils::get_project_tmp_dir());
+			verilog::verilog_coverage_report::apply_and_save_deltas(cov_tmp_dir / "verilog_coverage_last.json", cov_stats);
+			std::string detailed_md = verilog::verilog_coverage_report::format_detailed_markdown(cov_stats, dat_files.size());
+			verilog::verilog_coverage_report::write_report_file(cov_tmp_dir / "verilog_coverage.md", detailed_md);
+			bool is_cli = verilog::fpga_project_settings::is_cli_mode();
+			coverage_summary_md = verilog::verilog_coverage_report::format_summary_markdown(cov_stats, dat_files.size(), !is_cli);
+			if (is_cli && (args_.verbose || cov_stats.size() == 1)) {
+				coverage_summary_md += "\n" + detailed_md;
+			}
+		}
+	}
+
 	if (outcomes.size() == 1 && args_.requested_module.empty() && !args_.summary_only) {
 		const auto &single = outcomes.front();
 		if (single.compile_failed || single.timed_out) {
@@ -1137,7 +1183,7 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 		} else {
 			set_success(ctx);
 		}
-		return single.section_markdown;
+		return single.section_markdown + coverage_summary_md;
 	}
 
 	// Multi-testbench or module-targeted summary report
@@ -1216,6 +1262,9 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 	if (omitted_passing_sections > 0) {
 		report << std::format("\n*(Omitted detailed simulation logs for {} passing testbench(es); pass `verbose=true` or `testbench=\"...\"` to inspect full output.)*\n",
 		                      omitted_passing_sections);
+	}
+	if (!coverage_summary_md.empty()) {
+		report << coverage_summary_md;
 	}
 
 	if (fail_count > 0) {

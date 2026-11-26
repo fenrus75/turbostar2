@@ -57,6 +57,10 @@ nlohmann::json verilog_simulate_validator::get_parameters_schema() const
 			{"verbose", {
 				{"type", "boolean"},
 				{"description", "When true, include full per-testbench stdout and VCD summary sections even for all passing testbenches in large multi-testbench runs (default: false)."}
+			}},
+			{"coverage", {
+				{"type", "boolean"},
+				{"description", "When true, instrument with Verilator --coverage-line and --coverage-toggle, merge per-testbench .dat files, return a per-module RTL coverage summary table, and write detailed uncovered line ranges & untoggled ports to system://verilog/coverage.md (default: false)."}
 			}}
 		}},
 		{"required", nlohmann::json::array()}
@@ -76,7 +80,8 @@ std::unordered_map<std::string, std::string> verilog_simulate_validator::get_cus
 		{"timeout", "timeout_sec"},
 		{"timeout_cycles", "timeout_ms"},
 		{"max_cycles", "timeout_ms"},
-		{"quiet", "summary_only"}
+		{"quiet", "summary_only"},
+		{"cov", "coverage"}
 	};
 }
 
@@ -175,6 +180,10 @@ bool verilog_simulate_validator::validate_args_impl(const nlohmann::json &untrus
 
 	if (untrusted_args.contains("verbose") && untrusted_args["verbose"].is_boolean()) {
 		args_.verbose = untrusted_args["verbose"].get<bool>();
+	}
+
+	if (untrusted_args.contains("coverage") && untrusted_args["coverage"].is_boolean()) {
+		args_.coverage = untrusted_args["coverage"].get<bool>();
 	}
 
 	return true;

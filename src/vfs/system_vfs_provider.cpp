@@ -806,6 +806,8 @@ system_vfs_provider::system_vfs_provider()
 	register_description("project/info.md", "Read to check project workspace root, build system type, and instruction file presence.");
 	register_description("project/testlist.md", "Read to discover available test names to run via fs_run_tests (supports ?search=<query>).");
 	register_description("project/build_output.log", "Read for full raw build log output from the last compilation.");
+	register_description("verilog", "Directory containing Verilog simulation and RTL coverage reports.");
+	register_description("verilog/coverage.md", "Read for detailed per-module uncovered RTL line ranges, source snippets, and untoggled ports from the last verilog_simulate(coverage=true) run (supports ?search=<module>).");
 
 	// 9. Dynamic Generator: system://project/build_output.log
 	register_generator("project/build_output.log", [](const std::string &) -> std::string {
@@ -814,6 +816,18 @@ system_vfs_provider::system_vfs_provider()
 			return "(No compilation output recorded yet.)\n";
 		}
 		return raw;
+	});
+
+	// Dynamic Generator: system://verilog/coverage.md
+	register_generator("verilog/coverage.md", [](const std::string &) -> std::string {
+		std::filesystem::path cov_path = std::filesystem::path(fs_utils::get_project_tmp_dir()) / "verilog_coverage.md";
+		std::ifstream in(cov_path, std::ios::binary);
+		if (!in.is_open()) {
+			return "(No Verilog coverage report recorded yet. Run verilog_simulate with coverage=true.)\n";
+		}
+		std::ostringstream ss;
+		ss << in.rdbuf();
+		return ss.str();
 	});
 	register_description("subagents.md", "Read to check summary index of all active and recent subagents.");
 	register_description("subagents", "Directory containing active subagent dashboards, final results, and execution transcripts.");

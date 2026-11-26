@@ -18,6 +18,7 @@ struct verilog_simulate_args {
 	int timeout_sec{10};
 	bool summary_only{false};
 	bool verbose{false};
+	bool coverage{false};
 };
 
 class verilog_simulate_tool : public agentlib::llm_tool_action
