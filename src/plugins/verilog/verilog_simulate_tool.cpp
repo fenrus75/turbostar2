@@ -107,6 +107,158 @@ testsuite_verdict classify_testsuite_output(std::string_view sim_out, bool timed
 	return testsuite_verdict::completed_no_assertions;
 }
 
+struct parsed_assertion_failure {
+	bool has_timestamp{false};
+	uint64_t timestamp{0};
+	std::string file;
+	int line{0};
+	std::string instance;
+	std::string detail;
+};
+
+std::vector<parsed_assertion_failure> parse_verilator_assertion_failures(std::string_view sim_out)
+{
+	std::vector<parsed_assertion_failure> failures;
+	std::set<std::pair<std::string, int>> seen;
+
+	size_t pos = 0;
+	while (pos < sim_out.size() && failures.size() < 5) {
+		size_t nl = sim_out.find('\n', pos);
+		std::string_view line = (nl == std::string_view::npos)
+			? sim_out.substr(pos)
+			: sim_out.substr(pos, nl - pos);
+		pos = (nl == std::string_view::npos) ? sim_out.size() : (nl + 1);
+		if (!line.empty() && line.back() == '\r') {
+			line.remove_suffix(1);
+		}
+		if (line.find("%Error") == std::string_view::npos && line.find("%Fatal") == std::string_view::npos) {
+			continue;
+		}
+
+		// Match: [725000] %Error: decode_props.sv:68: Assertion failed in stax_ldax_tb.dut.decode.u_decode_props...
+		// or:    %Error: decode_props.sv:68: Assertion failed in ...
+		if (auto m = ctre::search<R"(^(?:\[(\d+)\]\s+)?%(?:Error|Fatal):\s*([^:\s]+):(\d+):\s*(.+)$)">(line)) {
+			parsed_assertion_failure f;
+			if (m.get<1>()) {
+				try {
+					f.timestamp = std::stoull(m.get<1>().to_string());
+					f.has_timestamp = true;
+				} catch (...) {}
+			}
+			f.file = m.get<2>().to_string();
+			try {
+				f.line = std::stoi(m.get<3>().to_string());
+			} catch (...) {
+				continue;
+			}
+			f.detail = m.get<4>().to_string();
+			if (auto im = ctre::search<R"(Assertion failed in\s+([^\s:]+))">(f.detail)) {
+				f.instance = im.get<1>().to_string();
+			}
+			if (seen.insert({f.file, f.line}).second) {
+				failures.push_back(std::move(f));
+			}
+		}
+	}
+	return failures;
+}
+
+std::string format_assertion_failure_context(
+	std::span<const parsed_assertion_failure> failures,
+	const fs::path &root_path,
+	std::span<const std::string> all_sources,
+	const std::optional<verilog::vcd_clock_info> &clk_info,
+	std::string_view timescale)
+{
+	if (failures.empty()) {
+		return "";
+	}
+
+	auto resolve_source = [&](std::string_view fname) -> fs::path {
+		std::error_code ec;
+		fs::path p(fname);
+		if (p.is_absolute() && fs::is_regular_file(p, ec)) {
+			return p;
+		}
+		fs::path rel_cand = root_path / p;
+		if (fs::is_regular_file(rel_cand, ec)) {
+			return rel_cand;
+		}
+		std::string base = p.filename().string();
+		for (const auto &src : all_sources) {
+			fs::path sp(src);
+			if (sp.filename().string() == base && fs::is_regular_file(sp, ec)) {
+				return sp;
+			}
+		}
+		return {};
+	};
+
+	std::ostringstream out;
+	out << "\n#### Assertion Failure Context\n";
+	for (const auto &f : failures) {
+		fs::path resolved = resolve_source(f.file);
+		std::string display_file = f.file;
+		std::string kind_label = "Assertion failed";
+		std::string snippet;
+
+		if (!resolved.empty()) {
+			std::error_code ec;
+			fs::path rel = fs::relative(resolved, root_path, ec);
+			if (!ec && !rel.empty()) {
+				display_file = rel.generic_string();
+			}
+			std::string err;
+			auto mf = mapped_file::get_cached(resolved.string(), err, /*populate=*/false);
+			if (mf && f.line > 0) {
+				auto lines = mf->lines();
+				if (static_cast<size_t>(f.line) <= lines.size()) {
+					std::string_view fail_sv = lines[static_cast<size_t>(f.line) - 1];
+					if (ctre::search<R"(\bassume\b)">(fail_sv)) {
+						kind_label = "Formal `assume` failed";
+					} else if (ctre::search<R"(\bassert\b)">(fail_sv)) {
+						kind_label = "`assert` failed";
+					}
+					int s_ln = std::max(1, f.line - 2);
+					int e_ln = std::min(static_cast<int>(lines.size()), f.line + 2);
+					std::ostringstream snip;
+					for (int ln = s_ln; ln <= e_ln; ++ln) {
+						snip << std::format("{} {:>4}: {}\n",
+						                    (ln == f.line ? "-->" : "   "),
+						                    ln,
+						                    lines[static_cast<size_t>(ln) - 1]);
+					}
+					snippet = snip.str();
+				}
+			}
+		}
+
+		std::string time_str;
+		if (f.has_timestamp) {
+			if (clk_info && clk_info->period > 0) {
+				uint64_t tick = (f.timestamp >= clk_info->first_edge_time)
+					? ((f.timestamp - clk_info->first_edge_time) / clk_info->period)
+					: 0;
+				time_str = std::format(" at **Tick {}** (`{} {}`)",
+				                       tick, f.timestamp, timescale.empty() ? "ticks" : timescale);
+			} else {
+				time_str = std::format(" at time `{}`", f.timestamp);
+			}
+		}
+
+		out << std::format("- **{}** at `{}:{}`{}{}\n",
+		                   kind_label,
+		                   display_file,
+		                   f.line,
+		                   f.instance.empty() ? "" : std::format(" in `{}`", f.instance),
+		                   time_str);
+		if (!snippet.empty()) {
+			out << "```systemverilog\n" << snippet << "```\n";
+		}
+	}
+	return out.str();
+}
+
 struct tb_run_plan {
 	std::string tb_file;
 	std::string display_tb;
@@ -460,6 +612,11 @@ tb_run_outcome run_compiled_testbench(
 		ss << "\n#### Simulation Output\n```\n" << sim_out << "\n```\n";
 	}
 
+	auto parsed_failures = out.has_fatal ? parse_verilator_assertion_failures(sim_out)
+					     : std::vector<parsed_assertion_failure>{};
+	std::optional<verilog::vcd_clock_info> detected_clk;
+	std::string detected_timescale;
+
 	// 8. Parse and cache the generated VCD file, compare against .previous.vcd and prior .lastpass.vcd,
 	//    update <stem>.lastpass.vcd on PASS, and emit next-step commands
 	bool vcd_exists = expects_vcd && fs::exists(vcd_full_path, ec) && fs::is_regular_file(vcd_full_path, ec);
@@ -543,6 +700,8 @@ tb_run_outcome run_compiled_testbench(
 			                  parser.get_timescale());
 
 			auto clk_info = parser.detect_clock();
+			detected_clk = clk_info;
+			detected_timescale = parser.get_timescale();
 			std::string clk_short_name;
 			if (clk_info && clk_info->period > 0) {
 				ss << std::format("- **Detected Clock**: `{}` ({} posedge cycles, period: {} {})\n",
@@ -724,6 +883,10 @@ tb_run_outcome run_compiled_testbench(
 	} else {
 		ss << std::format("\n> [!NOTE] No VCD file was produced (testbench does not call `$dumpfile`/`$dumpvars`). To capture waveforms, add `$dumpfile(\"dump_{}.vcd\"); $dumpvars(0, {});`.\n",
 		                  top_mod, top_mod);
+	}
+
+	if (out.has_fatal && !parsed_failures.empty()) {
+		ss << format_assertion_failure_context(parsed_failures, root_path, compiled.all_sources, detected_clk, detected_timescale);
 	}
 
 	out.section_markdown = ss.str();
