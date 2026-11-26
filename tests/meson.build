@@ -216,6 +216,11 @@ test_history_manager = executable('test_history_manager',
   include_directories: inc)
 test('unit_history_manager', test_history_manager, suite: 'editor')
 
+test_language_settings = executable('test_language_settings',
+  ['unit/test_language_settings.cpp'], dependencies : [core_dep],
+  include_directories: inc)
+test('unit_language_settings', test_language_settings, suite: 'editor')
+
 test_command_runner = executable('test_command_runner',
   ['unit/test_command_runner.cpp'], dependencies : [core_dep],
   include_directories: inc)

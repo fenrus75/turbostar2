@@ -10,6 +10,7 @@
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "images/image_manager.h"
+#include "languages/language_settings.h"
 
 
 namespace agentlib {
@@ -225,6 +226,11 @@ void openai_response_connection::send_prompt(
 	}
 
 	nlohmann::json payload = {{"model", model_id_}, {"input", input_json}, {"stream", true}};
+	if (languages::language_settings::model_supports_temperature(model_id_)) {
+		if (auto temp = languages::language_settings::suggested_temperature_for_current_project()) {
+			payload["temperature"] = *temp;
+		}
+	}
 
 	if (!previous_response_id.empty()) {
 		payload["previous_response_id"] = previous_response_id;

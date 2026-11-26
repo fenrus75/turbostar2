@@ -10,6 +10,7 @@
 #include "event_logger.h"
 #include "fs_utils.h"
 #include "images/image_manager.h"
+#include "languages/language_settings.h"
 
 
 namespace agentlib {
@@ -179,6 +180,11 @@ void openai_completion_connection::send_prompt(
 	}
 	nlohmann::json payload = {{"model", model_id_}, {"messages", msgs_json}, {"stream", true}};
 	payload["stream_options"] = {{"include_usage", true}};
+	if (languages::language_settings::model_supports_temperature(model_id_)) {
+		if (auto temp = languages::language_settings::suggested_temperature_for_current_project()) {
+			payload["temperature"] = *temp;
+		}
+	}
 
 	// add tools
 	nlohmann::json tools_array = nlohmann::json::array();

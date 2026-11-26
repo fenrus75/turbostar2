@@ -78,6 +78,7 @@ inspector_sources = files(
 
 core_sources = files(
   'config_manager.cpp',
+  'languages/language_settings.cpp',
   'session_manager.cpp',
   'statistics_manager.cpp',
   'codereview_manager.cpp',
