@@ -146,6 +146,38 @@
       </div>
     </section>
 
+    <!-- Feature 2b: Formal Verification with SymbiYosys -->
+    <section class="detail-split" id="formal-verification">
+      <div class="detail-info">
+        <h2 class="detail-subtitle">SymbiYosys Formal Verification &amp; Vacuity Checks</h2>
+        <p class="detail-text">
+          Go beyond directed testbenches with <code>verilog_formal</code>, which runs SymbiYosys (<code>sby</code>) bounded model checking, k-induction proofs, and coverability checks directly against SystemVerilog <code>bind</code> property modules in <code>formal/*_props.sv</code>.
+        </p>
+        <ul class="detail-list">
+          <li><strong>Zero-Boilerplate Setup:</strong> Auto-discovers <code>bind &lt;module&gt;</code> targets in <code>formal/*.sv</code>, resolves transitive RTL submodule hierarchies, stages <code>$readmemh</code>/<code>$readmemb</code> data files, uses Yosys <code>read_slang</code> when available, and auto-detects the fastest installed SMT solver (<code>bitwuzla</code> &rarr; <code>yices</code> &rarr; <code>z3</code>).</li>
+          <li><strong>Unbounded Proofs, Parameter Overrides &amp; Vacuity Warnings:</strong> Default <code>mode="all"</code> runs <code>prove + cover</code> together with per-module timing. Override large counter widths via <code>parameters={"COUNTER_BITS": 4}</code> without editing RTL defaults, and receive automatic <strong>Vacuity Risk</strong> warnings whenever a proof passes while any <code>cover()</code> is unreachable.</li>
+          <li><strong>Instant Counterexample Triage:</strong> Failing assertions display <code>--&gt;</code> source context with the failing step, copy the counterexample trace to <code>wave/formal_&lt;mod&gt;_&lt;task&gt;.vcd</code>, and emit a copy-pasteable <code>vcd_wave(path="...", instance="...")</code> command. Passing coverpoint tables collapse inline while the full report is served at <code>system://verilog/formal.md</code>.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <pre><code><span class="comment"># Tool call: verilog_formal(module="eightsegment", parameters={"COUNTER_BITS": 4})</span>
+<span class="keyword">## Formal Verification Report (SymbiYosys `smtbmc bitwuzla`, depth=20)</span>
+
+*Config: auto-generated `.sby` (`read_slang`)* — *Parameters: `COUNTER_BITS=4`*
+
+| Module       | Property File(s)             | Task  | Status   | Coverpoints | Time | Counterexample VCD                 |
+| :---         | :---                         | :---  | :---     | :---        | :--- | :---                               |
+| eightsegment | formal/eightsegment_props.sv | prove | <span class="literal">PASS</span>     | -           | 0.5s | -                                  |
+| eightsegment | formal/eightsegment_props.sv | cover | <span class="literal">PASS</span>     | <span class="literal">6/6 hit</span>     | -    | -                                  |
+
+<span class="comment"># On assertion failure, shows exact RTL context + VCD hint:</span>
+#### Assertion Failure Context (`register16` / `prove`)
+- `assert` failed at `formal/register16_props.sv:41` (step 2)
+--&gt;   41:     assert (sp_minus_2 == (value - 16'd2))
+- Inspect Counterexample: `vcd_wave(path="wave/formal_register16_prove.vcd", instance="register16")`</code></pre>
+      </div>
+    </section>
+
     <!-- Feature 3: Cycle-Accurate VCD Waveform Intelligence -->
     <section class="detail-split" id="vcd-intelligence">
       <div class="detail-info">
@@ -312,10 +344,10 @@ Max Internal Reg -&gt; Reg Depth: 25
       </div>
     </section>
 
-    <!-- Complete 14-Tool Reference Grid -->
+    <!-- Complete 15-Tool Reference Grid -->
     <section class="features-section" id="tools">
       <div class="section-header">
-        <h2 class="section-title">14 Specialized Tools Across the RTL Lifecycle</h2>
+        <h2 class="section-title">15 Specialized Tools Across the RTL Lifecycle</h2>
         <p>Activate the <code>verilog</code> tool family in Turbostar or expose it to any external agent CLI via <code>turbomcp</code>.</p>
       </div>
 
@@ -327,17 +359,18 @@ Max Internal Reg -&gt; Reg Depth: 25
           <p class="card-desc">Fast static verification and persistent FPGA target configuration without manual Makefiles.</p>
           <ul class="detail-list" style="margin-bottom: 1rem;">
             <li><code>verilog_compile</code>: Dual Verilator lint (<code>lint_only=true</code> in ~0.13s) + Yosys synthesis with submodule scoping.</li>
-            <li><code>verilog_project_settings</code>: Configure target FPGA family (<code>ice40</code>, <code>ecp5</code>, <code>gowin</code>, <code>xilinx</code>), part, package, top module, and target clock MHz.</li>
+            <li><code>verilog_project_settings</code>: Configure target FPGA family, part, package, top module, target clock MHz, and optional <code>sby_path</code>; inspects installed Yosys, <code>nextpnr</code>, <code>sby</code>, and SMT solvers.</li>
           </ul>
         </article>
 
-        <!-- Card 2: Simulation & Testbenches -->
+        <!-- Card 2: Simulation, Formal & Testbenches -->
         <article class="card" id="fpga-card-sim">
           <span class="card-icon">⚡</span>
-          <h3 class="card-title">Tiered RTL Simulation</h3>
-          <p class="card-desc">Automated testbench discovery, tiered execution, and regression waveform snapshots.</p>
+          <h3 class="card-title">Simulation &amp; Formal Verification</h3>
+          <p class="card-desc">Automated testbench discovery, coverage, SymbiYosys formal proofs, and regression waveform snapshots.</p>
           <ul class="detail-list" style="margin-bottom: 1rem;">
-            <li><code>verilog_simulate</code>: Run testbenches with <code>hierarchical=true</code> bottom-up verification and auto-diffing against <code>.lastpass.vcd</code>.</li>
+            <li><code>verilog_simulate</code>: Run testbenches with <code>hierarchical=true</code>, RTL/formal coverage (<code>system://verilog/coverage.md</code>), and auto-diffing against <code>.lastpass.vcd</code>.</li>
+            <li><code>verilog_formal</code>: Run SymbiYosys (<code>prove</code>, <code>bmc</code>, <code>cover</code>) on <code>formal/*_props.sv</code> <code>bind</code> modules with parameter overrides, vacuity warnings, and counterexample VCDs (<code>system://verilog/formal.md</code>).</li>
             <li><code>verilog_configure_testbench</code>: Associate testbenches with modules in <code>turbostar.json</code>, assign levels (<code>quick</code>, <code>comprehensive</code>, <code>extreme</code>), and set defaults.</li>
           </ul>
         </article>
@@ -407,6 +440,7 @@ Max Internal Reg -&gt; Reg Depth: 25
           </p>
           <ul class="detail-list">
             <li><strong>Lint &amp; Simulation:</strong> <code>verilator</code>.</li>
+            <li><strong>Formal Verification (Optional):</strong> <code>sby</code> (SymbiYosys), Yosys with <code>slang</code>, and an SMT solver (<code>bitwuzla</code>, <code>yices-smt2</code>, or <code>z3</code>) via OSS CAD Suite (auto-detected from <code>PATH</code> or <code>fpga.sby_path</code> in <code>turbostar.json</code>).</li>
             <li><strong>Synthesis &amp; Logic Depth:</strong> <code>yosys</code> (supports generic gate synthesis plus <code>ice40</code>, <code>ecp5</code>, <code>gowin</code>, and <code>xilinx</code> targets).</li>
             <li><strong>Physical Place &amp; Route:</strong> <code>nextpnr-ice40</code>, <code>nextpnr-ecp5</code>, or <code>nextpnr-gowin</code> alongside <code>fpga-icestorm</code> / <code>prjtrellis</code>.</li>
           </ul>
@@ -423,6 +457,7 @@ turbomcp --project-dir /path/to/rtl-project
 
 <span class="comment"># 3. Or run the standalone human CLI</span>
 turbostar-verilog config --target ice40 --device hx8k --top main
+turbostar-verilog formal
 turbostar-verilog -m alu_mod
 turbostar-verilog --pnr --seeds 4
 turbostar-verilog -u</code></pre>

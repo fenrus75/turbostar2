@@ -243,6 +243,42 @@ Successfully saved FPGA project configuration to `/home/user/test8008/turbostar.
       </div>
     </section>
 
+    <!-- Step 4b: SymbiYosys Formal Verification -->
+    <section class="detail-full" id="step-formal">
+      <div class="detail-info">
+        <span class="step-badge">Step 4b &bull; SymbiYosys Formal Verification (<code>formal</code>)</span>
+        <h2 class="detail-subtitle">Automated Bounded, k-Induction &amp; Coverability Proofs (<code>formal</code>)</h2>
+        <p class="detail-text">
+          <code>turbostar-verilog formal</code> auto-discovers SystemVerilog <code>bind &lt;module&gt;</code> property modules in <code>formal/*_props.sv</code>, resolves transitive RTL dependencies, stages <code>$readmemh</code>/<code>$readmemb</code> files, and drives SymbiYosys (<code>sby</code>) with auto-detected SMT solvers (<code>bitwuzla</code> &rarr; <code>yices</code> &rarr; <code>z3</code>) and Yosys <code>read_slang</code>.
+        </p>
+        <ul class="detail-list">
+          <li><strong>All-Modules or Single-Module Runs (<code>formal</code> / <code>formal -m alu8</code>):</strong> Defaults to <code>--mode all</code> (<code>prove + cover</code>), printing per-module elapsed timing, collapsing passing coverpoint tables inline (pass <code>-v</code> to expand all), and warning on <strong>Vacuity Risk</strong> if a proof passes while any <code>cover()</code> is unreachable.</li>
+          <li><strong>Parameter Overrides (<code>-P KEY=VAL</code>):</strong> Override large counter widths (e.g. <code>-P COUNTER_BITS=4</code>) via <code>read_slang -G</code> / <code>chparam</code> so coverability reaches all states quickly without editing RTL defaults.</li>
+          <li><strong>Counterexample VCD Integration:</strong> Failing assertions display <code>--&gt;</code> source snippets with the failing step, copy the counterexample VCD to <code>wave/formal_&lt;mod&gt;_&lt;task&gt;.vcd</code>, and print a ready-to-run <code>turbostar-verilog vcd-wave ... -i &lt;mod&gt;</code> command.</li>
+        </ul>
+      </div>
+      <div class="detail-visual">
+        <pre><code><span class="comment"># 1. Run prove + cover across all modules with formal/*_props.sv bindings:</span>
+<span class="comment">$ turbostar-verilog formal</span>
+<span class="keyword">## Formal Verification Report (SymbiYosys `smtbmc bitwuzla`, depth=20)</span>
+
+┌───────────────┬──────────────────────────────┬───────┬──────┬─────────────┬──────┬──────────────────────────────────┐
+│ Module        │ Property File(s)             │ Task  │ Status│ Coverpoints │ Time │ Counterexample VCD               │
+├───────────────┼──────────────────────────────┼───────┼──────┼─────────────┼──────┼──────────────────────────────────┤
+│ alu16         │ formal/alu16_props.sv        │ prove │ <span class="type">PASS</span> │ -           │ 0.5s │ -                                │
+│ alu16         │ formal/alu16_props.sv        │ cover │ <span class="type">PASS</span> │ <span class="literal">11/11 hit</span>   │ -    │ -                                │
+│ alu8          │ formal/alu8_props.sv         │ prove │ <span class="type">PASS</span> │ -           │ 0.8s │ -                                │
+│ alu8          │ formal/alu8_props.sv         │ cover │ <span class="type">PASS</span> │ <span class="literal">21/21 hit</span>   │ -    │ -                                │
+│ sequencer_mod │ formal/sequencer_props.sv    │ prove │ <span class="type">PASS</span> │ -           │ 0.5s │ -                                │
+│ sequencer_mod │ formal/sequencer_props.sv    │ cover │ <span class="type">PASS</span> │ <span class="literal">15/15 hit</span>   │ -    │ -                                │
+└───────────────┴──────────────────────────────┴───────┴──────┴─────────────┴──────┴──────────────────────────────────┘
+
+<span class="comment"># 2. Override a large counter parameter to prove full reachability quickly:</span>
+<span class="comment">$ turbostar-verilog formal -m eightsegment -P COUNTER_BITS=4</span>
+*Config: auto-generated `.sby` (`read_slang`)* — *Parameters: `COUNTER_BITS=4`*</code></pre>
+      </div>
+    </section>
+
     <!-- Step 5: Combinational Logic Depth, Area & In-Place Port Annotations -->
     <section class="detail-full" id="step-timing">
       <div class="detail-info">
@@ -596,8 +632,8 @@ Exported gridcad scene JSON to top.json
           <tbody>
             <tr>
               <td><code>config</code></td>
-              <td><code>-s, --scan</code>, <code>--target</code>, <code>--device</code>, <code>--package</code>, <code>--top</code>, <code>--freq</code>, <code>--pcf</code>, <code>--sv-path</code>, <code>--tb</code>, <code>--modules</code>, <code>--level</code>, <code>--hierarchical</code></td>
-              <td>Inspect, auto-scan testbenches (<code>--scan</code>), or populate FPGA target settings and module-to-testbench bindings in <code>turbostar.json</code>.</td>
+              <td><code>-s, --scan</code>, <code>--target</code>, <code>--device</code>, <code>--package</code>, <code>--top</code>, <code>--freq</code>, <code>--pcf</code>, <code>--sv-path</code>, <code>--sby-path</code>, <code>--tb</code>, <code>--modules</code>, <code>--level</code>, <code>--hierarchical</code></td>
+              <td>Inspect detected EDA tools (Yosys, <code>nextpnr</code>, <code>sby</code>, SMT solvers), auto-scan testbenches (<code>--scan</code>), or populate FPGA settings and testbench bindings in <code>turbostar.json</code>.</td>
             </tr>
             <tr>
               <td><code>timing</code> <em>(or default)</em></td>
@@ -611,8 +647,13 @@ Exported gridcad scene JSON to top.json
             </tr>
             <tr>
               <td><code>sim</code> / <code>simulate</code></td>
-              <td><code>[module]</code>, <code>-m, --module</code>, <code>-b, --tb</code>, <code>-H, --hierarchical</code>, <code>-l, --level</code>, <code>-q, --quiet</code>, <code>-v, --verbose</code></td>
-              <td>Compile and run SystemVerilog testbenches with automatic <code>$readmemh</code> staging and <code>.previous.vcd</code> regression comparison.</td>
+              <td><code>[module]</code>, <code>-m, --module</code>, <code>-b, --tb</code>, <code>-H, --hierarchical</code>, <code>-l, --level</code>, <code>--coverage</code>, <code>--no-formal</code>, <code>-q, --quiet</code>, <code>-v, --verbose</code></td>
+              <td>Compile and run SystemVerilog testbenches with automatic <code>$readmemh</code> staging, <code>formal/*.sv</code> live assertions, optional RTL/formal coverage, and <code>.previous.vcd</code> regression comparison.</td>
+            </tr>
+            <tr>
+              <td><code>formal</code></td>
+              <td><code>[module]</code>, <code>-m, --module</code>, <code>--mode bmc|prove|cover|prove+cover|bmc+cover|all</code>, <code>--depth &lt;N&gt;</code>, <code>--solver auto|bitwuzla|yices|z3</code>, <code>-P, --param KEY=VAL</code>, <code>--timeout &lt;S&gt;</code>, <code>-v, --verbose</code></td>
+              <td>Run SymbiYosys (<code>sby</code>) formal verification on <code>formal/*_props.sv</code> <code>bind</code> modules with transitive deps, parameter overrides, vacuity warnings, per-module timing, and counterexample VCD export.</td>
             </tr>
             <tr>
               <td><code>vcd-info</code></td>
