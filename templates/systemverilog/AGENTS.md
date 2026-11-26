@@ -88,6 +88,7 @@ end
   3. **Invariants (`assert`)**: check safety properties that must hold on every active cycle (e.g., `!(full && empty)`).
   4. **Reachability (`cover`)**: cover interesting states/transitions to verify assumptions are not over-constraining the design.
 - **FSMs**: Add a `cover (state == <STATE>)` for every valid enum state to prove all states are reachable, and `assert` that invalid/unused state encodings can never be reached (plus key illegal transitions if applicable).
+- **Running in simulation**: `verilog_simulate()` automatically compiles with `--assert`, includes `formal/*.sv` `bind` property modules, and (with `coverage=true`) reports formal `cover()` hit counts alongside RTL line/port coverage in `system://verilog/coverage.md` — no need to invoke `verilator` directly via shell.
 - **Verilator `--assert` portability**: Avoid nesting `assert(...)` inside `else if` chains or `unique`/`priority` branches (Verilator can reject nested assertions with `%Error-UNSUPPORTED: Assert not allowed under another assert`). For multi-branch checks, compute the expected value or boolean condition first (e.g., `exp_state = ...`) and place a single `assert (state == exp_state);` afterward.
 ```systemverilog
 // formal/fifo_props.sv
