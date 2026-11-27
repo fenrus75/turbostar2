@@ -535,13 +535,17 @@ int main(int argc, char **argv)
 	sub_map->add_option("--max-depth", map_max_depth, "Maximum hierarchy depth to display (default: 16)");
 
 	// Subcommand: gridcad-export (experimental gridcad scene JSON export)
-	auto *sub_gridcad = app.add_subcommand("gridcad-export", "Export module(s) via Yosys techmap/Liberty to gridcad scene JSON");
+	auto *sub_gridcad = app.add_subcommand("gridcad-export", "Export module(s) via Yosys to gridcad scene JSON (accepts a module name or a testbench .sv file)");
 	sub_gridcad->fallthrough();
-	std::string gc_module, gc_out;
+	std::string gc_target, gc_module, gc_tb, gc_out;
 	bool gc_shallow = false;
-	sub_gridcad->add_option("module,-m,--module", gc_module, "Target RTL module name (default: top_module)");
-	sub_gridcad->add_option("-o,--output", gc_out, "Output JSON file path (default: gridcad_scene.json)");
+	bool gc_no_sim = false;
+	sub_gridcad->add_option("target", gc_target, "Target RTL module name or testbench .sv file (default: top_module)");
+	sub_gridcad->add_option("-m,--module", gc_module, "Target RTL module name (overrides auto-detected DUT in testbench mode)");
+	sub_gridcad->add_option("-b,--tb,--testbench", gc_tb, "Testbench .sv file to simulate and export its DUT module");
+	sub_gridcad->add_option("-o,--output", gc_out, "Output JSON file path (default: gridcad_<tb>.json in testbench mode, or gridcad_scene.json)");
 	sub_gridcad->add_flag("--shallow", gc_shallow, "Export only the target module without bundling descendant submodules");
+	sub_gridcad->add_flag("--no-sim", gc_no_sim, "In testbench mode, skip running simulation and only export scene JSON");
 
 	// Subcommand: compile (verilog_compile)
 	auto *sub_compile = app.add_subcommand("compile", "Compile and verify RTL with Verilator lint, Yosys synthesis, and nextpnr");
@@ -778,41 +782,130 @@ int main(int argc, char **argv)
 	}
 
 	if (*sub_gridcad) {
-		std::string out_p = gc_out.empty() ? "gridcad_scene.json" : gc_out;
-		std::string err;
-		if (!verilog::gridcad_scene_exporter::export_module_to_file(cwd_str, gc_module, out_p, err, !gc_shallow)) {
-			std::cerr << err << "\n";
-			return 1;
-		}
-		std::cout << std::format("Exported gridcad scene JSON to {}\n", out_p);
-
-		// Suggest a ready-to-run gridcad command using the actual JSON and matching VCD if present
+		// Detect testbench-driven mode when -b/--tb is given or positional `target` is a .sv/.v file
+		std::string tb_arg = gc_tb;
 		std::string target_mod = gc_module;
+		if (tb_arg.empty() && !gc_target.empty()) {
+			fs::path cand_path = fs::path(gc_target).is_absolute() ? fs::path(gc_target) : (fs::path(cwd_str) / gc_target);
+			bool looks_like_sv = gc_target.ends_with(".sv") || gc_target.ends_with(".v") ||
+			                     fs::is_regular_file(cand_path, ec);
+			ec.clear();
+			if (looks_like_sv) {
+				tb_arg = gc_target;
+			} else if (target_mod.empty()) {
+				target_mod = gc_target;
+			}
+		}
+
 		verilog::fpga_target_config cfg;
 		std::string cfg_err;
-		if (target_mod.empty() && verilog::fpga_project_settings::load_from_project(cwd_str, cfg, cfg_err)) {
-			target_mod = cfg.top_module;
-		}
-		std::string vcd_rel;
-		std::error_code ec;
-		auto try_vcd = [&](const std::filesystem::path &cand) -> bool {
-			std::filesystem::path full = cand.is_absolute() ? cand : (std::filesystem::path(cwd_str) / cand);
-			if (std::filesystem::is_regular_file(full, ec)) {
-				vcd_rel = cand.generic_string();
-				return true;
-			}
-			return false;
-		};
+		verilog::fpga_project_settings::load_from_project(cwd_str, cfg, cfg_err);
 
 		std::vector<verilog::testbench_entry> tbs;
 		std::string tb_cfg_path, tb_err;
-		if (!target_mod.empty() && verilog::fpga_project_settings::load_testbenches(cwd_str, tbs, tb_cfg_path, tb_err)) {
+		verilog::fpga_project_settings::load_testbenches(cwd_str, tbs, tb_cfg_path, tb_err);
+
+		std::string vcd_rel;
+		auto try_vcd = [&](const fs::path &cand) -> bool {
+			fs::path full = cand.is_absolute() ? cand : (fs::path(cwd_str) / cand);
+			if (fs::is_regular_file(full, ec)) {
+				vcd_rel = cand.generic_string();
+				return true;
+			}
+			ec.clear();
+			return false;
+		};
+
+		if (!tb_arg.empty()) {
+			fs::path tb_full = fs::path(tb_arg).is_absolute() ? fs::path(tb_arg) : (fs::path(cwd_str) / tb_arg);
+			if (!fs::is_regular_file(tb_full, ec)) {
+				std::cerr << std::format("Error: Testbench file '{}' does not exist.\n", tb_arg);
+				return 1;
+			}
+			fs::path tb_canon = fs::weakly_canonical(tb_full, ec);
+			ec.clear();
+
+			// 1. Resolve DUT module if not explicitly overridden with -m
+			if (target_mod.empty()) {
+				for (const auto &tb : tbs) {
+					fs::path cfg_tb_full = fs::weakly_canonical(fs::path(cwd_str) / tb.testbench, ec);
+					ec.clear();
+					if (cfg_tb_full == tb_canon && !tb.modules.empty()) {
+						target_mod = tb.modules.front();
+						break;
+					}
+				}
+			}
+			if (target_mod.empty()) {
+				fs::path scan_root = cfg.sv_path.empty()
+					? (fs::path(cwd_str) / verilog::fpga_project_settings::detect_sv_path(cwd_str))
+					: (fs::path(cwd_str) / cfg.sv_path);
+				if (!fs::exists(scan_root, ec)) {
+					scan_root = fs::path(cwd_str);
+					ec.clear();
+				}
+				auto rtl_files = verilog::verilog_module_scanner::find_synthesizable_files(scan_root);
+				auto inst_mods = verilog::verilog_module_scanner::discover_instantiated_modules(tb_full, rtl_files);
+				if (!inst_mods.empty()) {
+					target_mod = inst_mods.front();
+				}
+			}
+			if (target_mod.empty()) {
+				target_mod = cfg.top_module;
+			}
+
+			// 2. Run simulation to produce a fresh matching VCD (continue exporting even on assertion failure!)
+			if (!gc_no_sim) {
+				nlohmann::json sim_j = nlohmann::json::object();
+				sim_j["testbench"] = tb_arg;
+				sim_j["summary_only"] = true;
+				int sim_rc = run_validator_tool<tools::verilog_simulate_validator>(sim_j, cwd_str, framed_tables);
+				if (sim_rc != 0) {
+					std::cerr << "Note: Simulation reported a failure; continuing to export GridCad scene JSON for waveform debugging.\n";
+				}
+			}
+
+			// 3. Extract exact $dumpfile path produced by this testbench
+			std::string dump_path = verilog::verilog_module_scanner::extract_dumpfile_path(tb_full);
+			if (!dump_path.empty()) {
+				try_vcd(fs::path(dump_path));
+			}
+			if (vcd_rel.empty()) {
+				std::string stem = tb_full.stem().string();
+				try_vcd(fs::path("wave") / std::format("dump_{}.vcd", stem)) ||
+				    try_vcd(std::format("dump_{}.vcd", stem)) ||
+				    try_vcd(fs::path("wave") / std::format("{}.vcd", stem)) ||
+				    try_vcd(std::format("{}.vcd", stem));
+			}
+		} else if (target_mod.empty()) {
+			target_mod = cfg.top_module;
+		}
+
+		std::string out_p = gc_out;
+		if (out_p.empty()) {
+			if (!tb_arg.empty()) {
+				out_p = std::format("gridcad_{}.json", fs::path(tb_arg).stem().string());
+			} else {
+				out_p = "gridcad_scene.json";
+			}
+		}
+
+		std::string err;
+		if (!verilog::gridcad_scene_exporter::export_module_to_file(cwd_str, target_mod, out_p, err, !gc_shallow)) {
+			std::cerr << err << "\n";
+			return 1;
+		}
+		std::cout << std::format("Exported gridcad scene JSON for `{}` to {}\n",
+		                         target_mod.empty() ? "top" : target_mod, out_p);
+
+		// In module-driven mode, suggest a matching VCD if one already exists on disk
+		if (vcd_rel.empty() && !target_mod.empty()) {
 			for (const auto &tb : tbs) {
 				if (std::find(tb.modules.begin(), tb.modules.end(), target_mod) != tb.modules.end()) {
-					std::string stem = std::filesystem::path(tb.testbench).stem().string();
-					if (try_vcd(std::filesystem::path("wave") / std::format("dump_{}.vcd", stem)) ||
+					std::string stem = fs::path(tb.testbench).stem().string();
+					if (try_vcd(fs::path("wave") / std::format("dump_{}.vcd", stem)) ||
 					    try_vcd(std::format("dump_{}.vcd", stem)) ||
-					    try_vcd(std::filesystem::path("wave") / std::format("{}.vcd", stem)) ||
+					    try_vcd(fs::path("wave") / std::format("{}.vcd", stem)) ||
 					    try_vcd(std::format("{}.vcd", stem))) {
 						break;
 					}
@@ -820,8 +913,8 @@ int main(int argc, char **argv)
 			}
 		}
 		if (vcd_rel.empty() && !target_mod.empty()) {
-			try_vcd(std::filesystem::path("wave") / std::format("dump_{}_tb.vcd", target_mod)) ||
-			    try_vcd(std::filesystem::path("wave") / std::format("dump_{}.vcd", target_mod)) ||
+			try_vcd(fs::path("wave") / std::format("dump_{}_tb.vcd", target_mod)) ||
+			    try_vcd(fs::path("wave") / std::format("dump_{}.vcd", target_mod)) ||
 			    try_vcd(std::format("dump_{}_tb.vcd", target_mod)) ||
 			    try_vcd(std::format("dump_{}.vcd", target_mod));
 		}

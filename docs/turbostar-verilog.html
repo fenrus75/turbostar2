@@ -590,11 +590,12 @@ Sampled on: `tb_main.clk` (posedge) | Timescale: 1ps | Total Rows: 13
         </ul>
       </div>
       <div class="detail-visual">
-        <pre><code><span class="comment"># Export the top module and all descendant submodules to a GridCad scene JSON:</span>
-<span class="comment">$ turbostar-verilog gridcad-export -m top -o top.json</span>
-Exported gridcad scene JSON to top.json
+        <pre><code><span class="comment"># Testbench-driven (one command): simulates tb/lda_tb.sv, exports its DUT (`cpu`), and prints the exact gridcad command:</span>
+<span class="comment">$ turbostar-verilog gridcad-export tb/lda_tb.sv</span>
+Exported gridcad scene JSON for `cpu` to gridcad_lda_tb.json
+Run: gridcad --import gridcad_lda_tb.json --vcd wave/dump_lda_tb.vcd
 
-<span class="comment"># Or export a single module without bundling submodules:</span>
+<span class="comment"># Or module-driven (static export without running simulation):</span>
 <span class="comment">$ turbostar-verilog gridcad-export -m register16 --shallow -o register16.json</span></code></pre>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 1.25rem;">
           <figure style="margin: 0;">
@@ -692,8 +693,8 @@ Exported gridcad scene JSON to top.json
             </tr>
             <tr>
               <td><code>gridcad-export</code></td>
-              <td><code>[module]</code>, <code>-m, --module</code>, <code>-o, --output</code>, <code>--shallow</code></td>
-              <td>Synthesize module(s) via Yosys into a hierarchical GridCad scene JSON with <code>vcd_signal</code> bindings, enum label tables, and Verilog source provenance.</td>
+              <td><code>[tb.sv|module]</code>, <code>-b, --tb</code>, <code>-m, --module</code>, <code>-o, --output</code>, <code>--shallow</code>, <code>--no-sim</code></td>
+              <td>Given a testbench <code>.sv</code> file, runs simulation to produce a fresh VCD and exports its DUT module to GridCad scene JSON; given a module name, performs a static Yosys scene export.</td>
             </tr>
           </tbody>
         </table>
