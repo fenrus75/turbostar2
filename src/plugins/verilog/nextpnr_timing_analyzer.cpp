@@ -631,7 +631,9 @@ std::string nextpnr_timing_analyzer::resolve_cell_src(std::string_view raw_cell,
 		}
 	}
 
-	// Netname prefix lookup (prefer clean user nets from the same RTL file, skip synthetic LUT/techmap intermediates)
+	// Netname prefix lookup (prefer clean user nets from the same RTL file, skip synthetic LUT/techmap intermediates).
+	// Instead of scanning all entries in netlist_nets_ (O(N) per cell/hop), probe only the exact
+	// delimiter-bounded prefixes of `cand` (at '.', '_', and full length) in O(P log N) where P <= ~10.
 	bool valid_c_file = !c_file.empty() && !yosys_netlist_reader::is_library_source(c_file);
 	size_t best_same_file_len = 0;
 	std::string best_same_file_net;
@@ -640,29 +642,41 @@ std::string nextpnr_timing_analyzer::resolve_cell_src(std::string_view raw_cell,
 	size_t best_len = 0;
 	std::string best_net;
 	std::string net_src;
-	for (const auto &[nname, ndata] : netlist_nets_) {
-		std::string cleaned_n_src = yosys_netlist_reader::clean_src_location(ndata.src_raw);
-		if (cleaned_n_src.empty() || yosys_netlist_reader::is_library_source(cleaned_n_src)) continue;
+
+	auto check_prefix = [&](size_t len) {
+		if (len == 0) return;
+		std::string prefix = cand.substr(0, len);
+		auto it = netlist_nets_.find(prefix);
+		if (it == netlist_nets_.end()) return;
+		const auto &nname = it->first;
+		const auto &ndata = it->second;
 		if (nname.find("_SB_") != std::string::npos || nname.find("$SB_") != std::string::npos ||
 		    nname.find("$sb_") != std::string::npos || nname.find("$func$") != std::string::npos) {
-			continue;
+			return;
 		}
+		std::string cleaned_n_src = yosys_netlist_reader::clean_src_location(ndata.src_raw);
+		if (cleaned_n_src.empty() || yosys_netlist_reader::is_library_source(cleaned_n_src)) return;
 
-		if (cand.starts_with(nname) && (cand.size() == nname.size() || cand[nname.size()] == '_' || cand[nname.size()] == '.')) {
-			size_t n_colon = cleaned_n_src.rfind(':');
-			std::string n_file = (n_colon != std::string::npos) ? cleaned_n_src.substr(0, n_colon) : cleaned_n_src;
-			if (valid_c_file && n_file == c_file && nname.size() > best_same_file_len) {
-				best_same_file_len = nname.size();
-				best_same_file_net = nname;
-				same_file_net_src = cleaned_n_src;
-			}
-			if (nname.size() > best_len) {
-				best_len = nname.size();
-				best_net = nname;
-				net_src = cleaned_n_src;
-			}
+		size_t n_colon = cleaned_n_src.rfind(':');
+		std::string n_file = (n_colon != std::string::npos) ? cleaned_n_src.substr(0, n_colon) : cleaned_n_src;
+		if (valid_c_file && n_file == c_file && nname.size() > best_same_file_len) {
+			best_same_file_len = nname.size();
+			best_same_file_net = nname;
+			same_file_net_src = cleaned_n_src;
+		}
+		if (nname.size() > best_len) {
+			best_len = nname.size();
+			best_net = nname;
+			net_src = cleaned_n_src;
+		}
+	};
+
+	for (size_t i = 0; i < cand.size(); ++i) {
+		if (cand[i] == '_' || cand[i] == '.') {
+			check_prefix(i);
 		}
 	}
+	check_prefix(cand.size());
 
 	if (!best_same_file_net.empty()) {
 		best_net = best_same_file_net;

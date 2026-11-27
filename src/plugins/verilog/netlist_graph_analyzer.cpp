@@ -2357,12 +2357,26 @@ bool netlist_graph_analyzer::synthesize_and_load(std::string_view module_name, s
 
 	std::error_code tmp_ec;
 	std::filesystem::path tmp_dir(fs_utils::get_project_tmp_dir());
-	if (tmp_dir.empty()) {
-		tmp_dir = std::filesystem::temp_directory_path(tmp_ec);
+	bool tmp_usable = !tmp_dir.empty() && !tmp_dir.string().starts_with("/tmp/");
+	if (tmp_usable) {
+		std::filesystem::create_directories(tmp_dir, tmp_ec);
+		if (tmp_ec || ::access(tmp_dir.c_str(), W_OK) != 0) {
+			tmp_usable = false;
+		}
 		tmp_ec.clear();
 	}
-	std::filesystem::create_directories(tmp_dir, tmp_ec);
-	tmp_ec.clear();
+	// Under systemd-run PrivateTmp=true or read-only HOME sandboxes (e.g. nested test invocations),
+	// fall back to <project>/.turbostar_tmp which is always mounted writable.
+	if (!tmp_usable) {
+		std::string proj_root = fs_utils::get_project_dir();
+		if (proj_root.empty()) {
+			proj_root = ".";
+		}
+		tmp_dir = std::filesystem::absolute(proj_root, tmp_ec) / ".turbostar_tmp";
+		tmp_ec.clear();
+		std::filesystem::create_directories(tmp_dir, tmp_ec);
+		tmp_ec.clear();
+	}
 	std::string safe_mod_tag = module_name.empty() ? "top" : std::string(module_name);
 	for (char &c : safe_mod_tag) {
 		if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_') {
