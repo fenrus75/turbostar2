@@ -16,6 +16,10 @@ class vcd_label_manager
       public:
 	static vcd_label_manager &get_instance();
 
+	// Strips leading/trailing whitespace and any stray matching outer quotes (e.g. "\"0x00\"" or "'0x00'")
+	// that MCP clients, LLM serializers, or CLI wrappers may attach to free-form object keys/values.
+	static std::string strip_surrounding_quotes(std::string_view val);
+
 	// Normalizes a hex/binary/decimal string to lowercase 0x... format
 	static std::string normalize_hex_key(std::string_view val);
 

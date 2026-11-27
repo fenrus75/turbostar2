@@ -375,12 +375,23 @@ static bool parse_kv_pairs(const std::vector<std::string> &raw_items,
 				out_err = std::format("Expected 'key=value' pair, got '{}'", tok);
 				return false;
 			}
-			std::string_view k = trim_sv(std::string_view(tok).substr(0, eq));
+			auto unquote_sv = [](std::string_view sv) -> std::string_view {
+				sv = trim_sv(sv);
+				while (sv.size() >= 2 &&
+				       ((sv.front() == '"' && sv.back() == '"') ||
+				        (sv.front() == '\'' && sv.back() == '\''))) {
+					sv.remove_prefix(1);
+					sv.remove_suffix(1);
+					sv = trim_sv(sv);
+				}
+				return sv;
+			};
+			std::string_view k = unquote_sv(std::string_view(tok).substr(0, eq));
 			size_t val_start = eq + 1;
 			if (val_start < tok.size() && tok[val_start] == '=') {
 				++val_start; // Support 'sig==val' as well as 'sig=val'
 			}
-			std::string_view v = trim_sv(std::string_view(tok).substr(val_start));
+			std::string_view v = unquote_sv(std::string_view(tok).substr(val_start));
 			if (k.empty() || v.empty()) {
 				out_err = std::format("Empty key or value in '{}'", tok);
 				return false;

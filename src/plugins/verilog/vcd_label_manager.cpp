@@ -223,14 +223,43 @@ bool vcd_label_manager::is_qualifier_valid(std::string_view qualifier_raw_val, b
 	}
 }
 
+std::string vcd_label_manager::strip_surrounding_quotes(std::string_view val)
+{
+	auto trim = [](std::string_view sv) -> std::string_view {
+		size_t start = sv.find_first_not_of(" \t\r\n");
+		if (start == std::string_view::npos) {
+			return {};
+		}
+		size_t end = sv.find_last_not_of(" \t\r\n");
+		return sv.substr(start, end - start + 1);
+	};
+
+	std::string_view sv = trim(val);
+	// Iteratively unwrap matching outer quotes (including escaped \"...\" wrappers)
+	// that MCP clients or LLM serializers occasionally emit around map keys/values.
+	while (sv.size() >= 2) {
+		if ((sv.front() == '"' && sv.back() == '"') ||
+		    (sv.front() == '\'' && sv.back() == '\'')) {
+			sv.remove_prefix(1);
+			sv.remove_suffix(1);
+			sv = trim(sv);
+			continue;
+		}
+		if (sv.size() >= 4 && sv.starts_with("\\\"") && sv.ends_with("\\\"")) {
+			sv.remove_prefix(2);
+			sv.remove_suffix(2);
+			sv = trim(sv);
+			continue;
+		}
+		break;
+	}
+	return std::string(sv);
+}
+
 std::string vcd_label_manager::normalize_hex_key(std::string_view val)
 {
-	std::string s(val);
-	// Trim whitespace
-	size_t start = s.find_first_not_of(" \t\r\n");
-	if (start == std::string::npos) return "";
-	size_t end = s.find_last_not_of(" \t\r\n");
-	s = s.substr(start, end - start + 1);
+	std::string s = strip_surrounding_quotes(val);
+	if (s.empty()) return "";
 
 	// Lowercase
 	std::ranges::transform(s, s.begin(), [](unsigned char c) { return std::tolower(c); });
@@ -352,10 +381,12 @@ void vcd_label_manager::load_json_file_locked(std::string_view json_path, std::s
 				if (j.contains("labels") && j["labels"].is_object()) {
 					for (auto &[sig, val_map] : j["labels"].items()) {
 						if (val_map.is_object()) {
+							std::string clean_sig = strip_surrounding_quotes(sig);
 							for (auto &[val_str, label_str] : val_map.items()) {
 								if (label_str.is_string()) {
 									std::string norm = normalize_hex_key(val_str);
-									path_labels_[key][sig][norm] = label_str.get<std::string>();
+									std::string clean_lbl = strip_surrounding_quotes(label_str.get<std::string>());
+									path_labels_[key][clean_sig][norm] = std::move(clean_lbl);
 								}
 							}
 						}
@@ -364,7 +395,9 @@ void vcd_label_manager::load_json_file_locked(std::string_view json_path, std::s
 				if (j.contains("qualifiers") && j["qualifiers"].is_object()) {
 					for (auto &[sig, q_str] : j["qualifiers"].items()) {
 						if (q_str.is_string()) {
-							path_qualifiers_[key][sig] = q_str.get<std::string>();
+							std::string clean_sig = strip_surrounding_quotes(sig);
+							std::string clean_q = strip_surrounding_quotes(q_str.get<std::string>());
+							path_qualifiers_[key][clean_sig] = std::move(clean_q);
 						}
 					}
 				}
@@ -372,10 +405,12 @@ void vcd_label_manager::load_json_file_locked(std::string_view json_path, std::s
 				// Legacy format where entire root is signal -> val_map
 				for (auto &[sig, val_map] : j.items()) {
 					if (val_map.is_object()) {
+						std::string clean_sig = strip_surrounding_quotes(sig);
 						for (auto &[val_str, label_str] : val_map.items()) {
 							if (label_str.is_string()) {
 								std::string norm = normalize_hex_key(val_str);
-								path_labels_[key][sig][norm] = label_str.get<std::string>();
+								std::string clean_lbl = strip_surrounding_quotes(label_str.get<std::string>());
+								path_labels_[key][clean_sig][norm] = std::move(clean_lbl);
 							}
 						}
 					}
@@ -852,19 +887,21 @@ bool vcd_label_manager::set_labels(
 			out_msg = std::format("Cleared labels for signal '{}'.", signal_name);
 		}
 	} else {
+		std::string clean_sig = strip_surrounding_quotes(signal_name);
 		std::map<std::string, std::string> norm_updates;
 		for (const auto &[val_raw, label] : val_to_label) {
 			std::string norm = normalize_hex_key(val_raw);
-			path_labels_[target_key][std::string(signal_name)][norm] = label;
-			norm_updates[norm] = label;
+			std::string clean_lbl = strip_surrounding_quotes(label);
+			path_labels_[target_key][clean_sig][norm] = clean_lbl;
+			norm_updates[norm] = std::move(clean_lbl);
 		}
 
 		// If signal_name overlaps with an existing pattern (e.g. "*opcode*" vs "*opcode" or "opcode"),
 		// propagate conflicting hex key updates so the older pattern does not shadow the newer mapping.
 		size_t updated_overlapping = 0;
 		for (auto &[existing_sig, existing_map] : path_labels_[target_key]) {
-			if (existing_sig == signal_name) continue;
-			if (signal_pattern_matches(signal_name, existing_sig) || signal_pattern_matches(existing_sig, signal_name)) {
+			if (existing_sig == clean_sig) continue;
+			if (signal_pattern_matches(clean_sig, existing_sig) || signal_pattern_matches(existing_sig, clean_sig)) {
 				bool touched = false;
 				for (const auto &[norm_k, new_lbl] : norm_updates) {
 					if (existing_map.contains(norm_k)) {
@@ -878,7 +915,7 @@ bool vcd_label_manager::set_labels(
 			}
 		}
 
-		out_msg = std::format("Registered {} label(s) for signal '{}'.", val_to_label.size(), signal_name);
+		out_msg = std::format("Registered {} label(s) for signal '{}'.", val_to_label.size(), clean_sig);
 		if (updated_overlapping > 0) {
 			out_msg += std::format(" Updated {} overlapping pattern(s).", updated_overlapping);
 		}
@@ -1004,8 +1041,10 @@ bool vcd_label_manager::set_qualifier(
 			out_msg = std::format("Cleared qualifier for signal '{}'.", signal_name);
 		}
 	} else {
-		path_qualifiers_[target_key][std::string(signal_name)] = std::string(qualifier_expr);
-		out_msg = std::format("Registered qualifier '{}' for signal '{}'.", qualifier_expr, signal_name);
+		std::string clean_sig = strip_surrounding_quotes(signal_name);
+		std::string clean_q = strip_surrounding_quotes(qualifier_expr);
+		path_qualifiers_[target_key][clean_sig] = clean_q;
+		out_msg = std::format("Registered qualifier '{}' for signal '{}'.", clean_q, clean_sig);
 	}
 
 	std::string save_err;
@@ -1033,7 +1072,11 @@ bool vcd_label_manager::set_qualifiers_batch(
 	std::string target_key = is_global ? get_global_sidecar_path(p) : p;
 
 	for (const auto &[sig, q] : bindings) {
-		path_qualifiers_[target_key][sig] = q;
+		std::string clean_sig = strip_surrounding_quotes(sig);
+		std::string clean_q = strip_surrounding_quotes(q);
+		if (!clean_sig.empty()) {
+			path_qualifiers_[target_key][std::move(clean_sig)] = std::move(clean_q);
+		}
 	}
 	out_msg = std::format("Registered {} signal qualifier binding(s).", bindings.size());
 

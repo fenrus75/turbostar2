@@ -1,6 +1,7 @@
 #include "vcd_signal_labels_validator.h"
 #include "agentlib/json_utils.h"
 #include "agentlib/tool_registry.h"
+#include "plugins/verilog/vcd_label_manager.h"
 #include "plugins/verilog/verilog_module_scanner.h"
 #include <format>
 namespace tools
@@ -31,6 +32,7 @@ nlohmann::json vcd_signal_labels_validator::get_parameters_schema() const
 			}},
 			{"labels", {
 				{"type", "object"},
+				{"additionalProperties", {{"type", "string"}}},
 				{"description", "Optional key-value map of signal values (hex '0x06', decimal '6', or binary with wildcards 'b01???01') to string labels (e.g. 'LAI'). If omitted and clear is false, lists current labels."}
 			}},
 			{"clear", {
@@ -80,13 +82,17 @@ bool vcd_signal_labels_validator::validate_args_impl(const nlohmann::json &raw_j
 	}
 
 	if (raw_json.contains("signal") && raw_json["signal"].is_string()) {
-		args_.signal = raw_json["signal"].get<std::string>();
+		args_.signal = verilog::vcd_label_manager::strip_surrounding_quotes(raw_json["signal"].get<std::string>());
 	}
 
 	if (raw_json.contains("labels") && raw_json["labels"].is_object()) {
 		for (auto &[k, v] : raw_json["labels"].items()) {
 			if (v.is_string()) {
-				args_.labels[k] = v.get<std::string>();
+				std::string clean_k = verilog::vcd_label_manager::strip_surrounding_quotes(k);
+				std::string clean_v = verilog::vcd_label_manager::strip_surrounding_quotes(v.get<std::string>());
+				if (!clean_k.empty()) {
+					args_.labels[std::move(clean_k)] = std::move(clean_v);
+				}
 			}
 		}
 	}

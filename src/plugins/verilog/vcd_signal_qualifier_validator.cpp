@@ -1,5 +1,6 @@
 #include "vcd_signal_qualifier_validator.h"
 #include "agentlib/tool_registry.h"
+#include "plugins/verilog/vcd_label_manager.h"
 #include "plugins/verilog/verilog_module_scanner.h"
 #include <format>
 namespace tools
@@ -69,17 +70,21 @@ bool vcd_signal_qualifier_validator::validate_args_impl(const nlohmann::json &ra
 	args_.safe_path = safe_path;
 
 	if (raw_json.contains("signal") && raw_json["signal"].is_string()) {
-		args_.signal = raw_json["signal"].get<std::string>();
+		args_.signal = verilog::vcd_label_manager::strip_surrounding_quotes(raw_json["signal"].get<std::string>());
 	}
 
 	if (raw_json.contains("qualifier") && raw_json["qualifier"].is_string()) {
-		args_.qualifier = raw_json["qualifier"].get<std::string>();
+		args_.qualifier = verilog::vcd_label_manager::strip_surrounding_quotes(raw_json["qualifier"].get<std::string>());
 	}
 
 	if (raw_json.contains("bindings") && raw_json["bindings"].is_object()) {
 		for (auto &[sig, q] : raw_json["bindings"].items()) {
 			if (q.is_string()) {
-				args_.bindings[sig] = q.get<std::string>();
+				std::string clean_sig = verilog::vcd_label_manager::strip_surrounding_quotes(sig);
+				std::string clean_q = verilog::vcd_label_manager::strip_surrounding_quotes(q.get<std::string>());
+				if (!clean_sig.empty()) {
+					args_.bindings[std::move(clean_sig)] = std::move(clean_q);
+				}
 			}
 		}
 	}

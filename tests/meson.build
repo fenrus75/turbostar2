@@ -186,6 +186,12 @@ test_vcd_protocol_analyzer = executable('test_vcd_protocol_analyzer',
   include_directories: inc)
 test('unit_vcd_protocol_analyzer', test_vcd_protocol_analyzer, suite: 'plugins')
 
+test_vcd_label_manager = executable('test_vcd_label_manager',
+  ['unit/test_vcd_label_manager.cpp'],
+  dependencies : [verilog_core_dep],
+  include_directories: inc)
+test('unit_vcd_label_manager', test_vcd_label_manager, suite: 'plugins')
+
 test_netlist_graph_analyzer = executable('test_netlist_graph_analyzer',
   ['unit/test_netlist_graph_analyzer.cpp'],
   dependencies : [verilog_core_dep],

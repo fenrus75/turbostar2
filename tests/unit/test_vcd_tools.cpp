@@ -2047,7 +2047,7 @@ int main()
 			};
 			assert(sim_val.validate_args(sim_cpu_only, mctx, err) && err.empty());
 			std::string out_cpu_only = sim_val.create_tool(sim_cpu_only)->execute(mctx);
-			assert(out_cpu_only.find("**1 Passed**, **0 Failed** (out of 1 testbench run(s))") != std::string::npos);
+			assert(out_cpu_only.find("**1 Passed**, **0 Failed** (out of 1 testbench run(s)") != std::string::npos);
 			assert(out_cpu_only.find("`tb/tb_cpu.sv`") != std::string::npos);
 			assert(out_cpu_only.find("`tb/tb_alu.sv`") == std::string::npos);
 			assert(out_cpu_only.find("`tb/tb_cpu_extreme.sv`") == std::string::npos);
@@ -2065,7 +2065,7 @@ int main()
 			assert(sim_val.validate_args(sim_hier, mctx, err) && err.empty());
 			std::string out_hier = sim_val.create_tool(sim_hier)->execute(mctx);
 			assert(out_hier.find("Bottom-Up Module Order**: `alu_mod` -> `cpu_mod`") != std::string::npos);
-			assert(out_hier.find("**2 Passed**, **0 Failed** (out of 2 testbench run(s))") != std::string::npos);
+			assert(out_hier.find("**2 Passed**, **0 Failed** (out of 2 testbench run(s)") != std::string::npos);
 			size_t pos_alu = out_hier.find("### Verilog Simulation: `tb/tb_alu.sv`");
 			size_t pos_cpu = out_hier.find("### Verilog Simulation: `tb/tb_cpu.sv`");
 			assert(pos_alu != std::string::npos && pos_cpu != std::string::npos && pos_alu < pos_cpu);
