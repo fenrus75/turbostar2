@@ -10,7 +10,7 @@ const char *plugin_name(void)
 
 const char *plugin_description(void)
 {
-	return "Provides tools for chip and FPGA design, including waveform and simulation inspection (VCD).";
+	return "Provides tools for chip and FPGA design, including RTL lint/synthesis, simulation, SymbiYosys formal verification, timing closure, and waveform inspection (VCD).";
 }
 
 void register_vcd_file_info(void);
@@ -74,10 +74,10 @@ void plugin_run(void)
 
 	agentlib::tool_registry::get_instance().register_tool_family(
 		"verilog",
-		"Activate when working with Verilog/SystemVerilog chip and FPGA designs",
+		"Activate when working with Verilog/SystemVerilog chip and FPGA designs, RTL simulation, formal verification (SymbiYosys), timing closure, and VCD waveforms",
 		R"(### Verilog & Hardware Design Tool Family (`verilog`)
 
-Tools in this family assist in SystemVerilog/Verilog RTL development, FPGA synthesis & place-and-route, simulation verification, timing closure, and waveform analysis.
+Tools in this family assist in SystemVerilog/Verilog RTL development, FPGA synthesis & place-and-route, simulation & SymbiYosys formal verification, timing closure, and waveform analysis.
 
 #### 1. Standard Edit – Compile – Test – Commit Workflow
 - **Get Started (`verilog_project_map`)**:
@@ -89,7 +89,7 @@ Tools in this family assist in SystemVerilog/Verilog RTL development, FPGA synth
 - **Simulate (`verilog_simulate`)**:
   Run associated testbenches in parallel via Verilator (`verilog_simulate(module="...")`). Give each testbench a unique `$dumpfile` path (e.g., `dump_<tb>.vcd` or `wave/dump_<tb>.vcd` per project convention) so parallel runs do not collide, and emit explicit `PASS` or `FAIL`/`$error` assertions so benches are graded `PASS` rather than `INFO (no assertions)`.
 - **Formal Verification (`verilog_formal`)**:
-  Run SymbiYosys (`sby`) bounded model checking, k-induction proofs, and coverability checks on `formal/*_props.sv` `bind` property modules (`verilog_formal(module="alu8", mode="all")` or omit `module` to verify all bound modules). Reports per-coverpoint hits, flags vacuity risks when proofs pass with unreachable covers, and saves counterexample traces to `wave/formal_<module>_<task>.vcd` for `vcd_wave` inspection.
+  Run SymbiYosys (`sby`) k-induction proofs, bounded model checking, and coverability checks on `formal/*_props.sv` `bind` property modules (`verilog_formal(module="alu8", mode="all")` or omit `module` to verify all bound modules; pass `parameters={"COUNTER_BITS": 4}` to override large counters). Reports per-module timing, flags vacuity risks when proofs pass with unreachable covers, writes full coverpoint details to `system://verilog/formal.md`, and saves counterexample traces to `wave/formal_<module>_<task>.vcd` for `vcd_wave(path="...", instance="<module>")` inspection.
 
 #### 2. Waveform Debugging Workflow (.vcd)
 To debug simulation waveforms without blowing out your context window:
