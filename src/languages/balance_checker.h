@@ -33,6 +33,14 @@ public:
 	static std::string check_file_warnings(std::string_view safe_path, std::span<const std::string> before_lines,
 					       std::span<const std::string> after_lines);
 
+	// Returns true if safe_path has a recognized code/brace extension suitable for standalone whole-file balance checking
+	// (avoids false positives on prose files like .md/.txt during fs_write_file).
+	static bool supports_standalone_check(std::string_view safe_path);
+
+	// Formats whole-file imbalance warnings for a newly written or overwritten file (no prior state).
+	static std::string check_content_warnings(std::string_view safe_path, std::span<const std::string> lines);
+	static std::string check_content_warnings(std::string_view safe_path, std::string_view content);
+
 	// Returns true when safe_path uses the default C-like brace checker rather than a specialized language checker.
 	static bool uses_generic_brace_check(std::string_view safe_path, std::span<const std::string> lines);
 };

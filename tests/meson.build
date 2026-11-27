@@ -1052,6 +1052,12 @@ test_fs_replace_lines = executable('test_fs_replace_lines',
   include_directories: inc)
 test('unit_fs_replace_lines', test_fs_replace_lines, suite: 'agent')
 
+test_fs_write_file = executable('test_fs_write_file',
+  ['unit/test_fs_write_file.cpp'],
+  dependencies : [agent_dep, tools_dep, dl_dep],
+  include_directories: inc)
+test('unit_fs_write_file', test_fs_write_file, suite: 'agent')
+
 test_fs_file_codemap = executable('test_fs_file_codemap',
   ['unit/test_fs_file_codemap.cpp'],
   dependencies : [agent_dep, tools_dep, dl_dep],

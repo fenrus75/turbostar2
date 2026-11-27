@@ -7,6 +7,7 @@
 1. **Active Editor Protection**: Rejects writes to files currently open in the interactive editor (`validate_runtime`) to prevent clobbering unsaved user buffers.
 2. **Zero Redundant Disk Re-Reads**: When overwriting a file (`append == false`), `args_.content` is passed directly to `lsp_save_document` without reopening and re-reading the file from disk.
 3. **Cache & LSP Synchronization Before Health Check**: `lsp_save_document` is invoked prior to `update_file_health_state` so `mapped_file`, `codemap_cache`, and LSP see the updated file state immediately.
+4. **Syntactic Balance Verification**: Runs `languages::balance_checker::check_content_warnings` on recognized code/brace extensions (C/C++/JSON `{}` and Verilog/SystemVerilog `begin`/`end`, `case`/`endcase`, `module`/`endmodule`, `{}`), using `args_.content` directly on overwrite and reading the resulting file on append, while skipping prose files (`.md`, `.txt`) to avoid false positives.
 
 ## Lessons Learned
 - **Redundant Byte-by-Byte Re-Read & Uncached `compile_commands.json` Lookup**:

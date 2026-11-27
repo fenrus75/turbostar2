@@ -153,4 +153,79 @@ std::string balance_checker::check_file_warnings(std::string_view safe_path, std
 	return warnings;
 }
 
+bool balance_checker::supports_standalone_check(std::string_view safe_path)
+{
+	std::string lang = mime::get_language_from_extension(safe_path);
+	if (lang == "verilog" || lang == "systemverilog") {
+		return true;
+	}
+	return mime::uses_brace_syntax(safe_path);
+}
+
+std::string balance_checker::check_content_warnings(std::string_view safe_path, std::span<const std::string> lines)
+{
+	if (lines.empty() || !supports_standalone_check(safe_path)) {
+		return "";
+	}
+	auto entries = calculate_balance(safe_path, lines, 0, static_cast<int>(lines.size()) - 1);
+	if (entries.empty()) {
+		return "";
+	}
+
+	std::string warnings;
+	for (const auto &entry : entries) {
+		int a = entry.net_balance;
+		if (a == 0) {
+			continue;
+		}
+		if (entry.label == "braces" && entries.size() == 1) {
+			if (a > 0) {
+				warnings += std::format(
+				    "⚠️ Warning: Written file has unbalanced braces at file scope (net balance: +{}, "
+				    "missing {} closing '}}' brace{})\n",
+				    a, a, (a == 1 ? "" : "s"));
+			} else {
+				int abs_bal = std::abs(a);
+				warnings += std::format(
+				    "⚠️ Warning: Written file has unbalanced braces at file scope (net balance: {}, "
+				    "possible extra {} closing '}}' brace{})\n",
+				    a, abs_bal, (abs_bal == 1 ? "" : "s"));
+			}
+		} else {
+			if (a > 0) {
+				warnings += std::format(
+				    "⚠️ Warning: Written file has unbalanced {} blocks at file scope (net balance: +{}, "
+				    "missing {} closing '{}')\n",
+				    entry.label, a, a, entry.close_token);
+			} else {
+				int abs_bal = std::abs(a);
+				warnings += std::format(
+				    "⚠️ Warning: Written file has unbalanced {} blocks at file scope (net balance: {}, "
+				    "possible extra {} closing '{}')\n",
+				    entry.label, a, abs_bal, entry.close_token);
+			}
+		}
+	}
+	return warnings;
+}
+
+std::string balance_checker::check_content_warnings(std::string_view safe_path, std::string_view content)
+{
+	if (content.empty() || !supports_standalone_check(safe_path)) {
+		return "";
+	}
+	std::vector<std::string> lines;
+	size_t pos = 0;
+	while (pos < content.size()) {
+		size_t nl = content.find('\n', pos);
+		if (nl == std::string_view::npos) {
+			lines.emplace_back(content.substr(pos));
+			break;
+		}
+		lines.emplace_back(content.substr(pos, nl - pos));
+		pos = nl + 1;
+	}
+	return check_content_warnings(safe_path, lines);
+}
+
 } // namespace languages

@@ -4,6 +4,7 @@
 #include "agentlib/file_health_utils.h"
 #include "agentlib/interactions/action.h"
 #include "fs_utils.h"
+#include "languages/balance_checker.h"
 #include "project_manager.h"
 
 
@@ -157,6 +158,22 @@ std::string fs_write_file_tool::execute(agentlib::tool_context &ctx)
 
 		if (!dir_note.empty()) {
 			res_msg += "\n" + dir_note;
+		}
+
+		// Run language-aware brace / block balance check on recognized code extensions
+		// without re-reading disk on overwrite (only reads resulting file on append).
+		std::string balance_warning;
+		if (!args_.append) {
+			balance_warning = languages::balance_checker::check_content_warnings(args_.safe_path, args_.content);
+		} else if (languages::balance_checker::supports_standalone_check(args_.safe_path)) {
+			std::ifstream verify_in(args_.safe_path, std::ios::binary);
+			if (verify_in.is_open()) {
+				std::string full_content((std::istreambuf_iterator<char>(verify_in)), std::istreambuf_iterator<char>());
+				balance_warning = languages::balance_checker::check_content_warnings(args_.safe_path, full_content);
+			}
+		}
+		if (!balance_warning.empty()) {
+			res_msg += "\n\n" + balance_warning;
 		}
 		return res_msg;
 
