@@ -23,7 +23,6 @@ namespace
 
 constexpr const char *kSigFilename = ".turbostar_build.sig";
 constexpr auto kDebounceDelay = std::chrono::milliseconds(1500);
-constexpr size_t kMaxAotTestbenchesPerBurst = 4;
 
 bool is_verilog_source_extension(std::string_view filepath) noexcept
 {
@@ -575,8 +574,9 @@ void verilog_sim_build_cache::run_aot_precompile_batch(const std::string &projec
 		}
 	}
 
-	// Collect affected `quick` testbenches (capped to avoid saturating CPU)
-	std::vector<testbench_entry> targets;
+	// Collect all affected `quick` testbenches (prioritizing direct/leaf testbenches ahead of composite ones)
+	std::vector<testbench_entry> direct_targets;
+	std::vector<testbench_entry> transitive_targets;
 	for (const auto &entry : configured_tbs) {
 		if (fpga_project_settings::normalize_test_level(entry.level) != "quick") {
 			continue;
@@ -586,32 +586,34 @@ void verilog_sim_build_cache::run_aot_precompile_batch(const std::string &projec
 			ec.clear();
 			continue;
 		}
-		bool affected = changed_canon.contains(tb_abs.string());
-		if (!affected && !changed_mods.empty()) {
+		bool direct_hit = changed_canon.contains(tb_abs.string());
+		bool transitive_hit = false;
+		if (!direct_hit && !changed_mods.empty()) {
 			for (const auto &m : entry.modules) {
 				if (changed_mods.contains(m)) {
-					affected = true;
+					direct_hit = true;
 					break;
 				}
 				auto hier = verilog_module_scanner::discover_submodule_hierarchy(m, rtl_files);
 				for (const auto &hm : hier) {
 					if (changed_mods.contains(hm)) {
-						affected = true;
+						transitive_hit = true;
 						break;
 					}
 				}
-				if (affected) {
-					break;
-				}
 			}
 		}
-		if (affected) {
-			targets.push_back(entry);
-			if (targets.size() >= kMaxAotTestbenchesPerBurst) {
-				break;
-			}
+		if (direct_hit) {
+			direct_targets.push_back(entry);
+		} else if (transitive_hit) {
+			transitive_targets.push_back(entry);
 		}
 	}
+
+	std::vector<testbench_entry> targets;
+	targets.reserve(direct_targets.size() + transitive_targets.size());
+	targets.insert(targets.end(), direct_targets.begin(), direct_targets.end());
+	targets.insert(targets.end(), transitive_targets.begin(), transitive_targets.end());
 
 	if (targets.empty()) {
 		return;

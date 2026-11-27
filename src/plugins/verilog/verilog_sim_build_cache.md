@@ -7,7 +7,7 @@
   - Serializes/deduplicates concurrent builds targeting the same `--Mdir` via `in_flight_builds_` futures so `verilog_simulate()` joins an in-flight AOT pre-compile instead of launching a duplicate Verilator process.
 - **Layer 2 (Session-Gated Debounced AOT Pre-Compiler)**:
   - Stays dormant until `record_simulation_session()` is called by `verilog_simulate` (and never activates in one-shot `turbostar-verilog` CLI mode).
-  - Debounces `.sv`/`.v`/`.svh`/`.vh` edits for 1.5s, targets only affected `quick` testbenches (capped at 4 per burst), and limits Verilator `--build-jobs` to half of available CPU cores (`std::max(1, hw_threads / 2)`).
+  - Debounces `.sv`/`.v`/`.svh`/`.vh` edits for 1.5s, works through all affected `quick` testbenches (direct/leaf testbenches first, then composite ones) 1 at a time using at most half of available CPU cores (`std::max(1, hw_threads / 2)`), aborting immediately between testbenches if a new edit arrives.
   - Cleanly stops and joins its `std::jthread` via `shutdown()` on `plugin_unload()` and destruction.
 
 ## Lessons Learned
