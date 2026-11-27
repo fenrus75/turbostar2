@@ -163,6 +163,29 @@ static void test_immediate_binary_invalidation_on_edit()
 	assert(!fs::exists(sim_bin));
 	assert(!fs::exists(mdir / ".turbostar_build.sig"));
 
+	// Intermediate artifact pruning must remove *.gch / *.o / *.a / *.cpp while keeping V<top>, sig, and coverage.dat
+	write_text(sim_bin, "elf");
+	verilog::verilog_sim_build_cache::write_build_signature(mdir, "sig-keep");
+	write_text(mdir / "coverage.dat", "cov");
+	write_text(mdir / "Vtb_alu__pch.h.fast.gch", "huge-pch");
+	write_text(mdir / "Vtb_alu__pch.h.slow.gch", "huge-pch");
+	write_text(mdir / "Vtb_alu___024root__0.o", "obj");
+	write_text(mdir / "Vtb_alu__ALL.a", "archive");
+	verilog::verilog_sim_build_cache::prune_intermediate_mdir_artifacts(mdir, sim_bin);
+	assert(fs::exists(sim_bin));
+	assert(fs::exists(mdir / ".turbostar_build.sig"));
+	assert(fs::exists(mdir / "coverage.dat"));
+	assert(!fs::exists(mdir / "Vtb_alu__pch.h.fast.gch"));
+	assert(!fs::exists(mdir / "Vtb_alu__pch.h.slow.gch"));
+	assert(!fs::exists(mdir / "Vtb_alu___024root__0.o"));
+	assert(!fs::exists(mdir / "Vtb_alu__ALL.a"));
+
+	// Verify EDA concurrency permit acquires and releases cleanly
+	{
+		verilog::verilog_sim_build_cache::scoped_eda_permit p1(cache);
+		verilog::verilog_sim_build_cache::scoped_eda_permit p2(cache);
+	}
+
 	cache.shutdown();
 	fs::remove_all(tmp);
 }

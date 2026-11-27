@@ -24,15 +24,20 @@ bool fs_purge_tmp_tool::validate_runtime(const agentlib::tool_context &ctx, std:
 
 std::string fs_purge_tmp_tool::execute(agentlib::tool_context &ctx)
 {
-	std::string tmp_dir_str = fs_utils::get_project_tmp_dir();
-	std::string safe_tmp_dir;
+	std::string safe_vfs_uri;
 	std::string sec_err;
-	if (!ctx.fs_security.validate_access(tmp_dir_str, agentlib::access_type::write, safe_tmp_dir, sec_err)) {
+	if (!ctx.fs_security.validate_access("tmp://", agentlib::access_type::write, safe_vfs_uri, sec_err)) {
 		set_failure(ctx, "Access denied to project tmp directory: " + sec_err);
 		return "Error: Access denied to project tmp directory: " + sec_err;
 	}
 
-	std::filesystem::path tmp_dir(safe_tmp_dir);
+	std::string tmp_dir_str = fs_utils::get_project_tmp_dir();
+	if (tmp_dir_str.empty()) {
+		set_failure(ctx, "Project tmp directory is not configured.");
+		return "Error: Project tmp directory is not configured.";
+	}
+
+	std::filesystem::path tmp_dir(tmp_dir_str);
 	std::error_code ec;
 	if (!std::filesystem::exists(tmp_dir, ec)) {
 		set_success(ctx, "Temp directory does not exist, nothing to purge.");

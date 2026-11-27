@@ -87,6 +87,27 @@ class verilog_sim_build_cache
 
 	static void write_build_signature(const std::filesystem::path &mdir, std::string_view sig);
 
+	// Removes intermediate Verilator artifacts (*.gch, *.o, *.a, *.cpp, *.h, *.d, *.mk) from mdir,
+	// preserving only sim_bin, .turbostar_build.sig, and coverage.dat (~225 MB -> ~400 KB per TB).
+	static void prune_intermediate_mdir_artifacts(const std::filesystem::path &mdir,
+	                                              const std::filesystem::path &sim_bin);
+
+	// Process-wide RAII concurrency permit bounding simultaneous Verilator/Yosys worker processes.
+	class scoped_eda_permit
+	{
+	      public:
+		explicit scoped_eda_permit(verilog_sim_build_cache &cache);
+		~scoped_eda_permit();
+		scoped_eda_permit(const scoped_eda_permit &) = delete;
+		scoped_eda_permit &operator=(const scoped_eda_permit &) = delete;
+
+	      private:
+		verilog_sim_build_cache &cache_;
+	};
+
+	void acquire_eda_permit();
+	void release_eda_permit() noexcept;
+
 	// Compiles via Verilator, returns immediately on cache hit, or joins an identical in-flight build.
 	sim_compile_result compile_or_join(const sim_compile_request &req);
 
@@ -159,6 +180,16 @@ class verilog_sim_build_cache
 	uint64_t edit_generation_{0};
 	std::atomic<int> active_simulate_calls_{0};
 	std::jthread worker_thread_;
+
+	/*
+	 * eda_permit_mutex_ protects active_eda_jobs_ and synchronizes eda_permit_cv_.
+	 * Locking Rules:
+	 * - Held briefly when acquiring or releasing a process-wide EDA concurrency permit.
+	 * - Never held while executing Verilator or Yosys subprocesses.
+	 */
+	std::mutex eda_permit_mutex_;
+	std::condition_variable eda_permit_cv_;
+	size_t active_eda_jobs_{0};
 };
 
 } // namespace verilog

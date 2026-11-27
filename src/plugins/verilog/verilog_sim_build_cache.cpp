@@ -323,6 +323,58 @@ void verilog_sim_build_cache::write_build_signature(const fs::path &mdir, std::s
 	}
 }
 
+void verilog_sim_build_cache::prune_intermediate_mdir_artifacts(const fs::path &mdir, const fs::path &sim_bin)
+{
+	std::error_code ec;
+	if (!fs::is_directory(mdir, ec)) {
+		return;
+	}
+	std::string keep_bin = sim_bin.filename().string();
+	for (const auto &entry : fs::directory_iterator(mdir, ec)) {
+		if (ec) {
+			break;
+		}
+		std::string name = entry.path().filename().string();
+		if (name == keep_bin || name == kSigFilename || name == "coverage.dat") {
+			continue;
+		}
+		if (entry.is_regular_file(ec) || entry.is_symlink(ec)) {
+			fs::remove(entry.path(), ec);
+			ec.clear();
+		}
+	}
+}
+
+verilog_sim_build_cache::scoped_eda_permit::scoped_eda_permit(verilog_sim_build_cache &cache) : cache_(cache)
+{
+	cache_.acquire_eda_permit();
+}
+
+verilog_sim_build_cache::scoped_eda_permit::~scoped_eda_permit()
+{
+	cache_.release_eda_permit();
+}
+
+void verilog_sim_build_cache::acquire_eda_permit()
+{
+	unsigned int hw = std::thread::hardware_concurrency();
+	const size_t max_jobs = std::max<size_t>(2, hw == 0 ? 4u : hw);
+	std::unique_lock<std::mutex> lk(eda_permit_mutex_);
+	eda_permit_cv_.wait(lk, [&]() { return active_eda_jobs_ < max_jobs; });
+	++active_eda_jobs_;
+}
+
+void verilog_sim_build_cache::release_eda_permit() noexcept
+{
+	{
+		std::lock_guard<std::mutex> lk(eda_permit_mutex_);
+		if (active_eda_jobs_ > 0) {
+			--active_eda_jobs_;
+		}
+	}
+	eda_permit_cv_.notify_one();
+}
+
 sim_compile_result verilog_sim_build_cache::compile_or_join(const sim_compile_request &req)
 {
 	std::error_code ec;
@@ -391,13 +443,13 @@ sim_compile_result verilog_sim_build_cache::compile_or_join(const sim_compile_re
 	ec.clear();
 
 	// Share compiled Verilator runtime & unchanged .o/.gch objects across all testbenches
-	// via a writable project-local CCACHE_DIR (safe under read-only-HOME sandbox).
+	// via a writable, size-capped project-local CCACHE_DIR (safe under read-only-HOME sandbox).
 	std::string ccache_env = "CCACHE_DISABLE=1 OBJCACHE=";
 	if (!fs_utils::find_executable("ccache").empty()) {
 		fs::path ccache_dir = req.mdir.parent_path() / "ccache";
 		fs::create_directories(ccache_dir, ec);
 		ec.clear();
-		ccache_env = std::format("CCACHE_DIR={} CCACHE_SLOPPINESS=pch_defines,time_macros OBJCACHE=ccache",
+		ccache_env = std::format("CCACHE_DIR={} CCACHE_MAXSIZE=2G CCACHE_SLOPPINESS=pch_defines,time_macros OBJCACHE=ccache",
 		                         fs_utils::escape_shell_arg(ccache_dir.string()));
 	}
 
@@ -418,7 +470,11 @@ sim_compile_result verilog_sim_build_cache::compile_or_join(const sim_compile_re
 	}
 	compile_cmd += " 2>&1";
 
-	std::string compile_out = fs_utils::execute_command_sync(compile_cmd, 120);
+	std::string compile_out;
+	{
+		scoped_eda_permit permit(*this);
+		compile_out = fs_utils::execute_command_sync(compile_cmd, 120);
+	}
 	if (!fs::exists(req.sim_bin, ec)) {
 		res.compile_failed = true;
 		res.error_markdown = std::format("### Verilog Simulation Failed (Compilation Error)\n\n"
@@ -428,6 +484,9 @@ sim_compile_result verilog_sim_build_cache::compile_or_join(const sim_compile_re
 	} else {
 		write_build_signature(req.mdir, expected_sig);
 	}
+	// Strip ~222 MB of .fast.gch / .slow.gch + intermediate .o/.a/.cpp files now that V<top> is linked;
+	// CCACHE_DIR preserves compiled objects across future rebuilds within its 2G cap.
+	prune_intermediate_mdir_artifacts(req.mdir, req.sim_bin);
 
 	// Publish result and remove from in-flight map
 	{

@@ -467,7 +467,9 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 		std::string sby_out = fs_utils::execute_command_sync(cmd, args_.timeout_sec);
 		auto t_end = std::chrono::steady_clock::now();
 		mout.elapsed_sec = std::chrono::duration<double>(t_end - t_start).count();
-		mout.timed_out = sby_out.find("Command timed out") != std::string::npos;
+		mout.timed_out = (sby_out.find("Command timed out") != std::string::npos) ||
+		                 (sby_out.find("Process exited with code 137") != std::string::npos) ||
+		                 (sby_out.find("Process exited with code 124") != std::string::npos);
 
 		// 6. Parse SBY output per task
 		std::map<std::string, sby_task_outcome> task_map;

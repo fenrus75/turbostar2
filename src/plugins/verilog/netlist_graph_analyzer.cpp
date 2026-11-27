@@ -1,4 +1,5 @@
 #include "plugins/verilog/netlist_graph_analyzer.h"
+#include "plugins/verilog/verilog_sim_build_cache.h"
 #include "plugins/verilog/yosys_netlist_reader.h"
 #include "plugins/verilog/nextpnr_timing_analyzer.h"
 #include "fs_utils.h"
@@ -2354,14 +2355,32 @@ bool netlist_graph_analyzer::synthesize_and_load(std::string_view module_name, s
 		file_args += " " + f;
 	}
 
-	std::string proj_root = fs_utils::get_project_dir();
-	if (proj_root.empty()) {
-		proj_root = ".";
+	std::error_code tmp_ec;
+	std::filesystem::path tmp_dir(fs_utils::get_project_tmp_dir());
+	if (tmp_dir.empty()) {
+		tmp_dir = std::filesystem::temp_directory_path(tmp_ec);
+		tmp_ec.clear();
 	}
-	std::error_code abs_ec;
-	std::string abs_proj = std::filesystem::absolute(proj_root, abs_ec).string();
-	std::string tmp_json = std::format("{}/.turbostar_yosys_{}_{}.json", abs_proj,
-	                                   module_name.empty() ? "top" : module_name, (long)getpid());
+	std::filesystem::create_directories(tmp_dir, tmp_ec);
+	tmp_ec.clear();
+	std::string safe_mod_tag = module_name.empty() ? "top" : std::string(module_name);
+	for (char &c : safe_mod_tag) {
+		if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_') {
+			c = '_';
+		}
+	}
+	std::string tmp_json = (tmp_dir / std::format("turbostar_yosys_{}_{}.json", safe_mod_tag, static_cast<long>(getpid()))).string();
+
+	struct scoped_file_cleanup {
+		std::string path;
+		~scoped_file_cleanup()
+		{
+			if (!path.empty()) {
+				std::error_code rm_ec;
+				std::filesystem::remove(path, rm_ec);
+			}
+		}
+	} cleanup{tmp_json};
 
 	std::string synth_pipeline;
 	if (target_mode == "iCE40") {
@@ -2394,17 +2413,20 @@ bool netlist_graph_analyzer::synthesize_and_load(std::string_view module_name, s
 	std::string script = std::format("read_verilog -sv{}; {}", file_args, synth_pipeline);
 	std::string cmd = std::format("{} -q -p {} 2>&1", fs_utils::escape_shell_arg(yosys_bin), fs_utils::escape_shell_arg(script));
 
-	std::string yosys_out = fs_utils::execute_command_sync(cmd, 60);
+	std::string yosys_out;
+	{
+		verilog_sim_build_cache::scoped_eda_permit permit(verilog_sim_build_cache::get_instance());
+		yosys_out = fs_utils::execute_command_sync(cmd, 60);
+	}
 
-	if (!std::filesystem::exists(tmp_json)) {
-		out_error = std::format("Yosys synthesis failed to produce netlist JSON. Output:\n{}", yosys_out);
+	const bool yosys_ok = (yosys_out.find("Process exited with code 0") != std::string::npos);
+	uintmax_t json_size = std::filesystem::file_size(tmp_json, tmp_ec);
+	if (!yosys_ok || tmp_ec || json_size == 0) {
+		out_error = std::format("Yosys synthesis failed. Output:\n{}", yosys_out);
 		return false;
 	}
 
-	bool load_ok = load_from_file(tmp_json, out_error, module_name);
-	std::error_code ec;
-	std::filesystem::remove(tmp_json, ec);
-	return load_ok;
+	return load_from_file(tmp_json, out_error, module_name);
 }
 
 } // namespace verilog

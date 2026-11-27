@@ -743,6 +743,9 @@ std::string execute_command_sync(std::string_view cmd, int timeout_seconds)
 	runner.set_timeout(timeout_seconds);
 	int exit_code = runner.execute(std::string(cmd) + " 2>&1");
 	runner.flush();
+	if (runner.has_timed_out()) {
+		runner.full_output += "\nCommand timed out after " + std::to_string(timeout_seconds) + "s\n";
+	}
 	runner.full_output += "\nProcess exited with code " + std::to_string(exit_code) + "\n";
 	return runner.full_output;
 }

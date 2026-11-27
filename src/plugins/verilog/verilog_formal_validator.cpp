@@ -65,6 +65,7 @@ std::unordered_map<std::string, std::string> verilog_formal_validator::get_custo
 		{"task", "mode"},
 		{"steps", "depth"},
 		{"timeout", "timeout_sec"},
+		{"timeout_seconds", "timeout_sec"},
 		{"Parameters", "parameters"},
 		{"chparam", "parameters"},
 		{"Verbose", "verbose"}

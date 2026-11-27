@@ -53,9 +53,10 @@ static void test_validator()
 	assert(!v.validate_args(bad_solver, ctx, err));
 	assert(err.find("solver") != std::string::npos);
 
-	// Out-of-range depth and timeout_sec are clamped cleanly
+	// Out-of-range depth and timeout_sec are clamped cleanly; timeout_seconds alias accepted
 	nlohmann::json clamped = {{"depth", 0}, {"timeout_sec", 99999}};
 	assert(v.validate_args(clamped, ctx, err));
+	assert(v.validate_args(nlohmann::json{{"timeout_seconds", 90}}, ctx, err));
 
 	// Control characters in module name are rejected
 	nlohmann::json bad_mod = {{"module", "alu8\x1b[31m"}};
