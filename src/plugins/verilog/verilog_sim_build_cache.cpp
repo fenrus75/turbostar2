@@ -102,7 +102,10 @@ std::vector<std::string> verilog_sim_build_cache::collect_tb_sources(const std::
 	fs::path canon_tb = fs::weakly_canonical(tb_file, ec);
 	ec.clear();
 
-	auto direct_mods = verilog_module_scanner::discover_instantiated_modules(tb_file, rtl_files);
+	// Include ALL instantiated modules (not just preferred DUT) so helper/BRAM modules
+	// instantiated alongside the DUT (e.g. `cpu dut` + `initialized_bram mem`) are always compiled.
+	auto direct_mods = verilog_module_scanner::discover_instantiated_modules(
+		tb_file, rtl_files, /*include_all_instantiations=*/true);
 	std::set<std::string> needed_mods;
 	for (const auto &m : direct_mods) {
 		needed_mods.insert(m);
@@ -225,11 +228,14 @@ std::string verilog_sim_build_cache::compute_build_signature(std::span<const std
 	std::vector<std::string> entries;
 	entries.reserve(all_sources.size());
 
-	for (const auto &src : all_sources) {
-		fs::path p = fs::weakly_canonical(src, ec);
-		std::string canon = ec ? src : p.string();
+	std::set<std::string> seen_canon;
+	auto add_file_entry = [&](const fs::path &raw_path) {
+		fs::path p = fs::weakly_canonical(raw_path, ec);
+		std::string canon = ec ? raw_path.string() : p.string();
 		ec.clear();
-
+		if (!seen_canon.insert(canon).second) {
+			return;
+		}
 		uintmax_t sz = fs::file_size(p, ec);
 		if (ec) {
 			sz = 0;
@@ -238,13 +244,38 @@ std::string verilog_sim_build_cache::compute_build_signature(std::span<const std
 		auto ft = fs::last_write_time(p, ec);
 		long long mtime_ns = ec ? 0LL : std::chrono::duration_cast<std::chrono::nanoseconds>(ft.time_since_epoch()).count();
 		ec.clear();
-
 		entries.push_back(std::format("{}|{}|{}", canon, sz, mtime_ns));
+	};
+
+	for (const auto &src : all_sources) {
+		fs::path sp(src);
+		add_file_entry(sp);
+
+		// Also hash any `include "..." headers referenced by this source file
+		std::string err;
+		if (auto mf = mapped_file::get_cached(src, err, /*populate=*/false)) {
+			std::string_view sv = mf->string_view();
+			const char *start = sv.data();
+			const char *end = sv.data() + sv.size();
+			while (start < end) {
+				auto m = ctre::search<R"re(`include\s+"([^"]+)")re">(start, end);
+				if (!m) {
+					break;
+				}
+				std::string inc_rel = m.get<1>().to_string();
+				fs::path cand = sp.parent_path() / inc_rel;
+				if (fs::is_regular_file(cand, ec)) {
+					add_file_entry(cand);
+				}
+				ec.clear();
+				start = m.data() + m.size();
+			}
+		}
 	}
 	std::sort(entries.begin(), entries.end());
 
 	uint64_t h = 14695981039346656037ULL;
-	h = fnv1a_hash_update(h, "v1|");
+	h = fnv1a_hash_update(h, "v2|");
 	h = fnv1a_hash_update(h, top_mod);
 	h = fnv1a_hash_update(h, enable_coverage ? "|cov1" : "|cov0");
 	h = fnv1a_hash_update(h, has_formal ? "|frm1" : "|frm0");
@@ -359,9 +390,21 @@ sim_compile_result verilog_sim_build_cache::compile_or_join(const sim_compile_re
 	}
 	ec.clear();
 
+	// Share compiled Verilator runtime & unchanged .o/.gch objects across all testbenches
+	// via a writable project-local CCACHE_DIR (safe under read-only-HOME sandbox).
+	std::string ccache_env = "CCACHE_DISABLE=1 OBJCACHE=";
+	if (!fs_utils::find_executable("ccache").empty()) {
+		fs::path ccache_dir = req.mdir.parent_path() / "ccache";
+		fs::create_directories(ccache_dir, ec);
+		ec.clear();
+		ccache_env = std::format("CCACHE_DIR={} CCACHE_SLOPPINESS=pch_defines,time_macros OBJCACHE=ccache",
+		                         fs_utils::escape_shell_arg(ccache_dir.string()));
+	}
+
 	std::string compile_cmd = std::format(
-		"cd {} && CCACHE_DISABLE=1 OBJCACHE= verilator --binary --assert --build-jobs {} --timing --trace --timescale 1ns/1ps -Wno-TIMESCALEMOD{} --Mdir {} --top-module {}",
+		"cd {} && {} verilator --binary --assert --build-jobs {} --timing --trace --timescale 1ns/1ps -Wno-TIMESCALEMOD{} --Mdir {} --top-module {}",
 		fs_utils::escape_shell_arg(req.project_root),
+		ccache_env,
 		std::max<size_t>(1, req.build_jobs),
 		req.enable_coverage ? " --coverage-line --coverage-toggle --coverage-user" : "",
 		fs_utils::escape_shell_arg(req.mdir.string()),

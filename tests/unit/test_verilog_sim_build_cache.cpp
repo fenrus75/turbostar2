@@ -66,6 +66,31 @@ static void test_signature_and_cache()
 	assert(sig2 != sig1);
 	assert(!verilog::verilog_sim_build_cache::is_build_up_to_date(mdir, bin, sig2));
 
+	// Testbench instantiating both `cpu dut` AND helper `bram mem` must include BOTH files
+	fs::path bram = tmp / "src" / "ram.sv";
+	fs::path tb_cpu = tmp / "tb" / "tb_cpu.sv";
+	write_text(bram, "module initialized_bram(input logic a, output logic b); assign b = a; endmodule\n");
+	write_text(tb_cpu, "module tb_cpu; logic a, b, c; cpu dut(.a(a), .b(b)); initialized_bram mem(.a(b), .b(c)); endmodule\n");
+	std::vector<std::string> rtl_with_bram = {alu.string(), cpu.string(), bram.string()};
+	auto cpu_scoped = verilog::verilog_sim_build_cache::collect_tb_sources(tb_cpu.string(), rtl_with_bram, {});
+	bool has_bram = false;
+	bool has_cpu_mod = false;
+	for (const auto &s : cpu_scoped) {
+		if (s.find("ram.sv") != std::string::npos) has_bram = true;
+		if (s.find("cpu.sv") != std::string::npos) has_cpu_mod = true;
+	}
+	assert(has_bram);
+	assert(has_cpu_mod);
+
+	// `include header edits must invalidate the build signature
+	fs::path hdr = tmp / "src" / "defs.svh";
+	write_text(hdr, "`define VAL 1'b0\n");
+	write_text(alu, "`include \"defs.svh\"\nmodule alu(input logic a, output logic b); assign b = `VAL; endmodule\n");
+	std::string sig_h1 = verilog::verilog_sim_build_cache::compute_build_signature(scoped, "tb_alu", false, false);
+	write_text(hdr, "`define VAL 1'b1 // changed\n");
+	std::string sig_h2 = verilog::verilog_sim_build_cache::compute_build_signature(scoped, "tb_alu", false, false);
+	assert(sig_h1 != sig_h2);
+
 	fs::remove_all(tmp);
 }
 

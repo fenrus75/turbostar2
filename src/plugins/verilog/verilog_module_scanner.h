@@ -149,14 +149,16 @@ public:
 	 *        of known RTL module names (from all_rtl_sources) directly instantiated inside it.
 	 */
 	static std::vector<std::string> discover_instantiated_modules(const std::filesystem::path &source_file,
-	                                                              std::span<const std::string> all_rtl_sources);
+	                                                              std::span<const std::string> all_rtl_sources,
+	                                                              bool include_all_instantiations = false);
 
 	/**
 	 * @brief Scans a Verilog/SystemVerilog source or testbench file and returns all direct
 	 *        module instantiations ({module_name, instance_name}) in source order.
 	 */
 	static std::vector<discovered_instantiation> discover_instantiations(const std::filesystem::path &source_file,
-	                                                                     std::span<const std::string> all_rtl_sources);
+	                                                                     std::span<const std::string> all_rtl_sources,
+	                                                                     bool include_all_instantiations = false);
 
 	/**
 	 * @brief Resolves the transitive submodule hierarchy rooted at root_module across all_rtl_sources

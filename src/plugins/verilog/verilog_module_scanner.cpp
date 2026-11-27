@@ -1251,7 +1251,8 @@ std::vector<discovered_instantiation> extract_instantiated_mods_from_text(std::s
 } // namespace
 
 std::vector<discovered_instantiation> verilog_module_scanner::discover_instantiations(const std::filesystem::path &source_file,
-                                                                                      std::span<const std::string> all_rtl_sources)
+                                                                                      std::span<const std::string> all_rtl_sources,
+                                                                                      bool include_all_instantiations)
 {
 	auto all_mods = discover_modules_in_files(all_rtl_sources);
 	std::set<std::string> known_mods;
@@ -1279,7 +1280,7 @@ std::vector<discovered_instantiation> verilog_module_scanner::discover_instantia
 		return {};
 	}
 
-	const bool prefer_dut = is_testbench_file(source_file);
+	const bool prefer_dut = !include_all_instantiations && is_testbench_file(source_file);
 	std::string clean = strip_comments(raw_sv);
 	auto spans = find_module_spans(clean);
 	if (spans.empty()) {
@@ -1301,11 +1302,12 @@ std::vector<discovered_instantiation> verilog_module_scanner::discover_instantia
 }
 
 std::vector<std::string> verilog_module_scanner::discover_instantiated_modules(const std::filesystem::path &source_file,
-                                                                               std::span<const std::string> all_rtl_sources)
+                                                                               std::span<const std::string> all_rtl_sources,
+                                                                               bool include_all_instantiations)
 {
 	std::vector<std::string> result;
 	std::set<std::string> seen;
-	for (auto &inst : discover_instantiations(source_file, all_rtl_sources)) {
+	for (auto &inst : discover_instantiations(source_file, all_rtl_sources, include_all_instantiations)) {
 		if (seen.insert(inst.module_name).second) {
 			result.push_back(std::move(inst.module_name));
 		}
