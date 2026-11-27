@@ -871,8 +871,10 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 	std::error_code ec;
 
 	// Activate Layer 2 AOT background pre-compilation for subsequent edits in this session (non-CLI only)
-	verilog::verilog_sim_build_cache::get_instance().record_simulation_session(
-		project_root, args_.coverage, args_.include_formal);
+	// and pause/cancel any stale AOT burst while this simulation executes.
+	auto &build_cache = verilog::verilog_sim_build_cache::get_instance();
+	verilog::verilog_sim_build_cache::scoped_simulate_guard sim_guard(build_cache);
+	build_cache.record_simulation_session(project_root, args_.coverage, args_.include_formal);
 
 	verilog::fpga_target_config cfg;
 	std::string load_err;
@@ -1340,13 +1342,26 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 	} else {
 		report << "## Verilog Test Suite Report\n\n";
 	}
+	size_t compiled_fresh_count = 0;
+	size_t cached_count = 0;
+	size_t joined_count = 0;
+	for (const auto &cp : compiled_plans) {
+		if (cp.cache_hit) ++cached_count;
+		else if (cp.joined_in_flight) ++joined_count;
+		else ++compiled_fresh_count;
+	}
+	std::string build_stats = std::format("; {} compiled, {} cached", compiled_fresh_count, cached_count);
+	if (joined_count > 0) {
+		build_stats += std::format(", {} pre-built", joined_count);
+	}
+
 	report << std::format("- **Level Filter**: `{}`\n", args_.level);
 	if (completed_count > 0) {
-		report << std::format("- **Summary**: **{} Passed**, **{} Info (no assertions)**, **{} Failed** (out of {} testbench run(s))\n\n",
-		                      pass_count, completed_count, fail_count, outcomes.size());
+		report << std::format("- **Summary**: **{} Passed**, **{} Info (no assertions)**, **{} Failed** (out of {} testbench run(s){})\n\n",
+		                      pass_count, completed_count, fail_count, outcomes.size(), build_stats);
 	} else {
-		report << std::format("- **Summary**: **{} Passed**, **{} Failed** (out of {} testbench run(s))\n\n",
-		                      pass_count, fail_count, outcomes.size());
+		report << std::format("- **Summary**: **{} Passed**, **{} Failed** (out of {} testbench run(s){})\n\n",
+		                      pass_count, fail_count, outcomes.size(), build_stats);
 	}
 
 	report << "| Testbench | Module(s) | Level | Result | Waveform | vs. Previous |\n";

@@ -127,12 +127,53 @@ static void test_aot_session_gate_and_listener()
 	assert(!cache.is_aot_session_active());
 }
 
+static void test_immediate_binary_invalidation_on_edit()
+{
+	fs::path tmp = fs::temp_directory_path() / ("test_sim_inval_" + std::to_string(getpid()));
+	fs::remove_all(tmp);
+	fs::create_directories(tmp / "src");
+	fs::create_directories(tmp / "tb");
+
+	fs::path alu = tmp / "src" / "alu.sv";
+	fs::path tb = tmp / "tb" / "tb_alu.sv";
+	write_text(alu, "module alu(input logic a, output logic b); assign b = a; endmodule\n");
+	write_text(tb, "module tb_alu; logic a, b; alu dut(.a(a), .b(b)); endmodule\n");
+
+	std::string out_path, err;
+	verilog::testbench_entry entry;
+	entry.testbench = "tb/tb_alu.sv";
+	entry.modules = {"alu"};
+	entry.level = "quick";
+	std::vector<verilog::testbench_entry> entries = {entry};
+	assert(verilog::fpga_project_settings::save_testbenches(tmp.string(), entries, out_path, err));
+
+	fs::path mdir = verilog::verilog_sim_build_cache::compute_mdir_path(tmp, "tb/tb_alu.sv", "tb_alu", 0, false, true);
+	fs::path sim_bin = mdir / "Vtb_alu";
+	write_text(sim_bin, "old-binary");
+	verilog::verilog_sim_build_cache::write_build_signature(mdir, "old-sig");
+	assert(fs::exists(sim_bin));
+
+	auto &cache = verilog::verilog_sim_build_cache::get_instance();
+	cache.reset_session_for_testing();
+	verilog::fpga_project_settings::set_cli_mode(false);
+	cache.record_simulation_session(tmp.string(), false, true);
+
+	// File modification notification must immediately delete the outdated executable and signature
+	cache.on_file_changed(alu.string());
+	assert(!fs::exists(sim_bin));
+	assert(!fs::exists(mdir / ".turbostar_build.sig"));
+
+	cache.shutdown();
+	fs::remove_all(tmp);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
 
 	test_signature_and_cache();
 	test_aot_session_gate_and_listener();
+	test_immediate_binary_invalidation_on_edit();
 
 	std::cout << "PASS: test_verilog_sim_build_cache\n";
 	return 0;

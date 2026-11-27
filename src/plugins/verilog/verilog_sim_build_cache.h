@@ -92,8 +92,20 @@ class verilog_sim_build_cache
 
 	// Layer 2 AOT pre-compiler controls
 	void record_simulation_session(std::string_view project_root, bool enable_coverage, bool include_formal);
+	void begin_simulate_call() noexcept;
+	void end_simulate_call() noexcept;
 	void on_file_changed(std::string_view filepath);
 	void shutdown();
+
+	// RAII guard marking an active verilog_simulate() call so AOT yields immediately
+	struct scoped_simulate_guard {
+		explicit scoped_simulate_guard(verilog_sim_build_cache &c) noexcept : cache_(c) { cache_.begin_simulate_call(); }
+		~scoped_simulate_guard() { cache_.end_simulate_call(); }
+		scoped_simulate_guard(const scoped_simulate_guard &) = delete;
+		scoped_simulate_guard &operator=(const scoped_simulate_guard &) = delete;
+	      private:
+		verilog_sim_build_cache &cache_;
+	};
 
 	// Exposed for unit testing (returns whether AOT session gate is active)
 	bool is_aot_session_active() const noexcept;
@@ -109,6 +121,7 @@ class verilog_sim_build_cache
 	};
 
 	void worker_loop(std::stop_token stoken);
+	void invalidate_affected_binaries(const std::string &project_root, const std::string &changed_file);
 	void run_aot_precompile_batch(const std::string &project_root,
 	                              const std::set<std::string> &changed_files,
 	                              bool enable_coverage,
@@ -144,6 +157,7 @@ class verilog_sim_build_cache
 	bool has_pending_work_{false};
 	std::chrono::steady_clock::time_point debounce_deadline_{};
 	uint64_t edit_generation_{0};
+	std::atomic<int> active_simulate_calls_{0};
 	std::jthread worker_thread_;
 };
 

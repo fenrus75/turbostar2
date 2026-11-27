@@ -455,10 +455,25 @@ void verilog_sim_build_cache::record_simulation_session(std::string_view project
 	aot_project_root_ = std::move(root_str);
 	aot_enable_coverage_ = enable_coverage;
 	aot_include_formal_ = include_formal;
+	// Cancel any pending/in-progress AOT burst from prior edits so AOT does not keep
+	// compiling stale targets in the background after verilog_simulate() runs.
+	pending_files_.clear();
+	has_pending_work_ = false;
+	++edit_generation_;
 	if (!worker_started_) {
 		worker_started_ = true;
 		worker_thread_ = std::jthread([this](std::stop_token st) { worker_loop(st); });
 	}
+}
+
+void verilog_sim_build_cache::begin_simulate_call() noexcept
+{
+	active_simulate_calls_.fetch_add(1, std::memory_order_acq_rel);
+}
+
+void verilog_sim_build_cache::end_simulate_call() noexcept
+{
+	active_simulate_calls_.fetch_sub(1, std::memory_order_acq_rel);
 }
 
 void verilog_sim_build_cache::on_file_changed(std::string_view filepath)
@@ -470,6 +485,7 @@ void verilog_sim_build_cache::on_file_changed(std::string_view filepath)
 	fs::path canon_file = fs::weakly_canonical(filepath, ec);
 	std::string file_str = ec ? std::string(filepath) : canon_file.string();
 
+	std::string root_copy;
 	{
 		std::lock_guard<std::mutex> lk(aot_mutex_);
 		if (!session_active_ || aot_project_root_.empty()) {
@@ -478,11 +494,15 @@ void verilog_sim_build_cache::on_file_changed(std::string_view filepath)
 		if (!file_str.starts_with(aot_project_root_)) {
 			return;
 		}
-		pending_files_.insert(std::move(file_str));
+		root_copy = aot_project_root_;
+		pending_files_.insert(file_str);
 		has_pending_work_ = true;
 		++edit_generation_;
 		debounce_deadline_ = std::chrono::steady_clock::now() + kDebounceDelay;
 	}
+	// Fail-safe: immediately delete stale V<top> executables and .turbostar_build.sig
+	// for any testbench affected by this edit so a stale binary can never be executed.
+	invalidate_affected_binaries(root_copy, file_str);
 	worker_cv_.notify_one();
 }
 
@@ -555,6 +575,113 @@ void verilog_sim_build_cache::worker_loop(std::stop_token stoken)
 		}
 
 		run_aot_precompile_batch(project_root, changed_files, enable_cov, include_formal, gen, stoken);
+	}
+}
+
+void verilog_sim_build_cache::invalidate_affected_binaries(const std::string &project_root,
+                                                           const std::string &changed_file)
+{
+	std::error_code ec;
+	fs::path root_path = fs::weakly_canonical(project_root, ec);
+	if (ec) {
+		root_path = project_root;
+		ec.clear();
+	}
+
+	std::vector<testbench_entry> configured_tbs;
+	std::string cfg_path, cfg_err;
+	fpga_project_settings::load_testbenches(project_root, configured_tbs, cfg_path, cfg_err);
+	if (configured_tbs.empty()) {
+		return;
+	}
+
+	fpga_target_config fpga_cfg;
+	fpga_project_settings::load_from_project(project_root, fpga_cfg, cfg_err);
+	fs::path scan_root = fpga_cfg.sv_path.empty()
+		? (root_path / fpga_project_settings::detect_sv_path(project_root))
+		: (root_path / fpga_cfg.sv_path);
+	if (!fs::exists(scan_root, ec)) {
+		scan_root = root_path;
+		ec.clear();
+	}
+	std::vector<std::string> rtl_files = verilog_module_scanner::find_synthesizable_files(scan_root);
+
+	fs::path changed_canon = fs::weakly_canonical(changed_file, ec);
+	std::string changed_str = ec ? changed_file : changed_canon.string();
+	ec.clear();
+
+	std::string ext = fs::path(changed_str).extension().string();
+	std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+	const bool is_header = (ext == ".svh" || ext == ".vh");
+
+	std::set<std::string> changed_mods;
+	if (!is_header) {
+		std::vector<std::string> single = {changed_str};
+		for (const auto &m : verilog_module_scanner::discover_modules_in_files(single)) {
+			changed_mods.insert(m.module_name);
+		}
+		for (const auto &bt : extract_bind_targets(changed_str)) {
+			changed_mods.insert(bt);
+		}
+	}
+
+	for (const auto &entry : configured_tbs) {
+		fs::path tb_abs = fs::weakly_canonical(root_path / entry.testbench, ec);
+		if (ec || !fs::is_regular_file(tb_abs, ec)) {
+			ec.clear();
+			continue;
+		}
+		bool affected = is_header || (tb_abs.string() == changed_str);
+		if (!affected && !changed_mods.empty()) {
+			for (const auto &m : entry.modules) {
+				if (changed_mods.contains(m)) {
+					affected = true;
+					break;
+				}
+				auto hier = verilog_module_scanner::discover_submodule_hierarchy(m, rtl_files);
+				for (const auto &hm : hier) {
+					if (changed_mods.contains(hm)) {
+						affected = true;
+						break;
+					}
+				}
+				if (affected) {
+					break;
+				}
+			}
+		}
+		if (!affected) {
+			continue;
+		}
+
+		std::vector<std::string> single_tb = {tb_abs.string()};
+		auto tb_mods = verilog_module_scanner::discover_modules_in_files(single_tb);
+		if (tb_mods.empty()) {
+			continue;
+		}
+		const std::string &top_mod = tb_mods.front().module_name;
+
+		// Remove stale binary + signature across all (coverage x formal) --Mdir variants
+		for (bool cov : {false, true}) {
+			for (bool frm : {false, true}) {
+				fs::path mdir = compute_mdir_path(root_path, entry.testbench, top_mod, 0, cov, frm);
+				std::string mdir_key = fs::weakly_canonical(mdir, ec).string();
+				if (ec || mdir_key.empty()) {
+					mdir_key = mdir.string();
+					ec.clear();
+				}
+				{
+					std::lock_guard<std::mutex> lk(in_flight_mutex_);
+					if (in_flight_builds_.contains(mdir_key)) {
+						continue;
+					}
+				}
+				fs::remove(mdir / kSigFilename, ec);
+				ec.clear();
+				fs::remove(mdir / std::format("V{}", top_mod), ec);
+				ec.clear();
+			}
+		}
 	}
 }
 
@@ -667,7 +794,7 @@ void verilog_sim_build_cache::run_aot_precompile_batch(const std::string &projec
 	size_t half_cores = std::max<size_t>(1, (hw_threads == 0 ? 4u : hw_threads) / 2);
 
 	for (const auto &tb : targets) {
-		if (stoken.stop_requested()) {
+		if (stoken.stop_requested() || active_simulate_calls_.load(std::memory_order_acquire) > 0) {
 			return;
 		}
 		{
