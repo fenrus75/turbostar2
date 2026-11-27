@@ -210,6 +210,12 @@ test_verilog_formal = executable('test_verilog_formal',
   include_directories: inc)
 test('unit_verilog_formal', test_verilog_formal, suite: 'plugins', workdir: meson.project_source_root())
 
+test_verilog_sim_build_cache = executable('test_verilog_sim_build_cache',
+  ['unit/test_verilog_sim_build_cache.cpp'],
+  dependencies : [verilog_core_dep],
+  include_directories: inc)
+test('unit_verilog_sim_build_cache', test_verilog_sim_build_cache, suite: 'plugins', workdir: meson.project_source_root())
+
 
 test_history_manager = executable('test_history_manager',
   ['unit/test_history_manager.cpp'], dependencies : [core_dep],

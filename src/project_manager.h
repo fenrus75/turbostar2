@@ -136,6 +136,13 @@ class project_manager
 	 * preemptive codemap symbol prefetching.
 	 */
 	void notify_file_changed(const std::string &filepath, std::optional<std::string_view> new_content = std::nullopt);
+
+	/**
+	 * @brief Registers a callback invoked whenever notify_file_changed() fires.
+	 *        Returns a non-zero listener handle for unregister_file_change_listener().
+	 */
+	uint64_t register_file_change_listener(std::function<void(const std::string &)> callback);
+	void unregister_file_change_listener(uint64_t listener_id);
 	void lsp_request_hover(const std::string &filepath, int line, int character);
 	void lsp_request_document_highlight(const std::string &filepath, int line, int character);
 	void lsp_request_selection_range(const std::string &filepath, int line, int character);
@@ -233,6 +240,16 @@ class project_manager
 	std::vector<std::string> detected_dependencies_;
 	std::vector<std::string> github_vfs_urls_;
 	std::vector<std::pair<std::string, std::string>> mapped_dependencies_;
+
+	/*
+	 * file_change_listeners_mutex_ protects file_change_listeners_ and next_file_change_listener_id_.
+	 * Locking Rules:
+	 * - Held briefly to register, unregister, or snapshot listeners during notify_file_changed().
+	 * - Callbacks are always invoked outside this lock to prevent lock-order inversions.
+	 */
+	mutable std::mutex file_change_listeners_mutex_;
+	std::vector<std::pair<uint64_t, std::function<void(const std::string &)>>> file_change_listeners_;
+	uint64_t next_file_change_listener_id_{1};
 
 	std::atomic<bool> is_exiting_{false};
 	std::atomic<bool> initialized_{false};

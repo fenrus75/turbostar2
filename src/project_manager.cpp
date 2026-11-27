@@ -284,6 +284,36 @@ void project_manager::notify_file_changed(const std::string &filepath, std::opti
 	}
 
 	tools::prefetch_document_codemap_symbols(filepath);
+
+	if (!is_exiting_.load(std::memory_order_acquire)) {
+		std::vector<std::function<void(const std::string &)>> callbacks;
+		{
+			std::lock_guard<std::mutex> lk(file_change_listeners_mutex_);
+			callbacks.reserve(file_change_listeners_.size());
+			for (const auto &[id, cb] : file_change_listeners_) {
+				if (cb) {
+					callbacks.push_back(cb);
+				}
+			}
+		}
+		for (const auto &cb : callbacks) {
+			cb(filepath);
+		}
+	}
+}
+
+uint64_t project_manager::register_file_change_listener(std::function<void(const std::string &)> callback)
+{
+	std::lock_guard<std::mutex> lk(file_change_listeners_mutex_);
+	uint64_t id = next_file_change_listener_id_++;
+	file_change_listeners_.emplace_back(id, std::move(callback));
+	return id;
+}
+
+void project_manager::unregister_file_change_listener(uint64_t listener_id)
+{
+	std::lock_guard<std::mutex> lk(file_change_listeners_mutex_);
+	std::erase_if(file_change_listeners_, [listener_id](const auto &entry) { return entry.first == listener_id; });
 }
 void project_manager::lsp_request_hover(const std::string &filepath, int line, int character)
 {

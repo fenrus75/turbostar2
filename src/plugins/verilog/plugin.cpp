@@ -1,5 +1,12 @@
 #include "agentlib/tool_registry.h"
 #include "fs_utils.h"
+#include "plugins/verilog/verilog_sim_build_cache.h"
+#include "project_manager.h"
+
+namespace
+{
+uint64_t g_verilog_file_listener_id = 0;
+} // namespace
 
 extern "C" {
 
@@ -67,6 +74,12 @@ void plugin_run(void)
 	register_verilog_compile();
 	register_verilog_formal();
 
+	g_verilog_file_listener_id = project_manager::get_instance().register_file_change_listener(
+		[](const std::string &filepath) {
+			verilog::verilog_sim_build_cache::get_instance().on_file_changed(filepath);
+		}
+	);
+
 	bool has_yosys = !fs_utils::find_executable("yosys").empty();
 	if (has_yosys) {
 		register_vcd_signal_to_code();
@@ -124,6 +137,12 @@ Timing closure works best when combining the structural view with the post-routi
  */
 void plugin_unload(void)
 {
+	if (g_verilog_file_listener_id != 0) {
+		project_manager::get_instance().unregister_file_change_listener(g_verilog_file_listener_id);
+		g_verilog_file_listener_id = 0;
+	}
+	verilog::verilog_sim_build_cache::get_instance().shutdown();
+
 	unregister_vcd_file_info();
 	unregister_vcd_wave();
 	unregister_vcd_signal_labels();

@@ -21,6 +21,7 @@
 #include "plugins/verilog/vcd_parser_cache.h"
 #include "plugins/verilog/vcd_protocol_analyzer.h"
 #include "plugins/verilog/verilog_module_scanner.h"
+#include "plugins/verilog/verilog_sim_build_cache.h"
 #include <ctre.hpp>
 
 namespace tools
@@ -294,6 +295,8 @@ struct tb_compile_result {
 	fs::path mdir;
 	fs::path sim_bin;
 	bool compile_failed{false};
+	bool cache_hit{false};
+	bool joined_in_flight{false};
 	std::string error_markdown;
 };
 
@@ -309,7 +312,6 @@ tb_compile_result compile_single_testbench(
 	bool enable_coverage)
 {
 	tb_compile_result res;
-	std::error_code ec;
 
 	// 1. Discover top-level testbench module name if not specified
 	std::string top_mod = override_top_mod;
@@ -325,81 +327,29 @@ tb_compile_result compile_single_testbench(
 	}
 	res.top_mod = top_mod;
 
-	// 2. Gather synthesizable RTL files + optional formal property files + this testbench
-	fs::path canon_tb = fs::weakly_canonical(plan.tb_file, ec);
-	std::set<std::string> seen_canon;
-	res.all_sources.reserve(rtl_files.size() + formal_files.size() + 1);
-	for (const auto &f : rtl_files) {
-		fs::path canon_f = fs::weakly_canonical(f, ec);
-		if (canon_f != canon_tb && seen_canon.insert(canon_f.string()).second) {
-			res.all_sources.push_back(f);
-		}
-	}
-	for (const auto &ff : formal_files) {
-		fs::path canon_f = fs::weakly_canonical(ff, ec);
-		if (canon_f != canon_tb && seen_canon.insert(canon_f.string()).second) {
-			res.all_sources.push_back(ff);
-		}
-	}
-	res.all_sources.push_back(plan.tb_file);
+	// 2. Scope RTL + formal files to this testbench's transitive hierarchy (with full-set fallback)
+	verilog::sim_compile_request req;
+	req.root_path = root_path;
+	req.project_root = project_root;
+	req.display_tb = plan.display_tb;
+	req.top_mod = top_mod;
+	req.all_sources = verilog::verilog_sim_build_cache::collect_tb_sources(plan.tb_file, rtl_files, formal_files);
+	req.has_formal = !formal_files.empty();
+	req.enable_coverage = enable_coverage;
+	req.mdir = verilog::verilog_sim_build_cache::compute_mdir_path(
+		root_path, plan.display_tb, top_mod, plan_idx, enable_coverage, req.has_formal);
+	req.sim_bin = req.mdir / std::format("V{}", top_mod);
+	req.build_jobs = build_jobs;
 
-	// 3. Build an isolated --Mdir per testbench so parallel Verilator compiles never collide,
-	//    even if two testbench files declare the same module name (e.g. `module tb;`).
-	std::string tb_stem = fs::path(plan.display_tb).stem().string();
-	std::string safe_stem;
-	safe_stem.reserve(tb_stem.size());
-	for (unsigned char c : tb_stem) {
-		safe_stem.push_back(std::isalnum(c) ? static_cast<char>(c) : '_');
-	}
-	std::string mdir_leaf;
-	if (safe_stem.empty() || safe_stem == top_mod) {
-		mdir_leaf = std::format("verilator_{}", top_mod);
-	} else {
-		mdir_leaf = std::format("verilator_{}_{}", safe_stem, top_mod);
-	}
-	if (plan_idx > 0 && safe_stem.empty()) {
-		mdir_leaf += std::format("_{}", plan_idx);
-	}
-	if (enable_coverage) {
-		mdir_leaf += "_cov";
-	}
-	if (!formal_files.empty()) {
-		mdir_leaf += "_formal";
-	}
-
-	fs::path base_tmp = (fs::weakly_canonical(root_path, ec) == fs::weakly_canonical(fs::current_path(ec), ec))
-		? fs::path(fs_utils::get_project_tmp_dir())
-		: (root_path / ".turbostar_tmp");
-	res.mdir = fs::absolute(base_tmp / mdir_leaf, ec);
-	fs::create_directories(res.mdir, ec);
-	res.sim_bin = res.mdir / std::format("V{}", top_mod);
-	if (fs::exists(res.sim_bin, ec)) {
-		fs::remove(res.sim_bin, ec);
-	}
-
-	std::string compile_cmd = std::format(
-		"cd {} && CCACHE_DISABLE=1 OBJCACHE= verilator --binary --assert --build-jobs {} --timing --trace --timescale 1ns/1ps -Wno-TIMESCALEMOD{} --Mdir {} --top-module {}",
-		fs_utils::escape_shell_arg(project_root),
-		std::max<size_t>(1, build_jobs),
-		enable_coverage ? " --coverage-line --coverage-toggle --coverage-user" : "",
-		fs_utils::escape_shell_arg(res.mdir.string()),
-		fs_utils::escape_shell_arg(top_mod)
-	);
-	for (const auto &src : res.all_sources) {
-		fs::path rel_src = fs::relative(src, root_path, ec);
-		std::string src_arg = (!ec && !rel_src.empty()) ? rel_src.string() : fs::weakly_canonical(src, ec).string();
-		compile_cmd += " " + fs_utils::escape_shell_arg(src_arg);
-	}
-	compile_cmd += " 2>&1";
-
-	std::string compile_out = fs_utils::execute_command_sync(compile_cmd, 120);
-	if (!fs::exists(res.sim_bin, ec)) {
-		res.compile_failed = true;
-		res.error_markdown = std::format("### Verilog Simulation Failed (Compilation Error)\n\n"
-		                                 "- **Testbench**: `{}` (top module: `{}`)\n\n"
-		                                 "#### Compiler Output\n```\n{}\n```\n",
-		                                 plan.display_tb, top_mod, compile_out);
-	}
+	// 3. Reuse cached binary, join an identical in-flight AOT pre-compile, or compile fresh
+	verilog::sim_compile_result cached = verilog::verilog_sim_build_cache::get_instance().compile_or_join(req);
+	res.all_sources = std::move(cached.all_sources);
+	res.mdir = std::move(cached.mdir);
+	res.sim_bin = std::move(cached.sim_bin);
+	res.compile_failed = cached.compile_failed;
+	res.cache_hit = cached.cache_hit;
+	res.joined_in_flight = cached.joined_in_flight;
+	res.error_markdown = std::move(cached.error_markdown);
 	return res;
 }
 
@@ -919,6 +869,10 @@ std::string verilog_simulate_tool::execute(agentlib::tool_context &ctx)
 	}
 	fs::path root_path(project_root);
 	std::error_code ec;
+
+	// Activate Layer 2 AOT background pre-compilation for subsequent edits in this session (non-CLI only)
+	verilog::verilog_sim_build_cache::get_instance().record_simulation_session(
+		project_root, args_.coverage, args_.include_formal);
 
 	verilog::fpga_target_config cfg;
 	std::string load_err;
