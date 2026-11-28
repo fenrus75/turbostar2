@@ -227,6 +227,74 @@ static void test_unchecked_output_ports_audit()
 	fs::remove_all(tmp_proj);
 }
 
+static void test_formal_comment_pragmas_and_precedence()
+{
+	fs::path tmp_proj = fs::temp_directory_path() / ("test_formal_pragmas_" + std::to_string(getpid()));
+	fs::remove_all(tmp_proj);
+	fs::create_directories(tmp_proj / "formal");
+
+	fs::path pfile = tmp_proj / "formal" / "div_mod_props.sv";
+	{
+		std::ofstream ofs(pfile);
+		ofs << "// formal: depth=26 timeout=90 unknown_key=123 // initial estimate\n"
+		    << "  // FORMAL: DEPTH=30 solver=BITWUZLA mode=prove+cover // 16-bit divider takes 24+ cycles\n"
+		    << "module div_mod_props (input logic clk);\n"
+		    << "endmodule\n";
+	}
+
+	std::vector<std::string> files = {pfile.string()};
+	auto pragma = tools::verilog_formal_tool::parse_formal_pragmas(files);
+	assert(pragma.depth.has_value() && *pragma.depth == 30);
+	assert(pragma.timeout_sec.has_value() && *pragma.timeout_sec == 90);
+	assert(pragma.solver.has_value() && *pragma.solver == "bitwuzla");
+	assert(pragma.mode.has_value() && *pragma.mode == "prove+cover");
+
+	// Precedence 1: omitted tool args -> pragma overrides defaults
+	tools::verilog_formal_args omitted_args;
+	int eff_depth = 0;
+	bool from_pragma = false;
+	int eff_timeout = 0;
+	std::string eff_solver, eff_mode;
+	tools::verilog_formal_tool::resolve_module_formal_config(
+		omitted_args, pragma, eff_depth, from_pragma, eff_timeout, eff_solver, eff_mode
+	);
+	assert(eff_depth == 30 && from_pragma);
+	assert(eff_timeout == 90);
+	assert(eff_solver == "bitwuzla");
+	assert(eff_mode == "prove+cover");
+
+	// Precedence 2: explicit tool args (even if equal to default 20!) override pragma
+	tools::verilog_formal_args explicit_args;
+	explicit_args.depth = 20;
+	explicit_args.depth_explicit = true;
+	explicit_args.timeout_sec = 45;
+	explicit_args.timeout_explicit = true;
+	explicit_args.solver = "z3";
+	explicit_args.solver_explicit = true;
+	explicit_args.mode = "bmc";
+	explicit_args.mode_explicit = true;
+	tools::verilog_formal_tool::resolve_module_formal_config(
+		explicit_args, pragma, eff_depth, from_pragma, eff_timeout, eff_solver, eff_mode
+	);
+	assert(eff_depth == 20 && !from_pragma);
+	assert(eff_timeout == 45);
+	assert(eff_solver == "z3");
+	assert(eff_mode == "bmc");
+
+	// Clamping test
+	{
+		std::ofstream ofs(pfile, std::ios::trunc);
+		ofs << "// formal: depth=9999 timeout=1 solver=bogus mode=bogus\n";
+	}
+	auto clamped = tools::verilog_formal_tool::parse_formal_pragmas(files);
+	assert(clamped.depth.has_value() && *clamped.depth == 500);
+	assert(clamped.timeout_sec.has_value() && *clamped.timeout_sec == 5);
+	assert(!clamped.solver.has_value());
+	assert(!clamped.mode.has_value());
+
+	fs::remove_all(tmp_proj);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -235,6 +303,7 @@ int main()
 	test_find_executable_tilde_expansion();
 	test_sby_path_settings_roundtrip();
 	test_unchecked_output_ports_audit();
+	test_formal_comment_pragmas_and_precedence();
 
 	std::cout << "PASS: test_verilog_formal\n";
 	return 0;

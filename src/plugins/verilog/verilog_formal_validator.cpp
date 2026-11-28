@@ -11,11 +11,13 @@ namespace tools
 std::string verilog_formal_validator::get_description() const
 {
 	return "Runs SymbiYosys (`sby`) formal verification (`bmc`, `prove`, `cover`, `prove+cover`, `bmc+cover`, or `all`) "
-	       "on SystemVerilog/Verilog modules using `bind`-based property files in `formal/*_props.sv`. Automatically "
-	       "resolves transitive submodules, stages `$readmem` data files, supports parameter overrides (`parameters`), "
-	       "auto-detects SMT solvers (`bitwuzla`, `yices`, `z3`), reports per-module timing, flags vacuity risks, "
-	       "expands failing/unreachable diagnostics inline (writing full coverpoint details to `system://verilog/formal.md`), "
-	       "and copies counterexample VCDs for immediate `vcd_wave` inspection.";
+	       "on SystemVerilog/Verilog modules using `bind`-based property files in `formal/*_props.sv`. Supports optional "
+	       "per-module `// formal: depth=N timeout=T solver=S mode=M` comment pragmas inside `formal/*_props.sv` "
+	       "(overridden by explicit tool arguments). Automatically resolves transitive submodules, stages `$readmem` data "
+	       "files, supports parameter overrides (`parameters`), auto-detects SMT solvers (`bitwuzla`, `yices`, `z3`), "
+	       "reports per-module timing, flags vacuity risks and unchecked output ports, expands failing/unreachable "
+	       "diagnostics inline (writing full coverpoint details to `system://verilog/formal.md`), and copies "
+	       "counterexample VCDs for immediate `vcd_wave` inspection.";
 }
 
 nlohmann::json verilog_formal_validator::get_parameters_schema() const
@@ -98,11 +100,13 @@ bool verilog_formal_validator::validate_args_impl(const nlohmann::json &untruste
 			return false;
 		}
 		args_.mode = untrusted_mode;
+		args_.mode_explicit = true;
 	}
 
 	if (untrusted_args.contains("depth") && untrusted_args["depth"].is_number_integer()) {
 		int untrusted_depth = untrusted_args["depth"].get<int>();
 		args_.depth = std::clamp(untrusted_depth, 1, 500);
+		args_.depth_explicit = true;
 	}
 
 	if (untrusted_args.contains("solver") && untrusted_args["solver"].is_string()) {
@@ -113,11 +117,13 @@ bool verilog_formal_validator::validate_args_impl(const nlohmann::json &untruste
 			return false;
 		}
 		args_.solver = untrusted_solver;
+		args_.solver_explicit = true;
 	}
 
 	if (untrusted_args.contains("timeout_sec") && untrusted_args["timeout_sec"].is_number_integer()) {
 		int untrusted_to = untrusted_args["timeout_sec"].get<int>();
 		args_.timeout_sec = std::clamp(untrusted_to, 5, 600);
+		args_.timeout_explicit = true;
 	}
 
 	if (untrusted_args.contains("parameters")) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -16,8 +17,20 @@ struct verilog_formal_args {
 	int depth{20};                              // BMC / prove / cover depth in steps
 	std::string solver{"auto"};                 // "auto", "bitwuzla", "yices", or "z3"
 	int timeout_sec{60};                        // Per-module SBY timeout in seconds
+	bool mode_explicit{false};                  // True when caller explicitly supplied 'mode' (overrides // formal: pragma)
+	bool depth_explicit{false};                 // True when caller explicitly supplied 'depth' (overrides // formal: pragma)
+	bool solver_explicit{false};                // True when caller explicitly supplied 'solver' (overrides // formal: pragma)
+	bool timeout_explicit{false};               // True when caller explicitly supplied 'timeout_sec' (overrides // formal: pragma)
 	std::map<std::string, std::string> parameters; // Optional Verilog parameter overrides (e.g. COUNTER_BITS=4)
 	bool verbose{false};                        // When true, inline all passing coverpoint tables (full report is always in system://verilog/formal.md)
+};
+
+// Optional per-module overrides parsed from `// formal: key=value ...` comment pragmas in formal/*_props.sv.
+struct formal_pragma_config {
+	std::optional<int> depth;
+	std::optional<int> timeout_sec;
+	std::optional<std::string> solver;
+	std::optional<std::string> mode;
 };
 
 class verilog_formal_tool : public agentlib::llm_tool_action
@@ -27,6 +40,18 @@ class verilog_formal_tool : public agentlib::llm_tool_action
 
 	bool validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const override;
 	std::string execute(agentlib::tool_context &ctx) override;
+
+	// Parse `// formal: depth=N timeout=T solver=S mode=M` comment pragmas from bound formal property files.
+	static formal_pragma_config parse_formal_pragmas(std::span<const std::string> formal_files);
+
+	// Resolve effective per-module formal settings with precedence: explicit tool arg > file pragma > tool default.
+	static void resolve_module_formal_config(const verilog_formal_args &args,
+	                                         const formal_pragma_config &pragma,
+	                                         int &out_depth,
+	                                         bool &out_depth_from_pragma,
+	                                         int &out_timeout_sec,
+	                                         std::string &out_solver,
+	                                         std::string &out_mode);
 
 	// Static audit: returns declared output/inout ports of module_name that are not referenced
 	// (directly or via local helper assignments / bind remappings) by any `assert` in the

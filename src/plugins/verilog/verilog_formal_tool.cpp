@@ -56,6 +56,8 @@ struct sby_module_outcome {
 	std::string checked_in_sby_rel; // non-empty if a checked-in formal/<mod>.sby exists on disk
 	std::vector<std::string> unchecked_outputs;
 	bool assumes_without_covers{false};
+	int effective_depth{20};
+	bool depth_from_pragma{false};
 	std::vector<sby_task_outcome> tasks;
 	std::string raw_error;
 	double elapsed_sec{0.0};
@@ -496,6 +498,161 @@ bool verilog_formal_tool::has_assumes_without_covers(std::span<const std::string
 	return has_assume && !has_cover;
 }
 
+formal_pragma_config verilog_formal_tool::parse_formal_pragmas(std::span<const std::string> formal_files)
+{
+	formal_pragma_config cfg;
+
+	auto to_lower = [](std::string_view sv) -> std::string {
+		std::string s(sv);
+		std::ranges::transform(s, s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+		return s;
+	};
+
+	auto parse_int = [](std::string_view sv, int &out) -> bool {
+		if (sv.empty()) {
+			return false;
+		}
+		int val = 0;
+		bool neg = false;
+		size_t i = 0;
+		if (sv[0] == '-') {
+			neg = true;
+			i = 1;
+		} else if (sv[0] == '+') {
+			i = 1;
+		}
+		if (i >= sv.size()) {
+			return false;
+		}
+		for (; i < sv.size(); ++i) {
+			if (sv[i] < '0' || sv[i] > '9') {
+				return false;
+			}
+			int d = sv[i] - '0';
+			if (val > 1000000) {
+				val = 1000000;
+			} else {
+				val = val * 10 + d;
+			}
+		}
+		out = neg ? -val : val;
+		return true;
+	};
+
+	for (const auto &ff : formal_files) {
+		std::string err;
+		auto mf = mapped_file::get_cached(ff, err, /*populate=*/false);
+		if (!mf) {
+			continue;
+		}
+		for (std::string_view line : mf->lines()) {
+			if (!line.empty() && line.back() == '\r') {
+				line.remove_suffix(1);
+			}
+			// Trim leading whitespace
+			size_t p = line.find_first_not_of(" \t");
+			if (p == std::string_view::npos) {
+				continue;
+			}
+			std::string_view sv = line.substr(p);
+			if (!sv.starts_with("//")) {
+				continue;
+			}
+			sv.remove_prefix(2);
+			p = sv.find_first_not_of(" \t");
+			if (p == std::string_view::npos) {
+				continue;
+			}
+			sv = sv.substr(p);
+			if (sv.size() < 7 || to_lower(sv.substr(0, 7)) != "formal:") {
+				continue;
+			}
+			sv.remove_prefix(7);
+
+			// Ignore anything after a trailing inline '//' comment
+			if (size_t trail = sv.find("//"); trail != std::string_view::npos) {
+				sv = sv.substr(0, trail);
+			}
+
+			// Parse whitespace-separated key=value pairs (allowing optional trailing commas)
+			size_t idx = 0;
+			while (idx < sv.size()) {
+				size_t tok_start = sv.find_first_not_of(" \t,", idx);
+				if (tok_start == std::string_view::npos) {
+					break;
+				}
+				size_t tok_end = sv.find_first_of(" \t,", tok_start);
+				std::string_view tok = (tok_end == std::string_view::npos)
+					? sv.substr(tok_start)
+					: sv.substr(tok_start, tok_end - tok_start);
+				idx = (tok_end == std::string_view::npos) ? sv.size() : tok_end + 1;
+
+				size_t eq = tok.find('=');
+				if (eq == std::string_view::npos || eq == 0 || eq + 1 >= tok.size()) {
+					continue;
+				}
+				std::string key = to_lower(tok.substr(0, eq));
+				std::string val = to_lower(tok.substr(eq + 1));
+
+				if (key == "depth" || key == "steps") {
+					int v = 0;
+					if (parse_int(val, v)) {
+						cfg.depth = std::clamp(v, 1, 500);
+					}
+				} else if (key == "timeout" || key == "timeout_sec" || key == "timeout_seconds") {
+					int v = 0;
+					if (parse_int(val, v)) {
+						cfg.timeout_sec = std::clamp(v, 5, 600);
+					}
+				} else if (key == "solver") {
+					if (val == "auto" || val == "bitwuzla" || val == "yices" || val == "z3") {
+						cfg.solver = std::move(val);
+					}
+				} else if (key == "mode") {
+					if (val == "bmc" || val == "prove" || val == "cover" ||
+					    val == "prove+cover" || val == "bmc+cover" || val == "all") {
+						cfg.mode = std::move(val);
+					}
+				}
+			}
+		}
+	}
+
+	return cfg;
+}
+
+void verilog_formal_tool::resolve_module_formal_config(const verilog_formal_args &args,
+                                                       const formal_pragma_config &pragma,
+                                                       int &out_depth,
+                                                       bool &out_depth_from_pragma,
+                                                       int &out_timeout_sec,
+                                                       std::string &out_solver,
+                                                       std::string &out_mode)
+{
+	if (args.depth_explicit) {
+		out_depth = args.depth;
+		out_depth_from_pragma = false;
+	} else if (pragma.depth.has_value()) {
+		out_depth = *pragma.depth;
+		out_depth_from_pragma = true;
+	} else {
+		out_depth = args.depth;
+		out_depth_from_pragma = false;
+	}
+
+	out_timeout_sec = (!args.timeout_explicit && pragma.timeout_sec.has_value())
+		? *pragma.timeout_sec
+		: args.timeout_sec;
+
+	out_solver = (!args.solver_explicit && pragma.solver.has_value())
+		? *pragma.solver
+		: args.solver;
+
+	out_mode = (!args.mode_explicit && pragma.mode.has_value())
+		? *pragma.mode
+		: args.mode;
+}
+
 verilog_formal_tool::verilog_formal_tool(verilog_formal_args args)
 	: agentlib::llm_tool_action("Running SymbiYosys formal verification"),
 	  args_(std::move(args))
@@ -605,14 +762,15 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 	const bool use_slang = yosys_supports_slang(sby_dir);
 	const bool is_cli = verilog::fpga_project_settings::is_cli_mode();
 
-	std::vector<std::string> task_list;
-	if (args_.mode == "all" || args_.mode == "prove+cover") {
-		task_list = {"prove", "cover"};
-	} else if (args_.mode == "bmc+cover") {
-		task_list = {"bmc", "cover"};
-	} else {
-		task_list = {args_.mode};
-	}
+	auto mode_to_tasks = [](std::string_view mode_str) -> std::vector<std::string> {
+		if (mode_str == "all" || mode_str == "prove+cover") {
+			return {"prove", "cover"};
+		}
+		if (mode_str == "bmc+cover") {
+			return {"bmc", "cover"};
+		}
+		return {std::string(mode_str)};
+	};
 
 	fs::path base_tmp = (fs::weakly_canonical(root_path, ec) == fs::weakly_canonical(fs::current_path(ec), ec))
 		? fs::path(fs_utils::get_project_tmp_dir())
@@ -636,6 +794,25 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 		mout.module_name = mod;
 		mout.unchecked_outputs = find_unchecked_output_ports(mod, rtl_files, bindings[mod]);
 		mout.assumes_without_covers = has_assumes_without_covers(bindings[mod]);
+
+		formal_pragma_config pragma = parse_formal_pragmas(bindings[mod]);
+		int mod_depth = args_.depth;
+		bool mod_depth_from_pragma = false;
+		int mod_timeout = args_.timeout_sec;
+		std::string mod_solver_req = args_.solver;
+		std::string mod_mode = args_.mode;
+		resolve_module_formal_config(args_, pragma, mod_depth, mod_depth_from_pragma, mod_timeout, mod_solver_req, mod_mode);
+		mout.effective_depth = mod_depth;
+		mout.depth_from_pragma = mod_depth_from_pragma;
+
+		std::string mod_solver = solver;
+		if (mod_solver_req != args_.solver) {
+			std::string resolved_mod_solver = detect_smt_solver(sby_dir, mod_solver_req);
+			if (!resolved_mod_solver.empty()) {
+				mod_solver = std::move(resolved_mod_solver);
+			}
+		}
+		std::vector<std::string> task_list = mode_to_tasks(mod_mode);
 
 		// 3. Collect transitive RTL files + bound formal files for this module
 		std::vector<std::string> hier = verilog::verilog_module_scanner::discover_submodule_hierarchy(mod, rtl_files);
@@ -689,10 +866,10 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 			sf << "\n[options]\n";
 			for (const auto &t : task_list) {
 				sf << std::format("{}: mode {}\n", t, t);
-				sf << std::format("{}: depth {}\n", t, args_.depth);
+				sf << std::format("{}: depth {}\n", t, mod_depth);
 			}
 			sf << "\n[engines]\n";
-			sf << std::format("smtbmc {}\n", solver);
+			sf << std::format("smtbmc {}\n", mod_solver);
 
 			sf << "\n[script]\n";
 			std::string file_args;
@@ -740,7 +917,7 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 			fs_utils::escape_shell_arg(sby_file.filename().string())
 		);
 		auto t_start = std::chrono::steady_clock::now();
-		std::string sby_out = fs_utils::execute_command_sync(cmd, args_.timeout_sec);
+		std::string sby_out = fs_utils::execute_command_sync(cmd, mod_timeout);
 		auto t_end = std::chrono::steady_clock::now();
 		mout.elapsed_sec = std::chrono::duration<double>(t_end - t_start).count();
 		mout.timed_out = (sby_out.find("Command timed out") != std::string::npos) ||
@@ -893,8 +1070,8 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 		header << " not used (auto-generated config applies transitive deps, `$readmem` staging, and solver auto-detection)*";
 	}
 	header << "\n\n";
-	header << "| Module | Property File(s) | Task | Status | Coverpoints | Time | Counterexample VCD |\n";
-	header << "|--------|------------------|------|--------|-------------|------|--------------------|\n";
+	header << "| Module | Property File(s) | Task | Depth | Status | Coverpoints | Time | Counterexample VCD |\n";
+	header << "|--------|------------------|------|-------|--------|-------------|------|--------------------|\n";
 
 	size_t pass_tasks = 0;
 	size_t fail_tasks = 0;
@@ -917,10 +1094,16 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 				}
 				cov_str = std::format("{}/{} hit", hit, t.covers.size());
 			}
+			std::string depth_str = "-";
+			if (ti == 0) {
+				depth_str = mo.depth_from_pragma
+					? std::format("{} (pragma)", mo.effective_depth)
+					: std::format("{}", mo.effective_depth);
+			}
 			std::string time_str = (ti == 0) ? std::format("{:.1f}s", mo.elapsed_sec) : "-";
 			std::string vcd_str = t.counterexample_vcd_rel.empty() ? "-" : std::format("`{}`", t.counterexample_vcd_rel);
-			header << std::format("| `{}` | {} | `{}` | **{}** | {} | {} | {} |\n",
-			                      mo.module_name, props_str, t.task, t.status, cov_str, time_str, vcd_str);
+			header << std::format("| `{}` | {} | `{}` | {} | **{}** | {} | {} | {} |\n",
+			                      mo.module_name, props_str, t.task, depth_str, t.status, cov_str, time_str, vcd_str);
 		}
 	}
 
@@ -946,7 +1129,7 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 		if (proof_passed && unreached_covers > 0) {
 			std::string warn = std::format("\n> [!WARNING] **Vacuity Risk (`{}`)**: Formal proof/BMC passed, but {} `cover()` statement(s) "
 			                               "were **UNREACHABLE** within depth {}. Check whether an `assume()` is over-constraining the design.\n",
-			                               mo.module_name, unreached_covers, args_.depth);
+			                               mo.module_name, unreached_covers, mo.effective_depth);
 			report << warn;
 			full_report << warn;
 		}
