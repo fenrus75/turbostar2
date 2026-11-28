@@ -302,7 +302,7 @@ static void test_formal_comment_pragmas_and_precedence()
 	// Second call in the same session is suppressed for token efficiency
 	assert(tools::verilog_formal_tool::maybe_format_depth_pragma_hint(30, "formal/mul_mod_props.sv").empty());
 
-	// Verify system://verilog/formal_template_props.sv is served via VFS
+	// Verify system://verilog/formal_template_props.sv and formal_comb_template_props.sv are served via VFS
 	turbostar::system_vfs_provider vfs;
 	auto tmpl_handle = vfs.read_file("system://verilog/formal_template_props.sv");
 	assert(tmpl_handle.has_value() && *tmpl_handle != nullptr);
@@ -311,6 +311,13 @@ static void test_formal_comment_pragmas_and_precedence()
 	assert(tmpl_content.find("out_data == $past(out_data)") != std::string_view::npos);
 	assert(tmpl_content.find("f_past_valid") != std::string_view::npos);
 	assert(tmpl_content.find("bind <module>") != std::string_view::npos);
+
+	auto comb_handle = vfs.read_file("system://verilog/formal_comb_template_props.sv");
+	assert(comb_handle.has_value() && *comb_handle != nullptr);
+	std::string_view comb_content = (*comb_handle)->view();
+	assert(comb_content.find("// formal: depth=1") != std::string_view::npos);
+	assert(comb_content.find("always_comb") != std::string_view::npos);
+	assert(comb_content.find("bind <module>") != std::string_view::npos);
 
 	fs::remove_all(tmp_proj);
 }

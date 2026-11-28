@@ -999,6 +999,80 @@ bind <module> <module>_props #(
 );
 )SV";
 	});
+
+	// Static Template: system://verilog/formal_comb_template_props.sv
+	register_description("verilog/formal_comb_template_props.sv",
+	                     "Annotated SystemVerilog formal property starter template (*_props.sv) for purely combinational modules.");
+	register_generator("verilog/formal_comb_template_props.sv", [](const std::string &) -> std::string {
+		return R"SV(// formal/<module>_props.sv
+// formal: depth=1 // purely combinational module — fully verified in 1 step
+// Starter template for purely combinational SystemVerilog modules (no clk/rst/state).
+// Copy to formal/<module>_props.sv and replace <module> and TODO sections.
+
+module <module>_props #(
+    parameter int WIDTH = 8
+) (
+    // TODO: DUT inputs (constrain legal combinations with `assume` — never `assume` DUT outputs)
+    input logic             sel_a,
+    input logic             sel_b,
+    input logic [WIDTH-1:0] in_a,
+    input logic [WIDTH-1:0] in_b,
+
+    // TODO: DUT outputs (pin down every output with `assert`, exercise with `cover`)
+    input logic             out_valid,
+    input logic             out_err,
+    input logic [WIDTH-1:0] out_data
+);
+
+    always_comb begin
+        // ---------------------------------------------------------------------
+        // 1. Input Environment Assumptions (DUT inputs only)
+        //    Pair every `assume` with a matching `assert` in the upstream
+        //    producer's formal/<producer>_props.sv!
+        // ---------------------------------------------------------------------
+        assume ($countones({sel_a, sel_b}) <= 1);
+
+        // ---------------------------------------------------------------------
+        // 2. Safety Invariants (`assert`)
+        //    Use implication (`!cond || check`) or precomputed `exp_*` signals
+        //    rather than nesting `assert` inside `else if` chains for
+        //    Verilator --assert portability. Use 2-state equality (`==`, `!=`).
+        // ---------------------------------------------------------------------
+        // Mutual exclusion & valid/error consistency
+        assert (!(out_valid && out_err))
+            else $error("out_valid and out_err both high (sel_a=%b sel_b=%b)", sel_a, sel_b);
+
+        // Pin down every output for every input case (including idle/default!)
+        assert (out_valid == (sel_a || sel_b))
+            else $error("out_valid mismatch: got %b for sel_a=%b sel_b=%b", out_valid, sel_a, sel_b);
+
+        assert (!sel_a || (out_data == in_a))
+            else $error("sel_a data mismatch: got %0h expected %0h", out_data, in_a);
+
+        assert (!sel_b || (out_data == in_b))
+            else $error("sel_b data mismatch: got %0h expected %0h", out_data, in_b);
+
+        assert (out_valid || (out_data == '0))
+            else $error("Non-zero out_data (%0h) when idle", out_data);
+
+        // ---------------------------------------------------------------------
+        // 3. Reachability / Vacuity Checks (`cover`)
+        //    Cover every output mode and corner case to ensure `assume`s never
+        //    over-constrain the design.
+        // ---------------------------------------------------------------------
+        cover (!out_valid);
+        cover (sel_a && out_valid);
+        cover (sel_b && out_valid);
+        cover (out_err);
+    end
+
+endmodule
+
+bind <module> <module>_props #(
+    .WIDTH(WIDTH)
+) u_<module>_props (.*);
+)SV";
+	});
 	register_description("subagents.md", "Read to check summary index of all active and recent subagents.");
 	register_description("subagents", "Directory containing active subagent dashboards, final results, and execution transcripts.");
 	// Register directory purpose descriptions

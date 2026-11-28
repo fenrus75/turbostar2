@@ -743,7 +743,7 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 		set_failure(ctx, "No formal/*.sv property files found");
 		return "Error: No formal property files found under `formal/`. "
 		       "Create `formal/<module>_props.sv` with a `bind <module> ...` statement to run `verilog_formal` "
-		       "(read `system://verilog/formal_template_props.sv` for an annotated starter template).";
+		       "(read `system://verilog/formal_template_props.sv` or `system://verilog/formal_comb_template_props.sv` for annotated starter templates).";
 	}
 
 	// Determine target modules to verify
