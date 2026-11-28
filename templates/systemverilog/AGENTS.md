@@ -94,6 +94,8 @@ end
 - **Running formal checks**: `verilog_simulate()` automatically compiles with `--assert`, includes `formal/*.sv` `bind` property modules, and (with `coverage=true`) reports formal `cover()` hit counts alongside RTL line/port coverage in `system://verilog/coverage.md`. Run `verilog_formal()` (or `turbostar-verilog formal`) for SymbiYosys bounded model checking, k-induction proofs, and reachability/vacuity checks — no need to invoke `verilator` or `sby` directly via shell.
 - **Verilator `--assert` portability**: Avoid nesting `assert(...)` inside `else if` chains or `unique`/`priority` branches (Verilator can reject nested assertions with `%Error-UNSUPPORTED: Assert not allowed under another assert`). For multi-branch checks, compute the expected value or boolean condition first (e.g., `exp_state = ...`) and place a single `assert (state == exp_state);` afterward.
 - **Diagnostic messages on checks**: For non-trivial `assert`/`assume` checks, prefer adding an `else $error("...", sig1, sig2);` action block so Verilator prints live failing-edge signal values before stopping (SymbiYosys ignores the `else $error(...)` block).
+- **Binding `typedef enum` internal signals (`read_slang`)**: Implicit `.*` binding fails in `read_slang` when an RTL `typedef enum` (e.g., `my_state_t state`) connects to a `logic [N:0] state` port in `*_props.sv`. Pass an explicit width cast matching the port width in the `bind` statement: `bind mod mod_props u_props (.*, .state(3'(state)));`.
+- **Avoid SAT bit-blasting wide `*` / `/` in formal assertions**: A full 16×16→32 reference multiplier or divider inside a BMC/k-induction `assert` will time out SMT solvers. Instead, use formal `prove` + `cover` for FSM, handshake, packing, flag, and edge-case invariants (which complete in seconds), and verify full arithmetic bit-accuracy with a dedicated unit testbench.
 ```systemverilog
 // formal/fifo_props.sv
 module fifo_props #(parameter WIDTH = 8, parameter DEPTH = 16) (
@@ -129,7 +131,8 @@ bind fifo fifo_props #(.WIDTH(WIDTH), .DEPTH(DEPTH)) u_fifo_props (.*);
 
 ## Tool usage
 - Initial setup: Call `verilog_project_settings()` to set target FPGA, device, package, top module, target frequency, `sv_path="src"`, and optional `yosys_synth_args` / `nextpnr_args` (e.g., `--tmg-ripup`, `--opt-timing`).
-- Waveforms: Use `vcd_signal_qualifier()` to mask invalid bus cycles, `vcd_signal_labels()` to map opcodes/values to names, `vcd_wave(instance=...)` / `vcd_search()` / `vcd_compare()` to inspect traces, and `vcd_signal_to_code()` to trace nets to RTL drivers/sinks.
+- Waveforms: Use `vcd_signal_qualifier()` to mask invalid bus cycles, `vcd_signal_labels()` to map opcodes/values to names, `vcd_wave(instance=...)` / `vcd_search()` / `vcd_compare()` to inspect traces, and `vcd_signal_to_code()` to trace nets to RTL drivers/sinks. Keep wildcard patterns in `vcd_labels.json` specific (e.g., `*reg_sel1`/`*reg_sel2` rather than `*reg_sel*`) so unrelated signals like `wr_sreg_sel` are not mislabeled.
+- Long-running benchmarks (>50k cycles): Full `$dumpvars(0, ...)` produces >100 MB VCDs per run (multiplied by `.lastpass.vcd`/`.previous.vcd` snapshots); keep `$dumpfile`/`$dumpvars` on short unit/instruction tests and make it opt-in (e.g., via `$test$plusargs`) or signal-scoped for long end-to-end benchmarks.
 
 ## Timing optimization strategy
 - Combine structural and physical views:
@@ -154,3 +157,12 @@ bind fifo fifo_props #(.WIDTH(WIDTH), .DEPTH(DEPTH)) u_fifo_props (.*);
    consolidating them (muxing immediate operands at the input register, unifying `ADD`/`ADC`/`SUB`/`SBB`/`CMP` into a single nibble-split add/sub carry chain, 
    and deriving half-carry directly from the nibble carry bit) cuts `SB_CARRY` and `SB_LUT4` count dramatically. On FPGAs, shrinking the ALU footprint reduces 
    routing congestion and lets `nextpnr` place the remaining logic tighter, improving both $F_{\max}$ and area.
+
+### "Sever `BRAM -> Datapath` with a Capture FF" (FPGA)
+   Never feed synchronous BRAM `rdata` directly through operand muxes into an ALU or wide carry chain. Adding a dedicated 1-cycle capture flip-flop (`BRAM -> FF -> ALU`) breaks the `BRAM clock-to-out + routing + ALU` critical path and typically yields a larger $F_{\max}$ gain than local LUT tweaks.
+
+### "Valid >= 1 Cycle Early -> Register It" (FPGA)
+   Any combinational decode, sign-extension, or length cone (e.g., displacement, sign-extended immediate, instruction length, readiness strobe) that is already valid at least one cycle before downstream execution consumes it should be registered at the producer boundary (`0 <- Reg`). This shrinks downstream `In -> Reg` depth and gives `nextpnr` clean placement boundaries at zero extra cycle cost.
+
+### "Invert Non-Zero Idle Outputs to Keep Reset-to-Zero Homogeneity" (FPGA)
+   When a registered output must reset and idle to all-1s (e.g., an active-low or `2'b11` idle port address), store it inverted (`out_n` reset to `'0`, `assign out = ~out_n;`) so every flip-flop in the module shares the same synchronous reset-to-zero control set for tight tile packing.
