@@ -292,6 +292,15 @@ static void test_formal_comment_pragmas_and_precedence()
 	assert(!clamped.solver.has_value());
 	assert(!clamped.mode.has_value());
 
+	// One-shot per-session depth pragma hint
+	tools::verilog_formal_tool::reset_session_hints_for_test();
+	assert(tools::verilog_formal_tool::maybe_format_depth_pragma_hint(20, "formal/div_mod_props.sv").empty());
+	std::string hint1 = tools::verilog_formal_tool::maybe_format_depth_pragma_hint(25, "formal/div_mod_props.sv");
+	assert(hint1.find("// formal: depth=25") != std::string::npos);
+	assert(hint1.find("formal/div_mod_props.sv") != std::string::npos);
+	// Second call in the same session is suppressed for token efficiency
+	assert(tools::verilog_formal_tool::maybe_format_depth_pragma_hint(30, "formal/mul_mod_props.sv").empty());
+
 	fs::remove_all(tmp_proj);
 }
 

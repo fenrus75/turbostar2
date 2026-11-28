@@ -53,6 +53,10 @@ class verilog_formal_tool : public agentlib::llm_tool_action
 	                                         std::string &out_solver,
 	                                         std::string &out_mode);
 
+	// One-shot per-session hint suggesting `// formal: depth=N` when the caller explicitly passes a non-default depth.
+	static std::string maybe_format_depth_pragma_hint(int explicit_depth, std::string_view formal_file_rel);
+	static void reset_session_hints_for_test() noexcept;
+
 	// Static audit: returns declared output/inout ports of module_name that are not referenced
 	// (directly or via local helper assignments / bind remappings) by any `assert` in the
 	// module's RTL source or bound formal property files.

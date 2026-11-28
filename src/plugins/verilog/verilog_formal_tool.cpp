@@ -1,6 +1,7 @@
 #include "plugins/verilog/verilog_formal_tool.h"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <ctre.hpp>
 #include <filesystem>
@@ -58,11 +59,14 @@ struct sby_module_outcome {
 	bool assumes_without_covers{false};
 	int effective_depth{20};
 	bool depth_from_pragma{false};
+	std::optional<int> pragma_depth;
 	std::vector<sby_task_outcome> tasks;
 	std::string raw_error;
 	double elapsed_sec{0.0};
 	bool timed_out{false};
 };
+
+std::atomic<bool> g_depth_pragma_hint_shown{false};
 
 std::string trim_line_snippet(std::string_view sv)
 {
@@ -653,6 +657,23 @@ void verilog_formal_tool::resolve_module_formal_config(const verilog_formal_args
 		: args.mode;
 }
 
+std::string verilog_formal_tool::maybe_format_depth_pragma_hint(int explicit_depth, std::string_view formal_file_rel)
+{
+	if (explicit_depth == 20 || formal_file_rel.empty()) {
+		return "";
+	}
+	if (g_depth_pragma_hint_shown.exchange(true, std::memory_order_acq_rel)) {
+		return "";
+	}
+	return std::format("\n> [!TIP] Put `// formal: depth={}` at the top of `{}` to make this depth persistent across whole-project `verilog_formal` runs.\n",
+	                   explicit_depth, formal_file_rel);
+}
+
+void verilog_formal_tool::reset_session_hints_for_test() noexcept
+{
+	g_depth_pragma_hint_shown.store(false, std::memory_order_release);
+}
+
 verilog_formal_tool::verilog_formal_tool(verilog_formal_args args)
 	: agentlib::llm_tool_action("Running SymbiYosys formal verification"),
 	  args_(std::move(args))
@@ -804,6 +825,7 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 		resolve_module_formal_config(args_, pragma, mod_depth, mod_depth_from_pragma, mod_timeout, mod_solver_req, mod_mode);
 		mout.effective_depth = mod_depth;
 		mout.depth_from_pragma = mod_depth_from_pragma;
+		mout.pragma_depth = pragma.depth;
 
 		std::string mod_solver = solver;
 		if (mod_solver_req != args_.solver) {
@@ -1248,6 +1270,18 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 			                      "Full per-coverpoint breakdown is available at `system://verilog/formal.md` "
 			                      "(read with `fs_read_lines(path=\"system://verilog/formal.md\")` or filter with `?search=<module>`).\n",
 			                      collapsed_cover_tables);
+		}
+	}
+
+	if (args_.depth_explicit && args_.depth != 20) {
+		for (const auto &mo : outcomes) {
+			if (!mo.formal_files_rel.empty() && mo.pragma_depth != args_.depth) {
+				std::string hint = maybe_format_depth_pragma_hint(args_.depth, mo.formal_files_rel.front());
+				if (!hint.empty()) {
+					report << hint;
+				}
+				break;
+			}
 		}
 	}
 
