@@ -117,11 +117,16 @@ module fifo_props #(parameter WIDTH = 8, parameter DEPTH = 16) (
         f_past_valid <= 1'b1;
     end
 
-    always_ff @(posedge clk) if (!rst) begin
-        assert (!(full && empty));
-        assert (count <= DEPTH);
-        cover (full);
-        cover (f_past_valid && $past(full) && empty);
+    always_ff @(posedge clk) begin
+        if (f_past_valid && $past(rst)) begin
+            assert (empty && !full && count == '0);
+        end
+        if (f_past_valid && !rst && !$past(rst)) begin
+            assert (!(full && empty));
+            assert (count <= DEPTH);
+            cover (full);
+            cover ($past(full) && !full);
+        end
     end
 endmodule
 
