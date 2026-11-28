@@ -55,6 +55,7 @@ struct sby_module_outcome {
 	std::vector<std::string> formal_files_rel;
 	std::string checked_in_sby_rel; // non-empty if a checked-in formal/<mod>.sby exists on disk
 	std::vector<std::string> unchecked_outputs;
+	bool assumes_without_covers{false};
 	std::vector<sby_task_outcome> tasks;
 	std::string raw_error;
 	double elapsed_sec{0.0};
@@ -474,6 +475,27 @@ std::vector<std::string> verilog_formal_tool::find_unchecked_output_ports(std::s
 	return unchecked;
 }
 
+bool verilog_formal_tool::has_assumes_without_covers(std::span<const std::string> formal_files)
+{
+	bool has_assume = false;
+	bool has_cover = false;
+	for (const auto &ff : formal_files) {
+		std::string err;
+		auto mf = mapped_file::get_cached(ff, err, /*populate=*/false);
+		if (!mf) {
+			continue;
+		}
+		std::string clean = verilog::verilog_module_scanner::strip_comments(mf->string_view());
+		if (!has_assume && ctre::search<R"(\bassume\b(?:\s+(?:property|final|#[0-9]+))?\s*\()">(clean)) {
+			has_assume = true;
+		}
+		if (!has_cover && ctre::search<R"(\bcover\b(?:\s+(?:property|final|#[0-9]+))?\s*\()">(clean)) {
+			has_cover = true;
+		}
+	}
+	return has_assume && !has_cover;
+}
+
 verilog_formal_tool::verilog_formal_tool(verilog_formal_args args)
 	: agentlib::llm_tool_action("Running SymbiYosys formal verification"),
 	  args_(std::move(args))
@@ -613,6 +635,7 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 		sby_module_outcome mout;
 		mout.module_name = mod;
 		mout.unchecked_outputs = find_unchecked_output_ports(mod, rtl_files, bindings[mod]);
+		mout.assumes_without_covers = has_assumes_without_covers(bindings[mod]);
 
 		// 3. Collect transitive RTL files + bound formal files for this module
 		std::vector<std::string> hier = verilog::verilog_module_scanner::discover_submodule_hierarchy(mod, rtl_files);
@@ -926,6 +949,17 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 			                               mo.module_name, unreached_covers, args_.depth);
 			report << warn;
 			full_report << warn;
+		}
+
+		if (mo.assumes_without_covers) {
+			std::string note = std::format("\n> [!NOTE] **No `cover()` Statements (`{}`)**: Bound formal properties contain `assume(...)` "
+			                               "constraints but zero `cover(...)` reachability checks. Add `cover()` for major transactions "
+			                               "and corner cases so `verilog_formal` can detect accidental over-constraint / vacuous proofs.\n",
+			                               mo.module_name);
+			full_report << note;
+			if (proof_passed) {
+				report << note;
+			}
 		}
 
 		if (!mo.unchecked_outputs.empty()) {

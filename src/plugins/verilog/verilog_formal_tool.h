@@ -35,6 +35,10 @@ class verilog_formal_tool : public agentlib::llm_tool_action
 	                                                            std::span<const std::string> rtl_files,
 	                                                            std::span<const std::string> formal_files);
 
+	// Static audit: returns true if the bound formal property files contain at least one `assume`
+	// constraint but zero `cover` reachability statements (risk of undetected vacuous proofs).
+	static bool has_assumes_without_covers(std::span<const std::string> formal_files);
+
       private:
 	verilog_formal_args args_;
 };

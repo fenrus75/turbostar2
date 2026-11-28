@@ -189,7 +189,7 @@ static void test_unchecked_output_ports_audit()
 	assert(unchecked[0] == "err");
 	assert(unchecked[1] == "busy");
 
-	// Now pin down err and busy too -> 0 unchecked outputs
+	// Now pin down err and busy too (with assume but no cover) -> 0 unchecked outputs, but assumes_without_covers is true
 	{
 		std::ofstream ofs(props_file, std::ios::trunc);
 		ofs << "module demo_unit_props (\n"
@@ -201,6 +201,8 @@ static void test_unchecked_output_ports_audit()
 		    << "    input logic       busy\n"
 		    << ");\n"
 		    << "    always @(posedge clk) begin\n"
+		    << "        assume (!rst);\n"
+		    << "        // cover (busy); -- commented out, must not count\n"
 		    << "        assert (!valid && !err && !busy && data_p == 8'h00);\n"
 		    << "    end\n"
 		    << "endmodule\n"
@@ -208,6 +210,19 @@ static void test_unchecked_output_ports_audit()
 	}
 	auto unchecked2 = tools::verilog_formal_tool::find_unchecked_output_ports("demo_unit", rtl_files, formal_files);
 	assert(unchecked2.empty());
+	assert(tools::verilog_formal_tool::has_assumes_without_covers(formal_files));
+
+	// Adding a real cover() clears the assumes_without_covers flag
+	{
+		std::ofstream ofs(props_file, std::ios::trunc);
+		ofs << "module demo_unit_props (input logic clk, input logic rst, input logic busy);\n"
+		    << "    always @(posedge clk) begin\n"
+		    << "        assume (!rst);\n"
+		    << "        cover (busy);\n"
+		    << "    end\n"
+		    << "endmodule\n";
+	}
+	assert(!tools::verilog_formal_tool::has_assumes_without_covers(formal_files));
 
 	fs::remove_all(tmp_proj);
 }
