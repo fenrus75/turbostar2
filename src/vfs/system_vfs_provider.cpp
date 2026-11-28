@@ -847,7 +847,8 @@ system_vfs_provider::system_vfs_provider()
 	                     "Annotated SystemVerilog formal property starter template (*_props.sv) for verilog_formal / SymbiYosys + Verilator.");
 	register_generator("verilog/formal_template_props.sv", [](const std::string &) -> std::string {
 		return R"SV(// formal/<module>_props.sv
-// formal: depth=20 timeout=60 solver=bitwuzla // optional per-module pragma (overridden by explicit verilog_formal args)
+// Optional per-module pragma (put `// formal: depth=30 timeout=120 solver=bitwuzla` on its own line
+// only for multi-cycle modules that need non-default depth/timeout; explicit verilog_formal args override it).
 // Starter template for SymbiYosys (read_slang) + Verilator (--assert) formal property modules.
 // Copy to formal/<module>_props.sv and replace <module> and TODO sections.
 
@@ -896,10 +897,11 @@ module <module>_props #(
     always_ff @(posedge clk) begin
         if (f_past_valid && !rst && !$past(rst)) begin
             // Upstream valid/data must remain stable while backpressured
+            // (prefer `sig == $past(sig)` over `$stable(sig)` for Verilator --assert portability)
             if ($past(in_valid && !in_ready)) begin
                 assume (in_valid)
                     else $error("Input valid dropped before in_ready");
-                assume ($stable(in_data))
+                assume (in_data == $past(in_data))
                     else $error("Input data changed while stalled");
             end
         end
@@ -952,11 +954,12 @@ module <module>_props #(
                 else $error("Illegal FSM state: %0d", state);
 
             // Output handshake stability while downstream backpressures
-            assert (!$past(out_valid && !out_ready) || (out_valid && $stable(out_data)))
+            assert (!$past(out_valid && !out_ready) || (out_valid && out_data == $past(out_data)))
                 else $error("Output changed while stalled (was %0h, now %0h)",
                             $past(out_data), out_data);
 
-            // Bounded internal busy watchdog (add inductive helper bound for `prove`)
+            // Bounded internal busy watchdog (link to DUT counter for `prove` k-induction):
+            // e.g., assert (state != ST_RUN || (f_busy_cnt + dut_rem_cnt) < MAX_BUSY);
             assert (f_busy_cnt < MAX_BUSY)
                 else $error("DUT stuck in ST_RUN for >= %0d cycles", MAX_BUSY);
 

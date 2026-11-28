@@ -307,7 +307,8 @@ static void test_formal_comment_pragmas_and_precedence()
 	auto tmpl_handle = vfs.read_file("system://verilog/formal_template_props.sv");
 	assert(tmpl_handle.has_value() && *tmpl_handle != nullptr);
 	std::string_view tmpl_content = (*tmpl_handle)->view();
-	assert(tmpl_content.find("// formal: depth=20") != std::string_view::npos);
+	assert(tmpl_content.find("// formal: depth=30") != std::string_view::npos);
+	assert(tmpl_content.find("out_data == $past(out_data)") != std::string_view::npos);
 	assert(tmpl_content.find("f_past_valid") != std::string_view::npos);
 	assert(tmpl_content.find("bind <module>") != std::string_view::npos);
 
