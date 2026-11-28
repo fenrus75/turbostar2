@@ -473,9 +473,10 @@ std::vector<std::string> verilog_formal_tool::find_unchecked_output_ports(std::s
 		}
 	}
 
+	formal_pragma_config pragma = parse_formal_pragmas(formal_files);
 	std::vector<std::string> unchecked;
 	for (const auto &out_port : output_ports) {
-		if (!asserted_ids.contains(out_port)) {
+		if (!asserted_ids.contains(out_port) && !pragma.ignore_outputs.contains(out_port)) {
 			unchecked.push_back(out_port);
 		}
 	}
@@ -571,6 +572,28 @@ std::vector<unpaired_assume_finding> verilog_formal_tool::audit_assume_guarantee
 		std::set<std::string> idents;
 	};
 
+	auto has_formal_ok_waiver = [](std::span<const std::string_view> lines, int line_no) -> bool {
+		auto line_has_ok = [](std::string_view ln) -> bool {
+			size_t cpos = ln.find("//");
+			if (cpos == std::string_view::npos) return false;
+			std::string comment(ln.substr(cpos + 2));
+			std::ranges::transform(comment, comment.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+			return comment.find("formal-ok") != std::string::npos;
+		};
+		if (line_no >= 1 && static_cast<size_t>(line_no) <= lines.size() && line_has_ok(lines[static_cast<size_t>(line_no) - 1])) {
+			return true;
+		}
+		// Also accept a `// formal-ok: ...` comment on the immediately preceding line
+		if (line_no >= 2 && static_cast<size_t>(line_no - 1) <= lines.size()) {
+			std::string_view prev = lines[static_cast<size_t>(line_no) - 2];
+			size_t first = prev.find_first_not_of(" \t");
+			if (first != std::string_view::npos && prev.substr(first).starts_with("//") && line_has_ok(prev)) {
+				return true;
+			}
+		}
+		return false;
+	};
+
 	auto collect_keyword_stmts = [&](std::span<const std::string> files, bool is_assume) -> std::vector<parsed_stmt> {
 		std::vector<parsed_stmt> stmts;
 		std::error_code ec;
@@ -579,6 +602,7 @@ std::vector<unpaired_assume_finding> verilog_formal_tool::audit_assume_guarantee
 			std::string err;
 			auto mf = mapped_file::get_cached(ff, err, /*populate=*/false);
 			if (!mf) continue;
+			auto raw_lines = mf->lines();
 			std::string clean = blank_comments_keep_lines(mf->string_view());
 			std::string rel = ff;
 			if (!project_root.empty()) {
@@ -606,7 +630,7 @@ std::vector<unpaired_assume_finding> verilog_formal_tool::audit_assume_guarantee
 				size_t paren_pos = match_off + m_size - 1;
 				size_t next_pos = clean.size();
 				std::string_view cond = extract_balanced_parens(clean, paren_pos, next_pos);
-				if (!cond.empty()) {
+				if (!cond.empty() && !(is_assume && has_formal_ok_waiver(raw_lines, line_no))) {
 					parsed_stmt ps;
 					ps.file_rel = rel;
 					ps.line = line_no;
@@ -1050,25 +1074,29 @@ formal_pragma_config verilog_formal_tool::parse_formal_pragmas(std::span<const s
 				sv = sv.substr(0, trail);
 			}
 
-			// Parse whitespace-separated key=value pairs (allowing optional trailing commas)
+			// Parse whitespace-separated key=value pairs (allowing comma-separated lists inside values like ignore_outputs=a,b)
 			size_t idx = 0;
 			while (idx < sv.size()) {
-				size_t tok_start = sv.find_first_not_of(" \t,", idx);
+				size_t tok_start = sv.find_first_not_of(" \t", idx);
 				if (tok_start == std::string_view::npos) {
 					break;
 				}
-				size_t tok_end = sv.find_first_of(" \t,", tok_start);
+				size_t tok_end = sv.find_first_of(" \t", tok_start);
 				std::string_view tok = (tok_end == std::string_view::npos)
 					? sv.substr(tok_start)
 					: sv.substr(tok_start, tok_end - tok_start);
 				idx = (tok_end == std::string_view::npos) ? sv.size() : tok_end + 1;
+				while (!tok.empty() && tok.back() == ',') {
+					tok.remove_suffix(1);
+				}
 
 				size_t eq = tok.find('=');
 				if (eq == std::string_view::npos || eq == 0 || eq + 1 >= tok.size()) {
 					continue;
 				}
 				std::string key = to_lower(tok.substr(0, eq));
-				std::string val = to_lower(tok.substr(eq + 1));
+				std::string_view raw_val = tok.substr(eq + 1);
+				std::string val = to_lower(raw_val);
 
 				if (key == "depth" || key == "steps") {
 					int v = 0;
@@ -1088,6 +1116,20 @@ formal_pragma_config verilog_formal_tool::parse_formal_pragmas(std::span<const s
 					if (val == "bmc" || val == "prove" || val == "cover" ||
 					    val == "prove+cover" || val == "bmc+cover" || val == "all") {
 						cfg.mode = std::move(val);
+					}
+				} else if (key == "ignore_outputs" || key == "unchecked_ok") {
+					// Preserve original signal name case; split comma-separated list
+					size_t p_idx = 0;
+					while (p_idx < raw_val.size()) {
+						size_t c_pos = raw_val.find(',', p_idx);
+						std::string_view item = (c_pos == std::string_view::npos)
+							? raw_val.substr(p_idx)
+							: raw_val.substr(p_idx, c_pos - p_idx);
+						if (!item.empty()) {
+							cfg.ignore_outputs.emplace(item);
+						}
+						if (c_pos == std::string_view::npos) break;
+						p_idx = c_pos + 1;
 					}
 				}
 			}
@@ -1643,15 +1685,26 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 
 		if (!mo.unchecked_outputs.empty()) {
 			std::string port_list;
+			std::string csv_list;
 			for (size_t i = 0; i < mo.unchecked_outputs.size(); ++i) {
-				if (i > 0) port_list += ", ";
+				if (i > 0) {
+					port_list += ", ";
+					csv_list += ",";
+				}
 				port_list += std::format("`{}`", mo.unchecked_outputs[i]);
+				csv_list += mo.unchecked_outputs[i];
 			}
+			std::string prop_hint_file = mo.formal_files_rel.empty()
+				? std::format("formal/{}_props.sv", mo.module_name)
+				: mo.formal_files_rel.front();
 			std::string note = std::format("\n> [!NOTE] **Unchecked Output Ports (`{}`)**: {} {} not referenced by any `assert` in the bound formal properties. "
-			                               "Audit whether a wrong value on any clock cycle (including reset/idle) would cause an assertion to fail.\n",
+			                               "Audit whether a wrong value on any clock cycle (including reset/idle) would cause an assertion to fail, "
+			                               "or silence intentionally waived outputs with `// formal: ignore_outputs={} // <reason>` at the top of `{}`.\n",
 			                               mo.module_name,
 			                               port_list,
-			                               mo.unchecked_outputs.size() == 1 ? "is" : "are");
+			                               mo.unchecked_outputs.size() == 1 ? "is" : "are",
+			                               csv_list,
+			                               prop_hint_file);
 			full_report << note;
 			if (proof_passed) {
 				report << note;
@@ -1664,6 +1717,7 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 			for (const auto &ua : mo.unpaired_assumes) {
 				note << std::format("> - `{}:{}`: `assume ({})` — {}\n", ua.file, ua.line, ua.assume_expr, ua.reason);
 			}
+			note << "> Add a matching `assert` in the producer's `formal/*_props.sv`, or silence intentional waivers inline with `// formal-ok: <reason>` on the `assume` line.\n";
 			full_report << note.str();
 			if (proof_passed) {
 				report << note.str();

@@ -190,6 +190,20 @@ static void test_unchecked_output_ports_audit()
 	assert(unchecked[0] == "err");
 	assert(unchecked[1] == "busy");
 
+	// `// formal: ignore_outputs=err` suppresses `err` while still flagging `busy`
+	{
+		std::ofstream ofs(props_file, std::ios::trunc);
+		ofs << "// formal: ignore_outputs=err // verified in unit testbench\n"
+		    << "module demo_unit_props (input logic clk, input logic rst, input logic valid, input logic [7:0] data_p, input logic err, input logic busy);\n"
+		    << "    always @(posedge clk) begin\n"
+		    << "        assert (!valid && data_p == 8'h00);\n"
+		    << "    end\n"
+		    << "endmodule\n"
+		    << "bind demo_unit demo_unit_props u_props (.*, .data_p(data));\n";
+	}
+	auto unchecked_waived = tools::verilog_formal_tool::find_unchecked_output_ports("demo_unit", rtl_files, formal_files);
+	assert(unchecked_waived.size() == 1 && unchecked_waived[0] == "busy");
+
 	// Now pin down err and busy too (with assume but no cover) -> 0 unchecked outputs, but assumes_without_covers is true
 	{
 		std::ofstream ofs(props_file, std::ios::trunc);
@@ -387,7 +401,31 @@ static void test_assume_guarantee_audit()
 	assert(gaps[0].assume_expr == "!(a_in && b_in)");
 	assert(gaps[0].reason.find("prod_mod") != std::string::npos);
 
-	// Adding matching $countones assert in prod_mod_props closes the gap -> 0 findings
+	// Inline `// formal-ok: <reason>` on the assume line suppresses the gap
+	{
+		std::ofstream ofs(cons_props, std::ios::trunc);
+		ofs << "module cons_mod_props (input logic clk, input logic rst, input logic a_in, input logic b_in, input logic x_in, input logic y_in, input logic ext_in);\n"
+		    << "    always_comb if (!rst) begin\n"
+		    << "        assume (!(a_in && b_in)); // formal-ok: guaranteed by software ABI\n"
+		    << "        assume (!(x_in && y_in));\n"
+		    << "    end\n"
+		    << "endmodule\n"
+		    << "bind cons_mod cons_mod_props u_cons_props (.*);\n";
+	}
+	auto gaps_waived = tools::verilog_formal_tool::audit_assume_guarantee_pairs("cons_mod", rtl_files, formal_files, tmp_proj.string());
+	assert(gaps_waived.empty());
+
+	// Restore unwaived assume and verify matching $countones assert in prod_mod_props closes the gap -> 0 findings
+	{
+		std::ofstream ofs(cons_props, std::ios::trunc);
+		ofs << "module cons_mod_props (input logic clk, input logic rst, input logic a_in, input logic b_in, input logic x_in, input logic y_in, input logic ext_in);\n"
+		    << "    always_comb if (!rst) begin\n"
+		    << "        assume (!(a_in && b_in));\n"
+		    << "        assume (!(x_in && y_in));\n"
+		    << "    end\n"
+		    << "endmodule\n"
+		    << "bind cons_mod cons_mod_props u_cons_props (.*);\n";
+	}
 	{
 		std::ofstream ofs(prod_props, std::ios::trunc);
 		ofs << "module prod_mod_props (input logic clk, input logic rst, input logic op_a, input logic op_b, input logic st_x, input logic st_y, input logic [1:0] st);\n"

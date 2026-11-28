@@ -2,6 +2,7 @@
 
 #include <map>
 #include <optional>
+#include <set>
 #include <span>
 #include <string>
 #include <string_view>
@@ -31,6 +32,7 @@ struct formal_pragma_config {
 	std::optional<int> timeout_sec;
 	std::optional<std::string> solver;
 	std::optional<std::string> mode;
+	std::set<std::string> ignore_outputs;
 };
 
 // Static audit finding for a consumer `assume(...)` without a matching producer `assert(...)`.
