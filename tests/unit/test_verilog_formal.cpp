@@ -6,6 +6,7 @@
 #include "plugins/verilog/verilog_formal_validator.h"
 #include "plugins/verilog/verilog_project_settings_validator.h"
 #include "test_watchdog.h"
+#include "vfs/system_vfs_provider.h"
 
 #include <cassert>
 #include <cstdlib>
@@ -300,6 +301,15 @@ static void test_formal_comment_pragmas_and_precedence()
 	assert(hint1.find("formal/div_mod_props.sv") != std::string::npos);
 	// Second call in the same session is suppressed for token efficiency
 	assert(tools::verilog_formal_tool::maybe_format_depth_pragma_hint(30, "formal/mul_mod_props.sv").empty());
+
+	// Verify system://verilog/formal_template.sv is served via VFS
+	turbostar::system_vfs_provider vfs;
+	auto tmpl_handle = vfs.read_file("system://verilog/formal_template.sv");
+	assert(tmpl_handle.has_value() && *tmpl_handle != nullptr);
+	std::string_view tmpl_content = (*tmpl_handle)->view();
+	assert(tmpl_content.find("// formal: depth=20") != std::string_view::npos);
+	assert(tmpl_content.find("f_past_valid") != std::string_view::npos);
+	assert(tmpl_content.find("bind <module>") != std::string_view::npos);
 
 	fs::remove_all(tmp_proj);
 }

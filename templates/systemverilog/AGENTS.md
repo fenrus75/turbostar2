@@ -81,7 +81,7 @@ end
 - Run tests with `verilog_simulate()`; passing runs snapshot `.lastpass.vcd` and every run diffs against `.previous.vcd` to isolate the first diverging cycle/signal (use `vcd_compare()` to diff any two VCDs directly).
 
 ## Formal verification readiness
-- Keep `src/` strictly synthesizable RTL — place formal properties in separate `formal/<module>_props.sv` checker modules instead of `` `ifdef FORMAL `` blocks inside RTL files (avoids macro collisions with Verilator lint/sim and keeps Yosys/SBY clean).
+- Keep `src/` strictly synthesizable RTL — place formal properties in separate `formal/<module>_props.sv` checker modules instead of `` `ifdef FORMAL `` blocks inside RTL files (avoids macro collisions with Verilator lint/sim and keeps Yosys/SBY clean). Read `system://verilog/formal_template.sv` for a full annotated `*_props.sv` starter template (reset checks, ghost state, valid/ready stability, stall watchdog, `read_slang` enum `bind` casts, and `// formal:` pragmas).
 - Attach property modules at elaboration time with SystemVerilog `bind` (supported by both `yosys` and `verilator`), which can also bind directly to internal signals.
 - Structure each property module around four basics:
   1. **Start-up guard**: track `f_past_valid` (init `0`, set `1` on `posedge clk`) before using `$past(...)`.

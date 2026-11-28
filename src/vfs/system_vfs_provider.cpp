@@ -841,6 +841,161 @@ system_vfs_provider::system_vfs_provider()
 		ss << in.rdbuf();
 		return ss.str();
 	});
+
+	// Static Template: system://verilog/formal_template.sv
+	register_description("verilog/formal_template.sv",
+	                     "Annotated SystemVerilog formal property starter template (*_props.sv) for verilog_formal / SymbiYosys + Verilator.");
+	register_generator("verilog/formal_template.sv", [](const std::string &) -> std::string {
+		return R"SV(// formal/<module>_props.sv
+// formal: depth=20 timeout=60 solver=bitwuzla // optional per-module pragma (overridden by explicit verilog_formal args)
+// Starter template for SymbiYosys (read_slang) + Verilator (--assert) formal property modules.
+// Copy to formal/<module>_props.sv and replace <module> and TODO sections.
+
+module <module>_props #(
+    parameter int WIDTH = 8
+) (
+    input logic             clk,
+    input logic             rst,      // TODO: match DUT reset polarity (rst or rst_n)
+
+    // TODO: DUT inputs (constrain legal environment with `assume` — never `assume` DUT outputs)
+    input logic             in_valid,
+    input logic [WIDTH-1:0] in_data,
+    input logic             out_ready,
+
+    // TODO: DUT outputs (pin down every output with `assert`, exercise with `cover`)
+    input logic             in_ready,
+    input logic             out_valid,
+    input logic [WIDTH-1:0] out_data,
+
+    // TODO: Internal DUT signals / FSM state (cast typedef enums to logic [N:0] in `bind` for read_slang)
+    input logic [1:0]       state
+);
+
+    localparam logic [1:0] ST_IDLE = 2'd0;
+    localparam logic [1:0] ST_RUN  = 2'd1;
+    localparam logic [1:0] ST_DONE = 2'd2;
+
+    // -------------------------------------------------------------------------
+    // 1. Start-up & Cycle-0 Reset Assumption
+    // -------------------------------------------------------------------------
+    logic f_past_valid = 1'b0;
+
+    always_ff @(posedge clk) begin
+        if (!f_past_valid) assume (rst);
+        f_past_valid <= 1'b1;
+    end
+
+    // -------------------------------------------------------------------------
+    // 2. Input Environment Assumptions (DUT inputs only)
+    //    Pair every non-trivial `assume` with a matching `assert` in the
+    //    upstream producer's formal/<producer>_props.sv!
+    // -------------------------------------------------------------------------
+    // Example combinational mutual exclusion on one-hot inputs:
+    // always_comb if (!rst) assume ($countones({op_a, op_b, op_c}) <= 1);
+
+    always_ff @(posedge clk) begin
+        if (f_past_valid && !rst && !$past(rst)) begin
+            // Upstream valid/data must remain stable while backpressured
+            if ($past(in_valid && !in_ready)) begin
+                assume (in_valid)
+                    else $error("Input valid dropped before in_ready");
+                assume ($stable(in_data))
+                    else $error("Input data changed while stalled");
+            end
+        end
+    end
+
+    // -------------------------------------------------------------------------
+    // 3. Lightweight Auxiliary ("Ghost") State & Internal Busy Watchdog
+    //    Prefer small shadow registers/counters over deep $past(sig, N) chains.
+    //    Note: Watch internal busy duration (not downstream !out_ready, which
+    //    an unconstrained environment can hold low forever).
+    // -------------------------------------------------------------------------
+    localparam int MAX_BUSY = 16;
+    logic [$clog2(MAX_BUSY+1)-1:0] f_busy_cnt = '0;
+    logic                          f_seen_start = 1'b0;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            f_busy_cnt   <= '0;
+            f_seen_start <= 1'b0;
+        end else begin
+            if (state == ST_RUN) begin
+                f_busy_cnt <= f_busy_cnt + 1'b1;
+            end else begin
+                f_busy_cnt <= '0;
+            end
+            if (in_valid && in_ready) begin
+                f_seen_start <= 1'b1;
+            end
+        end
+    end
+
+    // -------------------------------------------------------------------------
+    // 4. Safety Invariants (`assert`)
+    //    Use separate `if` blocks or implication (`!cond || check`) rather than
+    //    nesting `assert` inside `else if` chains for Verilator --assert safety.
+    //    Use 2-state equality (`==`, `!=`), not `===`/`!==`.
+    // -------------------------------------------------------------------------
+    always_ff @(posedge clk) begin
+        // 4a. Post-reset checks: pin down every output's reset state
+        if (f_past_valid && $past(rst)) begin
+            assert (!out_valid && in_ready && state == ST_IDLE)
+                else $error("Bad post-reset state: out_valid=%b in_ready=%b state=%0d",
+                            out_valid, in_ready, state);
+        end
+
+        // 4b. Normal cycle-to-cycle checks (never sample $past across reset)
+        if (f_past_valid && !rst && !$past(rst)) begin
+            // Illegal FSM encoding exclusion
+            assert (state <= ST_DONE)
+                else $error("Illegal FSM state: %0d", state);
+
+            // Output handshake stability while downstream backpressures
+            assert (!$past(out_valid && !out_ready) || (out_valid && $stable(out_data)))
+                else $error("Output changed while stalled (was %0h, now %0h)",
+                            $past(out_data), out_data);
+
+            // Bounded internal busy watchdog (add inductive helper bound for `prove`)
+            assert (f_busy_cnt < MAX_BUSY)
+                else $error("DUT stuck in ST_RUN for >= %0d cycles", MAX_BUSY);
+
+            // TODO: Pin down remaining outputs (e.g., in_ready, out_data when out_valid)
+            // and add k-induction helper asserts constraining internal pointers/counters.
+        end
+    end
+
+    // -------------------------------------------------------------------------
+    // 5. Reachability / Vacuity Checks (`cover`)
+    //    Every module with `assume` must have `cover` checks so verilog_formal
+    //    catches accidental over-constraint / vacuous proofs.
+    // -------------------------------------------------------------------------
+    always_ff @(posedge clk) begin
+        if (f_past_valid && !rst && !$past(rst)) begin
+            // Cover all valid FSM states
+            cover (state == ST_IDLE);
+            cover (state == ST_RUN);
+            cover (state == ST_DONE);
+
+            // Cover key transactions & backpressure corner cases
+            cover (in_valid && in_ready);
+            cover (out_valid && out_ready);
+            cover (out_valid && !out_ready);
+            cover (f_seen_start && out_valid && out_ready);
+        end
+    end
+
+endmodule
+
+// Bind to DUT (use explicit width casts for typedef enum signals for read_slang)
+bind <module> <module>_props #(
+    .WIDTH(WIDTH)
+) u_<module>_props (
+    .*,
+    .state(2'(state))
+);
+)SV";
+	});
 	register_description("subagents.md", "Read to check summary index of all active and recent subagents.");
 	register_description("subagents", "Directory containing active subagent dashboards, final results, and execution transcripts.");
 	// Register directory purpose descriptions
