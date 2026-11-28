@@ -132,6 +132,86 @@ static void test_sby_path_settings_roundtrip()
 	fs::remove_all(tmp_proj);
 }
 
+static void test_unchecked_output_ports_audit()
+{
+	fs::path tmp_proj = fs::temp_directory_path() / ("test_formal_out_audit_" + std::to_string(getpid()));
+	fs::remove_all(tmp_proj);
+	fs::create_directories(tmp_proj / "src");
+	fs::create_directories(tmp_proj / "formal");
+
+	fs::path rtl_file = tmp_proj / "src" / "demo_unit.sv";
+	{
+		std::ofstream ofs(rtl_file);
+		ofs << "module demo_unit (\n"
+		    << "    input  logic       clk,\n"
+		    << "    input  logic       rst,\n"
+		    << "    output logic       valid,\n"
+		    << "    output logic [7:0] data,\n"
+		    << "    output logic       err,\n"
+		    << "    output logic       busy\n"
+		    << ");\n"
+		    << "    assign valid = 1'b0;\n"
+		    << "    assign data  = 8'h00;\n"
+		    << "    assign err   = 1'b0;\n"
+		    << "    assign busy  = 1'b0;\n"
+		    << "endmodule\n";
+	}
+
+	fs::path props_file = tmp_proj / "formal" / "demo_unit_props.sv";
+	{
+		std::ofstream ofs(props_file);
+		ofs << "module demo_unit_props (\n"
+		    << "    input logic       clk,\n"
+		    << "    input logic       rst,\n"
+		    << "    input logic       valid,\n"
+		    << "    input logic [7:0] data_p,\n"
+		    << "    input logic       err,\n"
+		    << "    input logic       busy\n"
+		    << ");\n"
+		    << "    logic data_ok;\n"
+		    << "    assign data_ok = (data_p == 8'h00);\n"
+		    << "    always @(posedge clk) begin\n"
+		    << "        if (rst) assert (!valid) else $error(\"err=%b\", err);\n"
+		    << "        assert (data_ok);\n"
+		    << "        cover (busy);\n"
+		    << "    end\n"
+		    << "endmodule\n"
+		    << "bind demo_unit demo_unit_props u_props (.*, .data_p(data));\n";
+	}
+
+	std::vector<std::string> rtl_files = {rtl_file.string()};
+	std::vector<std::string> formal_files = {props_file.string()};
+
+	// valid is asserted directly; data is asserted via helper `data_ok` + `.data_p(data)` bind remap.
+	// err is only in `$error(...)` and busy is only in `cover(...)`, so both must be flagged!
+	auto unchecked = tools::verilog_formal_tool::find_unchecked_output_ports("demo_unit", rtl_files, formal_files);
+	assert(unchecked.size() == 2);
+	assert(unchecked[0] == "err");
+	assert(unchecked[1] == "busy");
+
+	// Now pin down err and busy too -> 0 unchecked outputs
+	{
+		std::ofstream ofs(props_file, std::ios::trunc);
+		ofs << "module demo_unit_props (\n"
+		    << "    input logic       clk,\n"
+		    << "    input logic       rst,\n"
+		    << "    input logic       valid,\n"
+		    << "    input logic [7:0] data_p,\n"
+		    << "    input logic       err,\n"
+		    << "    input logic       busy\n"
+		    << ");\n"
+		    << "    always @(posedge clk) begin\n"
+		    << "        assert (!valid && !err && !busy && data_p == 8'h00);\n"
+		    << "    end\n"
+		    << "endmodule\n"
+		    << "bind demo_unit demo_unit_props u_props (.*, .data_p(data));\n";
+	}
+	auto unchecked2 = tools::verilog_formal_tool::find_unchecked_output_ports("demo_unit", rtl_files, formal_files);
+	assert(unchecked2.empty());
+
+	fs::remove_all(tmp_proj);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -139,6 +219,7 @@ int main()
 	test_validator();
 	test_find_executable_tilde_expansion();
 	test_sby_path_settings_roundtrip();
+	test_unchecked_output_ports_audit();
 
 	std::cout << "PASS: test_verilog_formal\n";
 	return 0;

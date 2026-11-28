@@ -1,7 +1,10 @@
 #pragma once
 
 #include <map>
+#include <span>
 #include <string>
+#include <string_view>
+#include <vector>
 #include "agentlib/llm_tool_action.h"
 
 namespace tools
@@ -24,6 +27,13 @@ class verilog_formal_tool : public agentlib::llm_tool_action
 
 	bool validate_runtime(const agentlib::tool_context &ctx, std::string &out_error) const override;
 	std::string execute(agentlib::tool_context &ctx) override;
+
+	// Static audit: returns declared output/inout ports of module_name that are not referenced
+	// (directly or via local helper assignments / bind remappings) by any `assert` in the
+	// module's RTL source or bound formal property files.
+	static std::vector<std::string> find_unchecked_output_ports(std::string_view module_name,
+	                                                            std::span<const std::string> rtl_files,
+	                                                            std::span<const std::string> formal_files);
 
       private:
 	verilog_formal_args args_;

@@ -54,6 +54,7 @@ struct sby_module_outcome {
 	std::string module_name;
 	std::vector<std::string> formal_files_rel;
 	std::string checked_in_sby_rel; // non-empty if a checked-in formal/<mod>.sby exists on disk
+	std::vector<std::string> unchecked_outputs;
 	std::vector<sby_task_outcome> tasks;
 	std::string raw_error;
 	double elapsed_sec{0.0};
@@ -220,7 +221,258 @@ bool yosys_supports_slang(const fs::path &sby_dir)
 	return out.find("SLANG_OK") != std::string::npos;
 }
 
+bool is_ident_char(char c)
+{
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+}
+
+bool is_ident_start(char c)
+{
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+}
+
+void collect_identifiers(std::string_view expr, std::set<std::string> &out)
+{
+	size_t i = 0;
+	while (i < expr.size()) {
+		// Skip string literals
+		if (expr[i] == '"') {
+			++i;
+			while (i < expr.size() && expr[i] != '"') {
+				if (expr[i] == '\\' && i + 1 < expr.size()) {
+					++i;
+				}
+				++i;
+			}
+			if (i < expr.size()) {
+				++i;
+			}
+			continue;
+		}
+		// Skip sized/based numeric literals (e.g. 8'hFF, 4'b1010, '0)
+		if (expr[i] == '\'') {
+			++i;
+			while (i < expr.size() && is_ident_char(expr[i])) {
+				++i;
+			}
+			continue;
+		}
+		if (is_ident_start(expr[i])) {
+			// Skip system functions/tasks like $past, $rose, $bits (keep their arguments)
+			bool is_sys = (i > 0 && expr[i - 1] == '$');
+			size_t start = i;
+			while (i < expr.size() && is_ident_char(expr[i])) {
+				++i;
+			}
+			if (!is_sys) {
+				out.emplace(expr.substr(start, i - start));
+			}
+			continue;
+		}
+		++i;
+	}
+}
+
+// Extracts the balanced parenthesized expression starting at the first '(' at or after pos.
+// Returns empty string_view if not found; advances next_pos past the closing ')'.
+std::string_view extract_balanced_parens(std::string_view text, size_t pos, size_t &next_pos)
+{
+	size_t open = text.find('(', pos);
+	if (open == std::string_view::npos) {
+		next_pos = text.size();
+		return {};
+	}
+	int depth = 0;
+	for (size_t i = open; i < text.size(); ++i) {
+		if (text[i] == '"') {
+			++i;
+			while (i < text.size() && text[i] != '"') {
+				if (text[i] == '\\' && i + 1 < text.size()) {
+					++i;
+				}
+				++i;
+			}
+			continue;
+		}
+		if (text[i] == '(') {
+			++depth;
+		} else if (text[i] == ')') {
+			--depth;
+			if (depth == 0) {
+				next_pos = i + 1;
+				return text.substr(open + 1, i - open - 1);
+			}
+		}
+	}
+	next_pos = text.size();
+	return {};
+}
+
+// Collect identifiers referenced directly in `assert (...)` or `assert property (...)` conditions
+// (excluding any trailing `else $error(...)` diagnostic block).
+void collect_assert_identifiers(std::string_view clean_sv, std::set<std::string> &out)
+{
+	size_t pos = 0;
+	while (pos < clean_sv.size()) {
+		auto m = ctre::search<R"(\bassert\b(?:\s+(?:property|final|#[0-9]+))?\s*\()">(clean_sv.data() + pos,
+		                                                                              clean_sv.data() + clean_sv.size());
+		if (!m) {
+			break;
+		}
+		size_t match_offset = static_cast<size_t>(m.data() - clean_sv.data());
+		size_t paren_pos = match_offset + m.size() - 1;
+		size_t next_pos = clean_sv.size();
+		std::string_view cond = extract_balanced_parens(clean_sv, paren_pos, next_pos);
+		if (!cond.empty()) {
+			collect_identifiers(cond, out);
+		}
+		pos = std::max(next_pos, match_offset + 6);
+	}
+}
+
+// Collect lhs -> rhs identifier dependencies from assignments (`assign x = ...;`, `x = ...;`, `x <= ...;`)
+// and `bind <mod> ... ( .formal_port(actual_expr) );` port remappings in formal property files.
+void collect_formal_dependencies(std::string_view clean_sv,
+                                 std::string_view module_name,
+                                 std::map<std::string, std::set<std::string>> &deps)
+{
+	// 1. Assignments inside the formal file: <lhs> = <rhs>; or <lhs> <= <rhs>;
+	{
+		const char *p = clean_sv.data();
+		const char *end = clean_sv.data() + clean_sv.size();
+		while (p < end) {
+			auto m = ctre::search<R"(\b([a-zA-Z_][a-zA-Z_0-9]*)\s*(?:\[[^\]]*\]\s*)?(?:<=|=(?!=))\s*([^;]+);)">(p, end);
+			if (!m) {
+				break;
+			}
+			std::string lhs = m.get<1>().to_string();
+			std::string_view rhs = m.get<2>().to_view();
+			// Skip keywords like `parameter`/`localparam`? Harmless if recorded, but skip `assert`/`assume`/`cover`
+			if (lhs != "assert" && lhs != "assume" && lhs != "cover" && lhs != "if" && lhs != "else") {
+				collect_identifiers(rhs, deps[lhs]);
+			}
+			p = m.data() + m.size();
+		}
+	}
+
+	// 2. Explicit named port mappings in `bind <module_name> ... ( .formal(actual), ... );`
+	{
+		size_t pos = 0;
+		while (pos < clean_sv.size()) {
+			auto m = ctre::search<R"(\bbind\s+([a-zA-Z_][a-zA-Z_0-9]*)\b)">(clean_sv.data() + pos,
+			                                                                clean_sv.data() + clean_sv.size());
+			if (!m) {
+				break;
+			}
+			size_t match_offset = static_cast<size_t>(m.data() - clean_sv.data());
+			size_t after = match_offset + m.size();
+			if (m.get<1>().to_view() == module_name) {
+				// Skip optional `#(...)` parameter override list before port connection list
+				size_t semi = clean_sv.find(';', after);
+				std::string_view bind_stmt = (semi == std::string_view::npos)
+					? clean_sv.substr(after)
+					: clean_sv.substr(after, semi - after);
+				const char *bp = bind_stmt.data();
+				const char *bend = bind_stmt.data() + bind_stmt.size();
+				while (bp < bend) {
+					auto pm = ctre::search<R"(\.([a-zA-Z_][a-zA-Z_0-9]*)\s*\()">(bp, bend);
+					if (!pm) {
+						break;
+					}
+					std::string formal_port = pm.get<1>().to_string();
+					size_t p_off = static_cast<size_t>(pm.data() - bind_stmt.data()) + pm.size() - 1;
+					size_t next_p = bind_stmt.size();
+					std::string_view actual_expr = extract_balanced_parens(bind_stmt, p_off, next_p);
+					if (!actual_expr.empty()) {
+						collect_identifiers(actual_expr, deps[formal_port]);
+					}
+					bp = bind_stmt.data() + std::max(next_p, static_cast<size_t>(pm.data() - bind_stmt.data()) + 1);
+				}
+			}
+			pos = after;
+		}
+	}
+}
+
 } // namespace
+
+std::vector<std::string> verilog_formal_tool::find_unchecked_output_ports(std::string_view module_name,
+                                                                          std::span<const std::string> rtl_files,
+                                                                          std::span<const std::string> formal_files)
+{
+	auto ports = verilog::verilog_module_scanner::extract_module_ports(module_name, rtl_files);
+	std::vector<std::string> output_ports;
+	for (const auto &pt : ports) {
+		if (pt.direction == "output" || pt.direction == "inout") {
+			output_ports.push_back(pt.name);
+		}
+	}
+	if (output_ports.empty()) {
+		return {};
+	}
+
+	std::set<std::string> asserted_ids;
+	std::map<std::string, std::set<std::string>> deps;
+
+	for (const auto &ff : formal_files) {
+		std::string err;
+		auto mf = mapped_file::get_cached(ff, err, /*populate=*/false);
+		if (!mf) {
+			continue;
+		}
+		std::string clean = verilog::verilog_module_scanner::strip_comments(mf->string_view());
+		collect_assert_identifiers(clean, asserted_ids);
+		collect_formal_dependencies(clean, module_name, deps);
+	}
+
+	// Also scan the module's own RTL file for inline `ifdef FORMAL assertions
+	auto discovered = verilog::verilog_module_scanner::discover_modules_in_files(rtl_files);
+	for (const auto &dm : discovered) {
+		if (dm.module_name == module_name && !dm.source_file.empty()) {
+			std::string err;
+			auto mf = mapped_file::get_cached(dm.source_file, err, /*populate=*/false);
+			if (mf && mf->string_view().find("assert") != std::string_view::npos) {
+				std::string clean = verilog::verilog_module_scanner::strip_comments(mf->string_view());
+				collect_assert_identifiers(clean, asserted_ids);
+			}
+			break;
+		}
+	}
+
+	// Propagate asserted identifiers backward through local helper assignments and bind port remappings
+	bool changed = true;
+	size_t iter = 0;
+	while (changed && iter < 16) {
+		changed = false;
+		++iter;
+		std::vector<std::string> to_add;
+		for (const auto &id : asserted_ids) {
+			auto it = deps.find(id);
+			if (it == deps.end()) {
+				continue;
+			}
+			for (const auto &dep_id : it->second) {
+				if (!asserted_ids.contains(dep_id)) {
+					to_add.push_back(dep_id);
+				}
+			}
+		}
+		if (!to_add.empty()) {
+			changed = true;
+			for (auto &id : to_add) {
+				asserted_ids.insert(std::move(id));
+			}
+		}
+	}
+
+	std::vector<std::string> unchecked;
+	for (const auto &out_port : output_ports) {
+		if (!asserted_ids.contains(out_port)) {
+			unchecked.push_back(out_port);
+		}
+	}
+	return unchecked;
+}
 
 verilog_formal_tool::verilog_formal_tool(verilog_formal_args args)
 	: agentlib::llm_tool_action("Running SymbiYosys formal verification"),
@@ -360,6 +612,7 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 	for (const auto &mod : target_modules) {
 		sby_module_outcome mout;
 		mout.module_name = mod;
+		mout.unchecked_outputs = find_unchecked_output_ports(mod, rtl_files, bindings[mod]);
 
 		// 3. Collect transitive RTL files + bound formal files for this module
 		std::vector<std::string> hier = verilog::verilog_module_scanner::discover_submodule_hierarchy(mod, rtl_files);
@@ -673,6 +926,23 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 			                               mo.module_name, unreached_covers, args_.depth);
 			report << warn;
 			full_report << warn;
+		}
+
+		if (!mo.unchecked_outputs.empty()) {
+			std::string port_list;
+			for (size_t i = 0; i < mo.unchecked_outputs.size(); ++i) {
+				if (i > 0) port_list += ", ";
+				port_list += std::format("`{}`", mo.unchecked_outputs[i]);
+			}
+			std::string note = std::format("\n> [!NOTE] **Unchecked Output Ports (`{}`)**: {} {} not referenced by any `assert` in the bound formal properties. "
+			                               "Audit whether a wrong value on any clock cycle (including reset/idle) would cause an assertion to fail.\n",
+			                               mo.module_name,
+			                               port_list,
+			                               mo.unchecked_outputs.size() == 1 ? "is" : "are");
+			full_report << note;
+			if (proof_passed) {
+				report << note;
+			}
 		}
 
 		for (const auto &t : mo.tasks) {
