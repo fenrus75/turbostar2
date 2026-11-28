@@ -33,6 +33,15 @@ struct formal_pragma_config {
 	std::optional<std::string> mode;
 };
 
+// Static audit finding for a consumer `assume(...)` without a matching producer `assert(...)`.
+struct unpaired_assume_finding {
+	std::string consumer_module;
+	std::string file;
+	int line{0};
+	std::string assume_expr;
+	std::string reason;
+};
+
 class verilog_formal_tool : public agentlib::llm_tool_action
 {
       public:
@@ -67,6 +76,16 @@ class verilog_formal_tool : public agentlib::llm_tool_action
 	// Static audit: returns true if the bound formal property files contain at least one `assume`
 	// constraint but zero `cover` reachability statements (risk of undetected vacuous proofs).
 	static bool has_assumes_without_covers(std::span<const std::string> formal_files);
+
+	// Static audit: traces non-reset `assume(...)` constraints on consumer_module's input ports through
+	// parent RTL instantiations back to driving producer modules and reports any assume lacking a matching
+	// producer `assert(...)` guarantee.
+	static std::vector<unpaired_assume_finding> audit_assume_guarantee_pairs(
+		std::string_view consumer_module,
+		std::span<const std::string> rtl_files,
+		std::span<const std::string> formal_files,
+		const std::string &project_root = ""
+	);
 
       private:
 	verilog_formal_args args_;

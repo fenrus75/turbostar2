@@ -322,6 +322,89 @@ static void test_formal_comment_pragmas_and_precedence()
 	fs::remove_all(tmp_proj);
 }
 
+static void test_assume_guarantee_audit()
+{
+	fs::path tmp_proj = fs::temp_directory_path() / ("test_formal_ag_" + std::to_string(getpid()));
+	fs::remove_all(tmp_proj);
+	fs::create_directories(tmp_proj / "src");
+	fs::create_directories(tmp_proj / "formal");
+
+	fs::path prod_sv = tmp_proj / "src" / "prod_mod.sv";
+	{
+		std::ofstream ofs(prod_sv);
+		ofs << "module prod_mod (input logic clk, input logic rst, output logic op_a, output logic op_b, output logic st_x, output logic st_y);\n"
+		    << "    assign op_a = 1'b0; assign op_b = 1'b0; assign st_x = 1'b0; assign st_y = 1'b0;\n"
+		    << "endmodule\n";
+	}
+	fs::path cons_sv = tmp_proj / "src" / "cons_mod.sv";
+	{
+		std::ofstream ofs(cons_sv);
+		ofs << "module cons_mod (input logic clk, input logic rst, input logic a_in, input logic b_in, input logic x_in, input logic y_in, input logic ext_in);\n"
+		    << "endmodule\n";
+	}
+	fs::path top_sv = tmp_proj / "src" / "top_mod.sv";
+	{
+		std::ofstream ofs(top_sv);
+		ofs << "module top_mod (input logic clk, input logic rst, input logic ext_in);\n"
+		    << "    logic w_a, w_b, w_x, w_y;\n"
+		    << "    prod_mod u_prod (.clk(clk), .rst(rst), .op_a(w_a), .op_b(w_b), .st_x(w_x), .st_y(w_y));\n"
+		    << "    cons_mod u_cons (.clk(clk), .rst(rst), .a_in(w_a), .b_in(w_b), .x_in(w_x), .y_in(w_y), .ext_in(ext_in));\n"
+		    << "endmodule\n";
+	}
+	fs::path cons_props = tmp_proj / "formal" / "cons_mod_props.sv";
+	{
+		std::ofstream ofs(cons_props);
+		ofs << "module cons_mod_props (input logic clk, input logic rst, input logic a_in, input logic b_in, input logic x_in, input logic y_in, input logic ext_in);\n"
+		    << "    logic f_past_valid = 1'b0;\n"
+		    << "    always_ff @(posedge clk) begin if (!f_past_valid) assume (rst); f_past_valid <= 1'b1; end\n"
+		    << "    always_comb if (!rst) begin\n"
+		    << "        assume (!(a_in && b_in));\n"
+		    << "        assume (!(x_in && y_in));\n"
+		    << "        assume (ext_in == 1'b0);\n"
+		    << "    end\n"
+		    << "endmodule\n"
+		    << "bind cons_mod cons_mod_props u_cons_props (.*);\n";
+	}
+	fs::path prod_props = tmp_proj / "formal" / "prod_mod_props.sv";
+	{
+		std::ofstream ofs(prod_props);
+		ofs << "module prod_mod_props (input logic clk, input logic rst, input logic op_a, input logic op_b, input logic st_x, input logic st_y, input logic [1:0] st);\n"
+		    << "    always_ff @(posedge clk) if (!rst) begin\n"
+		    << "        // st_x and st_y are mutually exclusive by distinct state constants, but op_a/op_b have NO assert!\n"
+		    << "        assert (st_x == (st == 2'd1));\n"
+		    << "        assert (st_y == (st == 2'd2));\n"
+		    << "    end\n"
+		    << "endmodule\n"
+		    << "bind prod_mod prod_mod_props u_prod_props (.*);\n";
+	}
+
+	std::vector<std::string> rtl_files = {prod_sv.string(), cons_sv.string(), top_sv.string()};
+	std::vector<std::string> formal_files = {cons_props.string(), prod_props.string()};
+
+	// Should flag ONLY `!(a_in && b_in)` (x_in/y_in matched via state_eq_outputs; ext_in is external; rst is reset)
+	auto gaps = tools::verilog_formal_tool::audit_assume_guarantee_pairs("cons_mod", rtl_files, formal_files, tmp_proj.string());
+	assert(gaps.size() == 1);
+	assert(gaps[0].assume_expr == "!(a_in && b_in)");
+	assert(gaps[0].reason.find("prod_mod") != std::string::npos);
+
+	// Adding matching $countones assert in prod_mod_props closes the gap -> 0 findings
+	{
+		std::ofstream ofs(prod_props, std::ios::trunc);
+		ofs << "module prod_mod_props (input logic clk, input logic rst, input logic op_a, input logic op_b, input logic st_x, input logic st_y, input logic [1:0] st);\n"
+		    << "    always_ff @(posedge clk) if (!rst) begin\n"
+		    << "        assert ($countones({op_a, op_b}) <= 1);\n"
+		    << "        assert (st_x == (st == 2'd1));\n"
+		    << "        assert (st_y == (st == 2'd2));\n"
+		    << "    end\n"
+		    << "endmodule\n"
+		    << "bind prod_mod prod_mod_props u_prod_props (.*);\n";
+	}
+	auto gaps2 = tools::verilog_formal_tool::audit_assume_guarantee_pairs("cons_mod", rtl_files, formal_files, tmp_proj.string());
+	assert(gaps2.empty());
+
+	fs::remove_all(tmp_proj);
+}
+
 int main()
 {
 	test_watchdog::setup_watchdog(30);
@@ -331,6 +414,7 @@ int main()
 	test_sby_path_settings_roundtrip();
 	test_unchecked_output_ports_audit();
 	test_formal_comment_pragmas_and_precedence();
+	test_assume_guarantee_audit();
 
 	std::cout << "PASS: test_verilog_formal\n";
 	return 0;

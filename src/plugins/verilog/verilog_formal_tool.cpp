@@ -57,6 +57,7 @@ struct sby_module_outcome {
 	std::string checked_in_sby_rel; // non-empty if a checked-in formal/<mod>.sby exists on disk
 	std::vector<std::string> unchecked_outputs;
 	bool assumes_without_covers{false};
+	std::vector<unpaired_assume_finding> unpaired_assumes;
 	int effective_depth{20};
 	bool depth_from_pragma{false};
 	std::optional<int> pragma_depth;
@@ -502,6 +503,477 @@ bool verilog_formal_tool::has_assumes_without_covers(std::span<const std::string
 	return has_assume && !has_cover;
 }
 
+std::vector<unpaired_assume_finding> verilog_formal_tool::audit_assume_guarantee_pairs(
+	std::string_view consumer_module,
+	std::span<const std::string> rtl_files,
+	std::span<const std::string> formal_files,
+	const std::string &project_root)
+{
+	std::vector<unpaired_assume_finding> findings;
+
+	// Helper: blank comments while preserving newlines so 1-based line numbers stay exact.
+	auto blank_comments_keep_lines = [](std::string_view raw) -> std::string {
+		std::string out(raw);
+		size_t i = 0;
+		while (i < out.size()) {
+			if (out[i] == '"') {
+				++i;
+				while (i < out.size() && out[i] != '"') {
+					if (out[i] == '\\' && i + 1 < out.size()) ++i;
+					++i;
+				}
+				if (i < out.size()) ++i;
+			} else if (i + 1 < out.size() && out[i] == '/' && out[i + 1] == '/') {
+				while (i < out.size() && out[i] != '\n') {
+					out[i++] = ' ';
+				}
+			} else if (i + 1 < out.size() && out[i] == '/' && out[i + 1] == '*') {
+				out[i++] = ' ';
+				out[i++] = ' ';
+				while (i + 1 < out.size() && !(out[i] == '*' && out[i + 1] == '/')) {
+					if (out[i] != '\n') out[i] = ' ';
+					++i;
+				}
+				if (i + 1 < out.size()) {
+					out[i++] = ' ';
+					out[i++] = ' ';
+				}
+			} else {
+				++i;
+			}
+		}
+		return out;
+	};
+
+	auto compact_ws = [](std::string_view sv) -> std::string {
+		std::string res;
+		res.reserve(sv.size());
+		bool in_ws = false;
+		for (char c : sv) {
+			if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+				if (!res.empty() && !in_ws) {
+					res.push_back(' ');
+					in_ws = true;
+				}
+			} else {
+				res.push_back(c);
+				in_ws = false;
+			}
+		}
+		while (!res.empty() && res.back() == ' ') res.pop_back();
+		return res;
+	};
+
+	struct parsed_stmt {
+		std::string file_rel;
+		int line{0};
+		std::string expr;
+		std::set<std::string> idents;
+	};
+
+	auto collect_keyword_stmts = [&](std::span<const std::string> files, bool is_assume) -> std::vector<parsed_stmt> {
+		std::vector<parsed_stmt> stmts;
+		std::error_code ec;
+		fs::path root_p(project_root);
+		for (const auto &ff : files) {
+			std::string err;
+			auto mf = mapped_file::get_cached(ff, err, /*populate=*/false);
+			if (!mf) continue;
+			std::string clean = blank_comments_keep_lines(mf->string_view());
+			std::string rel = ff;
+			if (!project_root.empty()) {
+				fs::path r = fs::relative(ff, root_p, ec);
+				if (!ec && !r.empty()) rel = r.generic_string();
+				ec.clear();
+			}
+			size_t pos = 0;
+			while (pos < clean.size()) {
+				const char *m_data = nullptr;
+				size_t m_size = 0;
+				if (is_assume) {
+					auto m = ctre::search<R"(\bassume\b(?:\s+(?:property|final|#[0-9]+))?\s*\()">(clean.data() + pos, clean.data() + clean.size());
+					if (!m) break;
+					m_data = m.data();
+					m_size = m.size();
+				} else {
+					auto m = ctre::search<R"(\bassert\b(?:\s+(?:property|final|#[0-9]+))?\s*\()">(clean.data() + pos, clean.data() + clean.size());
+					if (!m) break;
+					m_data = m.data();
+					m_size = m.size();
+				}
+				size_t match_off = static_cast<size_t>(m_data - clean.data());
+				int line_no = 1 + static_cast<int>(std::count(clean.begin(), clean.begin() + static_cast<std::ptrdiff_t>(match_off), '\n'));
+				size_t paren_pos = match_off + m_size - 1;
+				size_t next_pos = clean.size();
+				std::string_view cond = extract_balanced_parens(clean, paren_pos, next_pos);
+				if (!cond.empty()) {
+					parsed_stmt ps;
+					ps.file_rel = rel;
+					ps.line = line_no;
+					ps.expr = compact_ws(cond);
+					collect_identifiers(cond, ps.idents);
+					stmts.push_back(std::move(ps));
+				}
+				pos = std::max(next_pos, match_off + 6);
+			}
+		}
+		return stmts;
+	};
+
+	auto bindings = discover_formal_bindings(formal_files);
+	auto b_it = bindings.find(std::string(consumer_module));
+	if (b_it == bindings.end() || b_it->second.empty()) {
+		return findings;
+	}
+
+	auto consumer_assumes = collect_keyword_stmts(b_it->second, /*is_assume=*/true);
+	if (consumer_assumes.empty()) {
+		return findings;
+	}
+
+	// Collect declared input ports of consumer_module
+	auto c_ports_vec = verilog::verilog_module_scanner::extract_module_ports(consumer_module, rtl_files);
+	std::set<std::string> consumer_inputs;
+	for (const auto &pt : c_ports_vec) {
+		if (pt.direction == "input" || pt.direction == "inout") {
+			consumer_inputs.insert(pt.name);
+		}
+	}
+	if (consumer_inputs.empty()) {
+		return findings;
+	}
+
+	static const std::set<std::string> kResetIdents = {
+		"rst", "rst_n", "reset", "reset_n", "areset", "areset_n", "f_past_valid"
+	};
+
+	// Pre-filter assumes to only non-reset ones referencing at least one consumer input port
+	std::vector<std::pair<parsed_stmt, std::vector<std::string>>> relevant_assumes;
+	for (const auto &st : consumer_assumes) {
+		bool only_reset = true;
+		std::vector<std::string> in_sigs;
+		for (const auto &id : st.idents) {
+			if (!kResetIdents.contains(id)) {
+				only_reset = false;
+			}
+			if (consumer_inputs.contains(id) && !kResetIdents.contains(id)) {
+				in_sigs.push_back(id);
+			}
+		}
+		if (!only_reset && !in_sigs.empty()) {
+			relevant_assumes.emplace_back(st, std::move(in_sigs));
+		}
+	}
+	if (relevant_assumes.empty()) {
+		return findings;
+	}
+
+	// Discover all RTL modules and their port directions to trace parent wiring
+	auto discovered = verilog::verilog_module_scanner::discover_modules_in_files(rtl_files);
+	std::map<std::string, std::map<std::string, std::string>> all_mod_ports;
+	for (const auto &dm : discovered) {
+		if (all_mod_ports.contains(dm.module_name)) continue;
+		auto pts = verilog::verilog_module_scanner::extract_module_ports(dm.module_name, rtl_files);
+		auto &pmap = all_mod_ports[dm.module_name];
+		for (const auto &pt : pts) {
+			pmap[pt.name] = pt.direction;
+		}
+	}
+
+	auto is_simple_ident = [](std::string_view sv) -> bool {
+		if (sv.empty() || !is_ident_start(sv.front())) return false;
+		for (char c : sv) {
+			if (!is_ident_char(c)) return false;
+		}
+		return true;
+	};
+
+	// Map consumer_port -> set of (producer_mod, producer_port) and track parent modules
+	std::map<std::string, std::set<std::pair<std::string, std::string>>> port_to_producers;
+	std::set<std::string> consumer_parents;
+
+	for (const auto &rf : rtl_files) {
+		std::string err;
+		auto mf = mapped_file::get_cached(rf, err, /*populate=*/false);
+		if (!mf) continue;
+		// Quick skip if file doesn't mention consumer_module
+		if (mf->string_view().find(consumer_module) == std::string_view::npos) {
+			continue;
+		}
+		std::string clean = verilog::verilog_module_scanner::strip_comments(mf->string_view());
+
+		// Find each module ... endmodule block in this file
+		size_t mpos = 0;
+		while (mpos < clean.size()) {
+			auto mm = ctre::search<R"(\bmodule\s+([a-zA-Z_][a-zA-Z_0-9]*)\b)">(clean.data() + mpos, clean.data() + clean.size());
+			if (!mm) break;
+			std::string parent_mod = mm.get<1>().to_string();
+			size_t body_start = static_cast<size_t>(mm.data() - clean.data()) + mm.size();
+			auto em = ctre::search<R"(\bendmodule\b)">(clean.data() + body_start, clean.data() + clean.size());
+			size_t body_end = em ? static_cast<size_t>(em.data() - clean.data()) : clean.size();
+			std::string_view body(clean.data() + body_start, body_end - body_start);
+			mpos = em ? (body_end + em.size()) : clean.size();
+
+			if (parent_mod == consumer_module || body.find(consumer_module) == std::string_view::npos) {
+				continue;
+			}
+
+			// Parse all known submodule instantiations inside this parent module
+			struct inst_conns {
+				std::string child_mod;
+				std::map<std::string, std::string> conns;
+			};
+			std::vector<inst_conns> insts;
+			for (const auto &[child_mod, _] : all_mod_ports) {
+				if (child_mod == parent_mod || body.find(child_mod) == std::string_view::npos) {
+					continue;
+				}
+				size_t ipos = 0;
+				while (ipos < body.size()) {
+					size_t hit = body.find(child_mod, ipos);
+					if (hit == std::string_view::npos) break;
+					ipos = hit + child_mod.size();
+					// Ensure word boundary around child_mod
+					if (hit > 0 && is_ident_char(body[hit - 1])) continue;
+					if (ipos < body.size() && is_ident_char(body[ipos])) continue;
+
+					size_t cur = body.find_first_not_of(" \t\r\n", ipos);
+					if (cur == std::string_view::npos) break;
+					// Skip optional #(...) parameter overrides
+					if (body[cur] == '#') {
+						size_t after_p = body.size();
+						extract_balanced_parens(body, cur + 1, after_p);
+						cur = body.find_first_not_of(" \t\r\n", after_p);
+						if (cur == std::string_view::npos) break;
+					}
+					// Expect instance identifier followed by '('
+					if (!is_ident_start(body[cur])) continue;
+					size_t id_end = cur;
+					while (id_end < body.size() && is_ident_char(body[id_end])) ++id_end;
+					std::string_view inst_id = body.substr(cur, id_end - cur);
+					if (inst_id == "module" || inst_id == "endmodule") continue;
+					size_t lp = body.find_first_not_of(" \t\r\n", id_end);
+					if (lp == std::string_view::npos || body[lp] != '(') continue;
+
+					size_t after_ports = body.size();
+					std::string_view port_blob = extract_balanced_parens(body, lp, after_ports);
+					ipos = after_ports;
+
+					inst_conns ic;
+					ic.child_mod = child_mod;
+					size_t pidx = 0;
+					while (pidx < port_blob.size()) {
+						auto pm = ctre::search<R"(\.([a-zA-Z_][a-zA-Z_0-9]*)\s*\()">(port_blob.data() + pidx, port_blob.data() + port_blob.size());
+						if (!pm) break;
+						std::string pname = pm.get<1>().to_string();
+						size_t open_p = static_cast<size_t>(pm.data() - port_blob.data()) + pm.size() - 1;
+						size_t next_p = port_blob.size();
+						std::string_view expr = extract_balanced_parens(port_blob, open_p, next_p);
+						size_t s = expr.find_first_not_of(" \t\r\n");
+						size_t e = expr.find_last_not_of(" \t\r\n");
+						if (s != std::string_view::npos) {
+							ic.conns[pname] = std::string(expr.substr(s, e - s + 1));
+						}
+						pidx = std::max(next_p, open_p + 1);
+					}
+					if (!ic.conns.empty()) {
+						insts.push_back(std::move(ic));
+					}
+				}
+			}
+
+			// Build wire -> driving (child_mod, port) map in this parent
+			std::map<std::string, std::vector<std::pair<std::string, std::string>>> wire_drivers;
+			for (const auto &ic : insts) {
+				const auto &pmap = all_mod_ports[ic.child_mod];
+				for (const auto &[pname, expr] : ic.conns) {
+					auto dit = pmap.find(pname);
+					if (dit != pmap.end() && (dit->second == "output" || dit->second == "inout") && is_simple_ident(expr)) {
+						wire_drivers[expr].emplace_back(ic.child_mod, pname);
+					}
+				}
+			}
+			for (const auto &ic : insts) {
+				if (ic.child_mod != consumer_module) continue;
+				consumer_parents.insert(parent_mod);
+				const auto &pmap = all_mod_ports[ic.child_mod];
+				for (const auto &[pname, expr] : ic.conns) {
+					auto dit = pmap.find(pname);
+					if (dit != pmap.end() && dit->second == "input" && is_simple_ident(expr)) {
+						auto wit = wire_drivers.find(expr);
+						if (wit != wire_drivers.end()) {
+							for (const auto &drv : wit->second) {
+								if (drv.first != consumer_module) {
+									port_to_producers[pname].insert(drv);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Cache producer asserts and state-equality output definitions: port -> (state_var, const_name)
+	struct producer_assert_info {
+		bool has_formal_files{false};
+		std::vector<parsed_stmt> asserts;
+		std::map<std::string, std::pair<std::string, std::string>> state_eq_outputs;
+	};
+	std::map<std::string, producer_assert_info> producer_cache;
+
+	auto get_producer_info = [&](const std::string &pmod) -> const producer_assert_info & {
+		auto it = producer_cache.find(pmod);
+		if (it != producer_cache.end()) return it->second;
+		producer_assert_info info;
+		auto pb = bindings.find(pmod);
+		if (pb != bindings.end() && !pb->second.empty()) {
+			info.has_formal_files = true;
+			info.asserts = collect_keyword_stmts(pb->second, /*is_assume=*/false);
+			for (const auto &as : info.asserts) {
+				// Recognize mutually-exclusive state-equality asserts like:
+				// `in_exec == (state_out == ST_EXEC)` or `retire_en == (state_out == ST_RETIRE)`
+				if (auto sm = ctre::match<R"(([a-zA-Z_][a-zA-Z_0-9]*)\s*==\s*\(\s*([a-zA-Z_][a-zA-Z_0-9]*)\s*==\s*([a-zA-Z_0-9']+?)\s*\))">(as.expr)) {
+					info.state_eq_outputs[sm.get<1>().to_string()] = {sm.get<2>().to_string(), sm.get<3>().to_string()};
+				}
+			}
+		}
+		return producer_cache.emplace(pmod, std::move(info)).first->second;
+	};
+
+	auto is_mutex_expr = [](std::string_view expr) -> bool {
+		if (expr.find("$countones") != std::string_view::npos && expr.find("<= 1") != std::string_view::npos) {
+			return true;
+		}
+		if (ctre::search<R"(!\s*\([^)]*&&[^)]*\))">(expr)) {
+			return true;
+		}
+		return false;
+	};
+
+	auto join_backtick = [](const std::set<std::string> &items) -> std::string {
+		std::string s;
+		bool first = true;
+		for (const auto &it : items) {
+			if (!first) s += ", ";
+			first = false;
+			s += std::format("`{}`", it);
+		}
+		return s;
+	};
+
+	// Evaluate each consumer assume
+	for (const auto &[st, in_sigs] : relevant_assumes) {
+		std::set<std::string> producers;
+		std::map<std::string, std::set<std::string>> producer_ports;
+		for (const auto &sig : in_sigs) {
+			auto pit = port_to_producers.find(sig);
+			if (pit != port_to_producers.end()) {
+				for (const auto &[pmod, pport] : pit->second) {
+					producers.insert(pmod);
+					producer_ports[pmod].insert(pport);
+				}
+			}
+		}
+
+		// External / top-level boundary inputs (no driving RTL submodule) are expected to have unpaired assumes.
+		if (producers.empty()) {
+			continue;
+		}
+
+		if (producers.size() == 1) {
+			const std::string &pmod = *producers.begin();
+			const auto &expected_ports = producer_ports[pmod];
+			const auto &pinfo = get_producer_info(pmod);
+
+			if (!pinfo.has_formal_files) {
+				findings.push_back({
+					std::string(consumer_module),
+					st.file_rel,
+					st.line,
+					st.expr,
+					std::format("Producer `{}` has no `formal/{}_props.sv` to guarantee {}", pmod, pmod, join_backtick(expected_ports))
+				});
+				continue;
+			}
+
+			// 1. Direct match: any single assert in producer covers all expected_ports
+			bool matched = false;
+			for (const auto &as : pinfo.asserts) {
+				bool covers_all = true;
+				for (const auto &ep : expected_ports) {
+					if (!as.idents.contains(ep)) {
+						covers_all = false;
+						break;
+					}
+				}
+				if (covers_all) {
+					matched = true;
+					break;
+				}
+			}
+
+			// 2. Implicit mutual exclusion: for mutex assumes, check if producer asserts
+			//    `port_i == (same_state_var == distinct_const_i)` for every port in expected_ports
+			if (!matched && is_mutex_expr(st.expr) && expected_ports.size() >= 2) {
+				std::string common_var;
+				std::set<std::string> seen_consts;
+				bool all_state_eq = true;
+				for (const auto &ep : expected_ports) {
+					auto sit = pinfo.state_eq_outputs.find(ep);
+					if (sit == pinfo.state_eq_outputs.end()) {
+						all_state_eq = false;
+						break;
+					}
+					if (common_var.empty()) {
+						common_var = sit->second.first;
+					} else if (common_var != sit->second.first) {
+						all_state_eq = false;
+						break;
+					}
+					if (!seen_consts.insert(sit->second.second).second) {
+						all_state_eq = false;
+						break;
+					}
+				}
+				if (all_state_eq && seen_consts.size() == expected_ports.size()) {
+					matched = true;
+				}
+			}
+
+			if (!matched) {
+				findings.push_back({
+					std::string(consumer_module),
+					st.file_rel,
+					st.line,
+					st.expr,
+					std::format("Producer `{}` has no matching `assert` covering {}", pmod, join_backtick(expected_ports))
+				});
+			}
+		} else {
+			// Spans multiple producers: check if any parent module has a formal property file covering it
+			bool parent_has_formal = false;
+			for (const auto &par : consumer_parents) {
+				if (bindings.contains(par) && !bindings[par].empty()) {
+					parent_has_formal = true;
+					break;
+				}
+			}
+			if (!parent_has_formal) {
+				findings.push_back({
+					std::string(consumer_module),
+					st.file_rel,
+					st.line,
+					st.expr,
+					std::format("Spans multiple producers ({}) with no parent-level formal `assert`", join_backtick(producers))
+				});
+			}
+		}
+	}
+
+	return findings;
+}
+
 formal_pragma_config verilog_formal_tool::parse_formal_pragmas(std::span<const std::string> formal_files)
 {
 	formal_pragma_config cfg;
@@ -816,6 +1288,7 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 		mout.module_name = mod;
 		mout.unchecked_outputs = find_unchecked_output_ports(mod, rtl_files, bindings[mod]);
 		mout.assumes_without_covers = has_assumes_without_covers(bindings[mod]);
+		mout.unpaired_assumes = audit_assume_guarantee_pairs(mod, rtl_files, formal_files, root_path.string());
 
 		formal_pragma_config pragma = parse_formal_pragmas(bindings[mod]);
 		int mod_depth = args_.depth;
@@ -1182,6 +1655,18 @@ std::string verilog_formal_tool::execute(agentlib::tool_context &ctx)
 			full_report << note;
 			if (proof_passed) {
 				report << note;
+			}
+		}
+
+		if (!mo.unpaired_assumes.empty()) {
+			std::ostringstream note;
+			note << std::format("\n> [!NOTE] **Unpaired `assume()` Guarantee Gap (`{}`)**:\n", mo.module_name);
+			for (const auto &ua : mo.unpaired_assumes) {
+				note << std::format("> - `{}:{}`: `assume ({})` — {}\n", ua.file, ua.line, ua.assume_expr, ua.reason);
+			}
+			full_report << note.str();
+			if (proof_passed) {
+				report << note.str();
 			}
 		}
 
