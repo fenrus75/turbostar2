@@ -842,10 +842,10 @@ system_vfs_provider::system_vfs_provider()
 		return ss.str();
 	});
 
-	// Static Template: system://verilog/formal_template.sv
-	register_description("verilog/formal_template.sv",
+	// Static Template: system://verilog/formal_template_props.sv
+	register_description("verilog/formal_template_props.sv",
 	                     "Annotated SystemVerilog formal property starter template (*_props.sv) for verilog_formal / SymbiYosys + Verilator.");
-	register_generator("verilog/formal_template.sv", [](const std::string &) -> std::string {
+	register_generator("verilog/formal_template_props.sv", [](const std::string &) -> std::string {
 		return R"SV(// formal/<module>_props.sv
 // formal: depth=20 timeout=60 solver=bitwuzla // optional per-module pragma (overridden by explicit verilog_formal args)
 // Starter template for SymbiYosys (read_slang) + Verilator (--assert) formal property modules.

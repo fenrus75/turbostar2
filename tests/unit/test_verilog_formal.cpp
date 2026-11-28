@@ -302,9 +302,9 @@ static void test_formal_comment_pragmas_and_precedence()
 	// Second call in the same session is suppressed for token efficiency
 	assert(tools::verilog_formal_tool::maybe_format_depth_pragma_hint(30, "formal/mul_mod_props.sv").empty());
 
-	// Verify system://verilog/formal_template.sv is served via VFS
+	// Verify system://verilog/formal_template_props.sv is served via VFS
 	turbostar::system_vfs_provider vfs;
-	auto tmpl_handle = vfs.read_file("system://verilog/formal_template.sv");
+	auto tmpl_handle = vfs.read_file("system://verilog/formal_template_props.sv");
 	assert(tmpl_handle.has_value() && *tmpl_handle != nullptr);
 	std::string_view tmpl_content = (*tmpl_handle)->view();
 	assert(tmpl_content.find("// formal: depth=20") != std::string_view::npos);
